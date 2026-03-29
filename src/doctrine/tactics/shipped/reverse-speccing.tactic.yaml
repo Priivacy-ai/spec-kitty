@@ -1,0 +1,86 @@
+schema_version: "1.0"
+id: reverse-speccing
+name: Reverse Specification from Tests
+purpose: >
+  Reconstruct system understanding purely from test code, then compare against
+  actual implementation and design docs. Measures how effectively tests serve as
+  executable specifications. Gaps between reconstruction and reality reveal
+  under-documented behavior, missing architectural rationale, or invisible
+  operational context.
+steps:
+  - title: Select target scope
+    description: >
+      Choose a cohesive module or subsystem with 50-100 tests. Scope too
+      broadly and signal drowns in noise; scope too narrowly and
+      reconstruction is trivial.
+    examples:
+      - "Target: the merge module (preflight, state, executor) — 60 tests."
+  - title: Reconstruct from tests only (naive pass)
+    description: >
+      Read all test files in scope without consulting implementation code,
+      docs, or ADRs. For each test, extract: what component is exercised,
+      what behavior is asserted, what edge cases are covered, what workflows
+      are implied. Document inferences and uncertainties.
+  - title: Produce the reconstruction narrative
+    description: >
+      Write a system behavior summary answering: what does this module do,
+      what are the core components, what workflows does it support, what
+      data structures exist, what error conditions are handled. Flag areas
+      of low confidence.
+  - title: Compare against ground truth (expert pass)
+    description: >
+      Read the actual implementation, ADRs, and design docs. Score the
+      reconstruction across three dimensions:
+      behavioral accuracy (what it does, weight 50%),
+      architectural accuracy (why it is designed this way, weight 30%),
+      operational accuracy (how it runs in production, weight 20%).
+  - title: Identify gaps and classify severity
+    description: >
+      For each discrepancy between reconstruction and reality, classify as:
+      design rationale gap (tests show what but not why — add ADR reference),
+      operational context gap (runtime behavior unclear — add scenario test),
+      security boundary gap (trust model invisible — add clarifying test or comment),
+      behavioral gap (behavior undocumented — add missing test).
+  - title: Produce improvement recommendations
+    description: >
+      Prioritize fixes by impact: missing tests for critical behavior first,
+      then ADR references for design rationale, then operational context.
+      Each recommendation should be a concrete action, not a vague suggestion.
+    examples:
+      - "Add ADR-006 reference to test_merge_state_persistence docstring."
+      - "Add scenario test for interrupted merge recovery (operational gap)."
+scoring:
+  target_thresholds:
+    behavioral: ">= 90%"
+    architectural: ">= 80%"
+    operational: ">= 75%"
+    overall: ">= 85%"
+  formula: "(behavioral * 0.5) + (architectural * 0.3) + (operational * 0.2)"
+common_gaps:
+  - gap: Design rationale
+    symptom: "Tests show 'what' but not 'why'"
+    fix: "Add ADR reference in test docstring or module docstring"
+  - gap: Operational context
+    symptom: "Runtime behavior (cron, scaling, recovery) unclear from tests"
+    fix: "Add scenario test for deployment or recovery path"
+  - gap: Security boundaries
+    symptom: "Trust model invisible in test suite"
+    fix: "Add inline comment or dedicated boundary test"
+  - gap: Performance expectations
+    symptom: "No sense of scale or throughput from tests"
+    fix: "Add performance boundary test with explicit thresholds"
+failure_modes:
+  - "Analyzing the entire codebase at once: too noisy, scope to cohesive modules."
+  - "Naive pass reads implementation code: inflates accuracy, defeats the purpose."
+  - "One-time exercise without follow-up: outputs stale within a quarter."
+  - "Scoring without a rubric: subjective assessments drift over time."
+references:
+  - type: tactic
+    id: acceptance-test-first
+    reason: Reverse speccing validates that ATDD tests effectively document acceptance criteria.
+  - type: tactic
+    id: test-boundaries-by-responsibility
+    reason: Well-defined test boundaries make reconstruction clearer.
+  - type: tactic
+    id: code-review-incremental
+    reason: Reviewers can apply lightweight reverse speccing during review to check test documentation quality.

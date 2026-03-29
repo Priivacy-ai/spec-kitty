@@ -1,0 +1,116 @@
+schema_version: "1.0"
+id: testing-select-appropriate-level
+name: Select Appropriate Test Level
+purpose: >
+  Choose the right test level (unit, integration, system) for a change based on
+  scope of impact, risk of failure, and feedback cost. Avoids both over-testing
+  low-risk changes and under-testing high-risk ones. Grounded in the test pyramid
+  model where ROI decreases as test scope widens.
+test_pyramid:
+  description: >
+    The test pyramid is a cost-and-confidence model for distributing test effort.
+    Each layer trades off speed, isolation, and maintenance cost against the
+    breadth of confidence it provides. The shape is intentional: invest heavily
+    in cheap, fast tests at the base; use expensive, slow tests sparingly at the
+    top for end-to-end confidence that lower layers cannot provide.
+  layers:
+    - level: unit
+      proportion: "many (base of pyramid)"
+      execution_time: "<10ms per test"
+      maintenance_cost: low
+      feedback_speed: immediate (seconds)
+      isolation: high — single function or class, external dependencies stubbed
+      confidence: "proves individual components work correctly in isolation"
+      roi: >
+        Highest ROI. Cheapest to write, fastest to run, easiest to maintain.
+        A failing unit test pinpoints the exact broken component. The bulk of
+        regression prevention comes from this layer.
+    - level: integration
+      proportion: "some (middle of pyramid)"
+      execution_time: "10ms-1s per test"
+      maintenance_cost: moderate
+      feedback_speed: fast (seconds to low minutes)
+      isolation: moderate — tests real component interactions, stubs external systems
+      confidence: "proves components collaborate correctly across boundaries"
+      roi: >
+        Moderate ROI. More expensive to set up (fixtures, state, real dependencies)
+        and slower to run, but catches interaction bugs that unit tests miss.
+        Worth the cost when components cross module or service boundaries.
+    - level: system (E2E / acceptance)
+      proportion: "few (top of pyramid)"
+      execution_time: "seconds to minutes per test"
+      maintenance_cost: high
+      feedback_speed: slow (minutes)
+      isolation: low — exercises the full stack through public interfaces
+      confidence: "proves user-visible workflows work end to end"
+      roi: >
+        Lowest ROI per test, but uniquely valuable. Only this layer proves the
+        system works as a whole from the user's perspective. Keep the count low:
+        each E2E test is expensive to write, slow to run, and brittle to maintain.
+        A failing E2E test is hard to diagnose — use it for critical happy paths
+        and high-risk boundary scenarios, not for exhaustive coverage.
+  anti_pyramid:
+    name: Ice Cream Cone
+    description: >
+      The inverted pyramid (many E2E, few unit tests) is the most common
+      anti-pattern. Symptoms: slow CI pipelines, flaky tests, long feedback
+      loops, tests that break on unrelated changes, and teams that stop
+      trusting the test suite. Fix by pushing coverage down: for every flaky
+      E2E test, ask what unit or integration test would catch the same
+      regression faster and more reliably.
+  cost_of_wrong_level:
+    over_testing: >
+      Writing E2E tests for logic that a unit test covers wastes CI time,
+      increases flakiness, and slows developer feedback. The marginal
+      confidence gain does not justify the maintenance burden.
+    under_testing: >
+      Relying only on unit tests misses integration failures (wrong
+      assumptions about interfaces, serialization bugs, missing migrations).
+      The bug ships because no test exercises the real interaction.
+    balanced_investment: >
+      The pyramid is not a rigid ratio — it is a cost signal. Invest in the
+      cheapest test that catches each category of bug. Move up a layer only
+      when the lower layer cannot provide the needed confidence.
+steps:
+  - title: Identify the change
+    description: State what is being introduced or modified in one sentence.
+  - title: Assess scope of impact
+    description: >
+      Classify the change as local (single function or class), cross-module (multiple components or services),
+      or system-wide (affects user-visible behavior or data flow).
+  - title: Evaluate risk of failure
+    description: >
+      Rate as high (data loss, security, correctness of critical logic),
+      medium (degraded UX, maintainability, performance),
+      or low (cosmetic, easily reversible).
+  - title: Map change to test levels
+    description: >
+      Unit tests for isolated logic and algorithms.
+      Integration tests for interactions between components.
+      System tests for end-to-end behavior and user scenarios.
+    examples:
+      - "Local scope + low risk = unit tests only."
+      - "Cross-module + high risk = unit + integration tests."
+      - "System-wide + high risk = all three levels."
+  - title: Select the minimal sufficient set
+    description: Choose the fewest test levels that provide confidence proportional to the risk. Do not default to a single level for all changes.
+  - title: Document what is not tested and why
+    description: Explicitly state any untested areas and the rationale for accepting that gap.
+    examples:
+      - "Performance under concurrent load is not tested; risk is low and manual profiling covers it."
+failure_modes:
+  - "Defaulting to one test level for all changes (always unit tests or always E2E)."
+  - "Over-testing low-risk changes, wasting effort and slowing feedback."
+  - "Relying solely on E2E tests: slow, brittle, hard to debug."
+  - "Under-testing high-risk changes due to time pressure."
+  - "Refactoring with no behavior change but writing new tests instead of relying on existing coverage."
+references:
+  - type: tactic
+    id: test-boundaries-by-responsibility
+    reason: Once the level is chosen, this tactic determines what to mock vs test real within that level.
+  - type: tactic
+    id: test-pyramid-progression
+    reason: After tests are written, execution follows pyramid order (fast first, stop at first failing layer).
+  - type: tactic
+    id: acceptance-test-first
+    reason: System-level tests align with acceptance criteria defined by ATDD.

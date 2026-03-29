@@ -31,7 +31,7 @@ _TEMPLATES_DIR = DOCTRINE_DIR / "templates"
 # Artifact type → (directory, glob pattern) for resolution scanning.
 # Styleguides use recursive glob because subdirectories are allowed.
 ARTIFACT_DIRS: dict[str, list[tuple[Path, str]]] = {
-    "tactic": [(d, "*.tactic.yaml") for d in _TACTICS_DIRS],
+    "tactic": [(d, "**/*.tactic.yaml") for d in _TACTICS_DIRS],
     "styleguide": [
         (DOCTRINE_DIR / "styleguides" / d, pat)
         for d in _SHIPPED_SUBDIRS
@@ -68,7 +68,7 @@ def _collect_tactic_files() -> list[Path]:
     results: list[Path] = []
     for d in _TACTICS_DIRS:
         if d.exists():
-            results.extend(d.glob("*.tactic.yaml"))
+            results.extend(d.rglob("*.tactic.yaml"))
     return sorted(set(results))
 
 

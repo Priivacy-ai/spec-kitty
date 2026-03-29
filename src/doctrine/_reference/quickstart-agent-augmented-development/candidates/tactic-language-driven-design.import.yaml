@@ -1,0 +1,37 @@
+id: "imp-quickstart-language-driven-design"
+source:
+  title: "Approach: Language-First Architecture"
+  type: "approach"
+  publisher: "quickstart_agent-augmented-development"
+  path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/approaches/language-first-architecture.md"
+  accessed_on: "2026-03-28"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    Treats language drift as an architectural signal. Same term with different
+    meanings = hidden bounded context boundary. Different terms for same concept
+    = fragmented understanding. Reviewers use linguistic checks to catch
+    architectural issues before they manifest as coupling.
+adaptation:
+  summary: >
+    Condensed from a full approach document into a spec-kitty tactic YAML with
+    5 actionable steps for reviewers. The source covers organizational governance,
+    agentic feasibility, and success metrics — we extracted the reviewer-actionable
+    core: detect, classify, assess, recommend, update glossary.
+  notes:
+    - "Source is broad (organizational + agentic); our tactic focuses on code review context."
+    - "Linguistic conflict types table is the key classification framework."
+    - "Cross-references directive 032 (conceptual alignment) and directive 001 (architectural integrity)."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/approaches/language-first-architecture.md"
+    lines: "1-280"
+    note: "Full approach document with core principles and failure modes."
+external_references:
+  - title: "Ubiquitous Language (SDD Patterns)"
+    url: "https://patterns.sddevelopment.be/practices/ubiquitous_language/"
+    extraction_action: none
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/_proposed/language-driven-design.tactic.yaml"

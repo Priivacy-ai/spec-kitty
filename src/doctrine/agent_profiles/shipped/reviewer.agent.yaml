@@ -17,8 +17,19 @@ context-sources:
   doctrine-layers:
     - paradigms
     - directives
+    - tactics
+    - toolguides
   directives:
     - "001"
+    - "024"
+    - "030"
+    - "032"
+  tactics:
+    - code-review-incremental
+    - language-driven-design
+    - reverse-speccing
+  toolguides:
+    - python-review-checks
   additional:
     - review-checklist
     - security-guidelines
@@ -58,6 +69,8 @@ collaboration:
   operating-procedures:
     - code-review-checklist
     - security-review-process
+    - reverse-speccing
+    - language-driven-design-review
   canonical-verbs:
     - review
     - approve
@@ -122,3 +135,24 @@ directive-references:
   - code: "001"
     name: Architectural Integrity Standard
     rationale: Reviews must enforce clear component boundaries and flag coupling violations before merge
+  - code: "024"
+    name: Locality of Change
+    rationale: Flag changes that expand scope beyond the stated task objective
+  - code: "030"
+    name: Test and Typecheck Quality Gate
+    rationale: Verify tests pass and static analysis gates are green before approving
+  - code: "032"
+    name: Conceptual Alignment
+    rationale: Terminology in code and docs must align with the project glossary — language drift signals architectural drift
+
+tactic-references:
+  - id: code-review-incremental
+    rationale: Structured review discipline — read intent first, identify risks by category, formulate observations not instructions
+  - id: language-driven-design
+    rationale: Detect terminology conflicts in diffs as early signals of architectural problems or missing bounded context boundaries
+  - id: reverse-speccing
+    rationale: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
+
+toolguide-references:
+  - id: python-review-checks
+    rationale: Catalog of automated checks (ruff, mypy, bandit, pip-audit, import-linter, etc.) to run or verify before approving Python code

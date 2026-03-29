@@ -1,7 +1,11 @@
 schema_version: "1.0"
 id: test-pyramid-progression
 name: Test Pyramid Progression
-purpose: Run tests bottom-up through layers to get fast feedback and avoid wasting time on slow tests when fast tests fail.
+purpose: >
+  Run tests bottom-up through pyramid layers to get fast feedback and avoid
+  wasting time on slow tests when fast tests fail. The execution order mirrors
+  the ROI order: the cheapest, fastest tests run first because they catch the
+  most bugs per second of CI time.
 steps:
   - title: Run fast unit tests first
     description: Execute all tests marked `fast` before anything else. These tests are cheap, isolated, and provide the quickest signal on regressions.
@@ -24,6 +28,20 @@ steps:
     examples:
       - "pytest tests/ -m distribution -q  # release validation only"
   - title: Stop at first failing layer
-    description: If any layer fails, do not proceed to the next. Fix the failures at the current layer first. This prevents masking failures with noise from upper layers.
+    description: >
+      If any layer fails, do not proceed to the next. Fix the failures at the
+      current layer first. This prevents masking failures with noise from upper
+      layers and avoids wasting CI time on expensive tests when cheap tests
+      already signal a problem.
     examples:
       - "If `-m fast` reports failures, fix them before running `-m git_repo`."
+rationale: >
+  The stop-at-first-failure rule is an ROI discipline: a failing unit test
+  identifies the broken component in seconds. Running the full E2E suite on top
+  of a known unit failure wastes minutes and produces confusing secondary
+  failures. Fix cheap signals first; escalate to expensive signals only when
+  the cheap ones are green.
+references:
+  - type: tactic
+    id: testing-select-appropriate-level
+    reason: The level-selection tactic decides what tests to write; this tactic decides the order to run them.
