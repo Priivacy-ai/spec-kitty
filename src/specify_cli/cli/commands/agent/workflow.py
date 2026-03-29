@@ -381,10 +381,17 @@ def implement(
             _wf_events = _wf_read_events(_wf_feature_dir)
             _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
             _wf_state = _wf_snapshot.work_packages.get(normalized_wp_id) if _wf_snapshot else None
-            current_lane = str(_wf_state.get("lane", "planned")) if _wf_state else "planned"
+            if _wf_state is not None:
+                current_lane = str(_wf_state.get("lane", "planned"))
+            else:
+                # No event log state — fall back to frontmatter lane (migration period read-only)
+                current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
         except Exception:
-            # Event log missing or unreadable — default to planned (safe: requires --agent)
-            current_lane = "planned"
+            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
+            current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
+        # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
+        if current_lane == "in_progress":
+            current_lane = "doing"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
 
@@ -409,7 +416,21 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Update operational metadata in frontmatter (lane is event-log-only)
+            # Emit status event (canonical lane authority)
+            try:
+                from specify_cli.status.emit import emit_status_transition
+                _impl_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+                emit_status_transition(
+                    feature_dir=_impl_feature_dir,
+                    feature_slug=feature_slug,
+                    wp_id=normalized_wp_id,
+                    to_lane="in_progress",
+                    actor=agent or "unknown",
+                )
+            except Exception as _evt_err:
+                logger.debug("Could not emit status event: %s", _evt_err)
+
+            # Update operational metadata in frontmatter (NO lane — event log is sole authority)
             updated_front = wp.frontmatter
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
@@ -892,19 +913,18 @@ def review(
             _rv_events = _rv_read_events(feature_dir)
             _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
             _rv_state = _rv_snapshot.work_packages.get(normalized_wp_id) if _rv_snapshot else None
-            if _rv_state is None:
-                # No event log state for this WP — cannot determine lane, fail closed
-                print(f"Error: No canonical status found for {normalized_wp_id}.")
-                print("The event log is missing or does not contain events for this WP.")
-                print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
-                raise typer.Exit(1)
-            current_lane_raw = str(_rv_state.get("lane", "planned"))
+            if _rv_state is not None:
+                current_lane_raw = str(_rv_state.get("lane", "planned"))
+            else:
+                # No event log state — fall back to frontmatter lane (migration period read-only)
+                current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
+                current_lane_raw = str(current_lane_raw)
         except typer.Exit:
             raise
-        except Exception as exc:
-            print(f"Error: Cannot read canonical status for {normalized_wp_id}: {exc}")
-            print("Fix the event log or use move-task to set the correct lane.")
-            raise typer.Exit(1)
+        except Exception:
+            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
+            current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
+            current_lane_raw = str(current_lane_raw)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
