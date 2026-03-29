@@ -1,0 +1,28 @@
+schema_version: "1.0"
+generated_at: "2025-06-01T12:00:00Z"
+task_types:
+  - id: code-generation
+    title: Code Generation
+models:
+  - id: gpt-4o
+    provider: openai
+    task_fit:
+      - task_type: code-generation
+        score: 0.9
+    cost:
+      tier: high
+routing_policy:
+  objective: balanced
+  weights:
+    quality: 0.4
+    cost: 0.3
+    risk: 0.2
+    latency: 0.1
+  override_policy:
+    mode: advisory
+    require_reason: false
+sources:
+  - name: OpenAI pricing page
+    url: https://openai.com/pricing
+    access_method: manual
+    snapshot_at: "2025-06-01T00:00:00Z"

@@ -49,17 +49,12 @@ definitions:
         - toolguide
         - paradigm
         - procedure
+        - agent_profile
+        - mission_step_contract
         - template
-        description: Doctrine artifact type being referenced.
       id:
         type: string
         minLength: 1
-  enforcement:
-    type: string
-    enum:
-    - required
-    - lenient-adherence
-    - advisory
 properties:
   id:
     type: string
@@ -74,7 +69,12 @@ properties:
     type: string
     minLength: 1
   enforcement:
-    $ref: '#/definitions/enforcement'
+    type: string
+    minLength: 1
+    enum:
+    - required
+    - lenient-adherence
+    - advisory
   tactic_refs:
     type: array
     items:

@@ -1,0 +1,29 @@
+# Invalid: score out of range (must be 0-1), bad task_type pattern
+schema_version: "1.0"
+generated_at: "2025-06-01T12:00:00Z"
+task_types:
+  - id: Code-Gen
+    title: Code Generation
+models:
+  - id: gpt-4o
+    provider: openai
+    task_fit:
+      - task_type: Code-Gen
+        score: 1.5
+    cost:
+      tier: ultra
+routing_policy:
+  objective: fastest
+  weights:
+    quality: 0.4
+    cost: 0.3
+    risk: 0.2
+    latency: 0.1
+  override_policy:
+    mode: advisory
+    require_reason: false
+sources:
+  - name: test
+    url: https://example.com
+    access_method: manual
+    snapshot_at: "2025-06-01T00:00:00Z"

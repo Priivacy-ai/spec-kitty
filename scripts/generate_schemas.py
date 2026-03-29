@@ -53,9 +53,13 @@ def _schema_id(stem: str) -> str:
     return f"https://spec-kitty.dev/schemas/doctrine/{stem}.schema.yaml"
 
 
-# Each entry: (module_path, class_name, title, description, extra_transforms)
+# Each entry: (module_path, class_name, title, description, extra_transforms,
+#               use_aliases)
 # extra_transforms is a callable(schema) → schema for per-type fixups.
-REGISTRY: dict[str, tuple[str, str, str, str, Any]] = {}
+REGISTRY: dict[str, tuple[str, str, str, str, Any, bool]] = {}
+
+# Custom generators for schemas that cannot use the standard pipeline.
+CUSTOM_GENERATORS: dict[str, Any] = {}
 
 
 def register(
@@ -65,8 +69,15 @@ def register(
     title: str,
     description: str,
     extra: Any = None,
+    *,
+    by_alias: bool = False,
 ) -> None:
-    REGISTRY[stem] = (module, cls, title, description, extra)
+    REGISTRY[stem] = (module, cls, title, description, extra, by_alias)
+
+
+def register_custom(stem: str, generator: Any) -> None:
+    """Register a fully custom schema generator function."""
+    CUSTOM_GENERATORS[stem] = generator
 
 
 # --- Paradigm ---
@@ -229,6 +240,330 @@ register(
 )
 
 
+# --- Mission ---
+def _mission_fixups(schema: dict) -> dict:
+    """Convert anyOf → oneOf for state items (string | object union)."""
+    defs = schema.get("definitions", {})
+    orch = defs.get("mission_orchestration", {})
+    orch_props = orch.get("properties", {})
+    if "states" in orch_props:
+        states = orch_props["states"]
+        items = states.get("items", {})
+        # Pydantic generates anyOf for str | MissionStateObject; schema uses oneOf
+        if "anyOf" in items:
+            items["oneOf"] = items.pop("anyOf")
+    return schema
+
+
+register(
+    "mission",
+    "doctrine.missions.models",
+    "Mission",
+    "Mission",
+    "Minimal schema for doctrine mission definitions.",
+    extra=_mission_fixups,
+    by_alias=True,
+)
+
+
+# --- Model-to-task_type ---
+def _model_task_fixups(schema: dict) -> dict:
+    """Add format/description annotations matching the hand-written schema."""
+    props = schema.get("properties", {})
+    if "generated_at" in props:
+        props["generated_at"]["format"] = "date-time"
+    if "source_snapshot" in props:
+        props["source_snapshot"]["description"] = (
+            "Optional source snapshot ID/hash for traceability."
+        )
+    # Add format: uri to cost.pricing_source_url
+    defs = schema.get("definitions", {})
+    cost_def = defs.get("model_cost", {})
+    cost_props = cost_def.get("properties", {})
+    if "pricing_source_url" in cost_props:
+        cost_props["pricing_source_url"]["format"] = "uri"
+    # Add format: uri and format: date-time to data_source fields
+    ds_def = defs.get("data_source", {})
+    ds_props = ds_def.get("properties", {})
+    if "url" in ds_props:
+        ds_props["url"]["format"] = "uri"
+    if "snapshot_at" in ds_props:
+        ds_props["snapshot_at"]["format"] = "date-time"
+    # Add default: USD to cost.currency
+    if "currency" in cost_props:
+        cost_props["currency"]["default"] = "USD"
+    return schema
+
+
+register(
+    "model-to-task_type",
+    "doctrine.model_task_routing.models",
+    "ModelToTaskType",
+    "Model-to-Task Type Mapping",
+    "Catalog of model capabilities, costs, and routing policy for task assignment.",
+    extra=_model_task_fixups,
+)
+
+
+# --- Agent Profile ---
+def _agent_profile_fixups(schema: dict) -> dict:
+    """Add descriptions matching the hand-written schema."""
+    props = schema.get("properties", {})
+
+    # Add descriptions to top-level properties
+    _desc_map = {
+        "profile-id": "Unique identifier for this agent profile (kebab-case)",
+        "name": "Human-readable name for this agent",
+        "description": "Optional brief description",
+        "schema-version": "Schema version for compatibility",
+        "purpose": "The agent's primary purpose or mission statement",
+        "role": (
+            "Agent role (architect, implementer, reviewer, planner, etc.) "
+            "- accepts both known roles and custom roles"
+        ),
+        "capabilities": "List of capabilities this agent can perform",
+        "specializes-from": "Parent profile ID this agent specializes from (for hierarchy)",
+        "routing-priority": "Priority for routing tasks to this agent (0-100, higher is more preferred)",
+        "max-concurrent-tasks": "Maximum number of tasks this agent can handle concurrently",
+        "initialization-declaration": "Agent's initialization prompt or declaration",
+    }
+    for field_name, desc in _desc_map.items():
+        if field_name in props:
+            props[field_name]["description"] = desc
+
+    # Add description to self-review-protocol
+    if "self-review-protocol" in props:
+        srp = props["self-review-protocol"]
+        # It may be a $ref; if it's inline, add description
+        if "description" not in srp and "$ref" not in srp:
+            srp["description"] = "Self-review checklist the agent runs before handing off work"
+
+    # Add descriptions to nested definitions
+    defs = schema.get("definitions", {})
+
+    # Context sources
+    cs_def = defs.get("agent_context_sources", {})
+    cs_props = cs_def.get("properties", {})
+    _cs_descs = {
+        "doctrine-layers": "Doctrine layers this agent consults",
+        "directives": "Directive IDs this agent references",
+        "tactics": "Tactic IDs this agent references",
+        "toolguides": "Toolguide IDs this agent references",
+        "styleguides": "Styleguide IDs this agent references",
+        "additional": "Additional context sources",
+    }
+    for field_name, desc in _cs_descs.items():
+        if field_name in cs_props:
+            cs_props[field_name]["description"] = desc
+
+    # Specialization
+    spec_def = defs.get("agent_specialization", {})
+    spec_props = spec_def.get("properties", {})
+    _spec_descs = {
+        "primary-focus": "Primary area of specialization",
+        "secondary-awareness": "Secondary areas agent is aware of",
+        "avoidance-boundary": "What this agent explicitly avoids",
+        "success-definition": "How success is defined for this agent",
+    }
+    for field_name, desc in _spec_descs.items():
+        if field_name in spec_props:
+            spec_props[field_name]["description"] = desc
+
+    # Collaboration
+    collab_def = defs.get("agent_collaboration", {})
+    collab_props = collab_def.get("properties", {})
+    _collab_descs = {
+        "handoff-to": "Roles/agents this agent hands off to",
+        "handoff-from": "Roles/agents that hand off to this agent",
+        "works-with": "Roles/agents this agent collaborates with",
+        "output-artifacts": "Artifacts this agent produces",
+        "operating-procedures": "Procedures this agent follows",
+        "canonical-verbs": "Standard verbs for this agent's actions",
+    }
+    for field_name, desc in _collab_descs.items():
+        if field_name in collab_props:
+            collab_props[field_name]["description"] = desc
+
+    # Mode defaults
+    md_def = defs.get("agent_mode_default", {})
+    md_props = md_def.get("properties", {})
+    _md_descs = {
+        "mode": "Mode name",
+        "description": "Mode description",
+        "use-case": "When to use this mode",
+    }
+    for field_name, desc in _md_descs.items():
+        if field_name in md_props:
+            md_props[field_name]["description"] = desc
+
+    # Specialization context
+    sc_def = defs.get("agent_specialization_context", {})
+    sc_props = sc_def.get("properties", {})
+    _sc_descs = {
+        "languages": "Programming languages this agent specializes in",
+        "frameworks": "Frameworks this agent knows",
+        "file-patterns": "File patterns this agent matches (glob patterns)",
+        "domain-keywords": "Domain keywords for matching",
+        "writing-style": "Preferred writing styles",
+        "complexity-preference": "Task complexity preferences (low, medium, high)",
+    }
+    for field_name, desc in _sc_descs.items():
+        if field_name in sc_props:
+            sc_props[field_name]["description"] = desc
+
+    # Directive reference descriptions
+    dr_def = defs.get("agent_directive_reference", {})
+    dr_props = dr_def.get("properties", {})
+    _dr_descs = {
+        "code": "Directive code",
+        "name": "Directive name",
+        "rationale": "Why this directive is referenced",
+    }
+    for field_name, desc in _dr_descs.items():
+        if field_name in dr_props:
+            dr_props[field_name]["description"] = desc
+
+    # Tactic/toolguide/styleguide reference descriptions
+    for ref_def_name in ("agent_tactic_reference", "agent_toolguide_reference",
+                         "agent_styleguide_reference"):
+        ref_def = defs.get(ref_def_name, {})
+        ref_props = ref_def.get("properties", {})
+        kind = ref_def_name.replace("agent_", "").replace("_reference", "").capitalize()
+        if "id" in ref_props:
+            ref_props["id"]["description"] = f"{kind} ID"
+        if "rationale" in ref_props:
+            ref_props["rationale"]["description"] = f"Why this {kind.lower()} is referenced"
+
+    # Self-review step descriptions
+    srs_def = defs.get("self_review_step", {})
+    srs_props = srs_def.get("properties", {})
+    _srs_descs = {
+        "name": "Step name",
+        "command": "Command to run for this step",
+        "gate": "Pass/fail criteria for this step",
+    }
+    for field_name, desc in _srs_descs.items():
+        if field_name in srs_props:
+            srs_props[field_name]["description"] = desc
+
+    return schema
+
+
+register(
+    "agent-profile",
+    "doctrine.agent_profiles.schema_models",
+    "AgentProfileSchema",
+    "Agent Profile",
+    "Rich agent profile schema with 6-section structure for spec-kitty doctrine framework",
+    extra=_agent_profile_fixups,
+    by_alias=True,
+)
+
+
+# --- Import Candidate (custom generator) ---
+def _generate_import_candidate_schema() -> dict:
+    """Generate import-candidate schema from two Pydantic model variants.
+
+    This schema uses a top-level ``oneOf`` with two independent object
+    schemas — one for the WP01 legacy format and one for the WP03 curation
+    scaffold. This cannot be expressed by a single Pydantic model, so we
+    generate each variant separately, apply post-processing, and assemble
+    the outer wrapper.
+    """
+    import importlib
+
+    mod = importlib.import_module("doctrine.import_candidates.models")
+    legacy_cls = getattr(mod, "LegacyImportCandidate")
+    curation_cls = getattr(mod, "CurationImportCandidate")
+
+    # Generate each variant
+    legacy_raw = legacy_cls.model_json_schema()
+    curation_raw = curation_cls.model_json_schema()
+
+    # Process each variant through the standard cleanup pipeline
+    legacy_schema = _process_variant(legacy_raw, "Legacy import-candidate (WP01 baseline)")
+    curation_schema = _process_variant(curation_raw, "Doctrine curation import-candidate (WP03 scaffold)")
+
+    # Add the allOf conditional to curation variant:
+    # if status == "adopted" then resulting_artifacts is required with minItems: 1
+    curation_schema["allOf"] = [
+        {
+            "if": {
+                "properties": {"status": {"const": "adopted"}},
+            },
+            "then": {
+                "required": ["resulting_artifacts"],
+                "properties": {
+                    "resulting_artifacts": {"minItems": 1},
+                },
+            },
+        }
+    ]
+
+    # Assemble the outer wrapper
+    schema = {
+        "$schema": "https://json-schema.org/draft/2020-12/schema",
+        "$id": _schema_id("import-candidate"),
+        "title": "Import Candidate",
+        "description": "Compatibility schema for curated external practice candidates.",
+        "type": "object",
+        "oneOf": [legacy_schema, curation_schema],
+    }
+
+    return schema
+
+
+def _process_variant(raw: dict, title: str) -> dict:
+    """Process a single import-candidate variant schema."""
+    defs = raw.get("$defs", {})
+    renames = {name: _pascal_to_snake(name) for name in defs}
+
+    # Inline all enum refs (status enums)
+    schema = _inline_all_enum_refs(raw, defs)
+
+    # Inline all $refs — for import-candidate variants we want everything
+    # inline (no definitions section) since the oneOf wrapper doesn't share defs.
+    schema = _inline_all_refs(schema, defs, renames)
+
+    # Remove $defs since everything is inlined
+    schema.pop("$defs", None)
+    schema.pop("definitions", None)
+
+    # Standard cleanup
+    schema = _remove_titles(schema)
+    schema = _simplify_nullable(schema)
+    schema = _remove_defaults_for_empty_collections(schema)
+    schema = _add_minlength_to_string_fields(schema)
+
+    # Remove top-level Pydantic metadata
+    schema.pop("description", None)
+
+    # Add title
+    schema["title"] = title
+
+    # Order: type, title, additionalProperties, required, properties
+    ordered: dict[str, Any] = {}
+    for key in ("title", "type", "additionalProperties", "required", "properties",
+                "allOf"):
+        if key in schema:
+            ordered[key] = schema[key]
+    for key in schema:
+        if key not in ordered:
+            ordered[key] = schema[key]
+
+    # Order property definitions
+    if "properties" in ordered:
+        ordered["properties"] = {
+            k: dict(_order_property(v)) if isinstance(v, dict) else v
+            for k, v in ordered["properties"].items()
+        }
+
+    return ordered
+
+
+register_custom("import-candidate", _generate_import_candidate_schema)
+
+
 # ---------------------------------------------------------------------------
 # Post-processing transforms
 # ---------------------------------------------------------------------------
@@ -343,6 +678,66 @@ def _inline_artifact_kind_refs(obj: Any, defs: dict) -> Any:
     return obj
 
 
+def _is_enum_def(defn: dict) -> bool:
+    """Check if a $defs entry is a StrEnum definition."""
+    return isinstance(defn, dict) and "enum" in defn and defn.get("type") == "string"
+
+
+def _inline_all_enum_refs(obj: Any, defs: dict) -> Any:
+    """Replace all $ref to StrEnum definitions with inline enum values.
+
+    Unlike ``_inline_artifact_kind_refs`` which only handles ArtifactKind,
+    this function inlines *all* StrEnum references found in ``$defs``.
+    Used for schemas like model-to-task_type that have many enums.
+    """
+    if isinstance(obj, dict):
+        if "$ref" in obj:
+            ref = obj["$ref"]
+            if ref.startswith("#/$defs/"):
+                def_name = ref[len("#/$defs/"):]
+                if def_name in defs and _is_enum_def(defs[def_name]):
+                    enum_def = defs[def_name]
+                    result: dict[str, Any] = {"type": "string", "enum": enum_def["enum"]}
+                    # Preserve sibling keys like description
+                    for k, v in obj.items():
+                        if k != "$ref":
+                            result[k] = v
+                    return result
+            elif ref.startswith("#/definitions/"):
+                def_name = ref[len("#/definitions/"):]
+                if def_name in defs and _is_enum_def(defs[def_name]):
+                    enum_def = defs[def_name]
+                    result = {"type": "string", "enum": enum_def["enum"]}
+                    for k, v in obj.items():
+                        if k != "$ref":
+                            result[k] = v
+                    return result
+        return {k: _inline_all_enum_refs(v, defs) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_inline_all_enum_refs(item, defs) for item in obj]
+    return obj
+
+
+def _inline_all_refs(obj: Any, defs: dict, renames: dict[str, str]) -> Any:
+    """Inline ALL $ref references by replacing them with the definition body.
+
+    Used for import-candidate variants where each variant must be fully
+    self-contained (no shared definitions section).
+    """
+    if isinstance(obj, dict):
+        if "$ref" in obj and len(obj) == 1:
+            ref = obj["$ref"]
+            if ref.startswith("#/$defs/"):
+                def_name = ref[len("#/$defs/"):]
+                if def_name in defs:
+                    # Recursively inline nested refs in the definition body
+                    return _inline_all_refs(dict(defs[def_name]), defs, renames)
+        return {k: _inline_all_refs(v, defs, renames) for k, v in obj.items()}
+    elif isinstance(obj, list):
+        return [_inline_all_refs(item, defs, renames) for item in obj]
+    return obj
+
+
 def _add_item_patterns(schema: dict, patterns: dict[str, str]) -> dict:
     """Add regex patterns to array item definitions."""
     props = schema.get("properties", {})
@@ -396,6 +791,7 @@ def _order_schema(schema: dict) -> OrderedDict:
         "definitions",
         "properties",
         "allOf",
+        "oneOf",
     ]
 
     ordered = OrderedDict()
@@ -437,10 +833,18 @@ def _order_property(prop: dict) -> OrderedDict:
         "enum",
         "default",
         "description",
+        "format",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
         "additionalProperties",
         "minItems",
         "items",
+        "required",
+        "properties",
         "$ref",
+        "oneOf",
+        "anyOf",
     ]
     ordered = OrderedDict()
     for key in key_order:
@@ -485,7 +889,35 @@ def _deep_order(schema: dict) -> dict:
             for k, v in result["properties"].items()
         }
 
+    # Order oneOf entries (for import-candidate)
+    if "oneOf" in result:
+        result["oneOf"] = [
+            _deep_order_variant(v) if isinstance(v, dict) else v
+            for v in result["oneOf"]
+        ]
+
     return result
+
+
+def _deep_order_variant(variant: dict) -> dict:
+    """Order keys within a oneOf variant (no definitions section)."""
+    key_order = [
+        "title", "type", "additionalProperties", "required", "properties",
+        "allOf",
+    ]
+    ordered: dict[str, Any] = {}
+    for key in key_order:
+        if key in variant:
+            ordered[key] = variant[key]
+    for key in variant:
+        if key not in ordered:
+            ordered[key] = variant[key]
+    if "properties" in ordered:
+        ordered["properties"] = {
+            k: dict(_order_property(v)) if isinstance(v, dict) else v
+            for k, v in ordered["properties"].items()
+        }
+    return ordered
 
 
 # ---------------------------------------------------------------------------
@@ -495,20 +927,31 @@ def _deep_order(schema: dict) -> dict:
 
 def generate_schema(stem: str) -> dict:
     """Generate the YAML schema dict for a single artifact type."""
+    # Check for custom generators first
+    if stem in CUSTOM_GENERATORS:
+        schema = CUSTOM_GENERATORS[stem]()
+        return _deep_order(schema)
+
     import importlib
 
-    module_path, class_name, title, description, extra_fn = REGISTRY[stem]
+    module_path, class_name, title, description, extra_fn, use_aliases = REGISTRY[stem]
     mod = importlib.import_module(module_path)
     model_cls = getattr(mod, class_name)
 
-    raw = model_cls.model_json_schema()
+    raw = model_cls.model_json_schema(by_alias=use_aliases)
 
     # Build definition renames: PascalCase → snake_case
     defs = raw.get("$defs", {})
     renames = {name: _pascal_to_snake(name) for name in defs}
 
-    # Phase 1: inline ArtifactKind refs before removing the $def
-    schema = _inline_artifact_kind_refs(raw, defs)
+    # Phase 1: inline enum refs
+    # For schemas with many enums (model-to-task_type), inline ALL enum refs.
+    # For others, only inline ArtifactKind.
+    enum_defs = {k for k, v in defs.items() if _is_enum_def(v)}
+    if enum_defs - {"ArtifactKind"}:
+        schema = _inline_all_enum_refs(raw, defs)
+    else:
+        schema = _inline_artifact_kind_refs(raw, defs)
 
     # Phase 2: rename $defs → definitions, rewrite $ref paths
     if "$defs" in schema:
@@ -516,8 +959,8 @@ def generate_schema(stem: str) -> dict:
         new_defs = OrderedDict()
         for old_name, defn in old_defs.items():
             new_name = renames.get(old_name, _pascal_to_snake(old_name))
-            # Skip ArtifactKind — it's been inlined
-            if old_name == "ArtifactKind":
+            # Skip enum definitions — they've been inlined
+            if old_name in enum_defs or old_name == "ArtifactKind":
                 continue
             new_defs[new_name] = defn
         if new_defs:
@@ -607,11 +1050,12 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    stems = args.stems or list(REGISTRY.keys())
-    unknown = set(stems) - set(REGISTRY.keys())
+    all_stems = list(REGISTRY.keys()) + list(CUSTOM_GENERATORS.keys())
+    stems = args.stems or all_stems
+    unknown = set(stems) - set(all_stems)
     if unknown:
         print(f"Unknown schema stems: {', '.join(sorted(unknown))}")
-        print(f"Available: {', '.join(sorted(REGISTRY.keys()))}")
+        print(f"Available: {', '.join(sorted(all_stems))}")
         return 1
 
     all_ok = True
