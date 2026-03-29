@@ -36,12 +36,15 @@ failure_modes:
   - "Creating tests that require internal implementation detail to pass."
   - "Mixing exploration (analysis) and enforcement (tests) without triage."
 references:
-  - type: tactic
+  - name: Acceptance Test First
+    type: tactic
     id: acceptance-test-first
-    reason: Baseline happy-path acceptance tests are the foundation this tactic extends.
-  - type: tactic
+    when: Baseline happy-path acceptance tests are the foundation this tactic extends
+  - name: Test Boundaries by Responsibility
+    type: tactic
     id: test-boundaries-by-responsibility
-    reason: Adversarial scenarios help clarify which boundaries need testing.
-  - type: tactic
+    when: Adversarial scenarios help clarify which boundaries need testing
+  - name: Input Validation Fail-Fast
+    type: tactic
     id: input-validation-fail-fast
-    reason: Many adversarial scenarios surface input validation requirements.
+    when: Many adversarial scenarios surface input validation requirements

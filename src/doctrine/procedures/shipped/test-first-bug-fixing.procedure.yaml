@@ -61,6 +61,9 @@ anti_patterns:
     description: "Deploying the whole application to verify a fix. Slow, noisy, and not isolated."
   - name: Test Passes Immediately
     description: "The reproduction test passes on first run. The test does not capture the bug — revise setup or assertions."
+notes: >
+  External reference: "Example of test-first bug-fixing (Stijn Dejongh, 2022)"
+  https://www.linkedin.com/pulse/example-test-first-bug-fixing-javascript-stijn-dejongh/
 references:
   - type: tactic
     id: tdd-red-green-refactor
@@ -71,6 +74,3 @@ references:
   - type: directive
     id: DIRECTIVE_030
     reason: Quality gate requires tests pass before handoff — the reproduction test is part of that gate.
-  - type: external
-    url: "https://www.linkedin.com/pulse/example-test-first-bug-fixing-javascript-stijn-dejongh/"
-    title: "Example of test-first bug-fixing (Stijn Dejongh, 2022)"

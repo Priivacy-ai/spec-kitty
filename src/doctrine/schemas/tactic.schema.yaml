@@ -87,6 +87,12 @@ properties:
     items:
       type: string
       minLength: 1
+  notes:
+    type: string
+    description: >
+      Free-form supplementary material (scoring rubrics, timing guidance,
+      reference models, etc.) that enriches the tactic but does not fit
+      into a single step.
   steps:
     type: array
     minItems: 1

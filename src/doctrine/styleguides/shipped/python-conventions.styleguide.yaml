@@ -1,7 +1,7 @@
 schema_version: "1.0"
 id: python-conventions
 title: Python Conventions Styleguide
-scope: python
+scope: code
 
 principles:
   - "Guard clauses over nesting: validate inputs early and fail fast rather than wrapping logic in conditional branches."
@@ -82,18 +82,76 @@ patterns:
 anti_patterns:
   - name: Nested Conditional Logic
     description: "Deep if/else nesting instead of early-return guard clauses. Increases cognitive load and hides the happy path."
+    bad_example: |
+      def process(path: Path) -> dict:
+          if path.exists():
+              if path.is_file():
+                  with open(path) as f:
+                      return yaml.safe_load(f)
+              else:
+                  raise ValueError("Not a file")
+          else:
+              raise FileNotFoundError(str(path))
+    good_example: |
+      def process(path: Path) -> dict:
+          if not path.exists():
+              raise FileNotFoundError(str(path))
+          if not path.is_file():
+              raise ValueError(f"Not a file: {path}")
+          with open(path) as f:
+              return yaml.safe_load(f)
 
   - name: Untyped Public Functions
     description: "Missing type annotations on public function signatures. Prevents static analysis from catching interface drift."
+    bad_example: |
+      def load_tasks(directory, lane=None):
+          results = []
+          for f in directory.iterdir():
+              results.append(parse(f))
+          return results
+    good_example: |
+      def load_tasks(directory: Path, lane: str | None = None) -> list[dict[str, Any]]:
+          results: list[dict[str, Any]] = []
+          for f in directory.iterdir():
+              results.append(parse(f))
+          return results
 
   - name: String Path Manipulation
     description: "Using os.path.join or string concatenation for paths instead of pathlib. Fragile across platforms and harder to read."
+    bad_example: |
+      config = os.path.join(base_dir, "config", "settings.yaml")
+      os.makedirs(os.path.dirname(output), exist_ok=True)
+    good_example: |
+      config = base_dir / "config" / "settings.yaml"
+      output.parent.mkdir(parents=True, exist_ok=True)
 
   - name: Test Without Assumption Check
     description: "Skipping the precondition assertion. When test setup silently fails, the test passes for the wrong reason."
+    bad_example: |
+      def test_read_missing(tmp_path):
+          result = read_task(tmp_path / "missing.yaml")
+          assert result is None
+    good_example: |
+      def test_read_missing(tmp_path):
+          task_file = tmp_path / "missing.yaml"
+          assert not task_file.exists(), "precondition: file should not exist"
+          with pytest.raises(FileNotFoundError):
+              read_task(task_file)
 
   - name: Cleanup In Test Body
     description: "Manual teardown at end of test instead of using pytest fixtures with yield or tmp_path. Cleanup is skipped on failure."
+    bad_example: |
+      def test_write_output():
+          out = Path("/tmp/test_output.yaml")
+          write_output(out, {"key": "value"})
+          assert out.exists()
+          out.unlink()  # skipped if assertion fails
+    good_example: |
+      def test_write_output(tmp_path):
+          out = tmp_path / "test_output.yaml"
+          write_output(out, {"key": "value"})
+          assert out.exists()
+          # tmp_path fixture handles cleanup automatically
 
 tooling:
   formatter: "ruff format (or black)"

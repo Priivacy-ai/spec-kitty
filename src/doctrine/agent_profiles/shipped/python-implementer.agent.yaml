@@ -160,3 +160,6 @@ directive-references:
   - code: "030"
     name: Test and Typecheck Quality Gate
     rationale: Code must pass tests and static analysis before handoff — regressions caught early
+  - code: "034"
+    name: Test-First Development
+    rationale: Tests define the contract before production code — TDD red-green-refactor is the default implementation rhythm

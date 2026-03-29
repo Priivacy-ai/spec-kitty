@@ -46,8 +46,3 @@ failure_modes:
   - "Store bloat: putting every API response in the store regardless of how many consumers exist."
   - "UI state in store: dispatching actions for modal open/close, sidebar toggle, or scroll position."
   - "Leaky selectors: selectors that expose store structure instead of domain concepts."
-references:
-  - name: Atomic State Ownership
-    type: tactic
-    id: atomic-state-ownership
-    when: Classifying state before applying the 2-organism-2-page threshold.

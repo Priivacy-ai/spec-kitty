@@ -44,8 +44,3 @@ failure_modes:
   - "Mutation bypass: callers get the mutable value from the getter and modify it in place, skipping the setter."
   - "Incomplete migration: some imports still reference the raw variable."
   - "Over-encapsulation: wrapping a truly immutable constant that will never change or need monitoring."
-references:
-  - name: "Refactoring: Encapsulate Record"
-    type: tactic
-    id: refactoring-encapsulate-record
-    when: After encapsulating the variable, encapsulate the record it holds if the value is a complex data structure.

@@ -31,6 +31,17 @@ class AntiPattern(BaseModel):
     good_example: str
 
 
+class Pattern(BaseModel):
+    """A positive code-pattern example within a styleguide."""
+
+    model_config = ConfigDict(frozen=True)
+
+    name: str
+    description: str
+    bad_example: str | None = None
+    good_example: str | None = None
+
+
 class Styleguide(BaseModel):
     """
     A style and convention guide for a specific scope.
@@ -46,6 +57,8 @@ class Styleguide(BaseModel):
     title: str
     scope: StyleguideScope
     principles: list[str] = Field(min_length=1)
+    patterns: list[Pattern] = Field(default_factory=list)
     anti_patterns: list[AntiPattern] = Field(default_factory=list)
+    tooling: dict[str, str] = Field(default_factory=dict)
     quality_test: str | None = None
     references: list[str] = Field(default_factory=list)

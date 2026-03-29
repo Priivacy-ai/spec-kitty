@@ -32,12 +32,11 @@ failure_modes:
   - "Structural bias: defining boundaries by layer (always mock service layer) instead of by responsibility."
   - "Over-assertion: verifying internal implementation details instead of functional outcomes."
 references:
-  - type: tactic
+  - name: Acceptance Test First
+    type: tactic
     id: acceptance-test-first
-    reason: Acceptance tests define the outer behavioral boundary; this tactic refines the inner unit boundary.
-  - type: tactic
+    when: Acceptance tests define the outer behavioral boundary that this tactic refines at the inner unit level
+  - name: TDD Red-Green-Refactor
+    type: tactic
     id: tdd-red-green-refactor
-    reason: TDD drives implementation inside the boundaries defined by this tactic.
-  - type: external
-    url: "https://patterns.sddevelopment.be/practices/define_test_boundaries/"
-    title: "Define Test Boundaries (SDD Patterns)"
+    when: Driving implementation inside the boundaries defined by this tactic

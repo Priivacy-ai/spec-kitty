@@ -13,6 +13,19 @@ required:
   - exit_condition
   - steps
 definitions:
+  anti_pattern:
+    type: object
+    additionalProperties: false
+    required:
+      - name
+      - description
+    properties:
+      name:
+        type: string
+        minLength: 1
+      description:
+        type: string
+        minLength: 1
   procedure_reference:
     type: object
     additionalProperties: false
@@ -33,6 +46,9 @@ definitions:
       id:
         type: string
         minLength: 1
+      reason:
+        type: string
+        description: Why this reference is relevant to the procedure.
   procedure_step:
     type: object
     additionalProperties: false
@@ -84,6 +100,16 @@ properties:
     minItems: 1
     items:
       $ref: '#/definitions/procedure_step'
+  anti_patterns:
+    type: array
+    items:
+      $ref: '#/definitions/anti_pattern'
+    description: Common mistakes or failure modes to avoid when following this procedure.
+  notes:
+    type: string
+    description: >
+      Free-form notes, rationale, or supplementary material
+      that does not fit into structured fields.
   references:
     type: array
     items:

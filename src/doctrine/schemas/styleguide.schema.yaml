@@ -59,6 +59,39 @@ properties:
         good_example:
           type: string
           minLength: 1
+  patterns:
+    type: array
+    minItems: 1
+    description: >
+      Concrete code patterns demonstrating how to apply the styleguide's
+      principles. Each pattern includes a name, description, and optional
+      good/bad examples.
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - description
+      properties:
+        name:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        bad_example:
+          type: string
+          minLength: 1
+        good_example:
+          type: string
+          minLength: 1
+  tooling:
+    type: object
+    description: >
+      Recommended tools for enforcing the styleguide (formatters, linters,
+      type checkers, test runners, etc.).
+    additionalProperties:
+      type: string
   quality_test:
     type: string
     minLength: 1

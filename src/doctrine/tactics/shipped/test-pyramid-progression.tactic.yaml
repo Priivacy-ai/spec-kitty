@@ -32,16 +32,10 @@ steps:
       If any layer fails, do not proceed to the next. Fix the failures at the
       current layer first. This prevents masking failures with noise from upper
       layers and avoids wasting CI time on expensive tests when cheap tests
-      already signal a problem.
+      already signal a problem. Rationale: a failing unit test identifies the
+      broken component in seconds. Running the full E2E suite on top of a known
+      unit failure wastes minutes and produces confusing secondary failures.
+      Fix cheap signals first; escalate to expensive signals only when the
+      cheap ones are green.
     examples:
       - "If `-m fast` reports failures, fix them before running `-m git_repo`."
-rationale: >
-  The stop-at-first-failure rule is an ROI discipline: a failing unit test
-  identifies the broken component in seconds. Running the full E2E suite on top
-  of a known unit failure wastes minutes and produces confusing secondary
-  failures. Fix cheap signals first; escalate to expensive signals only when
-  the cheap ones are green.
-references:
-  - type: tactic
-    id: testing-select-appropriate-level
-    reason: The level-selection tactic decides what tests to write; this tactic decides the order to run them.

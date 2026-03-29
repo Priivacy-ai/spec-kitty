@@ -89,7 +89,7 @@ def test_procedure_references_resolve_to_shipped_artifacts() -> None:
     """
     id_map = {
         "directive": _shipped_ids("directives", "*.directive.yaml"),
-        "tactic": _shipped_ids("tactics", "*.tactic.yaml"),
+        "tactic": _shipped_ids("tactics", "**/*.tactic.yaml"),
         "styleguide": _shipped_ids("styleguides", "**/*.styleguide.yaml"),
         "toolguide": _shipped_ids("toolguides", "*.toolguide.yaml"),
         "paradigm": _shipped_ids("paradigms", "*.paradigm.yaml"),
@@ -118,7 +118,7 @@ def test_procedure_step_tactic_refs_resolve_to_shipped_tactics() -> None:
 
     _proposed procedures are excluded — their tactic_refs may target unshipped tactics.
     """
-    tactic_ids = _shipped_ids("tactics", "*.tactic.yaml")
+    tactic_ids = _shipped_ids("tactics", "**/*.tactic.yaml")
     unresolved: list[str] = []
 
     for path in _multi_glob(_SHIPPED_PROCEDURE_DIRS, "*.procedure.yaml"):

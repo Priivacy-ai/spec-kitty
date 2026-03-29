@@ -25,6 +25,9 @@ steps:
     description: >
       Document: change intent (one paragraph), risks identified (by category),
       overall assessment (approve / request changes / comment).
+      Timing guidance: 5-15 minutes for changes under 200 lines,
+      15-30 minutes for 200-500 lines, request decomposition for
+      changes over 500 lines.
     examples:
       - "Change Intent: Adds retry logic to the sync client. Risks: [Correctness] No backoff cap — unbounded retries under sustained failure. Overall: Request changes."
 failure_modes:
@@ -32,17 +35,12 @@ failure_modes:
   - "Rewriting code mentally instead of reviewing it."
   - "Treating stylistic preference as correctness issues."
   - "Prescriptive feedback that removes author agency."
-timing_guidance:
-  small: "5-15 minutes for changes under 200 lines."
-  medium: "15-30 minutes for changes between 200-500 lines."
-  large: "Request decomposition for changes over 500 lines."
 references:
-  - type: directive
-    id: DIRECTIVE_024
-    reason: Flag changes that expand scope beyond stated intent (locality of change).
-  - type: tactic
+  - name: Review Intent and Risk First
+    type: tactic
     id: review-intent-and-risk-first
-    reason: Shares the intent-first review philosophy; this tactic adds the incremental discipline.
-  - type: tactic
+    when: Applying the intent-first review philosophy that this tactic adds incremental discipline to
+  - name: Smallest Viable Diff
+    type: tactic
     id: change-apply-smallest-viable-diff
-    reason: Reviewer should verify the diff is the smallest viable change for the stated goal.
+    when: Verifying the diff is the smallest viable change for the stated goal
