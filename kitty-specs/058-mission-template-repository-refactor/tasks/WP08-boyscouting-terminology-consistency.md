@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: 'Boyscouting: Terminology Consistency (agent feature → agent mission)'
-lane: "doing"
+lane: "for_review"
 dependencies: [WP07]
 requirement_refs:
 - Constitution terminology canon
@@ -26,7 +26,7 @@ subtasks:
 phase: Boyscouting
 assignee: ''
 agent: "opencode"
-shell_pid: "113162"
+shell_pid: '113162'
 review_status: ''
 reviewed_by: ''
 history:
@@ -308,3 +308,4 @@ spec-kitty agent mission create-feature --help  # hidden alias, should still wor
 - 2026-03-27T05:00:00Z -- system -- lane=planned -- Prompt added during /spec-kitty.analyze review.
 - 2026-03-28T00:00:00Z -- agent -- lane=planned -- Added subtask T055: rename "feature" to "mission" in detection error messages, status hints, and SPECIFY_FEATURE env var references. Updated objectives, risks, and review guidance to reflect expanded scope.
 - 2026-03-28T12:45:41Z – opencode – shell_pid=113162 – lane=doing – Assigned agent via workflow command
+- 2026-03-29T06:09:19Z – opencode – shell_pid=113162 – lane=for_review – All 11 subtasks (T031-T055) completed and verified. 6 commits, 561 files. Full clean break, no backward-compat shims. Test suite: 54 failed / 7176 passed (no new regressions).
