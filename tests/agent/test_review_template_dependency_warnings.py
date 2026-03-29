@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
 
 from doctrine.templates.repository import CentralTemplateRepository
 from doctrine.missions import MissionTemplateRepository
@@ -18,11 +17,9 @@ REQUIRED_KEYS = [
 ]
 
 
-def _assert_required_keys(path: Path) -> None:
-    assert path.exists(), f"Missing template: {path}"
-    content = path.read_text()
+def _assert_required_keys_in_content(content: str, label: str) -> None:
     for key in REQUIRED_KEYS:
-        assert key in content, f"{path} missing required warning key: {key}"
+        assert key in content, f"{label} missing required warning key: {key}"
 
 
 def test_base_review_template_dependency_warnings() -> None:
@@ -30,12 +27,13 @@ def test_base_review_template_dependency_warnings() -> None:
     repo = CentralTemplateRepository.default()
     path = repo.get("review.md")
     assert path is not None, "review.md not found via CentralTemplateRepository"
-    _assert_required_keys(path)
+    assert path.exists(), f"Missing template: {path}"
+    _assert_required_keys_in_content(path.read_text(), str(path))
 
 
 def test_mission_review_template_dependency_warnings() -> None:
     """Software-dev review template must include dependency warnings too."""
     repo = MissionTemplateRepository(MissionTemplateRepository.default_missions_root())
-    path = repo.get_command_template("software-dev", "review")
-    assert path is not None, "mission review.md not found via MissionTemplateRepository"
-    _assert_required_keys(path)
+    result = repo.get_command_template("software-dev", "review")
+    assert result is not None, "mission review.md not found via MissionTemplateRepository"
+    _assert_required_keys_in_content(result.content, result.origin)
