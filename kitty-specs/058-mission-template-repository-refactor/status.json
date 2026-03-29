@@ -1,14 +1,14 @@
 {
-  "event_count": 56,
-  "feature_slug": "058-mission-template-repository-refactor",
-  "last_event_id": "01KMW91FNGKQ9JBMWRDGPH9P1N",
-  "materialized_at": "2026-03-29T07:48:23.346348+00:00",
+  "event_count": 57,
+  "last_event_id": "01KMWAB4KV9T73GBPYV9PEYG2Y",
+  "materialized_at": "2026-03-29T08:11:08.285990+00:00",
+  "mission_slug": "058-mission-template-repository-refactor",
   "summary": {
-    "approved": 2,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 7,
+    "done": 8,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -92,12 +92,12 @@
         "model": "unknown",
         "profile": "unknown",
         "role": "unknown",
-        "tool": "user"
+        "tool": "opencode"
       },
       "force_count": 6,
-      "lane": "approved",
-      "last_event_id": "01KMW7ZFBHHYBKG86WZSDH0DS0",
-      "last_transition_at": "2026-03-29T07:29:48.913499+00:00"
+      "lane": "done",
+      "last_event_id": "01KMWAB4KV9T73GBPYV9PEYG2Y",
+      "last_transition_at": "2026-03-29T08:11:08.283879+00:00"
     },
     "WP08": {
       "actor": {

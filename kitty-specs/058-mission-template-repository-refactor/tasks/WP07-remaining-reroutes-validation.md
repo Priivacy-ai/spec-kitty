@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Remaining Reroutes + Bug Fix + Validation
-lane: "approved"
+lane: "done"
 dependencies: [WP05, WP06]
 requirement_refs:
 - FR-017
@@ -19,12 +19,11 @@ subtasks:
 - T030
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: opencode
+agent: "opencode"
 shell_pid: '113162'
 review_status: "approved"
 reviewed_by: "Stijn Dejongh"
 review_feedback: feedback://058-mission-template-repository-refactor/WP07/20260329T063105Z-b40c6cdd.md
-approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
@@ -32,6 +31,7 @@ history:
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
 agent_profile: implementer
+approved_by: "Stijn Dejongh"
 role: reviewer
 ---
 
@@ -52,6 +52,10 @@ role: reviewer
 > **Populated by `/spec-kitty.review`**
 
 
+
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T08:11:08Z
+
+Reviewed and merged to feature/agent-profile-implementation. Reroutes T027/T028 verified, TemplateResult bug fixed, all acceptance criteria met. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.
 **Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T07:29:48Z
 
 Review passed (2nd review): All 5 acceptance criteria verified. T027-T030 reroutes correctly use MissionTemplateRepository. TemplateResult bug fixed in commit 2ef55498. Test suite: 51 failed / 7295 passed — identical to baseline (zero regressions). Validation grep confirms no direct mission path construction in rerouted callers.
@@ -305,3 +309,4 @@ Expected outcome: All tests pass. Any failures are regressions from WP05-WP06 ch
 - 2026-03-29T06:31:05Z – opencode – shell_pid=113162 – lane=planned – Moved to planned
 - 2026-03-29T06:45:31Z – opencode – shell_pid=113162 – lane=planned – Review feedback revised: Issue 1 (out-of-scope doctrine pruning) withdrawn — those changes are on the parallel base-branch track, not WP07. Remaining issues: (1) rebase needed onto current feature/agent-profile-implementation, (2) TemplateResult vs Path bug in test_review_template_dependency_warnings. Updated feedback at /tmp/spec-kitty-review-feedback-WP07.md
 - 2026-03-29T07:29:48Z – opencode – shell_pid=113162 – lane=approved – Review passed (2nd review): All 5 acceptance criteria verified. T027-T030 reroutes correctly use MissionTemplateRepository. TemplateResult bug fixed in commit 2ef55498. Test suite: 51 failed / 7295 passed — identical to baseline (zero regressions). Validation grep confirms no direct mission path construction in rerouted callers.
+- 2026-03-29T08:11:08Z – opencode – shell_pid=113162 – lane=done – Reviewed and merged to feature/agent-profile-implementation. Reroutes T027/T028 verified, TemplateResult bug fixed, all acceptance criteria met. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.
