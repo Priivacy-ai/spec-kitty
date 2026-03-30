@@ -1,18 +1,22 @@
-"""Context command - query workspace context information.
+"""Context command - query workspace context information and manage MissionContext tokens.
 
-Provides visibility into current workspace context for LLM agents and users.
+Provides visibility into current workspace context for LLM agents and users,
+plus canonical MissionContext token lifecycle (resolve, show).
 """
 
 from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Optional
 
 import typer
 from rich.console import Console
 from rich.table import Table
+from typing_extensions import Annotated
 
 from specify_cli.tasks_support import find_repo_root, TaskCliError
+from specify_cli.core.paths import locate_project_root
 from specify_cli.workspace_context import (
     cleanup_orphaned_contexts,
     find_orphaned_contexts,
@@ -229,6 +233,114 @@ def cleanup_command(
     else:
         cleaned = cleanup_orphaned_contexts(repo_root)
         console.print(f"[green]✓[/green] Cleaned up {cleaned} orphaned context(s)")
+
+
+@app.command(name="mission-resolve")
+def mission_resolve_command(
+    wp: Annotated[str, typer.Option("--wp", help="Work package code (e.g., WP01)")],
+    feature: Annotated[str, typer.Option("--feature", help="Feature slug (e.g., 057-feature-name)")],
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (default: 'unknown')")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output full JSON context (default: token only)")] = False,
+) -> None:
+    """Resolve and persist a MissionContext token.
+
+    Creates a new bound context for the given work package and feature,
+    writes it to .kittify/runtime/contexts/, and prints the token.
+
+    The token can be passed to other commands via --context <token>.
+
+    Examples:
+        # Resolve and print token for piping
+        TOKEN=$(spec-kitty context mission-resolve --wp WP01 --feature 057-my-feature)
+
+        # Resolve and print full JSON
+        spec-kitty context mission-resolve --wp WP01 --feature 057-my-feature --json
+    """
+    from specify_cli.context import resolve_context, ContextResolutionError
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Could not locate project root (no .kittify/ directory found)")
+        raise typer.Exit(1)
+
+    try:
+        ctx = resolve_context(
+            wp_code=wp,
+            feature_slug=feature,
+            agent=agent or "unknown",
+            repo_root=repo_root,
+        )
+    except ContextResolutionError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+    if json_output:
+        print(json.dumps(ctx.to_dict(), indent=2))
+    else:
+        # Plain token output for easy piping / shell capture
+        print(ctx.token)
+
+
+@app.command(name="mission-show")
+def mission_show_command(
+    context_token: Annotated[str, typer.Option("--context", help="Context token (e.g., ctx-01HV...)")],
+    json_output: Annotated[bool, typer.Option("--json", help="Output raw JSON")] = False,
+) -> None:
+    """Show all fields of a persisted MissionContext token.
+
+    Loads the context file and pretty-prints its bound fields.
+
+    Examples:
+        spec-kitty context mission-show --context ctx-01HVXYZ...
+        spec-kitty context mission-show --context ctx-01HVXYZ... --json
+    """
+    from specify_cli.context import load_context as load_mission_context
+    from specify_cli.context import ContextNotFoundError, ContextCorruptedError
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        console.print("[red]Error:[/red] Could not locate project root (no .kittify/ directory found)")
+        raise typer.Exit(1)
+
+    try:
+        ctx = load_mission_context(context_token, repo_root)
+    except ContextNotFoundError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    except ContextCorruptedError as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+    if json_output:
+        print(json.dumps(ctx.to_dict(), indent=2))
+    else:
+        console.print("\n[bold cyan]MissionContext[/bold cyan]")
+        console.print("─" * 60)
+
+        table = Table(show_header=False, box=None, padding=(0, 2))
+        table.add_column("Field", style="dim")
+        table.add_column("Value")
+
+        table.add_row("Token", f"[bold]{ctx.token}[/bold]")
+        table.add_row("WP Code", f"[bold]{ctx.wp_code}[/bold]")
+        table.add_row("Feature Slug", ctx.feature_slug)
+        table.add_row("Mission ID", ctx.mission_id)
+        table.add_row("Work Package ID", ctx.work_package_id)
+        table.add_row("Project UUID", ctx.project_uuid)
+        table.add_row("Target Branch", f"[cyan]{ctx.target_branch}[/cyan]")
+        table.add_row("Authoritative Repo", ctx.authoritative_repo)
+        table.add_row("Authoritative Ref", ctx.authoritative_ref or "[dim]none[/dim]")
+        table.add_row("Execution Mode", ctx.execution_mode)
+        table.add_row("Dependency Mode", ctx.dependency_mode)
+        table.add_row("Created At", ctx.created_at)
+        table.add_row("Created By", ctx.created_by)
+        if ctx.owned_files:
+            table.add_row("Owned Files", "\n".join(ctx.owned_files))
+        else:
+            table.add_row("Owned Files", "[dim]none[/dim]")
+
+        console.print(table)
+        console.print()
 
 
 # Default command when no subcommand specified

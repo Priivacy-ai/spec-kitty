@@ -31,10 +31,9 @@ from specify_cli.core.git_preflight import (
     run_git_preflight,
 )
 from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
-from specify_cli.core.feature_detection import (
-    detect_feature,
-    detect_feature_directory,
-    FeatureDetectionError,
+from specify_cli.core.paths import (
+    get_feature_target_branch,
+    require_explicit_feature,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
@@ -44,6 +43,7 @@ from specify_cli.core.worktree import (
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_feature_mission_key
+from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
 app = typer.Typer(
@@ -329,33 +329,27 @@ def _find_feature_directory(
     cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the current feature directory using centralized detection.
-
-    This function now uses the centralized feature detection module
-    to provide deterministic, consistent behavior across all commands.
+    """Find the feature directory from an explicit feature slug.
 
     Args:
         repo_root: Repository root path
-        cwd: Current working directory
-        explicit_feature: Optional explicit feature slug from --feature flag
+        cwd: Current working directory (unused — kept for signature compatibility)
+        explicit_feature: Feature slug from --feature flag (required)
 
     Returns:
         Path to feature directory
 
     Raises:
-        ValueError: If feature directory cannot be determined
-        FeatureDetectionError: If detection fails
+        ValueError: If feature slug is not provided or directory doesn't exist
     """
-    try:
-        return detect_feature_directory(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
+    slug = require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    feature_dir = repo_root / "kitty-specs" / slug
+    if not feature_dir.exists():
+        raise ValueError(
+            f"Feature directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct feature slug."
         )
-    except FeatureDetectionError as e:
-        # Convert to ValueError for backward compatibility
-        raise ValueError(str(e)) from e
+    return feature_dir
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -520,7 +514,7 @@ def create_feature(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
-    """Create new feature directory structure in planning repository.
+    """Create new feature directory structure in the project root checkout.
 
     This command is designed for AI agents to call programmatically.
     Creates feature directory in kitty-specs/ and commits to the current branch.
@@ -553,7 +547,7 @@ def create_feature(
         # GUARD: Refuse to run from inside a worktree (must be in planning repo)
         cwd = Path.cwd().resolve()
         if is_worktree_context(cwd):
-            error_msg = "Cannot create features from inside a worktree. Run from the planning repository."
+            error_msg = "Cannot create features from inside a worktree. Run from the project root checkout."
             if json_output:
                 _emit_json({"error": error_msg})
             else:
@@ -984,7 +978,7 @@ def setup_plan(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
-    """Scaffold implementation plan template in planning repository.
+    """Scaffold implementation plan template in the project root checkout.
 
     This command is designed for AI agents to call programmatically.
     Creates plan.md and commits to target branch.
@@ -1309,7 +1303,7 @@ def accept_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
+            help="Feature directory slug (required in multi-feature repos)"
         )
     ] = None,
     mode: Annotated[
@@ -1391,14 +1385,14 @@ def merge_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (auto-detected if not specified)"
+            help="Feature directory slug (required in multi-feature repos)"
         )
     ] = None,
     target: Annotated[
         Optional[str],
         typer.Option(
             "--target",
-            help="Target branch to merge into (auto-detected if not specified)"
+            help="Target branch to merge into (required in multi-feature repos)"
         )
     ] = None,
     strategy: Annotated[
@@ -1480,7 +1474,6 @@ def merge_feature(
 
         # Resolve target branch dynamically if not specified
         if target is None:
-            from specify_cli.core.feature_detection import get_feature_target_branch
             if feature:
                 target = get_feature_target_branch(repo_root, feature)
             else:
@@ -1567,15 +1560,19 @@ def merge_feature(
 def finalize_tasks(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    validate_only: Annotated[bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")] = False,
 ) -> None:
     """Parse dependencies from tasks.md and update WP frontmatter, then commit to target branch.
 
     This command is designed to be called after LLM generates WP files via /spec-kitty.tasks.
     It post-processes the generated files to add dependency information and commits everything.
 
+    Use --validate-only to check for issues (missing requirement mappings, ownership overlaps,
+    dependency cycles) without making any changes or committing.
+
     Examples:
         spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
-        spec-kitty agent feature finalize-tasks --feature 021-my-feature --json
+        spec-kitty agent feature finalize-tasks --feature 020-my-feature --validate-only --json
     """
     try:
         repo_root = locate_project_root()
@@ -1833,10 +1830,54 @@ def finalize_tasks(
                 frontmatter["requirement_refs"] = requirement_refs
                 frontmatter_changed = True
 
+            # Ownership manifest: infer missing fields, write to frontmatter
+            if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
+                wp_raw_content = wp_file.read_text(encoding="utf-8")
+                ownership = infer_ownership(wp_raw_content, feature_slug)
+                if not frontmatter.get("execution_mode"):
+                    frontmatter["execution_mode"] = str(ownership.execution_mode)
+                    frontmatter_changed = True
+                if not frontmatter.get("owned_files"):
+                    frontmatter["owned_files"] = list(ownership.owned_files)
+                    frontmatter_changed = True
+                if not frontmatter.get("authoritative_surface"):
+                    frontmatter["authoritative_surface"] = ownership.authoritative_surface
+                    frontmatter_changed = True
+
             if frontmatter_changed:
                 # Write updated frontmatter
                 write_frontmatter(wp_file, frontmatter, body)
                 updated_count += 1
+
+        # Validate ownership manifests across all WPs (hard errors block finalization)
+        wp_manifests: dict[str, object] = {}
+        for wp_file in wp_files:
+            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            if not wp_id_match:
+                continue
+            wp_id = wp_id_match.group(1)
+            try:
+                fm, _ = read_frontmatter(wp_file)
+                if fm.get("execution_mode") and fm.get("owned_files"):
+                    from specify_cli.ownership.models import OwnershipManifest
+                    wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm)
+            except Exception:
+                pass  # Skip WPs with unreadable frontmatter
+
+        if wp_manifests:
+            ownership_result = validate_ownership(wp_manifests)  # type: ignore[arg-type]
+            for warning in ownership_result.warnings:
+                if not json_output:
+                    console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
+            if not ownership_result.passed:
+                error_msg = "Ownership validation failed"
+                if json_output:
+                    _emit_json({"error": error_msg, "ownership_errors": ownership_result.errors})
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                    for err in ownership_result.errors:
+                        console.print(f"  - {err}")
+                raise typer.Exit(1)
 
         # Prepare metadata for event emission
         feature_slug = feature_dir.name
@@ -1856,6 +1897,21 @@ def finalize_tasks(
         commit_created = False
         commit_hash = None
         files_committed = []
+
+        if validate_only:
+            if json_output:
+                _emit_json({
+                    "result": "validation_passed",
+                    "feature_slug": feature_slug,
+                    "wp_count": wp_count,
+                    "validate_only": True,
+                    "message": "All validations passed. Run without --validate-only to commit.",
+                })
+            else:
+                console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
+                console.print(f"  Feature: {feature_slug}")
+                console.print(f"  WPs validated: {wp_count}")
+            return
 
         try:
             # Build list of all files to commit via safe_commit

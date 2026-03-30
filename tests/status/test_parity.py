@@ -82,13 +82,11 @@ class TestBackportReadiness:
         "specify_cli.status.transitions",
         "specify_cli.status.reducer",
         "specify_cli.status.store",
-        "specify_cli.status.phase",
+        # phase, legacy_bridge, migrate, reconcile were deleted in WP05
         "specify_cli.status.emit",
         "specify_cli.status.validate",
         "specify_cli.status.doctor",
-        "specify_cli.status.legacy_bridge",
-        "specify_cli.status.migrate",
-        "specify_cli.status.reconcile",
+        "specify_cli.status.views",
     ]
 
     @pytest.mark.parametrize("module_name", STATUS_MODULES)
@@ -277,95 +275,18 @@ class TestSaasFanOutNoOp:
 
 
 class TestPhaseCap:
-    """Verify phase capping behavior for 0.1x branches."""
+    """Tombstone: phase.py was deleted in WP05.
 
-    @patch("specify_cli.status.phase.is_01x_branch", return_value=True)
-    def test_phase_capped_at_max_on_01x(self, _mock, tmp_path: Path):
-        """On 0.1x branch, phase is capped at MAX_PHASE_01X."""
-        from specify_cli.status.phase import MAX_PHASE_01X, resolve_phase
+    The three-phase model (0=hardening, 1=dual-write, 2=read-cutover) was
+    removed. The event log is the sole authority for all features.
+    """
 
-        # All valid phases should work (0, 1, 2 are all <= MAX_PHASE_01X=2)
-        for valid_phase in (0, 1, 2):
-            meta_dir = tmp_path / "kitty-specs" / f"feat-{valid_phase}"
-            meta_dir.mkdir(parents=True, exist_ok=True)
-            (meta_dir / "meta.json").write_text(json.dumps({"status_phase": valid_phase}), encoding="utf-8")
-            phase, source = resolve_phase(tmp_path, f"feat-{valid_phase}")
-            assert phase == valid_phase
-            # Should NOT be capped since all valid phases are within range
-            if valid_phase <= MAX_PHASE_01X:
-                assert "capped" not in source
+    def test_phase_module_deleted(self):
+        """Verify phase.py cannot be imported (deleted in WP05)."""
+        import importlib
 
-    @patch("specify_cli.status.phase.is_01x_branch", return_value=False)
-    def test_no_cap_on_2x_branch(self, _mock, tmp_path: Path):
-        """On 2.x branch, no phase capping is applied."""
-        from specify_cli.status.phase import resolve_phase
-
-        meta_dir = tmp_path / "kitty-specs" / "feat"
-        meta_dir.mkdir(parents=True, exist_ok=True)
-        (meta_dir / "meta.json").write_text(json.dumps({"status_phase": 2}), encoding="utf-8")
-        phase, source = resolve_phase(tmp_path, "feat")
-        assert phase == 2
-        assert "capped" not in source
-
-    @patch("specify_cli.status.phase.subprocess.run")
-    def test_main_branch_detected_as_01x(self, mock_run, tmp_path: Path):
-        """The 'main' branch is correctly identified as 0.1x."""
-        from specify_cli.status.phase import is_01x_branch
-
-        result = MagicMock()
-        result.returncode = 0
-        result.stdout = "main\n"
-        mock_run.return_value = result
-
-        assert is_01x_branch(tmp_path) is True
-
-    @patch("specify_cli.status.phase.subprocess.run")
-    def test_2x_branch_not_detected_as_01x(self, mock_run, tmp_path: Path):
-        """The '2.x' branch is not identified as 0.1x."""
-        from specify_cli.status.phase import is_01x_branch
-
-        result = MagicMock()
-        result.returncode = 0
-        result.stdout = "2.x\n"
-        mock_run.return_value = result
-
-        assert is_01x_branch(tmp_path) is False
-
-    @patch("specify_cli.status.phase.subprocess.run")
-    def test_feature_branch_not_detected_as_01x(self, mock_run, tmp_path: Path):
-        """Feature branches starting with '034-' are not 0.1x."""
-        from specify_cli.status.phase import is_01x_branch
-
-        result = MagicMock()
-        result.returncode = 0
-        result.stdout = "034-feature-status-state-model-remediation-WP16\n"
-        mock_run.return_value = result
-
-        assert is_01x_branch(tmp_path) is False
-
-    @patch("specify_cli.status.phase.subprocess.run")
-    def test_release_branch_detected_as_01x(self, mock_run, tmp_path: Path):
-        """Release branches like 'release/0.15.0' are 0.1x."""
-        from specify_cli.status.phase import is_01x_branch
-
-        result = MagicMock()
-        result.returncode = 0
-        result.stdout = "release/0.15.0\n"
-        mock_run.return_value = result
-
-        assert is_01x_branch(tmp_path) is True
-
-    @patch("specify_cli.status.phase.subprocess.run")
-    def test_git_failure_defaults_to_not_01x(self, mock_run, tmp_path: Path):
-        """Git failure defaults to False (not 0.1x)."""
-        from specify_cli.status.phase import is_01x_branch
-
-        result = MagicMock()
-        result.returncode = 128
-        result.stdout = ""
-        mock_run.return_value = result
-
-        assert is_01x_branch(tmp_path) is False
+        with pytest.raises(ImportError):
+            importlib.import_module("specify_cli.status.phase")
 
 
 # =====================================================================

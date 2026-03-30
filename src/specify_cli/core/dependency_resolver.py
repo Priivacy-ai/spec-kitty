@@ -90,21 +90,22 @@ def check_dependency_status(feature_dir: Path, wp_id: str, dependencies: list[st
     tasks_dir = feature_dir / "tasks"
     lanes = {}
 
-    # Read lane status for each dependency
-    for dep_id in dependencies:
-        # Find WP file (may have slug suffix)
-        wp_files = list(tasks_dir.glob(f"{dep_id}-*.md"))
-        if not wp_files:
-            # Dependency file not found - cannot determine status
-            lanes[dep_id] = "unknown"
-            continue
+    # Read lane status for each dependency from the canonical event log
+    try:
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
 
-        wp_file = wp_files[0]
-        try:
-            frontmatter, _ = read_frontmatter(wp_file)
-            lanes[dep_id] = frontmatter.get("lane", "unknown")
-        except Exception:
-            lanes[dep_id] = "unknown"
+        events = read_events(feature_dir)
+        snapshot = reduce(events)
+        event_log_lanes: dict[str, str] = {
+            wp_id_: str(state.get("lane", "unknown"))
+            for wp_id_, state in snapshot.work_packages.items()
+        }
+    except Exception:
+        event_log_lanes = {}
+
+    for dep_id in dependencies:
+        lanes[dep_id] = event_log_lanes.get(dep_id, "unknown")
 
     # Determine if all done
     all_done = all(lane == "done" for lane in lanes.values())

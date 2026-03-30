@@ -78,6 +78,29 @@ def _write_runtime_input_mission(repo_root: Path, mission_key: str) -> None:
         encoding="utf-8",
     )
 
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a WP into a specific lane in the event log."""
+    from specify_cli.status.store import append_event
+    from specify_cli.status.models import StatusEvent, Lane
+
+    # Map legacy aliases to canonical lane names
+    _lane_alias = {"doing": "in_progress"}
+    canonical_lane = _lane_alias.get(lane, lane)
+
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{canonical_lane}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(canonical_lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
+
 def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
     """Create WP task files.  wps maps WP ID to lane."""
     tasks_dir = feature_dir / "tasks"
@@ -87,6 +110,9 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
             f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
             encoding="utf-8",
         )
+        # Seed event log for non-planned lanes
+        if lane != "planned":
+            _seed_wp_lane(feature_dir, wp_id, lane)
 
 def _advance_runtime_to_step(
     repo_root: Path,
@@ -662,6 +688,8 @@ class TestAtomicTaskTransitions:
             "---\nwork_package_id: WP01\nlane: done\ndependencies: []\ntitle: WP01\n---\n# WP01\n",
             encoding="utf-8",
         )
+        # Seed event log so runtime bridge reads WP01 as done
+        _seed_wp_lane(feature_dir, "WP01", "done")
 
         from specify_cli.next.decision import decide_next
 

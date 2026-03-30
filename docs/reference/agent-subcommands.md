@@ -53,7 +53,7 @@ spec-kitty agent feature branch-context --target-branch develop --json
 
 **Synopsis**: `spec-kitty agent feature create-feature [OPTIONS] FEATURE_SLUG`
 
-**Description**: Create new feature directory structure in planning repository.
+**Description**: Create new feature directory structure in the project root checkout.
 
 **Arguments**:
 - `FEATURE_SLUG`: Feature slug (e.g., `user-auth`) [required]
@@ -97,7 +97,7 @@ spec-kitty agent feature check-prerequisites --feature 020-my-feature --paths-on
 
 **Synopsis**: `spec-kitty agent feature setup-plan [OPTIONS]`
 
-**Description**: Scaffold implementation plan template in planning repository.
+**Description**: Scaffold implementation plan template in the project root checkout.
 
 **Options**:
 | Flag | Description |

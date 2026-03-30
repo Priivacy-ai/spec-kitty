@@ -29,10 +29,9 @@ from specify_cli.status.store import read_events
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
+from specify_cli.core.paths import (
     get_feature_target_branch,
-    FeatureDetectionError,
+    require_explicit_feature,
 )
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
@@ -137,31 +136,20 @@ def _ensure_target_branch_checked_out(
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Find the current feature slug using centralized detection.
+    """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_feature: Feature slug provided via --feature flag.
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If feature slug cannot be determined
+        typer.Exit: If feature slug is not provided.
     """
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        raise typer.Exit(1)
-
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
+        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
@@ -268,7 +256,7 @@ def _check_unchecked_subtasks(
     Raises:
         typer.Exit: If unchecked tasks found and force=False
     """
-    # Use planning repo root (worktrees have kitty-specs/ sparse-checked out)
+    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
     tasks_md = feature_dir / "tasks.md"
@@ -328,7 +316,7 @@ def _check_dependent_warnings(
     if json_mode:
         return
 
-    # Use planning repo root (worktrees have kitty-specs/ sparse-checked out)
+    # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
 
@@ -345,19 +333,24 @@ def _check_dependent_warnings(
         return  # No dependents, no warnings
 
     # Check if any dependents are incomplete (not yet done)
+    # Lane is event-log-only; read from canonical event log
+    try:
+        from specify_cli.status.store import read_events as _dw_read_events
+        from specify_cli.status.reducer import reduce as _dw_reduce
+
+        _dw_events = _dw_read_events(feature_dir)
+        _dw_snapshot = _dw_reduce(_dw_events) if _dw_events else None
+        _dw_lanes: dict = {}
+        if _dw_snapshot:
+            for _dw_wp_id, _dw_state in _dw_snapshot.work_packages.items():
+                _dw_lanes[_dw_wp_id] = str(_dw_state.get("lane", "planned"))
+    except Exception:
+        _dw_lanes = {}
+
     incomplete = []
     for dep_id in dependents:
         try:
-            # Find dependent WP file
-            tasks_dir = feature_dir / "tasks"
-            dep_files = list(tasks_dir.glob(f"{dep_id}-*.md"))
-            if not dep_files:
-                continue
-
-            # Read frontmatter
-            content = dep_files[0].read_text(encoding="utf-8-sig")
-            frontmatter, _, _ = split_frontmatter(content)
-            lane = extract_scalar(frontmatter, "lane") or "planned"
+            lane = _dw_lanes.get(dep_id, "planned")
 
             if resolve_lane_alias(lane) in ["planned", "in_progress", "claimed"]:
                 incomplete.append(dep_id)
@@ -575,7 +568,6 @@ def _validate_ready_for_review(
 
             # Check if worktree branch is behind its base branch
             # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
-            from specify_cli.core.feature_detection import get_feature_target_branch
             from specify_cli.workspace_context import load_context
             target_branch = get_feature_target_branch(repo_root, feature_slug)
 
@@ -812,7 +804,7 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
@@ -873,7 +865,18 @@ def move_task(
 
         # Load work package first (needed for current_lane check)
         wp = locate_work_package(repo_root, feature_slug, task_id)
-        old_lane = wp.current_lane
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        _mt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _mt_read_events
+            from specify_cli.status.reducer import reduce as _mt_reduce
+
+            _mt_events = _mt_read_events(_mt_feature_dir)
+            _mt_snapshot = _mt_reduce(_mt_events) if _mt_events else None
+            _mt_state = _mt_snapshot.work_packages.get(task_id) if _mt_snapshot else None
+            old_lane = str(_mt_state.get("lane", "planned")) if _mt_state else "planned"
+        except Exception:
+            old_lane = "planned"
 
         # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
         # This helps prevent agents from accidentally modifying WPs they don't own
@@ -1138,16 +1141,11 @@ def move_task(
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
 
-            # --- Post-emit: apply metadata fields to WP file ---
-            # The emit pipeline (via legacy_bridge) may have updated the lane
-            # in frontmatter. Re-read the file to get the current state,
-            # then apply additional metadata fields that are NOT part of
-            # the canonical event.
+            # --- Post-emit: apply operational metadata fields to WP file ---
+            # The event log is the sole authority for lane/review state.
+            # Only non-status operational metadata is written to frontmatter.
             wp_content = wp.path.read_text(encoding="utf-8-sig")
             updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-
-            # Ensure lane is set (in case legacy_bridge didn't update it)
-            updated_front = set_scalar(updated_front, "lane", canonical_lane)
 
             # Update assignee if provided
             if assignee:
@@ -1160,23 +1158,6 @@ def move_task(
             # Update shell_pid if provided
             if shell_pid:
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
-
-            # Store canonical review feedback pointer in frontmatter (no body duplication).
-            if target_lane == "planned" and review_feedback_pointer is not None:
-                effective_reviewer = reviewer or _detect_reviewer_name()
-                updated_front = set_scalar(updated_front, "review_status", "has_feedback")
-                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-                updated_front = set_scalar(
-                    updated_front,
-                    "review_feedback",
-                    review_feedback_pointer,
-                )
-
-            # Record approval metadata when review passes.
-            if target_lane in ("approved", "done"):
-                effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
-                updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
-                updated_front = set_scalar(updated_front, "review_status", "approved")
 
             # Build history entry
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1273,7 +1254,7 @@ def move_task(
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -1456,7 +1437,7 @@ def mark_status(
 @app.command(name="list-tasks")
 def list_tasks(
     lane: Annotated[Optional[str], typer.Option("--lane", help="Filter by lane")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -1483,6 +1464,21 @@ def list_tasks(
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
+        # Load canonical lanes from event log
+        _lt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _lt_read_events
+            from specify_cli.status.reducer import reduce as _lt_reduce
+
+            _lt_events = _lt_read_events(_lt_feature_dir)
+            _lt_snapshot = _lt_reduce(_lt_events) if _lt_events else None
+            _lt_lanes: dict = {}
+            if _lt_snapshot:
+                for _lt_wp_id, _lt_state in _lt_snapshot.work_packages.items():
+                    _lt_lanes[_lt_wp_id] = str(_lt_state.get("lane", "planned"))
+        except Exception:
+            _lt_lanes = {}
+
         tasks = []
         for task_file in tasks_dir.glob("WP*.md"):
             if task_file.name.lower() == "readme.md":
@@ -1491,9 +1487,10 @@ def list_tasks(
             content = task_file.read_text(encoding="utf-8-sig")
             frontmatter, _, _ = split_frontmatter(content)
 
-            task_lane = extract_scalar(frontmatter, "lane") or "planned"
             task_wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
             task_title = extract_scalar(frontmatter, "title") or ""
+            # Lane is event-log-only
+            task_lane = _lt_lanes.get(task_wp_id, "planned")
 
             # Filter by lane if specified
             if lane and task_lane != lane:
@@ -1528,7 +1525,7 @@ def list_tasks(
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1553,8 +1550,18 @@ def add_history(
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
 
-        # Get current lane from frontmatter
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
+        # Get current lane from canonical event log (lane is event-log-only)
+        _ah_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _ah_read_events
+            from specify_cli.status.reducer import reduce as _ah_reduce
+
+            _ah_events = _ah_read_events(_ah_feature_dir)
+            _ah_snapshot = _ah_reduce(_ah_events) if _ah_events else None
+            _ah_state = _ah_snapshot.work_packages.get(task_id) if _ah_snapshot else None
+            current_lane = str(_ah_state.get("lane", "planned")) if _ah_state else "planned"
+        except Exception:
+            current_lane = "planned"
 
         # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1612,7 +1619,7 @@ def add_history(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Parse tasks.md and inject dependencies into WP frontmatter.
@@ -1763,7 +1770,7 @@ def map_requirements(
     ] = False,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (auto-detected if omitted)"),
+        typer.Option("--feature", help="Feature slug (required in multi-feature repos)"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
@@ -2064,7 +2071,7 @@ def map_requirements(
 @app.command(name="validate-workflow")
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -2091,16 +2098,24 @@ def validate_workflow(
         errors = []
         warnings = []
 
-        # Check required fields
-        required_fields = ["work_package_id", "title", "lane"]
+        # Check required fields (lane is event-log-only, not required in frontmatter)
+        required_fields = ["work_package_id", "title"]
         for field in required_fields:
             if not extract_scalar(wp.frontmatter, field):
                 errors.append(f"Missing required field: {field}")
 
-        # Check lane is valid
-        lane_value = extract_scalar(wp.frontmatter, "lane")
-        if lane_value and lane_value not in LANES:
-            errors.append(f"Invalid lane '{lane_value}'. Must be one of: {', '.join(LANES)}")
+        # Get lane from event log (canonical source)
+        _vw_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _vw_read_events
+            from specify_cli.status.reducer import reduce as _vw_reduce
+
+            _vw_events = _vw_read_events(_vw_feature_dir)
+            _vw_snapshot = _vw_reduce(_vw_events) if _vw_events else None
+            _vw_state = _vw_snapshot.work_packages.get(task_id) if _vw_snapshot else None
+            lane_value = str(_vw_state.get("lane", "planned")) if _vw_state else "planned"
+        except Exception:
+            lane_value = "planned"
 
         # Check work_package_id matches filename
         wp_id = extract_scalar(wp.frontmatter, "work_package_id")
@@ -2156,7 +2171,7 @@ def validate_workflow(
 def status(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (e.g., 012-documentation-mission). Auto-detected if not provided.")
+        typer.Option("--feature", "-f", help="Feature slug (e.g., 012-documentation-mission). Required in multi-feature repos.")
     ] = None,
     json_output: Annotated[
         bool,
@@ -2212,6 +2227,20 @@ def status(
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
+        # Load canonical lanes from event log (lane is event-log-only)
+        try:
+            from specify_cli.status.store import read_events as _st_read_events
+            from specify_cli.status.reducer import reduce as _st_reduce
+
+            _st_events = _st_read_events(feature_dir)
+            _st_snapshot = _st_reduce(_st_events) if _st_events else None
+            _st_lanes: dict = {}
+            if _st_snapshot:
+                for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
+                    _st_lanes[_st_wp_id] = str(_st_state.get("lane", "planned"))
+        except Exception:
+            _st_lanes = {}
+
         # Collect all work packages
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
@@ -2219,7 +2248,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = resolve_lane_alias(extract_scalar(front, "lane") or "unknown")
+            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, "planned"))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""
@@ -2386,9 +2415,10 @@ def status(
             console.print()
 
         if by_lane["approved"]:
-            console.print("[bold magenta]👍 Approved Awaiting Merge:[/bold magenta]")
+            console.print("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
             for wp in by_lane["approved"]:
                 console.print(f"  • {wp['id']} - {wp['title']}")
+            console.print("[dim]   Approved WPs stay here until feature merge. Dependents can start immediately.[/dim]")
             console.print()
 
         if by_lane["in_progress"]:
@@ -2434,6 +2464,11 @@ def status(
         summary.add_row("Auto-commit:", auto_commit_label)
 
         console.print(Panel(summary, title="[bold]Summary[/bold]", border_style="dim"))
+
+        # Next action hint — always show so agents know what to do
+        console.print("[bold]▶ Next action:[/bold]")
+        console.print(f"  [cyan]spec-kitty next --agent <your-name> --feature {feature_slug}[/cyan]")
+        console.print("[dim]  This command tells you exactly what to do next based on the dependency graph.[/dim]")
         console.print()
 
     except Exception as e:
@@ -2444,7 +2479,7 @@ def status(
 @app.command(name="list-dependents")
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).

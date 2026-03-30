@@ -22,7 +22,6 @@ from types import SimpleNamespace
 from typing import Any
 
 from specify_cli.mission_v1.events import read_events
-from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 
 
 # ---------------------------------------------------------------------------
@@ -203,8 +202,27 @@ def _describe_guard(guard_callable: Any, *, negate: bool = False) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
+    """Return a mapping of wp_id -> canonical lane from the event log.
+
+    Falls back to "planned" for WPs not yet in the event log.
+    """
+    from specify_cli.status.store import read_events
+    from specify_cli.status.reducer import reduce
+
+    events = read_events(feature_dir)
+    if not events:
+        return {}
+
+    snapshot = reduce(events)
+    return {
+        wp_id: str(state.get("lane", "planned"))
+        for wp_id, state in snapshot.work_packages.items()
+    }
+
+
 def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
-    """Compute WP lane counts for the progress field."""
+    """Compute WP lane counts for the progress field from the event log."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
@@ -212,6 +230,8 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     if not wp_files:
         return None
+
+    wp_lanes = _get_wp_lanes(feature_dir)
 
     counts = {
         "total_wps": 0,
@@ -224,7 +244,9 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
 
     for wp_file in wp_files:
         counts["total_wps"] += 1
-        lane = _read_lane_from_frontmatter(wp_file) or "planned"
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
+        wp_id = wp_match.group(1) if wp_match else wp_file.stem
+        lane = wp_lanes.get(wp_id, "planned")
         if lane == "done":
             counts["done_wps"] += 1
         elif lane == "approved":
@@ -240,18 +262,21 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
 
 
 def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
-    """Find the first WP file with the given lane value."""
+    """Find the first WP file with the given lane value (from event log)."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
 
+    wp_lanes = _get_wp_lanes(feature_dir)
     wp_files = sorted(tasks_dir.glob("WP*.md"))
     for wp_file in wp_files:
-        wp_lane = _read_lane_from_frontmatter(wp_file)
+        wp_match = re.match(r"(WP\d+)", wp_file.stem)
+        if wp_match is None:
+            continue
+        wp_id = wp_match.group(1)
+        wp_lane = wp_lanes.get(wp_id, "planned")
         if wp_lane == lane:
-            match = re.match(r"(WP\d+)", wp_file.stem)
-            if match:
-                return match.group(1)
+            return wp_id
     return None
 
 
@@ -361,6 +386,12 @@ def _state_to_action(
     }
     alias = _ALIASES.get(state)
     if alias:
+        # CLI-driven commands (shims) have no command template file — return
+        # the alias directly without verifying template existence.
+        from specify_cli.shims.registry import is_cli_driven
+
+        if is_cli_driven(alias):
+            return alias, None, None
         try:
             resolve_command(f"{alias}.md", repo_root, mission=mission_name)
             return alias, None, None

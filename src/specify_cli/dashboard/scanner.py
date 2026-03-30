@@ -10,7 +10,6 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
-from specify_cli.core.feature_detection import detect_feature
 from specify_cli.legacy_detector import is_legacy_format
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
@@ -278,38 +277,50 @@ def resolve_active_feature(
     project_dir: Path,
     features: List[Dict[str, Any]],
 ) -> Optional[Dict[str, Any]]:
-    """Resolve active feature using the same detector as CLI status commands."""
-    if not features:
-        return None
+    """Return None — active feature cannot be auto-detected; requires explicit --feature.
 
-    context = detect_feature(
-        project_dir,
-        cwd=project_dir,
-        mode="lenient",
-    )
-    if context:
-        for feature in features:
-            if feature.get("id") == context.slug:
-                return feature
+    This function is retained for backward-compatible call sites. Without
+    auto-detection, we cannot determine the active feature without an explicit
+    feature slug from the caller.
+    """
+    return None
 
     # Keep previous deterministic fallback for edge cases.
     return features[0]
 
 
 def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
-    """Count work packages by lane from frontmatter (new format)."""
+    """Count work packages by lane from event log (new format)."""
     counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
 
     if not tasks_dir.exists():
         return counts
 
-    for wp_file in tasks_dir.glob("WP*.md"):
-        content, error = read_file_resilient(wp_file, auto_fix=True)
-        if content is None:
-            continue
+    # feature_dir is the parent of tasks/
+    feature_dir = tasks_dir.parent
 
-        frontmatter, _, _ = parse_frontmatter(content)
-        lane = frontmatter.get("lane", "planned") if isinstance(frontmatter, dict) else "planned"
+    try:
+        from specify_cli.status.lane_reader import get_all_wp_lanes
+        event_lanes = get_all_wp_lanes(feature_dir)
+    except Exception:
+        event_lanes = {}
+
+    for wp_file in tasks_dir.glob("WP*.md"):
+        import re as _re
+        stem = wp_file.stem
+        wp_id_match = _re.match(r"^(WP\d+)", stem, _re.IGNORECASE)
+        wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+
+        if wp_id in event_lanes:
+            lane = event_lanes[wp_id]
+        else:
+            # Fallback to frontmatter for WPs not yet in event log
+            content, error = read_file_resilient(wp_file, auto_fix=True)
+            if content is None:
+                continue
+            frontmatter, _, _ = parse_frontmatter(content)
+            lane = frontmatter.get("lane", "planned") if isinstance(frontmatter, dict) else "planned"
+
         if lane == "claimed":
             lane = "planned"
         elif lane == "in_progress":
@@ -423,10 +434,33 @@ def _process_wp_file(
     title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
     title = title_match.group(1) if title_match else prompt_file.stem
 
+    wp_id = frontmatter.get("work_package_id", prompt_file.stem)
+    # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
+    feature_dir = prompt_file.parent.parent
+    try:
+        import re as _re
+        stem = prompt_file.stem
+        wp_id_match = _re.match(r"^(WP\d+)", stem, _re.IGNORECASE)
+        canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+        from specify_cli.status.lane_reader import get_wp_lane
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+        events = read_events(feature_dir)
+        if events:
+            snapshot = reduce(events)
+            if canonical_wp_id in snapshot.work_packages:
+                lane = get_wp_lane(feature_dir, canonical_wp_id)
+            else:
+                lane = frontmatter.get("lane", default_lane)
+        else:
+            lane = frontmatter.get("lane", default_lane)
+    except Exception:
+        lane = frontmatter.get("lane", default_lane)
+
     return {
-        "id": frontmatter.get("work_package_id", prompt_file.stem),
+        "id": wp_id,
         "title": title,
-        "lane": frontmatter.get("lane", default_lane),
+        "lane": lane,
         "subtasks": frontmatter.get("subtasks", []),
         "agent": frontmatter.get("agent", ""),
         "assignee": frontmatter.get("assignee", ""),

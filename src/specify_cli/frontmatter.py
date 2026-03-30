@@ -35,11 +35,12 @@ class FrontmatterManager:
     5. Sort keys in consistent order
     """
 
-    # Standard field order for work package frontmatter
+    # Standard field order for work package frontmatter.
+    # Mutable status fields (lane, review_status, reviewed_by, review_feedback)
+    # are managed exclusively via the canonical event log and are NOT written here.
     WP_FIELD_ORDER = [
         "work_package_id",
         "title",
-        "lane",
         "dependencies",  # List of WP IDs this WP depends on (e.g., ['WP01', 'WP02'])
         "requirement_refs",  # Requirement IDs mapped to this WP (e.g., ['FR-001', 'NFR-002'])
         "planning_base_branch",  # Planning branch active when the WP prompt was generated
@@ -53,13 +54,10 @@ class FrontmatterManager:
         "assignee",
         "agent",
         "shell_pid",
-        "review_status",
-        "reviewed_by",
-        "review_feedback",  # feedback:// pointer to persisted review artifact
         "history",
     ]
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize with ruamel.yaml configured for consistency."""
         self.yaml = YAML()
         self.yaml.default_flow_style = False
@@ -194,10 +192,14 @@ class FrontmatterManager:
         if not isinstance(history, list):
             history = []
 
-        # Create entry
+        # Create entry — quote action if it contains colons (prevents YAML parse breakage)
+        safe_action = action
+        if ":" in action:
+            # Ensure ruamel.yaml will quote this value
+            safe_action = str(action)
         entry = {
             "timestamp": datetime.now().isoformat(),
-            "action": action,
+            "action": safe_action,
         }
         if agent:
             entry["agent"] = agent
@@ -280,28 +282,13 @@ class FrontmatterManager:
             return [str(e)]
 
         # Check for required fields (work packages only)
+        # Note: `lane` is no longer a required frontmatter field — lane state
+        # is managed exclusively via the canonical event log.
         if file_path.name.startswith("WP"):
-            required = ["work_package_id", "title", "lane"]
+            required = ["work_package_id", "title"]
             for field in required:
                 if field not in frontmatter:
                     errors.append(f"Missing required field: {field}")
-
-            # Validate lane value
-            if "lane" in frontmatter:
-                valid_lanes = [
-                    "planned",
-                    "claimed",
-                    "in_progress",
-                    "for_review",
-                    "done",
-                    "blocked",
-                    "canceled",
-                    "doing",  # Accepted alias for in_progress
-                ]
-                if frontmatter["lane"] not in valid_lanes:
-                    errors.append(
-                        f"Invalid lane value: {frontmatter['lane']} (must be one of: {', '.join(valid_lanes)})"
-                    )
 
             # Validate dependencies field (if present)
             if "dependencies" in frontmatter:

@@ -3,7 +3,6 @@ from pathlib import Path
 
 from specify_cli.dashboard import scanner
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
-from specify_cli.core.feature_detection import FeatureContext
 
 
 def _create_feature(tmp_path: Path, slug: str = "001-demo-feature") -> Path:
@@ -70,38 +69,23 @@ def test_scan_feature_kanban_returns_prompt(tmp_path):
     assert "prompt_markdown" in task
 
 
-def test_resolve_active_feature_uses_core_detector(tmp_path, monkeypatch):
+def test_resolve_active_feature_requires_explicit_selection(tmp_path):
+    """resolve_active_feature returns None — auto-detection was removed.
+
+    Since feature_detection was deleted (WP02), the dashboard no longer
+    auto-detects the active feature.  Callers must provide an explicit
+    --feature flag.  This test confirms the contract: without heuristics,
+    resolve_active_feature always returns None.
+    """
     features = [
         {"id": "009-old-feature"},
         {"id": "010-new-feature"},
     ]
 
-    def _fake_detect_feature(*_args, **_kwargs):
-        return FeatureContext(
-            slug="010-new-feature",
-            number="010",
-            name="new-feature",
-            directory=tmp_path / "kitty-specs" / "010-new-feature",
-            detection_method="single_auto",
-        )
-
-    monkeypatch.setattr(scanner, "detect_feature", _fake_detect_feature)
-
     resolved = scanner.resolve_active_feature(tmp_path, features)
-    assert resolved is not None
-    assert resolved["id"] == "010-new-feature"
-
-
-def test_resolve_active_feature_falls_back_to_first(tmp_path, monkeypatch):
-    features = [
-        {"id": "009-old-feature"},
-        {"id": "010-new-feature"},
-    ]
-
-    monkeypatch.setattr(scanner, "detect_feature", lambda *_args, **_kwargs: None)
-    resolved = scanner.resolve_active_feature(tmp_path, features)
-    assert resolved is not None
-    assert resolved["id"] == "009-old-feature"
+    assert resolved is None, (
+        "resolve_active_feature must return None after removal of auto-detection"
+    )
 
 
 def test_project_constitution_propagates_to_all_features(tmp_path):

@@ -78,6 +78,8 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
         "agent",
         "feature",
         "setup-plan",
+        "--feature",
+        "001-plan-test",
         "--json",
     )
 
@@ -237,6 +239,8 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
         "agent",
         "feature",
         "setup-plan",
+        "--feature",
+        "001-full-workflow-test",
         "--json",
     )
     assert result.returncode == 0, "Plan setup failed"
@@ -309,6 +313,9 @@ agent: ""
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
+owned_files:
+  - src/foundation/**
+authoritative_surface: src/foundation/
 history:
   - timestamp: "2025-01-01T00:00:00Z"
     lane: "planned"
@@ -334,6 +341,9 @@ agent: ""
 shell_pid: ""
 review_status: ""
 reviewed_by: ""
+owned_files:
+  - src/api/**
+authoritative_surface: src/api/
 history:
   - timestamp: "2025-01-01T00:00:00Z"
     lane: "planned"
@@ -435,6 +445,8 @@ def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
         "agent",
         "feature",
         "check-prerequisites",
+        "--feature",
+        "001-prereq-test",
         "--json",
     )
 

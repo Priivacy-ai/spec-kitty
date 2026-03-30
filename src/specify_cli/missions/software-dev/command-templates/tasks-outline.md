@@ -1,7 +1,3 @@
----
-description: Create the task breakdown document (tasks.md) with work package definitions, subtask lists, and dependency descriptions.
----
-
 # /spec-kitty.tasks-outline - Create Task Breakdown Document
 
 **Version**: 0.12.0+
@@ -26,11 +22,13 @@ break work into clear pieces, and write detailed guidance.
 
 ---
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the project root checkout
 
-**IMPORTANT**: This step works in the planning repository. NO worktrees created.
+**IMPORTANT**: This step works in the project root checkout. NO worktrees created.
 
-**Do NOT cd anywhere**. Stay in the planning repository root.
+**Do NOT cd anywhere**. Stay in the project root checkout root.
+
+**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -94,7 +92,7 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 
 ### 5. Write `tasks.md`
 
-Write to `feature_dir/tasks.md` using the bundled tasks template (`.kittify/missions/software-dev/templates/tasks-template.md`):
+Write to `feature_dir/tasks.md` following the tasks template structure below (**do NOT write instructions to read a template file from `.kittify/`**):
 - Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
 - Under each work package include:
   - Summary (goal, priority, independent test)
@@ -144,4 +142,4 @@ Analyze tasks.md for dependency relationships:
 
 Document dependencies clearly in each WP's section.
 
-Context for work-package planning: {ARGS}
+Context for work-package planning: $ARGUMENTS

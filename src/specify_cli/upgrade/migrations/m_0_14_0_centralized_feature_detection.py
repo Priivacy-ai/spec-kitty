@@ -80,62 +80,21 @@ class CentralizedFeatureDetectionMigration(BaseMigration):
     # Template file to update
     TEMPLATE_FILE = "spec-kitty.plan.md"
 
-    def detect(self, project_path: Path) -> bool:
-        """Check if any agent templates need updating.
+    def detect(self, project_path: Path) -> bool:  # noqa: ARG002
+        """Always returns False — command templates removed in WP10 (canonical context architecture).
 
-        We detect by checking if the plan.md template contains the new
-        feature detection section (step 2 in the outline).
+        Shim generation (spec-kitty agent shim) now replaces template-based agent commands.
+        This migration is retained for history but is permanently inert.
         """
-        agent_dirs = get_agent_dirs_for_project(project_path)
-
-        for agent_root, subdir in agent_dirs:
-            agent_dir = project_path / agent_root / subdir
-
-            # Skip if agent directory doesn't exist (user may have deleted it)
-            if not agent_dir.exists():
-                continue
-
-            template_file = agent_dir / self.TEMPLATE_FILE
-            if not template_file.exists():
-                # Template missing, needs update
-                return True
-
-            # Check if template has the new feature detection section
-            try:
-                content = template_file.read_text(encoding="utf-8")
-                if "2. **Detect feature context**" not in content:
-                    # Old template without feature detection
-                    return True
-            except OSError:
-                # Can't read, assume needs update
-                return True
-
         return False
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:  # noqa: ARG002
-        """Check if we can copy the updated template from the package."""
-        package_template = self._find_package_template()
-        if package_template is None:
-            return (
-                False,
-                "Could not locate package plan.md template to copy from. "
-                "This is expected in test environments. "
-                "Run 'spec-kitty upgrade' again after installation.",
-            )
-
-        # Verify the package template has the new feature detection section
-        try:
-            content = package_template.read_text(encoding="utf-8")
-            if "2. **Detect feature context**" not in content:
-                return (
-                    False,
-                    "Package plan.md template is missing feature detection section. "
-                    "Please upgrade spec-kitty-cli to version 0.14.0 or later.",
-                )
-        except OSError as e:
-            return (False, f"Could not read package template: {e}")
-
-        return True, ""
+        """Always returns False — command templates removed in WP10."""
+        return (
+            False,
+            "Command templates were removed in WP10 (canonical context architecture). "
+            "Shim generation replaces template-based commands.",
+        )
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         """Copy updated plan.md template to all configured agent directories."""

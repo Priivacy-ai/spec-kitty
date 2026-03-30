@@ -1,7 +1,7 @@
 """Pre-flight validation for merge operations.
 
-Implements FR-001 through FR-004: checking worktree status and target branch
-divergence before any merge operation begins.
+Validates worktree cleanliness and target-branch divergence before any merge
+operation begins. Accepts either a MissionContext or loose parameters.
 """
 
 from __future__ import annotations
@@ -11,12 +11,15 @@ import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
 import re
+from typing import TYPE_CHECKING
 
 from rich.console import Console
 from rich.table import Table
 
 from specify_cli.core.constants import KITTY_SPECS_DIR, WORKTREES_DIR
-from specify_cli.core.dependency_graph import build_dependency_graph
+
+if TYPE_CHECKING:
+    from specify_cli.context.models import MissionContext
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,7 @@ __all__ = [
     "check_worktree_status",
     "check_target_divergence",
     "run_preflight",
+    "run_preflight_from_context",
     "display_preflight_result",
 ]
 
@@ -135,7 +139,11 @@ def check_target_divergence(target_branch: str, repo_root: Path) -> tuple[bool, 
         ahead, behind = map(int, parts)
 
         if behind > 0:
-            return True, f"{target_branch} is {behind} commit(s) behind origin. Run: git checkout {target_branch} && git pull"
+            msg = (
+                f"{target_branch} is {behind} commit(s) behind origin. "
+                f"Run: git checkout {target_branch} && git pull"
+            )
+            return True, msg
 
         return False, None
 
@@ -187,12 +195,15 @@ def run_preflight(
     """
     result = PreflightResult(passed=True)
 
-    # Check for missing worktrees based on tasks in kitty-specs
-    expected_graph = build_dependency_graph(repo_root / KITTY_SPECS_DIR / feature_slug)
-    expected_wps = set(expected_graph.keys())
-    discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}
-    missing_wps = sorted(expected_wps - discovered_wps)
-    if missing_wps:
+    # Check for missing worktrees based on WP task files in kitty-specs
+    tasks_dir = repo_root / KITTY_SPECS_DIR / feature_slug / "tasks"
+    if tasks_dir.exists():
+        expected_wps = {
+            f.stem.split("-")[0]
+            for f in tasks_dir.glob("WP*.md")
+        }
+        discovered_wps = {wp_id for _, wp_id, _ in wp_workspaces}
+        missing_wps = sorted(expected_wps - discovered_wps)
         for wp_id in missing_wps:
             lane = _wp_lane_from_feature(repo_root, feature_slug, wp_id)
             if lane == "done":
@@ -203,7 +214,11 @@ def run_preflight(
 
             result.passed = False
             expected_path = repo_root / WORKTREES_DIR / f"{feature_slug}-{wp_id}"
-            error = f"Missing worktree for {wp_id}. Expected at {expected_path.name}. Run: spec-kitty agent workflow implement {wp_id}"
+            error = (
+                f"Missing worktree for {wp_id}. "
+                f"Expected at {expected_path.name}. "
+                f"Run: spec-kitty agent workflow implement {wp_id}"
+            )
             result.wp_statuses.append(
                 WPStatus(
                     wp_id=wp_id,
@@ -232,6 +247,31 @@ def run_preflight(
         result.errors.append(msg or f"{target_branch} has diverged from origin")
 
     return result
+
+
+def run_preflight_from_context(
+    ctx: MissionContext,
+    wp_workspaces: list[tuple[Path, str, str]],
+) -> PreflightResult:
+    """Run pre-flight checks using a MissionContext as the source of truth.
+
+    This is the preferred entry-point when a MissionContext is available,
+    since it avoids heuristic feature detection.
+
+    Args:
+        ctx: Bound MissionContext providing feature_slug, target_branch,
+             and authoritative_repo.
+        wp_workspaces: List of (worktree_path, wp_id, branch_name) tuples.
+
+    Returns:
+        PreflightResult with all check outcomes.
+    """
+    return run_preflight(
+        feature_slug=ctx.feature_slug,
+        target_branch=ctx.target_branch,
+        repo_root=Path(ctx.authoritative_repo),
+        wp_workspaces=wp_workspaces,
+    )
 
 
 def display_preflight_result(result: PreflightResult, console: Console) -> None:

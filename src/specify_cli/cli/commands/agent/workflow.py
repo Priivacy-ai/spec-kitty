@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import re
-import shutil
 import subprocess
 import tempfile
 from pathlib import Path
 from typing import Optional
+
+logger = logging.getLogger(__name__)
 
 import typer
 from typing_extensions import Annotated
@@ -21,10 +23,7 @@ from specify_cli.core.implement_validation import (
     validate_base_workspace_exists,
 )
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_feature_mission_key
 from specify_cli.status.emit import emit_status_transition, TransitionError
@@ -161,32 +160,20 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Find the current feature slug using centralized detection.
+    """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Optional explicit feature slug from --feature flag
+        explicit_feature: Feature slug provided via --feature flag.
 
     Returns:
         Feature slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If feature slug cannot be determined
+        typer.Exit: If feature slug is not provided.
     """
-    cwd = Path.cwd().resolve()
-    repo_root = locate_project_root(cwd)
-
-    if repo_root is None:
-        print("Error: Not in a spec-kitty project.")
-        raise typer.Exit(1)
-
     try:
-        return detect_feature_slug(
-            repo_root,
-            explicit_feature=explicit_feature,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
+        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
 
@@ -212,91 +199,6 @@ def _normalize_wp_id(wp_arg: str) -> str:
         return f"WP{wp_upper.lstrip('WP')}"
 
 
-def _ensure_sparse_checkout(worktree_path: Path) -> bool:
-    """Ensure worktree has sparse-checkout configured to exclude kitty-specs/.
-
-    This function runs on EVERY implement/review command, not just when creating
-    new worktrees. This fixes legacy worktrees that were created without
-    sparse-checkout or where the setup failed silently.
-
-    Args:
-        worktree_path: Path to the worktree directory
-
-    Returns:
-        True if sparse-checkout is configured correctly, False if not a worktree
-    """
-    # For worktrees, .git is a file pointing to the real git dir
-    git_path = worktree_path / ".git"
-    if not git_path.is_file():
-        return False  # Not a worktree (or doesn't exist yet)
-
-    # Get actual git dir path from the .git file
-    try:
-        git_content = git_path.read_text().strip()
-    except OSError:
-        return False
-
-    if not git_content.startswith("gitdir:"):
-        return False
-
-    git_dir = Path(git_content.split(":", 1)[1].strip())
-    if not git_dir.exists():
-        return False
-
-    sparse_checkout_file = git_dir / "info" / "sparse-checkout"
-    expected_content = "/*\n!/kitty-specs/\n!/kitty-specs/**\n"
-
-    # Check if sparse-checkout needs to be set up or fixed
-    needs_setup = False
-    if not sparse_checkout_file.exists():
-        needs_setup = True
-    else:
-        try:
-            current_content = sparse_checkout_file.read_text()
-            if current_content != expected_content:
-                needs_setup = True
-        except OSError:
-            needs_setup = True
-
-    if needs_setup:
-        # Configure sparse-checkout
-        subprocess.run(
-            ["git", "config", "core.sparseCheckout", "true"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-        subprocess.run(
-            ["git", "config", "core.sparseCheckoutCone", "false"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-        sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-        sparse_checkout_file.write_text(expected_content, encoding="utf-8")
-        subprocess.run(
-            ["git", "read-tree", "-mu", "HEAD"],
-            cwd=worktree_path, capture_output=True, check=False
-        )
-
-    # Ensure .git/info/exclude blocks the entire planning tree in WP worktrees.
-    exclude_file = git_dir / "info" / "exclude"
-    exclude_file.parent.mkdir(parents=True, exist_ok=True)
-    existing_exclude = ""
-    if exclude_file.exists():
-        try:
-            existing_exclude = exclude_file.read_text(encoding="utf-8")
-        except OSError:
-            existing_exclude = ""
-    if "kitty-specs/" not in existing_exclude:
-        entry = "# Excluded via sparse-checkout\nkitty-specs/\n"
-        updated = existing_exclude.rstrip() + "\n" + entry
-        exclude_file.write_text(updated.lstrip(), encoding="utf-8")
-
-    # Sparse-checkout metadata can be correct while files still remain on disk.
-    # Remove kitty-specs/ physically so worktree agents cannot touch planning files.
-    orphan_kitty = worktree_path / "kitty-specs"
-    if orphan_kitty.exists():
-        shutil.rmtree(orphan_kitty)
-        print("✓ Removed orphaned kitty-specs/ from worktree (now uses planning repo)")
-
-    return True
 
 
 def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
@@ -339,14 +241,28 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
+    # Load lanes from canonical event log (lane is event-log-only)
+    feature_dir = tasks_dir.parent
+    try:
+        from specify_cli.status.store import read_events as _fp_read_events
+        from specify_cli.status.reducer import reduce as _fp_reduce
+
+        _fp_events = _fp_read_events(feature_dir)
+        _fp_snapshot = _fp_reduce(_fp_events) if _fp_events else None
+        _fp_lanes: dict = {}
+        if _fp_snapshot:
+            for _fp_wp_id, _fp_state in _fp_snapshot.work_packages.items():
+                _fp_lanes[_fp_wp_id] = str(_fp_state.get("lane", "planned"))
+    except Exception:
+        _fp_lanes = {}
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
-        lane = extract_scalar(frontmatter, "lane")
-
-        if lane == "planned":
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id:
+            lane = _fp_lanes.get(wp_id, "planned")
+            if lane == "planned":
                 return wp_id
 
     return None
@@ -355,7 +271,7 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
@@ -459,7 +375,26 @@ def implement(
         wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
-        current_lane = extract_scalar(wp.frontmatter, "lane") or "planned"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        _wf_feature_dir = repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _wf_read_events
+            from specify_cli.status.reducer import reduce as _wf_reduce
+
+            _wf_events = _wf_read_events(_wf_feature_dir)
+            _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
+            _wf_state = _wf_snapshot.work_packages.get(normalized_wp_id) if _wf_snapshot else None
+            if _wf_state is not None:
+                current_lane = str(_wf_state.get("lane", "planned"))
+            else:
+                # No event log state — fall back to frontmatter lane (migration period read-only)
+                current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
+        except Exception:
+            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
+            current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
+        # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
+        if current_lane == "in_progress":
+            current_lane = "doing"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
 
@@ -484,10 +419,54 @@ def implement(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # Update lane, agent, and shell_pid in frontmatter
+            # Emit status events (canonical lane authority)
+            # Must follow allowed transitions: planned→claimed→in_progress
+            try:
+                from specify_cli.status.emit import emit_status_transition
+                _impl_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+                _actor = agent or "unknown"
+
+                if current_lane == "planned" or current_lane == "canceled":
+                    # Two-step: planned→claimed, claimed→in_progress
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="claimed",
+                        actor=_actor,
+                    )
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                    )
+                elif current_lane == "claimed":
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                    )
+                elif current_lane in ("for_review", "approved"):
+                    # Re-implementing after review — force back to in_progress
+                    emit_status_transition(
+                        feature_dir=_impl_feature_dir,
+                        feature_slug=feature_slug,
+                        wp_id=normalized_wp_id,
+                        to_lane="in_progress",
+                        actor=_actor,
+                        force=True,
+                        reason="Re-implementing after review feedback",
+                    )
+                # If already in_progress/doing, no event needed
+            except Exception as _evt_err:
+                logger.warning("Could not emit status event: %s", _evt_err)
+
+            # Update operational metadata in frontmatter (NO lane — event log is sole authority)
             updated_front = wp.frontmatter
-            if current_lane != "doing":
-                updated_front = set_scalar(updated_front, "lane", "doing")
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
@@ -540,30 +519,46 @@ def implement(
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
 
-        # Check review status
-        review_status = extract_scalar(wp.frontmatter, "review_status")
-        has_feedback = review_status == "has_feedback"
-        review_feedback_ref = (
-            extract_scalar(wp.frontmatter, "review_feedback")
-            or extract_scalar(wp.frontmatter, "review_feedback_file")
-        )
-        review_feedback_file = (
-            _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
-            if review_feedback_ref
-            else None
-        )
+        # Check review feedback from canonical event log (review_ref stored in events)
+        # Also check frontmatter review_feedback/review_status as fallback
+        feature_dir = repo_root / "kitty-specs" / feature_slug
+        has_feedback = False
+        review_feedback_ref = None
+        review_feedback_file = None
+        try:
+            from specify_cli.status.store import read_events as _read_status_events
+
+            _events = _read_status_events(feature_dir)
+            # Find the most recent rejection event for this WP (for_review -> planned/in_progress with review_ref)
+            for _ev in reversed(_events):
+                if (
+                    _ev.wp_id == normalized_wp_id
+                    and str(_ev.from_lane) == "for_review"
+                    and _ev.review_ref is not None
+                ):
+                    has_feedback = True
+                    review_feedback_ref = _ev.review_ref
+                    break
+        except Exception:
+            pass
+
+        # Fallback: check frontmatter review metadata (handles transition period)
+        if not has_feedback:
+            fm_review_status = extract_scalar(wp.frontmatter, "review_status")
+            fm_review_feedback = extract_scalar(wp.frontmatter, "review_feedback")
+            if fm_review_status and str(fm_review_status) == "has_feedback":
+                has_feedback = True
+                if fm_review_feedback and str(fm_review_feedback).startswith("feedback://"):
+                    review_feedback_ref = str(fm_review_feedback)
+
+        if review_feedback_ref:
+            review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
 
         # Detect mission type and get deliverables_path for research missions
-        feature_dir = repo_root / "kitty-specs" / feature_slug
         mission_key = get_feature_mission_key(feature_dir)
         deliverables_path = None
         if mission_key == "research":
             deliverables_path = get_deliverables_path(feature_dir, feature_slug)
-
-        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
-        # without sparse-checkout or where setup failed silently)
-        if workspace_path.exists():
-            _ensure_sparse_checkout(workspace_path)
 
         # Build full prompt content for file
         lines = []
@@ -636,7 +631,7 @@ def implement(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)
@@ -871,14 +866,28 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
     # Find all WP files
     wp_files = sorted(tasks_dir.glob("WP*.md"))
 
+    # Load lanes from canonical event log (lane is event-log-only)
+    feature_dir = tasks_dir.parent
+    try:
+        from specify_cli.status.store import read_events as _fr_read_events
+        from specify_cli.status.reducer import reduce as _fr_reduce
+
+        _fr_events = _fr_read_events(feature_dir)
+        _fr_snapshot = _fr_reduce(_fr_events) if _fr_events else None
+        _fr_lanes: dict = {}
+        if _fr_snapshot:
+            for _fr_wp_id, _fr_state in _fr_snapshot.work_packages.items():
+                _fr_lanes[_fr_wp_id] = str(_fr_state.get("lane", "planned"))
+    except Exception:
+        _fr_lanes = {}
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
-        lane = extract_scalar(frontmatter, "lane")
-
-        if lane == "for_review":
-            wp_id = extract_scalar(frontmatter, "work_package_id")
-            if wp_id:
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id:
+            lane = _fr_lanes.get(wp_id, "planned")
+            if lane == "for_review":
                 return wp_id
 
     return None
@@ -887,7 +896,7 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -930,7 +939,27 @@ def review(
 
         # Move to "doing" lane if not already there.
         # Explicit WP review requests must target for_review (or already-claimed doing).
-        current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "for_review"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        try:
+            from specify_cli.status.store import read_events as _rv_read_events
+            from specify_cli.status.reducer import reduce as _rv_reduce
+
+            _rv_events = _rv_read_events(feature_dir)
+            _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
+            _rv_state = _rv_snapshot.work_packages.get(normalized_wp_id) if _rv_snapshot else None
+            if _rv_state is not None:
+                current_lane_raw = str(_rv_state.get("lane", "planned"))
+            else:
+                # No event log state — fall back to frontmatter lane (migration period read-only)
+                current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
+                current_lane_raw = str(current_lane_raw)
+        except typer.Exit:
+            raise
+        except Exception:
+            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
+            current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
+            current_lane_raw = str(current_lane_raw)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
@@ -955,34 +984,7 @@ def review(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            # --- Route through canonical emit pipeline (#211) ---
-            feature_dir = main_repo_root / "kitty-specs" / feature_slug
-
             with feature_status_lock(main_repo_root, feature_slug):
-                # Sync canonical event log if frontmatter lane disagrees
-                current_canonical = resolve_lane_alias(current_lane_raw)
-                current_event_lane = None
-                for existing_event in reversed(read_events(feature_dir)):
-                    if existing_event.wp_id == normalized_wp_id:
-                        current_event_lane = str(existing_event.to_lane)
-                        break
-
-                if (
-                    current_canonical != "planned"
-                    and current_event_lane != current_canonical
-                ):
-                    emit_status_transition(
-                        feature_dir=feature_dir,
-                        feature_slug=feature_slug,
-                        wp_id=normalized_wp_id,
-                        to_lane=current_canonical,
-                        actor=agent,
-                        force=True,
-                        reason="sync from frontmatter before workflow review claim",
-                        workspace_context=f"workflow-review:{main_repo_root}",
-                        repo_root=main_repo_root,
-                    )
-
                 # Emit the actual for_review -> in_progress transition
                 emit_status_transition(
                     feature_dir=feature_dir,
@@ -997,10 +999,9 @@ def review(
                     repo_root=main_repo_root,
                 )
 
-                # Post-emit: apply metadata fields to WP file
+                # Post-emit: apply operational metadata fields to WP file (lane is event-log-only)
                 wp_content = wp.path.read_text(encoding="utf-8-sig")
                 updated_front, updated_body, updated_padding = split_frontmatter(wp_content)
-                updated_front = set_scalar(updated_front, "lane", "doing")
                 updated_front = set_scalar(updated_front, "agent", agent)
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
@@ -1042,15 +1043,12 @@ def review(
         workspace_name = f"{feature_slug}-{normalized_wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
 
-        # Ensure workspace exists (create if needed)
+        # Ensure workspace exists (create if needed using full checkout, no sparse exclusions)
         if not workspace_path.exists():
-            import subprocess
-
             # Ensure .worktrees directory exists
             worktrees_dir = repo_root / ".worktrees"
             worktrees_dir.mkdir(parents=True, exist_ok=True)
 
-            # Create worktree with sparse-checkout
             branch_name = workspace_name
             result = subprocess.run(
                 ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
@@ -1065,50 +1063,7 @@ def review(
             if result.returncode != 0:
                 print(f"Warning: Could not create workspace: {result.stderr}")
             else:
-                # Configure sparse-checkout to exclude kitty-specs/
-                sparse_checkout_result = subprocess.run(
-                    ["git", "rev-parse", "--git-path", "info/sparse-checkout"],
-                    cwd=workspace_path,
-                    capture_output=True,
-                    text=True,
-                    encoding="utf-8",
-                    errors="replace",
-                    check=False
-                )
-                if sparse_checkout_result.returncode == 0:
-                    sparse_checkout_file = Path(sparse_checkout_result.stdout.strip())
-                    subprocess.run(["git", "config", "core.sparseCheckout", "true"], cwd=workspace_path, capture_output=True, check=False)
-                    subprocess.run(["git", "config", "core.sparseCheckoutCone", "false"], cwd=workspace_path, capture_output=True, check=False)
-                    sparse_checkout_file.parent.mkdir(parents=True, exist_ok=True)
-                    sparse_checkout_file.write_text("/*\n!/kitty-specs/\n!/kitty-specs/**\n", encoding="utf-8")
-                    subprocess.run(["git", "read-tree", "-mu", "HEAD"], cwd=workspace_path, capture_output=True, check=False)
-
-                    # Add to .git/info/exclude to block WP status files but allow research artifacts
-                    # Use local git exclude (not .gitignore) to prevent merge pollution (fixes #120)
-                    git_file = workspace_path / ".git"
-                    if git_file.is_file():
-                        # Worktree: .git is a file pointing to the actual git dir
-                        git_content = git_file.read_text().strip()
-                        if git_content.startswith("gitdir:"):
-                            git_dir = Path(git_content.split(":", 1)[1].strip())
-                            exclude_path = git_dir / "info" / "exclude"
-                            exclude_path.parent.mkdir(parents=True, exist_ok=True)
-
-                            exclude_entry = "# Block WP status files (managed in planning branch, prevents merge conflicts)\n# Research artifacts in kitty-specs/**/research/ are allowed\nkitty-specs/**/tasks/*.md\n"
-
-                            if exclude_path.exists():
-                                exclude_content = exclude_path.read_text(encoding="utf-8")
-                                if "kitty-specs/**/tasks/*.md" not in exclude_content:
-                                    exclude_path.write_text(exclude_content.rstrip() + "\n" + exclude_entry, encoding="utf-8")
-                            else:
-                                exclude_path.write_text(exclude_entry, encoding="utf-8")
-
                 print(f"✓ Created workspace: {workspace_path}")
-
-        # ALWAYS validate sparse-checkout (fixes legacy worktrees that were created
-        # without sparse-checkout or where setup failed silently)
-        if workspace_path.exists():
-            _ensure_sparse_checkout(workspace_path)
 
         # Resolve git context (branch name, base branch, commit count)
         review_ctx = _resolve_review_context(
@@ -1121,13 +1076,23 @@ def review(
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
+            # Load lanes from event log (lane is event-log-only)
+            try:
+                from specify_cli.status.store import read_events as _rw_read_events
+                from specify_cli.status.reducer import reduce as _rw_reduce
+
+                _rw_events = _rw_read_events(feature_dir)
+                _rw_snapshot = _rw_reduce(_rw_events) if _rw_events else None
+                _rw_lanes: dict = {}
+                if _rw_snapshot:
+                    for _rw_wp_id, _rw_state in _rw_snapshot.work_packages.items():
+                        _rw_lanes[_rw_wp_id] = str(_rw_state.get("lane", "planned"))
+            except Exception:
+                _rw_lanes = {}
+
             incomplete: list[str] = []
             for dependent_id in dependents:
-                try:
-                    dependent_wp = locate_work_package(repo_root, feature_slug, dependent_id)
-                except FileNotFoundError:
-                    continue
-                lane = extract_scalar(dependent_wp.frontmatter, "lane")
+                lane = _rw_lanes.get(dependent_id, "planned")
                 if lane in {"planned", "doing", "for_review"}:
                     incomplete.append(dependent_id)
             if incomplete:
@@ -1226,7 +1191,7 @@ def review(
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
-        lines.append(f"   kitty-specs/ is excluded via sparse-checkout (status tracked in {target_branch})")
+        lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
         lines.append(f"   Status changes auto-commit to {target_branch} branch (visible to all agents)")
         lines.append(f"   ⚠️  You will see commits from other agents - IGNORE THEM")
         lines.append("=" * 80)

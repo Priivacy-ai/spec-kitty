@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [2.1.4] - 2026-03-27
+
+### Added
+
+**Enforce correct command file state**: Version markers and migration to guarantee all agent command files are always in the correct state.
+
+- `<!-- spec-kitty-command-version: X.Y.Z -->` marker added as the first line of every generated command file (both full prompts and thin shims)
+- Migration `m_2_1_4_enforce_command_file_state` unconditionally writes all 16 command files per configured agent; idempotent on subsequent runs when version markers match
+- `spec-kitty doctor command-files` subcommand checks all agent command files for missing files, stale version markers, and wrong file type (full prompt vs thin shim)
+
 ## [2.1.3] - 2026-03-27
 
 ### 🐛 Fixed

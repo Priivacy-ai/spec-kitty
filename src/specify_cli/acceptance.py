@@ -26,10 +26,7 @@ from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
-from specify_cli.core.feature_detection import (
-    detect_feature_slug as centralized_detect_feature_slug,
-    FeatureDetectionError,
-)
+from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
 from specify_cli.core.agent_config import get_auto_commit_default
 
 AcceptanceMode = str  # Expected values: "pr", "local", "checklist"
@@ -242,37 +239,29 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
 def detect_feature_slug(
     repo_root: Path,
     *,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    announce_fallback: bool = True,  # noqa: ARG001 -- kept for backward compat
+    explicit_feature: Optional[str] = None,
+    env: Optional[Mapping[str, str]] = None,  # noqa: ARG001 -- kept for signature compat
+    cwd: Optional[Path] = None,  # noqa: ARG001 -- kept for signature compat
+    announce_fallback: bool = True,  # noqa: ARG001 -- kept for signature compat
 ) -> str:
-    """Detect feature slug using centralized detection.
-
-    This function maintains backward compatibility while delegating
-    to the centralized feature detection module.
+    """Require an explicit feature slug; no auto-detection.
 
     Args:
-        repo_root: Repository root path
-        env: Environment variables (defaults to os.environ)
-        cwd: Current working directory (defaults to Path.cwd())
-        announce_fallback: Whether to announce fallback detection (unused,
-            kept for backward compatibility with standalone callers)
+        repo_root: Repository root path (unused — kept for signature compatibility)
+        explicit_feature: Feature slug to use (required).
+        env: Unused; kept for backward-compatible call sites.
+        cwd: Unused; kept for backward-compatible call sites.
+        announce_fallback: Unused; kept for backward-compatible call sites.
 
     Returns:
         Feature slug (e.g., "020-my-feature")
 
     Raises:
-        AcceptanceError: If feature slug cannot be determined
+        AcceptanceError: If no explicit feature slug is provided.
     """
     try:
-        return centralized_detect_feature_slug(
-            repo_root,
-            env=env,
-            cwd=cwd,
-            mode="strict",
-        )
-    except FeatureDetectionError as e:
-        # Convert to AcceptanceError for backward compatibility
+        return _require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    except ValueError as e:
         raise AcceptanceError(str(e)) from e
 
 
@@ -485,35 +474,24 @@ def collect_feature_summary(
         has_lane_entry = canonical_lane is not None
         latest_lane = canonical_lane
 
-        # Use canonical lane for bucketing (authoritative), fall back to
-        # frontmatter only when no canonical state exists (missing event log).
-        bucket_lane = canonical_lane if canonical_lane is not None else wp.current_lane
+        # Use canonical lane for bucketing (event log is sole authority).
+        bucket_lane = canonical_lane if canonical_lane is not None else "planned"
         if bucket_lane in lanes:
             lanes[bucket_lane].append(wp_id)
         else:
-            # Unknown lane value — bucket under frontmatter lane as safety net
-            lanes[wp.current_lane].append(wp_id)
+            lanes["planned"].append(wp_id)
 
         metadata: Dict[str, Optional[str]] = {
-            "lane": wp.lane,
+            "lane": canonical_lane,
             "agent": wp.agent,
             "assignee": wp.assignee,
             "shell_pid": wp.shell_pid,
         }
 
         if strict_metadata:
-            lane_value = (wp.lane or "").strip()
-            if not lane_value:
-                metadata_issues.append(f"{wp_id}: missing lane in frontmatter")
-            elif use_legacy and lane_value != wp.current_lane:
-                # Only check directory/frontmatter mismatch in legacy format
-                metadata_issues.append(
-                    f"{wp_id}: frontmatter lane '{lane_value}' does not match directory '{wp.current_lane}'"
-                )
-
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if wp.current_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
+            if canonical_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")

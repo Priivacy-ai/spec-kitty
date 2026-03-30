@@ -1,26 +1,24 @@
----
-description: Create or update the feature specification from a natural language feature description.
----
-
 # /spec-kitty.specify - Create Feature Specification
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the project root checkout
 
-**IMPORTANT**: Specify works in the planning repository. NO worktrees are created.
+**IMPORTANT**: Specify works in the project root checkout. NO worktrees are created.
 
 ```bash
 # Run from project root:
-cd /path/to/project/root  # Your planning repository
+cd /path/to/project/root  # Your project root checkout
 
-# All planning artifacts are created in the planning repo and committed:
-# - kitty-specs/###-feature/spec.md → Created in planning repo
+# All planning artifacts are created in the project root and committed:
+# - kitty-specs/###-feature/spec.md → Created in project root
 # - Committed to target branch (from create-feature JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
 **Worktrees are created later** during `/spec-kitty.implement`, not during planning.
+
+**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -138,9 +136,9 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 ## Workflow (0.11.0+)
 
-**Planning happens in the planning repository - NO worktree created!**
+**Planning happens in the project root checkout - NO worktree created!**
 
-1. Creates `kitty-specs/###-feature/spec.md` directly in planning repo
+1. Creates `kitty-specs/###-feature/spec.md` directly in project root
 2. Automatically commits to target branch
 3. No worktree created during specify
 
@@ -148,7 +146,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 ## Location
 
-- Work in: **Planning repository** (not a worktree)
+- Work in: **Project root checkout** (not a worktree)
 - Creates: `kitty-specs/###-feature/spec.md`
 - Commits to: target branch (from `create-feature --json` → `target_branch`)
 
@@ -203,7 +201,7 @@ Given that feature description, do this:
    - `<feature_dir>/spec.md` (already created, may be empty/template-filled)
    - `<feature_dir>/meta.json` (already created with feature identity metadata)
 
-   The software-dev spec template is bundled at `.kittify/missions/software-dev/templates/spec-template.md`.
+   **Do NOT try to read a template file.** The spec structure is defined in this prompt (see sections below). The `create-feature` command scaffolds an initial `spec.md` — read it, then update it following the structure in this prompt.
 
 5. Update `<feature_dir>/meta.json` only when needed:
    - Keep identity fields from `create-feature` unchanged (`feature_number`, `slug`, `feature_slug`, `created_at`, `target_branch`).
@@ -249,23 +247,23 @@ Given that feature description, do this:
 8. **Specification Quality Validation**: After writing the initial spec, validate it against quality criteria:
 
    a. **Create Spec Quality Checklist**: Generate a checklist file at `feature_dir/checklists/requirements.md` using the checklist template structure with these validation items:
-   
+
       ```markdown
       # Specification Quality Checklist: [FEATURE NAME]
-      
+
       **Purpose**: Validate specification completeness and quality before proceeding to planning
       **Created**: [DATE]
       **Feature**: [Link to spec.md]
-      
+
       ## Content Quality
-      
+
       - [ ] No implementation details (languages, frameworks, APIs)
       - [ ] Focused on user value and business needs
       - [ ] Written for non-technical stakeholders
       - [ ] All mandatory sections completed
-      
+
       ## Requirement Completeness
-      
+
       - [ ] No [NEEDS CLARIFICATION] markers remain
       - [ ] Requirements are testable and unambiguous
       - [ ] Requirement types are separated (Functional / Non-Functional / Constraints)
@@ -278,38 +276,38 @@ Given that feature description, do this:
       - [ ] Edge cases are identified
       - [ ] Scope is clearly bounded
       - [ ] Dependencies and assumptions identified
-      
+
       ## Feature Readiness
-      
+
       - [ ] All functional requirements have clear acceptance criteria
       - [ ] User scenarios cover primary flows
       - [ ] Feature meets measurable outcomes defined in Success Criteria
       - [ ] No implementation details leak into specification
-      
+
       ## Notes
-      
+
       - Items marked incomplete require spec updates before `/spec-kitty.plan`
       ```
-   
+
    b. **Run Validation Check**: Review the spec against each checklist item:
       - For each item, determine if it passes or fails
       - Document specific issues found (quote relevant spec sections)
-   
+
    c. **Handle Validation Results**:
-      
+
       - **If all items pass**: Mark checklist complete and proceed to step 6
-      
+
       - **If items fail (excluding [NEEDS CLARIFICATION])**:
         1. List the failing items and specific issues
         2. Update the spec to address each issue
         3. Re-run validation until all items pass (max 3 iterations)
         4. If still failing after 3 iterations, document remaining issues in checklist notes and warn user
-      
+
       - **If [NEEDS CLARIFICATION] markers remain**:
         1. Extract all [NEEDS CLARIFICATION: ...] markers from the spec
         2. Re-confirm with the user whether each outstanding decision truly needs to stay unresolved. Do not assume away critical gaps.
         3. For each clarification the user has explicitly deferred, present options using plain text—no tables:
-        
+
            ```
            Question [N]: [Topic]
            Context: [Quote relevant spec section]
@@ -317,13 +315,13 @@ Given that feature description, do this:
            Options: (A) [First answer — implications] · (B) [Second answer — implications] · (C) [Third answer — implications] · (D) Custom (describe your own answer)
            Reply with a letter or a custom answer.
            ```
-        
+
         4. Number questions sequentially (Q1, Q2, Q3 - max 3 total)
         5. Present all questions together before waiting for responses
         6. Wait for user to respond with their choices for all questions (e.g., "Q1: A, Q2: Custom - [details], Q3: B")
         7. Update the spec by replacing each [NEEDS CLARIFICATION] marker with the user's selected or provided answer
         9. Re-run validation after all clarifications are resolved
-   
+
    d. **Update Checklist**: After each validation iteration, update the checklist file with current pass/fail status
 
 9. Report completion with feature directory, spec file path, checklist results, and readiness for the next phase (`/spec-kitty.plan`).
@@ -361,7 +359,7 @@ When creating this spec from a user prompt:
    - Feature scope and boundaries (include/exclude specific use cases)
    - User types and permissions (if multiple conflicting interpretations possible)
    - Security/compliance requirements (when legally/financially significant)
-   
+
 **Examples of reasonable defaults** (don't ask about these):
 
 - Data retention: Industry-standard practices for the domain

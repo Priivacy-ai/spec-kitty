@@ -307,9 +307,6 @@ class TestPlanMissionDirectoryStructure:
     def test_plan_mission_yaml_exists(self) -> None:
         assert (MISSIONS_DIR / "plan" / "mission.yaml").is_file()
 
-    def test_plan_command_templates_exists(self) -> None:
-        assert (MISSIONS_DIR / "plan" / "command-templates").is_dir()
-
     def test_plan_templates_exists(self) -> None:
         assert (MISSIONS_DIR / "plan" / "templates").is_dir()
 

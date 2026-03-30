@@ -14,6 +14,26 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.tasks import app
+from specify_cli.status.store import append_event
+from specify_cli.status.models import StatusEvent, Lane
+
+
+def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Seed a WP into a specific lane in the event log."""
+    _lane_alias = {"doing": "in_progress"}
+    canonical_lane = _lane_alias.get(lane, lane)
+    event = StatusEvent(
+        event_id=f"test-{wp_id}-{canonical_lane}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane.PLANNED,
+        to_lane=Lane(canonical_lane),
+        at="2026-01-01T00:00:00+00:00",
+        actor="test",
+        force=True,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
 
 runner = CliRunner()
 
@@ -21,60 +41,24 @@ runner = CliRunner()
 class TestFindFeatureSlug:
     """Tests for _find_feature_slug helper."""
 
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_from_cwd_with_kitty_specs(self, mock_cwd: Mock, mock_root: Mock, tmp_path: Path):
-        """Should extract feature slug from cwd containing kitty-specs."""
+    def test_find_with_explicit_slug(self, tmp_path: Path):
+        """_find_feature_slug returns explicit slug when provided.
+
+        After WP02 removed heuristic detection, _find_feature_slug requires
+        an explicit slug.  No cwd scanning or git branch parsing is performed.
+        """
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
 
-        # Setup: cwd is in kitty-specs/feature-slug directory
-        feature_dir = tmp_path / "kitty-specs" / "008-test-feature"
-        feature_dir.mkdir(parents=True)
-
-        mock_cwd.return_value = feature_dir
-        mock_root.return_value = tmp_path
-
-        with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main:
-            mock_main.return_value = tmp_path
-
-            slug = _find_feature_slug()
-            assert slug == "008-test-feature"
-
-    @patch("subprocess.run")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_from_git_branch(self, mock_cwd: Mock, mock_root: Mock, mock_subprocess: Mock, tmp_path: Path):
-        """Should extract feature slug from git branch name."""
-        from specify_cli.cli.commands.agent.tasks import _find_feature_slug
-
-        mock_cwd.return_value = Path("/repo")
-        mock_root.return_value = tmp_path
-        mock_subprocess.return_value = Mock(
-            returncode=0,
-            stdout="008-test-feature\n"
-        )
-
-        # Create kitty-specs directory to validate the slug
-        (tmp_path / "kitty-specs" / "008-test-feature").mkdir(parents=True)
-
-        slug = _find_feature_slug()
+        slug = _find_feature_slug(explicit_feature="008-test-feature")
         assert slug == "008-test-feature"
 
-    @patch("subprocess.run")
-    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks.Path.cwd")
-    def test_find_raises_on_failure(self, mock_cwd: Mock, mock_repo: Mock, mock_subprocess: Mock):
-        """Should raise typer.Exit when slug cannot be determined."""
+    def test_find_raises_on_missing_slug(self):
+        """_find_feature_slug raises typer.Exit when no explicit slug is given."""
         from specify_cli.cli.commands.agent.tasks import _find_feature_slug
-        import subprocess
         from click.exceptions import Exit
 
-        mock_cwd.return_value = Path("/repo")
-        mock_repo.return_value = None
-        mock_subprocess.side_effect = subprocess.CalledProcessError(1, "git")
-
         with pytest.raises(Exit):
-            _find_feature_slug()
+            _find_feature_slug(explicit_feature=None)
 
 
 class TestStatusInProgressLane:
@@ -97,15 +81,19 @@ class TestStatusInProgressLane:
         tasks_dir = repo_root / "kitty-specs" / "042-test" / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        feature_dir = repo_root / "kitty-specs" / "042-test"
+
         # WP with canonical 'in_progress' lane (as persisted by 7-lane model)
         (tasks_dir / "WP01-alpha.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "Alpha"\nlane: "in_progress"\n---\nContent\n'
         )
-        # WP with legacy alias 'doing'
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
+        # WP with legacy alias 'doing' -> seeded as canonical 'in_progress'
         (tasks_dir / "WP02-beta.md").write_text(
             '---\nwork_package_id: "WP02"\ntitle: "Beta"\nlane: "doing"\n---\nContent\n'
         )
-        # WP already planned
+        _seed_wp_lane(feature_dir, "WP02", "doing")
+        # WP already planned (no event seeding needed)
         (tasks_dir / "WP03-gamma.md").write_text(
             '---\nwork_package_id: "WP03"\ntitle: "Gamma"\nlane: "planned"\n---\nContent\n'
         )
@@ -149,9 +137,12 @@ class TestStatusInProgressLane:
         tasks_dir = repo_root / "kitty-specs" / "042-test" / "tasks"
         tasks_dir.mkdir(parents=True)
 
+        feature_dir = repo_root / "kitty-specs" / "042-test"
+
         (tasks_dir / "WP01-alpha.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "Alpha Task"\nlane: "in_progress"\n---\nContent\n'
         )
+        _seed_wp_lane(feature_dir, "WP01", "in_progress")
 
         mock_root.return_value = repo_root
         mock_slug.return_value = "042-test"

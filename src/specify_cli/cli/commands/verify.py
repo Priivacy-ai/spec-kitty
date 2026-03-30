@@ -12,7 +12,6 @@ from rich.table import Table
 
 from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
-from specify_cli.core.feature_detection import detect_feature
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
 from specify_cli.dashboard.diagnostics import run_diagnostics
@@ -24,26 +23,19 @@ def _resolve_feature_dir(
     project_root: Path,
     feature: str | None = None,
 ) -> Path | None:
-    """Detect the feature directory from explicit flag or current context.
+    """Return feature directory from an explicit slug, or None if not provided.
 
-    Uses the centralized ``detect_feature`` helper in lenient mode so that
-    callers never crash when no feature is active.
+    Args:
+        project_root: Repository root.
+        feature: Explicit feature slug from --feature flag, or None.
 
     Returns:
-        Path to the ``kitty-specs/<slug>`` directory, or ``None``.
+        Path to the ``kitty-specs/<slug>`` directory, or ``None`` if not given.
     """
-    try:
-        ctx = detect_feature(
-            project_root,
-            explicit_feature=feature,
-            cwd=Path.cwd(),
-            mode="lenient",
-        )
-        if ctx is not None and ctx.directory.is_dir():
-            return ctx.directory
-    except Exception:  # noqa: S110 – lenient: detection failures are non-fatal
-        pass
-    return None
+    if not feature:
+        return None
+    feature_dir = project_root / "kitty-specs" / feature.strip()
+    return feature_dir if feature_dir.is_dir() else None
 
 TOOL_LABELS = [
     ("git", "Git version control"),
@@ -146,9 +138,8 @@ def verify_setup(
 def _run_diagnostics_mode(json_output: bool, check_tools: bool, *, feature: str | None = None) -> None:
     """Run diagnostics mode with detailed health information."""
     try:
-        # Resolve the MAIN repo root, not CWD.  In worktrees CWD lacks
-        # kitty-specs/ (sparse checkout), so feature detection would fail
-        # if we passed CWD directly.
+        # Resolve the MAIN repo root, not CWD. Main branch is authoritative
+        # for kitty-specs/ (planning artifacts), so feature detection uses it.
         project_path = locate_project_root() or Path.cwd()
         feature_dir = _resolve_feature_dir(project_path, feature)
         diag = run_diagnostics(project_path, feature_dir=feature_dir)

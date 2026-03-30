@@ -120,27 +120,39 @@ def test_no_phase_subdirectories_in_templates():
         pytest.fail(msg)
 
 
-def test_templates_require_flat_structure():
-    """Templates must explicitly require flat tasks/ structure."""
+def test_command_templates_removed():
+    """WP10: command-templates directories must be fully removed.
+
+    Shim generation (spec-kitty agent shim) replaces template-based commands.
+
+    Exception: src/specify_cli/missions/software-dev/command-templates/ is
+    intentionally retained as the canonical source for prompt-driven commands
+    (restored in feature 058).
+    """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    tasks_template = (
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md"
+    missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
+    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates"
+    doctrine_missions_dir = spec_kitty_root / "src" / "doctrine" / "missions"
+    doctrine_templates_dir = spec_kitty_root / "src" / "doctrine" / "templates"
+
+    # software-dev/command-templates/ is the canonical source for prompt-driven
+    # commands and is intentionally kept (feature 058).
+    allowed = {
+        str((missions_dir / "software-dev" / "command-templates").relative_to(spec_kitty_root)),
+    }
+
+    found = []
+    for parent in [missions_dir, templates_dir, doctrine_missions_dir, doctrine_templates_dir]:
+        if parent.exists():
+            for d in parent.rglob("command-templates"):
+                if d.is_dir():
+                    rel = str(d.relative_to(spec_kitty_root))
+                    if rel not in allowed:
+                        found.append(rel)
+
+    assert len(found) == 0, (
+        f"command-templates directories still present (should be deleted in WP10): {found}"
     )
-
-    assert tasks_template.exists(), "tasks.md template not found"
-
-    content = tasks_template.read_text(encoding="utf-8")
-
-    # Must have explicit instruction about flat structure
-    assert "FLAT" in content.upper() or "flat" in content, "tasks.md must explicitly mention flat structure"
-
-    # Must warn against subdirectories
-    assert "no subdirectories" in content.lower() or "NO subdirectories" in content, (
-        "tasks.md must warn against creating subdirectories"
-    )
-
-    # Must have correct example
-    assert "tasks/WP01" in content or "tasks/WPxx" in content, "tasks.md must show correct flat path examples"
 
 
 def test_task_prompt_templates_include_branch_contract_metadata():
@@ -173,46 +185,40 @@ def test_task_prompt_templates_include_branch_contract_metadata():
         pytest.fail(msg)
 
 
-def test_planning_templates_use_deterministic_branch_helpers():
-    """Planning-stage templates should rely on Python helpers, not manual git probing."""
+def test_no_command_templates_in_mission_dirs():
+    """WP10: No command-templates subdirectories should exist under any mission directory.
+
+    Command templates were deleted in WP10 in favour of shim generation.
+    Each agent slot now contains a thin 3-line shim file produced by
+    ``spec-kitty agent shim`` rather than a rendered workflow template.
+
+    Exception: src/specify_cli/missions/software-dev/command-templates/ is
+    intentionally retained as the canonical source for prompt-driven commands
+    (restored in feature 058).
+    """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    template_paths = [
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "plan.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "documentation" / "command-templates" / "tasks.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "specify.md",
-        spec_kitty_root / "src" / "specify_cli" / "missions" / "research" / "command-templates" / "tasks.md",
-    ]
+    missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
+    doctrine_dir = spec_kitty_root / "src" / "doctrine" / "missions"
 
-    missing_branch_helper = []
-    forbidden_git_probes = []
+    # software-dev/command-templates/ is the canonical source for prompt-driven
+    # commands and is intentionally kept (feature 058).
+    allowed = {
+        str((missions_dir / "software-dev" / "command-templates").relative_to(spec_kitty_root)),
+    }
 
-    for template_path in template_paths:
-        content = template_path.read_text(encoding="utf-8")
+    violations = []
+    for base in [missions_dir, doctrine_dir]:
+        if not base.exists():
+            continue
+        for child in base.rglob("command-templates"):
+            if child.is_dir():
+                rel = str(child.relative_to(spec_kitty_root))
+                if rel not in allowed:
+                    violations.append(rel)
 
-        if template_path.name == "specify.md" and "branch-context --json" not in content:
-            missing_branch_helper.append(template_path)
-
-        if "git branch --show-current" in content or "git rev-parse --abbrev-ref HEAD" in content:
-            forbidden_git_probes.append(template_path)
-
-    if missing_branch_helper:
-        msg = "\n\nSpecify templates missing deterministic branch-context helper:\n"
-        for template_path in missing_branch_helper:
-            msg += f"\n{template_path}\n"
-        pytest.fail(msg)
-
-    if forbidden_git_probes:
-        msg = "\n\nPlanning templates still probe git directly instead of helper JSON:\n"
-        for template_path in forbidden_git_probes:
-            msg += f"\n{template_path}\n"
-        pytest.fail(msg)
+    assert not violations, (
+        f"command-templates directories must be deleted (WP10): {violations}"
+    )
 
 
 def test_agents_md_shows_flat_structure():

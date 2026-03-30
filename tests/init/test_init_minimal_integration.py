@@ -27,15 +27,11 @@ def _populate_global_runtime(global_home: Path) -> None:
     """Create a realistic global runtime directory structure.
 
     Mimics what ``ensure_runtime()`` would produce at ``~/.kittify/``.
+    WP10: command-templates are not present; shim generation replaces them.
     """
     for mission in ("software-dev", "research", "documentation"):
-        cmd_templates = global_home / "missions" / mission / "command-templates"
-        cmd_templates.mkdir(parents=True, exist_ok=True)
-        # Create at least one template so directory isn't empty
-        (cmd_templates / "specify.md").write_text(
-            "---\ndescription: test specify\n---\n# Specify\n"
-        )
         mission_yaml = global_home / "missions" / mission / "mission.yaml"
+        mission_yaml.parent.mkdir(parents=True, exist_ok=True)
         mission_yaml.write_text(f"name: {mission}\ndescription: test\n")
 
         # Add templates (spec-template etc.)
@@ -59,17 +55,11 @@ def _populate_global_runtime(global_home: Path) -> None:
 def _populate_package_templates(pkg_root: Path) -> None:
     """Create a fake package templates directory tree.
 
-    Mimics ``src/specify_cli/templates/`` which contains base command
-    templates, AGENTS.md, etc.
+    Mimics ``src/specify_cli/templates/`` which contains AGENTS.md, etc.
+    WP10: command-templates were deleted; shim generation replaces them.
     """
-    cmd_templates = pkg_root / "templates" / "command-templates"
-    cmd_templates.mkdir(parents=True, exist_ok=True)
-    for name in ("specify", "plan", "tasks", "implement", "review", "accept"):
-        (cmd_templates / f"{name}.md").write_text(
-            f"---\ndescription: {name} command\nscripts:\n  sh: echo {name}\n---\n# {name}\n"
-        )
-
     # AGENTS.md
+    (pkg_root / "templates").mkdir(parents=True, exist_ok=True)
     (pkg_root / "templates" / "AGENTS.md").write_text("# Package AGENTS\n")
 
     # claudeignore
@@ -78,11 +68,8 @@ def _populate_package_templates(pkg_root: Path) -> None:
     # Missions (as package asset root)
     missions = pkg_root / "missions"
     missions.mkdir(parents=True, exist_ok=True)
-    sw_cmd = missions / "software-dev" / "command-templates"
-    sw_cmd.mkdir(parents=True, exist_ok=True)
-    (sw_cmd / "specify.md").write_text(
-        "---\ndescription: sw specify\nscripts:\n  sh: echo sw-specify\n---\n# SW Specify\n"
-    )
+    # WP10: mission directories have no command-templates/ subdirectory
+    (missions / "software-dev").mkdir(parents=True, exist_ok=True)
     (missions / "software-dev" / "mission.yaml").write_text("name: software-dev\n")
 
 # ---------------------------------------------------------------------------
@@ -152,7 +139,8 @@ class TestInitCreatesMinimalProject:
         result = _get_package_templates_root()
         assert result is not None
         assert result.name == "templates"
-        assert (result / "command-templates").is_dir()
+        # WP10: command-templates were deleted; the templates dir has other files (AGENTS.md, etc.)
+        assert not (result / "command-templates").exists()
 
     def test_init_minimal_no_missions_copied(self, tmp_path, monkeypatch):
         """Full init flow: global runtime -> no missions/templates/scripts/AGENTS.md in project."""
@@ -173,9 +161,8 @@ class TestInitCreatesMinimalProject:
             _has_global_runtime,
             _prepare_project_minimal,
             _get_package_templates_root,
-            _resolve_mission_command_templates_dir,
         )
-        from specify_cli.template import prepare_command_templates, generate_agent_assets
+        from specify_cli.shims.generator import generate_all_shims
 
         assert _has_global_runtime() is True
 
@@ -185,32 +172,8 @@ class TestInitCreatesMinimalProject:
         pkg_templates = _get_package_templates_root()
         assert pkg_templates is not None
 
-        # Copy base command templates to scratch (as init does).
-        # Uses .kittify/.scratch/ so the resolver's legacy tier scan
-        # of .kittify/command-templates doesn't pick these up.
-        import shutil
-        scratch = project / ".kittify" / ".scratch"
-        scratch.mkdir(parents=True, exist_ok=True)
-        scratch_cmd = scratch / "command-templates"
-        shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
-
-        # Resolve mission templates
-        kittify = project / ".kittify"
-        mission_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=kittify
-        )
-
-        # Merge base + mission
-        render_dir = prepare_command_templates(scratch_cmd, mission_dir)
-
-        # Generate agent assets
-        generate_agent_assets(render_dir, project, "claude", "sh")
-
-        # Clean up scratch dirs (as init does)
-        shutil.rmtree(scratch)
-        for d in kittify.iterdir():
-            if d.is_dir() and (d.name.startswith(".resolved-") or d.name.startswith(".merged-")):
-                shutil.rmtree(d)
+        # WP10: Shim generation replaces the old command-template copy + render flow.
+        generate_all_shims(project)
 
         # Verify project-specific files exist
         kittify = project / ".kittify"
@@ -224,10 +187,10 @@ class TestInitCreatesMinimalProject:
         assert not (kittify / "AGENTS.md").exists()
         assert not (kittify / "command-templates").exists()
 
-        # Verify agent commands WERE generated
+        # Verify agent shims WERE generated
         claude_dir = project / ".claude" / "commands"
         assert claude_dir.is_dir()
-        assert any(claude_dir.iterdir()), "Agent commands should be generated"
+        assert any(claude_dir.iterdir()), "Agent shims should be generated"
 
 # ---------------------------------------------------------------------------
 # T039: Init resolves shared assets from global runtime
@@ -252,8 +215,13 @@ class TestInitResolvesFromGlobal:
         assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert "Spec template" in result.path.read_text()
 
-    def test_resolve_command_from_global(self, tmp_path, monkeypatch):
-        """After minimal init, command templates resolve from global tier."""
+    def test_resolve_command_finds_package_tier_after_wp01(self, tmp_path, monkeypatch):
+        """WP01: command-templates restored to package; resolve_command resolves from package tier.
+
+        WP10 removed command-templates from the package. WP01 (feature 058) restored
+        them. This test verifies the resolver now finds specify.md at the PACKAGE tier
+        when no higher-priority tier (project/global) has the file.
+        """
         global_home = tmp_path / "global"
         _populate_global_runtime(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
@@ -264,9 +232,10 @@ class TestInitResolvesFromGlobal:
 
         from specify_cli.runtime.resolver import resolve_command, ResolutionTier
 
+        # WP01: command-templates were restored to the package; resolver finds them
         result = resolve_command("specify.md", project, mission="software-dev")
-        assert result.tier == ResolutionTier.GLOBAL_MISSION
-        assert "Specify" in result.path.read_text()
+        assert result.tier == ResolutionTier.PACKAGE_DEFAULT
+        assert result.path.exists()
 
     def test_resolve_mission_from_global(self, tmp_path, monkeypatch):
         """After minimal init, mission.yaml resolves from global tier."""
@@ -489,81 +458,54 @@ class TestEnsureRuntimeCalledDuringInit:
 # ---------------------------------------------------------------------------
 
 class TestScratchDirNotLegacy:
-    """Verify that scratch command-templates don't trigger legacy tier detection."""
+    """WP10: Scratch command-template workflow replaced by shim generation.
 
-    def test_scratch_dir_uses_hidden_path(self, tmp_path, monkeypatch):
-        """Init copies base templates to .kittify/.scratch/, not .kittify/command-templates/."""
+    These tests verify the WP10 state: no scratch dir, no command-templates,
+    shims are generated directly to agent directories.
+    """
+
+    def test_no_scratch_dir_after_init(self, tmp_path, monkeypatch):
+        """WP10: Init does not create .kittify/.scratch/ (no command-templates to stage)."""
         global_home = tmp_path / "global"
         _populate_global_runtime(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
-
-        pkg_root = tmp_path / "pkg"
-        _populate_package_templates(pkg_root)
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
 
         project = tmp_path / "project"
         project.mkdir()
 
-        from specify_cli.cli.commands.init import (
-            _has_global_runtime,
-            _prepare_project_minimal,
-            _get_package_templates_root,
-        )
-
-        assert _has_global_runtime() is True
+        from specify_cli.cli.commands.init import _prepare_project_minimal
+        from specify_cli.shims.generator import generate_all_shims
 
         _prepare_project_minimal(project)
-        pkg_templates = _get_package_templates_root()
-        assert pkg_templates is not None
+        generate_all_shims(project)
 
-        # Copy base command templates using the CORRECT scratch path
-        import shutil
-        scratch = project / ".kittify" / ".scratch"
-        scratch.mkdir(parents=True, exist_ok=True)
-        scratch_cmd = scratch / "command-templates"
-        shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
-
-        # Verify the legacy-tier path does NOT exist
-        legacy_cmd = project / ".kittify" / "command-templates"
-        assert not legacy_cmd.exists(), (
-            ".kittify/command-templates/ should not exist; "
-            "scratch templates belong in .kittify/.scratch/command-templates/"
+        # WP10: No scratch directory should exist
+        assert not (project / ".kittify" / ".scratch").exists(), (
+            ".kittify/.scratch/ should not exist in WP10 (command-templates deleted)"
+        )
+        assert not (project / ".kittify" / "command-templates").exists(), (
+            ".kittify/command-templates/ should not exist in WP10"
         )
 
-        # Verify the scratch path DOES exist
-        assert scratch_cmd.is_dir()
-        assert any(scratch_cmd.iterdir()), "Scratch command-templates should contain files"
-
-    def test_resolver_legacy_tier_not_triggered_by_scratch(self, tmp_path, monkeypatch):
-        """The 4-tier resolver's legacy scan should not see .scratch/ contents."""
+    def test_shim_files_written_to_agent_directory(self, tmp_path, monkeypatch):
+        """WP10: Shim files are written directly to agent directories, not via scratch."""
         global_home = tmp_path / "global"
         _populate_global_runtime(global_home)
         monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
 
-        pkg_root = tmp_path / "pkg"
-        _populate_package_templates(pkg_root)
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root / "missions"))
-
         project = tmp_path / "project"
-        (project / ".kittify").mkdir(parents=True)
+        project.mkdir()
+        (project / ".kittify").mkdir()
 
-        # Place a unique template ONLY in .scratch (not in the proper legacy dir)
-        scratch = project / ".kittify" / ".scratch" / "command-templates"
-        scratch.mkdir(parents=True)
-        (scratch / "unique-scratch-only.md").write_text("# Should not be found via resolver\n")
+        from specify_cli.shims.generator import generate_all_shims
 
-        from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
+        generate_all_shims(project)
 
-        resolved_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=project / ".kittify"
-        )
-
-        # The unique-scratch-only.md should NOT appear in resolved output
-        # because .scratch/ is not scanned by the resolver's legacy tier
-        resolved_names = {p.name for p in resolved_dir.glob("*.md")}
-        assert "unique-scratch-only.md" not in resolved_names, (
-            "Resolver legacy tier should not pick up files from .kittify/.scratch/"
-        )
+        # Verify shim files were written to agent directories
+        claude_dir = project / ".claude" / "commands"
+        assert claude_dir.is_dir()
+        shim_files = list(claude_dir.glob("spec-kitty.*.md"))
+        assert len(shim_files) > 0, "Shim files should be generated for claude agent"
 
     def test_scratch_cleanup_after_init(self, tmp_path, monkeypatch):
         """After init completes, .kittify/.scratch/ should be cleaned up."""
@@ -580,42 +522,20 @@ class TestScratchDirNotLegacy:
 
         from specify_cli.cli.commands.init import (
             _prepare_project_minimal,
-            _get_package_templates_root,
-            _resolve_mission_command_templates_dir,
         )
-        from specify_cli.template import prepare_command_templates, generate_agent_assets
+        from specify_cli.shims.generator import generate_all_shims
 
         _prepare_project_minimal(project)
-        pkg_templates = _get_package_templates_root()
 
-        # Simulate init's scratch workflow
-        import shutil
-        scratch = project / ".kittify" / ".scratch"
-        scratch.mkdir(parents=True, exist_ok=True)
-        scratch_cmd = scratch / "command-templates"
-        shutil.copytree(pkg_templates / "command-templates", scratch_cmd)
+        # WP10: Shim generation replaces the old command-template copy + render flow.
+        # No scratch directory is created.
+        generate_all_shims(project)
 
-        kittify = project / ".kittify"
-        mission_dir = _resolve_mission_command_templates_dir(
-            project, "software-dev", scratch_parent=kittify
-        )
-        render_dir = prepare_command_templates(scratch_cmd, mission_dir)
-        generate_agent_assets(render_dir, project, "claude", "sh")
-
-        # Simulate the cleanup that init does
-        for cleanup_name in ("templates", "command-templates", ".scratch"):
-            cleanup_dir = project / ".kittify" / cleanup_name
-            if cleanup_dir.exists():
-                shutil.rmtree(cleanup_dir)
-        for d in kittify.iterdir():
-            if d.is_dir() and (d.name.startswith(".resolved-") or d.name.startswith(".merged-")):
-                shutil.rmtree(d)
-
-        # Verify cleanup
-        assert not (project / ".kittify" / ".scratch").exists(), ".scratch should be cleaned up"
+        # Verify no scratch or command-templates dirs exist (WP10: nothing to clean up)
+        assert not (project / ".kittify" / ".scratch").exists(), ".scratch should not exist in WP10"
         assert not (project / ".kittify" / "command-templates").exists(), "command-templates should not exist"
 
-        # Verify agent commands WERE generated (survived cleanup)
+        # Verify agent shims WERE generated (survived - nothing to clean up)
         claude_dir = project / ".claude" / "commands"
         assert claude_dir.is_dir()
         assert any(claude_dir.iterdir())

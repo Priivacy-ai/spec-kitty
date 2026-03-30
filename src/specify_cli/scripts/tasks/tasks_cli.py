@@ -56,7 +56,6 @@ from acceptance_support import (  # noqa: E402
     ArtifactEncodingError,
     choose_mode,
     collect_feature_summary,
-    detect_feature_slug,
     normalize_feature_encoding,
     perform_acceptance,
 )
@@ -72,15 +71,15 @@ def stage_update(
     timestamp: str,
     dry_run: bool = False,
 ) -> Path:
-    """Update work package lane in frontmatter (no file movement).
+    """Update work package operational metadata in frontmatter (no file movement).
 
-    The frontmatter-only lane system keeps all WP files in a flat tasks/ directory.
-    Lane changes update the `lane:` field in frontmatter without moving the file.
+    Lane state is managed exclusively via the event log. This function only
+    updates non-status operational metadata (agent, shell_pid) and appends
+    an activity log entry.
     """
     if dry_run:
         return wp.path
 
-    wp.frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
     wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
     if shell_pid:
         wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
@@ -192,7 +191,20 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    if wp.current_lane == validated_lane:
+    # Lane is event-log-only; read from canonical event log not frontmatter
+    _feature_dir = repo_root / "kitty-specs" / feature
+    try:
+        from specify_cli.status.store import read_events as _uc_read_events
+        from specify_cli.status.reducer import reduce as _uc_reduce
+
+        _uc_events = _uc_read_events(_feature_dir)
+        _uc_snapshot = _uc_reduce(_uc_events) if _uc_events else None
+        _uc_state = _uc_snapshot.work_packages.get(args.work_package) if _uc_snapshot else None
+        effective_current_lane = str(_uc_state.get("lane", "planned")) if _uc_state else "planned"
+    except Exception:
+        effective_current_lane = "planned"
+
+    if effective_current_lane == validated_lane:
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
     timestamp = args.timestamp or now_utc()
@@ -229,12 +241,26 @@ def history_command(args: argparse.Namespace) -> None:
     wp = locate_work_package(repo_root, args.feature, args.work_package)
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
-    lane = ensure_lane(args.lane or wp.current_lane)
+    # Lane is event-log-only; read from canonical event log not frontmatter
+    if args.lane:
+        lane = ensure_lane(args.lane)
+    else:
+        _hc_feature_dir = repo_root / "kitty-specs" / args.feature
+        try:
+            from specify_cli.status.store import read_events as _hc_read_events
+            from specify_cli.status.reducer import reduce as _hc_reduce
+
+            _hc_events = _hc_read_events(_hc_feature_dir)
+            _hc_snapshot = _hc_reduce(_hc_events) if _hc_events else None
+            _hc_state = _hc_snapshot.work_packages.get(args.work_package) if _hc_snapshot else None
+            _hc_lane = str(_hc_state.get("lane", "planned")) if _hc_state else "planned"
+        except Exception:
+            _hc_lane = "planned"
+        lane = ensure_lane(_hc_lane)
     timestamp = args.timestamp or now_utc()
     note = normalize_note(args.note, lane)
 
-    if lane != wp.current_lane:
-        wp.frontmatter = set_scalar(wp.frontmatter, "lane", lane)
+    # Lane state is managed exclusively via event log — no frontmatter lane write
 
     log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={lane} – {note}"
     updated_body = append_activity_log(wp.body, log_entry)
@@ -393,7 +419,10 @@ def rollback_command(args: argparse.Namespace) -> None:
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
     if requested:
         return requested
-    return detect_feature_slug(repo_root)
+    raise TaskCliError(
+        "Feature slug is required. Provide it via --feature <slug>.\n"
+        "No auto-detection is performed."
+    )
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
@@ -601,7 +630,10 @@ def merge_command(args: argparse.Namespace) -> None:
     elif current_branch and current_branch != "HEAD":
         feature = current_branch
     else:
-        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
+        raise TaskCliError(
+            "Feature slug is required for merge. Provide it via --feature <slug>.\n"
+            "No auto-detection is performed."
+        )
 
     # Resolve target branch dynamically if not specified
     if args.target is None:

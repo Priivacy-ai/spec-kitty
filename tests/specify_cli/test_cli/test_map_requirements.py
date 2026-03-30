@@ -527,12 +527,16 @@ class TestFinalizeTasksWithFrontmatterRefs:
         )
         (tasks_dir / "WP01-test.md").write_text(
             '---\nwork_package_id: "WP01"\ntitle: "WP01"\n'
-            "requirement_refs:\n  - FR-001\n  - NFR-001\n---\n\n# WP01\n",
+            "requirement_refs:\n  - FR-001\n  - NFR-001\n"
+            "owned_files:\n  - src/module_a/**\nauthoritative_surface: src/module_a/\n"
+            "---\n\n# WP01\n",
             encoding="utf-8",
         )
         (tasks_dir / "WP02-test.md").write_text(
             '---\nwork_package_id: "WP02"\ntitle: "WP02"\n'
-            "requirement_refs:\n  - FR-002\n  - FR-003\n---\n\n# WP02\n",
+            "requirement_refs:\n  - FR-002\n  - FR-003\n"
+            "owned_files:\n  - src/module_b/**\nauthoritative_surface: src/module_b/\n"
+            "---\n\n# WP02\n",
             encoding="utf-8",
         )
 

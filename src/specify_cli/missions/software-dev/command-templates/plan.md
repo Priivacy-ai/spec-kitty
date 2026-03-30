@@ -1,26 +1,24 @@
----
-description: Execute the implementation planning workflow using the plan template to generate design artifacts.
----
-
 # /spec-kitty.plan - Create Implementation Plan
 
 **Version**: 0.11.0+
 
-## 📍 WORKING DIRECTORY: Stay in planning repository
+## 📍 WORKING DIRECTORY: Stay in the project root checkout
 
-**IMPORTANT**: Plan works in the planning repository. NO worktrees created.
+**IMPORTANT**: Plan works in the project root checkout. NO worktrees created.
 
 ```bash
 # Run from project root (same directory as /spec-kitty.specify):
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/###-feature/plan.md → In planning repository
+# - kitty-specs/###-feature/plan.md → In project root checkout
 # - Commits to target branch
 # - NO worktrees created
 ```
 
-**Do NOT cd anywhere**. Stay in the planning repository root.
+**Do NOT cd anywhere**. Stay in the project root checkout root.
+
+**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -53,7 +51,7 @@ spec-kitty constitution context --action plan --json
 
 ## Location Check (0.11.0+)
 
-This command runs in the **planning repository**, not in a worktree.
+This command runs in the **project root checkout**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
   - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
@@ -182,7 +180,7 @@ Planning requirements (scale to complexity):
    - Output OpenAPI/GraphQL schema to `/contracts/`
 
 3. **Agent context update**:
-   - Run `{AGENT_SCRIPT}`
+   - Run ``
    - These scripts detect which AI agent is in use
    - Update the appropriate agent-specific context file
    - Add only new technology from current plan

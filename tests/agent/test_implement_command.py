@@ -40,88 +40,27 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
 
 
 class TestDetectFeatureContext:
-    """Tests for detect_feature_context()."""
+    """Tests for detect_feature_context().
 
-    def test_detect_from_feature_branch(self, tmp_path):
-        """Test detection from feature branch (###-feature-name)."""
-        # Create minimal repo structure
-        (tmp_path / ".kittify").mkdir()
-        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
-        feature_dir.mkdir(parents=True)
+    After WP02 removed heuristic detection, detect_feature_context requires
+    an explicit feature flag.  No branch parsing, git, or cwd detection occurs.
+    """
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
-            mock_find_root.return_value = tmp_path
+    def test_detect_with_explicit_flag(self, tmp_path):
+        """Explicit feature flag returns correct (number, slug) tuple."""
+        number, slug = detect_feature_context("010-workspace-per-wp")
+        assert number == "010"
+        assert slug == "010-workspace-per-wp"
 
-            with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
-                mock_main_root.return_value = tmp_path
+    def test_detect_failure_no_flag(self):
+        """No feature flag raises typer.Exit (no auto-detection)."""
+        with pytest.raises(typer.Exit):
+            detect_feature_context(None)
 
-                with patch("specify_cli.core.feature_detection._detect_from_git_branch") as mock_git:
-                    mock_git.return_value = "010-workspace-per-wp"
-
-                    number, slug = detect_feature_context()
-
-                    assert number == "010"
-                    assert slug == "010-workspace-per-wp"
-
-    def test_detect_from_wp_branch(self, tmp_path):
-        """Test detection from WP branch (###-feature-name-WP##)."""
-        # Create minimal repo structure
-        (tmp_path / ".kittify").mkdir()
-        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
-        feature_dir.mkdir(parents=True)
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
-            mock_find_root.return_value = tmp_path
-
-            with patch("specify_cli.core.feature_detection._get_main_repo_root") as mock_main_root:
-                mock_main_root.return_value = tmp_path
-
-                with patch("specify_cli.core.feature_detection._detect_from_git_branch") as mock_git:
-                    # Git detection strips -WP## suffix automatically
-                    mock_git.return_value = "010-workspace-per-wp"
-
-                    number, slug = detect_feature_context()
-
-                    assert number == "010"
-                    # When on a WP branch, the full branch name is NOT returned,
-                    # only the feature slug (minus -WP##)
-                    # Pattern 2 extracts the feature slug without -WP##
-                    assert slug == "010-workspace-per-wp"
-
-    def test_detect_from_directory(self, tmp_path):
-        """Test detection from current directory path."""
-        # Create minimal repo structure
-        (tmp_path / ".kittify").mkdir()
-        feature_dir = tmp_path / "kitty-specs" / "010-test-feature" / "tasks"
-        feature_dir.mkdir(parents=True)
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_find_root:
-            mock_find_root.return_value = tmp_path
-
-            with patch("subprocess.run") as mock_run:
-                # Git command fails
-                mock_run.return_value = MagicMock(returncode=1, stdout="")
-
-                with patch("pathlib.Path.cwd") as mock_cwd:
-                    mock_cwd.return_value = feature_dir
-
-                    number, slug = detect_feature_context()
-
-                    assert number == "010"
-                    assert slug == "010-test-feature"
-
-    def test_detect_failure(self):
-        """Test failure when context cannot be detected."""
-        with patch("subprocess.run") as mock_run:
-            # Git command fails
-            mock_run.return_value = MagicMock(returncode=1, stdout="")
-
-            with patch("pathlib.Path.cwd") as mock_cwd:
-                # Current directory doesn't contain feature pattern
-                mock_cwd.return_value = Path("/repo/src/tests")
-
-                with pytest.raises(typer.Exit):
-                    detect_feature_context()
+    def test_detect_invalid_format(self):
+        """Invalid slug format (missing ###- prefix) raises typer.Exit."""
+        with pytest.raises(typer.Exit):
+            detect_feature_context("workspace-per-wp")  # Missing number prefix
 
 
 class TestFindWpFile:
@@ -238,8 +177,7 @@ class TestImplementCommand:
                         mock_vcs.create_workspace.assert_called_once()
                         call_kwargs = mock_vcs.create_workspace.call_args[1]
                         assert call_kwargs["workspace_name"] == "010-feature-WP01"
-                        assert "sparse_exclude" in call_kwargs
-                        assert "kitty-specs/" in call_kwargs["sparse_exclude"]
+                        # sparse_exclude removed: sparse-checkout feature was removed
 
     def test_implement_json_output_is_clean(self, tmp_path, capsys):
         """--json output should be pure JSON with no progress/log prefixes."""
@@ -671,8 +609,7 @@ class TestVCSAbstraction:
                         call_kwargs = mock_vcs.create_workspace.call_args[1]
                         assert call_kwargs["workspace_name"] == "015-feature-WP01"
 
-                        assert "sparse_exclude" in call_kwargs
-                        assert "kitty-specs/" in call_kwargs["sparse_exclude"]
+                        # sparse_exclude removed: sparse-checkout feature was removed
 
     def test_vcs_locking_in_meta_json(self, tmp_path):
         """Test VCS is stored and locked in meta.json on first workspace creation."""

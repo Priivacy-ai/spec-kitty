@@ -12,14 +12,10 @@ from pathlib import Path
 from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.runtime.doctor import check_stale_legacy_assets
-from specify_cli.status.legacy_bridge import update_all_views
-from specify_cli.status.migrate import feature_requires_historical_migration, migrate_feature
-from specify_cli.status.phase import resolve_phase
 from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, reduce
 from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
 from specify_cli.status.transitions import CANONICAL_LANES, resolve_lane_alias
 from specify_cli.status.validate import (
-    validate_derived_views,
     validate_materialization_drift,
 )
 from specify_cli.upgrade.feature_meta import (
@@ -121,9 +117,7 @@ def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
         return True
     if _wp_frontmatter_needs_normalization(feature_dir):
         return True
-    if _status_events_need_repair(feature_dir):
-        return True
-    if _feature_has_status_drift(feature_dir, repo_root):
+    if _feature_has_status_drift(feature_dir):
         return True
     return False
 
@@ -165,19 +159,6 @@ def _repair_feature(
     if orphan_warning:
         warnings.append(f"{feature_dir.name}: {orphan_warning}")
 
-    needs_event_repair = _status_events_need_repair(feature_dir)
-    events_rebuilt = False
-    if needs_event_repair:
-        if dry_run:
-            changes.append(f"{feature_dir.name}: would reconstruct status.events.jsonl from frontmatter history")
-        else:
-            migration_result = migrate_feature(feature_dir, dry_run=False)
-            if migration_result.status == "migrated":
-                events_rebuilt = True
-                changes.append(f"{feature_dir.name}: reconstructed status.events.jsonl")
-            elif migration_result.status == "failed":
-                warnings.append(f"{feature_dir.name}: {migration_result.error}")
-
     unreadable_change, unreadable_warning = _cleanup_unreadable_events_log(feature_dir, dry_run)
     if unreadable_change:
         changes.append(f"{feature_dir.name}: {unreadable_change}")
@@ -187,15 +168,12 @@ def _repair_feature(
     has_event_log = _feature_has_event_log(feature_dir)
     if has_event_log or unreadable_change:
         if dry_run:
-            if needs_event_repair or unreadable_change:
-                changes.append(f"{feature_dir.name}: would regenerate status.json and tasks.md views")
-            elif _feature_has_status_drift(feature_dir, repo_root):
-                changes.append(f"{feature_dir.name}: would regenerate status.json and tasks.md views")
+            if unreadable_change or _feature_has_status_drift(feature_dir):
+                changes.append(f"{feature_dir.name}: would regenerate status.json")
         else:
             snapshot = materialize(feature_dir)
-            update_all_views(feature_dir, snapshot, repo_root=repo_root)
-            if events_rebuilt or unreadable_change or _feature_has_status_drift(feature_dir, repo_root):
-                changes.append(f"{feature_dir.name}: regenerated status.json and compatibility views")
+            if unreadable_change or _feature_has_status_drift(feature_dir):
+                changes.append(f"{feature_dir.name}: regenerated status.json")
 
     prompt_rewrites = _rewrite_tasks_prompt_refs(feature_dir, dry_run)
     if prompt_rewrites:
@@ -287,53 +265,17 @@ def _rewrite_tasks_prompt_refs(feature_dir: Path, dry_run: bool) -> int:
     return rewrites
 
 
-def _status_events_need_repair(feature_dir: Path) -> bool:
-    tasks_dir = feature_dir / "tasks"
-    if not tasks_dir.exists() or not list(tasks_dir.glob("WP*.md")):
-        return False
-
-    events_path = feature_dir / EVENTS_FILENAME
-    if not events_path.exists():
-        return feature_requires_historical_migration(feature_dir)
-
-    content = events_path.read_text(encoding="utf-8").strip()
-    if not content:
-        return feature_requires_historical_migration(feature_dir)
-
-    try:
-        events = read_events(feature_dir)
-    except StoreError:
-        return True
-
-    if not events:
-        return feature_requires_historical_migration(feature_dir)
-    if any(event.reason and "historical_frontmatter_to_jsonl:v1" in event.reason for event in events):
-        return False
-    if any(not event.actor.startswith("migration") for event in events):
-        return False
-    return feature_requires_historical_migration(feature_dir)
-
-
 def _feature_has_event_log(feature_dir: Path) -> bool:
     events_path = feature_dir / EVENTS_FILENAME
     return events_path.exists() and bool(events_path.read_text(encoding="utf-8").strip())
 
 
-def _feature_has_status_drift(feature_dir: Path, repo_root: Path) -> bool:
+def _feature_has_status_drift(feature_dir: Path) -> bool:
+    """Check if the status.json snapshot is out of date with the event log."""
     if not _feature_has_event_log(feature_dir):
         return False
 
-    if validate_materialization_drift(feature_dir):
-        return True
-
-    try:
-        snapshot = reduce(read_events(feature_dir))
-    except StoreError:
-        return True
-
-    phase, _source = resolve_phase(repo_root, snapshot.feature_slug or feature_dir.name)
-    findings = validate_derived_views(feature_dir, snapshot.work_packages, phase)
-    return bool(findings)
+    return bool(validate_materialization_drift(feature_dir))
 
 
 def _tasks_md_has_legacy_prompt_refs(feature_dir: Path) -> bool:

@@ -9,11 +9,7 @@ import typer
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.feature_detection import (
-    FeatureDetectionError,
-    detect_feature_slug,
-)
-from specify_cli.core.paths import locate_project_root
+from specify_cli.core.paths import locate_project_root, require_explicit_feature
 from specify_cli.mission_v1.events import emit_event
 from specify_cli.next.decision import DecisionKind, decide_next
 
@@ -60,8 +56,8 @@ def next_step(
 
     # Resolve feature slug
     try:
-        feature_slug = detect_feature_slug(repo_root, explicit_feature=feature)
-    except FeatureDetectionError as exc:
+        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+    except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 

@@ -870,7 +870,7 @@ def merge_feature(
 
     # Auto-detect target branch from meta.json if not specified
     if target is None:
-        from specify_cli.core.feature_detection import get_feature_target_branch
+        from specify_cli.core.paths import get_feature_target_branch
         target = get_feature_target_branch(main_repo_root, feature)
 
     # Discover worktrees for this feature

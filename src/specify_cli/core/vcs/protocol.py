@@ -56,10 +56,13 @@ class VCSProtocol(Protocol):
         base_branch: str | None = None,
         base_commit: str | None = None,
         repo_root: Path | None = None,
-        sparse_exclude: list[str] | None = None,
     ) -> WorkspaceCreateResult:
         """
         Create a new workspace for a work package.
+
+        Creates a full-checkout workspace. Sparse checkout is not supported;
+        all files are visible in every workspace. Access control is handled at
+        the ownership layer.
 
         Args:
             workspace_path: Where to create the workspace
@@ -67,7 +70,6 @@ class VCSProtocol(Protocol):
             base_branch: Branch to base on (for --base flag)
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Repository root for command execution when caller already knows it
-            sparse_exclude: Optional checkout exclusions for backends that support sparse mode
 
         Returns:
             WorkspaceCreateResult with workspace info or error

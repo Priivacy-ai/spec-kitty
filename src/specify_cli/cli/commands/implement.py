@@ -35,9 +35,9 @@ from specify_cli.tasks_support import (
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.feature_detection import (
-    detect_feature,
-    FeatureDetectionError,
+from specify_cli.core.paths import (
+    get_feature_target_branch,
+    require_explicit_feature,
 )
 from specify_cli.feature_metadata import set_vcs_lock
 from specify_cli.git import safe_commit
@@ -45,6 +45,23 @@ from specify_cli.sync.events import emit_wp_status_changed
 from specify_cli.core.agent_config import get_auto_commit_default
 
 console = Console()
+
+
+def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
+    """Get WP lane from the canonical event log. Returns 'planned' if not found."""
+    try:
+        from specify_cli.status.store import read_events
+        from specify_cli.status.reducer import reduce
+
+        events = read_events(feature_dir)
+        if events:
+            snapshot = reduce(events)
+            state = snapshot.work_packages.get(wp_id)
+            if state:
+                return str(state.get("lane", "planned"))
+    except Exception:
+        pass
+    return "planned"
 
 
 def _json_safe_output(func):
@@ -84,36 +101,34 @@ def _json_safe_output(func):
 
 
 def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
-    """Detect feature number and slug from current context using centralized detection.
-
-    This function now uses the centralized feature detection module
-    to provide deterministic, consistent behavior across all commands.
+    """Require an explicit feature slug and return (number, slug).
 
     Args:
-        feature_flag: Explicit feature slug from --feature flag (optional)
+        feature_flag: Explicit feature slug from --feature flag (required)
 
     Returns:
         Tuple of (feature_number, feature_slug)
         Example: ("010", "010-workspace-per-wp")
 
     Raises:
-        typer.Exit: If feature context cannot be detected
+        typer.Exit: If feature slug is not provided or has invalid format
     """
+    import re
     try:
-        repo_root = find_repo_root()
-        ctx = detect_feature(
-            repo_root,
-            explicit_feature=feature_flag,
-            cwd=Path.cwd(),
-            mode="strict"
-        )
-        return ctx.number, ctx.slug
-    except TaskCliError:
-        console.print("[red]Error:[/red] Not in a spec-kitty project")
-        raise typer.Exit(1)
-    except FeatureDetectionError as e:
+        slug = require_explicit_feature(feature_flag, command_hint="--feature <slug>")
+    except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
+
+    match = re.match(r'^(\d{3})-', slug)
+    if not match:
+        console.print(
+            f"[red]Error:[/red] Invalid feature slug format: {slug}\n"
+            "Expected format: ###-feature-name (e.g., 010-workspace-per-wp)"
+        )
+        raise typer.Exit(1)
+
+    return match.group(1), slug
 
 
 def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
@@ -171,17 +186,6 @@ def validate_workspace_path(workspace_path: Path, wp_id: str) -> bool:
         # Valid worktree exists
         console.print(f"[cyan]Workspace for {wp_id} already exists[/cyan]")
         console.print(f"Reusing: {workspace_path}")
-
-        # SECURITY CHECK: Detect symlinks to kitty-specs/ (bypass attempt)
-        kitty_specs_path = workspace_path / "kitty-specs"
-        if kitty_specs_path.is_symlink():
-            console.print()
-            console.print("[bold red]⚠️  SECURITY WARNING: kitty-specs/ is a symlink![/bold red]")
-            console.print(f"   Target: {kitty_specs_path.resolve()}")
-            console.print("   This bypasses sparse-checkout isolation and can corrupt main repo state.")
-            console.print(f"   Remove with: rm {kitty_specs_path}")
-            console.print()
-            raise typer.Exit(1)
 
         return True  # Reuse existing
 
@@ -371,10 +375,11 @@ def check_for_dependents(
     for dep_id in dependents:
         try:
             dep_file = find_wp_file(repo_root, feature_slug, dep_id)
-            frontmatter, _ = read_frontmatter(dep_file)
-            lane = frontmatter.get("lane", "planned")
+            from specify_cli.status.lane_reader import get_wp_lane
+            dep_feature_dir = repo_root / "kitty-specs" / feature_slug
+            lane = get_wp_lane(dep_feature_dir, dep_id)
 
-            if lane in ["planned", "doing", "for_review"]:
+            if lane in ["planned", "claimed", "in_progress", "doing", "for_review"]:
                 incomplete_deps.append(dep_id)
         except (FileNotFoundError, Exception):
             # If we can't read the dependent's metadata, skip it
@@ -652,6 +657,10 @@ def implement(
             console.print(f"\n[cyan]Auto-detected:[/cyan] {wp_id} depends on {base}")
             console.print(f"Using --base {base} automatically")
 
+        # Ensure feature_dir is set (may not be set if we took the single-dep or --base path above)
+        if "feature_dir" not in dir():
+            feature_dir = repo_root / "kitty-specs" / feature_slug
+
         # If --base provided, validate it matches declared dependencies
         if base:
             if base not in declared_deps and declared_deps:
@@ -661,8 +670,8 @@ def implement(
 
             # Check if base is merged (ADR-18: Auto-detect merged dependencies)
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
-                base_lane = base_wp.lane or "planned"
+                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception:
                 # Base WP file not found - error
                 tracker.error("validate", f"base WP {base} not found")
@@ -790,8 +799,6 @@ def implement(
             dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
 
             if dep_status.all_done:
-                from specify_cli.core.feature_detection import get_feature_target_branch
-
                 target_branch = get_feature_target_branch(repo_root, feature_slug)
                 merged_deps, unmerged_deps, missing_deps = _partition_dependencies_by_merge_state(
                     repo_root=repo_root,
@@ -876,8 +883,8 @@ def implement(
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
-                base_lane = base_wp.lane or "planned"
+                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception as e:
                 # Base WP file not found
                 tracker.error("create", f"base WP {base} not found")
@@ -887,8 +894,6 @@ def implement(
                 raise typer.Exit(1)
 
             if base_lane == "done":
-                from specify_cli.core.feature_detection import get_feature_target_branch
-
                 target_branch = get_feature_target_branch(repo_root, feature_slug)
                 base_dependency_branch = f"{feature_slug}-{base}"
 
@@ -941,14 +946,12 @@ def implement(
                     console.print(f"[red]Error:[/red] Base branch {base_branch} does not exist")
                     raise typer.Exit(1)
 
-        # Create workspace using VCS abstraction
-        # sparse_exclude excludes kitty-specs/ from worktree
+        # Create workspace using VCS abstraction (full checkout, no sparse exclusions)
         create_result = vcs.create_workspace(
             workspace_path=workspace_path,
             workspace_name=workspace_name,
             base_branch=base_branch,
             repo_root=repo_root,
-            sparse_exclude=["kitty-specs/"],
         )
 
         if not create_result.success:
@@ -957,9 +960,6 @@ def implement(
             console.print(f"\n[red]Error:[/red] Failed to create workspace")
             console.print(f"Error: {create_result.error}")
             raise typer.Exit(1)
-
-        # Confirm sparse-checkout was applied
-        console.print("[cyan]→ Sparse-checkout configured (kitty-specs/ excluded, agents read from main)[/cyan]")
 
         # Step 3.5: Get base commit SHA for tracking
         result = subprocess.run(
@@ -1028,14 +1028,14 @@ def implement(
         lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
-        current_lane = wp.lane or "planned"
+        # Lane is event-log-only; read from canonical event log not frontmatter
+        current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
         if current_lane == "planned":
             # Capture current shell PID for audit trail
             shell_pid = str(os.getppid())
 
-            # Update lane and shell_pid in frontmatter
-            updated_front = set_scalar(wp.frontmatter, "lane", "doing")
-            updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
+            # Update shell_pid in frontmatter (lane is event-log-only)
+            updated_front = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
 
             # Build updated document (write after ensuring target branch)
             updated_doc = build_document(updated_front, wp.body, wp.padding)

@@ -240,18 +240,15 @@ def check_drift(feature_dir: Path) -> list[Finding]:
             )
         )
 
-    # Derived-view drift
+    # Derived-view drift: event log is sole authority, always treat as phase 2 (error)
     try:
         status_path = feature_dir / SNAPSHOT_FILENAME
         if status_path.exists():
             snapshot = json.loads(status_path.read_text(encoding="utf-8"))
-            from specify_cli.status.phase import resolve_phase
-
-            phase, _ = resolve_phase(feature_dir.parent.parent, feature_dir.name)
             view_findings = validate_derived_views(
                 feature_dir,
                 snapshot.get("work_packages", {}),
-                phase,
+                2,  # event log is sole authority — drift is always an error
             )
             for msg in view_findings:
                 findings.append(

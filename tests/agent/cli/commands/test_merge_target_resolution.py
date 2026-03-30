@@ -73,7 +73,7 @@ def _patch_merge_environment(
         lambda *_args, **_kwargs: "legacy",
     )
     monkeypatch.setattr(
-        "specify_cli.core.feature_detection._get_main_repo_root",
+        "specify_cli.core.paths.get_main_repo_root",
         lambda _repo_root: repo_root,
     )
     monkeypatch.setattr(
@@ -253,11 +253,14 @@ def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_merge_template_has_no_agent_feature_merge_references() -> None:
+    """WP10: command-templates directories were deleted; shims replace them.
+
+    Verifies no command-templates/merge.md files exist in the source tree.
+    """
     src_root = Path(__file__).resolve().parents[4] / "src"
     merge_templates = list(src_root.glob("**/command-templates/merge.md"))
 
-    assert len(merge_templates) >= 2
-    for template_path in merge_templates:
-        content = template_path.read_text(encoding="utf-8")
-        assert "agent feature merge" not in content.lower()
-        assert "spec-kitty merge" in content
+    # WP10: All command-templates were deleted; shim generation replaces them
+    assert len(merge_templates) == 0, (
+        f"command-templates/merge.md still present (WP10 deletion incomplete): {merge_templates}"
+    )

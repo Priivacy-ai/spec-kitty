@@ -41,7 +41,7 @@ class TestTriggerDisabled:
 class TestTriggerEnabled:
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.project_identity.ensure_identity")
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_feature_mission_key", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
     @patch("specify_cli.sync.runtime.get_runtime")
@@ -104,7 +104,7 @@ class TestTriggerEnabled:
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
     @patch("specify_cli.sync.project_identity.ensure_identity")
-    @patch("specify_cli.core.feature_detection.get_feature_target_branch", return_value="main")
+    @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_feature_mission_key", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
     @patch("specify_cli.sync.runtime.get_runtime")

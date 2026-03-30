@@ -16,10 +16,6 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
-)
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 console = Console()
@@ -50,13 +46,14 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print("[red]Error:[/red] Not in a spec-kitty project")
             return {"error": "Not in a spec-kitty project"}
 
-        # Auto-detect feature if not provided
+        # feature_slug is required; no auto-detection
         if not feature_slug:
-            try:
-                feature_slug = detect_feature_slug(repo_root, cwd=cwd, mode="strict")
-            except FeatureDetectionError as e:
-                console.print(f"[red]Error:[/red] {e}")
-                return {"error": str(e)}
+            msg = (
+                "feature_slug is required. "
+                "Pass it explicitly: show_kanban_status('057-my-feature')"
+            )
+            console.print(f"[red]Error:[/red] {msg}")
+            return {"error": msg}
 
         # Get main repo root for correct path resolution
         main_repo_root = get_main_repo_root(repo_root)
@@ -74,20 +71,33 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             return {"error": f"Tasks directory not found: {tasks_dir}"}
 
-        # Collect all work packages with dependencies
+        # Build lane map from event log (canonical source of truth)
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
+        events = read_events(feature_dir)
+        snapshot = reduce(events)
+        # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
+        event_log_lanes: dict[str, str] = {
+            wp_id: str(state.get("lane", "planned"))
+            for wp_id, state in snapshot.work_packages.items()
+        }
+
+        # Collect all work packages with dependencies (static metadata from frontmatter)
+        import re
         work_packages = []
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
             front, body, padding = split_frontmatter(wp_file.read_text(encoding="utf-8-sig"))
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = extract_scalar(front, "lane") or "planned"
             phase = extract_scalar(front, "phase") or "Unknown Phase"
+
+            # Lane comes from event log; default to "planned" for WPs not yet in the log
+            lane = event_log_lanes.get(wp_id or "", "planned")
 
             # Parse dependencies
             dependencies = []
             if "dependencies:" in front:
-                import re
                 dep_match = re.search(r'dependencies:\s*\n((?:\s+-\s+"[^"]+"\s*\n)*)', front, re.MULTILINE)
                 if dep_match:
                     dep_text = dep_match.group(1)
@@ -106,17 +116,13 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print(f"[yellow]No work packages found in {tasks_dir}[/yellow]")
             return {"error": "No work packages found", "work_packages": []}
 
-        # Group by lane (resolve aliases)
-        by_lane = {
+        # Group by lane
+        by_lane: dict[str, list] = {
             "planned": [], "claimed": [], "in_progress": [],
             "for_review": [], "approved": [], "done": [], "blocked": [], "canceled": [],
         }
         for wp in work_packages:
             lane = wp["lane"]
-            # Resolve "doing" alias to "in_progress"
-            if lane == "doing":
-                lane = "in_progress"
-                wp["lane"] = lane
             if lane in by_lane:
                 by_lane[lane].append(wp)
             else:

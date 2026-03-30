@@ -66,13 +66,14 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return pkg_dir
 
-    generated: list[str] = []
+    shim_calls: list[Path] = []
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):  # noqa: D401
-        generated.append(agent_key)
+    def fake_shims(repo_root: Path) -> list[Path]:  # noqa: D401
+        shim_calls.append(repo_root)
+        return []
 
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", fake_shims)
 
     _invoke(
         app,
@@ -88,7 +89,8 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
         ],
     )
 
-    assert generated == ["gemini"]
+    # WP10: shim generation replaces per-agent template copy
+    assert len(shim_calls) == 1
 
 
 def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -161,12 +163,9 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        pass
-
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
 
     # Git available
     with patch.object(init_module, "is_git_available", return_value=True):
@@ -227,14 +226,9 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        target = project_path / f".{agent_key}" / f"run.{script}"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(agent_key, encoding="utf-8")
-
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
 
     runner = CliRunner()
     result = runner.invoke(
@@ -252,7 +246,7 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / ".templates").exists()
-    assert (tmp_path / ".claude" / "run.sh").exists()
+    # WP10: shims replace rendered templates; no per-agent run.sh is created
     console_output = console.file.getvalue()
     assert "Target Path" not in console_output
 
@@ -298,14 +292,9 @@ def test_init_non_interactive_no_project_name_allows_force_for_nonempty_director
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        target = project_path / f".{agent_key}" / f"run.{script}"
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(agent_key, encoding="utf-8")
-
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
 
     runner = CliRunner()
     result = runner.invoke(
@@ -400,12 +389,9 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        (project_path / f".{agent_key}" / f"run.{script}").parent.mkdir(parents=True, exist_ok=True)
-
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
 
     runner = CliRunner()
     result = runner.invoke(
@@ -437,9 +423,6 @@ def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.M
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
-    def fake_assets(commands_dir: Path, project_path: Path, agent_key: str, script: str):
-        (project_path / f".{agent_key}" / f"run.{script}").parent.mkdir(parents=True, exist_ok=True)
-
     def fake_init_git_repo(project_path: Path, quiet: bool = False, console=None):
         (project_path / ".git").mkdir(parents=True, exist_ok=True)
         return True
@@ -452,7 +435,7 @@ def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.M
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_agent_assets", fake_assets)
+    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
     monkeypatch.setattr(init_module, "init_git_repo", fake_init_git_repo)
     monkeypatch.setattr(init_module, "is_git_repo", lambda path: (path / ".git").exists())
     monkeypatch.setattr(init_module.subprocess, "run", fake_subprocess_run)

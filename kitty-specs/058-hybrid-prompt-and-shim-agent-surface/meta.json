@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-03-30T13:28:16.471792+00:00",
+  "feature_number": "058",
+  "feature_slug": "058-hybrid-prompt-and-shim-agent-surface",
+  "friendly_name": "Hybrid Prompt and Shim Agent Surface",
+  "mission": "software-dev",
+  "slug": "hybrid-prompt-and-shim-agent-surface",
+  "source_description": "Complete the 057 thin-shim architecture: full prompts for planning commands, thin shims for execution commands.",
+  "target_branch": "main",
+  "vcs": "git"
+}

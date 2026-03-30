@@ -51,3 +51,13 @@ terms:
     definition: Bounded semantic scope (mission_local, team_domain, audience_domain, spec_kitty_core)
     confidence: 1.0
     status: active
+
+  - surface: project root checkout
+    definition: The root directory of the current git repository on the target branch — not a worktree, not an external repository. Planning commands (specify, plan, tasks) run here. Formerly called "planning repository" which was ambiguous (could be misread as a separate repo).
+    confidence: 1.0
+    status: active
+
+  - surface: planning repository
+    definition: DEPRECATED alias for "project root checkout". Do not use — agents interpret this as a separate repository. Use "project root checkout" or "project root" instead.
+    confidence: 1.0
+    status: deprecated

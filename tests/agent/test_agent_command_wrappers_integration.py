@@ -294,6 +294,8 @@ class TestAgentWorkflowImplement:
 
     def test_review_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
         """Workflow review must fail loudly when status commit fails."""
+        import json as _json
+
         feature_slug = "001-test-feature"
         wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
         wp_file.write_text(
@@ -310,7 +312,24 @@ class TestAgentWorkflowImplement:
             "- 2026-01-01T00:00:00Z – system – lane=for_review – Prompt created.\n",
             encoding="utf-8",
         )
-        subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
+        # Seed the event log so the review command can read lane=for_review from canonical source
+        events_file = mock_repo / "kitty-specs" / feature_slug / "status.events.jsonl"
+        _seed_event = {
+            "actor": "test",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01JTEST00000000000000000001",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "feature_slug": feature_slug,
+            "force": False,
+            "from_lane": "planned",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "for_review",
+            "wp_id": "WP01",
+        }
+        events_file.write_text(_json.dumps(_seed_event, sort_keys=True) + "\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-f", str(wp_file), str(events_file)], cwd=mock_repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Add WP01 for review"], cwd=mock_repo, check=True, capture_output=True)
 
         # Ensure command does not create workspace (which would obscure commit-failure path).

@@ -1,7 +1,3 @@
----
-description: Perform a non-destructive cross-artifact consistency and quality analysis across spec.md, plan.md, and tasks.md after task generation.
----
-
 ## User Input
 
 ```text
@@ -9,6 +5,8 @@ $ARGUMENTS
 ```
 
 You **MUST** consider the user input before proceeding (if not empty).
+
+**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
 ## Goal
 
@@ -24,7 +22,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
+Run `spec-kitty agent feature check-prerequisites --json --include-tasks` once from repo root and parse JSON for feature_dir, available_docs, target_branch, and base_branch. Derive absolute paths:
 
 - SPEC = feature_dir/spec.md
 - PLAN = feature_dir/plan.md
@@ -180,4 +178,4 @@ Ask the user: "Would you like me to suggest concrete remediation edits for the t
 
 ## Context
 
-{ARGS}
+$ARGUMENTS

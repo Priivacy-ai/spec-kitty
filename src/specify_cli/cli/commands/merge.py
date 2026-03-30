@@ -20,11 +20,10 @@ from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
     run_git_preflight,
 )
-from specify_cli.core.paths import get_main_repo_root
+from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.core.git_ops import has_remote, has_tracking_branch, run_command
 from specify_cli.core.vcs import VCSBackend, get_vcs
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.merge.executor import execute_legacy_merge, execute_merge
 from specify_cli.merge.ordering import MergeOrderError, get_merge_order
 from specify_cli.merge.preflight import (
     display_preflight_result,
@@ -66,7 +65,11 @@ def _mark_wp_merged_done(
         return
 
     frontmatter, _body = read_frontmatter(wp_path)
-    lane = resolve_lane_alias(str(frontmatter.get("lane", "planned")).strip() or "planned")
+    try:
+        from specify_cli.status.lane_reader import get_wp_lane
+        lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+    except Exception:
+        lane = resolve_lane_alias(str(frontmatter.get("lane", "planned")).strip() or "planned")
     if lane == "done":
         return
 
@@ -613,9 +616,27 @@ def merge_workspace_per_wp(
                 _mark_wp_merged_done(merge_root, feature_slug, wp_id, target_branch)
                 merged_count += 1
 
+            # Reconcile: mark ALL approved WPs as done (including skipped ancestors)
+            all_wp_branches = merge_plan.get("all_wp_branches", [])
+            for branch_name in all_wp_branches:
+                # Extract WP ID from branch name (e.g., "026-feature-WP03" → "WP03")
+                import re as _re_merge
+                _wp_match = _re_merge.search(r"(WP\d+)$", branch_name, _re_merge.IGNORECASE)
+                if not _wp_match:
+                    continue
+                _recon_wp_id = _wp_match.group(1).upper()
+                # Skip WPs already marked done in this merge
+                _already_done = any(
+                    wp_id == _recon_wp_id for _, wp_id, _ in effective_workspaces
+                )
+                if _already_done:
+                    continue
+                # Mark remaining approved WPs as done (their code is merged via ancestor tips)
+                _mark_wp_merged_done(merge_root, feature_slug, _recon_wp_id, target_branch)
+
             summary = f"merged {merged_count} work packages"
             if skipped_count:
-                summary += f", skipped {skipped_count} redundant/already-integrated"
+                summary += f", skipped {skipped_count} redundant/already-integrated (all marked done)"
             tracker.complete("merge", summary)
         except Exception as exc:
             tracker.error("merge", str(exc))
@@ -706,6 +727,8 @@ def merge(
     feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
+    context_token: str = typer.Option(None, "--context", help="MissionContext token for engine-v2 merge"),
+    keep_workspace: bool = typer.Option(False, "--keep-workspace", help="Keep merge workspace after completion (for debugging)"),
 ) -> None:
     """Merge a completed feature branch into the target branch and clean up resources.
 
@@ -716,6 +739,7 @@ def merge(
 
     Use --resume to continue an interrupted merge from saved state.
     Use --abort to clear merge state and abort any in-progress git merge.
+    Use --keep-workspace to preserve the merge workspace for debugging.
     """
     if not json_output:
         show_banner()
@@ -729,22 +753,23 @@ def merge(
             raise typer.Exit(1)
 
         main_repo = get_main_repo_root(repo_root)
-        state = load_state(main_repo)
 
+        # Use engine v2 abort (handles workspace cleanup + lock release)
+        from specify_cli.merge.engine import abort_merge as engine_abort_merge
+
+        state = load_state(main_repo)
         if state is None:
             console.print("[yellow]No merge state to abort[/yellow]")
         else:
-            clear_state(main_repo)
-            console.print(f"[green]✓[/green] Merge state cleared for {state.feature_slug}")
+            console.print(f"[cyan]Aborting merge of {state.feature_slug}...[/cyan]")
             console.print(f"  Progress was: {len(state.completed_wps)}/{len(state.wp_order)} WPs complete")
 
-        # Also abort git merge if in progress
-        if abort_git_merge(main_repo):
-            console.print("[green]✓[/green] Git merge aborted")
+        engine_abort_merge(main_repo)
+        console.print(f"[green]✓[/green] Merge aborted and state cleared")
 
         raise typer.Exit(0)
 
-    # Handle --resume flag
+    # Handle --resume flag (engine v2 path)
     resume_state: MergeState | None = None
     if resume:
         try:
@@ -769,13 +794,38 @@ def merge(
         console.print(f"  Progress: {len(resume_state.completed_wps)}/{len(resume_state.wp_order)} WPs")
         console.print(f"  Remaining: {', '.join(resume_state.remaining_wps)}")
 
-        # Check for pending git merge
-        if detect_git_merge_state(main_repo):
+        # Check for pending git merge in workspace or main repo
+        workspace_path_str = resume_state.workspace_path
+        check_root = Path(workspace_path_str) if workspace_path_str else main_repo
+        if detect_git_merge_state(check_root):
             console.print("[yellow]⚠ Git merge in progress - resolve conflicts first[/yellow]")
             console.print("Then run 'spec-kitty merge --resume' again.")
             raise typer.Exit(1)
 
-        # Set feature from state and override options
+        # Use engine v2 resume
+        from specify_cli.merge.engine import resume_merge as engine_resume_merge
+
+        eng_result = engine_resume_merge(main_repo, keep_workspace=keep_workspace)
+        if eng_result.success:
+            console.print(f"[bold green]✓ Merge resumed and completed successfully.[/bold green]")
+            if eng_result.merged_wps:
+                console.print(f"  Merged: {', '.join(eng_result.merged_wps)}")
+            if eng_result.skipped_wps:
+                console.print(f"  Skipped (already done): {', '.join(eng_result.skipped_wps)}")
+        else:
+            if eng_result.conflicts:
+                console.print(f"[yellow]Merge paused — unresolved conflicts:[/yellow]")
+                for f in eng_result.conflicts:
+                    console.print(f"  {f}")
+                console.print("Resolve conflicts, then run 'spec-kitty merge --resume'.")
+            else:
+                console.print(f"[red]Merge failed:[/red]")
+                for err in eng_result.errors:
+                    console.print(f"  {err}")
+            raise typer.Exit(1)
+        raise typer.Exit(0)
+
+        # Set feature from state and override options (kept for legacy paths below)
         feature = resume_state.feature_slug
         target_branch = resume_state.target_branch
         strategy = resume_state.strategy
@@ -797,7 +847,6 @@ def merge(
     # Resolve target branch dynamically if not specified
     if target_branch is None:
         if resolved_feature:
-            from specify_cli.core.feature_detection import get_feature_target_branch
             target_branch = get_feature_target_branch(repo_root, resolved_feature)
             target_source = "meta.json"
         else:
@@ -810,7 +859,6 @@ def merge(
             _inferred_slug = extract_feature_slug(_current_branch)
             _feature_dir = repo_root / "kitty-specs" / _inferred_slug
             if re.match(r"^\d{3}-.+$", _inferred_slug) and (_feature_dir / "meta.json").exists():
-                from specify_cli.core.feature_detection import get_feature_target_branch
                 resolved_feature = _inferred_slug
                 target_branch = get_feature_target_branch(repo_root, resolved_feature)
                 target_source = "meta.json"

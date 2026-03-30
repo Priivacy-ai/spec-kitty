@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import os
 from pathlib import Path
 
@@ -239,17 +240,103 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path.resolve()
 
 
-# DEPRECATED: find_feature_slug() has been removed
-# Use detect_feature_slug() from specify_cli.core.feature_detection instead
-#
-# Migration:
-#   from specify_cli.core.feature_detection import detect_feature_slug
-#   slug = detect_feature_slug(repo_root)
-#
-# The new centralized implementation provides:
-# - Deterministic behavior (no "highest numbered" guessing)
-# - Explicit error messages guiding users to --feature flag
-# - Consistent behavior across all commands
+def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
+    """Get target branch for a feature by reading meta.json directly.
+
+    Reads the ``target_branch`` field from ``kitty-specs/<slug>/meta.json``.
+    Falls back to the primary branch (usually ``main``) if the file is missing
+    or malformed.
+
+    Args:
+        repo_root: Repository root path (may be worktree — resolved to main).
+        feature_slug: Feature slug (e.g., "025-cli-event-log-integration").
+
+    Returns:
+        Target branch name (e.g., ``"main"`` or ``"2.x"``).
+    """
+    from specify_cli.core.git_ops import resolve_primary_branch
+
+    main_root = get_main_repo_root(repo_root)
+    meta_file = main_root / "kitty-specs" / feature_slug / "meta.json"
+    fallback = resolve_primary_branch(main_root)
+
+    if not meta_file.exists():
+        return fallback
+
+    try:
+        data = json.loads(meta_file.read_text(encoding="utf-8"))
+        return str(data.get("target_branch", fallback))
+    except (json.JSONDecodeError, KeyError, OSError):
+        return fallback
+
+
+def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> str:
+    """Require an explicit feature slug; raise if not provided.
+
+    Replaces heuristic detection.  Every CLI command that needs a feature slug
+    must receive it via ``--feature`` (or equivalent).  No scanning, no env
+    var magic, no git branch guessing.
+
+    When the feature is missing, scans ``kitty-specs/`` for available features
+    and includes them in the error message so agents can self-correct.
+
+    Args:
+        feature: The feature slug provided by the user (may be None).
+        command_hint: Name of the CLI flag to mention in the error message.
+
+    Returns:
+        The feature slug (guaranteed non-empty string).
+
+    Raises:
+        ValueError: If ``feature`` is None or empty.
+    """
+    if feature and feature.strip():
+        return feature.strip()
+
+    flag = command_hint or "--feature <slug>"
+
+    # Scan for available features to include in the error message
+    available = ""
+    try:
+        root = locate_project_root()
+        if root is None:
+            raise RuntimeError("project root not found")
+        kitty_specs = root / "kitty-specs"
+        if kitty_specs.is_dir():
+            slugs = sorted(
+                d.name for d in kitty_specs.iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )
+            if slugs:
+                listing = "\n".join(f"  - {s}" for s in slugs[:15])
+                if len(slugs) > 15:
+                    listing += f"\n  ... and {len(slugs) - 15} more"
+                available = f"\nAvailable features:\n{listing}\n"
+    except Exception:
+        pass
+
+    example_slug = "057-canonical-context-architecture-cleanup"
+    if available:
+        # Use the first real slug as the example
+        try:
+            root = locate_project_root()
+            if root is None:
+                raise RuntimeError("project root not found")
+            first = sorted(
+                d.name for d in (root / "kitty-specs").iterdir()
+                if d.is_dir() and not d.name.startswith(".")
+            )[0]
+            example_slug = first
+        except Exception:
+            pass
+
+    msg = (
+        f"Feature slug is required.  Provide it explicitly: {flag}\n"
+        "No auto-detection is performed (branch scanning / env vars removed).\n"
+        f"{available}"
+        f"Example:  spec-kitty ... --feature {example_slug}"
+    )
+    raise ValueError(msg)
 
 
 __all__ = [
@@ -258,5 +345,6 @@ __all__ = [
     "resolve_with_context",
     "check_broken_symlink",
     "get_main_repo_root",
-    # find_feature_slug has been removed - use detect_feature_slug from core.feature_detection
+    "get_feature_target_branch",
+    "require_explicit_feature",
 ]

@@ -1037,115 +1037,67 @@ class TestSetupPlanCommand:
 class TestFindFeatureDirectory:
     """Tests for _find_feature_directory helper function."""
 
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
-    def test_finds_feature_in_worktree_by_branch_name(
-        self, mock_subprocess: Mock, mock_is_worktree: Mock, tmp_path: Path
-    ):
-        """Should find feature directory matching branch name in worktree."""
-        # Setup
+    def test_finds_feature_with_explicit_slug(self, tmp_path: Path):
+        """Should find feature directory when explicit slug is provided."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
-        mock_is_worktree.return_value = True
-        mock_subprocess.return_value = Mock(returncode=0, stdout="001-test-feature\n")
-
-        # Create worktree structure
+        # Create feature directory
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         (kitty_specs / "001-test-feature").mkdir()
-        (kitty_specs / "002-other-feature").mkdir()
 
-        # Execute
-        result = _find_feature_directory(tmp_path, tmp_path)
+        # Execute with explicit feature slug
+        result = _find_feature_directory(tmp_path, tmp_path, explicit_feature="001-test-feature")
 
         # Verify
         assert result == kitty_specs / "001-test-feature"
 
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_multiple_features_require_explicit_selection(
-        self, mock_is_worktree: Mock, tmp_path: Path
-    ):
-        """Mutating feature commands should not auto-select among multiple features."""
+    def test_raises_error_when_no_explicit_slug(self, tmp_path: Path):
+        """Should raise ValueError when explicit_feature is None (auto-detection removed)."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
-        mock_is_worktree.return_value = False
-
-        # Create main repo structure with multiple features
-        kitty_specs = tmp_path / "kitty-specs"
-        kitty_specs.mkdir()
-        for slug, lane in (
-            ("001-feature", "done"),
-            ("002-feature", "done"),
-            ("003-feature", "planned"),
-        ):
-            feature_dir = kitty_specs / slug
-            tasks_dir = feature_dir / "tasks"
-            tasks_dir.mkdir(parents=True)
-            (tasks_dir / "WP01.md").write_text(
-                f"---\nwork_package_id: WP01\ntitle: Test\nlane: {lane}\n---\n",
-                encoding="utf-8",
-            )
-
-        with pytest.raises(ValueError, match="Please specify explicitly"):
-            _find_feature_directory(tmp_path, tmp_path)
-
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    def test_raises_error_when_no_features_in_main_repo(
-        self, mock_is_worktree: Mock, tmp_path: Path
-    ):
-        """Should raise error when no features exist in main repo."""
-        # Setup
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
-
-        mock_is_worktree.return_value = False
-
-        # Create empty kitty-specs
-        kitty_specs = tmp_path / "kitty-specs"
-        kitty_specs.mkdir()
-
-        # Execute & Verify (updated to match centralized error message)
-        with pytest.raises(ValueError, match="No features found"):
-            _find_feature_directory(tmp_path, tmp_path)
-
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
-    def test_falls_back_when_branch_name_unavailable(
-        self, mock_subprocess: Mock, mock_is_worktree: Mock, tmp_path: Path
-    ):
-        """Should fallback to any feature when git command fails."""
-        # Setup
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
-
-        mock_is_worktree.return_value = True
-        # Simulate git command failure
-        mock_subprocess.side_effect = subprocess.CalledProcessError(1, "git")
-
-        # Create worktree structure
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
         (kitty_specs / "001-test-feature").mkdir()
 
-        # Execute
-        result = _find_feature_directory(tmp_path, tmp_path)
+        # Execute without explicit slug — must raise ValueError
+        with pytest.raises(ValueError):
+            _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
 
-        # Verify - should still find the feature via fallback
-        assert result == kitty_specs / "001-test-feature"
-
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
-    @patch("specify_cli.cli.commands.agent.feature.subprocess.run")
-    def test_raises_error_when_kitty_specs_not_found_in_worktree(
-        self, mock_subprocess: Mock, mock_is_worktree: Mock, tmp_path: Path
-    ):
-        """Should raise error when kitty-specs not found in worktree."""
-        # Setup
+    def test_raises_error_when_feature_dir_not_found(self, tmp_path: Path):
+        """Should raise ValueError when the specified feature directory does not exist."""
         from specify_cli.cli.commands.agent.feature import _find_feature_directory
 
-
-        mock_is_worktree.return_value = True
-        mock_subprocess.return_value = Mock(returncode=0, stdout="001-test\n")
-
-        # No kitty-specs directory created
+        kitty_specs = tmp_path / "kitty-specs"
+        kitty_specs.mkdir()
 
         # Execute & Verify (updated to match centralized error message)
         with pytest.raises(ValueError, match="Feature directory not found"):
-            _find_feature_directory(tmp_path, tmp_path / "nested")
+            _find_feature_directory(tmp_path, tmp_path, explicit_feature="001-nonexistent")
+
+    def test_raises_error_when_no_explicit_slug_with_multiple_features(self, tmp_path: Path):
+        """Should raise ValueError when no slug is given even with multiple features present."""
+        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+
+        # Create main repo structure with multiple features
+        kitty_specs = tmp_path / "kitty-specs"
+        kitty_specs.mkdir()
+        for slug in ("001-feature", "002-feature", "003-feature"):
+            (kitty_specs / slug).mkdir()
+
+        with pytest.raises(ValueError):
+            _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
+
+    def test_finds_correct_feature_among_multiple(self, tmp_path: Path):
+        """Should return the exact matching directory when explicit slug is given."""
+        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+
+        kitty_specs = tmp_path / "kitty-specs"
+        kitty_specs.mkdir()
+        (kitty_specs / "001-first-feature").mkdir()
+        (kitty_specs / "002-second-feature").mkdir()
+        (kitty_specs / "003-third-feature").mkdir()
+
+        result = _find_feature_directory(tmp_path, tmp_path, explicit_feature="002-second-feature")
+
+        assert result == kitty_specs / "002-second-feature"

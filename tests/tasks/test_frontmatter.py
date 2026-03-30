@@ -191,13 +191,11 @@ class TestFieldOrdering:
         assert "dependencies" in manager.WP_FIELD_ORDER
         assert "requirement_refs" in manager.WP_FIELD_ORDER
 
-        # dependencies should be after lane and before requirement_refs / subtasks
-        lane_idx = manager.WP_FIELD_ORDER.index("lane")
+        # dependencies should come before requirement_refs and subtasks
         dep_idx = manager.WP_FIELD_ORDER.index("dependencies")
         req_idx = manager.WP_FIELD_ORDER.index("requirement_refs")
         subtasks_idx = manager.WP_FIELD_ORDER.index("subtasks")
 
-        assert dep_idx > lane_idx, "dependencies should come after lane"
         assert dep_idx < req_idx, "dependencies should come before requirement_refs"
         assert req_idx < subtasks_idx, "requirement_refs should come before subtasks"
 
@@ -206,7 +204,6 @@ class TestFieldOrdering:
         content = """---
 work_package_id: "WP02"
 title: "Test WP"
-lane: "planned"
 dependencies:
   - "WP01"
 requirement_refs:
@@ -227,28 +224,22 @@ subtasks:
         lines = new_content.split("\n")
 
         # Find line indices
-        lane_line = next(i for i, line in enumerate(lines) if line.startswith("lane:"))
         dep_line = next(i for i, line in enumerate(lines) if line.startswith("dependencies:"))
         req_line = next(i for i, line in enumerate(lines) if line.startswith("requirement_refs:"))
         subtasks_line = next(i for i, line in enumerate(lines) if line.startswith("subtasks:"))
 
-        # dependencies should come after lane and before requirement_refs / subtasks
-        assert dep_line > lane_line, "dependencies should come after lane"
+        # dependencies should come before requirement_refs and subtasks
         assert dep_line < req_line, "dependencies should come before requirement_refs"
         assert req_line < subtasks_line, "requirement_refs should come before subtasks"
 
-    def test_field_order_includes_review_feedback(self):
-        """Test WP_FIELD_ORDER includes review_feedback in correct position."""
+    def test_field_order_excludes_mutable_lane_fields(self):
+        """Test WP_FIELD_ORDER does not include mutable lane fields (moved to event log)."""
         manager = FrontmatterManager()
 
-        assert "review_feedback" in manager.WP_FIELD_ORDER
-
-        reviewed_by_idx = manager.WP_FIELD_ORDER.index("reviewed_by")
-        review_feedback_idx = manager.WP_FIELD_ORDER.index("review_feedback")
-        history_idx = manager.WP_FIELD_ORDER.index("history")
-
-        assert review_feedback_idx > reviewed_by_idx, "review_feedback should come after reviewed_by"
-        assert review_feedback_idx < history_idx, "review_feedback should come before history"
+        # Lane state is now tracked in status.events.jsonl, not frontmatter
+        assert "lane" not in manager.WP_FIELD_ORDER, "lane should not be in WP_FIELD_ORDER (use event log)"
+        assert "review_feedback" not in manager.WP_FIELD_ORDER, "review_feedback should not be in WP_FIELD_ORDER"
+        assert "reviewed_by" not in manager.WP_FIELD_ORDER, "reviewed_by should not be in WP_FIELD_ORDER"
 
 
 class TestScopeRestriction:

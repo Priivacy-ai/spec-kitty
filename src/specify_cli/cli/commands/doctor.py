@@ -15,6 +15,73 @@ app = typer.Typer(name="doctor", help="Project health diagnostics")
 console = Console()
 
 
+@app.command(name="command-files")
+def command_files(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Machine-readable JSON output"),
+    ] = False,
+) -> None:
+    """Check all agent command files for correctness.
+
+    Verifies that every configured agent has the correct command files:
+    - Full rendered prompts for prompt-driven commands (specify, plan, tasks, ...)
+    - Thin shims for CLI-driven commands (implement, review, merge, ...)
+    - Current version markers on all files
+
+    Examples:
+        spec-kitty doctor command-files
+        spec-kitty doctor command-files --json
+    """
+    from specify_cli.runtime.doctor import check_command_file_health
+
+    try:
+        project_path = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+
+    if project_path is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    issues = check_command_file_health(project_path)
+
+    if json_output:
+        console.print_json(json.dumps(issues, indent=2))
+        raise typer.Exit(1 if issues else 0)
+
+    if not issues:
+        console.print("[green]Command Files[/green]: all files healthy")
+        raise typer.Exit(0)
+
+    console.print(f"\n[bold]Command Files[/bold] — {len(issues)} issue(s) found\n")
+
+    table = Table(box=None, padding=(0, 2), show_edge=False)
+    table.add_column("Agent", style="cyan", min_width=12)
+    table.add_column("Command", min_width=16)
+    table.add_column("File", min_width=40)
+    table.add_column("Severity", min_width=8)
+    table.add_column("Issue")
+
+    for issue in issues:
+        severity = issue["severity"]
+        severity_display = (
+            f"[red]{severity}[/red]" if severity == "error" else f"[yellow]{severity}[/yellow]"
+        )
+        table.add_row(
+            issue["agent"],
+            issue["command"],
+            issue["file"],
+            severity_display,
+            issue["issue"],
+        )
+
+    console.print(table)
+    console.print()
+    raise typer.Exit(1)
+
+
 @app.command(name="state-roots")
 def state_roots(
     json_output: Annotated[
