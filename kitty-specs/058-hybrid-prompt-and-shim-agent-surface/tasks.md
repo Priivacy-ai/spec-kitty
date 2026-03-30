@@ -43,10 +43,10 @@
 **Requirement Refs**: FR-001, FR-004, FR-007
 
 ### Included Subtasks
-- [ ] T008 Add `PROMPT_DRIVEN_COMMANDS` and `CLI_DRIVEN_COMMANDS` frozensets to `src/specify_cli/shims/registry.py`
-- [ ] T009 Update `generate_all_shims()` in `src/specify_cli/shims/generator.py` to skip prompt-driven commands
-- [ ] T010 Update `shim_dispatch()` in `src/specify_cli/shims/entrypoints.py` — return None for prompt-driven, delegate CLI-driven to existing handlers
-- [ ] T011 [P] Tests for registry classification and generator output count
+- [x] T008 Add `PROMPT_DRIVEN_COMMANDS` and `CLI_DRIVEN_COMMANDS` frozensets to `src/specify_cli/shims/registry.py`
+- [x] T009 Update `generate_all_shims()` in `src/specify_cli/shims/generator.py` to skip prompt-driven commands
+- [x] T010 Update `shim_dispatch()` in `src/specify_cli/shims/entrypoints.py` — return None for prompt-driven, delegate CLI-driven to existing handlers
+- [x] T011 [P] Tests for registry classification and generator output count
 
 ### Implementation Notes
 - `PROMPT_DRIVEN_COMMANDS`: specify, plan, tasks, tasks-outline, tasks-packages, checklist, analyze, research, constitution
