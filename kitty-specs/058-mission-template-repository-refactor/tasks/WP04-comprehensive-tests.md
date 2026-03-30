@@ -1,28 +1,33 @@
 ---
 work_package_id: WP04
 title: Comprehensive Tests
-lane: planned
-dependencies: [WP01, WP02, WP03]
+lane: "done"
+dependencies: [WP01, WP02, WP03, WP11]
 requirement_refs:
 - NFR-002
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP04-merge-base
+base_commit: 1ce5ab94fbe5db8b797c70f95d05abf8983af3fc
+created_at: '2026-03-28T08:46:00.882991+00:00'
 subtasks:
 - T017
 - T018
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: opencode
+shell_pid: '26986'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP04 – Comprehensive Tests
@@ -332,3 +337,8 @@ Target: 90%+ line coverage on `repository.py`.
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T08:46:06Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
+- 2026-03-28T08:51:21Z – opencode – shell_pid=26986 – lane=for_review – 78 new tests covering all public API methods, value objects, enumeration, backward compat, and edge cases. 94% line coverage on repository.py (target 90%+). Full doctrine suite: 948 passed, 3 pre-existing failures (agent profile tests unrelated to WP04).
+- 2026-03-28T08:53:34Z – opencode – shell_pid=26986 – lane=doing – Started review via workflow command
+- 2026-03-28T08:55:38Z – opencode – shell_pid=26986 – lane=approved – Architect review passed: 78/78 tests pass, 94% coverage. Tests are functional-driven (behaviors/outcomes through public API, no mocks, no internal wiring assertions). One minor _missions_root access is pragmatic and non-blocking. All acceptance criteria met.
+- 2026-03-28T10:02:07Z – opencode – shell_pid=26986 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge

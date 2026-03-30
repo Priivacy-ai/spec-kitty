@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Config + Resolver Public Methods
-lane: planned
+lane: "done"
 dependencies:
 - WP01
 requirement_refs:
@@ -17,6 +17,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP01
+base_commit: 2240ac0cea4563c8bfccb3f7a9817799f84e2bb4
+created_at: '2026-03-28T05:45:52.831530+00:00'
 subtasks:
 - T010
 - T011
@@ -26,16 +29,18 @@ subtasks:
 - T015
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: claude-opus-4-6
+shell_pid: '25158'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP03 – Config + Resolver Public Methods
@@ -54,7 +59,7 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+Approved (architect) — 6 methods match contract, boundaries clean (doctrine zero cross-imports), resolver API correctly adapted to resolve_command/resolve_template, NFR-003/004 compliant, 275 tests pass.
 
 ---
 
@@ -74,7 +79,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 5. `ConstitutionTemplateResolver.resolve_command_template(mission, name, project_dir?)` returns `TemplateResult` through 5-tier chain — NEW class in `src/constitution/template_resolver.py`
 6. `ConstitutionTemplateResolver.resolve_content_template(mission, name, project_dir?)` returns `TemplateResult` through 5-tier chain — on `ConstitutionTemplateResolver`
 7. All YAML parsing uses `ruamel.yaml` with `YAML(typ="safe")` (NFR-004)
-8. **Package boundary invariant**: `MissionTemplateRepository` (doctrine) has ZERO imports from `specify_cli` or `constitution`. `ConstitutionTemplateResolver` (constitution) may import from `specify_cli.runtime`.
+8. **Package boundary invariant**: `MissionTemplateRepository` (doctrine) has ZERO imports from `specify_cli` or `constitution`. `ConstitutionTemplateResolver` (constitution) depends only on `doctrine` and `kernel` — ZERO imports from `specify_cli`. The 5-tier resolver primitives must be available to constitution without crossing into `specify_cli`.
 9. `resolve_*` raises `FileNotFoundError` when template not found at any tier
 
 **Success gate**: `repo.get_action_index("software-dev", "implement")` returns `ConfigResult` with parsed dict. `ConstitutionTemplateResolver(repo).resolve_command_template("software-dev", "implement")` returns `TemplateResult`.
@@ -85,7 +90,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - **Prerequisite**: WP01 (value objects, private methods), WP02 (established pattern for template methods)
 - **Resolver location**: `src/specify_cli/runtime/resolver.py` -- has `resolve()` function, `ResolutionTier` enum, `ResolutionResult` dataclass
 - **YAML library**: `ruamel.yaml` (already a dependency, used in `action_index.py`)
-- **Constraint FR-018 / 2.x invariant**: `MissionTemplateRepository` in `doctrine` depends only on `kernel`. ZERO imports from `specify_cli` or `constitution`. The `resolve_*` methods live on `ConstitutionTemplateResolver` in `src/constitution/template_resolver.py`.
+- **Constraint FR-018 / 2.x invariant**: `MissionTemplateRepository` in `doctrine` depends only on `kernel`. ZERO imports from `specify_cli` or `constitution`. Constitution depends only on `doctrine` and `kernel` — ZERO imports from `specify_cli`. The `resolve_*` methods live on `ConstitutionTemplateResolver` in `src/constitution/template_resolver.py`. The 5-tier resolver primitives must be made accessible to constitution without importing `specify_cli`.
 - **Constraint NFR-003**: No caching -- each call reads fresh from disk
 - **Constraint NFR-004**: YAML(typ="safe") only -- no unsafe deserialization
 
@@ -241,28 +246,33 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - **Purpose**: Resolve a command template through the 5-tier override chain. This class lives in `src/constitution/` (NOT in doctrine) because the override chain is "how project context modifies doctrine defaults" — that's constitution by definition. Doctrine is the abstract law; constitution is the local legislation.
 - **Steps**:
-  1. First, study the resolver API. Read `src/specify_cli/runtime/resolver.py` to understand:
-     - The `resolve()` function signature and return type (`ResolutionResult`)
-     - How it handles the `subdir` parameter for command-templates vs. content-templates
-     - How `ResolutionTier` enum values map to origin labels
-  2. Create `src/constitution/template_resolver.py`:
-     ```python
-     """Project-aware template resolution through the 5-tier override chain.
+   1. First, study the resolver API. Read `src/specify_cli/runtime/resolver.py` to understand:
+      - The `resolve()` function signature and return type (`ResolutionResult`)
+      - How it handles the `subdir` parameter for command-templates vs. content-templates
+      - How `ResolutionTier` enum values map to origin labels
+      - **Important**: The resolver primitives (`resolve()`, `ResolutionTier`, `ResolutionResult`) currently live in `specify_cli.runtime.resolver`. Constitution must NOT import from `specify_cli`. The implementer must first relocate these primitives to a package reachable from constitution (doctrine or kernel), or inline equivalent logic in constitution.
+   2. Create `src/constitution/template_resolver.py`:
+      ```python
+      """Project-aware template resolution through the 5-tier override chain.
 
-     Composes MissionTemplateRepository (doctrine-level, tier 5) with the
-     specify_cli runtime resolver (tiers 1-4). Constitution is the
-     concretization of doctrine into local context-aware legislation.
-     """
-     from __future__ import annotations
+      Composes MissionTemplateRepository (doctrine-level, tier 5) with
+      resolver primitives. Constitution is the concretization of doctrine
+      into local context-aware legislation.
 
-     from pathlib import Path
-     from typing import Any
+      NOTE: The 5-tier resolver primitives must be importable without
+      crossing into specify_cli. If they haven't been relocated yet,
+      this module cannot be created until that prerequisite is met.
+      """
+      from __future__ import annotations
 
-     from doctrine.missions.repository import MissionTemplateRepository, TemplateResult
-     from specify_cli.runtime.resolver import (
-         ResolutionTier,
-         resolve as _resolve,
-     )
+      from pathlib import Path
+      from typing import Any
+
+      from doctrine.missions.repository import MissionTemplateRepository, TemplateResult
+      # TODO: Import resolver primitives from their new location
+      # (doctrine or kernel), NOT from specify_cli.runtime.resolver.
+      # The implementer must relocate ResolutionTier, resolve(), and
+      # ResolutionResult before this import can be written.
 
 
      class ConstitutionTemplateResolver:
@@ -315,7 +325,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
              prefix = tier_prefix.get(tier, "unknown")
              return f"{prefix}/{mission}/{asset_type}/{filename}"
      ```
-  3. **Critical**: This file lives in `src/constitution/`, NOT in `src/doctrine/`. The import from `specify_cli.runtime.resolver` is at module level — this is fine because constitution may depend on `specify_cli.runtime` per the 2.x landscape.
+   3. **Critical**: This file lives in `src/constitution/`, NOT in `src/doctrine/`. Constitution must NOT import from `specify_cli`. The 5-tier resolver primitives (`ResolutionTier`, `resolve()`, `ResolutionResult`) must be relocated from `specify_cli.runtime.resolver` to a constitution-reachable package (doctrine or kernel) before this class can be implemented. This relocation is an implicit prerequisite of T014.
   4. Update `src/constitution/__init__.py` to export `ConstitutionTemplateResolver`.
 - **Files**: `src/constitution/template_resolver.py` (NEW), `src/constitution/__init__.py`
 - **Parallel?**: Independent of T015 but must understand resolver first
@@ -397,7 +407,7 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 
 ## Risks & Mitigations
 
-1. ~~**Circular import**~~: **Eliminated by AR-1 decision**. `resolve_*` methods now live in `src/constitution/template_resolver.py`, not in doctrine. Constitution's dependency on `specify_cli.runtime` is architecturally permitted.
+1. ~~**Circular import**~~: **Eliminated by AR-1 decision**. `resolve_*` methods now live in `src/constitution/template_resolver.py`, not in doctrine. However, constitution must NOT import from `specify_cli`. The 5-tier resolver primitives must be relocated to a constitution-reachable package (doctrine or kernel) before `ConstitutionTemplateResolver` can be created. This is an architectural prerequisite.
 2. **Resolver API mismatch**: The `resolve()` function signature may differ from what's shown. Read `resolver.py` before implementing T014/T015.
 3. **ruamel.yaml parse failure**: The try/except returns `None` for any parse error. Consider logging a warning.
 4. **get_expected_artifacts name collision**: The old `get_expected_artifacts()` returned `Path | None` (now `_expected_artifacts_path()`). The new one returns `ConfigResult | None`. Callers using the alias `MissionRepository(root).get_expected_artifacts()` will get different behavior -- this is intentional but will break `dossier/manifest.py` until rerouted in WP05-WP07.
@@ -415,3 +425,8 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T05:45:52Z – claude-opus-4-6 – shell_pid=22659 – lane=doing – Assigned agent via workflow command
+- 2026-03-28T05:56:12Z – claude-opus-4-6 – shell_pid=22659 – lane=for_review – Ready for review: 4 config methods + ConstitutionTemplateResolver, 275 tests pass
+- 2026-03-28T05:56:50Z – claude-opus-4-6 – shell_pid=25158 – lane=doing – Started review via workflow command
+- 2026-03-28T05:59:55Z – claude-opus-4-6 – shell_pid=25158 – lane=approved – Architect review passed: boundaries clean, 6 methods match contract, resolver API correctly adapted, NFR-003/004 compliant, 275 tests pass
+- 2026-03-28T10:02:06Z – claude-opus-4-6 – shell_pid=25158 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge

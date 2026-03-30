@@ -217,16 +217,16 @@ def _append_action_doctrine_lines(
     include_extended: bool,
 ) -> None:
     """Append action doctrine content to lines list. Degrades gracefully on error."""
+    from doctrine.missions import MissionTemplateRepository
     from doctrine.missions.action_index import load_action_index
-    from constitution.catalog import resolve_doctrine_root
     from constitution.sync import load_governance_config
 
     try:
-        missions_root = resolve_doctrine_root() / "missions"
+        repo = MissionTemplateRepository.default()
         governance = load_governance_config(repo_root)
         template_set = governance.doctrine.template_set or "software-dev-default"
         mission = template_set.removesuffix("-default")
-        action_index = load_action_index(missions_root, mission, action)
+        action_index = load_action_index(repo._missions_root, mission, action)
         project_directives: set[str] = {_normalize_directive_id(d) for d in governance.doctrine.selected_directives}
         doctrine_service = _build_doctrine_service(repo_root)
 
@@ -245,17 +245,14 @@ def _append_action_doctrine_lines(
         if include_extended:
             lines.extend(_build_extended_lines(action_index, doctrine_service))
 
-        # Action guidelines file
-        guidelines_path = missions_root / mission / "actions" / action / "guidelines.md"
-        if guidelines_path.exists():
-            try:
-                guidelines_content = guidelines_path.read_text(encoding="utf-8").strip()
-                if guidelines_content:
-                    lines.append("  Guidelines:")
-                    for gl_line in guidelines_content.splitlines():
-                        lines.append(f"    {gl_line}")
-            except Exception:  # noqa: BLE001, S110
-                pass
+        # Action guidelines
+        guidelines_result = repo.get_action_guidelines(mission, action)
+        if guidelines_result is not None:
+            guidelines_content = guidelines_result.content.strip()
+            if guidelines_content:
+                lines.append("  Guidelines:")
+                for gl_line in guidelines_content.splitlines():
+                    lines.append(f"    {gl_line}")
 
     except Exception:  # noqa: BLE001, S110
         # Degrade gracefully - skip action doctrine section on any error

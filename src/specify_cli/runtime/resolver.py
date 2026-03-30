@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
 
-from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.home import get_kittify_home
 
 logger = logging.getLogger(__name__)
 
@@ -169,17 +169,27 @@ def _resolve_asset(
         # Cannot determine home directory -- skip tiers 3 and 4
         pass
 
-    # Tier 5 -- package default
+    # Tier 5 -- package default (via MissionTemplateRepository)
     try:
-        pkg_missions = get_package_asset_root()
-        pkg_path = pkg_missions / mission / subdir / name
-        if pkg_path.is_file():
+        from doctrine.missions import MissionTemplateRepository
+
+        _repo = MissionTemplateRepository.default()
+        if subdir == "command-templates":
+            pkg_path = _repo._command_template_path(mission, name.removesuffix(".md"))
+        elif subdir == "templates":
+            pkg_path = _repo._content_template_path(mission, name)
+        else:
+            # Fallback for unknown subdirs
+            pkg_path = _repo._missions_root / mission / subdir / name
+            if not pkg_path.is_file():
+                pkg_path = None
+        if pkg_path:
             return ResolutionResult(
                 path=pkg_path,
                 tier=ResolutionTier.PACKAGE_DEFAULT,
                 mission=mission,
             )
-    except FileNotFoundError:
+    except (FileNotFoundError, ImportError):
         pass
 
     raise FileNotFoundError(
@@ -297,13 +307,14 @@ def resolve_mission(
     except RuntimeError:
         pass
 
-    # Tier 4 -- package default
+    # Tier 4 -- package default (via MissionTemplateRepository)
     try:
-        pkg_missions = get_package_asset_root()
-        pkg_path = pkg_missions / name / filename
-        if pkg_path.is_file():
+        from doctrine.missions import MissionTemplateRepository
+
+        pkg_path = MissionTemplateRepository.default()._mission_config_path(name)
+        if pkg_path:
             return ResolutionResult(path=pkg_path, tier=ResolutionTier.PACKAGE_DEFAULT, mission=name)
-    except FileNotFoundError:
+    except (FileNotFoundError, ImportError):
         pass
 
     raise FileNotFoundError(f"Mission '{name}' config not found in any resolution tier (project={project_dir})")

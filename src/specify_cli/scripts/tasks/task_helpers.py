@@ -11,7 +11,7 @@ from datetime import datetime, UTC
 from pathlib import Path
 
 # IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py
-LANES: tuple[str, ...] = ("planned", "doing", "for_review", "done")
+LANES: tuple[str, ...] = ("planned", "doing", "for_review", "in_review", "done")
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

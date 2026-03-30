@@ -14,7 +14,6 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.runtime.home import get_package_asset_root
 from specify_cli.runtime.resolver import (
     resolve_command,
     resolve_mission,
@@ -65,11 +64,14 @@ class OriginEntry:
 def _discover_mission_names() -> list[str]:
     """Discover all mission directories from the package defaults."""
     try:
-        pkg_root = get_package_asset_root()
-        return sorted(d.name for d in pkg_root.iterdir() if d.is_dir() and (d / "mission.yaml").is_file())
-    except OSError as exc:
-        logger.debug("Cannot discover missions from package: %s", exc)
-        return ["software-dev", "research", "documentation"]
+        from doctrine.missions import MissionTemplateRepository
+
+        names = MissionTemplateRepository.default().list_missions()
+        if names:
+            return names
+    except Exception as exc:
+        logger.debug("Cannot discover missions from repository: %s", exc)
+    return ["software-dev", "research", "documentation"]
 
 
 def _discover_command_names(mission: str) -> list[str]:
@@ -78,15 +80,17 @@ def _discover_command_names(mission: str) -> list[str]:
     Scans across all 4 tiers so that overrides and global additions are
     included alongside the package defaults.
     """
+    from doctrine.missions import MissionTemplateRepository
+
     names: set[str] = set()
 
     # Tier 4 -- package defaults (most reliable source)
     try:
-        pkg_root = get_package_asset_root()
-        pkg_cmd_dir = pkg_root / mission / "command-templates"
-        if pkg_cmd_dir.is_dir():
-            names.update(f.name for f in pkg_cmd_dir.iterdir() if f.is_file() and f.suffix == ".md")
-    except OSError:
+        repo = MissionTemplateRepository.default()
+        # list_command_templates returns names without .md extension; add it back
+        # to match the existing contract (callers expect filenames with .md)
+        names.update(f"{n}.md" for n in repo.list_command_templates(mission))
+    except Exception:
         pass
 
     if not names:
@@ -97,15 +101,16 @@ def _discover_command_names(mission: str) -> list[str]:
 
 def _discover_template_names(mission: str) -> list[str]:
     """Discover all template filenames for a mission from package defaults."""
+    from doctrine.missions import MissionTemplateRepository
+
     names: set[str] = set()
 
     try:
-        pkg_root = get_package_asset_root()
-        pkg_tpl_dir = pkg_root / mission / "templates"
-        if pkg_tpl_dir.is_dir():
-            # Only top-level .md files (not subdirectory templates like divio/)
-            names.update(f.name for f in pkg_tpl_dir.iterdir() if f.is_file() and f.suffix == ".md")
-    except OSError:
+        repo = MissionTemplateRepository.default()
+        repo_names = repo.list_content_templates(mission)
+        # Only include .md files (matches original behavior filtering for .md suffix)
+        names.update(n for n in repo_names if n.endswith(".md"))
+    except Exception:
         pass
 
     if not names:

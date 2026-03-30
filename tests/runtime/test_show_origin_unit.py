@@ -10,6 +10,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+from doctrine.missions import MissionTemplateRepository
 
 from specify_cli.runtime.show_origin import (
     OriginEntry,
@@ -59,12 +60,8 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -87,12 +84,8 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             entries = collect_origins(project)
@@ -111,12 +104,8 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             entries = collect_origins(project)
@@ -141,12 +130,8 @@ class TestCollectOriginsBasic:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             entries = collect_origins(project)
@@ -187,12 +172,8 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -218,12 +199,8 @@ class TestShowOriginTierLabels:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
             ),
         ):
             entries = collect_origins(project)
@@ -248,12 +225,8 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -290,12 +263,8 @@ class TestShowOriginTierLabels:
                 return_value=global_home,
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -328,12 +297,8 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -368,12 +333,8 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project)
@@ -408,12 +369,8 @@ class TestShowOriginTierLabels:
                 return_value=tmp_path / "no_home",
             ),
             patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
-            patch(
-                "specify_cli.runtime.show_origin.get_package_asset_root",
-                return_value=pkg_root,
+                "doctrine.missions.MissionTemplateRepository.default",
+                return_value=MissionTemplateRepository(pkg_root),
             ),
         ):
             entries = collect_origins(project, mission="research")

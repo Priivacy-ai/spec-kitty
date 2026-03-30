@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: HIGH Priority Consumer Reroutes
-lane: planned
+lane: "done"
 dependencies:
 - WP01
 requirement_refs:
@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP01
+base_commit: 2240ac0cea4563c8bfccb3f7a9817799f84e2bb4
+created_at: '2026-03-28T08:56:30.312614+00:00'
 subtasks:
 - T019
 - T020
@@ -16,16 +19,18 @@ subtasks:
 - T022
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: claude-code
+shell_pid: '78482'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP05 – HIGH Priority Consumer Reroutes
@@ -232,3 +237,8 @@ grep -rl "context\|catalog\|show_origin" tests/ --include="*.py"
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T08:56:30Z – opencode – shell_pid=26986 – lane=doing – Assigned agent via workflow command
+- 2026-03-28T09:11:06Z – opencode – shell_pid=26986 – lane=for_review – All 4 HIGH priority consumers rerouted to MissionTemplateRepository. Tests updated and passing: constitution 170p/1s, specify_cli 383p/1f(pre-existing)/1s, show_origin 11/11 pass.
+- 2026-03-28T09:18:18Z – claude-code – shell_pid=78482 – lane=doing – Started review via workflow command
+- 2026-03-28T09:42:18Z – claude-code – shell_pid=78482 – lane=approved – Review passed: All 4 HIGH priority consumers correctly rerouted to MissionTemplateRepository. No direct path construction remains. Tests pass (181p/1s). ActionIndex contract preserved via Option A. Cross-WP calls to WP02/WP03 methods will resolve at merge time. Approved by claude-code.
+- 2026-03-28T10:02:08Z – claude-code – shell_pid=78482 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge

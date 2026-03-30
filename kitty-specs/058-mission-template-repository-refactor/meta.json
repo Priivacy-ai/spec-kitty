@@ -5,5 +5,7 @@
   "friendly_name": "Mission Repository Encapsulation",
   "mission": "software-dev",
   "slug": "058-mission-template-repository-refactor",
-  "target_branch": "feature/agent-profile-implementation"
+  "target_branch": "feature/agent-profile-implementation",
+  "vcs": "git",
+  "vcs_locked_at": "2026-03-28T04:42:51.647190+00:00"
 }

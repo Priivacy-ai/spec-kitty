@@ -26,7 +26,7 @@ from specify_cli.identity import ActorIdentity
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
+LANES: tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done", "blocked", "canceled")
 LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -224,6 +224,35 @@ def append_activity_log(body: str, entry: str) -> str:
         section += "\n"
     section += f"{entry}\n"
     return body[: match.start(1)] + section + body[match.end(1) :]
+
+
+def populate_review_feedback(body: str, feedback: str, verdict: str, reviewer: str) -> str:
+    """Replace the Review Feedback placeholder with actual feedback content.
+
+    Works for both approvals (verdict="approved") and rejections (verdict="changes_requested").
+    """
+    timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    header_line = f"**Verdict**: {verdict} | **Reviewer**: {reviewer} | **Date**: {timestamp}"
+    replacement = f"{header_line}\n\n{feedback}"
+
+    # Replace the placeholder text
+    placeholder = "*[This section is empty initially.]*"
+    if placeholder in body:
+        return body.replace(placeholder, replacement)
+
+    # If no placeholder, append under the ## Review Feedback header
+    section_header = "## Review Feedback"
+    if section_header in body:
+        pattern = re.compile(
+            rf"({re.escape(section_header)}\s*\n\s*>\s*\*\*Populated by.*?\*\*\s*\n?)",
+            flags=re.DOTALL,
+        )
+        match = pattern.search(body)
+        if match:
+            insert_pos = match.end()
+            return body[:insert_pos] + "\n" + replacement + "\n" + body[insert_pos:]
+
+    return body
 
 
 def activity_entries(body: str) -> list[dict[str, str]]:

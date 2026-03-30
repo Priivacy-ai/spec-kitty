@@ -561,7 +561,7 @@ class TestDoneEvidence:
 
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
-        # Move through the pipeline to get to for_review
+        # Move through the pipeline to get to approved
         emit_status_transition(
             feature_dir=feature_dir,
             feature_slug="034-test",
@@ -582,6 +582,27 @@ class TestDoneEvidence:
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="approved",
+            actor="reviewer",
+            evidence={
+                "review": {
+                    "reviewer": "reviewer",
+                    "verdict": "approved",
+                    "reference": "PR#1",
+                }
+            },
         )
 
         with pytest.raises(TransitionError, match="evidence"):
@@ -617,6 +638,21 @@ class TestDoneEvidence:
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="approved",
+            actor="reviewer",
+            evidence=valid_evidence_dict,
         )
 
         event = emit_status_transition(
@@ -655,6 +691,27 @@ class TestDoneEvidence:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test",
+            wp_id="WP01",
+            to_lane="approved",
+            actor="reviewer",
+            evidence={
+                "review": {
+                    "reviewer": "reviewer",
+                    "verdict": "approved",
+                    "reference": "PR#1",
+                }
+            },
+        )
 
         with pytest.raises(TransitionError, match="review.reviewer"):
             emit_status_transition(
@@ -666,9 +723,9 @@ class TestDoneEvidence:
                 evidence={"not_review": "data"},
             )
 
-        # Verify no done event was persisted (only 3 prior events)
+        # Verify no done event was persisted (only 5 prior events)
         events = read_events(feature_dir)
-        assert len(events) == 3
+        assert len(events) == 5
 
 
 # ── SaaS Fan-Out Tests ───────────────────────────────────────

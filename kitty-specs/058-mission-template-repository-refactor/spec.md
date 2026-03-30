@@ -154,9 +154,15 @@ After the refactor, no production code outside `MissionTemplateRepository` itsel
 | FR-014 | Private `_content_template_path(mission, name)` returns `Path` or `None` for internal callers | P1 | Proposed |
 | FR-015 | Private `_missions_root()` returns `Path` for internal callers needing directory access | P1 | Proposed |
 | FR-016 | Backward-compatible `MissionRepository` alias exported from `doctrine.missions` | P1 | Proposed |
-| FR-017 | Reroute doctrine-asset consumers (11 files) to use `MissionTemplateRepository` public API | P1 | Proposed |
+| FR-017 | Reroute doctrine-asset consumers (11 files: context.py, both catalog.py copies, show_origin.py, resolver.py, bootstrap.py, migrate.py, manager.py, both compiler.py copies, feature.py stale path) to use `MissionTemplateRepository` public API | P1 | Proposed |
+| FR-018 | `ConstitutionTemplateResolver` in `src/constitution/` composes `MissionTemplateRepository` (doctrine) with the 5-tier resolver. `MissionTemplateRepository` in `doctrine` depends only on `kernel` (the true zero-dependency root) — no imports from `specify_cli` or `constitution`. `constitution` depends only on `doctrine` and `kernel` — no imports from `specify_cli`. | P1 | Proposed |
 | FR-019 | Reroute project-local mission path construction in `manifest.py`, `mission.py`, `config.py` through a constitution-module indirection (`ProjectMissionPaths`) to prepare for future constitution-aware resolution | P2 | Proposed |
-| FR-018 | `ConstitutionTemplateResolver` in `src/constitution/` imports `specify_cli.runtime.resolver` (constitution may depend on specify_cli.runtime per 2.x landscape). `MissionTemplateRepository` in `doctrine` depends only on `kernel` (the true zero-dependency root) — no imports from `specify_cli` or `constitution`. | P1 | Proposed |
+| FR-020 | Add `IN_REVIEW` lane to the status model (`Lane` enum) with transitions: `for_review → in_review`, `in_review → approved`, `in_review → done`, `in_review → planned`, `in_review → in_progress`, `in_review → blocked`, `in_review → canceled` | P1 | Proposed |
+| FR-021 | Record reviewer `role` (e.g. `architect`, `implementer`) in WP frontmatter when review starts | P1 | Proposed |
+| FR-022 | Populate `approved_by` frontmatter field with the approver's agent-profile when a WP moves to `approved` | P1 | Proposed |
+| FR-023 | `agent` metadata field stores the LLM tool identifier (e.g. `claude-opus-4-6`), semantically distinct from `agent_profile` / `role` | P1 | Proposed |
+| FR-024 | Workflow review command (`spec-kitty agent workflow review`) moves WP to `in_review` lane (not `in_progress`) and populates `role`, `agent_profile`, and `agent` in frontmatter | P1 | Proposed |
+| FR-025 | Dashboard renders `in_review` lane column, `role` badge on kanban cards, and `approved_by` in WP detail pane. WPs without these fields render gracefully. | P2 | Proposed |
 
 ## Non-Functional Requirements
 
@@ -206,7 +212,7 @@ After the refactor, no production code outside `MissionTemplateRepository` itsel
 
 1. `MissionTemplateRepository` is the sole public API for mission asset access, exported from `doctrine.missions`
 2. Public methods return content (`str`) or parsed data (`dict`), never filesystem `Path` objects
-3. All 14 consumer files are rerouted to use the public API (no direct path construction outside the repository)
+3. All 14 consumer files are rerouted to use the public API (no direct path construction outside the repository). Exempt: shipped migrations (C-001, frozen snapshots), `test_package_bundling.py` (C-002, needs repo-root paths for `python -m build`), and `kernel/paths.py` (low-level primitive used by the repository itself).
 4. `MissionRepository` alias exists for backward compatibility
 5. Full test suite passes with zero regressions
 6. New test module covers all public API methods with at least doctrine-level and project-aware scenarios

@@ -17,6 +17,7 @@ subtasks:
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
 agent: ''
+agent_profile: implementer
 shell_pid: ''
 review_status: ''
 reviewed_by: ''

@@ -13,6 +13,7 @@ from __future__ import annotations
 import warnings
 from pathlib import Path
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.runtime.bootstrap import ensure_runtime, check_version_pin
 from specify_cli.runtime.resolver import (
     ResolutionTier,
@@ -76,7 +77,10 @@ def fake_package_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path
     # AGENTS.md (sibling of missions)
     (pkg_root / "AGENTS.md").write_text("# Agents\nDefault agents list.")
 
-    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(missions))
+    monkeypatch.setattr(
+        "doctrine.missions.MissionTemplateRepository.default",
+        staticmethod(lambda: MissionTemplateRepository(missions)),
+    )
     return missions
 
 # ---------------------------------------------------------------------------

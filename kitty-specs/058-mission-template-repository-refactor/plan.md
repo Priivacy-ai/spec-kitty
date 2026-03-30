@@ -116,7 +116,7 @@ All methods are instance methods on `MissionTemplateRepository` (renamed from `M
 - `get_command_template(mission, name)` -- doctrine-level lookup
 - `get_content_template(mission, name)` -- doctrine-level lookup
 
-**Note**: `resolve_command_template()` and `resolve_content_template()` (5-tier project-aware resolution) live on `ConstitutionTemplateResolver` in `src/constitution/`, NOT on `MissionTemplateRepository`. Doctrine has zero dependencies on `specify_cli` or `constitution` (2.x landscape invariant). The constitution module is the concretization of doctrine into local context-aware legislation — the override chain is its responsibility.
+**Note**: `resolve_command_template()` and `resolve_content_template()` (5-tier project-aware resolution) live on `ConstitutionTemplateResolver` in `src/constitution/`, NOT on `MissionTemplateRepository`. Doctrine has zero dependencies on `specify_cli` or `constitution` (2.x landscape invariant). Constitution depends only on doctrine and kernel — no imports from `specify_cli`. The constitution module is the concretization of doctrine into local context-aware legislation — the override chain is its responsibility. The 5-tier resolver primitives must be available to constitution without crossing into `specify_cli`.
 
 **Enumeration methods** (return `list[str]`):
 - `list_command_templates(mission)` -- sorted names without .md
@@ -146,11 +146,11 @@ All methods are instance methods on `MissionTemplateRepository` (renamed from `M
 
 ### Interaction with Existing Resolver
 
-`ConstitutionTemplateResolver` (new class in `src/constitution/template_resolver.py`) composes `MissionTemplateRepository` (for tier-5 doctrine-level lookups) with the 5-tier resolver in `specify_cli.runtime.resolver`. The resolver's `ResolutionResult` (which contains `path` and `tier`) is wrapped into a `TemplateResult` by reading the file content and mapping the tier.
+`ConstitutionTemplateResolver` (new class in `src/constitution/template_resolver.py`) composes `MissionTemplateRepository` (for tier-5 doctrine-level lookups) with the 5-tier resolver logic. The resolver's `ResolutionResult` (which contains `path` and `tier`) is wrapped into a `TemplateResult` by reading the file content and mapping the tier. The 5-tier resolution logic must be available to constitution without importing from `specify_cli` — this means the resolver primitives (tier enumeration, resolution algorithm) need to live in a package that constitution can reach (doctrine or kernel), or be inlined within constitution itself.
 
 The resolver module itself (`resolver.py`) is rerouted to use `MissionTemplateRepository._*_path()` for its tier-5 (PACKAGE_DEFAULT) lookups instead of calling `get_package_asset_root()` directly.
 
-**Package boundary enforcement**: `MissionTemplateRepository` (in `doctrine`) has zero imports from `specify_cli` or `constitution`. `ConstitutionTemplateResolver` (in `constitution`) may import from `specify_cli.runtime` per the 2.x landscape dependency direction. This preserves doctrine as a standalone distributable package.
+**Package boundary enforcement**: `MissionTemplateRepository` (in `doctrine`) has zero imports from `specify_cli` or `constitution`. `ConstitutionTemplateResolver` (in `constitution`) depends only on `doctrine` and `kernel` — no imports from `specify_cli`. This preserves both doctrine and constitution as standalone distributable packages.
 
 ## Implementation Phases
 
@@ -162,7 +162,7 @@ The resolver module itself (`resolver.py`) is rerouted to use `MissionTemplateRe
 2. Add `TemplateResult` and `ConfigResult` value objects to `repository.py`
 3. Convert existing path-returning methods to private `_*_path()` names
 4. Add new public content-returning methods that wrap the private path methods
-5. Add `resolve_command_template()` and `resolve_content_template()` with lazy resolver import
+5. Create `ConstitutionTemplateResolver` in `src/constitution/template_resolver.py` with `resolve_command_template()` and `resolve_content_template()` methods (5-tier project-aware resolution, composes `MissionTemplateRepository` + resolver)
 6. Add `get_action_index()`, `get_action_guidelines()`, `get_mission_config()`, `get_expected_artifacts()` public methods
 7. Update `__init__.py`: export `MissionTemplateRepository`, add `MissionRepository = MissionTemplateRepository` alias
 8. Add `list_command_templates()`, `list_content_templates()` methods
@@ -195,7 +195,7 @@ Consumers rerouted in dependency order:
 
 | Risk | Mitigation |
 |------|------------|
-| Circular imports (`doctrine` importing `specify_cli`) | `resolve_*` methods use lazy imports inside method body |
+| Circular imports (`doctrine` importing `specify_cli`) | `resolve_*` methods live in `constitution`, not `doctrine`. Constitution depends only on doctrine + kernel. The 5-tier resolver logic must be made available to constitution without importing `specify_cli` (move primitives to doctrine/kernel or inline in constitution). |
 | Breaking shipped migrations | `MissionRepository` alias in `__init__.py` |
 | Test regressions from rename | Alias makes old import path work; before/after test runs on each change |
 | `ruamel.yaml` vs `yaml.safe_load` inconsistency | Standardize on `YAML(typ="safe")` from ruamel.yaml (matches existing `action_index.py`) |
@@ -213,4 +213,4 @@ Consumers rerouted in dependency order:
 | F6 | WP02/WP03 parallel vs sequential contradiction | **Keep sequential** | WP03 depends on WP02 for established patterns. Removed "can potentially run in parallel" claim from dependency summary. |
 | F7 | FR-008 `list_missions()` has no explicit verification subtask | **Add to WP04/T017** | T017 now includes verifying `list_missions()` signature and return type match FR-008 |
 | F8 | Constitution terminology: "Feature" in spec artifacts | **Rename to "Mission Specification" + glossary update** | "Feature Specification" → "Mission Specification" in all artifacts. "Feature Branch" is an accepted VCS concept and stays. Glossary updated with distinction (T043 in WP08). |
-| AR-1 | `resolve_*` methods on `MissionTemplateRepository` violate doctrine → specify_cli dependency ban | **Move to `ConstitutionTemplateResolver` in `src/constitution/`** | Constitution is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's constitution by definition. Doctrine depends only on kernel (the true zero-dependency root). |
+| AR-1 | `resolve_*` methods on `MissionTemplateRepository` violate doctrine → specify_cli dependency ban | **Move to `ConstitutionTemplateResolver` in `src/constitution/`** | Constitution is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's constitution by definition. Doctrine depends only on kernel (the true zero-dependency root). Constitution depends only on doctrine + kernel (no `specify_cli` imports). The 5-tier resolver primitives must be made reachable from constitution without importing `specify_cli`. |

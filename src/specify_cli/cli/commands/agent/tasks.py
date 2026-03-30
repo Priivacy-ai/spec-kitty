@@ -55,6 +55,7 @@ from specify_cli.tasks_support import (
     ensure_lane,
     extract_scalar,
     locate_work_package,
+    populate_review_feedback,
     set_scalar,
     split_frontmatter,
 )
@@ -1083,7 +1084,7 @@ def move_task(
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = ["planned", "claimed", "in_progress", "for_review", "approved", "done"]
+            forward = ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done"]
             if current in forward and target in forward:
                 current_idx = forward.index(current)
                 target_idx = forward.index(target)
@@ -1181,7 +1182,7 @@ def move_task(
             if shell_pid:
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-            # Store canonical review feedback pointer in frontmatter (no body duplication).
+            # Store canonical review feedback pointer in frontmatter and populate body.
             if target_lane == "planned" and review_feedback_pointer is not None:
                 effective_reviewer = reviewer or _detect_reviewer_name()
                 updated_front = set_scalar(updated_front, "review_status", "has_feedback")
@@ -1191,12 +1192,27 @@ def move_task(
                     "review_feedback",
                     review_feedback_pointer,
                 )
+                if resolved_feedback_source is not None:
+                    feedback_text = resolved_feedback_source.read_text(encoding="utf-8").strip()
+                    if feedback_text:
+                        updated_body = populate_review_feedback(
+                            updated_body, feedback_text, "changes_requested", effective_reviewer,
+                        )
+
+            # Record review role when entering in_review via move-task.
+            if target_lane == "in_review":
+                updated_front = set_scalar(updated_front, "role", "reviewer")
 
             # Record approval metadata when review passes.
             if target_lane in ("approved", "done"):
                 effective_reviewer = reviewer or extract_scalar(updated_front, "reviewed_by") or _detect_reviewer_name()
                 updated_front = set_scalar(updated_front, "reviewed_by", effective_reviewer)
+                updated_front = set_scalar(updated_front, "approved_by", effective_reviewer)
                 updated_front = set_scalar(updated_front, "review_status", "approved")
+                if note_text:
+                    updated_body = populate_review_feedback(
+                        updated_body, note_text, "approved", effective_reviewer,
+                    )
 
             # Build history entry
             timestamp = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")

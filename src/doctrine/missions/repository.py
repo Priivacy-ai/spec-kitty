@@ -1,17 +1,91 @@
-"""Mission repository for path-based access to mission assets."""
+"""Mission template repository for content-based access to mission assets."""
 
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
+
+from ruamel.yaml import YAML
 
 
-class MissionRepository:
-    """Repository for locating mission asset files on the filesystem.
+class TemplateResult:
+    """Value object wrapping template content with origin metadata.
 
-    Provides path-based lookup for command templates, content templates,
-    action indexes, action guidelines, and mission configs.  All query
-    methods return ``None`` (rather than raising) when the requested file
-    does not exist, so callers can implement their own fallback logic.
+    Constructed internally by MissionTemplateRepository.
+    Consumers should not instantiate directly.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, content: str, origin: str, tier: Any = None) -> None:
+        self._data: dict[str, Any] = {
+            "content": content,
+            "origin": origin,
+            "tier": tier,
+        }
+
+    @property
+    def content(self) -> str:
+        """Raw template text (UTF-8)."""
+        return self._data["content"]
+
+    @property
+    def origin(self) -> str:
+        """Human-readable origin label (e.g. 'doctrine/software-dev/command-templates/implement.md')."""
+        return self._data["origin"]
+
+    @property
+    def tier(self) -> Any:
+        """Resolution tier (ResolutionTier enum or None for doctrine-level lookups)."""
+        return self._data["tier"]
+
+    def __repr__(self) -> str:
+        return f"TemplateResult(origin={self.origin!r}, tier={self.tier})"
+
+
+class ConfigResult:
+    """Value object wrapping parsed YAML config with origin metadata.
+
+    Constructed internally by MissionTemplateRepository.
+    Consumers should not instantiate directly.
+    """
+
+    __slots__ = ("_data",)
+
+    def __init__(self, content: str, origin: str, parsed: dict | list) -> None:
+        self._data: dict[str, Any] = {
+            "content": content,
+            "origin": origin,
+            "parsed": parsed,
+        }
+
+    @property
+    def content(self) -> str:
+        """Raw YAML text (UTF-8)."""
+        return self._data["content"]
+
+    @property
+    def origin(self) -> str:
+        """Human-readable origin label (e.g. 'doctrine/software-dev/mission.yaml')."""
+        return self._data["origin"]
+
+    @property
+    def parsed(self) -> dict | list:
+        """Pre-parsed YAML data (parsed with ruamel.yaml YAML(typ='safe'))."""
+        return self._data["parsed"]
+
+    def __repr__(self) -> str:
+        return f"ConfigResult(origin={self.origin!r})"
+
+
+class MissionTemplateRepository:
+    """Single authority for mission asset access.
+
+    Provides content-returning public methods (via TemplateResult and
+    ConfigResult value objects) and private _*_path() methods for
+    internal callers that need filesystem access.  All query methods
+    return None (rather than raising) when the requested asset does
+    not exist, so callers can implement their own fallback logic.
     """
 
     def __init__(self, missions_root: Path) -> None:
@@ -36,8 +110,13 @@ class MissionRepository:
         except Exception:
             return Path(__file__).parent
 
+    @classmethod
+    def default(cls) -> MissionTemplateRepository:
+        """Return a repository instance for the doctrine-bundled missions."""
+        return cls(cls.default_missions_root())
+
     # ------------------------------------------------------------------
-    # Query interface
+    # Enumeration interface
     # ------------------------------------------------------------------
 
     def list_missions(self) -> list[str]:
@@ -54,37 +133,226 @@ class MissionRepository:
             if d.is_dir() and (d / "mission.yaml").exists()
         )
 
-    def get_command_template(self, mission: str, command: str) -> Path | None:
-        """Return the path to a command template Markdown file.
+    # ------------------------------------------------------------------
+    # Public content-returning methods
+    # ------------------------------------------------------------------
 
-        Looks for ``<missions_root>/<mission>/command-templates/<command>.md``.
+    def get_command_template(self, mission: str, name: str) -> TemplateResult | None:
+        """Read a command template's content from doctrine assets.
+
+        Looks for ``<missions_root>/<mission>/command-templates/<name>.md``.
 
         Args:
             mission: Mission name (e.g. ``"software-dev"``).
-            command: Command/template name without extension (e.g. ``"implement"``).
+            name: Template name without ``.md`` extension (e.g. ``"implement"``).
 
         Returns:
-            Path if the file exists, else ``None``.
+            TemplateResult with content and origin, or ``None`` if not found.
         """
-        path = self._root / mission / "command-templates" / f"{command}.md"
-        return path if path.is_file() else None
+        path = self._command_template_path(mission, name)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/command-templates/{name}.md"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
 
-    def get_template(self, mission: str, template: str) -> Path | None:
-        """Return the path to a content template file.
+    def get_content_template(self, mission: str, name: str) -> TemplateResult | None:
+        """Read a content template's content from doctrine assets.
 
-        Looks for ``<missions_root>/<mission>/templates/<template>``.
+        Looks for ``<missions_root>/<mission>/templates/<name>``.
 
         Args:
             mission: Mission name.
-            template: Template filename including extension (e.g. ``"spec-template.md"``).
+            name: Template filename with extension (e.g. ``"spec-template.md"``).
+
+        Returns:
+            TemplateResult with content and origin, or ``None`` if not found.
+        """
+        path = self._content_template_path(mission, name)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/templates/{name}"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def list_command_templates(self, mission: str) -> list[str]:
+        """Return names of all command templates for a mission.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+
+        Returns:
+            Sorted list of template names WITHOUT ``.md`` extension
+            (e.g. ``["implement", "plan", "specify", "tasks"]``).
+            Empty list if mission or command-templates dir doesn't exist.
+        """
+        cmd_dir = self._root / mission / "command-templates"
+        if not cmd_dir.is_dir():
+            return []
+        return sorted(
+            p.stem for p in cmd_dir.iterdir()
+            if p.is_file() and p.suffix == ".md" and p.name != "README.md"
+        )
+
+    def list_content_templates(self, mission: str) -> list[str]:
+        """Return filenames of all content templates for a mission.
+
+        Args:
+            mission: Mission name.
+
+        Returns:
+            Sorted list of template filenames WITH extension
+            (e.g. ``["plan-template.md", "spec-template.md"]``).
+            Empty list if mission or templates dir doesn't exist.
+        """
+        tpl_dir = self._root / mission / "templates"
+        if not tpl_dir.is_dir():
+            return []
+        return sorted(
+            p.name for p in tpl_dir.iterdir()
+            if p.is_file() and p.name != "README.md"
+        )
+
+    # ------------------------------------------------------------------
+    # Public config-returning methods
+    # ------------------------------------------------------------------
+
+    def get_action_index(self, mission: str, action: str) -> ConfigResult | None:
+        """Read and parse an action's index.yaml from doctrine assets.
+
+        Args:
+            mission: Mission name.
+            action: Action name (e.g. ``"implement"``).
+
+        Returns:
+            ConfigResult with raw YAML text and parsed dict, or ``None`` if not found.
+        """
+        path = self._action_index_path(mission, action)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/actions/{action}/index.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
+
+    def get_action_guidelines(self, mission: str, action: str) -> TemplateResult | None:
+        """Read an action's guidelines.md from doctrine assets.
+
+        Args:
+            mission: Mission name.
+            action: Action name.
+
+        Returns:
+            TemplateResult with content and origin, or ``None`` if not found.
+        """
+        path = self._action_guidelines_path(mission, action)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            origin = f"doctrine/{mission}/actions/{action}/guidelines.md"
+            return TemplateResult(content=content, origin=origin)
+        except (OSError, UnicodeDecodeError):
+            return None
+
+    def get_mission_config(self, mission: str) -> ConfigResult | None:
+        """Read and parse a mission's mission.yaml from doctrine assets.
+
+        Args:
+            mission: Mission name.
+
+        Returns:
+            ConfigResult with raw YAML text and parsed dict, or ``None`` if not found.
+        """
+        path = self._mission_config_path(mission)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/mission.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
+
+    def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
+        """Read and parse a mission's expected-artifacts.yaml.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+
+        Returns:
+            ConfigResult with raw YAML text and parsed data, or ``None`` if not found.
+        """
+        path = self._expected_artifacts_path(mission)
+        if path is None:
+            return None
+        try:
+            content = path.read_text(encoding="utf-8")
+            yaml = YAML(typ="safe")
+            parsed = yaml.load(content)
+            if parsed is None:
+                return None
+            origin = f"doctrine/{mission}/expected-artifacts.yaml"
+            return ConfigResult(content=content, origin=origin, parsed=parsed)
+        except Exception:
+            return None
+
+    # ------------------------------------------------------------------
+    # Private path methods (internal use only)
+    # ------------------------------------------------------------------
+
+    @property
+    def _missions_root(self) -> Path:
+        """Return the missions root directory (internal use only)."""
+        return self._root
+
+    def _command_template_path(self, mission: str, name: str) -> Path | None:
+        """Return the path to a command template Markdown file.
+
+        Looks for ``<missions_root>/<mission>/command-templates/<name>.md``.
+
+        Args:
+            mission: Mission name (e.g. ``"software-dev"``).
+            name: Template name without extension (e.g. ``"implement"``).
 
         Returns:
             Path if the file exists, else ``None``.
         """
-        path = self._root / mission / "templates" / template
+        path = self._root / mission / "command-templates" / f"{name}.md"
         return path if path.is_file() else None
 
-    def get_action_index_path(self, mission: str, action: str) -> Path | None:
+    def _content_template_path(self, mission: str, name: str) -> Path | None:
+        """Return the path to a content template file.
+
+        Looks for ``<missions_root>/<mission>/templates/<name>``.
+
+        Args:
+            mission: Mission name.
+            name: Template filename including extension (e.g. ``"spec-template.md"``).
+
+        Returns:
+            Path if the file exists, else ``None``.
+        """
+        path = self._root / mission / "templates" / name
+        return path if path.is_file() else None
+
+    def _action_index_path(self, mission: str, action: str) -> Path | None:
         """Return the path to an action's ``index.yaml``.
 
         Looks for ``<missions_root>/<mission>/actions/<action>/index.yaml``.
@@ -99,7 +367,7 @@ class MissionRepository:
         path = self._root / mission / "actions" / action / "index.yaml"
         return path if path.is_file() else None
 
-    def get_action_guidelines_path(self, mission: str, action: str) -> Path | None:
+    def _action_guidelines_path(self, mission: str, action: str) -> Path | None:
         """Return the path to an action's ``guidelines.md``.
 
         Looks for ``<missions_root>/<mission>/actions/<action>/guidelines.md``.
@@ -114,7 +382,7 @@ class MissionRepository:
         path = self._root / mission / "actions" / action / "guidelines.md"
         return path if path.is_file() else None
 
-    def get_mission_config_path(self, mission: str) -> Path | None:
+    def _mission_config_path(self, mission: str) -> Path | None:
         """Return the path to a mission's ``mission.yaml``.
 
         Args:
@@ -126,7 +394,7 @@ class MissionRepository:
         path = self._root / mission / "mission.yaml"
         return path if path.is_file() else None
 
-    def get_expected_artifacts(self, mission: str) -> Path | None:
+    def _expected_artifacts_path(self, mission: str) -> Path | None:
         """Return the path to a mission's ``expected-artifacts.yaml``.
 
         The expected-artifacts manifest defines step-aware, class-tagged,

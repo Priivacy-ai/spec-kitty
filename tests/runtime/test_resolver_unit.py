@@ -13,6 +13,7 @@ from unittest.mock import patch
 
 import pytest
 
+from doctrine.missions import MissionTemplateRepository
 from specify_cli.runtime.resolver import (
     ResolutionResult,
     ResolutionTier,
@@ -33,6 +34,14 @@ def _create_file(path: Path, content: str = "placeholder") -> Path:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content)
     return path
+
+
+def _mock_repo(pkg_root: Path):
+    """Return a patch context that mocks MissionTemplateRepository.default()."""
+    return patch(
+        "doctrine.missions.MissionTemplateRepository.default",
+        return_value=MissionTemplateRepository(pkg_root),
+    )
 
 
 def _setup_all_tiers(
@@ -90,10 +99,7 @@ class TestResolutionPrecedence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_template("spec-template.md", project)
 
@@ -117,10 +123,7 @@ class TestResolutionPrecedence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -146,10 +149,7 @@ class TestResolutionPrecedence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_template("spec-template.md", project)
 
@@ -168,10 +168,7 @@ class TestResolutionPrecedence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "nonexistent_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_template("spec-template.md", project)
 
@@ -188,10 +185,8 @@ class TestResolutionPrecedence:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "empty_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
+            _mock_repo(tmp_path / "nonexistent_pkg"),
+            pytest.raises(FileNotFoundError, match="not found in any resolution tier"),
         ):
             resolve_template("nonexistent.md", project)
 
@@ -216,10 +211,7 @@ class TestResolveCommand:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_command("plan.md", project)
 
@@ -238,10 +230,7 @@ class TestResolveCommand:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_command("implement.md", project)
 
@@ -267,10 +256,7 @@ class TestResolveMission:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
         ):
             result = resolve_mission("software-dev", project)
 
@@ -289,10 +275,7 @@ class TestResolveMission:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
+            _mock_repo(tmp_path / "nonexistent_pkg"),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -312,10 +295,8 @@ class TestResolveMission:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),pytest.raises(FileNotFoundError, match="not found in any resolution tier")
+            _mock_repo(tmp_path / "nonexistent_pkg"),
+            pytest.raises(FileNotFoundError, match="not found in any resolution tier"),
         ):
             resolve_mission("nonexistent", project)
 
@@ -344,10 +325,7 @@ class TestLegacyResolution:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
+            _mock_repo(tmp_path / "nonexistent_pkg"),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -387,10 +365,7 @@ class TestLegacyResolution:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -430,10 +405,7 @@ class TestLegacyResolution:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -506,10 +478,7 @@ class TestInitResolverIntegration:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             # Also patch at the init module level (used in the discovery scan)
             patch(
                 "specify_cli.cli.commands.init.get_kittify_home",
@@ -555,10 +524,7 @@ class TestInitResolverIntegration:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             patch(
                 "specify_cli.cli.commands.init.get_kittify_home",
                 return_value=global_home,
@@ -616,10 +582,7 @@ class TestInitResolverIntegration:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=global_home,
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                return_value=pkg_root,
-            ),
+            _mock_repo(pkg_root),
             patch(
                 "specify_cli.cli.commands.init.get_kittify_home",
                 return_value=global_home,
@@ -650,10 +613,7 @@ class TestInitResolverIntegration:
                 "specify_cli.runtime.resolver.get_kittify_home",
                 return_value=tmp_path / "no_home",
             ),
-            patch(
-                "specify_cli.runtime.resolver.get_package_asset_root",
-                side_effect=FileNotFoundError("no pkg"),
-            ),
+            _mock_repo(tmp_path / "nonexistent_pkg"),
             patch(
                 "specify_cli.cli.commands.init.get_kittify_home",
                 return_value=tmp_path / "no_home",

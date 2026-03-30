@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Template + Enumeration Public Methods
-lane: planned
+lane: "done"
 dependencies: [WP01]
 requirement_refs:
 - FR-002
@@ -12,6 +12,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP01
+base_commit: ae43d3dbd44e490e23faa97dce25fff9c293f7ea
+created_at: '2026-03-28T05:27:38.951687+00:00'
 subtasks:
 - T006
 - T007
@@ -19,16 +22,18 @@ subtasks:
 - T009
 phase: Phase 1 - New API Foundation
 assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: claude-opus-4-6
+shell_pid: '21445'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
+approved_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
 ---
 
 # Work Package Prompt: WP02 – Template + Enumeration Public Methods
@@ -47,7 +52,7 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+Approved — 4 public methods follow `_*_path()` → None check → read → wrap pattern, README filtered from listings, origin labels match contract, 105 tests pass.
 
 ---
 
@@ -260,3 +265,8 @@ source .venv/bin/activate && .venv/bin/python -m pytest tests/doctrine/missions/
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T05:27:39Z – claude-opus-4-6 – shell_pid=19021 – lane=doing – Assigned agent via workflow command
+- 2026-03-28T05:38:36Z – claude-opus-4-6 – shell_pid=19021 – lane=for_review – Ready for review: 4 public methods added (get_command_template, get_content_template, list_command_templates, list_content_templates). README.md filtered from listings. 105 tests pass.
+- 2026-03-28T05:40:44Z – claude-opus-4-6 – shell_pid=21445 – lane=doing – Started review via workflow command
+- 2026-03-28T05:41:35Z – claude-opus-4-6 – shell_pid=21445 – lane=approved – Review passed: 4 public methods correct, README filtering, graceful error handling, origin labels match contract. 105 tests pass.
+- 2026-03-28T10:02:05Z – claude-opus-4-6 – shell_pid=21445 – lane=done – Done override: Merged to feature/agent-profile-implementation, branch deleted post-merge
