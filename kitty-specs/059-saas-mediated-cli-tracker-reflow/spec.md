@@ -30,8 +30,8 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 ### Scenario 1: Bind a SaaS-Backed Tracker
 
 **Given** a user has authenticated via `spec-kitty auth login`
-**When** they run `tracker bind --provider linear --workspace my-team`
-**Then** the CLI stores only SaaS-facing routing context (provider name, workspace identifier) -- no provider-native API keys, tokens, or secrets are requested or stored.
+**When** they run `tracker bind --provider linear --project-slug my-project`
+**Then** the CLI stores only SaaS-facing routing context (provider name and project slug). The team slug is derived from the existing auth credential store at call time, not stored redundantly in the binding. No provider-native API keys, tokens, or secrets are requested or stored.
 
 ### Scenario 2: Pull Issues Through SaaS
 
@@ -55,7 +55,7 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 
 **Given** a bound SaaS-backed tracker
 **When** the user attempts `tracker map add`, `tracker sync publish`, or passes `--credential` flags to `tracker bind`
-**Then** the CLI immediately fails with clear guidance: these operations are not supported for SaaS-backed providers.
+**Then** the CLI immediately fails with deterministic hard-break guidance: for credential flags, direct the user to authenticate via SaaS and connect the provider through the SaaS dashboard (not just "run auth login"); for `map add` and `sync publish`, state that the operation is not available for SaaS-backed providers and describe the replacement path.
 
 ### Scenario 6: Local Provider (Beads/FP) Unaffected
 
@@ -91,8 +91,8 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | For SaaS-backed providers (linear, jira, github, gitlab), `tracker bind` stores only provider name and workspace identifier. No provider-native credentials are requested, accepted, or stored. | Proposed |
-| FR-002 | For SaaS-backed providers, `tracker sync pull` calls `POST /api/v1/tracker/pull` with the bound provider and workspace context, using the stored SaaS bearer token. | Proposed |
+| FR-001 | For SaaS-backed providers (linear, jira, github, gitlab), `tracker bind` stores only provider name and project slug. The team slug is derived from the auth credential store at call time, not stored in the binding. No provider-native credentials are requested, accepted, or stored. | Proposed |
+| FR-002 | For SaaS-backed providers, `tracker sync pull` calls `POST /api/v1/tracker/pull` with the bound provider and project slug in the request body, plus `X-Team-Slug` header from the credential store, using the stored SaaS bearer token. | Proposed |
 | FR-003 | For SaaS-backed providers, `tracker sync push` calls `POST /api/v1/tracker/push` with an `Idempotency-Key` header (UUID). | Proposed |
 | FR-004 | For SaaS-backed providers, `tracker sync run` calls `POST /api/v1/tracker/run` with an `Idempotency-Key` header (UUID). | Proposed |
 | FR-005 | When `push` or `run` returns HTTP 202, the CLI polls `GET /api/v1/tracker/operations/{operation_id}` at reasonable intervals until the operation reaches `completed` or `failed` state. | Proposed |
@@ -100,12 +100,12 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 | FR-007 | For SaaS-backed providers, `tracker map list` calls `GET /api/v1/tracker/mappings` and displays read-only mappings from SaaS. | Proposed |
 | FR-008 | `tracker map add` fails immediately with clear guidance for SaaS-backed providers. Mappings are read-only from the CLI in this phase. | Proposed |
 | FR-009 | `tracker sync publish` fails immediately with clear guidance for SaaS-backed providers. The snapshot-publish model is not a supported execution path. | Proposed |
-| FR-010 | `tracker bind` with `--credential` flags for a SaaS-backed provider fails immediately with guidance directing the user to `spec-kitty auth login`. | Proposed |
-| FR-011 | `tracker unbind` for SaaS-backed providers removes the local SaaS-facing routing context (provider, workspace). It does not attempt to clear provider-native secrets (none exist). | Proposed |
+| FR-010 | `tracker bind` with `--credential` flags for a SaaS-backed provider fails immediately with deterministic hard-break guidance: the user must authenticate via `spec-kitty auth login` and connect the provider through the SaaS dashboard. The guidance must not assume the user is unauthenticated -- they may already be logged in but attempting a forbidden legacy path. | Proposed |
+| FR-011 | `tracker unbind` for SaaS-backed providers removes the local SaaS-facing routing context (provider, project slug). It does not attempt to clear provider-native secrets (none exist). | Proposed |
 | FR-012 | `tracker providers` list reflects only currently supported providers: `linear`, `jira`, `github`, `gitlab`, `beads`, `fp`. Azure DevOps is removed. | Proposed |
 | FR-013 | `tracker bind --provider azure_devops` (and aliases `azure-devops`, `azure`) fails with a clear message that Azure DevOps is no longer supported. | Proposed |
 | FR-014 | For `beads` and `fp`, all existing direct local execution paths (bind with credentials, sync pull/push/run via local connector, map add/list via local SQLite) continue to work unchanged. | Proposed |
-| FR-015 | All SaaS tracker API calls include the `X-Team-Slug` header derived from the stored team slug in the credential store. | Proposed |
+| FR-015 | All SaaS tracker API calls include the `X-Team-Slug` header derived at call time from the team slug in the auth credential store. The team slug is never redundantly stored in the tracker binding. | Proposed |
 | FR-016 | On HTTP 401 from any SaaS tracker endpoint, the CLI attempts exactly one token refresh and retries the original request. If refresh fails, the CLI halts with re-login guidance. | Proposed |
 | FR-017 | SaaS error responses are parsed using the frozen error envelope schema (`code`, `category`, `message`, `retryable`, `user_action_required`, `source`). The CLI displays the `message` and `user_action_required` fields to the user. | Proposed |
 | FR-018 | On HTTP 429, the CLI respects `retry_after_seconds` from the error envelope before retrying. | Proposed |
@@ -159,7 +159,7 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 | Entity | Description |
 |--------|-------------|
 | SaaS Tracker Client | New module that encapsulates HTTP communication with the SaaS tracker endpoints, including auth header injection, error envelope parsing, and 202 operation polling. |
-| Tracker Binding (SaaS) | Local config storing provider name and workspace identifier for SaaS-backed providers. No secrets. |
+| Tracker Binding (SaaS) | Local config storing provider name and project slug for SaaS-backed providers. Team slug is derived from the auth credential store at call time. No secrets. |
 | Tracker Binding (Local) | Existing local config with optional credentials for `beads` and `fp`. |
 | NormalizedIssue | Standard issue representation from the SaaS contract (ref, title, status, type, priority, assignees, labels, etc.). |
 | PullResultEnvelope | SaaS response for pull operations (status, summary, items, identity_path, pagination). |
@@ -195,7 +195,7 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 |------|-----------|--------|------------|
 | SaaS endpoints not ready when CLI ships | Low | High | Feature flag gates all tracker commands. CLI can be merged before SaaS is production-ready. |
 | Network-dependent operations degrade CLI UX | Medium | Medium | Clear timeout behavior, actionable error messages, and the error envelope's `retryable` + `user_action_required` fields. |
-| Users have existing Azure DevOps bindings in local config | Low | Low | Zero live users confirmed. If stale config exists, `tracker status` can surface a migration hint. |
+| Users have existing Azure DevOps bindings in local config | Low | Low | Zero live users confirmed. Stale local config is inert -- the CLI will not recognize the provider. Migration tooling, if needed, belongs to PRI-17. |
 
 ## Out of Scope
 
