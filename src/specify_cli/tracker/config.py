@@ -12,6 +12,15 @@ from specify_cli.core.atomic import atomic_write
 from specify_cli.core.paths import locate_project_root
 
 
+# ---------------------------------------------------------------------------
+# Provider classification constants (single source of truth)
+# ---------------------------------------------------------------------------
+SAAS_PROVIDERS: frozenset[str] = frozenset({"linear", "jira", "github", "gitlab"})
+LOCAL_PROVIDERS: frozenset[str] = frozenset({"beads", "fp"})
+REMOVED_PROVIDERS: frozenset[str] = frozenset({"azure_devops"})
+ALL_SUPPORTED_PROVIDERS: frozenset[str] = SAAS_PROVIDERS | LOCAL_PROVIDERS
+
+
 class TrackerConfigError(RuntimeError):
     """Raised when tracker configuration is invalid."""
 
@@ -21,17 +30,25 @@ class TrackerProjectConfig:
     """Tracker configuration stored inside .kittify/config.yaml."""
 
     provider: str | None = None
+    project_slug: str | None = None
     workspace: str | None = None
     doctrine_mode: str = "external_authoritative"
     doctrine_field_owners: dict[str, str] = field(default_factory=dict)
 
     @property
     def is_configured(self) -> bool:
-        return bool(self.provider and self.workspace)
+        if not self.provider:
+            return False
+        if self.provider in SAAS_PROVIDERS:
+            return bool(self.project_slug)
+        if self.provider in LOCAL_PROVIDERS:
+            return bool(self.workspace)
+        return False  # Unknown or removed provider
 
     def to_dict(self) -> dict[str, object]:
         return {
             "provider": self.provider,
+            "project_slug": self.project_slug,
             "workspace": self.workspace,
             "doctrine": {
                 "mode": self.doctrine_mode,
@@ -60,9 +77,11 @@ class TrackerProjectConfig:
                 }
 
         provider = data.get("provider")
+        project_slug = data.get("project_slug")
         workspace = data.get("workspace")
         return cls(
             provider=str(provider).strip() if isinstance(provider, str) and provider.strip() else None,
+            project_slug=str(project_slug).strip() if isinstance(project_slug, str) and project_slug.strip() else None,
             workspace=str(workspace).strip() if isinstance(workspace, str) and workspace.strip() else None,
             doctrine_mode=doctrine_mode,
             doctrine_field_owners=doctrine_field_owners,
