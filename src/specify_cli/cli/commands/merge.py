@@ -616,9 +616,27 @@ def merge_workspace_per_wp(
                 _mark_wp_merged_done(merge_root, feature_slug, wp_id, target_branch)
                 merged_count += 1
 
+            # Reconcile: mark ALL approved WPs as done (including skipped ancestors)
+            all_wp_branches = merge_plan.get("all_wp_branches", [])
+            for branch_name in all_wp_branches:
+                # Extract WP ID from branch name (e.g., "026-feature-WP03" → "WP03")
+                import re as _re_merge
+                _wp_match = _re_merge.search(r"(WP\d+)$", branch_name, _re_merge.IGNORECASE)
+                if not _wp_match:
+                    continue
+                _recon_wp_id = _wp_match.group(1).upper()
+                # Skip WPs already marked done in this merge
+                _already_done = any(
+                    wp_id == _recon_wp_id for _, wp_id, _ in effective_workspaces
+                )
+                if _already_done:
+                    continue
+                # Mark remaining approved WPs as done (their code is merged via ancestor tips)
+                _mark_wp_merged_done(merge_root, feature_slug, _recon_wp_id, target_branch)
+
             summary = f"merged {merged_count} work packages"
             if skipped_count:
-                summary += f", skipped {skipped_count} redundant/already-integrated"
+                summary += f", skipped {skipped_count} redundant/already-integrated (all marked done)"
             tracker.complete("merge", summary)
         except Exception as exc:
             tracker.error("merge", str(exc))
