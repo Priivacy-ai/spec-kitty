@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-03-26T07:47:47.661547+00:00",
+  "feature_number": "058",
+  "feature_slug": "058-mission-template-repository-refactor",
+  "friendly_name": "Mission Repository Encapsulation",
+  "mission": "software-dev",
+  "slug": "058-mission-template-repository-refactor",
+  "target_branch": "feature/agent-profile-implementation"
+}

@@ -159,14 +159,14 @@ def _discover_agents_md(project_dir: Path) -> OriginEntry:
     if project_agents.is_file():
         return OriginEntry("file", "AGENTS.md", project_agents, "project", None)
 
-    # Package default
+    # Package default (doctrine is the canonical location)
     try:
-        import specify_cli
+        from importlib.resources import files
 
-        pkg_agents = Path(specify_cli.__file__).parent / "templates" / "AGENTS.md"
+        pkg_agents = Path(str(files("doctrine").joinpath("templates", "AGENTS.md")))
         if pkg_agents.is_file():
             return OriginEntry("file", "AGENTS.md", pkg_agents, "package_default", None)
-    except (ImportError, OSError):
+    except (ImportError, OSError, ModuleNotFoundError):
         pass
 
     return OriginEntry("file", "AGENTS.md", None, None, "AGENTS.md not found at any location")

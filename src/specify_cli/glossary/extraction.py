@@ -9,8 +9,10 @@ Performance target: <100ms for typical step input (100-500 words).
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 from typing import Any
+
+# ExtractedTerm canonical definition moved to doctrine; re-exported here for backward compat.
+from kernel.glossary_types import ExtractedTerm  # noqa: F401
 
 # Compiled regex patterns for performance
 QUOTED_PHRASE_PATTERN = re.compile(r'"([^"]+)"')
@@ -123,16 +125,6 @@ COMMON_WORDS = {
     "most",
     "us",
 }
-
-
-@dataclass(frozen=True)
-class ExtractedTerm:
-    """A term extracted from input text."""
-
-    surface: str  # Normalized surface form
-    source: str  # Source of extraction (metadata_hint, quoted_phrase, etc.)
-    confidence: float  # Confidence score (0.0-1.0)
-    original: str = ""  # Original surface before normalization
 
 
 def extract_metadata_hints(metadata: dict[str, Any]) -> list[ExtractedTerm]:

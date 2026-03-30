@@ -104,7 +104,9 @@ def test_v0_mission_e2e(tmp_path: Path):
 
 def test_all_missions_coexist(tmp_path: Path):
     """Ensure bundled missions (3 v1 + 1 v0) load together."""
-    missions_src = Path("src/specify_cli/missions")
+    from doctrine.missions.repository import MissionRepository
+
+    missions_src = MissionRepository.default_missions_root()
     mission_names = ["software-dev", "research", "plan", "documentation"]
 
     loaded = []

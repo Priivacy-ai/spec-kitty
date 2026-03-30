@@ -75,10 +75,7 @@ class StepTracker:
                 symbol = " "
 
             if status == "pending":
-                if detail_text:
-                    line = f"{symbol} [bright_black]{label} ({detail_text})[/bright_black]"
-                else:
-                    line = f"{symbol} [bright_black]{label}[/bright_black]"
+                line = f"{symbol} [bright_black]{label} ({detail_text})[/bright_black]" if detail_text else f"{symbol} [bright_black]{label}[/bright_black]"
             else:
                 if detail_text:
                     line = f"{symbol} [white]{label}[/white] [bright_black]({detail_text})[/bright_black]"

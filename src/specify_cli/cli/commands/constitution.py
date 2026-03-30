@@ -6,6 +6,7 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+import click
 import typer
 from rich.console import Console
 from rich.table import Table
@@ -25,6 +26,7 @@ from constitution.interview import (
 )
 from constitution.resolver import resolve_governance_for_profile
 from constitution.sync import sync as sync_constitution
+from specify_cli.cli.commands._flag_utils import resolve_mission_type
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 if TYPE_CHECKING:
@@ -84,7 +86,8 @@ def _build_doctrine_service(repo_root: Path) -> DoctrineService:
 
 @app.command()
 def interview(
-    mission: str = typer.Option("software-dev", "--mission", help="Mission key for constitution defaults"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for constitution defaults (e.g., software-dev, research)"),
+    mission_legacy: str | None = typer.Option(None, "--mission", hidden=True, help="[Removed] Use --mission-type"),
     profile: str = typer.Option("minimal", "--profile", help="Interview profile: minimal or comprehensive"),
     use_defaults: bool = typer.Option(False, "--defaults", help="Use deterministic defaults without prompts"),
     selected_paradigms: str | None = typer.Option(
@@ -111,6 +114,7 @@ def interview(
         if normalized_profile not in {"minimal", "comprehensive"}:
             raise ValueError("--profile must be 'minimal' or 'comprehensive'")
 
+        mission = resolve_mission_type(mission_type, mission_legacy) or "software-dev"
         interview_data = default_interview(mission=mission, profile=normalized_profile)
 
         if not use_defaults:
@@ -184,6 +188,8 @@ def interview(
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(code=1) from e
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         if json_output:
             print(json.dumps({"error": str(e)}, indent=2))
@@ -227,15 +233,14 @@ def _check_overwrite_conflicts(constitution_dir: Path, force: bool, json_output:
 
 @app.command()
 def generate(
-    mission: str | None = typer.Option(None, "--mission", help="Mission key for template-set defaults"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults (e.g., software-dev, research)"),
+    mission_legacy: str | None = typer.Option(None, "--mission", hidden=True, help="[Removed] Use --mission-type"),
     template_set: str | None = typer.Option(
         None,
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(
-        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
-    ),
+    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
     force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing constitution bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
@@ -245,6 +250,7 @@ def generate(
         repo_root = find_repo_root()
         constitution_dir = repo_root / ".kittify" / "constitution"
         answers_path = _interview_path(repo_root)
+        mission = resolve_mission_type(mission_type, mission_legacy)
 
         if from_interview:
             interview_data = read_interview_answers(answers_path)
@@ -325,6 +331,8 @@ def generate(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         prefix = "Aborted" if isinstance(e, _OverwriteAborted) else "Error"
         if json_output:
@@ -338,15 +346,14 @@ def generate(
 def generate_for_agent(
     agent_profile: str = typer.Option(..., "--profile", help="Agent profile ID for profile-aware compilation"),
     role: str | None = typer.Option(None, "--role", help="Optional role override for generated governance"),
-    mission: str | None = typer.Option(None, "--mission", help="Mission key for template-set defaults"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults (e.g., software-dev, research)"),
+    mission_legacy: str | None = typer.Option(None, "--mission", hidden=True, help="[Removed] Use --mission-type"),
     template_set: str | None = typer.Option(
         None,
         "--template-set",
         help="Override doctrine template set (must exist in packaged doctrine missions)",
     ),
-    from_interview: bool = typer.Option(
-        True, "--from-interview/--no-from-interview", help="Load interview answers if present"
-    ),
+    from_interview: bool = typer.Option(True, "--from-interview/--no-from-interview", help="Load interview answers if present"),
     interview_profile: str = typer.Option(
         "minimal",
         "--interview-profile",
@@ -360,6 +367,7 @@ def generate_for_agent(
         repo_root = find_repo_root()
         constitution_dir = repo_root / ".kittify" / "constitution"
         answers_path = _interview_path(repo_root)
+        mission = resolve_mission_type(mission_type, mission_legacy)
 
         if from_interview:
             interview_data = read_interview_answers(answers_path)
@@ -455,6 +463,8 @@ def generate_for_agent(
         for filename in files_written:
             console.print(f"  ✓ {filename}")
 
+    except (SystemExit, click.exceptions.Exit):
+        raise
     except Exception as e:
         prefix = "Aborted" if isinstance(e, _OverwriteAborted) else "Error"
         if json_output:

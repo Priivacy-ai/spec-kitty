@@ -2,15 +2,12 @@
 Enhanced verify_setup implementation for spec-kitty.
 """
 
-import json
 import logging
 import subprocess
 from collections import defaultdict
 from pathlib import Path
-from typing import Dict, Optional
 from rich.console import Console
 from rich.table import Table
-from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
 from .skills.manifest import load_manifest as load_skill_manifest
@@ -19,7 +16,7 @@ from .skills.verifier import verify_installed_skills
 logger = logging.getLogger(__name__)
 
 
-def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
+def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     """Resolve mission key from a feature's meta.json.
 
     Returns the mission string or ``None`` when no meta.json exists.
@@ -34,7 +31,7 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
     return None
 
 
-def _parse_skill_name_from_frontmatter(content: str) -> Optional[str]:
+def _parse_skill_name_from_frontmatter(content: str) -> str | None:
     """Extract the ``name`` field from YAML frontmatter in a SKILL.md file.
 
     Returns ``None`` when no frontmatter or no ``name`` key is found.
@@ -60,12 +57,12 @@ def run_enhanced_verify(
     repo_root: Path,
     project_root: Path,
     cwd: Path,
-    feature: Optional[str],
+    feature: str | None,
     json_output: bool,
     check_files: bool,
     console: Console,
-    feature_dir: Optional[Path] = None,
-) -> Dict:
+    feature_dir: Path | None = None,
+) -> dict:
     """
     Run the enhanced verification with manifest checking and worktree status.
 
@@ -81,7 +78,7 @@ def run_enhanced_verify(
     }
 
     # Resolve mission from feature-level meta.json when available
-    mission_key: Optional[str] = None
+    mission_key: str | None = None
     if feature_dir is not None:
         mission_key = _resolve_mission_from_feature(feature_dir)
     elif feature:
@@ -128,16 +125,16 @@ def run_enhanced_verify(
         console.print(f"   Repository root: {repo_root}")
 
         if in_worktree:
-            console.print(f"   [green]✓[/green] In worktree")
+            console.print("   [green]✓[/green] In worktree")
         else:
-            console.print(f"   [dim]○[/dim] Not in worktree")
+            console.print("   [dim]○[/dim] Not in worktree")
 
         if current_branch:
             console.print(f"   Current branch: {current_branch}")
             if current_branch in ("main", "master"):
                 console.print(f"   [yellow]⚠[/yellow] On {current_branch} branch")
         else:
-            console.print(f"   [yellow]⚠[/yellow] Could not detect branch")
+            console.print("   [yellow]⚠[/yellow] Could not detect branch")
 
     # 2. File Integrity Check
     total_missing = 0
@@ -221,12 +218,12 @@ def run_enhanced_verify(
                 status_text = "merged" if feature_status["branch_merged"] else "active"
                 console.print(f"   [green]✓[/green] Branch exists ({status_text})")
             else:
-                console.print(f"   [dim]○[/dim] No branch")
+                console.print("   [dim]○[/dim] No branch")
 
             if feature_status["worktree_exists"]:
                 console.print(f"   [green]✓[/green] Worktree at: {feature_status['worktree_path']}")
             else:
-                console.print(f"   [dim]○[/dim] No worktree")
+                console.print("   [dim]○[/dim] No worktree")
 
             # Artifacts
             if feature_status["artifacts_in_main"]:
@@ -300,7 +297,7 @@ def run_enhanced_verify(
             console.print(f"   [dim]... and {len(all_features) - 10} more features[/dim]")
 
     # 6. Managed Skills
-    skill_verify_data: Dict = {"status": "skipped"}
+    skill_verify_data: dict = {"status": "skipped"}
     skill_warnings: list[str] = []
     skill_has_issues = False
 
@@ -426,9 +423,8 @@ def run_enhanced_verify(
     if current_branch in ("main", "master") and in_worktree:
         observations.append("Unusual: In worktree but on main branch")
 
-    if output_data.get("feature_analysis", {}).get("state") == "in_development":
-        if not output_data["feature_analysis"].get("worktree_exists"):
-            observations.append(f"Feature {feature_slug} has no worktree but has development artifacts")
+    if output_data.get("feature_analysis", {}).get("state") == "in_development" and not output_data["feature_analysis"].get("worktree_exists"):
+        observations.append(f"Feature {feature_slug} has no worktree but has development artifacts")
 
     if total_missing > 0 and check_files:
         observations.append(f"Mission integrity: {total_missing} expected files not found")

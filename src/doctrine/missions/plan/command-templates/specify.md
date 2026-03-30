@@ -12,6 +12,16 @@ estimated_duration: "15-20 minutes"
 
 You are beginning the planning phase for a new software feature. Your role is to create a clear, detailed specification that will guide the research and design phases.
 
+## Branch Context (required)
+
+Before creating or updating a feature, determine the correct target branch deterministically:
+
+```bash
+spec-kitty agent mission branch-context --json
+```
+
+Use the returned `planning_base_branch` and `merge_target_branch` values when populating `meta.json` and work package frontmatter. Do NOT probe git directly for branch names — always use the CLI helper.
+
 **Input**: Feature description or user request from the specification step
 
 **Output**: A comprehensive specification document that will be the foundation for the remaining planning steps (research → plan → review)

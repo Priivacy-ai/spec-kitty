@@ -265,7 +265,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          if python -m mypy --strict src/specify_cli src/constitution 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
+          if python -m mypy --strict src/specify_cli src/constitution src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
@@ -590,7 +590,7 @@ jobs:
             -v \
             --ignore=tests/legacy \
             -m git_repo \
-            --cov=src/specify_cli --cov=src/constitution \
+            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-integration.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml
 
@@ -648,7 +648,7 @@ jobs:
             -v \
             --ignore=tests/legacy \
             -m slow \
-            --cov=src/specify_cli --cov=src/constitution \
+            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
             | tee out/reports/slow-e2e/slow.log
@@ -661,7 +661,7 @@ jobs:
             -v \
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution" \
-            --cov=src/specify_cli --cov=src/constitution \
+            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
             --cov-append \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml \

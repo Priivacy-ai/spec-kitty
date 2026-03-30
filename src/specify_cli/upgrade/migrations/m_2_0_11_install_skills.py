@@ -20,6 +20,7 @@ from pathlib import Path
 
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
+from datetime import UTC
 
 logger = logging.getLogger(__name__)
 
@@ -97,11 +98,11 @@ class InstallSkillsMigration(BaseMigration):
             return MigrationResult(success=True, changes_made=changes)
 
         # Install skills
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         manifest = ManagedSkillManifest(
-            created_at=datetime.now(timezone.utc).isoformat(),
-            updated_at=datetime.now(timezone.utc).isoformat(),
+            created_at=datetime.now(UTC).isoformat(),
+            updated_at=datetime.now(UTC).isoformat(),
             spec_kitty_version="2.0.11",
         )
         shared_root_installed: set[str] = set()

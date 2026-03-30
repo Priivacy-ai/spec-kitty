@@ -3,25 +3,16 @@
 from __future__ import annotations
 
 import importlib.resources
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from kernel.paths import get_package_asset_root as _get_package_asset_root
 
-def _get_package_asset_root() -> Path:
-    """Lazy import of specify_cli.runtime.home to avoid circular initialisation.
-
-    ``constitution.catalog`` is imported early in the constitution package, and
-    ``specify_cli.__init__`` imports CLI commands that import from constitution.
-    A top-level ``from specify_cli.runtime.home import ...`` would trigger
-    ``specify_cli.__init__`` while constitution is still partially initialised,
-    causing an ImportError.  Deferring the import to call-time breaks the cycle.
-    """
-    from specify_cli.runtime.home import get_package_asset_root  # noqa: PLC0415
-
-    return get_package_asset_root()
+_log = logging.getLogger(__name__)
 
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
@@ -66,9 +57,7 @@ def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
 
     domains_present: set[str] = set()
 
-    paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "paradigms", "**/*.paradigm.yaml", include_proposed=include_proposed
-    )
+    paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(doctrine_root / "paradigms", "**/*.paradigm.yaml", include_proposed=include_proposed)
     if paradigms_present:
         domains_present.add("paradigms")
 
@@ -82,9 +71,7 @@ def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
     if template_sets_present:
         domains_present.add("template_sets")
 
-    tactics, tactics_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "tactics", "**/*.tactic.yaml", include_proposed=include_proposed
-    )
+    tactics, tactics_present = _load_yaml_id_catalog_with_presence(doctrine_root / "tactics", "**/*.tactic.yaml", include_proposed=include_proposed)
     if tactics_present:
         domains_present.add("tactics")
 
@@ -136,10 +123,11 @@ def resolve_doctrine_root() -> Path:
         if doctrine_root.is_dir():
             return doctrine_root
     except (ModuleNotFoundError, TypeError):
-        pass
+        _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 
     dev_root = Path(__file__).parent.parent.parent / "doctrine"
     if dev_root.is_dir():
+        _log.debug("doctrine: resolved via dev layout at %s", dev_root)
         return dev_root
 
     # 3. Installed layout: doctrine is not a separate package on PyPI.
@@ -147,7 +135,9 @@ def resolve_doctrine_root() -> Path:
     #    discover missions/ (via get_package_asset_root) and receive empty
     #    sets for paradigms/directives which don't ship in the wheel.
     try:
-        return _get_package_asset_root().parent
+        result = _get_package_asset_root().parent
+        _log.debug("doctrine: resolved via package asset root fallback")
+        return result
     except FileNotFoundError:
         pass
 
@@ -176,9 +166,7 @@ def _load_yaml_id_catalog(
         include_proposed: Whether `_proposed/` artifacts should be included in
                   addition to `shipped/` artifacts. Defaults to shipped-only.
     """
-    ids, _ = _load_yaml_id_catalog_with_presence(
-        directory, pattern, id_field=id_field, include_proposed=include_proposed
-    )
+    ids, _ = _load_yaml_id_catalog_with_presence(directory, pattern, id_field=id_field, include_proposed=include_proposed)
     return ids
 
 

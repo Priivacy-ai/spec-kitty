@@ -47,10 +47,7 @@ class FixGlossaryContextSkillMigration(BaseMigration):
 
     def detect(self, project_path: Path) -> bool:
         """Return True if any glossary-context SKILL.md lacks the pipeline docs."""
-        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
-            if file_contains_any(info.path, _OLD_MARKERS):
-                return True
-        return False
+        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Check if project has glossary-context skill files."""

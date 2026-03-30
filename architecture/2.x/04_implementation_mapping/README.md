@@ -4,8 +4,10 @@
 |---|---|
 | Status | Draft |
 | Date | 2026-03-04 |
+| Last Updated | 2026-03-25 |
 | Scope | Maps C4 architecture views and doctrine stack to current codebase |
 | Parent | [System Landscape](../00_landscape/README.md) |
+| Related ADRs | `2026-03-25-1-glossary-type-ownership` |
 
 ## Purpose
 
@@ -31,7 +33,7 @@ as Python modules within a single-process CLI application.
 | **Event Store** | `src/specify_cli/status/` | `specify_cli` | JSONL event logs (`store.py`), reducer (`reducer.py`), WP frontmatter, `meta.json`. Filesystem-only today. |
 | **Orchestration** | `src/specify_cli/orchestrator/`, `orchestrator_api/`, `merge/`, `sync/`, `tracker/` | `specify_cli` | Lifecycle engine, worktree management, merge execution, tracker projection. |
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
-| **Agent Tool Connectors** | `src/doctrine/missions/*/command-templates/` → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `doctrine` (source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent (12 agents). Source templates relocated to `doctrine/missions/` in feature 054; `specify_cli/missions/` still exists as a legacy resolution path and fallback during the transition. |
+| **Agent Tool Connectors** | `src/doctrine/missions/*/command-templates/` → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `doctrine` (source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent (12 agents). Source templates relocated to `doctrine/missions/` in feature 054; migration is complete. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in feature 055. `SkillRegistry` discovers canonical skills from `src/doctrine/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
 | **Doctrine** | `src/doctrine/` (artifacts) + `src/doctrine/skills/` (canonical skill packs) | `doctrine` (standalone package, own `pyproject.toml`) | YAML artifacts, JSON Schema validation, Pydantic models, repository pattern. Includes 6 shipped skill packs in `doctrine/skills/` (e.g., `spec-kitty-runtime-next`, `spec-kitty-constitution-doctrine`). Zero dependency on `specify_cli`. |
 | **Constitution** | `src/constitution/` | `constitution` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/constitution/` bundles. Context bootstrap injects governance at every execution boundary. |
@@ -94,7 +96,7 @@ User runs: spec-kitty implement WP01
   → src/specify_cli/cli/commands/ (Control Plane)
   → src/specify_cli/orchestrator/ (Orchestration)
   → src/specify_cli/status/store.py (Event Store read — WP state)
-  → src/specify_cli/missions/*/command-templates/implement.md (Connector)
+  → src/doctrine/missions/*/command-templates/implement.md (Connector)
   → Agent executes work (external)
   → src/specify_cli/status/emit.py (Event Store write — lifecycle event)
 ```
@@ -152,7 +154,7 @@ Orchestration lifecycle event triggers:
 | Component (from C4 Level 3) | Module(s) | Key Files |
 |---|---|---|
 | **Command Router** | `cli/` | `cli/__init__.py`, command group registration |
-| **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py` |
+| **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py`. Canon terminology: `--mission-type` is the flag for mission-type selection (renamed from `--mission` in 5 type-selection commands, 2026-03-25; old `--mission` alias raises hard error). `--mission` remains the slug selector on all other commands. `--feature` is a hidden deprecated alias everywhere. |
 | **Status Mutation Command Set** | `cli/commands/` | `status.py`, lane transition commands |
 | **Governance Command Set** | `cli/commands/` | `constitution.py` |
 | **Next Loop Coordinator** | `next/` | `next/__init__.py` — per-agent action sequencing |
@@ -177,6 +179,27 @@ Orchestration lifecycle event triggers:
 | **Action Index** | `doctrine/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `doctrine/missions/action_index.py` |
 | **Execution Dispatch** | `doctrine/missions/*/command-templates/implement.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
+| **Path Resolver** | `src/kernel/paths.py` | `get_kittify_home()`, `get_package_asset_root()` — zero-dependency path resolution shared across all packages (moved from `specify_cli.runtime.home` in WP09, 2026-03-25; re-export shim at `specify_cli/runtime/home.py` preserves backward compatibility). **Dependency note (Windows):** `kernel` is stdlib-only on Linux/macOS. On Windows, `platformdirs` is imported lazily in `kernel/paths.py` for platform-appropriate home directory resolution. This is the only sanctioned third-party import in `kernel/`. |
+| **Glossary Runner Registry** | `src/kernel/glossary_runner.py` | `GlossaryRunnerProtocol`, `register()`, `get_runner()` — plugin registry allowing `doctrine` to register its runner without creating a `specify_cli` import dependency. Resolves DIV-5 (architecture/2.x/adr/2026-03-25-1-glossary-type-ownership.md). |
+
+### Tiered Template Resolution Pipeline
+
+Template resolution uses a 5-tier precedence chain implemented in
+`src/specify_cli/runtime/resolver.py`. The resolver checks each tier in order
+and returns the first file that exists:
+
+| Tier | Label | Path Pattern | Semantics |
+|---|---|---|---|
+| 1 | **Project Override** | `.kittify/overrides/{templates,command-templates}/{name}` | Highest precedence. User's explicit project-level override. |
+| 2 | **Legacy** (deprecated) | `.kittify/{templates,command-templates}/{name}` | Pre-migration project files. Emits deprecation warning or one-time "run `spec-kitty migrate`" nudge. Will be removed in next major version. |
+| 3 | **Global Mission-Specific** | `~/.kittify/missions/{mission}/{templates,command-templates}/{name}` | User-global, scoped to a specific mission type. Populated by `spec-kitty migrate` / `ensure_runtime`. |
+| 4 | **Global Non-Mission** | `~/.kittify/{templates,command-templates}/{name}` | User-global, cross-mission. |
+| 5 | **Package Default** | `doctrine/missions/{mission}/{templates,command-templates}/{name}` | Lowest precedence. Bundled with the `doctrine` package. Resolved via `kernel.paths.get_package_asset_root()`. |
+
+**Special cases:**
+- `resolve_mission()` uses a 4-tier variant — it skips tier 4 (Global Non-Mission) because missions are inherently mission-scoped.
+- Tier 2 (Legacy) shows a one-time stderr nudge when the global runtime is already configured.
+- If no tier provides the asset, `FileNotFoundError` is raised.
 
 ---
 
@@ -195,9 +218,10 @@ layers are strictly defined.
 | **Procedures** | Tactic | `src/doctrine/tactics/` | 4 | Step-by-step execution procedures. Agent-consumable. |
 | **Output Shapes** | Styleguide | `src/doctrine/styleguides/` | shipped set | Define *what output looks like* — formatting, naming, structure. |
 | **Tool Contracts** | Toolguide | `src/doctrine/toolguides/` | shipped set | Define *how tools are used* — config, invocation, constraints. |
-| **Execution Identity** | Agent Profile | `src/doctrine/agent_profiles/shipped/` | 6 (architect, curator, designer, implementer, planner, researcher, reviewer) | Agent capabilities, constraints, collaboration contracts. Injected by `SkillRegistry` at `init` time. |
-| **Deployable Governance Packs** | Skill | `src/doctrine/skills/` | 6 (constitution-doctrine, glossary-context, orchestrator-api-operator, runtime-next, runtime-review, setup-doctor) | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
+| **Execution Identity** | Agent Profile | `src/doctrine/agent_profiles/shipped/` | 7 (architect, curator, designer, implementer, planner, researcher, reviewer) | Agent capabilities, constraints, collaboration contracts. Injected by `SkillRegistry` at `init` time. |
+| **Deployable Governance Packs** | Skill | `src/doctrine/skills/` | 8 (constitution-doctrine, git-workflow, glossary-context, mission-system, orchestrator-api-operator, runtime-next, runtime-review, setup-doctor) | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
 | **Process Templates** | Mission Template | `src/doctrine/missions/` | 3 types (software-dev, documentation, research) + plan | Define the SDD process stages for different mission types. Also carries per-action governance indexes. |
+| **Process Templates** | Expected Artifacts Manifest | `src/doctrine/missions/*/expected-artifacts.yaml` | 3 (software-dev, documentation, research) | Per-step, class-tagged (`input`, `output`, `workflow`, `evidence`), blocking-semantics artifact requirements consumed by dossier `ManifestRegistry` via `MissionRepository.get_expected_artifacts()`. |
 
 ### Reference Direction Rules
 
@@ -305,9 +329,11 @@ update and a valid fixture update.
 | Action-scoped governance injection with depth semantics | ✅ Complete | `src/constitution/context.py` + `src/doctrine/missions/*/actions/*/index.yaml` (feature 054) |
 | Per-action guidelines extraction from templates | ✅ Complete | `src/doctrine/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/doctrine/artifact_kinds.py` (feature 054, WP09-WP10) |
-| MissionRepository package relocation | 🟡 In Progress | `src/doctrine/missions/` is the authoritative source. `src/specify_cli/missions/` still exists as a legacy resolution fallback and has not been fully removed. Full cleanup is a deferred task. |
+| MissionRepository package relocation | ✅ Complete | `src/doctrine/missions/` is the authoritative source for all mission assets (YAML, command templates, content templates, expected-artifacts). `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |
 | Skills Pack canonical distribution | ✅ Complete | `src/specify_cli/skills/` — `SkillRegistry`, `ManagedSkillManifest`, installer, verifier. 6 canonical skills in `src/doctrine/skills/`. Deployed to agent directories during `spec-kitty init` (feature 055). |
 | Agent Profile shaping connector behavior | ✅ Complete | Models, repository, schema, profile-aware resolution wired in `resolver.py`; workflow profile injection at execution boundary enabled (feature 055). |
+| `kernel` zero-dependency floor (`paths`, `glossary_runner`, `glossary_types`) | ✅ Complete | `src/kernel/` — `paths.py`, `glossary_runner.py`, `glossary_types.py`. Backward-compat re-export shim at `specify_cli/runtime/home.py`. DIV-5 (glossary runner boundary) resolved. ADR: `2026-03-25-1-glossary-type-ownership`. |
+| `--mission-type` flag on type-selection commands | ✅ Complete | 5 commands renamed from `--mission` to `--mission-type` (2026-03-25). Old `--mission` alias on those commands raises `typer.Exit(1)`. `--mission` (slug selector) and `--feature` (hidden deprecated alias) unchanged on all other commands. |
 
 ### What is emerging or aspirational
 

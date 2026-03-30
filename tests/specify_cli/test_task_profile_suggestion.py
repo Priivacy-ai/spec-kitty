@@ -10,7 +10,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import yaml
 
 
@@ -21,14 +20,9 @@ import yaml
 
 def test_role_hint_in_mission_template() -> None:
     """software-dev mission.yaml must have at least one task_type with agent_role."""
-    mission_yaml = (
-        Path(__file__).resolve().parents[2]
-        / "src"
-        / "specify_cli"
-        / "missions"
-        / "software-dev"
-        / "mission.yaml"
-    )
+    from doctrine.missions.repository import MissionRepository
+
+    mission_yaml = MissionRepository.default_missions_root() / "software-dev" / "mission.yaml"
     assert mission_yaml.exists(), f"Mission YAML not found: {mission_yaml}"
     config = yaml.safe_load(mission_yaml.read_text(encoding="utf-8"))
     task_types = config.get("task_types", {})

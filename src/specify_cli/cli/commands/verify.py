@@ -222,10 +222,7 @@ def _print_diagnostics(diag: dict[str, Any], check_tools: bool) -> None:  # noqa
     total_present = file_integrity.get("total_present", 0)
     total_missing = file_integrity.get("total_missing", 0)
 
-    if total_missing == 0:
-        integrity_status = "[green]✓ All files present[/green]"
-    else:
-        integrity_status = f"[yellow]⚠ {total_missing} files missing[/yellow]"
+    integrity_status = "[green]✓ All files present[/green]" if total_missing == 0 else f"[yellow]⚠ {total_missing} files missing[/yellow]"
 
     file_info = f"""
 [bold]Files:[/bold] {total_present}/{total_expected} present {integrity_status}

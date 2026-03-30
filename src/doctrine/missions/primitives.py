@@ -11,10 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from specify_cli.glossary.checkpoint import ScopeRef
-from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.models import SemanticConflict
-from specify_cli.glossary.strictness import Strictness
+from kernel.glossary_types import (
+    ExtractedTerm,
+    SemanticConflict,
+    ScopeRef,
+    Strictness,
+)
 
 
 @dataclass

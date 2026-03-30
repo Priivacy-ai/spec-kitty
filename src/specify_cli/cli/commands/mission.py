@@ -9,6 +9,7 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.mission import (
     Mission,
@@ -185,33 +186,36 @@ def _detect_current_feature(project_root: Path) -> str | None:
 
 @app.command("current")
 def current_cmd(
+    mission: str | None = typer.Option(
+        None,
+        "--mission",
+        "-m",
+        help="Mission slug (auto-detects from current directory if omitted)",
+    ),
     feature: str | None = typer.Option(
         None,
         "--feature",
         "-f",
-        help="Feature slug (auto-detects from current directory if omitted)",
+        hidden=True,
+        help="[Deprecated] Use --mission",
     ),
 ) -> None:
     """Show currently active mission for a feature (auto-detects feature from cwd)."""
+    feature_slug_arg = resolve_mission_or_feature(mission, feature)
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "mission")
 
     # Detect feature if not explicitly provided
-    feature_slug = feature if feature else _detect_current_feature(project_root)
+    feature_slug = feature_slug_arg if feature_slug_arg else _detect_current_feature(project_root)
 
     if not feature_slug:
         console.print(
-            "[yellow]No active feature detected.[/yellow]\n"
-            "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
-            "or run from within a feature worktree."
+            "[yellow]No active feature detected.[/yellow]\n\nUse [cyan]--mission <slug>[/cyan] to specify one, or run from within a feature worktree."
         )
         # Optionally list available features
         kitty_specs = project_root / "kitty-specs"
         if kitty_specs.is_dir():
-            features = sorted(
-                d.name for d in kitty_specs.iterdir()
-                if d.is_dir() and d.name[0:1].isdigit()
-            )
+            features = sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and d.name[0:1].isdigit())
             if features:
                 console.print("\n[cyan]Available features:[/cyan]")
                 for feat in features[:10]:

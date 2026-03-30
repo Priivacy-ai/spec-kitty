@@ -10,8 +10,8 @@
 | Owner           | {{ owner }}                              |
 | Date            | {{ date }}                               |
 | Status          | Draft / Reviewed / Accepted              |
-| Related prestudy | _link or N/A_                           |
-| Related ADR(s)  | _link or N/A_                            |
+| Related prestudy | *link or N/A*                           |
+| Related ADR(s)  | *link or N/A*                            |
 
 ---
 
@@ -141,6 +141,6 @@
 
 ## References
 
-- Prestudy: _link_
-- Stakeholder persona(s): _link_
-- Related ADRs: _link_
+- Prestudy: *link*
+- Stakeholder persona(s): *link*
+- Related ADRs: *link*

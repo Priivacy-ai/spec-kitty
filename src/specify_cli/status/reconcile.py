@@ -12,7 +12,7 @@ import logging
 import re
 import subprocess
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,6 @@ from specify_cli.status.reducer import reduce, SNAPSHOT_FILENAME
 from specify_cli.status.store import read_events
 from specify_cli.status.transitions import (
     ALLOWED_TRANSITIONS,
-    TERMINAL_LANES,
     is_terminal,
     validate_transition,
 )
@@ -315,7 +314,7 @@ def _generate_reconciliation_events(
     """
     events: list[StatusEvent] = []
     details: list[str] = []
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     for wp_id, commits in sorted(commit_map.items()):
         current_lane = _get_current_lane(snapshot, wp_id)
@@ -462,11 +461,11 @@ def reconcile(
         try:
             events = read_events(feature_dir)
             snapshot = reduce(events)
-        except Exception as exc:
+        except Exception:
             # No events either -- empty snapshot (all WPs effectively planned)
             snapshot = StatusSnapshot(
                 feature_slug=feature_slug,
-                materialized_at=datetime.now(timezone.utc).isoformat(),
+                materialized_at=datetime.now(UTC).isoformat(),
                 event_count=0,
                 last_event_id=None,
                 work_packages={},

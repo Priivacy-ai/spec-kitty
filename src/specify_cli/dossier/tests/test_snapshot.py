@@ -8,12 +8,9 @@ Test coverage:
 - T027: Snapshot equality comparison
 """
 
-import json
 import random
 from datetime import datetime
-from pathlib import Path
 
-import pytest
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
 from specify_cli.dossier.snapshot import (
@@ -793,7 +790,7 @@ class TestSnapshotEquality:
 
         assert snapshot != "not a snapshot"
         assert snapshot != 123
-        assert snapshot != None
+        assert snapshot is not None
 
     def test_snapshot_hash_for_set_usage(self):
         """Snapshot should be hashable for set/dict usage."""

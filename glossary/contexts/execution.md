@@ -193,4 +193,3 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Status** | canonical |
 | **Applicable to** | `2.x` |
 | **Related terms** | [Agent Tool Connector](#agent-tool-connector), [Tool](#tool), [Command Template](./orchestration.md#command-template) |
-

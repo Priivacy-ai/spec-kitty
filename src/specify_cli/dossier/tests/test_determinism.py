@@ -13,18 +13,14 @@ Test coverage:
 """
 
 import hashlib
-import json
 import random
-import tempfile
 import time
 import uuid
-from datetime import datetime
 from pathlib import Path
-from typing import Optional, Tuple
 
 import pytest
 
-from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
+from specify_cli.dossier.models import ArtifactRef, MissionDossier
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation
 from specify_cli.dossier.snapshot import (
     compute_snapshot,
@@ -41,7 +37,7 @@ from specify_cli.dossier.snapshot import (
 def create_test_feature(
     tmp_path: Path,
     num_artifacts: int = 10,
-    artifact_content_prefix: Optional[str] = None,
+    artifact_content_prefix: str | None = None,
 ) -> Path:
     """Create a test feature directory with artifacts.
 
@@ -178,7 +174,7 @@ class TestHashReproducibility:
         """Test hash reproducibility with binary-like content."""
         test_file = tmp_path / "binary-like.dat"
         # Write bytes that look binary but are valid UTF-8 when interpreted
-        content = bytes([0x00, 0x01, 0x02, 0x48, 0x65, 0x6c, 0x6c, 0x6f])  # Hello with binary prefix
+        bytes([0x00, 0x01, 0x02, 0x48, 0x65, 0x6c, 0x6c, 0x6f])  # Hello with binary prefix
         # Only test with valid UTF-8
         content_utf8 = "Hello\n"
         test_file.write_text(content_utf8, encoding="utf-8")
@@ -187,7 +183,7 @@ class TestHashReproducibility:
         hash2 = hash_file(test_file)
         assert hash1 == hash2
         # Verify it matches expected SHA256
-        expected = hashlib.sha256("Hello\n".encode()).hexdigest()
+        expected = hashlib.sha256(b"Hello\n").hexdigest()
         assert hash1 == expected
 
 
@@ -522,7 +518,8 @@ class TestParityHashStability:
         feature_dir = create_test_feature(tmp_path, num_artifacts=10)
 
         # Compute snapshot 1
-        indexer1 = lambda: create_dossier_from_feature(feature_dir)
+        def indexer1():
+            return create_dossier_from_feature(feature_dir)
         dossier1 = indexer1()
         snapshot1 = compute_snapshot(dossier1)
         hash_1 = snapshot1.parity_hash_sha256
@@ -594,7 +591,7 @@ class TestParityHashStability:
 
         # Compute parity hash 10 times with different orders
         parity_hashes = []
-        for i in range(10):
+        for _i in range(10):
             # Shuffle hashes
             shuffled = random.sample(test_hashes, len(test_hashes))
             # Manually compute parity hash (same as compute_parity_hash_from_dossier)

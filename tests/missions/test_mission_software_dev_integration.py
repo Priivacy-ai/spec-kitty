@@ -9,14 +9,16 @@ Verifies:
 - Rollback transition (review -> implement) has no guards
 - v0 legacy keys coexist alongside v1 keys
 - Typed inputs and outputs present and correctly structured
+
+Uses MissionRepository to locate the canonical mission YAML in doctrine.
 """
 
 from __future__ import annotations
 
-from pathlib import Path
 
 import yaml
 
+from doctrine.missions.repository import MissionRepository
 from specify_cli.mission_v1.schema import (
 
     is_v1_mission,
@@ -31,14 +33,7 @@ pytestmark = pytest.mark.git_repo
 # Helpers
 # ---------------------------------------------------------------------------
 
-MISSION_YAML_PATH = (
-    Path(__file__).resolve().parents[2]
-    / "src"
-    / "specify_cli"
-    / "missions"
-    / "software-dev"
-    / "mission.yaml"
-)
+MISSION_YAML_PATH = MissionRepository.default_missions_root() / "software-dev" / "mission.yaml"
 
 @pytest.fixture()
 def software_dev_config() -> dict:

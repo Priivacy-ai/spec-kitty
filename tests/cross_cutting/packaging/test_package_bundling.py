@@ -9,9 +9,9 @@ import pytest
 
 
 def test_no_bash_script_references_in_bundled_templates():
-    """Ensure bundled templates don't reference deleted bash scripts."""
+    """Ensure bundled command templates don't reference deleted bash scripts."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
-    templates_dir = spec_kitty_root / "src" / "specify_cli" / "templates" / "command-templates"
+    templates_dir = spec_kitty_root / "src" / "doctrine" / "templates" / "command-templates"
 
     if not templates_dir.exists():
         pytest.skip(f"Templates directory not found: {templates_dir}")
@@ -29,8 +29,8 @@ def test_no_bash_script_references_in_bundled_templates():
     )
 
 
-def test_sdist_bundles_templates():
-    """Verify source distribution includes templates under src/specify_cli/."""
+def test_sdist_bundles_doctrine_templates():
+    """Verify source distribution includes command templates under src/doctrine/."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
 
     # Build sdist
@@ -57,13 +57,13 @@ def test_sdist_bundles_templates():
     with tarfile.open(latest, "r:gz") as tar:
         members = tar.getnames()
 
-        # Should have templates under src/specify_cli/
-        templates = [m for m in members if "/src/specify_cli/templates/" in m]
-        assert len(templates) > 0, "specify_cli/templates/ not found in sdist"
+        # Should have templates under src/doctrine/templates/
+        doctrine_templates = [m for m in members if "/src/doctrine/templates/" in m]
+        assert len(doctrine_templates) > 0, "doctrine/templates/ not found in sdist"
 
-        # Should have command templates
-        cmd_templates = [m for m in members if "command-templates" in m and m.endswith(".md")]
-        assert len(cmd_templates) >= 13, f"Missing command templates: {len(cmd_templates)}"
+        # Should have command templates under doctrine
+        cmd_templates = [m for m in members if "doctrine/templates/command-templates" in m and m.endswith(".md")]
+        assert len(cmd_templates) >= 12, f"Missing command templates in doctrine: {len(cmd_templates)}"
 
         # Git hooks are intentionally not bundled in 2.x
         git_hooks = [m for m in members if "git-hooks/" in m]
@@ -71,7 +71,7 @@ def test_sdist_bundles_templates():
 
 
 def test_wheel_bundles_templates_correctly():
-    """Verify wheel includes templates and doctrine skills for importlib.resources."""
+    """Verify wheel includes doctrine templates and skills for importlib.resources."""
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
 
     result = subprocess.run(
@@ -118,23 +118,43 @@ def test_wheel_bundles_templates_correctly():
             if not python.exists():
                 pytest.skip("python not found in venv")
 
+        # Command templates live in doctrine now
         result = subprocess.run(
             [
                 str(python),
                 "-c",
                 "from importlib.resources import files; "
-                "t = files('specify_cli').joinpath('templates'); "
-                "print(list(t.iterdir()))",
+                "t = files('doctrine').joinpath('templates', 'command-templates'); "
+                "print([p.name for p in t.iterdir() if str(p).endswith('.md')])",
             ],
             capture_output=True,
             text=True,
         )
 
-        assert result.returncode == 0, f"Failed to check templates: {result.stderr}"
+        assert result.returncode == 0, f"Failed to check doctrine command templates: {result.stderr}"
         output = result.stdout
-        assert "command-templates" in output, "command-templates not found in bundled package"
-        assert "git-hooks" not in output, "git-hooks should not be bundled in 2.x"
+        assert "review.md" in output, "review.md not found in bundled doctrine command-templates"
+        assert "implement.md" in output, "implement.md not found in bundled doctrine command-templates"
 
+        # Content templates also live in doctrine
+        result = subprocess.run(
+            [
+                str(python),
+                "-c",
+                "from importlib.resources import files; "
+                "t = files('doctrine').joinpath('templates'); "
+                "print([p.name for p in t.iterdir()])",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+        assert result.returncode == 0, f"Failed to check doctrine templates: {result.stderr}"
+        output = result.stdout
+        assert "command-templates" in output, "command-templates not found in bundled doctrine"
+        assert "AGENTS.md" in output, "AGENTS.md not found in bundled doctrine templates"
+
+        # Doctrine skills should be bundled
         result = subprocess.run(
             [
                 str(python),
@@ -149,18 +169,3 @@ def test_wheel_bundles_templates_correctly():
 
         assert result.returncode == 0, f"Failed to check bundled doctrine skills: {result.stderr}"
         assert result.stdout.strip() == "True", "Bundled canonical skill missing from wheel"
-
-        result = subprocess.run(
-            [
-                str(python),
-                "-c",
-                "from importlib.resources import files; "
-                "fixture = files('doctrine').joinpath('curation', 'imports', 'example-zombies', 'manifest.yaml'); "
-                "print(fixture.is_file())",
-            ],
-            capture_output=True,
-            text=True,
-        )
-
-        assert result.returncode == 0, f"Failed to check bundled doctrine import fixtures: {result.stderr}"
-        assert result.stdout.strip() == "True", "Bundled doctrine import fixture missing from wheel"

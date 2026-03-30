@@ -2,11 +2,10 @@
 
 from __future__ import annotations
 
-import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 __all__ = ["run_diagnostics"]
 
@@ -30,7 +29,7 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
     return None
 
 
-def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Dict[str, Any]:
+def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> dict[str, Any]:
     """Run comprehensive diagnostics on the project setup using enhanced verification."""
     try:
         from ..manifest import FileManifest, WorktreeStatus  # type: ignore
@@ -47,7 +46,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     kittify_dir = project_dir / ".kittify"
     repo_root = project_dir
 
-    diagnostics: Dict[str, Any] = {
+    diagnostics: dict[str, Any] = {
         'project_path': str(project_dir),
         'current_working_directory': str(Path.cwd()),
         'git_branch': None,
@@ -124,10 +123,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     try:
         # When feature_dir is provided by the caller, derive the slug from it
         # to stay consistent with the mission resolution above.
-        if feature_dir is not None:
-            feature_slug = feature_dir.name
-        else:
-            feature_slug = detect_feature_slug(repo_root, cwd=Path.cwd())
+        feature_slug = feature_dir.name if feature_dir is not None else detect_feature_slug(repo_root, cwd=Path.cwd())
         if feature_slug:
             feature_status = worktree_status.get_feature_status(feature_slug.strip())
             diagnostics['current_feature'] = {
@@ -155,11 +151,10 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
         observations.append("Unusual: In worktree but on main branch")
 
     current_feature = diagnostics.get('current_feature') or {}
-    if current_feature.get('detected') and current_feature.get('state') == 'in_development':
-        if not current_feature.get('worktree_exists'):
-            observations.append(
-                f"Feature {current_feature.get('name')} has no worktree but has development artifacts"
-            )
+    if current_feature.get('detected') and current_feature.get('state') == 'in_development' and not current_feature.get('worktree_exists'):
+        observations.append(
+            f"Feature {current_feature.get('name')} has no worktree but has development artifacts"
+        )
 
     if total_missing > 0:
         observations.append(f"Mission integrity: {total_missing} expected files not found")

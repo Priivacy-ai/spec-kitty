@@ -216,9 +216,9 @@ properties:
         license_notes:
           type: string
   ```
-  
-  ## Proposed Data Model (Mermaid)
-  
+
+## Proposed Data Model (Mermaid)
+
   ```mermaid
   erDiagram
 MODEL_TASK_CATALOG ||--o{ TASK_TYPE : defines

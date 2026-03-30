@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -101,7 +101,7 @@ def resolve_manifest_version(mission_type: str) -> str:
     return "1"
 
 
-class SupportedInlineFormat(str, Enum):
+class SupportedInlineFormat(StrEnum):
     """File extensions eligible for inline body upload in v1."""
 
     MARKDOWN = ".md"
@@ -121,7 +121,7 @@ def is_supported_format(path: str | Path) -> bool:
     return Path(path).suffix.lower() in SUPPORTED_EXTENSIONS
 
 
-class UploadStatus(str, Enum):
+class UploadStatus(StrEnum):
     """Classification of an upload attempt result."""
 
     UPLOADED = "uploaded"

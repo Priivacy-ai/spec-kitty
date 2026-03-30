@@ -167,7 +167,7 @@ documenting a specific feature or API.
 
 ## Mission Definition Files
 
-Each mission lives in `src/specify_cli/missions/{mission-key}/` with:
+Each mission lives in `src/doctrine/missions/{mission-key}/` with:
 
 ### mission-runtime.yaml (Runtime DAG)
 
@@ -292,7 +292,7 @@ When a command template is needed, spec-kitty searches 5 locations in order:
 | 2. Legacy | `.kittify/command-templates/` | Deprecated pre-migration |
 | 3. Global Mission | `~/.kittify/missions/{mission}/command-templates/` | User global |
 | 4. Global | `~/.kittify/command-templates/` | User global fallback |
-| 5. Package | `src/specify_cli/missions/{mission}/command-templates/` | Built-in default |
+| 5. Package | `src/doctrine/missions/{mission}/command-templates/` | Built-in default |
 
 First match wins. Override a template by placing your version in
 `.kittify/overrides/command-templates/`. The package default is always the

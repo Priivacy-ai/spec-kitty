@@ -3,12 +3,15 @@
 from __future__ import annotations
 
 import importlib.resources
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
 from specify_cli.runtime.home import get_package_asset_root
+
+_log = logging.getLogger(__name__)
 
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
@@ -48,10 +51,11 @@ def resolve_doctrine_root() -> Path:
         if doctrine_root.is_dir():
             return doctrine_root
     except (ModuleNotFoundError, TypeError):
-        pass
+        _log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 
     dev_root = Path(__file__).parent.parent.parent / "doctrine"
     if dev_root.is_dir():
+        _log.debug("doctrine: resolved via dev layout at %s", dev_root)
         return dev_root
 
     raise FileNotFoundError(

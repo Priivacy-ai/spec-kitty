@@ -27,7 +27,8 @@ import re
 import subprocess
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Literal, Mapping, Optional
+from typing import Literal
+from collections.abc import Mapping
 
 from specify_cli.core.paths import get_main_repo_root as _resolve_main_repo_root
 
@@ -157,7 +158,7 @@ def _resolve_numeric_feature_slug(
     repo_root: Path,
     *,
     mode: Literal["strict", "lenient"],
-) -> Optional[str]:
+) -> str | None:
     """Resolve a 3-digit feature number (e.g., ``019``) to full slug.
 
     This is a compatibility affordance for agents that pass only the numeric
@@ -189,7 +190,7 @@ def _resolve_numeric_feature_slug(
     return None
 
 
-def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
+def _detect_from_git_branch(repo_root: Path) -> str | None:
     """Detect feature from git branch name.
 
     Args:
@@ -229,7 +230,7 @@ def _detect_from_git_branch(repo_root: Path) -> Optional[str]:
     return None
 
 
-def _detect_from_cwd(cwd: Path, repo_root: Path) -> Optional[str]:
+def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
     """Detect feature from current working directory.
 
     Walks up the directory tree looking for ###-feature-name pattern.
@@ -404,7 +405,7 @@ def detect_feature(
     env = env or os.environ
     cwd = cwd or Path.cwd()
 
-    detected_slug: Optional[str] = None
+    detected_slug: str | None = None
     detection_method: str = ""
 
     # Priority 1: Explicit --feature parameter

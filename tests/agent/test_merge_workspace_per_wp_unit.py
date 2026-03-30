@@ -388,6 +388,135 @@ class TestBuildMergePlanMocked:
 
 
 # ---------------------------------------------------------------------------
+# merge_workspace_per_wp — ancestor-skipped WPs marked done
+# ---------------------------------------------------------------------------
+
+
+class TestAncestorSkippedWpMarkedDone:
+    """When WP02 depends on WP01 (linear chain), merging WP02 should mark
+    BOTH WP01 and WP02 as done, since WP01's code arrives via WP02's branch."""
+
+    def test_skipped_ancestor_wp_marked_done(self, tmp_path, monkeypatch):
+        """WP01 is skipped (ancestor of WP02). After merging WP02, WP01 is also marked done."""
+        from specify_cli.cli import StepTracker
+
+        wt_wp01 = tmp_path / ".worktrees" / "010-feature-WP01"
+        wt_wp02 = tmp_path / ".worktrees" / "010-feature-WP02"
+        wt_wp01.mkdir(parents=True)
+        wt_wp02.mkdir(parents=True)
+
+        wp_workspaces = [
+            (wt_wp01, "WP01", "010-feature-WP01"),
+            (wt_wp02, "WP02", "010-feature-WP02"),
+        ]
+        merge_plan = {
+            "all_wp_workspaces": wp_workspaces,
+            "effective_wp_workspaces": [(wt_wp02, "WP02", "010-feature-WP02")],
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {"010-feature-WP01": ["010-feature-WP02"]},
+            "reason_summary": ["Single effective tip contains all remaining work-package commits."],
+        }
+
+        marked_done: list[str] = []
+
+        def fake_mark_done(repo_root, feature_slug, wp_id, target_branch):
+            marked_done.append(wp_id)
+
+        monkeypatch.setattr(merge_module, "get_main_repo_root", lambda _: tmp_path)
+        monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *a, **kw: wp_workspaces)
+        monkeypatch.setattr(merge_module, "validate_wp_ready_for_merge", lambda *a, **kw: (True, ""))
+        monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *a, **kw: merge_plan)
+        monkeypatch.setattr(merge_module, "run_command", lambda *a, **kw: (0, "", ""))
+        monkeypatch.setattr(merge_module, "has_remote", lambda _: False)
+        monkeypatch.setattr(merge_module, "has_tracking_branch", lambda _: False)
+        monkeypatch.setattr(merge_module, "_mark_wp_merged_done", fake_mark_done)
+
+        tracker = StepTracker("Merge")
+        for step_id, label in [
+            ("verify", "Verify readiness"),
+            ("checkout", "Switch to target"),
+            ("pull", "Pull latest"),
+            ("merge", "Merge WPs"),
+            ("worktree", "Remove worktrees"),
+            ("branch", "Delete branches"),
+        ]:
+            tracker.add(step_id, label)
+
+        merge_workspace_per_wp(
+            repo_root=tmp_path,
+            merge_root=tmp_path,
+            feature_slug="010-feature",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="merge",
+            delete_branch=False,
+            remove_worktree=False,
+            push=False,
+            dry_run=False,
+            json_output=False,
+            tracker=tracker,
+        )
+
+        assert "WP02" in marked_done, "WP02 (merged) must be marked done"
+        assert "WP01" in marked_done, "WP01 (skipped as ancestor) must also be marked done"
+
+    def test_only_effective_wp_marked_done_when_no_skipped_ancestors(self, tmp_path, monkeypatch):
+        """When no ancestors are skipped, only the merged WP is marked done."""
+        from specify_cli.cli import StepTracker
+
+        wt_wp01 = tmp_path / ".worktrees" / "010-feature-WP01"
+        wt_wp01.mkdir(parents=True)
+
+        wp_workspaces = [(wt_wp01, "WP01", "010-feature-WP01")]
+        merge_plan = {
+            "all_wp_workspaces": wp_workspaces,
+            "effective_wp_workspaces": wp_workspaces,
+            "skipped_already_in_target": [],
+            "skipped_ancestor_of": {},
+            "reason_summary": [],
+        }
+
+        marked_done: list[str] = []
+
+        def fake_mark_done(repo_root, feature_slug, wp_id, target_branch):
+            marked_done.append(wp_id)
+
+        monkeypatch.setattr(merge_module, "get_main_repo_root", lambda _: tmp_path)
+        monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *a, **kw: wp_workspaces)
+        monkeypatch.setattr(merge_module, "validate_wp_ready_for_merge", lambda *a, **kw: (True, ""))
+        monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *a, **kw: merge_plan)
+        monkeypatch.setattr(merge_module, "run_command", lambda *a, **kw: (0, "", ""))
+        monkeypatch.setattr(merge_module, "has_remote", lambda _: False)
+        monkeypatch.setattr(merge_module, "has_tracking_branch", lambda _: False)
+        monkeypatch.setattr(merge_module, "_mark_wp_merged_done", fake_mark_done)
+
+        tracker = StepTracker("Merge")
+        for step_id, label in [
+            ("verify", "Verify"), ("checkout", "Checkout"),
+            ("pull", "Pull"), ("merge", "Merge"),
+            ("worktree", "Worktree"), ("branch", "Branch"),
+        ]:
+            tracker.add(step_id, label)
+
+        merge_workspace_per_wp(
+            repo_root=tmp_path,
+            merge_root=tmp_path,
+            feature_slug="010-feature",
+            current_branch="feature/test",
+            target_branch="main",
+            strategy="merge",
+            delete_branch=False,
+            remove_worktree=False,
+            push=False,
+            dry_run=False,
+            json_output=False,
+            tracker=tracker,
+        )
+
+        assert marked_done == ["WP01"]
+
+
+# ---------------------------------------------------------------------------
 # merge_workspace_per_wp — dry-run output paths
 # ---------------------------------------------------------------------------
 

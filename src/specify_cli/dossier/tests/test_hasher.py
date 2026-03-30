@@ -9,9 +9,7 @@ Tests cover:
 """
 
 import pytest
-import tempfile
 import os
-from pathlib import Path
 from specify_cli.dossier.hasher import hash_file, hash_file_with_validation, Hasher
 
 
@@ -52,7 +50,7 @@ class TestHashFile:
         chunk_size = 1024 * 1024  # 1MB chunks
         num_chunks = 10
         with open(large_file, "wb") as f:
-            for i in range(num_chunks):
+            for _i in range(num_chunks):
                 f.write(b"A" * chunk_size)
 
         # Should complete without memory explosion
@@ -151,7 +149,7 @@ class TestHashFileWithValidation:
         test_file = tmp_path / "bom.txt"
         # Write with UTF-8 BOM
         with open(test_file, "wb") as f:
-            f.write(b"\xef\xbb\xbf" + "Hello, world!".encode("utf-8"))
+            f.write(b"\xef\xbb\xbf" + b"Hello, world!")
 
         hash_result, error = hash_file_with_validation(test_file)
         assert hash_result is not None

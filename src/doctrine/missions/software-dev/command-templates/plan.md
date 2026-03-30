@@ -88,10 +88,9 @@ Planning requirements (scale to complexity):
 
    Before running any commands, detect which feature you're working on:
 
-   a. **Check git branch name**:
-      - Run: `git rev-parse --abbrev-ref HEAD`
-      - If branch matches pattern `###-feature-name` or `###-feature-name-WP##`, extract the feature slug (strip `-WP##` suffix if present)
-      - Example: Branch `020-my-feature` or `020-my-feature-WP01` → Feature `020-my-feature`
+   a. **Check branch context**:
+      - Run: `spec-kitty agent mission branch-context --json`
+      - Use the returned JSON to identify the current branch and feature context
 
    b. **Check current directory**:
       - Look for `###-feature-name` pattern in the current path

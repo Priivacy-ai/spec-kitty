@@ -39,7 +39,7 @@ class TacticRepository:
             if hasattr(resource, "joinpath"):
                 return Path(str(resource.joinpath("shipped")))
             return Path(str(resource)) / "shipped"
-        except Exception:
+        except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "shipped"
 
     def _load(self) -> None:

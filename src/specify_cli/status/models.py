@@ -181,10 +181,7 @@ class StatusEvent:
     def from_dict(cls, data: dict[str, Any]) -> StatusEvent:
         evidence_data = data.get("evidence")
         raw_actor = data.get("actor", "unknown")
-        if isinstance(raw_actor, dict):
-            actor = ActorIdentity.from_dict(raw_actor)
-        else:
-            actor = ActorIdentity.from_legacy(str(raw_actor))
+        actor = ActorIdentity.from_dict(raw_actor) if isinstance(raw_actor, dict) else ActorIdentity.from_legacy(str(raw_actor))
         return cls(
             event_id=data["event_id"],
             feature_slug=data["feature_slug"],

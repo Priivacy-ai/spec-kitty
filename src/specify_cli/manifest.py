@@ -4,8 +4,6 @@ This module generates and checks expected files based on the mission context.
 """
 
 from pathlib import Path
-from typing import Dict, List, Optional, Set, Tuple
-import yaml
 import subprocess
 
 
@@ -18,13 +16,13 @@ class FileManifest:
     manifest.
     """
 
-    def __init__(self, kittify_dir: Path, *, mission_key: Optional[str] = None):
+    def __init__(self, kittify_dir: Path, *, mission_key: str | None = None):
         self.kittify_dir = kittify_dir
         self.mission_dir = (
             kittify_dir / "missions" / mission_key if mission_key else None
         )
 
-    def get_expected_files(self) -> Dict[str, List[str]]:
+    def get_expected_files(self) -> dict[str, list[str]]:
         """
         Get a categorized list of expected files for the active mission.
 
@@ -63,7 +61,7 @@ class FileManifest:
 
         return manifest
 
-    def _get_referenced_scripts(self) -> List[str]:
+    def _get_referenced_scripts(self) -> list[str]:
         """Extract script references from command files, filtered by platform."""
         import platform
         scripts = set()
@@ -89,7 +87,7 @@ class FileManifest:
             for line in lines:
                 if line.strip() == '---':
                     in_frontmatter = not in_frontmatter
-                    if not in_frontmatter and in_frontmatter == False:
+                    if not in_frontmatter and not in_frontmatter:
                         break  # End of frontmatter
                 elif in_frontmatter:
                     # Only check for scripts relevant to this platform
@@ -109,9 +107,9 @@ class FileManifest:
                                     script_path = script_path.replace('.kittify/', '', 1)
                                     scripts.add(script_path)
 
-        return sorted(list(scripts))
+        return sorted(scripts)
 
-    def check_files(self) -> Dict[str, Dict[str, str]]:
+    def check_files(self) -> dict[str, dict[str, str]]:
         """
         Check which expected files exist and which are missing.
 
@@ -147,7 +145,7 @@ class WorktreeStatus:
     def __init__(self, repo_root: Path):
         self.repo_root = repo_root
 
-    def get_all_features(self) -> List[str]:
+    def get_all_features(self) -> list[str]:
         """Get all feature branches and directories."""
         features = set()
 
@@ -180,9 +178,9 @@ class WorktreeStatus:
                 if feature_dir.is_dir() and feature_dir.name[0].isdigit() and '-' in feature_dir.name:
                     features.add(feature_dir.name)
 
-        return sorted(list(features))
+        return sorted(features)
 
-    def get_feature_status(self, feature: str) -> Dict[str, any]:
+    def get_feature_status(self, feature: str) -> dict[str, any]:
         """Get comprehensive status for a feature."""
         status = {
             "name": feature,
@@ -261,7 +259,7 @@ class WorktreeStatus:
 
         return status
 
-    def get_worktree_summary(self) -> Dict[str, int]:
+    def get_worktree_summary(self) -> dict[str, int]:
         """Get summary counts of worktree states."""
         features = self.get_all_features()
         summary = {

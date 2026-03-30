@@ -57,14 +57,14 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 Before proceeding, verify you are in the planning repository:
 
-**Check your current branch:**
+**Check your current branch context:**
 
 ```bash
-git branch --show-current
+spec-kitty agent mission branch-context --json
 ```
 
-**Expected output:** the target branch (meta.json → target_branch), typically `main` or `2.x`
-**If you see a feature branch:** You're in the wrong place. Return to the target branch:
+**Expected output:** JSON with `planning_base_branch` and `merge_target_branch` pointing to the target branch (typically `main` or `2.x`).
+**If you are on a feature branch:** You're in the wrong place. Return to the target branch:
 
 ```bash
 cd $(git rev-parse --show-toplevel)
@@ -128,7 +128,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
    - Record metadata: priority, success criteria, risks, dependencies, included subtasks
 
-5. **Write `tasks.md`** using the bundled tasks template (`src/specify_cli/missions/software-dev/templates/tasks-template.md`):
+5. **Write `tasks.md`** using the bundled tasks template (`src/doctrine/missions/software-dev/templates/tasks-template.md`):
    - **Location**: Write to `feature_dir/tasks.md` (use the absolute feature_dir path from step 1)
    - Populate the Work Package sections (setup, foundational, per-story, polish) with the `WPxx` entries
    - Under each work package include:
@@ -147,7 +147,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
-     - Use the bundled task prompt template (`src/specify_cli/missions/software-dev/templates/task-prompt-template.md`) to capture:
+      - Use the bundled task prompt template (`src/doctrine/missions/software-dev/templates/task-prompt-template.md`) to capture:
      - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, history entry
        - Objective, context, detailed guidance per subtask
        - Test strategy (only if requested)

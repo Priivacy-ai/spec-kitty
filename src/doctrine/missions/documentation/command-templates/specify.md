@@ -15,6 +15,16 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
+## Branch Context (required)
+
+Before creating or updating a feature, determine the correct target branch deterministically:
+
+```bash
+spec-kitty agent mission branch-context --json
+```
+
+Use the returned `planning_base_branch` and `merge_target_branch` values when populating `meta.json` and work package frontmatter. Do NOT probe git directly for branch names — always use the CLI helper.
+
 ## Discovery Gate (mandatory)
 
 Before running any scripts or writing to disk, conduct a structured discovery interview tailored to documentation missions.

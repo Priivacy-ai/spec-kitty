@@ -20,8 +20,10 @@ You **MUST** consider the user input before proceeding (if not empty).
 Verify you are in the main repository (not a worktree). Task generation happens in main for ALL missions.
 
 ```bash
-git branch --show-current  # Should show "main"
+spec-kitty agent mission branch-context --json
 ```
+
+Use the returned JSON to confirm you are on the target branch (`planning_base_branch`).
 
 **Note**: Task generation in main is standard for all spec-kitty missions. Implementation happens in per-WP worktrees.
 

@@ -37,10 +37,7 @@ class FixOrchestratorApiSkillMigration(BaseMigration):
     target_version = "2.1.2"
 
     def detect(self, project_path: Path) -> bool:
-        for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]):
-            if file_contains_any(info.path, _OLD_MARKERS):
-                return True
-        return False
+        return any(file_contains_any(info.path, _OLD_MARKERS) for info in find_skill_files(project_path, _SKILL_NAME, ["SKILL.md"]))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         files_found = find_skill_files(project_path, _SKILL_NAME)
