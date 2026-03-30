@@ -22,6 +22,7 @@ base_commit: 7acde442e94db133fd61ed13584feee8ba58ecc9
 created_at: '2026-03-30T20:02:39.142045+00:00'
 subtasks: [T028, T029, T030, T031, T032, T033, T034]
 shell_pid: "52369"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -325,3 +326,7 @@ spec-kitty implement WP06 --base WP05
 - Verify feature flag still gates all commands (check `tracker_callback`)
 - Test with `--help` flag on each command to verify help text is coherent
 - Verify no reference to Azure DevOps in any help text or error message (except the explicit "no longer supported" rejection)
+
+## Activity Log
+
+- 2026-03-30T20:02:39Z – orchestrator – shell_pid=52369 – lane=doing – Started implementation via workflow command
