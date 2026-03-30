@@ -81,6 +81,25 @@ _KNOWN_COMMANDS: frozenset[str] = frozenset(
     }
 )
 
+# Planning-phase commands that do NOT require WP context.
+# These operate on the project or feature level, not on a specific WP.
+_PLANNING_COMMANDS: frozenset[str] = frozenset(
+    {
+        "specify",
+        "plan",
+        "tasks",
+        "tasks-outline",
+        "tasks-packages",
+        "tasks-finalize",
+        "status",
+        "dashboard",
+        "checklist",
+        "analyze",
+        "research",
+        "constitution",
+    }
+)
+
 
 def shim_dispatch(
     command: str,
@@ -88,7 +107,7 @@ def shim_dispatch(
     raw_args: str,
     context_token: str | None,
     repo_root: Path,
-) -> MissionContext:
+) -> MissionContext | None:
     """Resolve context and dispatch to the workflow handler for *command*.
 
     Args:
@@ -114,6 +133,10 @@ def shim_dispatch(
             f"Expected one of: {known}."
         )
         raise ValueError(msg)
+
+    # Planning commands don't need WP context — return None
+    if command in _PLANNING_COMMANDS:
+        return None  # type: ignore[return-value]
 
     # Parse raw_args to extract wp_code and feature_slug
     parsed = _parse_raw_args(raw_args)
