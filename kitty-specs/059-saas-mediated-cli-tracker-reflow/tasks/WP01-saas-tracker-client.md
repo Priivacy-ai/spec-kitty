@@ -21,6 +21,7 @@ base_commit: c5ece9e6b5bd8040663586949c076f2d98f0763d
 created_at: '2026-03-30T19:25:37.017619+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006, T007]
 shell_pid: "46234"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -305,3 +306,7 @@ e. **Error handling tests**:
 - Verify no fallback paths exist — every error raises, never silently succeeds
 - Verify `Idempotency-Key` is only on push and run, not on other endpoints
 - Check that `X-Team-Slug` comes from `CredentialStore.get_team_slug()` at request time
+
+## Activity Log
+
+- 2026-03-30T19:25:37Z – orchestrator – shell_pid=46234 – lane=doing – Started implementation via workflow command
