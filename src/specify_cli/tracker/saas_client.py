@@ -106,12 +106,15 @@ class SaaSTrackerClient:
             )
 
         team_slug = self._credential_store.get_team_slug()
+        if not team_slug:
+            raise SaaSTrackerClientError(
+                "No team context available. Run `spec-kitty auth login` to authenticate."
+            )
 
         merged_headers: dict[str, str] = {
             "Authorization": f"Bearer {access_token}",
+            "X-Team-Slug": team_slug,
         }
-        if team_slug is not None:
-            merged_headers["X-Team-Slug"] = team_slug
         if headers:
             merged_headers.update(headers)
 
@@ -156,6 +159,7 @@ class SaaSTrackerClient:
             try:
                 auth_client = AuthClient()  # type: ignore[no-untyped-call]
                 auth_client.credential_store = self._credential_store
+                auth_client.config = self._sync_config
                 auth_client.refresh_tokens()
             except Exception as exc:
                 raise SaaSTrackerClientError(
@@ -236,8 +240,19 @@ class SaaSTrackerClient:
                 return dict(result_val) if isinstance(result_val, dict) else body
 
             if status == "failed":
-                error_msg = body.get("error", "Operation failed")
-                raise SaaSTrackerClientError(str(error_msg))
+                error_data = body.get("error")
+                if isinstance(error_data, dict):
+                    parts: list[str] = []
+                    msg = error_data.get("message")
+                    if msg:
+                        parts.append(str(msg))
+                    action = error_data.get("user_action_required")
+                    if action:
+                        parts.append(str(action))
+                    error_msg = " ".join(parts) if parts else "Operation failed"
+                else:
+                    error_msg = str(error_data) if error_data else "Operation failed"
+                raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
             jittered_delay = delay * (0.8 + 0.4 * random.random())

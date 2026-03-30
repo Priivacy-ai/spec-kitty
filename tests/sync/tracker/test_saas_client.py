@@ -179,20 +179,17 @@ class TestAuthInjection:
         with pytest.raises(SaaSTrackerClientError, match="No valid access token"):
             client._request("GET", "/api/v1/tracker/status")
 
-    @patch("specify_cli.tracker.saas_client.httpx.Client")
-    def test_no_team_slug_omits_header(
-        self, mock_httpx_client_cls: MagicMock, client: SaaSTrackerClient
-    ) -> None:
-        mock_http = MagicMock()
-        mock_httpx_client_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
-        mock_httpx_client_cls.return_value.__exit__ = MagicMock(return_value=False)
-        mock_http.request.return_value = _make_response(200, {"ok": True})
-
+    def test_missing_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
+        """FR-015: Missing X-Team-Slug must raise, not silently omit the header."""
         client._credential_store.get_team_slug.return_value = None
-        client._request("GET", "/api/v1/tracker/status")
+        with pytest.raises(SaaSTrackerClientError, match="No team context available"):
+            client._request("GET", "/api/v1/tracker/status")
 
-        _, kwargs = mock_http.request.call_args
-        assert "X-Team-Slug" not in kwargs["headers"]
+    def test_empty_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
+        """FR-015: Empty string team slug must also raise."""
+        client._credential_store.get_team_slug.return_value = ""
+        with pytest.raises(SaaSTrackerClientError, match="No team context available"):
+            client._request("GET", "/api/v1/tracker/status")
 
 
 # ---------------------------------------------------------------------------
@@ -780,3 +777,136 @@ class TestConstructorDefaults:
         assert c._credential_store is mock_credential_store
         assert c._sync_config is mock_sync_config
         assert c._base_url == "https://saas.example.com"
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for Codex review cycle 1 fixes
+# ---------------------------------------------------------------------------
+
+
+class TestAsyncErrorEnvelopeParsing:
+    """Fix 1 (FR-017/NFR-002): Failed async operations must parse the error
+    envelope dict, not dump it as a raw string."""
+
+    @patch("specify_cli.tracker.saas_client.time.sleep")
+    @patch("specify_cli.tracker.saas_client.time.monotonic")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_failed_operation_parses_error_envelope_dict(
+        self,
+        mock_cls: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+        client: SaaSTrackerClient,
+    ) -> None:
+        """When the 'error' field is an ErrorEnvelope dict, the raised exception
+        must contain the human-readable 'message' and 'user_action_required',
+        not a repr of the dict."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        error_envelope = {
+            "code": "provider_auth_expired",
+            "category": "auth",
+            "message": "Jira OAuth token has expired",
+            "user_action_required": "Re-authorize the Jira integration in Settings",
+        }
+        mock_http.request.side_effect = [
+            _make_response(202, {"operation_id": "op-err-envelope"}),
+            _make_response(200, {"status": "failed", "error": error_envelope}),
+        ]
+        mock_monotonic.side_effect = [0.0, 1.0]
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client.push("jira", "proj-1", [{"title": "Bug"}])
+
+        error_text = str(exc_info.value)
+        # Must contain the readable message
+        assert "Jira OAuth token has expired" in error_text
+        # Must contain the user action
+        assert "Re-authorize the Jira integration in Settings" in error_text
+        # Must NOT contain raw dict syntax
+        assert "{'code'" not in error_text
+        assert "provider_auth_expired" not in error_text
+
+    @patch("specify_cli.tracker.saas_client.time.sleep")
+    @patch("specify_cli.tracker.saas_client.time.monotonic")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_failed_operation_with_string_error_still_works(
+        self,
+        mock_cls: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+        client: SaaSTrackerClient,
+    ) -> None:
+        """When the 'error' field is a plain string, it should still work."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.side_effect = [
+            _make_response(202, {"operation_id": "op-str-err"}),
+            _make_response(200, {"status": "failed", "error": "Something went wrong"}),
+        ]
+        mock_monotonic.side_effect = [0.0, 1.0]
+
+        with pytest.raises(SaaSTrackerClientError, match="Something went wrong"):
+            client.push("jira", "proj-1", [{"title": "Bug"}])
+
+    @patch("specify_cli.tracker.saas_client.time.sleep")
+    @patch("specify_cli.tracker.saas_client.time.monotonic")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_failed_operation_with_no_error_field(
+        self,
+        mock_cls: MagicMock,
+        mock_monotonic: MagicMock,
+        mock_sleep: MagicMock,
+        client: SaaSTrackerClient,
+    ) -> None:
+        """When the 'error' field is missing, a fallback message is used."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.side_effect = [
+            _make_response(202, {"operation_id": "op-no-err"}),
+            _make_response(200, {"status": "failed"}),
+        ]
+        mock_monotonic.side_effect = [0.0, 1.0]
+
+        with pytest.raises(SaaSTrackerClientError, match="Operation failed"):
+            client.push("jira", "proj-1", [{"title": "Bug"}])
+
+
+class TestAuthClientUsesCorrectConfig:
+    """Fix 2 (FR-020): AuthClient must use the same SyncConfig as the
+    SaaSTrackerClient so token refresh targets the correct server."""
+
+    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_401_refresh_uses_client_sync_config(
+        self,
+        mock_cls: MagicMock,
+        mock_auth_cls: MagicMock,
+        client: SaaSTrackerClient,
+        mock_sync_config: MagicMock,
+    ) -> None:
+        """After 401, the AuthClient must have its config set to the same
+        SyncConfig that the SaaSTrackerClient was constructed with."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.side_effect = [
+            _make_response(401, {"message": "Unauthorized"}),
+            _make_response(200, {"ok": True}),
+        ]
+        mock_auth_instance = MagicMock()
+        mock_auth_cls.return_value = mock_auth_instance
+
+        client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        # Verify the AuthClient instance got the correct config assigned
+        assert mock_auth_instance.config is mock_sync_config
+        # And the correct credential_store
+        assert mock_auth_instance.credential_store is client._credential_store
