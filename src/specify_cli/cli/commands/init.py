@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, UTC
 from pathlib import Path
 from collections.abc import Callable
 
@@ -207,6 +208,420 @@ def _get_package_templates_root() -> Path | None:
     except FileNotFoundError:
         pass
     return None
+
+
+def _detect_languages(project_path: Path) -> str:
+    """Heuristically detect primary programming languages from indicator files."""
+    langs: list[str] = []
+    indicators = [
+        (project_path / "pyproject.toml", "Python"),
+        (project_path / "setup.py", "Python"),
+        (project_path / "Cargo.toml", "Rust"),
+        (project_path / "go.mod", "Go"),
+        (project_path / "pom.xml", "Java"),
+        (project_path / "build.gradle", "Java"),
+        (project_path / "build.gradle.kts", "Kotlin"),
+    ]
+    for path, lang in indicators:
+        if path.exists() and lang not in langs:
+            langs.append(lang)
+
+    # TypeScript before JavaScript (more specific)
+    if (project_path / "tsconfig.json").exists():
+        langs.append("TypeScript")
+    elif (project_path / "package.json").exists():
+        langs.append("JavaScript")
+
+    return ", ".join(langs) if langs else "_(fill in)_"
+
+
+def _detect_build_and_test(project_path: Path) -> str:
+    """Detect common build/test command entrypoints."""
+    hints: list[str] = []
+    if (project_path / "Makefile").exists():
+        hints.append("`make test`")
+    if (project_path / "pyproject.toml").exists():
+        hints.append("`pytest` (see pyproject.toml)")
+    if (project_path / "package.json").exists():
+        hints.append("`npm test`")
+    if (project_path / "Cargo.toml").exists():
+        hints.append("`cargo test`")
+    return ", ".join(hints) if hints else "_(fill in)_"
+
+
+def _detect_cli_entrypoints(project_path: Path) -> str:
+    """Extract CLI entry points from pyproject.toml [project.scripts]."""
+    pyproject = project_path / "pyproject.toml"
+    if not pyproject.exists():
+        return "_(fill in)_"
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+        # Find [project.scripts] section and grab the keys
+        match = re.search(r"\[project\.scripts\](.*?)(?=\[|\Z)", text, re.DOTALL)
+        if not match:
+            return "_(fill in)_"
+        scripts = re.findall(r"^\s*(\S+)\s*=", match.group(1), re.MULTILINE)
+        return ", ".join(f"`{s}`" for s in scripts) if scripts else "_(fill in)_"
+    except OSError:
+        return "_(fill in)_"
+
+
+def _read_first_paragraph(path: Path) -> str:
+    """Return the first non-heading paragraph of a markdown file, or empty string."""
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    # Skip leading headings / blank lines
+    paragraph_lines: list[str] = []
+    in_para = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            if in_para:
+                break
+            continue
+        if not stripped:
+            if in_para:
+                break
+            continue
+        paragraph_lines.append(stripped)
+        in_para = True
+    return " ".join(paragraph_lines)
+
+
+def _build_tree_snippet(project_path: Path) -> str:
+    """Build a simple top-level directory listing."""
+    entries: list[str] = []
+    try:
+        for entry in sorted(project_path.iterdir()):
+            if entry.name.startswith("."):
+                continue
+            marker = "/" if entry.is_dir() else ""
+            entries.append(f"{entry.name}{marker}")
+    except OSError:
+        pass
+    if not entries:
+        return "_(fill in)_"
+    return "```\n" + "\n".join(entries) + "\n```"
+
+
+def _dir_purpose(project_path: Path, name: str) -> str:
+    return "_(fill in)_" if not (project_path / name).is_dir() else f"_(fill in — {name}/ exists)_"
+
+
+def _gather_structure_template_vars(project_path: Path) -> dict[str, str]:
+    """Collect substitution values for REPO_MAP.md and SURFACES.md templates."""
+    readme_summary = _read_first_paragraph(project_path / "README.md") or "_(fill in)_"
+    agents_summary = _read_first_paragraph(project_path / "AGENTS.md") or "_(fill in)_"
+
+    pyproject_summary = "_(fill in)_"
+    pyproject = project_path / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            text = pyproject.read_text(encoding="utf-8")
+            m = re.search(r'description\s*=\s*["\']([^"\']+)["\']', text)
+            if m:
+                pyproject_summary = m.group(1)
+        except OSError:
+            pass
+
+    return {
+        "{{DATE}}": date.today().isoformat(),
+        "{{PROJECT_NAME}}": project_path.resolve().name,
+        "{{PRIMARY_LANGUAGES}}": _detect_languages(project_path),
+        "{{BUILD_AND_TEST}}": _detect_build_and_test(project_path),
+        "{{TREE_SNIPPET}}": _build_tree_snippet(project_path),
+        "{{SRC_PURPOSE}}": _dir_purpose(project_path, "src"),
+        "{{TESTS_PURPOSE}}": _dir_purpose(project_path, "tests"),
+        "{{DOCS_PURPOSE}}": _dir_purpose(project_path, "docs"),
+        "{{README_SUMMARY}}": readme_summary,
+        "{{PYPROJECT_SUMMARY}}": pyproject_summary,
+        "{{AGENTS_SUMMARY}}": agents_summary,
+        "{{REPO_NOTES}}": "_(fill in)_",
+        "{{CLI_ENTRYPOINTS}}": _detect_cli_entrypoints(project_path),
+        "{{SERVICE_ENTRYPOINTS}}": "_(fill in)_",
+        "{{LIBRARY_ENTRYPOINTS}}": "_(fill in)_",
+        "{{EXTERNAL_INTEGRATIONS}}": "_(fill in)_",
+        "{{PUBLIC_INTERFACES}}": "_(fill in)_",
+        "{{LOG_SURFACES}}": "_(fill in)_",
+        "{{METRIC_SURFACES}}": "_(fill in)_",
+        "{{TRACE_SURFACES}}": "_(fill in)_",
+        "{{SECURITY_BOUNDARIES}}": "_(fill in)_",
+        "{{SURFACE_NOTES}}": "_(fill in)_",
+    }
+
+
+def _render_structure_template(template_path: Path, vars: dict[str, str]) -> str:
+    """Read template and substitute all {{TOKEN}} placeholders."""
+    content = template_path.read_text(encoding="utf-8")
+    for token, value in vars.items():
+        content = content.replace(token, value)
+    return content
+
+
+def _get_structure_templates_dir() -> Path | None:
+    """Return bundled doctrine structure templates directory, if available."""
+    try:
+        pkg_root = get_package_asset_root()  # .../doctrine/missions
+        structure_dir = pkg_root.parent / "templates" / "structure"
+        if structure_dir.is_dir():
+            return structure_dir
+    except FileNotFoundError:
+        pass
+
+    return None
+
+
+# =============================================================================
+# Doctrine stack init helpers (FR-001–FR-005, FR-015, FR-020)
+# =============================================================================
+
+
+def _load_doctrine_defaults() -> dict[str, object]:
+    """Load src/doctrine/constitution/defaults.yaml, returning {} on any failure."""
+    try:
+        from constitution.catalog import resolve_doctrine_root  # noqa: PLC0415
+
+        defaults_path = resolve_doctrine_root() / "constitution" / "defaults.yaml"
+        if not defaults_path.exists():
+            return {}
+        yaml = YAML(typ="safe")
+        return yaml.load(defaults_path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+
+
+def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
+    """Generate a constitution using the predefined doctrine defaults.
+
+    Returns True on success, False on failure (non-fatal — user can run
+    ``spec-kitty constitution interview`` later).
+    """
+    try:
+        from constitution.interview import default_interview, apply_answer_overrides  # noqa: PLC0415
+        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+
+        defaults = _load_doctrine_defaults()
+        mission: str = str(defaults.get("mission", "software-dev"))
+        profile: str = str(defaults.get("profile", "minimal"))
+
+        interview_data = default_interview(mission=mission, profile=profile)
+
+        raw_paradigms = defaults.get("selected_paradigms")
+        raw_directives = defaults.get("selected_directives")
+        raw_tools = defaults.get("available_tools")
+
+        if raw_paradigms or raw_directives or raw_tools:
+            interview_data = apply_answer_overrides(
+                interview_data,
+                selected_paradigms=raw_paradigms if isinstance(raw_paradigms, list) else None,
+                selected_directives=raw_directives if isinstance(raw_directives, list) else None,
+                available_tools=raw_tools if isinstance(raw_tools, list) else None,
+            )
+
+        draft = build_constitution_draft(mission=mission, interview=interview_data)
+
+        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        constitution_path.parent.mkdir(parents=True, exist_ok=True)
+        write_constitution(constitution_path, draft.markdown)
+        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        return True
+    except Exception as exc:
+        console.print(f"[yellow]Warning:[/yellow] Could not apply doctrine defaults: {exc}")
+        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        return False
+
+
+def _run_inline_interview(project_path: Path, console: Console) -> bool:
+    """Run the constitution interview interactively during init.
+
+    Returns True on success or skip, False if interrupted without completing.
+    Satisfies C-002: this function calls the existing interview machinery;
+    ``spec-kitty constitution interview`` continues to work independently.
+    """
+    try:
+        from constitution.interview import (  # noqa: PLC0415
+            MINIMAL_QUESTION_ORDER,
+            QUESTION_ORDER,
+            QUESTION_PROMPTS,
+            apply_answer_overrides,
+            default_interview,
+            write_interview_answers,
+        )
+        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+        from kernel.atomic import atomic_write  # noqa: PLC0415
+
+        checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
+
+        console.print()
+        console.print(
+            "[cyan]This interview will configure your constitution[/cyan] — which paradigms, "
+            "directives, and tool settings govern your project. "
+            "You can customise further after init by running "
+            "[cyan]spec-kitty constitution interview[/cyan]."
+        )
+
+        depth_raw = typer.prompt(
+            "Interview depth",
+            default="minimal",
+        )
+        depth = depth_raw.strip().lower()
+        if depth not in ("minimal", "comprehensive"):
+            depth = "minimal"
+
+        interview_data = default_interview(mission="software-dev", profile=depth)
+        question_order = MINIMAL_QUESTION_ORDER if depth == "minimal" else QUESTION_ORDER
+
+        import io as _io  # noqa: PLC0415
+
+        checkpoint_yaml = YAML()
+        checkpoint_yaml.default_flow_style = False
+
+        answers_override: dict[str, str] = {}
+        try:
+            for question_id in question_order:
+                # Checkpoint after each answer so an interrupt is resumable.
+                buf = _io.StringIO()
+                checkpoint_yaml.dump(
+                    {"phase": "interview", "depth": depth, "answers_so_far": answers_override},
+                    buf,
+                )
+                atomic_write(checkpoint_path, buf.getvalue(), mkdir=True)
+
+                prompt_text = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
+                default_value = interview_data.answers.get(question_id, "")
+                answers_override[question_id] = typer.prompt(prompt_text, default=default_value)
+        except KeyboardInterrupt:
+            console.print("\n[yellow]Interview interrupted. Progress saved.[/yellow]")
+            console.print("[dim]Re-run `spec-kitty init` to resume or restart.[/dim]")
+            return False
+
+        interview_data = apply_answer_overrides(interview_data, answers=answers_override)
+        draft = build_constitution_draft(mission="software-dev", interview=interview_data)
+
+        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        constitution_path.parent.mkdir(parents=True, exist_ok=True)
+        write_constitution(constitution_path, draft.markdown)
+
+        # Persist answers for future re-generation.
+        answers_path = project_path / ".kittify" / "constitution" / "interview" / "answers.yaml"
+        write_interview_answers(answers_path, interview_data)
+
+        # Remove checkpoint — interview completed successfully.
+        if checkpoint_path.exists():
+            checkpoint_path.unlink()
+
+        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        return True
+    except Exception as exc:
+        console.print(f"[yellow]Warning:[/yellow] Could not complete interview: {exc}")
+        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        return False
+
+
+def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console: Console) -> bool:
+    """Run the doctrine stack setup step during ``spec-kitty init``.
+
+    Decision tree
+    -------------
+    1. Constitution already exists → skip (FR-004).
+    2. Checkpoint exists → offer resume / restart (FR-020).
+    3. ``--non-interactive`` → apply defaults silently (FR-005, NFR-001).
+    4. Interactive → prompt for defaults / manual / skip (FR-001–FR-003).
+
+    Returns True if the step completed, was skipped, or was deferred.
+    """
+    constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+
+    # FR-004: skip if constitution already exists.
+    if constitution_path.exists():
+        console.print("[dim]Constitution already exists — skipping doctrine stack setup.[/dim]")
+        return True
+
+    checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
+
+    # FR-020: offer resume/restart if a previous session was interrupted.
+    if checkpoint_path.exists():
+        console.print()
+        console.print("[yellow]A previous init session was interrupted.[/yellow]")
+        resume_raw = typer.prompt(
+            "Resume the previous interview session?",
+            default="resume",
+        )
+        if resume_raw.strip().lower() == "resume":
+            return _run_inline_interview(project_path, console)
+        else:
+            checkpoint_path.unlink()
+
+    # FR-005 / NFR-001: non-interactive → apply defaults (≤2 s target).
+    if non_interactive:
+        console.print("[dim]Applying doctrine defaults (non-interactive mode)...[/dim]")
+        return _apply_doctrine_defaults(project_path, console)
+
+    # FR-001–FR-003: interactive choice.
+    console.print()
+    choice_raw = typer.prompt(
+        "Doctrine stack: How would you like to configure project governance?",
+        default="defaults",
+    )
+    choice = choice_raw.strip().lower()
+
+    if choice == "defaults":
+        return _apply_doctrine_defaults(project_path, console)
+    elif choice == "manual":
+        return _run_inline_interview(project_path, console)
+    else:
+        console.print("[dim]Skipping doctrine stack setup. Run `spec-kitty constitution interview` later.[/dim]")
+        return True
+
+
+def _maybe_generate_structure_templates(project_path: Path, non_interactive: bool, console: Console) -> None:
+    """Optionally generate REPO_MAP.md and SURFACES.md for a project."""
+    structure_dir = _get_structure_templates_dir()
+    if structure_dir is None:
+        return
+
+    templates = {
+        "REPO_MAP.md": structure_dir / "REPO_MAP.md",
+        "SURFACES.md": structure_dir / "SURFACES.md",
+    }
+
+    if non_interactive:
+        console.print("[dim]Skipping REPO_MAP/SURFACES generation in non-interactive mode[/dim]")
+        return
+
+    console.print()
+    should_generate = typer.confirm(
+        "Generate REPO_MAP.md and SURFACES.md from doctrine templates?",
+        default=False,
+    )
+    if not should_generate:
+        console.print("[dim]Skipped REPO_MAP/SURFACES generation[/dim]")
+        return
+
+    kittify_dir = project_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+
+    vars = _gather_structure_template_vars(project_path)
+    generated: list[str] = []
+    for target_name, template_path in templates.items():
+        target = kittify_dir / target_name
+        if target.exists():
+            console.print(f"[dim]Skipping existing .kittify/{target_name}[/dim]")
+            continue
+        rendered = _render_structure_template(template_path, vars)
+        target.write_text(rendered, encoding="utf-8")
+        console.print(f"[green]Generated[/green] .kittify/{target_name}")
+        generated.append(target_name)
+
+    if generated:
+        console.print()
+        console.print(
+            "[yellow]Note:[/yellow] Fields marked [dim]_(fill in)_[/dim] require manual input "
+            "or a follow-up interview. You can ask your AI agent to complete them by running:"
+        )
+        for name in generated:
+            console.print(f"  [cyan]Review [bold].kittify/{name}[/bold] and fill in the _(fill in)_ sections.[/cyan]")
 
 
 # =============================================================================
@@ -610,10 +1025,10 @@ def init(  # noqa: C901
         selected_script = "ps" if os.name == "nt" else "sh"
         _console.print(f"[dim]Auto-detected script type:[/dim] [cyan]{SCRIPT_TYPE_CHOICES[selected_script]}[/cyan]")
 
-    # Mission selection deprecated - missions are now per-feature
+    # Mission selection deprecated - missions are now per-mission
     if mission_key:
         _console.print(
-            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-feature during /spec-kitty.specify"  # noqa: E501
+            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-mission during /spec-kitty.specify"  # noqa: E501
         )
         _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
         _console.print()
@@ -699,7 +1114,7 @@ def init(  # noqa: C901
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
 
-            _now_iso = datetime.now(timezone.utc).isoformat()
+            _now_iso = datetime.now(UTC).isoformat()
             skill_manifest = ManagedSkillManifest(
                 created_at=_now_iso,
                 updated_at=_now_iso,
@@ -853,7 +1268,7 @@ def init(  # noqa: C901
                 if _has_global_runtime():
                     # In global runtime mode, missions resolve from ~/.kittify/
                     # so we don't need to check the project's local missions dir.
-                    mission_status = f"{mission_display} (per-feature selection, global runtime)"
+                    mission_status = f"{mission_display} (per-mission selection, global runtime)"
                 else:
                     mission_status = _activate_mission(project_path, selected_mission, mission_display, _console)
             except Exception as exc:
@@ -909,6 +1324,8 @@ def init(  # noqa: C901
     # Final static tree (ensures finished state visible after Live context ends)
     _console.print(tracker.render())
     _console.print("\n[bold green]Project ready.[/bold green]")
+    _maybe_generate_structure_templates(project_path, non_interactive, _console)
+    _run_doctrine_stack_init(project_path, non_interactive, _console)
 
     # Agent folder security notice
     agent_folder_map = {
@@ -959,7 +1376,7 @@ def init(  # noqa: C901
     step_num += 1
 
     steps_lines.append(
-        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-feature during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
+        f"{step_num}. Available missions: [cyan]software-dev[/cyan], [cyan]research[/cyan] (selected per-mission during [cyan]/spec-kitty.specify[/cyan])"  # noqa: E501
     )
     step_num += 1
 
@@ -974,8 +1391,8 @@ def init(  # noqa: C901
     steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
     steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
     steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify feature complete")
-    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge feature into target branch and cleanup worktree")
+    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify mission complete")
+    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge mission into target branch and cleanup worktree")
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
     _console.print()
