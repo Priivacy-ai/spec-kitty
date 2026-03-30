@@ -137,11 +137,11 @@
 **Requirement Refs**: NFR-003, NFR-004
 
 ### Included Subtasks
-- [ ] T024 Update existing shim tests to expect 7 files not 16
-- [ ] T025 Update init tests to verify hybrid output
-- [ ] T026 Test prompt content: all 9 files have no 057 slugs, no `.kittify/missions/` reads, use "project root checkout"
-- [ ] T027 Run full test suite, fix any regressions
-- [ ] T028 mypy --strict on modified modules
+- [x] T024 Update existing shim tests to expect 7 files not 16
+- [x] T025 Update init tests to verify hybrid output
+- [x] T026 Test prompt content: all 9 files have no 057 slugs, no `.kittify/missions/` reads, use "project root checkout"
+- [x] T027 Run full test suite, fix any regressions
+- [x] T028 mypy --strict on modified modules
 
 ### Dependencies
 - Depends on WP03 (init must work before testing).
