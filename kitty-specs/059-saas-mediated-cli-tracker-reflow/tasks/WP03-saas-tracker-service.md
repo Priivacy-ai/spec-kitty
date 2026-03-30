@@ -20,6 +20,7 @@ base_commit: c01335ad449c86efb90a36513a244feb4e816bdf
 created_at: '2026-03-30T19:53:03.125065+00:00'
 subtasks: [T012, T013, T014, T015, T016]
 shell_pid: "51531"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -280,3 +281,7 @@ spec-kitty implement WP03 --base WP01
 - Verify `map_add` and `sync_publish` are unconditional hard-fails, not conditional
 - Verify method signatures match the existing `TrackerService` so the façade can dispatch without translation
 - Verify no `TrackerCredentialStore` usage (that's local-only)
+
+## Activity Log
+
+- 2026-03-30T19:53:03Z – orchestrator – shell_pid=51531 – lane=doing – Started implementation via workflow command
