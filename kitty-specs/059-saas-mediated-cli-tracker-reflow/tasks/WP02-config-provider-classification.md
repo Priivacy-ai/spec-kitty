@@ -215,3 +215,4 @@ spec-kitty implement WP02
 ## Activity Log
 
 - 2026-03-30T19:25:39Z – orchestrator – shell_pid=46286 – lane=doing – Started implementation via workflow command
+- 2026-03-30T19:29:48Z – orchestrator – shell_pid=46286 – lane=for_review – Ready for review: project_slug config field, provider-aware is_configured, classification constants, 29 tests passing
