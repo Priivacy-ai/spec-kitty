@@ -17,8 +17,10 @@ SCHEMA_FILES = {
     "tactic": SCHEMA_DIR / "tactic.schema.yaml",
     "import-candidate": SCHEMA_DIR / "import-candidate.schema.yaml",
     "agent-profile": SCHEMA_DIR / "agent-profile.schema.yaml",
+    "paradigm": SCHEMA_DIR / "paradigm.schema.yaml",
     "styleguide": SCHEMA_DIR / "styleguide.schema.yaml",
     "toolguide": SCHEMA_DIR / "toolguide.schema.yaml",
+    "model-to-task_type": SCHEMA_DIR / "model-to-task_type.schema.yaml",
 }
 
 

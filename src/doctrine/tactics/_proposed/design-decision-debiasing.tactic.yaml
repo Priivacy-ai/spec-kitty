@@ -1,0 +1,83 @@
+schema_version: "1.0"
+id: design-decision-debiasing
+name: Design Decision Debiasing
+purpose: >
+  Apply a structured five-step checklist to counter cognitive biases that
+  distort design decisions — especially bounded context boundary placement,
+  context mapping pattern selection, and strategic classification. Biases
+  such as anchoring, confirmation bias, sunk cost fallacy, and groupthink
+  routinely lead to suboptimal architecture. This tactic makes bias
+  recognition an explicit, repeatable step in the design process. Based on
+  the DDD Crew Debiasing Decisions Toolkit.
+steps:
+  - title: "Step 1 — State the decision and its alternatives"
+    description: >
+      Write down the specific design decision being made and at least two
+      genuine alternatives. If the team cannot articulate alternatives,
+      the decision may be driven by anchoring (fixating on the first
+      option considered) rather than analysis.
+    examples:
+      - "Decision: should the Pricing context be a separate bounded context or part of the Sales context? Alternatives: (A) separate context with ACL, (B) subdomain within Sales, (C) shared kernel between Sales and Pricing."
+  - title: "Step 2 — Identify who is making the decision"
+    description: >
+      List the people involved in the decision and their roles. Check for
+      authority bias (deferring to the most senior person) and groupthink
+      (everyone agreeing to avoid conflict). If everyone has the same
+      background or perspective, seek a dissenting voice.
+  - title: "Step 3 — Surface assumptions"
+    description: >
+      For each alternative, list the assumptions it depends on. Ask:
+      "What would have to be true for this option to be the right choice?"
+      and "What would make this option fail?" This counters confirmation
+      bias by forcing the team to consider disconfirming evidence.
+    examples:
+      - "Option A assumes: Pricing will need to evolve independently from Sales. If Pricing and Sales always change together, the ACL adds overhead with no benefit."
+  - title: "Step 4 — Apply the pre-mortem"
+    description: >
+      For the leading alternative, imagine it has been implemented and
+      has failed spectacularly. Ask: "What went wrong?" This surfaces
+      risks that optimism bias and planning fallacy would otherwise hide.
+      Record the failure scenarios and assess their likelihood.
+    examples:
+      - "Pre-mortem: we separated Pricing into its own context. Six months later, every Sales feature requires a coordinated Pricing change, and the ACL is a constant bottleneck."
+  - title: "Step 5 — Check for reversibility"
+    description: >
+      Assess how costly it would be to reverse the decision later. For
+      high-reversibility decisions (e.g., internal module boundary), move
+      quickly and iterate. For low-reversibility decisions (e.g., public
+      API contract, database schema), invest more time in analysis. Sunk
+      cost fallacy is strongest on irreversible decisions — flag these
+      explicitly.
+    examples:
+      - "High reversibility: module boundary can be merged later. Low reversibility: publishing an event schema that external consumers depend on."
+failure_modes:
+  - "Checklist theatre: going through the steps mechanically without genuine deliberation."
+  - "Bias labelling without action: identifying a bias but not changing the decision process in response."
+  - "Analysis paralysis: using the debiasing process to delay all decisions indefinitely."
+  - "Solo debiasing: one person filling out the checklist alone, defeating the purpose of surfacing diverse perspectives."
+  - "Skipping the pre-mortem: this is the highest-value step and the one most often skipped due to optimism bias."
+references:
+  - name: Premortem Risk Identification
+    type: tactic
+    id: premortem-risk-identification
+    when: Step 4 of the debiasing checklist is a formal pre-mortem.
+  - name: Context Mapping Classification
+    type: tactic
+    id: context-mapping-classification
+    when: Context mapping decisions are high-value targets for debiasing.
+  - name: Strategic Domain Classification
+    type: tactic
+    id: strategic-domain-classification
+    when: Strategic classification decisions (Core/Supporting/Generic) are frequently affected by ego and anchoring biases.
+  - name: Bounded Context Identification
+    type: tactic
+    id: bounded-context-identification
+    when: Boundary placement decisions are the most consequential and bias-prone in DDD.
+notes: >
+  The five cognitive biases most relevant to DDD design decisions:
+  (1) Anchoring — fixating on the first boundary placement considered.
+  (2) Confirmation bias — seeking evidence that supports the preferred
+  option while ignoring contradictory signals. (3) Sunk cost fallacy —
+  refusing to change a boundary because effort was already invested.
+  (4) Authority bias — deferring to the architect's preference without
+  challenge. (5) Groupthink — consensus without genuine deliberation.

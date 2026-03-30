@@ -1,0 +1,5 @@
+profile-id: minimal-test
+name: Minimal Test Profile
+purpose: Minimal valid profile for testing
+specialization:
+  primary-focus: Testing minimal requirements

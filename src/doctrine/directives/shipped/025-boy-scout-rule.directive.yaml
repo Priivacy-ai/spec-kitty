@@ -1,0 +1,40 @@
+schema_version: "1.0"
+id: DIRECTIVE_025
+title: Boy Scout Rule
+intent: >
+  Engineers should leave touched areas in a slightly better state when safe and
+  local to the active task.
+tactic_refs:
+  - refactoring-inline-temp
+  - refactoring-replace-temp-with-query
+  - refactoring-replace-magic-number-with-symbolic-constant
+  - refactoring-move-method
+  - refactoring-move-field
+  - refactoring-extract-first-order-concept
+  - refactoring-extract-class-by-responsibility-split
+  - refactoring-guard-clauses-before-polymorphism
+  - refactoring-conditional-to-strategy
+  - refactoring-introduce-null-object
+  - refactoring-retry-pattern
+  - refactoring-strangler-fig
+enforcement: advisory
+scope: >
+  Applies to small, low-risk improvements within files or modules already
+  modified for the current task.
+procedures:
+  - Apply minor cleanup that improves readability, naming, or consistency in touched areas.
+  - Prioritize fixes that reduce maintenance burden without expanding task scope.
+  - Defer broad refactors that conflict with locality-of-change constraints.
+integrity_rules:
+  - Improvements should not introduce behavioral changes unless explicitly tested.
+  - Cleanup work must remain proportional to the task being delivered.
+validation_criteria:
+  - Touched code is measurably clearer or more consistent after completion.
+  - Advisory improvements do not delay or derail required deliverables.
+opposed_by:
+  - type: directive
+    id: DIRECTIVE_024
+    reason: >
+      Locality of Change constrains edits to the minimum required by the goal.
+      Opportunistic cleanup endorsed by the Boy Scout Rule expands the diff
+      beyond that minimum, increasing review complexity and regression risk.

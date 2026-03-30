@@ -11,10 +11,12 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
-from specify_cli.glossary.checkpoint import ScopeRef
-from specify_cli.glossary.extraction import ExtractedTerm
-from specify_cli.glossary.models import SemanticConflict
-from specify_cli.glossary.strictness import Strictness
+from kernel.glossary_types import (
+    ExtractedTerm,
+    SemanticConflict,
+    ScopeRef,
+    Strictness,
+)
 
 
 @dataclass
@@ -119,8 +121,10 @@ class PrimitiveExecutionContext:
         """Determine if glossary checks are enabled for this step.
 
         Rules (in precedence order):
-        1. Explicit metadata ``glossary_check: false`` / ``"disabled"`` / ``"false"`` -> False
-        2. Explicit metadata ``glossary_check: true`` / ``"enabled"`` / ``"true"`` -> True
+        1. Explicit metadata ``glossary_check: false`` / ``"disabled"`` / ``"false"``
+           -> False
+        2. Explicit metadata ``glossary_check: true`` / ``"enabled"`` / ``"true"``
+           -> True
         3. Metadata ``glossary_check: null`` -> fall through to mission config
         4. Mission config ``glossary.enabled: false`` -> False
         5. Default -> True (enabled by default per FR-020)
@@ -133,7 +137,9 @@ class PrimitiveExecutionContext:
         """
         # Step metadata (highest precedence)
         if "glossary_check" in self.metadata:
-            result = self._glossary_enabled_from_metadata(self.metadata["glossary_check"])
+            result = self._glossary_enabled_from_metadata(
+                self.metadata["glossary_check"]
+            )
             if result is not None:
                 return result
 

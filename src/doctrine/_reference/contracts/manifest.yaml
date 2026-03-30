@@ -1,0 +1,6 @@
+version: 1
+source_id: contracts
+source_name: "Spec Kitty Contracts"
+source_type: "repository-doc"
+owner: "governance"
+notes: "Git/commit metadata expectations extracted from API contracts."

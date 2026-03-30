@@ -1,0 +1,77 @@
+schema_version: "1.0"
+id: migrate-project-guidance-to-spec-kitty-constitution
+name: Migrate Project Guidance to Spec Kitty Constitution
+purpose: >
+  Convert an existing project guidance or constitution document into
+  doctrine-backed governance artifacts that can be compiled into a
+  Spec Kitty constitution bundle with functional parity.
+entry_condition: >
+  A project has an existing guidance document, constitution, or operating
+  policy that must be preserved during migration to Spec Kitty.
+exit_condition: >
+  The legacy guidance has been decomposed into doctrine artifacts, curated
+  into the active catalog, activated through mission defaults or agent
+  profiles, and verified through compiled constitution output. All
+  generated/curated artefacts are internally consistent and retrievable
+  through the doctrine-layer repository classes.
+steps:
+  - title: Inventory the source guidance
+    description: >
+      Read the legacy guidance document end to end, list every rule,
+      workflow, constraint, and tool preference, and separate mandatory
+      behavior from explanatory narrative.
+    actor: human
+  - title: Classify each guidance item by doctrine artifact type
+    description: >
+      Map each item to the best doctrine target: directive for obligations,
+      tactic for reusable how-to behavior, styleguide for conventions,
+      toolguide for tool-specific rules, paradigm for high-level posture,
+      and procedure for multi-step operational workflows. Prefer the
+      directive+tactic pairing when a policy also requires a repeatable
+      execution method and not just a static rule.
+    actor: agent
+  - title: Draft doctrine artifacts in proposed state
+    description: >
+      Create candidate doctrine YAML artifacts for every classified item,
+      preserving the original behavior while rewriting it into doctrine-native
+      fields and cross references. Where a legacy section mixes policy and
+      execution detail, split it into a directive for the requirement and a
+      tactic for the operational method.
+    actor: agent
+  - title: Wire cross-artifact references
+    description: >
+      Connect directives to tactics, tactics to styleguides, toolguides, and
+      procedures, and add any needed profile or mission-default activation
+      targets so the compiled constitution can surface the migrated behavior.
+    actor: agent
+  - title: Curate and promote accepted artifacts
+    description: >
+      Review the proposed artifacts through the doctrine curation workflow,
+      revise weak candidates, and promote accepted artifacts into the shipped
+      set used by constitution compilation.
+    actor: human
+  - title: Activate migrated guidance in mission defaults
+    description: >
+      Update constitution interview defaults, profile-aware governance
+      selection, or mission-specific defaults so the migrated artifacts are
+      actually selected during compilation.
+    actor: agent
+  - title: Compile and compare for functional parity
+    description: >
+      Generate a constitution bundle from the migrated artifacts, compare the
+      resulting obligations and referenced guidance against the legacy source,
+      and record any remaining behavior gaps.
+    actor: agent
+  - title: Close remaining gaps
+    description: >
+      Add or revise doctrine artifacts until every material rule from the
+      legacy guidance is either activated in the compiled constitution or
+      intentionally retired with rationale.
+    actor: human
+references:
+  - type: directive
+    id: DIRECTIVE_003
+  - type: directive
+    id: DIRECTIVE_010
+  - type: directive
+    id: DIRECTIVE_018

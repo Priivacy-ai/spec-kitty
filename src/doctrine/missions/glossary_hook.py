@@ -1,4 +1,4 @@
-"""Glossary pipeline hook for mission primitive execution.
+"""Bridge module: wires mission primitives to the glossary pipeline via kernel registry.
 
 This module provides the concrete integration point between the mission
 framework and the glossary middleware pipeline. Mission executors use
@@ -9,9 +9,19 @@ The hook is metadata-driven: it only runs the pipeline when
 ``glossary_check`` is enabled (the default per FR-020). When disabled,
 the primitive runs without glossary checks.
 
+Dependency contract
+-------------------
+This module depends only on ``kernel.glossary_runner`` — it does **not**
+import from ``specify_cli``.  The concrete runner
+(``GlossaryAwarePrimitiveRunner``) is registered into the kernel registry
+by ``specify_cli`` at startup via ``kernel.glossary_runner.register()``.
+
+If no runner has been registered (e.g. in pure-doctrine tests or
+third-party integrations), the primitive executes without glossary checks.
+
 Usage from a mission executor::
 
-    from specify_cli.missions.glossary_hook import execute_with_glossary
+    from doctrine.missions.glossary_hook import execute_with_glossary
 
     result = execute_with_glossary(
         primitive_fn=run_specify_step,
@@ -31,13 +41,37 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Callable
 
-from specify_cli.glossary.attachment import (
-    GlossaryAwarePrimitiveRunner,
-    read_glossary_check_metadata,
-)
-from specify_cli.glossary.strictness import Strictness
+from kernel.glossary_types import Strictness
+from kernel.glossary_runner import get_runner
 
 logger = logging.getLogger(__name__)
+
+
+def _read_glossary_check_metadata(step_metadata: dict[str, Any]) -> bool:
+    """Read glossary_check metadata from a mission step definition.
+
+    Args:
+        step_metadata: Step metadata dictionary from mission.yaml.
+
+    Returns:
+        True if glossary checks are enabled for this step, False otherwise.
+        Default is True (enabled) per FR-020.
+    """
+    value = step_metadata.get("glossary_check")
+
+    if value is None:
+        return True  # enabled by default (FR-020)
+
+    if isinstance(value, bool):
+        return value
+
+    if isinstance(value, str):
+        if value.lower() == "disabled":
+            return False
+        if value.lower() == "enabled":
+            return True
+
+    return True  # unknown value -> safe default: enabled
 
 
 def execute_with_glossary(
@@ -56,10 +90,10 @@ def execute_with_glossary(
 
     1. Checks whether glossary checks are enabled for this step
        (via context metadata or defaults).
-    2. If enabled, runs the full glossary middleware pipeline
-       (extraction -> check -> clarification -> gate -> resume)
-       on the context before executing the primitive.
-    3. Executes the primitive function with the (possibly modified) context.
+    2. If enabled and a runner is registered, runs the full glossary
+       middleware pipeline on the context before executing the primitive.
+    3. If no runner is registered, executes the primitive directly
+       (graceful degradation).
     4. Returns whatever the primitive function returns.
 
     Args:
@@ -81,11 +115,18 @@ def execute_with_glossary(
         DeferredToAsync: If user deferred conflict resolution.
         AbortResume: If user aborted resume.
     """
-    # Check metadata to decide if glossary checks should run
     step_metadata = getattr(context, "metadata", {}) or {}
-    if not read_glossary_check_metadata(step_metadata):
+    if not _read_glossary_check_metadata(step_metadata):
         logger.debug(
             "Glossary checks disabled for step=%s, skipping pipeline",
+            getattr(context, "step_id", "unknown"),
+        )
+        return primitive_fn(context, *args, **kwargs)
+
+    runner_cls = get_runner()
+    if runner_cls is None:
+        logger.debug(
+            "No glossary runner registered; executing primitive directly for step=%s",
             getattr(context, "step_id", "unknown"),
         )
         return primitive_fn(context, *args, **kwargs)
@@ -95,7 +136,7 @@ def execute_with_glossary(
         getattr(context, "step_id", "unknown"),
     )
 
-    runner = GlossaryAwarePrimitiveRunner(
+    runner = runner_cls(
         repo_root=repo_root,
         runtime_strictness=runtime_strictness,
         interaction_mode=interaction_mode,

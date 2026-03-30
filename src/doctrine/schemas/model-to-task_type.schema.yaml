@@ -1,0 +1,279 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/model-to-task_type.schema.yaml
+title: Model-to-Task Type Mapping
+description: Catalog of model capabilities, costs, and routing policy for task assignment.
+type: object
+additionalProperties: false
+required:
+- schema_version
+- generated_at
+- task_types
+- models
+- routing_policy
+- sources
+definitions:
+  data_source:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - url
+    - access_method
+    - snapshot_at
+    properties:
+      name:
+        type: string
+        minLength: 1
+      url:
+        type: string
+        minLength: 1
+        format: uri
+      access_method:
+        type: string
+        minLength: 1
+        enum:
+        - api
+        - dataset
+        - manual
+      snapshot_at:
+        type: string
+        minLength: 1
+        format: date-time
+      license_notes:
+        type: string
+  freshness_policy:
+    type: object
+    additionalProperties: false
+    properties:
+      max_catalog_age_hours:
+        type: integer
+        minimum: 1
+  model_cost:
+    type: object
+    additionalProperties: false
+    required:
+    - tier
+    properties:
+      tier:
+        type: string
+        minLength: 1
+        enum:
+        - low
+        - medium
+        - high
+        - premium
+      input_per_1m_usd:
+        type: number
+        minimum: 0
+      output_per_1m_usd:
+        type: number
+        minimum: 0
+      currency:
+        type: string
+        default: USD
+      pricing_source_url:
+        type: string
+        format: uri
+  model_entry:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - provider
+    - task_fit
+    - cost
+    properties:
+      id:
+        type: string
+        minLength: 1
+      provider:
+        type: string
+        minLength: 1
+      family:
+        type: string
+      tools:
+        type: array
+        items:
+          type: string
+      strengths:
+        type: array
+        items:
+          type: string
+      weaknesses:
+        type: array
+        items:
+          type: string
+      task_fit:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/task_fit'
+      cost:
+        $ref: '#/definitions/model_cost'
+      latency_tier:
+        type: string
+        enum:
+        - low
+        - medium
+        - high
+  override_policy:
+    type: object
+    additionalProperties: false
+    required:
+    - mode
+    - require_reason
+    properties:
+      mode:
+        type: string
+        minLength: 1
+        enum:
+        - advisory
+        - gated
+        - required
+      require_reason:
+        type: boolean
+  routing_policy:
+    type: object
+    additionalProperties: false
+    required:
+    - objective
+    - weights
+    - override_policy
+    properties:
+      objective:
+        type: string
+        minLength: 1
+        enum:
+        - quality_first
+        - balanced
+        - cost_first
+      weights:
+        $ref: '#/definitions/routing_weights'
+      tier_constraints:
+        type: array
+        items:
+          $ref: '#/definitions/tier_constraint'
+      override_policy:
+        $ref: '#/definitions/override_policy'
+      freshness_policy:
+        $ref: '#/definitions/freshness_policy'
+  routing_weights:
+    type: object
+    additionalProperties: false
+    required:
+    - quality
+    - cost
+    - risk
+    - latency
+    properties:
+      quality:
+        type: number
+        minimum: 0
+        maximum: 1
+      cost:
+        type: number
+        minimum: 0
+        maximum: 1
+      risk:
+        type: number
+        minimum: 0
+        maximum: 1
+      latency:
+        type: number
+        minimum: 0
+        maximum: 1
+  task_fit:
+    type: object
+    additionalProperties: false
+    required:
+    - task_type
+    - score
+    properties:
+      task_type:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      score:
+        type: number
+        minimum: 0
+        maximum: 1
+      confidence:
+        type: string
+        enum:
+        - low
+        - medium
+        - high
+      rationale:
+        type: string
+  task_type:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - title
+    properties:
+      id:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      title:
+        type: string
+        minLength: 1
+      description:
+        type: string
+      quality_sensitivity:
+        type: string
+        enum:
+        - low
+        - medium
+        - high
+      cost_sensitivity:
+        type: string
+        enum:
+        - low
+        - medium
+        - high
+  tier_constraint:
+    type: object
+    additionalProperties: false
+    required:
+    - task_type
+    - max_tier
+    properties:
+      task_type:
+        type: string
+        pattern: ^[a-z][a-z0-9-]*$
+      max_tier:
+        type: string
+        minLength: 1
+        enum:
+        - low
+        - medium
+        - high
+        - premium
+properties:
+  schema_version:
+    type: string
+    pattern: ^1\.0$
+  generated_at:
+    type: string
+    minLength: 1
+    format: date-time
+  source_snapshot:
+    type: string
+    description: Optional source snapshot ID/hash for traceability.
+  task_types:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/task_type'
+  models:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/model_entry'
+  routing_policy:
+    $ref: '#/definitions/routing_policy'
+  sources:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/data_source'

@@ -29,12 +29,14 @@ mission:
       description: Design and create planning artifacts
       order: 3
       depends_on: [research]
+      agent-profile: planner
 
     - id: review
       name: Review
       description: Review and validate planning artifacts
       order: 4
       depends_on: [plan]
+      agent-profile: reviewer
 
   runtime:
     loop_type: sequential

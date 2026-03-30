@@ -1,0 +1,34 @@
+id: "imp-ppp-how-do-we-make-this-fail"
+source:
+  title: "Plan a self-sabotage"
+  type: "practice-article"
+  publisher: "penguin-pragmatic-patterns"
+  url: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/how_do_we_make_this_fail.md"
+  accessed_on: "2026-03-19"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    The practice teaches proactive risk identification by deliberately attempting
+    to sabotage one's own plan. The core algorithm (challenge ideas, list failure
+    modes, rate impact × likelihood, mitigate the most critical scenarios) is
+    already fully represented in the existing shipped tactic
+    `premortem-risk-identification`. No new artifact is warranted.
+adaptation:
+  summary: >
+    Adopted as `premortem-risk-identification.tactic.yaml`. The existing tactic
+    captures the full self-sabotage algorithm including destructive-mindset framing,
+    failure-mode generation, impact/likelihood rating, and mitigation planning.
+    The 2×2 risk matrix approach from the PPP article is covered by the
+    `risk-identification-assessment-template.md` template referenced in the tactic.
+  notes:
+    - "No new doctrine artifact created — existing tactic is a complete representation."
+    - "The PPP article's cognitive-bias rationale (selection bias, effort justification) is retained as educational context in the source."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/how_do_we_make_this_fail.md"
+    lines: "n/a"
+    note: "Primary source practice article."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/shipped/premortem-risk-identification.tactic.yaml"

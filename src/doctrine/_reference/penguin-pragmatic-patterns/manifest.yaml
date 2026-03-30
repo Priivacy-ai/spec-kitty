@@ -1,0 +1,9 @@
+version: 1
+source_id: penguin-pragmatic-patterns
+source_name: "Penguin Pragmatic Patterns"
+source_type: "knowledge-base"
+owner: "Stijn Dejongh"
+notes: >
+  Personal knowledge base of software engineering patterns, concepts, and practices.
+  Concepts are authored as standalone articles with related practices, further reading,
+  and illustrative examples.

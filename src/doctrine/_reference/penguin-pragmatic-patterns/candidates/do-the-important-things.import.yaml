@@ -1,0 +1,32 @@
+id: "imp-ppp-do-the-important-things"
+source:
+  title: "Get your priorities straight"
+  type: "practice-article"
+  publisher: "penguin-pragmatic-patterns"
+  url: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/do_the_important_things.md"
+  accessed_on: "2026-03-19"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    The practice describes the Eisenhower Priority Matrix — a two-axis
+    (importance × urgency) prioritisation framework — as a concrete, repeatable
+    workflow for ordering tasks. The quadrant-based action rules map cleanly
+    to a tactic step sequence.
+adaptation:
+  summary: >
+    Extract the Eisenhower workflow (collect all tasks, rate importance, rate
+    urgency, assign to quadrant and act, review regularly) into a reusable tactic.
+    Emphasise the "do not adopt someone else's urgency" guard, which is the most
+    commonly violated principle in practice.
+  notes:
+    - "Tactic scope is broad: applies to individual agents, teams, and sprint planning contexts."
+    - "Complements eisenhower-prioritisation with the governance context of DIRECTIVE_007 for design-decision queues."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/do_the_important_things.md"
+    lines: "n/a"
+    note: "Primary source practice article."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/tactics/shipped/eisenhower-prioritisation.tactic.yaml"

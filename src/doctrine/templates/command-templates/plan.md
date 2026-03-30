@@ -1,0 +1,183 @@
+---
+description: Execute the implementation planning workflow using the plan template to generate design artifacts.
+---
+
+# /spec-kitty.plan - Create Implementation Plan
+
+**Version**: 0.11.0+
+
+## 📍 WORKING DIRECTORY: Stay in planning repository
+
+**IMPORTANT**: Plan works in the planning repository. NO worktrees created.
+
+```bash
+# Run from project root (same directory as /spec-kitty.specify):
+# You should already be here if you just ran /spec-kitty.specify
+
+# Creates:
+# - kitty-specs/###-mission/plan.md → In planning repository
+# - Commits to target branch
+# - NO worktrees created
+```
+
+**Do NOT cd anywhere**. Stay in the planning repository root.
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+You **MUST** consider the user input before proceeding (if not empty).
+
+## Location Check (0.11.0+)
+
+This command runs in the **planning repository**, not in a worktree.
+
+- Verify you're on the target branch (meta.json → target_branch) before scaffolding plan.md
+- Planning artifacts live in `kitty-specs/###-mission/`
+- The plan template is committed to the target branch after generation
+
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
+
+## Planning Interrogation (mandatory)
+
+Before executing any scripts or generating artifacts you must interrogate the specification and stakeholders.
+
+- **Scope proportionality (CRITICAL)**: FIRST, assess the mission's complexity from the spec:
+  - **Trivial/Test Missions** (hello world, simple static pages, basic demos): Ask 1-2 questions maximum about tech stack preference, then proceed with sensible defaults
+  - **Simple Missions** (small components, minor API additions): Ask 2-3 questions about tech choices and constraints
+  - **Complex Missions** (new subsystems, multi-component missions): Ask 3-5 questions covering architecture, NFRs, integrations
+  - **Platform/Critical Missions** (core infrastructure, security, payments): Full interrogation with 5+ questions
+
+- **User signals to reduce questioning**: If the user says "use defaults", "just make it simple", "skip to implementation", "vanilla HTML/CSS/JS" - recognize these as signals to minimize planning questions and use standard approaches.
+
+- **First response rule**:
+  - For TRIVIAL missions: Ask ONE tech stack question, then if answer is simple (e.g., "vanilla HTML"), proceed directly to plan generation
+  - For other missions: Ask a single architecture question and end with `WAITING_FOR_PLANNING_INPUT`
+
+- If the user has not provided plan context, keep interrogating with one question at a time.
+
+- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this mission's scope. For trivial missions, knowing the basic stack is enough. Only continue if critical unknowns remain.
+
+Planning requirements (scale to complexity):
+
+1. Maintain a **Planning Questions** table internally covering questions appropriate to the mission's complexity (1-2 for trivial, up to 5+ for platform-level). Track columns `#`, `Question`, `Why it matters`, and `Current insight`. Do **not** render this table to the user.
+2. For trivial missions, standard practices are acceptable (vanilla HTML, simple file structure, no build tools). Only probe if the user's request suggests otherwise.
+3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm.
+4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that mission type.
+
+## Outline
+
+1. **Check planning discovery status**:
+   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
+   - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
+
+2. **Detect mission context** (mandatory in new sessions):
+   - Determine mission slug from one of:
+     - explicit user direction
+     - current branch (`git rev-parse --abbrev-ref HEAD`)
+     - current directory path (`kitty-specs/<mission-slug>/...`)
+   - If context is still ambiguous, run setup-plan once without `--mission`, parse the candidate list from JSON error, and pick one explicit mission slug before continuing.
+
+3. **Setup**: Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
+   - `result`: "success" or error message
+   - `mission_slug`: resolved mission slug
+   - `spec_file`: absolute path to resolved spec.md
+   - `plan_file`: absolute path to created plan.md
+   - `mission_dir`: absolute path to mission directory
+
+4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+
+5. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
+   - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
+   - If a constitution exists, fill Constitution Check section from it and challenge any conflicts directly with the user. If no constitution exists, mark the section as skipped.
+   - Evaluate gates (ERROR if violations unjustified or questions remain unanswered)
+   - Phase 0: Generate research.md (commission research to resolve every outstanding clarification)
+   - Phase 1: Generate data-model.md, contracts/, quickstart.md based on confirmed intent
+   - Phase 1: Update agent context by running the agent script
+   - Re-evaluate Constitution Check post-design, asking the user to resolve new gaps before proceeding
+
+6. **STOP and report**: This command ends after Phase 1 planning. Report branch, IMPL_PLAN path, and generated artifacts.
+
+   **⚠️ CRITICAL: DO NOT proceed to task generation!** The user must explicitly run `/spec-kitty.tasks` to generate work packages. Your job is COMPLETE after reporting the planning artifacts.
+
+## Phases
+
+### Phase 0: Outline & Research
+
+1. **Extract unknowns from Technical Context** above:
+   - For each NEEDS CLARIFICATION → research task
+   - For each dependency → best practices task
+   - For each integration → patterns task
+
+2. **Generate and dispatch research agents**:
+
+   ```
+   For each unknown in Technical Context:
+      Task: "Research {unknown} for {mission context}"
+   For each technology choice:
+     Task: "Find best practices for {tech} in {domain}"
+   ```
+
+3. **Consolidate findings** in `research.md` using format:
+   - Decision: [what was chosen]
+   - Rationale: [why chosen]
+   - Alternatives considered: [what else evaluated]
+
+**Output**: research.md with all NEEDS CLARIFICATION resolved
+
+### Phase 1: Design & Contracts
+
+**Prerequisites:** `research.md` complete
+
+1. **Extract entities from mission spec** → `data-model.md`:
+   - Entity name, fields, relationships
+   - Validation rules from requirements
+   - State transitions if applicable
+
+2. **Generate API contracts** from functional requirements:
+   - For each user action → endpoint
+   - Use standard REST/GraphQL patterns
+   - Output OpenAPI/GraphQL schema to `/contracts/`
+
+3. **Agent context update**:
+   - Run `{AGENT_SCRIPT}`
+   - These scripts detect which AI agent is in use
+   - Update the appropriate agent-specific context file
+   - Add only new technology from current plan
+   - Preserve manual additions between markers
+
+**Output**: data-model.md, /contracts/*, quickstart.md, agent-specific file
+
+## Key rules
+
+- Use absolute paths
+- ERROR on gate failures or unresolved clarifications
+
+---
+
+## ⛔ MANDATORY STOP POINT
+
+**This command is COMPLETE after generating planning artifacts.**
+
+After reporting:
+
+- `plan.md` path
+- `research.md` path (if generated)
+- `data-model.md` path (if generated)
+- `contracts/` contents (if generated)
+- Agent context file updated
+
+**YOU MUST STOP HERE.**
+
+Do NOT:
+
+- ❌ Generate `tasks.md`
+- ❌ Create work package (WP) files
+- ❌ Create `tasks/` subdirectories
+- ❌ Proceed to implementation
+
+The user will run `/spec-kitty.tasks` when they are ready to generate work packages.
+
+**Next suggested command**: `/spec-kitty.tasks` (user must invoke this explicitly)

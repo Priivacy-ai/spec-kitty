@@ -1,7 +1,7 @@
-# Feature Specification: [FEATURE NAME]
-<!-- Replace [FEATURE NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
+# Mission Specification: [MISSION NAME]
+<!-- Replace [MISSION NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
 
-**Feature Branch**: `[###-feature-name]`  
+**Mission Branch**: `[###-mission-name]`  
 **Created**: [DATE]  
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"

@@ -1,0 +1,31 @@
+id: "imp-styleguides-git-local-config-tracking-001"
+source:
+  title: "Git local tracking controls for shared configuration files"
+  type: "operational-note"
+  publisher: "Spec Kitty curation inbox (user-provided)"
+  url: "inbox://user/2026-02-18/git-local-config-tracking-controls"
+  accessed_on: "2026-02-18"
+classification:
+  target_concepts:
+    - "tactic"
+    - "directive"
+  rationale: "Provides practical Git operating guidance to manage local-only configuration variance without polluting shared history."
+adaptation:
+  summary: "Problem statement: How to avoid git tracking local changes to shared configuration files (e.g. local settings with placeholders, initialization files, metadata)."
+  notes:
+    - "Keep the local file but delete it from repository tracking for everyone else: `git rm --cached <file-name>` or `git rm -r --cached <folder-name>`."
+    - "Optimization for large folders with stable contents: `git update-index --assume-unchanged <path-name>`. This tells Git to stop checking the path locally; upstream changes can reset this and overwrite local files."
+    - "Create local independent versions for shared files (e.g. production/staging config): `git update-index --skip-worktree <path-name>`."
+    - "`git update-index` flags do not propagate through Git; each user must run them independently."
+    - "Undo assume-unchanged: `git update-index --no-assume-unchanged <path-name>`."
+    - "Undo skip-worktree: `git update-index --no-skip-worktree <path-name>`."
+source_references:
+  - kind: "inbox"
+    path: "inbox://user/2026-02-18/git-local-config-tracking-controls"
+    lines: "n/a"
+    note: "User-provided operational guidance text."
+external_references:
+  - url: "https://git-scm.com/docs/git-update-index"
+    attribution_reason: "Command semantics for assume-unchanged and skip-worktree."
+    extraction_action: "none"
+status: "proposed"

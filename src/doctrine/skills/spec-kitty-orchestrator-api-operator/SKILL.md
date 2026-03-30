@@ -20,19 +20,13 @@ supported entry point for external automation -- direct frontmatter mutation,
 git worktree manipulation, or internal CLI internals are not part of the
 contract.
 
-Terminology note:
-- `Mission Type` = reusable blueprint
-- `Mission` = tracked item under `kitty-specs/<mission-slug>/`
-- `Mission Run` = runtime/session instance
-- Current command names such as `feature-state`, `accept-feature`, `merge-feature`, and `--feature` are legacy software-dev compatibility surfaces for the tracked mission
-
 ---
 
 ## When to Use This Skill
 
 - Build an external orchestrator that drives spec-kitty workflows
 - Integrate CI/CD pipelines with spec-kitty state transitions
-- Query feature and work package state from an external tool
+- Query mission and work package state from an external tool
 - Understand the boundary between host CLI and external API
 
 Do NOT use when the caller is an agent inside the host CLI (use
@@ -72,14 +66,14 @@ results. No command returns prose or mixed text/JSON.
 | Command | Purpose | Mutates State |
 |---|---|:---:|
 | `contract-version` | Verify API compatibility | No |
-| `feature-state` | Query full feature state | No |
+| `mission-state` | Query full mission state | No |
 | `list-ready` | List WPs ready to start | No |
 | `start-implementation` | Claim + begin WP (atomic) | Yes |
 | `start-review` | Reviewer rollback (for_review → in_progress) | Yes |
 | `transition` | Explicit single lane change | Yes |
 | `append-history` | Add note to WP activity log | Yes |
-| `accept-feature` | Mark feature as accepted | Yes |
-| `merge-feature` | Merge WP branches into target | Yes |
+| `accept-mission` | Mark mission as accepted | Yes |
+| `merge-mission` | Merge WP branches into target | Yes |
 
 ### Policy Metadata (Required for Run-Affecting Lanes)
 
@@ -123,13 +117,13 @@ returns `POLICY_VALIDATION_FAILED`.
 | Code | Cause |
 |---|---|
 | `CONTRACT_VERSION_MISMATCH` | Provider version below minimum |
-| `FEATURE_NOT_FOUND` | Feature slug doesn't resolve |
-| `WP_NOT_FOUND` | WP ID doesn't exist in feature |
+| `MISSION_NOT_FOUND` | Mission slug doesn't resolve |
+| `WP_NOT_FOUND` | WP ID doesn't exist in mission |
 | `TRANSITION_REJECTED` | Invalid transition or guard failure |
 | `WP_ALREADY_CLAIMED` | Another actor owns the WP |
 | `POLICY_METADATA_REQUIRED` | Policy missing on run-affecting lane |
 | `POLICY_VALIDATION_FAILED` | Policy JSON invalid or contains secrets |
-| `FEATURE_NOT_READY` | Not all WPs in done lane |
+| `MISSION_NOT_READY` | Not all WPs in done lane |
 | `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
 | `UNSUPPORTED_STRATEGY` | Merge strategy not in {merge, squash, rebase} |
 
@@ -149,17 +143,17 @@ Check that `api_version` matches your orchestrator's expected version and
 
 ---
 
-## Step 2: Query Feature State
+## Step 2: Query Mission State
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug>
+spec-kitty orchestrator-api mission-state --mission <slug>
 ```
 
 Returns summary counts and per-WP details:
 
 ```json
 {
-  "feature_slug": "042-test-feature",
+  "mission_slug": "042-test-mission",
   "summary": {
     "planned": 2, "claimed": 0, "in_progress": 1,
     "for_review": 1, "approved": 0, "done": 3,
@@ -173,18 +167,18 @@ Returns summary counts and per-WP details:
 ```
 
 ```bash
-spec-kitty orchestrator-api list-ready --feature <slug>
+spec-kitty orchestrator-api list-ready --mission <slug>
 ```
 
 Returns only WPs whose dependencies are satisfied (in `planned` lane with all
-deps in `done`). Each entry includes `recommended_base` — the WP ID to pass
-to `--base` when creating the workspace.
+deps in `done`). Each entry includes `recommended_base` — the branch to use
+with `--base` when creating the worktree.
 
 ```json
 {
-  "feature_slug": "042-test-feature",
+  "mission_slug": "042-test-mission",
   "ready_work_packages": [
-    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "WP01"}
+    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "042-test-mission-WP01"}
   ]
 }
 ```
@@ -214,7 +208,7 @@ See `references/host-boundary-rules.md` for the full boundary specification.
 
 ```bash
 spec-kitty orchestrator-api start-implementation \
-  --feature <slug> --wp WP01 --actor "ci-bot" \
+  --mission <slug> --wp WP01 --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch","orchestrator_version":"1.0.0","agent_family":"claude","approval_mode":"auto","sandbox_mode":"container","network_mode":"restricted","dangerous_flags":[]}'
 ```
 
@@ -242,7 +236,7 @@ in one call). The response includes:
 
 ```bash
 spec-kitty orchestrator-api transition \
-  --feature <slug> --wp WP01 --to for_review --actor "ci-bot" \
+  --mission <slug> --wp WP01 --to for_review --actor "ci-bot" \
   --policy '{"orchestrator_id":"my-orch",...}'
 ```
 
@@ -265,7 +259,7 @@ For reviewer rollback (not the same as `transition --to in_progress`):
 
 ```bash
 spec-kitty orchestrator-api start-review \
-  --feature <slug> --wp WP01 --actor "reviewer-bot" \
+  --mission <slug> --wp WP01 --actor "reviewer-bot" \
   --review-ref "PR#42" \
   --policy '{"orchestrator_id":"my-orch",...}'
 ```
@@ -280,20 +274,20 @@ This is the guard condition for the `for_review → in_progress` transition.
 ```bash
 # Append a history note
 spec-kitty orchestrator-api append-history \
-  --feature <slug> --wp WP01 --actor "ci-bot" --note "Tests passed"
+  --mission <slug> --wp WP01 --actor "ci-bot" --note "Tests passed"
 
-# Accept feature (validates all WPs in done lane via dependency graph)
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor "ci-bot"
+# Accept mission (validates all WPs in done lane via dependency graph)
+spec-kitty orchestrator-api accept-mission --mission <slug> --actor "ci-bot"
 
-# Merge feature
-spec-kitty orchestrator-api merge-feature \
-  --feature <slug> --target main --strategy squash --push
+# Merge mission
+spec-kitty orchestrator-api merge-mission \
+  --mission <slug> --target main --strategy squash --push
 ```
 
-`accept-feature` returns `FEATURE_NOT_READY` if any WP from the dependency
+`accept-mission` returns `MISSION_NOT_READY` if any WP from the dependency
 graph is not in `done`.
 
-`merge-feature` runs **4 preflight checks** before merging:
+`merge-mission` runs **4 preflight checks** before merging:
 1. All expected WPs have worktrees
 2. All worktrees are clean (no uncommitted changes)
 3. Target branch is not behind origin

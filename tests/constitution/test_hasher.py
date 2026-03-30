@@ -5,7 +5,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from specify_cli.constitution.hasher import hash_content, hash_constitution, is_stale
+from constitution.hasher import hash_content, hash_constitution, is_stale
 
 pytestmark = pytest.mark.fast
 
