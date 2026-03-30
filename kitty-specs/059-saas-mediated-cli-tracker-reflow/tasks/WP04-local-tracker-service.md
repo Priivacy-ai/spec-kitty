@@ -12,6 +12,7 @@ base_commit: 0ec9cb101d757e8411eb21e82ed90744ca8c4196
 created_at: '2026-03-30T19:39:08.173782+00:00'
 subtasks: [T017, T018, T019, T020, T021]
 shell_pid: "49505"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -224,3 +225,7 @@ spec-kitty implement WP04 --base WP02
 - Verify no SaaS-related imports leak into this file
 - Verify method signatures match the current TrackerService (needed for façade dispatch in WP05)
 - Run existing tracker tests to verify no regression
+
+## Activity Log
+
+- 2026-03-30T19:39:08Z – orchestrator – shell_pid=49505 – lane=doing – Started implementation via workflow command
