@@ -1,0 +1,10 @@
+{
+  "feature_number": "045",
+  "slug": "045-agent-profile-system",
+  "friendly_name": "Agent Profile System",
+  "mission": "software-dev",
+  "source_description": "Agent Profile System \u2014 a structured agent identity framework within the doctrine package. Includes: Pydantic domain model (AgentProfile) with 6-section structure, Role enum with custom role support, AgentProfileRepository with two-source loading (shipped + project), field-level merge, hierarchy traversal, weighted context-based matching, 7 shipped reference profiles, JSON Schema validation, ToolConfig rename (from AgentConfig) with deprecation shim, and CLI commands (list, show, create, hierarchy). Already implemented in WP01-WP04/WP06-WP07, needs additional WPs for: (1) wheel packaging fix so doctrine is distributed, (2) upgrade migration for ToolConfig rename, (3) CI/test alignment.",
+  "created_at": "2026-02-23T14:00:00+01:00",
+  "target_branch": "feature/agent-profile-implementation",
+  "vcs": "git"
+}

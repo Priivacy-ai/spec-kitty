@@ -1,0 +1,126 @@
+{
+  "started_at": "2026-03-19T05:51:13.679677+00:00",
+  "updated_at": "2026-03-28T15:26:32.571236+00:00",
+  "decisions": {
+    "directives:DIRECTIVE_001": {
+      "artifact_type": "directives",
+      "artifact_id": "DIRECTIVE_001",
+      "filename": "001-architectural-integrity-standard.directive.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-19T05:51:13.712819+00:00"
+    },
+    "directives:DIRECTIVE_009": {
+      "artifact_type": "directives",
+      "artifact_id": "DIRECTIVE_009",
+      "filename": "009-conceptual-alignment.directive.yaml",
+      "verdict": "pending",
+      "notes": "",
+      "decided_at": null
+    },
+    "tactics:connascence-analysis": {
+      "artifact_type": "tactics",
+      "artifact_id": "connascence-analysis",
+      "filename": "connascence-analysis.tactic.yaml",
+      "verdict": "pending",
+      "notes": "",
+      "decided_at": null
+    },
+    "styleguides:python-conventions": {
+      "artifact_type": "styleguides",
+      "artifact_id": "python-conventions",
+      "filename": "python-conventions.styleguide.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:15:39.454705+00:00"
+    },
+    "toolguides:python-review-checks": {
+      "artifact_type": "toolguides",
+      "artifact_id": "python-review-checks",
+      "filename": "python-review-checks.toolguide.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:15:44.986225+00:00"
+    },
+    "tactics:test-boundaries-by-responsibility": {
+      "artifact_type": "tactics",
+      "artifact_id": "test-boundaries-by-responsibility",
+      "filename": "test-boundaries-by-responsibility.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:16:21.350570+00:00"
+    },
+    "tactics:testing-select-appropriate-level": {
+      "artifact_type": "tactics",
+      "artifact_id": "testing-select-appropriate-level",
+      "filename": "testing-select-appropriate-level.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:16:33.718097+00:00"
+    },
+    "tactics:input-validation-fail-fast": {
+      "artifact_type": "tactics",
+      "artifact_id": "input-validation-fail-fast",
+      "filename": "input-validation-fail-fast.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:16:41.526153+00:00"
+    },
+    "tactics:atdd-adversarial-acceptance": {
+      "artifact_type": "tactics",
+      "artifact_id": "atdd-adversarial-acceptance",
+      "filename": "atdd-adversarial-acceptance.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:16:49.931920+00:00"
+    },
+    "tactics:code-review-incremental": {
+      "artifact_type": "tactics",
+      "artifact_id": "code-review-incremental",
+      "filename": "code-review-incremental.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:16:57.917665+00:00"
+    },
+    "tactics:language-driven-design": {
+      "artifact_type": "tactics",
+      "artifact_id": "language-driven-design",
+      "filename": "language-driven-design.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:17:03.669162+00:00"
+    },
+    "tactics:reverse-speccing": {
+      "artifact_type": "tactics",
+      "artifact_id": "reverse-speccing",
+      "filename": "reverse-speccing.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:17:09.410239+00:00"
+    },
+    "procedures:test-first-bug-fixing": {
+      "artifact_type": "procedures",
+      "artifact_id": "test-first-bug-fixing",
+      "filename": "test-first-bug-fixing.procedure.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:17:15.735685+00:00"
+    },
+    "agent_profiles:python-implementer.agent": {
+      "artifact_type": "agent_profiles",
+      "artifact_id": "python-implementer.agent",
+      "filename": "python-implementer.agent.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:18:16.627577+00:00"
+    },
+    "tactics:test-pyramid-progression": {
+      "artifact_type": "tactics",
+      "artifact_id": "test-pyramid-progression",
+      "filename": "test-pyramid-progression.tactic.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-28T15:26:32.571212+00:00"
+    }
+  }
+}
