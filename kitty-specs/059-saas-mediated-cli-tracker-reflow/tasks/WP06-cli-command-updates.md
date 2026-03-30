@@ -330,3 +330,4 @@ spec-kitty implement WP06 --base WP05
 ## Activity Log
 
 - 2026-03-30T20:02:39Z – orchestrator – shell_pid=52369 – lane=doing – Started implementation via workflow command
+- 2026-03-30T20:06:55Z – orchestrator – shell_pid=52369 – lane=for_review – Ready for review - final WP: CLI command updates with SaaS dispatch, hard-breaks, categorized providers, and JSON envelope output
