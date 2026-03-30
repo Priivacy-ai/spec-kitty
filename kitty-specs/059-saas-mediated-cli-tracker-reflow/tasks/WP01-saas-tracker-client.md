@@ -20,8 +20,8 @@ base_branch: main
 base_commit: c5ece9e6b5bd8040663586949c076f2d98f0763d
 created_at: '2026-03-30T19:25:37.017619+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006, T007]
-shell_pid: "49468"
-agent: "orchestrator"
+shell_pid: "49815"
+agent: "codex"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -315,3 +315,4 @@ e. **Error handling tests**:
 - 2026-03-30T19:38:23Z – codex – shell_pid=48023 – lane=planned – Moved to planned
 - 2026-03-30T19:38:41Z – orchestrator – shell_pid=49468 – lane=doing – Started implementation via workflow command
 - 2026-03-30T19:41:50Z – orchestrator – shell_pid=49468 – lane=for_review – Fixes for Codex review cycle 1 applied: (1) error envelope parsing in _poll_operation, (2) AuthClient config passthrough, (3) team slug guard
+- 2026-03-30T19:42:15Z – codex – shell_pid=49815 – lane=doing – Started review via workflow command
