@@ -1,9 +1,9 @@
-name: Publish 2.x Release
+name: Publish Release
 
 on:
   push:
     tags:
-      - 'v2.*.*'
+      - 'v[0-9]+.*.*'
 
 permissions:
   contents: write
