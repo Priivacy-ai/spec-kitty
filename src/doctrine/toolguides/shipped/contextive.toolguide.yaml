@@ -1,0 +1,12 @@
+schema_version: "1.0"
+id: contextive
+tool: contextive
+title: Contextive
+guide_path: src/doctrine/toolguides/shipped/CONTEXTIVE.md
+summary: >
+  Reference guide for using Contextive to manage ubiquitous language in
+  software projects. Covers glossary file setup, term definition syntax,
+  multi-context repository layouts, IDE integration, and alignment with
+  Spec Kitty glossary curation workflows.
+commands:
+  - contextive

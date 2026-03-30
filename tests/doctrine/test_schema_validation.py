@@ -20,6 +20,7 @@ SCHEMA_FILES = {
     "paradigm": SCHEMA_DIR / "paradigm.schema.yaml",
     "styleguide": SCHEMA_DIR / "styleguide.schema.yaml",
     "toolguide": SCHEMA_DIR / "toolguide.schema.yaml",
+    "model-to-task_type": SCHEMA_DIR / "model-to-task_type.schema.yaml",
 }
 
 

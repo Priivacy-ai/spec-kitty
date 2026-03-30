@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from doctrine.missions.repository import MissionTemplateRepository, TemplateResult
-from specify_cli.runtime.resolver import (
+from doctrine.resolver import (
     ResolutionTier,
     resolve_command,
     resolve_template,

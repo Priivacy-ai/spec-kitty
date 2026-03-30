@@ -209,13 +209,16 @@ class TestEmitCommand:
         """Valid --evidence-json should be parsed and passed through."""
         patches = _patch_detection(tmp_path)
 
-        # Build up state: planned -> claimed -> in_progress -> for_review
-        transitions = [
-            "claimed",
-            "in_progress",
-            "for_review",
-        ]
-        for to_lane in transitions:
+        approval_evidence = {
+            "review": {
+                "reviewer": "alice",
+                "verdict": "approved",
+                "reference": "PR#1",
+            }
+        }
+
+        # Build up state: planned -> claimed -> in_progress -> for_review -> in_review
+        for to_lane in ["claimed", "in_progress", "for_review", "in_review"]:
             with (
                 patches["locate_project_root"],
                 patches["get_main_repo_root"],
@@ -237,14 +240,31 @@ class TestEmitCommand:
                 )
                 assert r.exit_code == 0, f"Failed at {to_lane}: {r.output}"
 
-        # Now transition to done with evidence
-        evidence = {
-            "review": {
-                "reviewer": "alice",
-                "verdict": "approved",
-                "reference": "PR#1",
-            }
-        }
+        # in_review -> approved requires reviewer_approval evidence
+        with (
+            patches["locate_project_root"],
+            patches["get_main_repo_root"],
+            patches["detect_mission_slug"],
+            patches["saas_fan_out"],
+        ):
+            r = runner.invoke(
+                app,
+                [
+                    "emit",
+                    "WP01",
+                    "--to",
+                    "approved",
+                    "--actor",
+                    "test-agent",
+                    "--mission",
+                    "034-test-mission",
+                    "--evidence-json",
+                    json.dumps(approval_evidence),
+                ],
+            )
+            assert r.exit_code == 0, f"Failed at approved: {r.output}"
+
+        # Now transition to done with evidence — this is the primary assertion of this test
         with (
             patches["locate_project_root"],
             patches["get_main_repo_root"],
@@ -263,7 +283,7 @@ class TestEmitCommand:
                     "--mission",
                     "034-test-mission",
                     "--evidence-json",
-                    json.dumps(evidence),
+                    json.dumps(approval_evidence),
                     "--json",
                 ],
             )

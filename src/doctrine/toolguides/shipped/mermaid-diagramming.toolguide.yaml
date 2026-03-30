@@ -1,0 +1,12 @@
+schema_version: "1.0"
+id: mermaid-diagramming
+tool: mermaid
+title: Mermaid Diagramming
+guide_path: src/doctrine/toolguides/shipped/MERMAID_DIAGRAMMING.md
+summary: >
+  Reference guide for using Mermaid as a diagram-as-code tool in Spec Kitty
+  projects. Covers diagram types, syntax patterns, theming via init
+  directives, rendering in Markdown contexts, and project conventions.
+commands:
+  - mmdc
+  - npx

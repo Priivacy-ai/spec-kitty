@@ -178,15 +178,15 @@ class ManifestRegistry:
         from doctrine.missions.repository import MissionRepository
 
         repo = MissionRepository(MissionRepository.default_missions_root())
-        manifest_path = repo.get_expected_artifacts(mission_type)
+        manifest_config = repo.get_expected_artifacts(mission_type)
 
-        if manifest_path is None:
+        if manifest_config is None:
             logger.debug(f"Manifest not found for mission type: {mission_type}")
             ManifestRegistry._cache[mission_type] = None
             return None
 
         try:
-            manifest = ExpectedArtifactManifest.from_yaml_file(manifest_path)
+            manifest = ExpectedArtifactManifest(**manifest_config.parsed)
             ManifestRegistry._cache[mission_type] = manifest
             logger.info(f"Loaded manifest for {mission_type}: {len(manifest.get_step_ids())} steps")
             return manifest

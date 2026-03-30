@@ -91,18 +91,25 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     """Transition a WP all the way to done."""
     from specify_cli.status.emit import emit_status_transition
 
+    _approval_evidence = {
+        "review": {
+            "reviewer": "reviewer-agent",
+            "verdict": "approved",
+            "reference": "review-001",
+        }
+    }
+
     emit_status_transition(mission_dir, mission_slug, wp_id, "claimed", actor)
     emit_status_transition(mission_dir, mission_slug, wp_id, "in_progress", actor)
     emit_status_transition(mission_dir, mission_slug, wp_id, "for_review", actor)
+    emit_status_transition(mission_dir, mission_slug, wp_id, "in_review", actor)
+    emit_status_transition(
+        mission_dir, mission_slug, wp_id, "approved", actor,
+        evidence=_approval_evidence,
+    )
     emit_status_transition(
         mission_dir, mission_slug, wp_id, "done", actor,
-        evidence={
-            "review": {
-                "reviewer": "reviewer-agent",
-                "verdict": "approved",
-                "reference": "review-001",
-            }
-        },
+        evidence=_approval_evidence,
     )
 
 # ── contract-version ──────────────────────────────────────────────
@@ -571,7 +578,7 @@ class TestAcceptMission:
 
         assert result.exit_code == 1
         data = json.loads(result.output.splitlines()[0])
-        assert data["error_code"] == "FEATURE_NOT_READY"
+        assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
 # ── merge-mission ─────────────────────────────────────────────────

@@ -4,17 +4,17 @@ from pathlib import Path
 
 import pytest
 
+from doctrine.missions.repository import MissionTemplateRepository
 from specify_cli.template.asset_generator import (
     generate_agent_assets,
     prepare_command_templates,
     render_command_template,
 )
-import pytest
+
 pytestmark = pytest.mark.fast
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-SOFTWARE_DEV_TEMPLATE_DIR = REPO_ROOT / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+SOFTWARE_DEV_TEMPLATE_DIR = MissionTemplateRepository.default().default_missions_root() / "software-dev" / "command-templates"
 
 
 def _write_template(path: Path, with_agent_script: bool = True) -> None:

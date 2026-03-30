@@ -24,19 +24,29 @@ class ActorRole(StrEnum):
     SYSTEM = "system"
 
 
+class ProcedureAntiPattern(BaseModel):
+    """A named anti-pattern to avoid when following a procedure."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(min_length=1)
+    description: str = Field(min_length=1)
+
+
 class ProcedureReference(BaseModel):
     """Cross-artifact reference within a procedure."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     type: ArtifactKind
     id: str
+    reason: str | None = None
 
 
 class ProcedureStep(BaseModel):
     """A single step within a procedure."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     title: str
     description: str | None = None
@@ -55,7 +65,7 @@ class Procedure(BaseModel):
     reference tactics for individual steps.
     """
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
     schema_version: str = Field(pattern=r"^1\.0$")
     id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
@@ -64,4 +74,6 @@ class Procedure(BaseModel):
     entry_condition: str
     exit_condition: str
     steps: list[ProcedureStep] = Field(min_length=1)
+    anti_patterns: list[ProcedureAntiPattern] = Field(default_factory=list)
+    notes: str | None = None
     references: list[ProcedureReference] = Field(default_factory=list)

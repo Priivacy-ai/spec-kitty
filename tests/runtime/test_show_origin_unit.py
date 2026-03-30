@@ -40,7 +40,7 @@ def _create_file(path: Path, content: str = "placeholder") -> Path:
 class TestCollectOriginsBasic:
     """Test that collect_origins() returns entries for all known assets."""
 
-    def test_returns_entries_for_all_asset_types(self, tmp_path: Path) -> None:
+    def test_returns_entries_for_all_asset_types(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """collect_origins returns entries covering templates, commands, missions, scripts, and files."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -55,14 +55,8 @@ class TestCollectOriginsBasic:
             _create_file(pkg_root / mission / "mission.yaml")
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -73,40 +67,28 @@ class TestCollectOriginsBasic:
         assert "mission" in asset_types
         assert "file" in asset_types  # AGENTS.md
 
-    def test_all_entries_are_origin_entry_instances(self, tmp_path: Path) -> None:
+    def test_all_entries_are_origin_entry_instances(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """All returned items are OriginEntry dataclass instances."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
         for entry in entries:
             assert isinstance(entry, OriginEntry)
 
-    def test_missing_resolver_assets_have_error_and_no_path(self, tmp_path: Path) -> None:
+    def test_missing_resolver_assets_have_error_and_no_path(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """When no tier provides a resolver-based asset, error is set and path/tier are None."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -119,20 +101,14 @@ class TestCollectOriginsBasic:
             assert entry.tier is None
             assert entry.error is not None
 
-    def test_asset_types_include_correct_entries(self, tmp_path: Path) -> None:
+    def test_asset_types_include_correct_entries(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Each asset type category has the expected entries."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -156,7 +132,7 @@ class TestCollectOriginsBasic:
 class TestShowOriginTierLabels:
     """Each tier label corresponds to actual resolved file (1A-14, 1A-15)."""
 
-    def test_override_tier_label(self, tmp_path: Path) -> None:
+    def test_override_tier_label(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Override-tier asset gets 'override' label."""
         project = tmp_path / "project"
         override_path = _create_file(
@@ -167,14 +143,8 @@ class TestShowOriginTierLabels:
         _create_file(pkg_root / "software-dev" / "templates" / "spec-template.md")
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -182,7 +152,7 @@ class TestShowOriginTierLabels:
         assert spec_entry.tier == "override"
         assert spec_entry.resolved_path == override_path
 
-    def test_global_tier_label(self, tmp_path: Path) -> None:
+    def test_global_tier_label(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Global-tier asset gets 'global' label."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -194,14 +164,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             entries = collect_origins(project)
 
@@ -209,7 +173,7 @@ class TestShowOriginTierLabels:
         assert plan_entry.tier == "global_mission"
         assert plan_entry.resolved_path == global_path
 
-    def test_package_default_tier_label(self, tmp_path: Path) -> None:
+    def test_package_default_tier_label(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Package-default-tier asset gets 'package_default' label."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -220,14 +184,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -235,7 +193,7 @@ class TestShowOriginTierLabels:
         assert tasks_entry.tier == "package_default"
         assert tasks_entry.resolved_path == pkg_path
 
-    def test_mixed_tiers_in_single_call(self, tmp_path: Path) -> None:
+    def test_mixed_tiers_in_single_call(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Different assets can resolve at different tiers in the same call."""
         project = tmp_path / "project"
         global_home = tmp_path / "global_home"
@@ -258,14 +216,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -277,7 +229,7 @@ class TestShowOriginTierLabels:
         assert plan_entry.tier == "global_mission"
         assert tasks_entry.tier == "package_default"
 
-    def test_command_tier_labels(self, tmp_path: Path) -> None:
+    def test_command_tier_labels(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Command templates also get correct tier labels."""
         project = tmp_path / "project"
         pkg_root = tmp_path / "pkg"
@@ -292,14 +244,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -313,7 +259,7 @@ class TestShowOriginTierLabels:
         assert specify_cmd.tier == "override"
         assert plan_cmd.tier == "package_default"
 
-    def test_mission_tier_labels(self, tmp_path: Path) -> None:
+    def test_mission_tier_labels(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Mission configs get correct tier labels."""
         project = tmp_path / "project"
         pkg_root = tmp_path / "pkg"
@@ -328,14 +274,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project)
 
@@ -349,7 +289,7 @@ class TestShowOriginTierLabels:
         assert sw_entry.tier == "override"
         assert res_entry.tier == "package_default"
 
-    def test_custom_mission_parameter(self, tmp_path: Path) -> None:
+    def test_custom_mission_parameter(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """collect_origins respects the mission parameter for templates/commands."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -364,14 +304,8 @@ class TestShowOriginTierLabels:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "no_home",
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(tmp_path / "no_home"),
+            patch_repo_default(pkg_root),
         ):
             entries = collect_origins(project, mission="research")
 

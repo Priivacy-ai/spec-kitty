@@ -23,7 +23,7 @@ class StyleguideScope(StrEnum):
 class AntiPattern(BaseModel):
     """An anti-pattern example within a styleguide."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str
     description: str
@@ -34,7 +34,7 @@ class AntiPattern(BaseModel):
 class Pattern(BaseModel):
     """A positive code-pattern example within a styleguide."""
 
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str
     description: str
@@ -50,10 +50,10 @@ class Styleguide(BaseModel):
     for consistent governance across a domain area.
     """
 
-    model_config = ConfigDict(frozen=True, populate_by_name=True)
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
-    id: str
-    schema_version: str = Field(alias="schema_version")
+    id: str = Field(pattern=r"^[a-z][a-z0-9-]*$")
+    schema_version: str = Field(pattern=r"^1\.0$", alias="schema_version")
     title: str
     scope: StyleguideScope
     principles: list[str] = Field(min_length=1)

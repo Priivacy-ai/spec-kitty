@@ -24,6 +24,17 @@ spec-kitty agent workflow review $ARGUMENTS --agent <your-name>
 
 **CRITICAL**: You MUST provide `--agent <your-name>` to track who is reviewing!
 
+> **Explicit slash-command argument from the caller**: `$ARGUMENTS` above is forwarded directly from
+> the slash-command invocation (e.g., `/spec-kitty.review WP03`).
+> Pass it as-is; do not modify or strip it.
+> Note: only explicit WP IDs are supported here — auto-detection is not available via slash commands.
+> Do not interpret it as a prompt path or file reference; it is a WP selector only.
+>
+> **Agent-profile arguments** (from agent-profile implementation):
+> - `--profile <profile-id>`: Use a specific agent profile (e.g., `reviewer`, `architect`). Overrides the `agent_profile` field in WP frontmatter.
+> - `--role <role>`: Set the agent's role for this WP (e.g., `reviewer`, `implementer`).
+> - `--model <model>`: Specify the AI model to use for this WP.
+
 If no WP ID is provided, it will automatically find the first work package with `lane: "for_review"` and move it to "doing" for you.
 
 ## Dependency checks (required)

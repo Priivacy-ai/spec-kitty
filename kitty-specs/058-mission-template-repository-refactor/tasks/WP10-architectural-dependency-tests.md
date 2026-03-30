@@ -1,7 +1,7 @@
 ---
 work_package_id: WP10
-title: "Architectural Dependency Tests (PyTestArch)"
-lane: planned
+title: Architectural Dependency Tests (PyTestArch)
+lane: "done"
 dependencies: [WP03, WP11]
 requirement_refs:
 - FR-018
@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: 1aaf3c9d008e7b0b389249e9849d10b9e10a701a
+created_at: '2026-03-30T04:46:01.039962+00:00'
 subtasks:
 - T044
 - T045
@@ -16,17 +19,19 @@ subtasks:
 - T047
 phase: Phase 1 - New API
 assignee: ''
-agent: ''
-agent_profile: architect
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: opencode
+shell_pid: '27168'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T06:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt added during /spec-kitty.analyze architectural review
+agent_profile: architect
+approved_by: "Stijn Dejongh"
+role: reviewer
 ---
 
 # Work Package Prompt: WP10 -- Architectural Dependency Tests (PyTestArch)
@@ -45,7 +50,13 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-30T07:14:14Z
+
+Done override: WP10 was committed directly on feature/agent-profile-implementation; merge command confirmed it as already-integrated and cleaned up the worktree branch
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-30T05:39:57Z
+
+Review passed (Alphonso+Renata+Pedro): All 6 acceptance criteria met. 6/6 arch tests pass, 188/188 runtime tests pass, negative test validated. Resolver move to doctrine is architecturally sound. 4 non-blocking observations for future cleanup.
 
 ---
 
@@ -273,3 +284,15 @@ git checkout src/doctrine/missions/repository.py
 - Verify the `architectural` marker is registered
 - Verify the session fixture scans `src/` not the whole repo
 - Verify the ADR is committed alongside the tests
+
+## Activity Log
+
+- 2026-03-30T04:46:01Z – claude – shell_pid=25200 – lane=doing – Assigned agent via workflow command
+- 2026-03-30T05:26:54Z – claude – shell_pid=25200 – lane=doing – T044 done: Added pytestarch>=4.0.0 to test deps in pyproject.toml
+- 2026-03-30T05:26:55Z – claude – shell_pid=25200 – lane=doing – T045 done: Created tests/architectural/conftest.py with evaluable and landscape session fixtures
+- 2026-03-30T05:26:57Z – claude – shell_pid=25200 – lane=doing – T046 done: Created tests/architectural/test_layer_rules.py with 6 layer boundary invariant tests (3 invariant classes)
+- 2026-03-30T05:26:59Z – claude – shell_pid=25200 – lane=doing – T047 done: All 6 arch tests pass, all 188 runtime tests pass. Found and fixed real violation: moved resolver from specify_cli.runtime to doctrine.resolver. Centralized test patch targets in tests/runtime/conftest.py.
+- 2026-03-30T05:28:05Z – claude – shell_pid=25200 – lane=for_review – Implementation complete on feature branch: 6 arch tests, 188 runtime tests pass. Resolver moved to doctrine, test fixtures centralized.
+- 2026-03-30T05:35:54Z – opencode – shell_pid=27168 – lane=in_review – Started review via workflow command
+- 2026-03-30T05:39:57Z – opencode – shell_pid=27168 – lane=approved – Review passed (Alphonso+Renata+Pedro): All 6 acceptance criteria met. 6/6 arch tests pass, 188/188 runtime tests pass, negative test validated. Resolver move to doctrine is architecturally sound. 4 non-blocking observations for future cleanup.
+- 2026-03-30T07:14:14Z – opencode – shell_pid=27168 – lane=done – Done override: WP10 was committed directly on feature/agent-profile-implementation; merge command confirmed it as already-integrated and cleaned up the worktree branch

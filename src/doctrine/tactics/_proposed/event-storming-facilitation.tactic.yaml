@@ -1,0 +1,99 @@
+schema_version: "1.0"
+id: event-storming-facilitation
+name: Event Storming Facilitation
+purpose: >
+  Facilitate a collaborative workshop that discovers domain events,
+  commands, aggregates, policies, read models, and bounded context
+  boundaries through a structured, time-boxed group exercise. Event
+  Storming produces a shared understanding of the domain that is grounded
+  in real business flows rather than technical assumptions. Based on
+  Alberto Brandolini's Event Storming technique.
+steps:
+  - title: Prepare the workshop space
+    description: >
+      Secure a large wall or whiteboard surface (physical or virtual).
+      Prepare coloured sticky notes with a consistent legend: orange for
+      domain events, blue for commands, yellow for aggregates, lilac for
+      policies/process managers, green for read models, pink for hotspots
+      or questions, and red for external systems. Invite domain experts,
+      developers, and at least one facilitator.
+  - title: "Phase 1 — Chaotic exploration (Big Picture)"
+    description: >
+      Ask all participants to write domain events on orange stickies —
+      things that happen in the business, phrased in past tense. No
+      filtering, no ordering. Place them on the wall in rough
+      chronological order from left to right. Aim for volume over
+      precision. Time-box to 15-20 minutes.
+    examples:
+      - "OrderPlaced, PaymentReceived, InventoryReserved, ShipmentDispatched, InvoiceSent, RefundIssued."
+  - title: "Phase 2 — Enforce timeline"
+    description: >
+      As a group, sort the events into a coherent timeline from left to
+      right. Identify parallel tracks (events that happen concurrently
+      in different parts of the business). Resolve duplicates and merge
+      synonyms. Mark gaps with pink hotspot stickies.
+  - title: "Phase 3 — Add commands and actors"
+    description: >
+      For each event, ask: "What caused this to happen?" Place a blue
+      command sticky to the left of the event. Identify who or what
+      issues the command — a user role, an external system, a scheduled
+      job, or a policy. Mark commands from external systems with a
+      separate colour or notation.
+    examples:
+      - "Command: PlaceOrder (actor: Customer) -> Event: OrderPlaced"
+      - "Command: ChargePayment (actor: PaymentGateway callback) -> Event: PaymentReceived"
+  - title: "Phase 4 — Identify aggregates"
+    description: >
+      Group related commands and events around the entity that processes
+      them. Place a yellow aggregate sticky above each cluster. The
+      aggregate receives the command, enforces invariants, and emits the
+      event. This reveals natural aggregate boundaries.
+    examples:
+      - "Aggregate: Order (receives PlaceOrder, emits OrderPlaced, OrderCancelled)."
+  - title: "Phase 5 — Discover policies and read models"
+    description: >
+      Identify automated reactions: "When event X happens, then command Y
+      is issued automatically." These are policies or process managers
+      (lilac stickies). Also identify where users need information to
+      make decisions — these are read models (green stickies).
+    examples:
+      - "Policy: When PaymentReceived, then ReserveInventory."
+      - "Read model: OrderDashboard (shows pending orders for warehouse staff)."
+  - title: "Phase 6 — Draw bounded context boundaries"
+    description: >
+      Step back and look for clusters of aggregates that share a
+      consistent language and change together. Draw boundaries around
+      these clusters — these are bounded context candidates. Validate
+      boundaries with the language test: do the terms inside each
+      boundary have a single, unambiguous meaning?
+  - title: Capture and digitise
+    description: >
+      Photograph the wall, transcribe events, commands, aggregates,
+      policies, and boundaries into a digital format (Miro, FigJam,
+      markdown). Link hotspot stickies to follow-up tasks. The Event
+      Storming output feeds directly into bounded context identification,
+      context mapping, and aggregate boundary design.
+failure_modes:
+  - "Developer-only workshop: excluding domain experts, producing a technically-biased model."
+  - "Facilitator absence: running without a facilitator, allowing dominant voices to control the narrative."
+  - "Premature structure: jumping to aggregate design before completing event discovery."
+  - "Solution mode: discussing technical implementation during the workshop instead of focusing on domain discovery."
+  - "No follow-through: running the workshop but never digitising outputs or creating follow-up tasks."
+  - "Scope creep: trying to storm the entire enterprise in one session instead of focusing on a specific subdomain."
+references:
+  - name: Bounded Context Identification
+    type: tactic
+    id: bounded-context-identification
+    when: Event Storming reveals bounded context boundaries through language clustering.
+  - name: Aggregate Boundary Design
+    type: tactic
+    id: aggregate-boundary-design
+    when: Aggregates discovered during Event Storming feed into formal aggregate boundary design.
+  - name: Domain Event Capture
+    type: tactic
+    id: domain-event-capture
+    when: Events discovered during the workshop become the basis for domain event modelling.
+  - name: Domain Message Flow Mapping
+    type: tactic
+    id: domain-message-flow-mapping
+    when: Event Storming outputs feed directly into message flow mapping for specific scenarios.

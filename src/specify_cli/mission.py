@@ -14,6 +14,8 @@ from typing import Any, Literal
 import yaml
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
+from specify_cli.constitution.mission_paths import MissionType, ProjectMissionPaths
+
 
 class MissionError(Exception):
     """Base exception for mission-related errors."""
@@ -454,7 +456,9 @@ def get_active_mission(project_root: Path | None = None) -> Mission:
             except OSError:
                 mission_name = ""
             if mission_name:
-                mission_path = kittify_dir / "missions" / mission_name
+                mission_path = ProjectMissionPaths.from_kittify(kittify_dir).mission_dir_for(
+                    MissionType.with_name(mission_name)
+                )
         if mission_path is None:
             # Fallback to interpreting the target path directly
             try:
@@ -464,10 +468,14 @@ def get_active_mission(project_root: Path | None = None) -> Mission:
                 mission_path = None
 
         if mission_path is None:
-            mission_path = kittify_dir / "missions" / "software-dev"
+            mission_path = ProjectMissionPaths.from_kittify(kittify_dir).mission_dir_for(
+                MissionType.SOFTWARE_DEV
+            )
     else:
         # Default to software-dev if no active mission set
-        mission_path = kittify_dir / "missions" / "software-dev"
+        mission_path = ProjectMissionPaths.from_kittify(kittify_dir).mission_dir_for(
+            MissionType.SOFTWARE_DEV
+        )
 
     if not mission_path.exists():
         raise MissionNotFoundError(
@@ -490,7 +498,7 @@ def list_available_missions(kittify_dir: Path | None = None) -> list[str]:
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
-    missions_dir = kittify_dir / "missions"
+    missions_dir = ProjectMissionPaths.from_kittify(kittify_dir).missions_root()
 
     if not missions_dir.exists():
         return []
@@ -519,7 +527,9 @@ def get_mission_by_name(mission_name: str, kittify_dir: Path | None = None) -> M
     if kittify_dir is None:
         kittify_dir = Path.cwd() / ".kittify"
 
-    mission_path = kittify_dir / "missions" / mission_name
+    mission_path = ProjectMissionPaths.from_kittify(kittify_dir).mission_dir_for(
+        MissionType.with_name(mission_name)
+    )
 
     if not mission_path.exists():
         available = list_available_missions(kittify_dir)
@@ -711,7 +721,7 @@ def discover_missions(project_root: Path | None = None) -> dict[str, tuple[Missi
     if not kittify_dir.exists():
         return {}
 
-    missions_dir = kittify_dir / "missions"
+    missions_dir = ProjectMissionPaths.from_kittify(kittify_dir).missions_root()
 
     if not missions_dir.exists():
         return {}

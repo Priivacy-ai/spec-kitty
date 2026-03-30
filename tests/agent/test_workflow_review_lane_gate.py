@@ -92,7 +92,7 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
 
     assert result.exit_code == 0
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "lane") == "doing"
+    assert extract_scalar(frontmatter, "lane") == "in_review"
 
 
 def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
@@ -187,7 +187,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 
     assert result.exit_code == 0, result.stdout
     frontmatter, _, _ = split_frontmatter(wp_path.read_text(encoding="utf-8"))
-    assert extract_scalar(frontmatter, "lane") == "doing"
+    assert extract_scalar(frontmatter, "lane") == "in_review"
 
 
 def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> tuple[Path, str]:

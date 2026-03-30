@@ -25,13 +25,18 @@ from unittest.mock import patch
 import pytest
 
 from doctrine.missions import MissionTemplateRepository
-from specify_cli.runtime.resolver import (
-    ResolutionTier,
+from doctrine.resolver import (
     _is_global_runtime_configured,
     _reset_migrate_nudge,
+)
+from specify_cli.runtime.resolver import (
+    ResolutionTier,
     resolve_command,
     resolve_template,
 )
+
+# patch_kittify_home and patch_repo_default fixtures come from
+# tests/runtime/conftest.py — single source of truth for mock targets.
 pytestmark = pytest.mark.fast
 
 
@@ -65,7 +70,7 @@ class TestGlobalTierResolution:
     """Verify GLOBAL (non-mission) tier resolves from ~/.kittify/{subdir}/{name}."""
 
     def test_global_non_mission_resolves_when_no_mission_specific(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_kittify_home, patch_repo_default,
     ) -> None:
         """When only ~/.kittify/templates/{name} exists, GLOBAL tier wins."""
         project = tmp_path / "project"
@@ -79,14 +84,8 @@ class TestGlobalTierResolution:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             result = resolve_template("spec-template.md", project)
 
@@ -95,7 +94,7 @@ class TestGlobalTierResolution:
         assert result.path.read_text() == "global non-mission template"
 
     def test_global_mission_takes_precedence_over_global_non_mission(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_kittify_home, patch_repo_default,
     ) -> None:
         """~/.kittify/missions/{m}/templates/ wins over ~/.kittify/templates/."""
         project = tmp_path / "project"
@@ -114,14 +113,8 @@ class TestGlobalTierResolution:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             result = resolve_template("spec-template.md", project)
 
@@ -129,7 +122,7 @@ class TestGlobalTierResolution:
         assert result.path == mission_path
 
     def test_global_non_mission_takes_precedence_over_package(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_kittify_home, patch_repo_default,
     ) -> None:
         """~/.kittify/templates/ wins over package defaults."""
         project = tmp_path / "project"
@@ -148,21 +141,15 @@ class TestGlobalTierResolution:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
         ):
             result = resolve_template("spec-template.md", project)
 
         assert result.tier == ResolutionTier.GLOBAL
         assert result.path == global_path
 
-    def test_global_command_templates_resolve(self, tmp_path: Path) -> None:
+    def test_global_command_templates_resolve(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Command templates also resolve from ~/.kittify/command-templates/."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -174,14 +161,8 @@ class TestGlobalTierResolution:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             result = resolve_command("plan.md", project)
 
@@ -198,7 +179,7 @@ class TestLegacyWarningSuppression:
     """After global runtime is configured, legacy warnings become nudges."""
 
     def test_no_deprecation_warning_when_global_runtime_configured(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_kittify_home, patch_repo_default,
     ) -> None:
         """When ~/.kittify/cache/version.lock exists, no DeprecationWarning."""
         project = tmp_path / "project"
@@ -210,14 +191,8 @@ class TestLegacyWarningSuppression:
         _create_file(global_home / "cache" / "version.lock", "1.0.0")
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -231,7 +206,7 @@ class TestLegacyWarningSuppression:
         assert len(deprecation_warnings) == 0
 
     def test_deprecation_warning_when_global_runtime_not_configured(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_kittify_home, patch_repo_default,
     ) -> None:
         """When ~/.kittify/ has no version.lock, DeprecationWarning is emitted."""
         project = tmp_path / "project"
@@ -243,14 +218,8 @@ class TestLegacyWarningSuppression:
         global_home.mkdir(parents=True, exist_ok=True)
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
             warnings.catch_warnings(record=True) as w,
         ):
             warnings.simplefilter("always")
@@ -274,7 +243,8 @@ class TestMigrateNudge:
     """One-time stderr nudge when legacy assets resolve post-migration."""
 
     def test_nudge_printed_once_to_stderr(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        patch_kittify_home, patch_repo_default,
     ) -> None:
         """After migration, legacy resolution prints a single nudge to stderr."""
         project = tmp_path / "project"
@@ -286,14 +256,8 @@ class TestMigrateNudge:
         _create_file(global_home / "cache" / "version.lock", "1.0.0")
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             # Resolve two legacy assets
             resolve_template("spec-template.md", project)
@@ -305,7 +269,8 @@ class TestMigrateNudge:
         assert "global runtime" in captured.err.lower() or "~/.kittify/" in captured.err
 
     def test_no_nudge_when_no_legacy_assets(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str],
+        patch_kittify_home, patch_repo_default,
     ) -> None:
         """No nudge when resolution doesn't hit legacy tier."""
         project = tmp_path / "project"
@@ -319,14 +284,8 @@ class TestMigrateNudge:
         )
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=global_home,
-            ),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(tmp_path / "nonexistent"),
-            ),
+            patch_kittify_home(global_home),
+            patch_repo_default(tmp_path / "nonexistent"),
         ):
             resolve_template("spec-template.md", project)
 
@@ -342,42 +301,30 @@ class TestMigrateNudge:
 class TestIsGlobalRuntimeConfigured:
     """Test the _is_global_runtime_configured() helper."""
 
-    def test_true_when_version_lock_exists(self, tmp_path: Path) -> None:
+    def test_true_when_version_lock_exists(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Returns True when cache/version.lock exists."""
         global_home = tmp_path / "global_home"
         _create_file(global_home / "cache" / "version.lock", "1.0.0")
 
-        with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
-            return_value=global_home,
-        ):
+        with patch_kittify_home(global_home):
             assert _is_global_runtime_configured() is True
 
-    def test_false_when_no_version_lock(self, tmp_path: Path) -> None:
+    def test_false_when_no_version_lock(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Returns False when cache/version.lock does not exist."""
         global_home = tmp_path / "global_home"
         global_home.mkdir(parents=True)
 
-        with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
-            return_value=global_home,
-        ):
+        with patch_kittify_home(global_home):
             assert _is_global_runtime_configured() is False
 
-    def test_false_when_home_missing(self, tmp_path: Path) -> None:
+    def test_false_when_home_missing(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Returns False when ~/.kittify/ doesn't exist at all."""
-        with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
-            return_value=tmp_path / "nonexistent",
-        ):
+        with patch_kittify_home(tmp_path / "nonexistent"):
             assert _is_global_runtime_configured() is False
 
-    def test_false_when_get_kittify_home_raises(self) -> None:
+    def test_false_when_get_kittify_home_raises(self, patch_kittify_home, patch_repo_default) -> None:
         """Returns False when get_kittify_home() raises RuntimeError."""
-        with patch(
-            "specify_cli.runtime.resolver.get_kittify_home",
-            side_effect=RuntimeError("no home"),
-        ):
+        with patch_kittify_home(side_effect=RuntimeError("no home")):
             assert _is_global_runtime_configured() is False
 
 
@@ -389,7 +336,7 @@ class TestIsGlobalRuntimeConfigured:
 class TestFullResolutionChainOrder:
     """Verify the complete 5-tier precedence for templates."""
 
-    def test_full_chain_override_wins(self, tmp_path: Path) -> None:
+    def test_full_chain_override_wins(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """With all 5 tiers present, OVERRIDE wins."""
         project = tmp_path / "project"
         kittify = project / ".kittify"
@@ -406,15 +353,15 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
         assert result.tier == ResolutionTier.OVERRIDE
         assert result.path == override_path
 
-    def test_full_chain_legacy_second(self, tmp_path: Path) -> None:
+    def test_full_chain_legacy_second(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Without override, LEGACY wins (with warning)."""
         project = tmp_path / "project"
         kittify = project / ".kittify"
@@ -430,8 +377,8 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
             warnings.catch_warnings(record=True),
         ):
             warnings.simplefilter("always")
@@ -440,7 +387,7 @@ class TestFullResolutionChainOrder:
         assert result.tier == ResolutionTier.LEGACY
         assert result.path == legacy_path
 
-    def test_full_chain_global_mission_third(self, tmp_path: Path) -> None:
+    def test_full_chain_global_mission_third(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Without override or legacy, GLOBAL_MISSION wins."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -457,15 +404,15 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
         assert result.tier == ResolutionTier.GLOBAL_MISSION
         assert result.path == gm_path
 
-    def test_full_chain_global_fourth(self, tmp_path: Path) -> None:
+    def test_full_chain_global_fourth(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """Without override/legacy/global-mission, GLOBAL wins."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -479,15 +426,15 @@ class TestFullResolutionChainOrder:
         _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch("specify_cli.runtime.resolver.get_kittify_home", return_value=global_home),
-            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
+            patch_kittify_home(global_home),
+            patch_repo_default(pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
         assert result.tier == ResolutionTier.GLOBAL
         assert result.path == global_path
 
-    def test_full_chain_package_fifth(self, tmp_path: Path) -> None:
+    def test_full_chain_package_fifth(self, tmp_path: Path, patch_kittify_home, patch_repo_default) -> None:
         """When no other tier has the asset, PACKAGE_DEFAULT wins."""
         project = tmp_path / "project"
         (project / ".kittify").mkdir(parents=True)
@@ -498,11 +445,8 @@ class TestFullResolutionChainOrder:
         pkg_path = _create_file(pkg_root / mission / "templates" / name, "package")
 
         with (
-            patch(
-                "specify_cli.runtime.resolver.get_kittify_home",
-                return_value=tmp_path / "empty_home",
-            ),
-            patch("doctrine.missions.MissionTemplateRepository.default", return_value=MissionTemplateRepository(pkg_root)),
+            patch_kittify_home(tmp_path / "empty_home"),
+            patch_repo_default(pkg_root),
         ):
             result = resolve_template(name, project, mission=mission)
 
@@ -518,7 +462,7 @@ class TestFullResolutionChainOrder:
 class TestProjectResolverGlobalPaths:
     """Verify the old project_resolver API also includes ~/.kittify/."""
 
-    def test_resolves_from_global_mission_templates(self, tmp_path: Path) -> None:
+    def test_resolves_from_global_mission_templates(self, tmp_path: Path, patch_repo_default) -> None:
         """resolve_template_path checks ~/.kittify/missions/{key}/templates/."""
         from specify_cli.core.project_resolver import resolve_template_path
 
@@ -539,7 +483,7 @@ class TestProjectResolverGlobalPaths:
 
         assert result == expected
 
-    def test_resolves_from_global_generic_templates(self, tmp_path: Path) -> None:
+    def test_resolves_from_global_generic_templates(self, tmp_path: Path, patch_repo_default) -> None:
         """resolve_template_path checks ~/.kittify/templates/."""
         from specify_cli.core.project_resolver import resolve_template_path
 
@@ -560,7 +504,7 @@ class TestProjectResolverGlobalPaths:
 
         assert result == expected
 
-    def test_project_mission_wins_over_global(self, tmp_path: Path) -> None:
+    def test_project_mission_wins_over_global(self, tmp_path: Path, patch_repo_default) -> None:
         """Project-level mission templates take precedence over global."""
         from specify_cli.core.project_resolver import resolve_template_path
 
@@ -584,7 +528,7 @@ class TestProjectResolverGlobalPaths:
 
         assert result == expected
 
-    def test_returns_none_when_nothing_found(self, tmp_path: Path) -> None:
+    def test_returns_none_when_nothing_found(self, tmp_path: Path, patch_repo_default) -> None:
         """Returns None when template is not found anywhere."""
         from specify_cli.core.project_resolver import resolve_template_path
 
@@ -603,7 +547,7 @@ class TestProjectResolverGlobalPaths:
         assert result is None
 
     def test_global_mission_takes_precedence_over_global_generic(
-        self, tmp_path: Path
+        self, tmp_path: Path, patch_repo_default,
     ) -> None:
         """~/.kittify/missions/{key}/templates/ beats ~/.kittify/templates/."""
         from specify_cli.core.project_resolver import resolve_template_path
@@ -638,7 +582,7 @@ class TestProjectResolverGlobalPaths:
 class TestMigrateIdempotency:
     """Verify ensure_runtime + execute_migration are idempotent together."""
 
-    def test_ensure_runtime_populates_version_lock(self, tmp_path: Path) -> None:
+    def test_ensure_runtime_populates_version_lock(self, tmp_path: Path, patch_repo_default) -> None:
         """After ensure_runtime, cache/version.lock exists."""
         global_home = tmp_path / "global_home"
         pkg_root = tmp_path / "pkg"
@@ -655,10 +599,7 @@ class TestMigrateIdempotency:
         with (
             patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
             patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_repo_default(pkg_root),
             patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
             from specify_cli.runtime.bootstrap import ensure_runtime
@@ -667,7 +608,7 @@ class TestMigrateIdempotency:
         assert (global_home / "cache" / "version.lock").exists()
         assert (global_home / "cache" / "version.lock").read_text().strip() == "99.0.0"
 
-    def test_ensure_runtime_idempotent(self, tmp_path: Path) -> None:
+    def test_ensure_runtime_idempotent(self, tmp_path: Path, patch_repo_default) -> None:
         """Running ensure_runtime twice produces identical state."""
         global_home = tmp_path / "global_home"
         pkg_root = tmp_path / "pkg"
@@ -683,10 +624,7 @@ class TestMigrateIdempotency:
         with (
             patch("specify_cli.runtime.home.get_kittify_home", return_value=global_home),
             patch("specify_cli.runtime.bootstrap.get_kittify_home", return_value=global_home),
-            patch(
-                "doctrine.missions.MissionTemplateRepository.default",
-                return_value=MissionTemplateRepository(pkg_root),
-            ),
+            patch_repo_default(pkg_root),
             patch("specify_cli.runtime.bootstrap._get_cli_version", return_value="99.0.0"),
         ):
             from specify_cli.runtime.bootstrap import ensure_runtime

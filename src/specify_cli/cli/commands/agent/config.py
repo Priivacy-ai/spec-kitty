@@ -9,6 +9,7 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
+from specify_cli.constitution.mission_paths import MissionType, ProjectMissionPaths
 from specify_cli.core.tool_config import (
     load_tool_config as load_agent_config,
     save_tool_config as save_agent_config,
@@ -142,10 +143,12 @@ def add_agents(
 
             # Generate templates for this agent
             # Copy from mission templates
-            missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+            cmd_templates = ProjectMissionPaths.init(repo_root).command_templates_for(
+                MissionType.SOFTWARE_DEV
+            )
 
-            if missions_dir.exists():
-                for template_file in missions_dir.glob("*.md"):
+            if cmd_templates.exists():
+                for template_file in cmd_templates.glob("*.md"):
                     dest_file = agent_dir / f"spec-kitty.{template_file.name}"
                     shutil.copy2(template_file, dest_file)
 
@@ -362,7 +365,9 @@ def sync_agents(
     # Create missing directories
     if create_missing:
         console.print("\n[cyan]Checking for missing directories...[/cyan]")
-        missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+        cmd_templates = ProjectMissionPaths.init(repo_root).command_templates_for(
+            MissionType.SOFTWARE_DEV
+        )
 
         for agent_key in config.available:
             agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
@@ -378,8 +383,8 @@ def sync_agents(
                     agent_dir.mkdir(parents=True, exist_ok=True)
 
                     # Copy templates if available
-                    if missions_dir.exists():
-                        for template_file in missions_dir.glob("*.md"):
+                    if cmd_templates.exists():
+                        for template_file in cmd_templates.glob("*.md"):
                             dest_file = agent_dir / f"spec-kitty.{template_file.name}"
                             shutil.copy2(template_file, dest_file)
 

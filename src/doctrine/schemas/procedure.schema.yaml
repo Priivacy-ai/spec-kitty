@@ -1,24 +1,24 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://spec-kitty.dev/schemas/doctrine/procedure.schema.yaml"
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/procedure.schema.yaml
 title: Procedure
 description: Schema for doctrine procedures — reusable orchestrated workflows.
 type: object
 additionalProperties: false
 required:
-  - schema_version
-  - id
-  - name
-  - purpose
-  - entry_condition
-  - exit_condition
-  - steps
+- schema_version
+- id
+- name
+- purpose
+- entry_condition
+- exit_condition
+- steps
 definitions:
-  anti_pattern:
+  procedure_anti_pattern:
     type: object
     additionalProperties: false
     required:
-      - name
-      - description
+    - name
+    - description
     properties:
       name:
         type: string
@@ -30,19 +30,22 @@ definitions:
     type: object
     additionalProperties: false
     required:
-      - type
-      - id
+    - type
+    - id
     properties:
       type:
         type: string
+        minLength: 1
         enum:
-          - directive
-          - tactic
-          - styleguide
-          - toolguide
-          - paradigm
-          - procedure
-          - template
+        - directive
+        - tactic
+        - styleguide
+        - toolguide
+        - paradigm
+        - procedure
+        - agent_profile
+        - mission_step_contract
+        - template
       id:
         type: string
         minLength: 1
@@ -53,7 +56,7 @@ definitions:
     type: object
     additionalProperties: false
     required:
-      - title
+    - title
     properties:
       title:
         type: string
@@ -63,15 +66,14 @@ definitions:
       actor:
         type: string
         enum:
-          - human
-          - agent
-          - system
+        - human
+        - agent
+        - system
         default: agent
       tactic_refs:
         type: array
         items:
           type: string
-          pattern: '^[a-z][a-z0-9-]*$'
       on_success:
         type: string
       on_failure:
@@ -79,10 +81,10 @@ definitions:
 properties:
   schema_version:
     type: string
-    pattern: '^1\.0$'
+    pattern: ^1\.0$
   id:
     type: string
-    pattern: '^[a-z][a-z0-9-]*$'
+    pattern: ^[a-z][a-z0-9-]*$
   name:
     type: string
     minLength: 1
@@ -102,14 +104,12 @@ properties:
       $ref: '#/definitions/procedure_step'
   anti_patterns:
     type: array
-    items:
-      $ref: '#/definitions/anti_pattern'
     description: Common mistakes or failure modes to avoid when following this procedure.
+    items:
+      $ref: '#/definitions/procedure_anti_pattern'
   notes:
     type: string
-    description: >
-      Free-form notes, rationale, or supplementary material
-      that does not fit into structured fields.
+    description: Free-form notes, rationale, or supplementary material that does not fit into structured fields.
   references:
     type: array
     items:

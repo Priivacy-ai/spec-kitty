@@ -1,13 +1,16 @@
 ---
 work_package_id: WP09
-title: "Project-Local Mission Path Indirection (constitution module)"
-lane: planned
+title: Project-Local Mission Path Indirection (constitution module)
+lane: done
 dependencies: [WP07]
 requirement_refs:
 - FR-019
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: 789871e497d60eeee7cadd251a8d0623a2ba4781
+created_at: '2026-03-30T04:02:22.528928+00:00'
 subtasks:
 - T039
 - T040
@@ -15,17 +18,19 @@ subtasks:
 - T042
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: ''
-agent_profile: implementer
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: claude
+shell_pid: '21595'
+review_status: approved
+reviewed_by: Stijn Dejongh
 history:
 - timestamp: '2026-03-27T05:15:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt added during /spec-kitty.analyze HiC review (F5 decision)
+agent_profile: implementer
+approved_by: Stijn Dejongh
+role: reviewer
 ---
 
 # Work Package Prompt: WP09 -- Project-Local Mission Path Indirection
@@ -44,7 +49,9 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-30T04:44:13Z
+
+Review passed: MissionType + ProjectMissionPaths singleton correctly centralizes .kittify/missions/ path construction. 1508 tests pass, zero regressions. Design exceeds WP spec per HiC direction.
 
 ---
 
@@ -231,3 +238,6 @@ rg 'kittify.*missions' src/specify_cli/manifest.py src/specify_cli/mission.py sr
 ## Activity Log
 
 - 2026-03-27T05:15:00Z -- system -- lane=planned -- Prompt added during /spec-kitty.analyze HiC review (F5 decision).
+- 2026-03-30T04:40:47Z – unknown – shell_pid=6662 – lane=for_review – Ready for review: MissionType + ProjectMissionPaths singleton, 3 files rerouted, gap note added
+- 2026-03-30T04:41:56Z – claude – shell_pid=21595 – lane=in_review – Started review via workflow command
+- 2026-03-30T04:44:13Z – claude – shell_pid=21595 – lane=approved – Review passed: MissionType + ProjectMissionPaths singleton correctly centralizes .kittify/missions/ path construction. 1508 tests pass, zero regressions. Design exceeds WP spec per HiC direction.

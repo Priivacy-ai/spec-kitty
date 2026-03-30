@@ -110,11 +110,13 @@ def classify_asset(
                 # File has a package counterpart but differs — it's an outdated
                 # default from a previous version, NOT a user customization.
                 return AssetDisposition.SUPERSEDED
-            # No package counterpart = genuinely user-created
-            return AssetDisposition.CUSTOMIZED
+            # No package counterpart — fall through to global home comparison.
+            # The file may still be identical to a global home asset that the
+            # package does not track under the same name.
 
-        # Legacy path: compare against global home (mutable ~/.kittify/).
-        # This preserves backwards compatibility for callers that don't pass package_root.
+        # Compare against global home (mutable ~/.kittify/).
+        # Used as primary path when package_root is absent, and as fallback
+        # when package_root is present but has no counterpart for this file.
         global_path = global_home / "missions" / mission / str(rel)
         if not global_path.exists():
             global_path = global_home / str(rel)
@@ -124,7 +126,7 @@ def classify_asset(
                 return AssetDisposition.IDENTICAL
             return AssetDisposition.CUSTOMIZED
 
-        # No global counterpart found = treat as customized (user-created)
+        # No counterpart found in package or global home = treat as customized
         return AssetDisposition.CUSTOMIZED
 
     return AssetDisposition.UNKNOWN
@@ -173,10 +175,11 @@ def execute_migration(
     # Use immutable package-bundled assets as comparison target.
     # This prevents version-skew: ensure_runtime() may have already updated
     # ~/.kittify/ to the new version, making old defaults look "customized".
+    # get_package_asset_root() respects SPEC_KITTY_TEMPLATE_ROOT for testing.
     try:
-        from doctrine.missions import MissionTemplateRepository
+        from kernel.paths import get_package_asset_root
 
-        package_root = MissionTemplateRepository.default()._missions_root
+        package_root = get_package_asset_root()
     except (FileNotFoundError, ImportError):
         package_root = None
 

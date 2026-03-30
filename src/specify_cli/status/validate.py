@@ -67,6 +67,9 @@ def validate_event_schema(event: dict) -> list[str]:
     ]
     for f in required_fields:
         if f not in event:
+            # Accept legacy "feature_slug" as alias for "mission_slug"
+            if f == "mission_slug" and "feature_slug" in event:
+                continue
             findings.append(f"Missing required field: {f}")
 
     # ULID format check

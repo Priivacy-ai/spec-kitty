@@ -6,6 +6,8 @@ This module generates and checks expected files based on the mission context.
 from pathlib import Path
 import subprocess
 
+from specify_cli.constitution.mission_paths import MissionType, ProjectMissionPaths
+
 
 class FileManifest:
     """Manages the expected file manifest for spec-kitty missions.
@@ -19,7 +21,11 @@ class FileManifest:
     def __init__(self, kittify_dir: Path, *, mission_key: str | None = None):
         self.kittify_dir = kittify_dir
         self.mission_dir = (
-            kittify_dir / "missions" / mission_key if mission_key else None
+            ProjectMissionPaths.from_kittify(kittify_dir).mission_dir_for(
+                MissionType.with_name(mission_key)
+            )
+            if mission_key
+            else None
         )
 
     def get_expected_files(self) -> dict[str, list[str]]:

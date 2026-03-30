@@ -349,10 +349,10 @@
 
 ### Included Subtasks
 
-- [ ] T039 Create `src/specify_cli/constitution/mission_paths.py` with `ProjectMissionPaths` class: `mission_dir(project_dir, mission)`, `mission_config(project_dir, mission)`, `command_templates_dir(project_dir, mission)`, `templates_dir(project_dir, mission)`, `missions_root(project_dir)`
-- [ ] T040 [P] Reroute `src/specify_cli/manifest.py` (4 patterns: lines ~22, 43, 48, 72) to use `ProjectMissionPaths`
-- [ ] T041 [P] Reroute `src/specify_cli/mission.py` (9 patterns: lines ~276, 457, 467, 470, 493, 500, 522, 714, 722) to use `ProjectMissionPaths`
-- [ ] T042 [P] Reroute `src/specify_cli/cli/commands/agent/config.py` (2 patterns: lines ~145, 365) to use `ProjectMissionPaths`
+- [x] T039 Create `src/specify_cli/constitution/mission_paths.py` with `ProjectMissionPaths` class: `mission_dir(project_dir, mission)`, `mission_config(project_dir, mission)`, `command_templates_dir(project_dir, mission)`, `templates_dir(project_dir, mission)`, `missions_root(project_dir)`
+- [x] T040 [P] Reroute `src/specify_cli/manifest.py` (4 patterns: lines ~22, 43, 48, 72) to use `ProjectMissionPaths`
+- [x] T041 [P] Reroute `src/specify_cli/mission.py` (9 patterns: lines ~276, 457, 467, 470, 493, 500, 522, 714, 722) to use `ProjectMissionPaths`
+- [x] T042 [P] Reroute `src/specify_cli/cli/commands/agent/config.py` (2 patterns: lines ~145, 365) to use `ProjectMissionPaths`
 
 ### Implementation Notes
 
@@ -388,10 +388,10 @@
 
 ### Included Subtasks
 
-- [ ] T044 Add `pytestarch>=4.0.0` dev dependency to `pyproject.toml`
-- [ ] T045 Create `tests/architectural/conftest.py` with session-scoped `evaluable` and `landscape` fixtures
-- [ ] T046 Create `tests/architectural/test_layer_rules.py` encoding all 3 invariants (kernel isolation, doctrine isolation, constitution boundary)
-- [ ] T047 Validate tests pass on current codebase; smoke-test negative case
+- [x] T044 Add `pytestarch>=4.0.0` dev dependency to `pyproject.toml`
+- [x] T045 Create `tests/architectural/conftest.py` with session-scoped `evaluable` and `landscape` fixtures
+- [x] T046 Create `tests/architectural/test_layer_rules.py` encoding all 3 invariants (kernel isolation, doctrine isolation, constitution boundary)
+- [x] T047 Validate tests pass on current codebase; smoke-test negative case
 
 ### Dependencies
 
@@ -552,5 +552,7 @@
 - WP06: done
 - WP07: done
 - WP08: done
+- WP09: done
+- WP10: done
 - WP11: done
 <!-- status-model:end -->
