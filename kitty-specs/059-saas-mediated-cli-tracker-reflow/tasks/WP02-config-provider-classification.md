@@ -13,8 +13,8 @@ base_branch: main
 base_commit: 856b78a1935a8f9ae3fea274c0424fd7d8d6c90a
 created_at: '2026-03-30T19:25:39.176884+00:00'
 subtasks: [T008, T009, T010, T011]
-shell_pid: "46286"
-agent: "orchestrator"
+shell_pid: "47115"
+agent: "codex"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -216,3 +216,4 @@ spec-kitty implement WP02
 
 - 2026-03-30T19:25:39Z – orchestrator – shell_pid=46286 – lane=doing – Started implementation via workflow command
 - 2026-03-30T19:29:48Z – orchestrator – shell_pid=46286 – lane=for_review – Ready for review: project_slug config field, provider-aware is_configured, classification constants, 29 tests passing
+- 2026-03-30T19:30:31Z – codex – shell_pid=47115 – lane=doing – Started review via workflow command
