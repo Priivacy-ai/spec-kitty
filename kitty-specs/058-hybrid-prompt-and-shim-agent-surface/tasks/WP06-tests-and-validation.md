@@ -359,3 +359,4 @@ Reviewer should check:
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T14:47:39Z – coordinator – shell_pid=80761 – lane=doing – Started implementation via workflow command
 - 2026-03-30T15:23:54Z – coordinator – shell_pid=80761 – lane=for_review – Tests complete: 88 content cleanliness tests (all 9 templates), hybrid output verified (9 prompts + 7 shims = 16 total), mypy --strict passes on all target modules. Finding: test_tasks_finalize_maps_to_tasks_finalize_action fails due to production bug in decision.py — _state_to_action requires template file for aliases but tasks-finalize is CLI-driven (no template). Fix needed in decision.py (WP04 scope).
+- 2026-03-30T15:24:29Z – coordinator – shell_pid=80761 – lane=approved – Review passed: 88 cleanliness tests, full suite, mypy clean
