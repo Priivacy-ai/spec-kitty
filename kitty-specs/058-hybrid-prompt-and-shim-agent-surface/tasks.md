@@ -66,10 +66,10 @@
 **Requirement Refs**: FR-003, FR-004, FR-005
 
 ### Included Subtasks
-- [ ] T012 Update `init.py` to call `generate_agent_assets()` for prompt-driven commands using the restored command-templates directory
-- [ ] T013 Verify the 4-tier resolution chain (`overrides → legacy → global runtime → package`) resolves correctly for the restored templates
-- [ ] T014 Ensure `ensure_runtime()` deploys the new command-templates to `~/.kittify/missions/software-dev/command-templates/`
-- [ ] T015 [P] Integration test: `spec-kitty init` in temp dir produces hybrid output
+- [x] T012 Update `init.py` to call `generate_agent_assets()` for prompt-driven commands using the restored command-templates directory
+- [x] T013 Verify the 4-tier resolution chain (`overrides → legacy → global runtime → package`) resolves correctly for the restored templates
+- [x] T014 Ensure `ensure_runtime()` deploys the new command-templates to `~/.kittify/missions/software-dev/command-templates/`
+- [x] T015 [P] Integration test: `spec-kitty init` in temp dir produces hybrid output
 
 ### Implementation Notes
 - `generate_agent_assets()` in `src/specify_cli/template/asset_generator.py` expects a `command_templates_dir` parameter
