@@ -5,11 +5,15 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.shims.registry import (
+    CLI_DRIVEN_COMMANDS,
     CONSUMER_SKILLS,
     INTERNAL_SKILLS,
+    PROMPT_DRIVEN_COMMANDS,
     get_all_skills,
     get_consumer_skills,
+    is_cli_driven,
     is_consumer_skill,
+    is_prompt_driven,
 )
 
 
@@ -97,3 +101,106 @@ class TestGetAllSkills:
 
     def test_returns_frozenset(self) -> None:
         assert isinstance(get_all_skills(), frozenset)
+
+
+class TestPromptDrivenCommands:
+    def test_is_frozenset(self) -> None:
+        assert isinstance(PROMPT_DRIVEN_COMMANDS, frozenset)
+
+    def test_has_nine_commands(self) -> None:
+        assert len(PROMPT_DRIVEN_COMMANDS) == 9
+
+    @pytest.mark.parametrize(
+        "skill",
+        [
+            "specify",
+            "plan",
+            "tasks",
+            "tasks-outline",
+            "tasks-packages",
+            "checklist",
+            "analyze",
+            "research",
+            "constitution",
+        ],
+    )
+    def test_expected_commands_present(self, skill: str) -> None:
+        assert skill in PROMPT_DRIVEN_COMMANDS
+
+    def test_subset_of_consumer_skills(self) -> None:
+        assert PROMPT_DRIVEN_COMMANDS.issubset(CONSUMER_SKILLS)
+
+    def test_disjoint_from_cli_driven(self) -> None:
+        assert PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS == frozenset()
+
+
+class TestCliDrivenCommands:
+    def test_is_frozenset(self) -> None:
+        assert isinstance(CLI_DRIVEN_COMMANDS, frozenset)
+
+    def test_has_seven_commands(self) -> None:
+        assert len(CLI_DRIVEN_COMMANDS) == 7
+
+    @pytest.mark.parametrize(
+        "skill",
+        [
+            "implement",
+            "review",
+            "accept",
+            "merge",
+            "status",
+            "dashboard",
+            "tasks-finalize",
+        ],
+    )
+    def test_expected_commands_present(self, skill: str) -> None:
+        assert skill in CLI_DRIVEN_COMMANDS
+
+    def test_subset_of_consumer_skills(self) -> None:
+        assert CLI_DRIVEN_COMMANDS.issubset(CONSUMER_SKILLS)
+
+    def test_disjoint_from_prompt_driven(self) -> None:
+        assert CLI_DRIVEN_COMMANDS & PROMPT_DRIVEN_COMMANDS == frozenset()
+
+
+class TestCommandClassificationInvariant:
+    def test_union_equals_consumer_skills(self) -> None:
+        assert PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS == CONSUMER_SKILLS
+
+    def test_no_overlap_between_sets(self) -> None:
+        assert PROMPT_DRIVEN_COMMANDS & CLI_DRIVEN_COMMANDS == frozenset()
+
+    def test_total_count_matches_consumer_skills(self) -> None:
+        assert len(PROMPT_DRIVEN_COMMANDS) + len(CLI_DRIVEN_COMMANDS) == len(CONSUMER_SKILLS)
+
+
+class TestIsPromptDriven:
+    @pytest.mark.parametrize("skill", list(PROMPT_DRIVEN_COMMANDS))
+    def test_returns_true_for_prompt_driven(self, skill: str) -> None:
+        assert is_prompt_driven(skill) is True
+
+    @pytest.mark.parametrize("skill", list(CLI_DRIVEN_COMMANDS))
+    def test_returns_false_for_cli_driven(self, skill: str) -> None:
+        assert is_prompt_driven(skill) is False
+
+    def test_returns_false_for_internal(self) -> None:
+        assert is_prompt_driven("doctor") is False
+
+    def test_returns_false_for_unknown(self) -> None:
+        assert is_prompt_driven("nonexistent-xyz") is False
+
+
+class TestIsCliDriven:
+    @pytest.mark.parametrize("skill", list(CLI_DRIVEN_COMMANDS))
+    def test_returns_true_for_cli_driven(self, skill: str) -> None:
+        assert is_cli_driven(skill) is True
+
+    @pytest.mark.parametrize("skill", list(PROMPT_DRIVEN_COMMANDS))
+    def test_returns_false_for_prompt_driven(self, skill: str) -> None:
+        assert is_cli_driven(skill) is False
+
+    def test_returns_false_for_internal(self) -> None:
+        assert is_cli_driven("doctor") is False
+
+    def test_returns_false_for_unknown(self) -> None:
+        assert is_cli_driven("nonexistent-xyz") is False

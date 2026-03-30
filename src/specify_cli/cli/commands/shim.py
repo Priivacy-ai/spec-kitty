@@ -78,6 +78,18 @@ def _run(
             repo_root=repo_root,
         )
 
+        if ctx is None:
+            # Prompt-driven command — no context to resolve.  The full
+            # prompt template handles the workflow; nothing to dispatch.
+            if json_output:
+                print(json.dumps({"success": True, "context": None}, indent=2))
+            else:
+                console.print(
+                    f"[green]✓[/green] {command} is prompt-driven — "
+                    "no shim dispatch required."
+                )
+            return
+
         if json_output:
             print(json.dumps({"success": True, "context": ctx.to_dict()}, indent=2))
         else:
