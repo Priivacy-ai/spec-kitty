@@ -8,9 +8,6 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-base_branch: main
-base_commit: 3e3c07c2d8f95539e1e5c2bbdb303ae2504e02bd
-created_at: '2026-03-30T14:22:59.984598+00:00'
 subtasks:
 - id: T001
   title: Create command-templates directory
@@ -34,8 +31,6 @@ subtasks:
   title: Verify all 9 prompts are clean
   status: planned
 phase: 1
-shell_pid: "73868"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -253,4 +248,3 @@ Reviewer should check:
 ## Activity Log
 
 - 2026-03-30T13:59:29Z — WP created (planned)
-- 2026-03-30T14:23:00Z – coordinator – shell_pid=73868 – lane=doing – Started implementation via workflow command
