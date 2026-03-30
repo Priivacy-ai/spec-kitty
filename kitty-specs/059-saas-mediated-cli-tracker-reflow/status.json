@@ -1,15 +1,15 @@
 {
-  "event_count": 8,
+  "event_count": 9,
   "feature_slug": "059-saas-mediated-cli-tracker-reflow",
-  "last_event_id": "01KN03Q11EXABSMTVN14SJQ9FK",
-  "materialized_at": "2026-03-30T19:32:15.534948+00:00",
+  "last_event_id": "01KN03QDHM8YE9SN3J4Y4MN1GQ",
+  "materialized_at": "2026-03-30T19:32:28.341157+00:00",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 1,
     "in_progress": 0,
     "planned": 0
   },
@@ -24,9 +24,9 @@
     "WP02": {
       "actor": "user",
       "force_count": 3,
-      "lane": "for_review",
-      "last_event_id": "01KN03Q11EXABSMTVN14SJQ9FK",
-      "last_transition_at": "2026-03-30T19:32:15.534466+00:00"
+      "lane": "approved",
+      "last_event_id": "01KN03QDHM8YE9SN3J4Y4MN1GQ",
+      "last_transition_at": "2026-03-30T19:32:28.340859+00:00"
     }
   }
 }
