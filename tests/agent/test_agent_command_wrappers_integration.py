@@ -141,6 +141,7 @@ class TestAgentWorkflowImplement:
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
         ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"
@@ -186,6 +187,7 @@ class TestAgentWorkflowImplement:
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
         ):
             mock_locate_root.return_value = mock_repo
             mock_find_slug.return_value = "001-test-feature"

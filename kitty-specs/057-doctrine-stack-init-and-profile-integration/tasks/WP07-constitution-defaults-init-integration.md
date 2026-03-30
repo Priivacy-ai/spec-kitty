@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Constitution Defaults File + Init Integration
-lane: "approved"
+lane: "done"
 dependencies: []
 requirement_refs:
 - FR-001
@@ -306,3 +306,4 @@ time spec-kitty init --non-interactive --project /tmp/test-project-$(date +%s)
 - 2026-03-24T05:26:14Z – claude – shell_pid=377698 – lane=for_review – Ready for review: Implemented constitution defaults init integration with all 7 acceptance tests passing. Created defaults.yaml, 4 helper functions in init.py, ATDD tests, and user journey doc.
 - 2026-03-24T05:28:01Z – claude – shell_pid=385261 – lane=doing – Started review via workflow command
 - 2026-03-24T05:31:35Z – claude – shell_pid=385261 – lane=approved – Review passed: all 7 ATDD tests pass, ruff clean (fixed unused import + moved loop-invariant code), mypy strict passes, NFR-001 satisfied (0.26s non-interactive path). C-002 preserved. Architecture doc complete.
+- 2026-03-25T04:24:36Z – claude – shell_pid=385261 – lane=done – Done override: WP07 code merged into feature/agent-profile-implementation via WP08→WP09 chain

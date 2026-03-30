@@ -111,3 +111,15 @@ commands:
     prompt: "Validate Divio type adherence, check accessibility guidelines, verify generator output quality, assess completeness"
   accept:
     prompt: "Validate documentation completeness, quality gates, and readiness for publication"
+
+# Task type definitions for agent profile suggestion
+task_types:
+  write:
+    agent_role: writer
+    description: "Documentation writing work packages"
+  review:
+    agent_role: reviewer
+    description: "Documentation review work packages"
+  plan:
+    agent_role: planner
+    description: "Documentation planning work packages"

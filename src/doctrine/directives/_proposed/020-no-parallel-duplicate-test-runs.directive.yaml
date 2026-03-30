@@ -1,0 +1,30 @@
+schema_version: "1.0"
+id: DIRECTIVE_020
+title: No Parallel Duplicate Test Runs
+intent: >
+  Agents must never launch multiple concurrent runs of the same test suite.
+  Doing so wastes resources, makes output ambiguous, and degrades the developer
+  experience. A single authoritative run must be started, and the agent must
+  wait for its result before deciding on next steps.
+enforcement: required
+scope: >
+  Applies to all agent actions that invoke test suites (pytest, jest, cargo test,
+  etc.) during implementation or verification phases.
+procedures:
+  - Start exactly one test run per layer of the pyramid. Do not retry by launching
+    a second process while the first is still running.
+  - If a test command is sent to the background (run_in_background), do not launch
+    the same command again. Wait for the background task to complete and read its
+    output file.
+  - If the output of a background task is not yet available, poll its output file
+    rather than launching a new test run.
+  - If a previous run's processes are still alive when starting a new session,
+    kill them before starting a fresh run.
+integrity_rules:
+  - An agent that has more than one concurrent pytest process running has violated
+    this directive.
+  - Retrying a test run before the previous one finishes is prohibited, regardless
+    of whether the previous run appears stale.
+validation_criteria:
+  - At any point in time, at most one pytest process is running per repository.
+  - The agent waits for test output before deciding whether to proceed, fix, or escalate.
