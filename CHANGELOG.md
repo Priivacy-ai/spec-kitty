@@ -11,6 +11,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [3.0.0] — 2026-03-30
+
+### Breaking Changes
+
+- **Event log is sole authority for mutable WP state.** Frontmatter `lane`, `review_status`, `reviewed_by`, and `progress` fields are no longer written or read at runtime. Status is read from `status.events.jsonl` via the reducer.
+- **`feature_detection.py` deleted.** All commands require explicit `--feature <slug>` in multi-feature repos. No branch scanning, no env var detection, no cwd walking.
+- **Sparse checkout removed.** `planning_artifact` WPs work in-repo; `code_change` WPs use standard worktrees without sparse checkout.
+- **Command templates restored as hybrid.** Planning commands (specify, plan, tasks, etc.) install as full prompts; execution commands (implement, review, merge, etc.) install as thin CLI-dispatch shims.
+
+### Added
+
+- **MissionContext** — opaque token-based bound identity for all workflow commands (`src/specify_cli/context/`)
+- **WP Ownership Manifest** — `execution_mode`, `owned_files`, `authoritative_surface` per WP (`src/specify_cli/ownership/`)
+- **Lane-weighted progress** — `planned=0.0`, `in_progress=0.3`, `for_review=0.6`, `done=1.0` (`src/specify_cli/status/progress.py`)
+- **`spec-kitty materialize`** command for CI/debugging regeneration of derived views
+- **Dedicated merge workspace** at `.kittify/runtime/merge/` with per-mission state and atomic lock
+- **Merge conflict auto-resolution** for event logs (append-merge) and metadata (take-theirs)
+- **Thin agent shims** for CLI-driven commands with `spec-kitty agent shim <command>` entrypoints
+- **Schema version gate** (disabled until 3.0.0 migration ships to consumers)
+- **One-shot migration framework** — `backfill_identity`, `backfill_ownership`, `rebuild_state`, `strip_frontmatter`
+- **`--validate-only`** flag on `finalize-tasks`
+- **`spec-kitty next`** hint in `tasks status` output
+- **Integration Verification** section in WP prompt template
+- **Doctor `command-files`** check — detects stale/missing/wrong-type agent command files
+- **Version markers** in generated command files (`<!-- spec-kitty-command-version: X.Y.Z -->`)
+- **Migration `m_2_1_4`** — unconditionally enforces correct hybrid command file state
+
+### Removed
+
+- `feature_detection.py` (668 lines) — replaced by MissionContext tokens
+- `status/legacy_bridge.py`, `status/phase.py`, `status/reconcile.py`, `status/migrate.py`
+- `merge/executor.py`, `merge/forecast.py`, `merge/status_resolver.py`
+- `core/agent_context.py` — tech-stack parsing no longer needed
+- ~56 command template files (replaced by 9 canonical prompts + 7 thin shims)
+- Sparse checkout policy enforcement
+- Frontmatter lane/review_status read/write throughout codebase
+- Dual-write (event log + frontmatter) behavior
+
+### Fixed
+
+- "planning repository" → "project root checkout" terminology (migration included)
+- Template path references removed from agent prompts (agents no longer search for `.kittify/missions/` files)
+- Workflow `implement`/`review` now emit status events (was silently failing)
+- Merge reconciliation marks ALL ancestor WPs as done (not just effective tips)
+- `require_explicit_feature()` lists available features in error message
+- YAML parse errors in frontmatter now logged as warnings (not silently swallowed)
+- Merge engine uses `git reset --hard` on detached HEAD (not `git checkout` which fails when branch is checked out elsewhere)
+- Migration backup covers `kitty-specs/` and `.gitignore` (not just `.kittify/`)
+- `rebuild_state.py` uses max timestamp (not last file line) for terminal state
+- Merge lock uses atomic `open('x')` (not TOCTOU `exists()` + `write_text()`)
+- `merge --resume` errors when multiple paused merges exist (not silently picks first)
+
 ## [2.1.4] - 2026-03-27
 
 ### Added
