@@ -5,6 +5,7 @@ dependencies: []
 requirement_refs:
 - FR-001
 - FR-004
+- FR-006
 - FR-007
 planning_base_branch: main
 merge_target_branch: main
