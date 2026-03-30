@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import json
 from datetime import datetime, UTC
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 from rich.console import Console
@@ -71,7 +71,7 @@ def materialize(
                 p for p in specs_dir.iterdir() if p.is_dir() and not p.name.startswith(".")
             )
 
-    processed: list[dict[str, object]] = []
+    processed: list[dict[str, Any]] = []
     errors: list[str] = []
 
     for feature_dir in feature_dirs:
@@ -105,7 +105,7 @@ def materialize(
         else:
             for entry in processed:
                 slug = entry["feature_slug"]
-                files = ", ".join(entry["files_written"])  # type: ignore[arg-type]
+                files = ", ".join(entry["files_written"])
                 console.print(f"[green]OK[/green] {slug} — {files}")
         if errors:
             console.print()

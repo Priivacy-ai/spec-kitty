@@ -299,6 +299,8 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
     available = ""
     try:
         root = locate_project_root()
+        if root is None:
+            raise RuntimeError("project root not found")
         kitty_specs = root / "kitty-specs"
         if kitty_specs.is_dir():
             slugs = sorted(
@@ -318,6 +320,8 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
         # Use the first real slug as the example
         try:
             root = locate_project_root()
+            if root is None:
+                raise RuntimeError("project root not found")
             first = sorted(
                 d.name for d in (root / "kitty-specs").iterdir()
                 if d.is_dir() and not d.name.startswith(".")

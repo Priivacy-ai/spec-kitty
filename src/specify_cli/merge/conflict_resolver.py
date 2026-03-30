@@ -149,7 +149,7 @@ def _merge_event_logs(ours: str, theirs: str) -> str:
     Malformed lines are silently skipped to keep the log usable.
     """
     seen_ids: set[str] = set()
-    events: list[dict] = []
+    events: list[dict[str, object]] = []
 
     for content in (ours, theirs):
         for line in content.splitlines():

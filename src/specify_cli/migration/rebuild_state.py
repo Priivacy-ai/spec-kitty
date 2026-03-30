@@ -33,9 +33,9 @@ logger = logging.getLogger(__name__)
 try:
     import ulid as _ulid_mod
 
-    def _generate_ulid() -> str:  # type: ignore[misc]
+    def _generate_ulid() -> str:
         if hasattr(_ulid_mod, "new"):
-            return _ulid_mod.new().str  # type: ignore[attr-defined]
+            return str(_ulid_mod.new().str)  # type: ignore[attr-defined]
         return str(_ulid_mod.ULID())
 
 except ImportError:  # pragma: no cover
@@ -429,7 +429,7 @@ def rebuild_event_log(  # noqa: C901
                 (src, lane, ts) for src, lane, ts in candidates if ts
             ]
             if candidates_with_ts:
-                candidates_with_ts.sort(key=lambda x: x[2], reverse=True)  # type: ignore[arg-type]
+                candidates_with_ts.sort(key=lambda x: x[2], reverse=True)
                 winner_src, winner_lane, winner_ts = candidates_with_ts[0]
             else:
                 # All timestamps missing — prefer event_log > status_json > frontmatter

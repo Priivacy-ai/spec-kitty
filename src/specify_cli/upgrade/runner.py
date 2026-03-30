@@ -142,7 +142,8 @@ class MigrationRunner:
             metadata.last_upgraded_at = datetime.now()
             # Schema-version-based migration: stamp the new schema_version so the
             # gate does not block future commands.
-            self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
+            if REQUIRED_SCHEMA_VERSION is not None:
+                self._stamp_schema_version(self.kittify_dir, REQUIRED_SCHEMA_VERSION)
             metadata.save(self.kittify_dir)
 
         # Handle worktrees
