@@ -226,3 +226,4 @@ Reviewer should check:
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T14:36:45Z – coordinator – shell_pid=77070 – lane=doing – Started implementation via workflow command
 - 2026-03-30T14:46:45Z – coordinator – shell_pid=77070 – lane=for_review – Hybrid init complete — full prompts + thin shims. 9 integration tests pass. ensure_runtime() confirmed to deploy command-templates/ via recursive copy.
+- 2026-03-30T14:47:25Z – coordinator – shell_pid=77070 – lane=approved – Review passed: hybrid init, 4-tier resolution, 198 tests
