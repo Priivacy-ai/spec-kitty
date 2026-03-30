@@ -10,6 +10,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: main
+base_commit: 5f610cc2df502d13e40ea8c8f023dcbb79f9988a
+created_at: '2026-03-30T14:23:01.960689+00:00'
 subtasks:
 - id: T008
   title: Add PROMPT_DRIVEN / CLI_DRIVEN frozensets to registry.py
@@ -24,6 +27,7 @@ subtasks:
   title: Tests for registry classification and generator output count
   status: planned
 phase: 1
+shell_pid: "73918"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
