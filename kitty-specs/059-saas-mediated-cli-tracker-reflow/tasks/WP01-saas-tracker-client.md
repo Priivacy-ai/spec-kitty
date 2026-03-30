@@ -316,3 +316,5 @@ e. **Error handling tests**:
 - 2026-03-30T19:38:41Z – orchestrator – shell_pid=49468 – lane=doing – Started implementation via workflow command
 - 2026-03-30T19:41:50Z – orchestrator – shell_pid=49468 – lane=for_review – Fixes for Codex review cycle 1 applied: (1) error envelope parsing in _poll_operation, (2) AuthClient config passthrough, (3) team slug guard
 - 2026-03-30T19:42:15Z – codex – shell_pid=49815 – lane=doing – Started review via workflow command
+- 2026-03-30T19:48:57Z – codex – shell_pid=49815 – lane=planned – Moved to planned
+- 2026-03-30T19:50:46Z – codex – shell_pid=49815 – lane=planned – Moved to planned
