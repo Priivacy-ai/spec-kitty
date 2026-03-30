@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP03
+base_commit: 0ddd9c53d82b584ffc6d0659059776a9547680f2
+created_at: '2026-03-30T14:47:39.152758+00:00'
 subtasks:
 - id: T024
   title: Update existing shim tests to expect 7 files not 16
@@ -26,6 +29,7 @@ subtasks:
   title: mypy --strict on modified modules
   status: planned
 phase: 1
+shell_pid: "80761"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
