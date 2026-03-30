@@ -16,6 +16,7 @@ base_commit: 4df5fa0905c8b9f31bacf72b7587fc78fa6141fa
 created_at: '2026-03-30T19:57:16.692216+00:00'
 subtasks: [T022, T023, T024, T025, T026, T027]
 shell_pid: "51932"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -331,3 +332,7 @@ This is incorporated into T022 — when rewriting service.py, the following are 
 - Verify `TrackerServiceError` is preserved (used throughout CLI)
 - Count net lines: this WP should produce the largest net reduction in the feature
 - Verify `factory.py` has no remaining imports from `spec_kitty_tracker` for jira/linear/github/gitlab/azure_devops
+
+## Activity Log
+
+- 2026-03-30T19:57:16Z – orchestrator – shell_pid=51932 – lane=doing – Started implementation via workflow command
