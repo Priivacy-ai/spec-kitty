@@ -69,6 +69,7 @@ dependencies = [
     "requests>=2.31.0",  # HTTP client for batch sync
     "transitions>=0.9.2",  # State machine library for mission DSL v1
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
+    "python-ulid>=3.0",  # ULID generation for event IDs
 ]
 
 [project.urls]
@@ -84,8 +85,10 @@ test = [
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
+    "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)
     "mutmut>=3.5.0",  # Mutation testing
+    "pytestarch>=4.0.0",  # Architectural dependency testing (ADR 2026-03-27-1)
 ]
 lint = [
     "ruff>=0.4.0",
@@ -109,14 +112,24 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/specify_cli", "src/doctrine"]
+packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/constitution"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
-# Include bundled templates, doctrine assets, and extensionless payload files.
+# Include all non-Python files (templates, configs, etc.)
+# Note: specify_cli/missions command-templates and templates were removed in WP12;
+# all mission template content now lives exclusively in doctrine/missions/.
 artifacts = [
-    "src/specify_cli/**/*",
-    "src/doctrine/**/*",
+    "src/specify_cli/**/*.md",
+    "src/specify_cli/**/*.yaml",
+    "src/specify_cli/**/*.yml",
+    "src/specify_cli/**/*.json",
+    "src/doctrine/**/*.md",
+    "src/doctrine/**/*.yaml",
+    "src/doctrine/**/*.yml",
+    "src/doctrine/**/*.json",
+    "src/doctrine/**/*.csv",
+    "src/doctrine/**/*.template",
 ]
 
 [tool.hatch.build.targets.sdist]
@@ -131,9 +144,6 @@ exclude = [
     ".kittify/active-mission",
     "src/specify_cli/**/tests/**",
 ]
-
-[tool.hatch.build.targets.sdist.force-include]
-"src/doctrine/curation/imports" = "src/doctrine/curation/imports"
 
 [tool.pytest.ini_options]
 markers = [
@@ -191,7 +201,7 @@ module = [
     "specify_cli.cli.commands.glossary",
     "specify_cli.cli.commands",
     "specify_cli.cli.commands.agent.config",
-    "specify_cli.cli.commands.agent.feature",
+    "specify_cli.cli.commands.agent.mission_run",
     "specify_cli.cli.commands.agent.status",
     "specify_cli.cli.commands.agent.tasks",
     "specify_cli.cli.commands.agent.workflow",
@@ -206,11 +216,11 @@ module = [
     "specify_cli.cli.ui",
     "specify_cli.constitution.context",
     "specify_cli.core.context_validation",
-    "specify_cli.core.feature_detection",
+    "specify_cli.core.mission_detection",
     "specify_cli.dashboard.diagnostics",
     "specify_cli.dashboard.handlers.api",
     "specify_cli.dashboard.handlers.base",
-    "specify_cli.dashboard.handlers.features",
+    "specify_cli.dashboard.handlers.mission_runs",
     "specify_cli.dashboard.lifecycle",
     "specify_cli.dashboard.scanner",
     "specify_cli.doc_state",
@@ -238,7 +248,6 @@ module = [
     "specify_cli.scripts.tasks.task_helpers",
     "specify_cli.scripts.tasks.tasks_cli",
     "specify_cli.scripts.validate_encoding",
-    "specify_cli.status.legacy_bridge",
     "specify_cli.status.validate",
     "specify_cli.sync.auth",
     "specify_cli.sync.background",
@@ -297,7 +306,9 @@ also_copy = [
     "README.md",
     ".pytest_cache/spec-kitty-test-venv/",  # Pre-seeded venv so test_venv fixture skips rebuild
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
+    "src/kernel/",           # Copy kernel package for shared utilities
     "src/doctrine/",         # Copy doctrine package for imports
+    "src/constitution/",     # Copy constitution package
     "src/specify_cli/status/",  # Copy status module for status transitions
     "src/specify_cli/glossary/",  # Copy glossary module
     "src/specify_cli/cli/",   # Copy CLI commands
