@@ -14,6 +14,7 @@ base_commit: 856b78a1935a8f9ae3fea274c0424fd7d8d6c90a
 created_at: '2026-03-30T19:25:39.176884+00:00'
 subtasks: [T008, T009, T010, T011]
 shell_pid: "46286"
+agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
@@ -210,3 +211,7 @@ spec-kitty implement WP02
 - Verify `project_slug` is never used as a storage location for `team_slug` — team_slug comes from auth credential store
 - Verify `is_configured` returns False for removed providers (azure_devops)
 - Verify constants are exhaustive — no provider is unclassified
+
+## Activity Log
+
+- 2026-03-30T19:25:39Z – orchestrator – shell_pid=46286 – lane=doing – Started implementation via workflow command
