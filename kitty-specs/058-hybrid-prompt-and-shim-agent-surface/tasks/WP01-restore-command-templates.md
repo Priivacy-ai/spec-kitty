@@ -254,3 +254,4 @@ Reviewer should check:
 
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T14:23:00Z – coordinator – shell_pid=73868 – lane=doing – Started implementation via workflow command
+- 2026-03-30T14:36:02Z – coordinator – shell_pid=73868 – lane=for_review – 9 prompt-driven command templates restored and cleaned
