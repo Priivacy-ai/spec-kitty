@@ -1,15 +1,15 @@
 {
-  "event_count": 17,
+  "event_count": 18,
   "feature_slug": "058-hybrid-prompt-and-shim-agent-surface",
-  "last_event_id": "01KMZKYYHV4WYRJH3JN06MQ5T0",
-  "materialized_at": "2026-03-30T14:56:57.921120+00:00",
+  "last_event_id": "01KMZM0CGR7KF65WEPDGT9MFH8",
+  "materialized_at": "2026-03-30T14:57:44.985196+00:00",
   "summary": {
-    "approved": 3,
+    "approved": 4,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 1,
     "planned": 0
   },
@@ -38,9 +38,9 @@
     "WP04": {
       "actor": "user",
       "force_count": 0,
-      "lane": "for_review",
-      "last_event_id": "01KMZKYYHV4WYRJH3JN06MQ5T0",
-      "last_transition_at": "2026-03-30T14:56:57.915310+00:00"
+      "lane": "approved",
+      "last_event_id": "01KMZM0CGR7KF65WEPDGT9MFH8",
+      "last_transition_at": "2026-03-30T14:57:44.984786+00:00"
     },
     "WP06": {
       "actor": "coordinator",
