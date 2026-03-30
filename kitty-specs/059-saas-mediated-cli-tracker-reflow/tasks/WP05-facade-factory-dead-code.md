@@ -336,3 +336,4 @@ This is incorporated into T022 — when rewriting service.py, the following are 
 ## Activity Log
 
 - 2026-03-30T19:57:16Z – orchestrator – shell_pid=51932 – lane=doing – Started implementation via workflow command
+- 2026-03-30T20:01:42Z – orchestrator – shell_pid=51932 – lane=for_review – Ready for review: facade refactor, factory cleanup, 351 net lines deleted
