@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: 058-hybrid-prompt-and-shim-agent-surface-WP01
+base_commit: 64746d186e96e89ee9b42eb927bab6f822375c4c
+created_at: '2026-03-30T14:36:45.658790+00:00'
 subtasks:
 - id: T012
   title: Update init.py to call generate_agent_assets() for prompt-driven commands
@@ -25,6 +28,7 @@ subtasks:
   title: 'Integration test: spec-kitty init in temp dir produces hybrid output'
   status: planned
 phase: 1
+shell_pid: "77070"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
