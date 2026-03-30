@@ -17,6 +17,8 @@ from typing import Any
 from specify_cli.merge.workspace import get_merge_runtime_dir
 
 __all__ = [
+    "MergeAmbiguousStateError",
+    "MergeLockError",
     "MergeState",
     "save_state",
     "load_state",
@@ -32,6 +34,33 @@ __all__ = [
 
 _STATE_FILE = "state.json"
 _LOCK_FILE = "lock"
+
+
+class MergeAmbiguousStateError(Exception):
+    """Raised when multiple active merge states exist and no mission_id was given.
+
+    Pass ``--feature <slug>`` (or ``--mission-id <id>``) to disambiguate.
+    """
+
+    def __init__(self, mission_ids: list[str]) -> None:
+        self.mission_ids = mission_ids
+        ids_formatted = "\n  ".join(mission_ids)
+        super().__init__(
+            f"Multiple active merge states found — pass --feature to disambiguate:\n  {ids_formatted}"
+        )
+
+
+class MergeLockError(Exception):
+    """Raised when a merge lock is already held for a mission."""
+
+    def __init__(self, mission_id: str, lock_path: Path) -> None:
+        self.mission_id = mission_id
+        self.lock_path = lock_path
+        super().__init__(
+            f"Merge lock already held for '{mission_id}' (lock file: {lock_path}). "
+            "Another merge operation may be running. "
+            "If not, remove the lock file manually: spec-kitty merge --abort"
+        )
 
 
 @dataclass
@@ -127,24 +156,41 @@ def load_state(repo_root: Path, mission_id: str | None = None) -> MergeState | N
     Args:
         repo_root: Repository root path
         mission_id: If given, load from the per-mission path; otherwise scan
-                    for the first active state file under .kittify/runtime/merge/.
+                    for active state files under .kittify/runtime/merge/.
+                    When exactly one active state is found it is returned.
+                    When multiple active states are found,
+                    :class:`MergeAmbiguousStateError` is raised — callers must
+                    pass ``mission_id`` to disambiguate.
 
     Returns:
         MergeState if found and valid, None otherwise
+
+    Raises:
+        MergeAmbiguousStateError: When multiple active merge states exist and
+            no ``mission_id`` was provided.
     """
     if mission_id is not None:
         return _load_state_file(get_state_path(repo_root, mission_id))
 
-    # Scan for any active state file
+    # Scan for all active state files
     runtime_merge_dir = repo_root / ".kittify" / "runtime" / "merge"
-    if runtime_merge_dir.exists():
-        for candidate in sorted(runtime_merge_dir.iterdir()):
-            state_file = candidate / _STATE_FILE
-            state = _load_state_file(state_file)
-            if state is not None:
-                return state
+    if not runtime_merge_dir.exists():
+        return None
 
-    return None
+    active_states: list[MergeState] = []
+    for candidate in sorted(runtime_merge_dir.iterdir()):
+        state_file = candidate / _STATE_FILE
+        state = _load_state_file(state_file)
+        if state is not None:
+            active_states.append(state)
+
+    if len(active_states) == 0:
+        return None
+    if len(active_states) == 1:
+        return active_states[0]
+
+    # Multiple active merge states: require caller to disambiguate
+    raise MergeAmbiguousStateError([s.mission_id for s in active_states])
 
 
 def _load_state_file(state_path: Path) -> MergeState | None:
@@ -208,21 +254,30 @@ def has_active_merge(repo_root: Path, mission_id: str | None = None) -> bool:
 def acquire_merge_lock(mission_id: str, repo_root: Path) -> bool:
     """Create a lock file to prevent concurrent merge operations.
 
+    Uses an atomic exclusive-create (``open(path, 'x')``) to avoid the
+    TOCTOU race that exists() + write_text() is vulnerable to.
+
     Args:
         mission_id: Mission/feature slug identifier
         repo_root: Repository root path
 
     Returns:
         True if the lock was acquired, False if already locked
+
+    Raises:
+        MergeLockError: Never raised here (returns False instead), but callers
+            that want a hard failure can raise it themselves on False return.
     """
     lock_path = get_merge_runtime_dir(mission_id, repo_root) / _LOCK_FILE
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
-    if lock_path.exists():
+    try:
+        # Atomic exclusive create — fails immediately if lock already exists.
+        with lock_path.open("x", encoding="utf-8") as fh:
+            fh.write(datetime.now(UTC).isoformat())
+        return True
+    except FileExistsError:
         return False
-
-    lock_path.write_text(datetime.now(UTC).isoformat(), encoding="utf-8")
-    return True
 
 
 def release_merge_lock(mission_id: str, repo_root: Path) -> None:

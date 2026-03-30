@@ -20,22 +20,25 @@ class TestGenerateShimContent:
     def test_three_non_empty_components(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.rstrip("\n").splitlines()
-        # invariant line, prohibition line, blank, CLI call
-        assert len(lines) == 4
+        # version marker, invariant line, prohibition line, blank, CLI call
+        assert len(lines) == 5
 
     def test_first_line_invariant(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        first = content.splitlines()[0]
+        # Line 0 is the version marker; invariant is on line 1
+        first = content.splitlines()[1]
         assert first == "Run this exact command and treat its output as authoritative."
 
     def test_second_line_prohibition(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        second = content.splitlines()[1]
+        # Line 0 is the version marker; prohibition is on line 2
+        second = content.splitlines()[2]
         assert second == "Do not rediscover context from branches, files, or prompt contents."
 
     def test_fourth_line_is_cli_call(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        fourth = content.splitlines()[3]
+        # Line 0 is version marker, so CLI call is on line 4
+        fourth = content.splitlines()[4]
         assert "spec-kitty agent shim implement" in fourth
         assert "--agent claude" in fourth
         assert "--raw-args" in fourth

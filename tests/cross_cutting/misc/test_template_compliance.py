@@ -124,6 +124,10 @@ def test_command_templates_removed():
     """WP10: command-templates directories must be fully removed.
 
     Shim generation (spec-kitty agent shim) replaces template-based commands.
+
+    Exception: src/specify_cli/missions/software-dev/command-templates/ is
+    intentionally retained as the canonical source for prompt-driven commands
+    (restored in feature 058).
     """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
@@ -131,12 +135,20 @@ def test_command_templates_removed():
     doctrine_missions_dir = spec_kitty_root / "src" / "doctrine" / "missions"
     doctrine_templates_dir = spec_kitty_root / "src" / "doctrine" / "templates"
 
+    # software-dev/command-templates/ is the canonical source for prompt-driven
+    # commands and is intentionally kept (feature 058).
+    allowed = {
+        str((missions_dir / "software-dev" / "command-templates").relative_to(spec_kitty_root)),
+    }
+
     found = []
     for parent in [missions_dir, templates_dir, doctrine_missions_dir, doctrine_templates_dir]:
         if parent.exists():
             for d in parent.rglob("command-templates"):
                 if d.is_dir():
-                    found.append(str(d.relative_to(spec_kitty_root)))
+                    rel = str(d.relative_to(spec_kitty_root))
+                    if rel not in allowed:
+                        found.append(rel)
 
     assert len(found) == 0, (
         f"command-templates directories still present (should be deleted in WP10): {found}"
@@ -179,10 +191,20 @@ def test_no_command_templates_in_mission_dirs():
     Command templates were deleted in WP10 in favour of shim generation.
     Each agent slot now contains a thin 3-line shim file produced by
     ``spec-kitty agent shim`` rather than a rendered workflow template.
+
+    Exception: src/specify_cli/missions/software-dev/command-templates/ is
+    intentionally retained as the canonical source for prompt-driven commands
+    (restored in feature 058).
     """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
     missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
     doctrine_dir = spec_kitty_root / "src" / "doctrine" / "missions"
+
+    # software-dev/command-templates/ is the canonical source for prompt-driven
+    # commands and is intentionally kept (feature 058).
+    allowed = {
+        str((missions_dir / "software-dev" / "command-templates").relative_to(spec_kitty_root)),
+    }
 
     violations = []
     for base in [missions_dir, doctrine_dir]:
@@ -190,7 +212,9 @@ def test_no_command_templates_in_mission_dirs():
             continue
         for child in base.rglob("command-templates"):
             if child.is_dir():
-                violations.append(str(child.relative_to(spec_kitty_root)))
+                rel = str(child.relative_to(spec_kitty_root))
+                if rel not in allowed:
+                    violations.append(rel)
 
     assert not violations, (
         f"command-templates directories must be deleted (WP10): {violations}"

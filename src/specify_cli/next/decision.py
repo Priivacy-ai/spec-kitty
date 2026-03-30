@@ -386,6 +386,12 @@ def _state_to_action(
     }
     alias = _ALIASES.get(state)
     if alias:
+        # CLI-driven commands (shims) have no command template file — return
+        # the alias directly without verifying template existence.
+        from specify_cli.shims.registry import is_cli_driven
+
+        if is_cli_driven(alias):
+            return alias, None, None
         try:
             resolve_command(f"{alias}.md", repo_root, mission=mission_name)
             return alias, None, None

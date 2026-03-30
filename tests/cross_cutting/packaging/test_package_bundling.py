@@ -13,8 +13,20 @@ def test_command_templates_not_bundled():
 
     Shim generation (spec-kitty agent shim) replaces rendered template files.
     No command-templates should remain to be bundled into the distribution.
+
+    Exception: src/specify_cli/missions/software-dev/command-templates/ is
+    intentionally retained as the canonical source for prompt-driven commands
+    (restored in feature 058).
     """
     spec_kitty_root = Path(__file__).parent.parent.parent.parent
+    missions_dir = spec_kitty_root / "src" / "specify_cli" / "missions"
+
+    # software-dev/command-templates/ is the canonical source for prompt-driven
+    # commands and is intentionally kept (feature 058).
+    allowed = {
+        str((missions_dir / "software-dev" / "command-templates").relative_to(spec_kitty_root)),
+    }
+
     found = []
     for base in [
         spec_kitty_root / "src" / "specify_cli",
@@ -23,7 +35,9 @@ def test_command_templates_not_bundled():
         if base.exists():
             for d in base.rglob("command-templates"):
                 if d.is_dir():
-                    found.append(str(d.relative_to(spec_kitty_root)))
+                    rel = str(d.relative_to(spec_kitty_root))
+                    if rel not in allowed:
+                        found.append(rel)
 
     assert len(found) == 0, (
         f"command-templates directories still present (WP10 deletion incomplete): {found}"

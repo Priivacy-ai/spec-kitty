@@ -349,8 +349,8 @@ class TestHybridInstallOutputShape:
         implement_file = project / ".claude" / "commands" / "spec-kitty.implement.md"
         assert implement_file.exists(), "spec-kitty.implement.md must exist"
         lines = implement_file.read_text().splitlines()
-        assert len(lines) < 5, (
-            f"spec-kitty.implement.md should have <5 lines (thin shim), got {len(lines)}"
+        assert len(lines) <= 5, (
+            f"spec-kitty.implement.md should have <=5 lines (thin shim), got {len(lines)}"
         )
 
 

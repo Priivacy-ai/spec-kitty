@@ -381,14 +381,21 @@ def rebuild_event_log(  # noqa: C901
                 raw = wp_state.get("lane", "planned")
                 status_json_lanes[wp_code] = _resolve_alias(str(raw))
 
-    # Collect lanes from event log terminal states
+    # Collect lanes from event log terminal states.
+    # Use the event with the NEWEST "at" timestamp per WP, not the last file position,
+    # so that out-of-order appends (e.g. back-dated corrective events) are handled
+    # correctly.
     event_log_lanes: dict[str, str] = {}
     event_log_ts: dict[str, str] = {}
+    _wp_events: dict[str, list[dict[str, Any]]] = {}
     for evt in existing_events:
         wp_code = evt.get("wp_id", "")
         if wp_code:
-            event_log_lanes[wp_code] = _resolve_alias(evt.get("to_lane", "planned"))
-            event_log_ts[wp_code] = evt.get("at", "")
+            _wp_events.setdefault(wp_code, []).append(evt)
+    for wp_code, wp_events in _wp_events.items():
+        terminal_event = max(wp_events, key=lambda e: e.get("at", ""))
+        event_log_lanes[wp_code] = _resolve_alias(terminal_event.get("to_lane", "planned"))
+        event_log_ts[wp_code] = terminal_event.get("at", "")
 
     # Gather all known WPs
     all_wp_codes: set[str] = (

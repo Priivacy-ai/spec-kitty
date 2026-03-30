@@ -67,7 +67,10 @@ def test_render_command_template_handles_toml_extension(tmp_path: Path) -> None:
     )
 
     assert output.startswith('description = "Demo Template"')
-    assert 'prompt = """\nRun echo hi {{args}}  for gemini.\n"""' in output
+    # Version marker is embedded inside the prompt block for TOML output
+    assert 'prompt = """' in output
+    assert 'Run echo hi {{args}}  for gemini.' in output
+    assert '<!-- spec-kitty-command-version:' in output
 
 
 def test_generate_agent_assets_creates_expected_files(tmp_path: Path) -> None:
