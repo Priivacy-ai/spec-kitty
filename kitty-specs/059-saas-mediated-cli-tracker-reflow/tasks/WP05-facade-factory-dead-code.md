@@ -337,3 +337,4 @@ This is incorporated into T022 — when rewriting service.py, the following are 
 
 - 2026-03-30T19:57:16Z – orchestrator – shell_pid=51932 – lane=doing – Started implementation via workflow command
 - 2026-03-30T20:01:42Z – orchestrator – shell_pid=51932 – lane=for_review – Ready for review: facade refactor, factory cleanup, 351 net lines deleted
+- 2026-03-30T20:02:20Z – orchestrator – shell_pid=51932 – lane=approved – Review passed: service.py facade (120 lines), factory beads/fp only, 10K dead code deleted, 22 dispatch tests, all 142 tracker tests pass. Approved.
