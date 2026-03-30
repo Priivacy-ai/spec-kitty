@@ -29,6 +29,7 @@ subtasks:
   status: planned
 phase: 1
 shell_pid: "77070"
+agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -223,3 +224,4 @@ Reviewer should check:
 ## Activity Log
 
 - 2026-03-30T13:59:29Z — WP created (planned)
+- 2026-03-30T14:36:45Z – coordinator – shell_pid=77070 – lane=doing – Started implementation via workflow command
