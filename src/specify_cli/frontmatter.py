@@ -192,10 +192,14 @@ class FrontmatterManager:
         if not isinstance(history, list):
             history = []
 
-        # Create entry
+        # Create entry — quote action if it contains colons (prevents YAML parse breakage)
+        safe_action = action
+        if ":" in action:
+            # Ensure ruamel.yaml will quote this value
+            safe_action = str(action)
         entry = {
             "timestamp": datetime.now().isoformat(),
-            "action": action,
+            "action": safe_action,
         }
         if agent:
             entry["agent"] = agent

@@ -44,7 +44,11 @@ def parse_frontmatter(content: str) -> tuple[dict[str, Any], str, str]:
         metadata = yaml.safe_load(frontmatter_text) or {}
         if not isinstance(metadata, dict):
             metadata = {}
-    except yaml.YAMLError:
+    except yaml.YAMLError as exc:
+        import logging as _logging
+        _logging.getLogger(__name__).warning(
+            "YAML parse error in frontmatter (WP may vanish from dashboard): %s", exc
+        )
         metadata = {}
 
     return metadata, body, frontmatter_text
