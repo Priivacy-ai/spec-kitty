@@ -106,10 +106,6 @@ references:
     type: tactic
     id: aggregate-boundary-design
     when: Filling the Domain Roles section with aggregates, entities, and value objects.
-  - name: Bounded Context Canvas Template
-    type: template
-    id: bounded-context-canvas-template
-    when: Using the fillable canvas template alongside this reasoning tactic.
   - name: Glossary Template
     type: template
     id: glossary-template

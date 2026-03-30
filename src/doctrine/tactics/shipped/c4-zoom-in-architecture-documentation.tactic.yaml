@@ -94,7 +94,7 @@ steps:
       audience without verbal explanation.
     references:
       - name: Architecture Diagram Review Checklist
-        type: tactic
+        type: checklist
         id: architecture-diagram-review-checklist
         when: Reviewing any C4 diagram before sharing or committing.
 failure_modes:

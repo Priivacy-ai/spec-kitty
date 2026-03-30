@@ -26,6 +26,7 @@ def _run_cli(*args: str) -> subprocess.CompletedProcess[str]:
     """Run spec-kitty CLI via its module entry-point."""
     env = os.environ.copy()
     env["PYTHONPATH"] = _WORKTREE_SRC + os.pathsep + env.get("PYTHONPATH", "")
+    env["NO_COLOR"] = "1"
     return subprocess.run(
         [sys.executable, "-m", "specify_cli.__main__", *args],
         capture_output=True,

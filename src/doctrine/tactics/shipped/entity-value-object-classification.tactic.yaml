@@ -70,7 +70,7 @@ failure_modes:
   - "Missing equality: not implementing proper equality semantics, causing duplicates in sets and incorrect cache hits."
 references:
   - name: Aggregate Boundary Design
-    type: tactic
+    type: related
     id: aggregate-boundary-design
     when: Entities and Value Objects are the building blocks inside aggregates.
   - name: Language-Driven Design

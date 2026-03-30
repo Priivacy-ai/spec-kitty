@@ -68,7 +68,7 @@ references:
     id: bounded-context-identification
     when: Contexts must be identified before they can be classified.
   - name: Bounded Context Canvas Fill
-    type: tactic
+    type: related
     id: bounded-context-canvas-fill
     when: Recording the strategic classification on the full canvas template.
   - name: Context Mapping Classification

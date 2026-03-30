@@ -225,6 +225,23 @@ class TestDualWriteForceTransitionRecorded:
         )
         emit_status_transition(
             mission_dir=mission_dir, mission_slug=slug,
+            wp_id="WP01", to_lane="in_review", actor="reviewer-1",
+            repo_root=repo_root,
+        )
+        emit_status_transition(
+            mission_dir=mission_dir, mission_slug=slug,
+            wp_id="WP01", to_lane="approved", actor="reviewer-1",
+            repo_root=repo_root,
+            evidence={
+                "review": {
+                    "reviewer": "reviewer-1",
+                    "verdict": "approved",
+                    "reference": "PR#99",
+                },
+            },
+        )
+        emit_status_transition(
+            mission_dir=mission_dir, mission_slug=slug,
             wp_id="WP01", to_lane="done", actor="reviewer-1",
             repo_root=repo_root,
             evidence={
