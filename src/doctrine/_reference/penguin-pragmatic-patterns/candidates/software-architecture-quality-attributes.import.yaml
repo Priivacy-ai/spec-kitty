@@ -1,0 +1,31 @@
+id: "imp-ppp-software-architecture"
+source:
+  title: "Software Architecture"
+  type: "concept-article"
+  publisher: "penguin-pragmatic-patterns"
+  url: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/concepts/software_architecture.md"
+  accessed_on: "2026-03-19"
+classification:
+  target_concepts:
+    - "directive"
+  rationale: >
+    The quality attributes section (flexibility, scalability, feasibility, reusability,
+    security) and the trade-offs discussion provide a concrete basis for a scalability
+    and quality-attribute assessment directive.
+adaptation:
+  summary: >
+    Distil the quality-attributes framework into a directive requiring agents to
+    explicitly assess system quality attributes and document trade-offs before
+    finalising architectural decisions.
+  notes:
+    - "Directive should mandate identification of relevant -ilities for the task at hand."
+    - "Trade-off documentation should be captured in ADRs (reference DIRECTIVE_001)."
+    - "Keep scope broad: applies to any design with non-trivial systemic consequences."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/concepts/software_architecture.md"
+    lines: "n/a"
+    note: "Primary source concept article."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/directives/shipped/007-scalability-assessment-protocol.directive.yaml"

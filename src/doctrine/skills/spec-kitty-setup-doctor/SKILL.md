@@ -90,7 +90,7 @@ spec-kitty agent config status
 ```
 
 **Expected outcome:** Status output shows the current kanban board, configured
-agents, and active features without errors.
+agents, and active missions without errors.
 
 ---
 
@@ -165,7 +165,7 @@ After recovery is complete, point the user to the correct next step.
 **Decision tree:**
 
 1. If the user wanted to **start a new project**: `spec-kitty init --here`
-2. If the user wanted to **specify a feature**: `/spec-kitty.specify`
+2. If the user wanted to **specify a mission**: `/spec-kitty.specify`
 3. If the user wanted to **check status**: `spec-kitty agent tasks status`
 4. If the user wanted to **implement a work package**: `/spec-kitty.implement`
 5. If the problem was **skills missing**: confirm skills are now visible with `spec-kitty verify-setup`

@@ -1,32 +1,318 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://spec-kitty.dev/schemas/doctrine/agent-profile.schema.yaml"
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/agent-profile.schema.yaml
 title: Agent Profile
-description: Minimal schema for doctrine agent profiles.
+description: Rich agent profile schema with 6-section structure for spec-kitty doctrine framework
 type: object
 additionalProperties: false
 required:
-  - schema_version
-  - id
-  - role
-  - capabilities
+- profile-id
+- name
+- purpose
+- specialization
+definitions:
+  agent_collaboration:
+    type: object
+    additionalProperties: false
+    properties:
+      handoff-to:
+        type: array
+        description: Roles/agents this agent hands off to
+        items:
+          type: string
+      handoff-from:
+        type: array
+        description: Roles/agents that hand off to this agent
+        items:
+          type: string
+      works-with:
+        type: array
+        description: Roles/agents this agent collaborates with
+        items:
+          type: string
+      output-artifacts:
+        type: array
+        description: Artifacts this agent produces
+        items:
+          type: string
+      operating-procedures:
+        type: array
+        description: Procedures this agent follows
+        items:
+          type: string
+      canonical-verbs:
+        type: array
+        description: Standard verbs for this agent's actions
+        items:
+          type: string
+  agent_context_sources:
+    type: object
+    additionalProperties: false
+    properties:
+      doctrine-layers:
+        type: array
+        description: Doctrine layers this agent consults
+        items:
+          type: string
+      directives:
+        type: array
+        description: Directive IDs this agent references
+        items:
+          type: string
+      tactics:
+        type: array
+        description: Tactic IDs this agent references
+        items:
+          type: string
+      toolguides:
+        type: array
+        description: Toolguide IDs this agent references
+        items:
+          type: string
+      styleguides:
+        type: array
+        description: Styleguide IDs this agent references
+        items:
+          type: string
+      additional:
+        type: array
+        description: Additional context sources
+        items:
+          type: string
+  agent_directive_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - code
+    - name
+    - rationale
+    properties:
+      code:
+        type: string
+        minLength: 1
+        description: Directive code
+      name:
+        type: string
+        minLength: 1
+        description: Directive name
+      rationale:
+        type: string
+        minLength: 1
+        description: Why this directive is referenced
+  agent_mode_default:
+    type: object
+    additionalProperties: false
+    required:
+    - mode
+    - description
+    - use-case
+    properties:
+      mode:
+        type: string
+        minLength: 1
+        description: Mode name
+      description:
+        type: string
+        minLength: 1
+        description: Mode description
+      use-case:
+        type: string
+        minLength: 1
+        description: When to use this mode
+  agent_specialization:
+    type: object
+    additionalProperties: false
+    required:
+    - primary-focus
+    properties:
+      primary-focus:
+        type: string
+        minLength: 1
+        description: Primary area of specialization
+      secondary-awareness:
+        type: string
+        description: Secondary areas agent is aware of
+      avoidance-boundary:
+        type: string
+        description: What this agent explicitly avoids
+      success-definition:
+        type: string
+        description: How success is defined for this agent
+  agent_specialization_context:
+    type: object
+    additionalProperties: false
+    properties:
+      languages:
+        type: array
+        description: Programming languages this agent specializes in
+        items:
+          type: string
+      frameworks:
+        type: array
+        description: Frameworks this agent knows
+        items:
+          type: string
+      file-patterns:
+        type: array
+        description: File patterns this agent matches (glob patterns)
+        items:
+          type: string
+      domain-keywords:
+        type: array
+        description: Domain keywords for matching
+        items:
+          type: string
+      writing-style:
+        type: array
+        description: Preferred writing styles
+        items:
+          type: string
+      complexity-preference:
+        type: array
+        description: Task complexity preferences (low, medium, high)
+        items:
+          type: string
+  agent_styleguide_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - rationale
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Styleguide ID
+      rationale:
+        type: string
+        minLength: 1
+        description: Why this styleguide is referenced
+  agent_tactic_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - rationale
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Tactic ID
+      rationale:
+        type: string
+        minLength: 1
+        description: Why this tactic is referenced
+  agent_toolguide_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - id
+    - rationale
+    properties:
+      id:
+        type: string
+        minLength: 1
+        description: Toolguide ID
+      rationale:
+        type: string
+        minLength: 1
+        description: Why this toolguide is referenced
+  self_review_protocol:
+    type: object
+    additionalProperties: false
+    properties:
+      steps:
+        type: array
+        items:
+          $ref: '#/definitions/self_review_step'
+  self_review_step:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - gate
+    properties:
+      name:
+        type: string
+        minLength: 1
+        description: Step name
+      command:
+        type: string
+        description: Command to run for this step
+      gate:
+        type: string
+        minLength: 1
+        description: Pass/fail criteria for this step
 properties:
-  schema_version:
+  profile-id:
     type: string
-    pattern: '^1\.0$'
-  id:
-    type: string
-    pattern: '^[a-z][a-z0-9-]*$'
-  role:
+    pattern: ^[a-z][a-z0-9-]*$
+    description: Unique identifier for this agent profile (kebab-case)
+  name:
     type: string
     minLength: 1
+    description: Human-readable name for this agent
+  description:
+    type: string
+    description: Optional brief description
+  schema-version:
+    type: string
+    pattern: ^1\.0$
+    description: Schema version for compatibility
+  purpose:
+    type: string
+    minLength: 1
+    description: The agent's primary purpose or mission statement
+  role:
+    type: string
+    description: Agent role (architect, implementer, reviewer, planner, etc.) - accepts both known roles and custom 
+      roles
   capabilities:
     type: array
-    minItems: 1
+    description: List of capabilities this agent can perform
     items:
       type: string
-      minLength: 1
-  tool_constraints:
+  specializes-from:
+    type: string
+    description: Parent profile ID this agent specializes from (for hierarchy)
+  routing-priority:
+    type: integer
+    description: Priority for routing tasks to this agent (0-100, higher is more preferred)
+    minimum: 0
+    maximum: 100
+  max-concurrent-tasks:
+    type: integer
+    description: Maximum number of tasks this agent can handle concurrently
+    minimum: 1
+  context-sources:
+    $ref: '#/definitions/agent_context_sources'
+  specialization:
+    $ref: '#/definitions/agent_specialization'
+  collaboration:
+    $ref: '#/definitions/agent_collaboration'
+  mode-defaults:
     type: array
     items:
-      type: string
-      minLength: 1
+      $ref: '#/definitions/agent_mode_default'
+  initialization-declaration:
+    type: string
+    description: Agent's initialization prompt or declaration
+  specialization-context:
+    $ref: '#/definitions/agent_specialization_context'
+  directive-references:
+    type: array
+    items:
+      $ref: '#/definitions/agent_directive_reference'
+  tactic-references:
+    type: array
+    items:
+      $ref: '#/definitions/agent_tactic_reference'
+  toolguide-references:
+    type: array
+    items:
+      $ref: '#/definitions/agent_toolguide_reference'
+  styleguide-references:
+    type: array
+    items:
+      $ref: '#/definitions/agent_styleguide_reference'
+  self-review-protocol:
+    $ref: '#/definitions/self_review_protocol'

@@ -28,7 +28,7 @@ conflict resolution.
 
 | Git Operation | Who Does It | When |
 |---|---|---|
-| `git worktree add` | Python | `spec-kitty implement WP##` (lane worktree when `lanes.json` exists, legacy WP worktree otherwise) |
+| `git worktree add` | Python | `spec-kitty implement WP##` |
 | `git commit` (planning artifacts) | Python | Before worktree creation |
 | `git commit` (lane transitions) | Python | WP moves to doing/for_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
@@ -46,22 +46,10 @@ conflict resolution.
 
 ### 1. Worktree Creation
 
-When you run `spec-kitty implement WP01`, Python resolves the execution topology first.
-
-For modern lane-based features (`lanes.json` present), it creates or reuses the lane worktree for that WP:
+When you run `spec-kitty implement WP01`, Python:
 
 ```
-git branch kitty/mission-042-feature main
-git worktree add -b kitty/mission-042-feature-lane-a .worktrees/042-feature-lane-a kitty/mission-042-feature
-```
-
-Sequential WPs in the same lane reuse that same worktree; Spec Kitty updates
-workspace context to point the active WP at the shared lane workspace.
-
-For legacy features without lanes, Python still uses one worktree per WP:
-
-```
-git worktree add -b 042-feature-WP01 .worktrees/042-feature-WP01 main
+git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
 ```
 
 It also configures sparse checkout to exclude `kitty-specs/` from the
@@ -70,26 +58,26 @@ worktree context.
 
 The agent never creates worktrees. Always use `spec-kitty implement`.
 
-For dependent WPs with `--base`, Spec Kitty still validates the dependency intent:
+For dependent WPs with `--base`:
 
 ```
 spec-kitty implement WP02 --base WP01
 ```
 
-Legacy WP-specific features branch from WP01's branch instead of main:
+This branches from WP01's branch instead of main:
 
 ```
-git worktree add -b 042-feature-WP02 .worktrees/042-feature-WP02 042-feature-WP01
+git worktree add -b 042-mission-WP02 .worktrees/042-mission-WP02 042-mission-WP01
 ```
 
 ### 2. Planning Artifact Auto-Commits
 
-Before creating a worktree, Python checks if `kitty-specs/042-feature/` has
+Before creating a worktree, Python checks if `kitty-specs/042-mission/` has
 uncommitted changes on the primary branch. If so, it auto-commits:
 
 ```
-git add -f kitty-specs/042-feature/
-git commit -m "chore: Planning artifacts for 042-feature"
+git add -f kitty-specs/042-mission/
+git commit -m "chore: Planning artifacts for 042-mission"
 ```
 
 **Controlled by:** `auto_commit: true` in `.kittify/config.yaml` (default: true).
@@ -122,19 +110,23 @@ one would create excessive git noise.
 
 ### 5. Merge Execution
 
-`spec-kitty merge --feature 042-feature` runs the merge sequence that matches the feature topology.
-
-For lane-based features it merges lane branches into the mission branch, then the mission branch into the target branch:
+`spec-kitty merge --mission 042-mission` runs the full merge sequence:
 
 ```
 git checkout main
-git merge --no-ff kitty/mission-042-feature
-git worktree remove .worktrees/042-feature-lane-a --force
-git branch -d kitty/mission-042-feature-lane-a
-git branch -d kitty/mission-042-feature
+git pull --ff-only                    # sync with remote
+git merge --no-ff 042-mission-WP01   # merge in dependency order
+git merge --no-ff 042-mission-WP02
+git merge --no-ff 042-mission-WP03
+git worktree remove .worktrees/042-mission-WP01 --force
+git worktree remove .worktrees/042-mission-WP02 --force
+git worktree remove .worktrees/042-mission-WP03 --force
+git branch -d 042-mission-WP01       # cleanup branches
+git branch -d 042-mission-WP02
+git branch -d 042-mission-WP03
 ```
 
-Legacy features without lanes still merge WP branches/worktrees in dependency order.
+Merge order follows the dependency graph (topological sort).
 
 Supports 3 strategies: `merge` (--no-ff, default), `squash`, `rebase`.
 
@@ -160,7 +152,7 @@ All actual code work must be committed by the agent. Python creates the
 worktree but never commits code:
 
 ```bash
-cd <workspace printed by spec-kitty agent workflow implement>
+cd .worktrees/042-mission-WP01
 # ... write code, run tests ...
 git add src/ tests/
 git commit -m "feat(WP01): implement auth middleware"
@@ -173,11 +165,11 @@ rejected.
 
 ### 2. Rebasing Dependent WPs
 
-When the base branch for your workspace has changed since it was created:
+When WP02 depends on WP01 and WP01 has changed since WP02 branched:
 
 ```bash
-cd <workspace printed by spec-kitty>
-git rebase <base-branch printed by spec-kitty>
+cd .worktrees/042-mission-WP02
+git rebase 042-mission-WP01
 # resolve conflicts if any
 git add .
 git rebase --continue
@@ -192,14 +184,12 @@ WP01 is merged and WP02 needs to pick up those changes.
 ### 3. Multi-Parent Dependencies
 
 If WP04 depends on both WP02 and WP03, use `--base` for one and manually
-merge the other when you are in a legacy WP-specific branch. In lane mode,
-the resolved workspace may already be a shared lane workspace and no separate
-WP branch will exist.
+merge the other:
 
 ```bash
 spec-kitty implement WP04 --base WP03    # branches from WP03
-cd <resolved workspace>
-git merge 042-feature-WP02               # manually merge WP02 when needed
+cd .worktrees/042-mission-WP04
+git merge 042-mission-WP02               # manually merge WP02
 ```
 
 ### 4. Pushing
@@ -236,11 +226,11 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 ```
 1. CREATED
    spec-kitty implement WP01
-   → git worktree add -b kitty/mission-042-feature-lane-a .worktrees/042-feature-lane-a kitty/mission-042-feature
-   → .kittify/workspaces/042-feature-lane-a.json created
+   → git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
+   → .kittify/workspaces/042-mission-WP01.json created
 
 2. ACTIVE (agent works here)
-   cd .worktrees/042-feature-lane-a
+   cd .worktrees/042-mission-WP01
    → agent writes code, commits, tests
    → WP status: in_progress
 
@@ -250,11 +240,11 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
    → reviewer checks the diff
 
 4. MERGED
-   spec-kitty merge --feature 042-feature
-   → git merge --no-ff kitty/mission-042-feature
-   → git worktree remove .worktrees/042-feature-lane-a --force
-   → git branch -d kitty/mission-042-feature-lane-a
-   → .kittify/workspaces/042-feature-lane-a.json removed
+   spec-kitty merge --mission 042-mission
+   → git merge --no-ff 042-mission-WP01
+   → git worktree remove .worktrees/042-mission-WP01 --force
+   → git branch -d 042-mission-WP01
+   → .kittify/workspaces/042-mission-WP01.json removed
 
 5. CLEANED UP
    Worktree directory gone, branch deleted, workspace context removed

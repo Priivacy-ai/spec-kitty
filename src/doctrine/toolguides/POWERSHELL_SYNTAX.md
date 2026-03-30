@@ -31,10 +31,10 @@ Get-Location
 git branch --show-current
 ```
 
-**Expected for execution workspaces:**
+**Expected for mission worktrees:**
 
-- Location: `C:\Users\...\project\.worktrees\001-feature-name-lane-a` (or legacy `...\001-feature-name-WP01`)
-- Branch: `kitty/mission-001-feature-name-lane-a` or legacy `001-feature-name-WP01` (NOT `main`)
+- Location: `C:\Users\...\project\.worktrees\001-mission-name`
+- Branch: `001-mission-name` (NOT `main`)
 
 ---
 
@@ -46,19 +46,19 @@ Spec-kitty uses a Python CLI that works across all platforms:
 
 **Common commands:**
 
-- `spec-kitty agent mission create-feature <slug>` - Create a new feature
+- `spec-kitty agent mission create-mission <slug>` - Create a new feature
 - `spec-kitty verify-setup` - Check environment and paths
-- `spec-kitty agent action implement <WPID> --agent <name>` - Start implementing a work package
-- `spec-kitty agent action review <WPID> --agent <name>` - Start reviewing a work package
+- `spec-kitty agent workflow implement <WPID> --agent <name>` - Start implementing a work package
+- `spec-kitty agent workflow review <WPID> --agent <name>` - Start reviewing a work package
 - `spec-kitty agent tasks move-task <WPID> --to for_review` - Complete implementation (move to review)
-- `spec-kitty merge` - Merge completed feature
+- `spec-kitty merge` - Merge completed mission
 
 ### Parameter Naming Convention
 
 PowerShell uses **PascalCase** with leading dash:
 
 - `-Json` (not `--json`)
-- `-FeatureName` (not `--feature-name`)
+- `-MissionName` (not `--mission-name`)
 - `-IncludeTasks` (not `--include-tasks`)
 - `-RequireTasks` (not `--require-tasks`)
 
@@ -67,8 +67,8 @@ PowerShell uses **PascalCase** with leading dash:
 **Create feature:**
 
 ```powershell
-.\.kittify\scripts\powershell\Create-NewFeature.ps1 `
-  -FeatureName "User Authentication" `
+.\.kittify\scripts\powershell\Create-NewMission.ps1 `
+  -MissionName "User Authentication" `
   -FeatureDescription "Add login and registration"
 ```
 
@@ -209,7 +209,7 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 All spec-kitty commands work the same way on PowerShell and Bash:
 
 ```powershell
-spec-kitty agent action implement WP01 --agent claude  # Auto-moves to doing
+spec-kitty agent workflow implement WP01 --agent claude  # Auto-moves to doing
 spec-kitty agent tasks move-task WP01 --to for_review    # Completion step
 spec-kitty verify-setup
 spec-kitty dashboard

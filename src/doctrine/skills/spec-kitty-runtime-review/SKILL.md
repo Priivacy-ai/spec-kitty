@@ -93,7 +93,7 @@ Every blocking finding must map to a specific, verifiable remediation action.
 If you rejected and the WP has downstream dependents:
 
 ```bash
-spec-kitty agent tasks status --feature <feature-slug>
+spec-kitty agent tasks status --mission <mission-slug>
 ```
 
 Note dependent WPs and include a rebase warning in your feedback.

@@ -1,0 +1,39 @@
+id: "imp-quickstart-python-review-checks"
+source:
+  title: "Python Conventions (Tooling section) + Directive 001 (CLI & Shell Tooling) + Directive 013 (Tooling Setup)"
+  type: "composite"
+  publisher: "quickstart_agent-augmented-development"
+  path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/docs/styleguides/python_conventions.md"
+  accessed_on: "2026-03-28"
+classification:
+  target_concepts:
+    - "toolguide"
+  rationale: >
+    Catalog of automated checks for Python code review: formatting (ruff/black),
+    linting (ruff), type checking (mypy), architecture (import-linter, pyarchtest),
+    security (bandit, pip-audit, cyclonedx-bom), test quality (pytest-cov, vulture,
+    mutmut). Organized in execution order from cheapest to most expensive.
+adaptation:
+  summary: >
+    Synthesized from multiple source documents into a spec-kitty toolguide YAML
+    index + companion markdown guide. The source covers tooling across python
+    conventions, directive 001 (CLI tooling), and directive 013 (tooling setup).
+    We extracted the Python-specific review toolchain and organized by review
+    checklist order.
+  notes:
+    - "pyarchtest and import-linter are architecture-testing tools not in the source — added from pyproject.toml config."
+    - "cyclonedx-bom for SBOM generation and pip-audit for CVE scanning added for supply-chain coverage."
+    - "Checklist order mirrors test-pyramid-progression: cheapest checks first, stop at first failure."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/docs/styleguides/python_conventions.md"
+    lines: "550-616"
+    note: "Tooling section with required development tools."
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/pyproject.toml"
+    lines: "n/a"
+    note: "Tool configuration: ruff, mypy, pytest, mutmut, import-linter, pytestarch."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/toolguides/_proposed/python-review-checks.toolguide.yaml"
+  - "src/doctrine/toolguides/_proposed/PYTHON_REVIEW_CHECKS.md"

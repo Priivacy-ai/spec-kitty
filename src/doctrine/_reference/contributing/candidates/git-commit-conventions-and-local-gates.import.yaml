@@ -1,0 +1,28 @@
+id: "imp-contributing-git-commit-gates-001"
+source:
+  title: "CONTRIBUTING: conventional commits and local hook gates"
+  type: "repository-guideline"
+  publisher: "spec-kitty"
+  url: "CONTRIBUTING.md"
+  accessed_on: "2026-02-18"
+classification:
+  target_concepts:
+    - "directive"
+    - "tactic"
+  rationale: "Defines deterministic contributor behavior for commit hygiene before push."
+adaptation:
+  summary: "Codify conventional commit format and mandatory local hook pass as baseline quality gate behavior."
+  notes:
+    - "Use conventional commit format `type(scope): summary`."
+    - "Require local hooks (encoding, markdown style, agent-directory guard, commit-message linting) to pass before push."
+    - "Keep changes focused and split unrelated changes into separate pull requests."
+source_references:
+  - kind: "local"
+    path: "CONTRIBUTING.md"
+    lines: "119-122"
+    note: "Focused-change guidance, commit message convention, and hook requirements."
+external_references:
+  - url: "https://www.conventionalcommits.org/"
+    attribution_reason: "Canonical commit-message format reference."
+    extraction_action: "none"
+status: "proposed"

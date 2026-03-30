@@ -1,0 +1,76 @@
+schema_version: "1.0"
+id: domain-message-flow-mapping
+name: Domain Message Flow Mapping
+purpose: >
+  Visualise the flow of commands, events, and queries between bounded
+  contexts for specific business scenarios. Reveals hidden coupling,
+  missing events, synchronous bottlenecks, and integration gaps that a
+  static context map does not show. Based on the DDD Crew Domain Message
+  Flow Modelling technique.
+steps:
+  - title: Select a business scenario
+    description: >
+      Choose a concrete end-to-end scenario that crosses multiple bounded
+      contexts. Start with a high-value or high-risk scenario — one where
+      failures or latency would have significant business impact. Name the
+      scenario clearly.
+    examples:
+      - "Scenario: Customer places an order and receives a shipment confirmation."
+      - "Scenario: Merchant updates product price and all downstream systems reflect the change."
+  - title: Identify the triggering message
+    description: >
+      Determine the initial command or event that kicks off the scenario.
+      A command is an intentional request ("PlaceOrder"); an event is a
+      notification of something that already happened ("OrderPlaced").
+      Place this message at the start of the flow.
+    examples:
+      - "Command: PlaceOrder (from Storefront context)"
+  - title: Trace the message through each context
+    description: >
+      For each context that receives the message, determine what it does
+      (process the command, react to the event) and what messages it
+      produces in response. Draw each hop as an arrow between contexts,
+      labelled with the message name and type (command, event, or query).
+      Continue until the scenario reaches its terminal state.
+    examples:
+      - "Storefront --PlaceOrder--> Orders --OrderPlaced--> Inventory --StockReserved--> Fulfillment --ShipmentDispatched--> Notification"
+  - title: Annotate synchronous vs asynchronous boundaries
+    description: >
+      Mark each message as synchronous (caller blocks until response) or
+      asynchronous (fire-and-forget or event-driven). Synchronous hops
+      create temporal coupling; clusters of synchronous calls are latency
+      and availability risks.
+    examples:
+      - "PlaceOrder -> Orders: synchronous (HTTP). OrderPlaced -> Inventory: asynchronous (event bus)."
+  - title: Identify gaps and risks
+    description: >
+      Review the completed flow for missing events (a context needs
+      information but no message delivers it), circular dependencies
+      (context A waits for B which waits for A), single points of failure
+      (one synchronous call blocks the entire flow), and chatty
+      integrations (excessive round-trips between contexts).
+  - title: Record the flow diagram and findings
+    description: >
+      Persist the message flow as a diagram (swimlane, sequence, or the
+      DDD Crew flow notation) alongside a summary of identified gaps and
+      proposed remediations. Link each gap to a backlog item. Repeat for
+      additional scenarios as needed.
+failure_modes:
+  - "Happy path only: mapping only the success path and ignoring failure, compensation, and timeout scenarios."
+  - "Scenario sprawl: trying to map every scenario at once instead of focusing on high-value flows first."
+  - "Ignoring async boundaries: treating all communication as synchronous, masking latency and failure modes."
+  - "Stale diagrams: creating flow maps once and never updating them as integrations evolve."
+  - "Missing return paths: forgetting to model query responses, acknowledgements, or compensation events."
+references:
+  - name: Context Mapping Classification
+    type: tactic
+    id: context-mapping-classification
+    when: The context map provides the structural foundation; message flows add dynamic behaviour.
+  - name: Domain Event Capture
+    type: tactic
+    id: domain-event-capture
+    when: Designing the domain events that flow between contexts in the message map.
+  - name: Bounded Context Identification
+    type: tactic
+    id: bounded-context-identification
+    when: Contexts must be identified before mapping message flows between them.

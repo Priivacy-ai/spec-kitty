@@ -1,0 +1,49 @@
+schema_version: "1.0"
+id: domain-driven-design
+name: Domain-Driven Design
+summary: >
+  Software design guided by a deep model of the business domain. Strategic
+  design decomposes a system into Bounded Contexts connected through explicit
+  Context Mapping patterns (ACL, OHS, Shared Kernel, Published Language, etc.).
+  Within each context a Ubiquitous Language keeps code, model, and domain
+  expert communication aligned. Tactical patterns (Aggregates, Entities, Value
+  Objects, Domain Events, Repositories, Domain Services) enforce invariants at
+  the model boundary. DDD treats the domain model as the primary artifact —
+  code is a direct expression of that model, not a translation layer above a
+  database schema or UI framework.
+
+tactic_refs:
+  - bounded-context-identification
+  - anti-corruption-layer
+  - language-driven-design
+  - glossary-curation-interview
+  - problem-decomposition
+  - domain-event-capture
+  - refactoring-strangler-fig
+
+directive_refs:
+  - DIRECTIVE_001
+  - DIRECTIVE_031
+  - DIRECTIVE_032
+
+opposed_by:
+  - type: paradigm
+    id: anemic-domain-model
+    reason: >
+      Anemic Domain Models strip behaviour from domain objects, reducing them
+      to data bags with external procedural services. This defeats the purpose
+      of a rich, expressive domain model and scatters invariant enforcement
+      across service layers.
+  - type: paradigm
+    id: big-ball-of-mud
+    reason: >
+      A Big Ball of Mud architecture has no explicit context boundaries or
+      ubiquitous language. Concepts leak across modules, coupling grows
+      unchecked, and model integrity becomes impossible to maintain.
+  - type: tactic
+    id: database-driven-design
+    reason: >
+      Starting from a database schema and generating code around it inverts
+      the DDD priority: the domain model should drive persistence, not the
+      other way around. Schema-first thinking produces models shaped by
+      storage constraints rather than business rules.

@@ -41,14 +41,14 @@ history:
 When a parent WP changes during review:
 
 1. You'll need to rebase your workspace to get latest changes
-2. Command: `cd .worktrees/{{feature_slug}}-{{work_package_id}} && git rebase {{feature_slug}}-{{base_wp_id}}`
+2. Command: `cd .worktrees/{{mission_slug}}-{{work_package_id}} && git rebase {{mission_slug}}-{{base_wp_id}}`
 3. Resolve any conflicts
 4. Continue work on updated foundation
 
 **Check if rebase needed**:
 
 ```bash
-cd .worktrees/{{feature_slug}}-{{work_package_id}}
+cd .worktrees/{{mission_slug}}-{{work_package_id}}
 git log --oneline main..{{base_branch}}  # Shows commits in base not in your workspace
 ```
 

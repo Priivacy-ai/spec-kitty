@@ -1,0 +1,12 @@
+schema_version: "1.0"
+id: tactic-with-template-reference
+name: Tactic With Template Reference
+purpose: Fixture exercising template references.
+references:
+  - name: Risk Identification Assessment Template
+    type: template
+    id: risk-identification-assessment-template
+    when: When recording the premortem output.
+steps:
+  - title: Draft the assessment
+    description: Use the referenced template to record the assessment output.

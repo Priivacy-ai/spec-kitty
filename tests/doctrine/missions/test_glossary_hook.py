@@ -20,6 +20,9 @@ from unittest.mock import Mock
 
 from doctrine.missions.glossary_hook import execute_with_glossary
 from doctrine.missions.primitives import PrimitiveExecutionContext
+import pytest
+pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
+
 
 
 class TestGlossaryHookEnablement:

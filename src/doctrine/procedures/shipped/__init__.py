@@ -1,0 +1,1 @@
+"""Shipped procedure artifacts."""

@@ -29,7 +29,7 @@ scope, the narrowest scope wins.
 
 | Precedence | Scope | Typical Content |
 |:----------:|-------|-----------------|
-| 0 (highest) | `mission_local` | Terms coined for a specific feature or mission |
+| 0 (highest) | `mission_local` | Terms coined for a specific mission |
 | 1 | `team_domain` | Shared vocabulary across the engineering team |
 | 2 | `audience_domain` | Terms as the end user understands them |
 | 3 (lowest) | `spec_kitty_core` | Spec Kitty's own canonical terminology |

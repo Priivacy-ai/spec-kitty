@@ -1,84 +1,118 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
-$id: "https://spec-kitty.dev/schemas/doctrine/tactic.schema.yaml"
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/tactic.schema.yaml
 title: Tactic
 description: Minimal schema for reusable behavior tactics.
 type: object
 additionalProperties: false
 required:
-  - schema_version
-  - id
-  - name
-  - steps
+- id
+- schema_version
+- name
+- steps
 definitions:
-  reference:
+  contradiction:
     type: object
     additionalProperties: false
     required:
-      - name
-      - type
-      - id
-      - when
+    - type
+    - id
+    - reason
+    properties:
+      type:
+        type: string
+        minLength: 1
+        enum:
+        - directive
+        - tactic
+        - paradigm
+      id:
+        type: string
+        minLength: 1
+      reason:
+        type: string
+        minLength: 1
+  tactic_reference:
+    type: object
+    additionalProperties: false
+    required:
+    - name
+    - type
+    - id
+    - when
     properties:
       name:
         type: string
         minLength: 1
-        description: Human-readable name of the referenced artifact.
       type:
         type: string
+        minLength: 1
         enum:
-          - styleguide
-          - tactic
-          - directive
-          - toolguide
+        - directive
+        - tactic
+        - styleguide
+        - toolguide
+        - paradigm
+        - procedure
+        - template
         description: Doctrine artifact type being referenced.
       id:
         type: string
-        pattern: '^[A-Za-z][A-Za-z0-9_-]*$'
-        description: Artifact identifier matching the id field of the referenced artifact.
+        pattern: ^[A-Za-z][A-Za-z0-9_-]*$
       when:
         type: string
         minLength: 1
-        description: When this reference should be consulted during the step or tactic.
+  tactic_step:
+    type: object
+    additionalProperties: false
+    required:
+    - title
+    properties:
+      title:
+        type: string
+        minLength: 1
+      description:
+        type: string
+      examples:
+        type: array
+        minItems: 1
+        items:
+          type: string
+      references:
+        type: array
+        minItems: 1
+        items:
+          $ref: '#/definitions/tactic_reference'
 properties:
-  schema_version:
-    type: string
-    pattern: '^1\.0$'
   id:
     type: string
-    pattern: '^[a-z][a-z0-9-]*$'
+    pattern: ^[a-z][a-z0-9-]*$
+  schema_version:
+    type: string
+    pattern: ^1\.0$
   name:
     type: string
     minLength: 1
   purpose:
     type: string
-  references:
-    type: array
-    minItems: 1
-    items:
-      $ref: '#/definitions/reference'
   steps:
     type: array
     minItems: 1
     items:
-      type: object
-      additionalProperties: false
-      required:
-        - title
-      properties:
-        title:
-          type: string
-          minLength: 1
-        description:
-          type: string
-          minLength: 1
-        examples:
-          type: array
-          minItems: 1
-          items:
-            type: string
-            minLength: 1
-        references:
-          type: array
-          minItems: 1
-          items:
-            $ref: '#/definitions/reference'
+      $ref: '#/definitions/tactic_step'
+  failure_modes:
+    type: array
+    items:
+      type: string
+  references:
+    type: array
+    minItems: 1
+    items:
+      $ref: '#/definitions/tactic_reference'
+  opposed_by:
+    type: array
+    items:
+      $ref: '#/definitions/contradiction'
+  notes:
+    type: string
+    description: Free-form supplementary material (scoring rubrics, timing guidance, reference models, etc.) that 
+      enriches the tactic but does not fit into a single step.

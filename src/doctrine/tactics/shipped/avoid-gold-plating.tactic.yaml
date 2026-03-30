@@ -1,0 +1,47 @@
+schema_version: "1.0"
+id: avoid-gold-plating
+name: Avoid Gold Plating
+purpose: >
+  Challenge a proposed implementation or design for unnecessary complexity by
+  asking whether each abstraction or feature addresses a current, observed need.
+  Keeps implementation effort proportional to scope, reduces cyclic complexity,
+  and guards against speculative over-engineering that wastes time and calcifies
+  into technical debt.
+references:
+  - name: Easy-to-Change Design Review
+    type: tactic
+    id: easy-to-change
+    when: >
+      After confirming the design is not gold-plated, use easy-to-change to verify
+      that the simpler design still supports anticipated future change.
+steps:
+  - title: Identify abstractions and generalisations introduced
+    description: >
+      List every abstraction layer, configurable hook, generic interface, or
+      optional extension point in the proposed design that goes beyond what the
+      immediate requirements demand. Do not pre-judge; just surface them.
+  - title: Apply the "is this needed now?" test
+    description: >
+      For each item identified, ask: "Is this solving a problem that exists right
+      now?" and "If the future requirement materialises, could it be addressed
+      at that time with reasonable effort?" If both answers are yes-and-yes, the
+      abstraction is likely premature.
+    examples:
+      - "A plugin registry for a feature that currently has one implementation — premature."
+      - "A configurable timeout because the ops team has already requested per-environment tuning — justified."
+  - title: Assess reversibility
+    description: >
+      Ask: "If we ship the simpler version now and the requirement does arrive,
+      how hard is the refactor?" For easily reversible changes, defer. For
+      changes that calcify quickly (public API, database schema, wire format),
+      a small upfront investment may be justified despite current absence of need.
+  - title: Park and note, do not discard
+    description: >
+      When an abstraction is identified as premature, park the idea in a design
+      note or ADR rather than implementing it. Record the reasoning so the idea
+      is not lost and can be revisited when the need actually surfaces.
+  - title: Validate the simplified design
+    description: >
+      Confirm the stripped-back design still meets all current requirements and
+      adheres to the project's minimum clean-code bar (readability, naming,
+      test coverage). Avoiding gold plating is not a licence to skip quality.

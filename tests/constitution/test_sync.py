@@ -5,8 +5,8 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from specify_cli.constitution.hasher import hash_content
-from specify_cli.constitution.sync import sync
+from constitution.hasher import hash_content
+from constitution.sync import sync
 
 pytestmark = pytest.mark.fast
 # Sample constitution content for testing
@@ -36,7 +36,7 @@ SAMPLE_CONSTITUTION = """# Testing Standards
 
 ## Project Directives
 1. Never commit secrets to repository
-2. Always write tests for new features
+2. Always write tests for new missions
 3. Document all public APIs
 """
 

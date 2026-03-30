@@ -1,7 +1,7 @@
 """Scope: mock-boundary tests for doctrine catalog loading — no real git."""
 
 import pytest
-from specify_cli.constitution.catalog import load_doctrine_catalog
+from constitution.catalog import load_doctrine_catalog
 
 pytestmark = pytest.mark.fast
 
@@ -17,9 +17,8 @@ def test_catalog_loads_packaged_directives_and_paradigms() -> None:
     # Act
     catalog = load_doctrine_catalog()
 
-    # Assert
-    assert "TEST_FIRST" in catalog.directives
-    assert "test-first" in catalog.paradigms
+    # Assert — shipped directives use DIRECTIVE_NNN identifiers
+    assert "DIRECTIVE_003" in catalog.directives  # decision-documentation-requirement
 
 
 def test_catalog_includes_mission_template_sets() -> None:

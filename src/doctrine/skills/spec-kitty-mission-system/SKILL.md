@@ -1,8 +1,8 @@
 ---
 name: spec-kitty-mission-system
 description: >-
-  Understand how Spec Kitty mission types work: the 4 built-in mission types,
-  how they define workflows, how missions and work packages relate, how templates are
+  Understand how Spec Kitty missions work: the 4 built-in missions, how they
+  define workflows, how missions and work packages relate, how templates are
   resolved, and how to select the right mission for a project.
   Triggers: "what missions are available", "how do missions work",
   "which mission should I use", "explain the mission system",
@@ -14,17 +14,10 @@ description: >-
 
 # spec-kitty-mission-system
 
-Understand how missions structure work in Spec Kitty.
-
-Terminology note:
-- `Mission Type` = reusable workflow blueprint
-- `Mission` = concrete tracked item
-- `Mission Run` = runtime/session instance
-- `Feature` = software-dev compatibility alias for a mission
-
-A mission type is a domain-specific workflow blueprint that defines what
-phases you go through, what templates agents see, what artifacts you produce,
-and how to validate success.
+Understand how missions structure work in Spec Kitty. A mission is a
+domain-specific workflow blueprint that defines what phases you go through,
+what templates agents see, what artifacts you produce, and how to validate
+success.
 
 ---
 
@@ -32,10 +25,9 @@ and how to validate success.
 
 ### The Core Concept
 
-A mission type answers: "What process should we follow to achieve this goal?"
+A mission answers: "What process should we follow to achieve this goal?"
 
-Different goals need different processes. Building a software mission such as a
-feature is
+Different goals need different processes. Building a software component is
 different from conducting research or writing documentation. Each mission
 provides domain-appropriate:
 
@@ -46,7 +38,7 @@ provides domain-appropriate:
 - **Validation** — checks that verify the output quality
 - **Agent context** — personality and instructions for the AI agent
 
-### The Hierarchy: Mission Type → Mission → Work Package → Execution Workspace
+### The Hierarchy: Mission Type → Mission → Work Package → Workspace
 
 ```
 Mission Type (e.g., software-dev)
@@ -59,16 +51,15 @@ Mission Type (e.g., software-dev)
               ├── WP01.md       ← work package prompt
               ├── WP02.md
               └── WP03.md
-                    └── Execution Workspace (.worktrees/042-auth-system-lane-a/)
+                    └── Workspace (.worktrees/042-auth-system-WP03/)
 ```
 
 - **Mission Type** = the workflow blueprint (reusable across missions)
-- **Mission** = a concrete tracked item, linked to a mission type via `meta.json`
-- **Feature** = software-dev compatibility alias for a mission
+- **Mission** = a concrete thing you're building, linked to a mission type via `meta.json`
 - **Work Package (WP)** = one parallelizable slice of work within a mission
-- **Execution Workspace** = the isolated git worktree resolved for implementing a WP; modern missions share one per lane, legacy features may still use one per WP
+- **Workspace** = an isolated git worktree for implementing a single WP
 
-### meta.json (Mission → Mission-Type Link)
+### meta.json (Mission → Mission Type Link)
 
 Every mission has a `meta.json` that records which mission type it uses:
 
@@ -84,12 +75,11 @@ Every mission has a `meta.json` that records which mission type it uses:
 ```
 
 The `mission` field determines which templates, guards, and validation rules
-apply. Default is `software-dev` if omitted. The key name is historical; the
-stored value is the mission type.
+apply. Default is `software-dev` if omitted.
 
 ---
 
-## The 4 Built-In Missions
+## The 4 Built-In Mission Types
 
 ### software-dev (default)
 
@@ -110,7 +100,7 @@ discovery → specify → plan → tasks_outline → tasks_packages → tasks_fi
 
 **Agent context:** TDD practices, library-first architecture, tests before code.
 
-**Use when:** Building features, fixing bugs, refactoring code — any work that
+**Use when:** Building components, fixing bugs, refactoring code — any work that
 produces code changes.
 
 ### research
@@ -171,13 +161,13 @@ analysis identifies missing documentation by classifying existing docs and
 finding coverage gaps.
 
 **Use when:** Creating docs for a project, filling documentation gaps,
-documenting a specific feature or API.
+documenting a specific component or API.
 
 ---
 
-## Mission Definition Files
+## Mission Type Definition Files
 
-Each mission lives in `src/specify_cli/missions/{mission-key}/` with:
+Each mission type lives in `src/doctrine/missions/{mission-key}/` with:
 
 ### mission-runtime.yaml (Runtime DAG)
 
@@ -280,7 +270,7 @@ Guards block step transitions until conditions are met:
 
 | Guard | Syntax | What it checks |
 |---|---|---|
-| `artifact_exists` | `artifact_exists("spec.md")` | File exists in feature dir |
+| `artifact_exists` | `artifact_exists("spec.md")` | File exists in mission dir |
 | `gate_passed` | `gate_passed("review_approved")` | Event exists in mission event log |
 | `all_wp_status` | `all_wp_status("done")` | Every WP is in the specified lane |
 | `any_wp_status` | `any_wp_status("for_review")` | At least one WP is in the lane |
@@ -302,7 +292,7 @@ When a command template is needed, spec-kitty searches 5 locations in order:
 | 2. Legacy | `.kittify/command-templates/` | Deprecated pre-migration |
 | 3. Global Mission | `~/.kittify/missions/{mission}/command-templates/` | User global |
 | 4. Global | `~/.kittify/command-templates/` | User global fallback |
-| 5. Package | `src/specify_cli/missions/{mission}/command-templates/` | Built-in default |
+| 5. Package | `src/doctrine/missions/{mission}/command-templates/` | Built-in default |
 
 First match wins. Override a template by placing your version in
 `.kittify/overrides/command-templates/`. The package default is always the
@@ -312,29 +302,29 @@ Content templates (`templates/`) follow the same 5-tier resolution.
 
 ---
 
-## Selecting a Mission
+## Selecting a Mission Type
 
-The mission is set when you create a feature with `/spec-kitty.specify`.
+The mission type is set when you create a mission with `/spec-kitty.specify`.
 It's recorded in `meta.json` and cannot be changed after creation.
 
 **Commands:**
 
 ```bash
-# List available missions
+# List available mission types
 spec-kitty list-missions
 
-# Specify a feature with a specific mission
+# Specify a mission with a specific mission type
 spec-kitty specify --mission research "What are the best auth patterns?"
 
-# Check which mission a feature uses
-cat kitty-specs/<feature-slug>/meta.json | jq .mission
+# Check which mission type a mission uses
+cat kitty-specs/<mission-slug>/meta.json | jq .mission
 ```
 
 **Decision guide:**
 
-| If you're... | Use mission |
+| If you're... | Use mission type |
 |---|---|
-| Building a feature, fixing a bug, refactoring | `software-dev` |
+| Building a component, fixing a bug, refactoring | `software-dev` |
 | Investigating, evaluating options, literature review | `research` |
 | Planning architecture, roadmaps, design docs | `plan` |
 | Writing tutorials, API docs, how-to guides | `documentation` |
@@ -345,7 +335,7 @@ cat kitty-specs/<feature-slug>/meta.json | jq .mission
 
 Missions involve two orthogonal state machines:
 
-**Mission state** — which phase of the workflow are we in?
+**Mission-type state** — which phase of the workflow are we in?
 ```
 discovery → specify → plan → tasks → implement → review → accept
 ```
@@ -378,4 +368,4 @@ This ensures `~/.kittify/` always matches the installed spec-kitty version.
 
 ## References
 
-- `references/mission-comparison-matrix.md` -- Side-by-side comparison of all 4 missions
+- `references/mission-comparison-matrix.md` -- Side-by-side comparison of all 4 mission types

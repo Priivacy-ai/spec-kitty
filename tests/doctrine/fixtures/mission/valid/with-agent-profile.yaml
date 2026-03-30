@@ -1,0 +1,25 @@
+schema_version: "1.0"
+key: software-dev
+name: Software Development
+orchestration:
+  states:
+    - id: planned
+      agent-profile: planner
+    - doing
+    - for_review
+    - done
+  transitions:
+    - from: planned
+      to: doing
+      on: implement
+      agent-profile: implementer
+  guards: [dependencies_resolved]
+  required_artifacts: [spec.md, plan.md, tasks.md]
+steps:
+  - id: plan
+    title: Planning
+    depends_on: []
+    agent-profile: architect
+  - id: implement
+    title: Implement
+    depends_on: [plan]

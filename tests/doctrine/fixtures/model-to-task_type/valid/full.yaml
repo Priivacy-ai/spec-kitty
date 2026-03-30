@@ -1,0 +1,80 @@
+schema_version: "1.0"
+generated_at: "2025-06-01T12:00:00Z"
+task_types:
+  - id: code-generation
+    title: Code Generation
+    description: Generate new code from specifications
+    quality_sensitivity: high
+    cost_sensitivity: medium
+  - id: code-review
+    title: Code Review
+    description: Review code for quality and correctness
+    quality_sensitivity: high
+    cost_sensitivity: low
+models:
+  - id: gpt-4o
+    provider: openai
+    family: gpt-4
+    tools:
+      - function_calling
+      - code_interpreter
+    strengths:
+      - complex reasoning
+      - code generation
+    weaknesses:
+      - high cost
+    task_fit:
+      - task_type: code-generation
+        score: 0.95
+        confidence: high
+        rationale: Excellent at complex code generation
+      - task_type: code-review
+        score: 0.9
+        confidence: high
+    cost:
+      tier: premium
+      input_per_1m_usd: 5.0
+      output_per_1m_usd: 15.0
+      currency: USD
+      pricing_source_url: https://openai.com/pricing
+    latency_tier: medium
+  - id: claude-3-haiku
+    provider: anthropic
+    family: claude-3
+    task_fit:
+      - task_type: code-generation
+        score: 0.7
+        confidence: medium
+      - task_type: code-review
+        score: 0.75
+    cost:
+      tier: low
+      input_per_1m_usd: 0.25
+      output_per_1m_usd: 1.25
+    latency_tier: low
+routing_policy:
+  objective: quality_first
+  weights:
+    quality: 0.5
+    cost: 0.2
+    risk: 0.2
+    latency: 0.1
+  tier_constraints:
+    - task_type: code-review
+      max_tier: high
+  override_policy:
+    mode: gated
+    require_reason: true
+  freshness_policy:
+    max_catalog_age_hours: 168
+sources:
+  - name: OpenAI pricing page
+    url: https://openai.com/pricing
+    access_method: manual
+    snapshot_at: "2025-06-01T00:00:00Z"
+  - name: Anthropic docs
+    url: https://docs.anthropic.com/pricing
+    access_method: api
+    snapshot_at: "2025-05-28T00:00:00Z"
+    license_notes: Public pricing data
+source_snapshot: abc123def

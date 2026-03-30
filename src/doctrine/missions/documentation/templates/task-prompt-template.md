@@ -3,6 +3,7 @@ work_package_id: "WPxx"
 subtasks:
   - "Txxx"
 title: "Replace with work package title"
+task_type: "implement"  # implement | review | plan | specify | research — drives agent_profile suggestion
 phase: "Phase N - Replace with phase name"
 assignee: ""      # Optional friendly name when claimed/in_progress
 agent: ""         # CLI agent identifier (claude, codex, etc.)
@@ -48,6 +49,15 @@ Use language identifiers in code blocks: ````python`,````bash`
 - Reference prerequisite work and related documents.
 - Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
+
+## Branch Strategy
+
+- **Strategy**: {{branch_strategy}}
+- **Planning base branch**: {{planning_base_branch}}
+- **Merge target branch**: {{merge_target_branch}}
+
+> These fields are populated automatically by `spec-kitty agent mission tasks`.
+> Do NOT change them manually unless you are certain the branch topology has changed.
 
 ## Subtasks & Detailed Guidance
 
