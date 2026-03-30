@@ -219,3 +219,5 @@ spec-kitty implement WP02
 - 2026-03-30T19:30:31Z – codex – shell_pid=47115 – lane=doing – Started review via workflow command
 - 2026-03-30T19:32:15Z – codex – shell_pid=47115 – lane=for_review – Fixing lane after confused Codex review
 - 2026-03-30T19:32:28Z – codex – shell_pid=47115 – lane=approved – Review passed: project_slug config, provider-aware is_configured, constants, 29 tests. Approved.
+- 2026-03-30T19:36:09Z – codex – shell_pid=47115 – lane=planned – Moved to planned
+- 2026-03-30T19:38:30Z – codex – shell_pid=47115 – lane=approved – Re-approving WP02 (status reverted during WP01 review). Config changes verified: project_slug, is_configured, constants, 29 tests pass.
