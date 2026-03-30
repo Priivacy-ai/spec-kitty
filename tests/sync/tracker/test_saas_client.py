@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import uuid
 from typing import Any
-from unittest.mock import MagicMock, patch, call
+from unittest.mock import MagicMock, patch
 
 import httpx
 import pytest
@@ -167,7 +167,7 @@ class TestAuthInjection:
         client._request("GET", "/api/v1/tracker/status")
 
         # Change token
-        client._credential_store.get_access_token.return_value = "new-token"
+        client._credential_store.get_access_token.return_value = "new-token"  # type: ignore[attr-defined]
         client._request("GET", "/api/v1/tracker/status")
 
         calls = mock_http.request.call_args_list
@@ -175,19 +175,19 @@ class TestAuthInjection:
         assert calls[1][1]["headers"]["Authorization"] == "Bearer new-token"
 
     def test_no_token_raises(self, client: SaaSTrackerClient) -> None:
-        client._credential_store.get_access_token.return_value = None
+        client._credential_store.get_access_token.return_value = None  # type: ignore[attr-defined]
         with pytest.raises(SaaSTrackerClientError, match="No valid access token"):
             client._request("GET", "/api/v1/tracker/status")
 
     def test_missing_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
         """FR-015: Missing X-Team-Slug must raise, not silently omit the header."""
-        client._credential_store.get_team_slug.return_value = None
+        client._credential_store.get_team_slug.return_value = None  # type: ignore[attr-defined]
         with pytest.raises(SaaSTrackerClientError, match="No team context available"):
             client._request("GET", "/api/v1/tracker/status")
 
     def test_empty_team_slug_raises_error(self, client: SaaSTrackerClient) -> None:
         """FR-015: Empty string team slug must also raise."""
-        client._credential_store.get_team_slug.return_value = ""
+        client._credential_store.get_team_slug.return_value = ""  # type: ignore[attr-defined]
         with pytest.raises(SaaSTrackerClientError, match="No team context available"):
             client._request("GET", "/api/v1/tracker/status")
 

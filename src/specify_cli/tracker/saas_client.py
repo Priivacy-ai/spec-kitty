@@ -255,7 +255,7 @@ class SaaSTrackerClient:
                 raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
-            jittered_delay = delay * (0.8 + 0.4 * random.random())
+            jittered_delay = delay * (0.8 + 0.4 * random.random())  # noqa: S311
             time.sleep(jittered_delay)
             delay = min(delay * 2, cap)
 
