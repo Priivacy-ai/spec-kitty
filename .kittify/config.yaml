@@ -9,6 +9,7 @@ tools:
   - claude
   - opencode
   - codex
+  auto_commit: true
   selection:
     preferred_implementer: claude
     preferred_reviewer: codex

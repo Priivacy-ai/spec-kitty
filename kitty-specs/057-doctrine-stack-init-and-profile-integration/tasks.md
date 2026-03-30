@@ -249,13 +249,13 @@
 
 ### Included Subtasks
 
-- [ ] T026 Write ATDD acceptance tests in `tests/specify_cli/cli/commands/test_init_doctrine.py` (US-1 scenarios 1-3 + US-2 scenarios 1-4 including the resume-after-interrupt scenario)
-- [ ] T027 Create `src/doctrine/constitution/defaults.yaml` with predefined paradigm, directive, and tool selections that represent sensible defaults for a new project
-- [ ] T028 Add doctrine stack choice step to `init.py` (after `.kittify/` skeleton creation) — "Accept defaults" path: load `defaults.yaml`, call `constitution generate` with those selections, populate `.kittify/constitution/`
-- [ ] T029 Add "Configure manually" path to `init.py` — present interview depth choice (minimal/comprehensive), inform user about what the interview does and how to customize later (FR-015), delegate to existing `constitution interview` flow inline
-- [ ] T030 Implement skip-if-exists (FR-004) and `--non-interactive` auto-defaults (FR-005) paths in `init.py`
-- [ ] T031 Implement init resume/restart checkpoint: on init interrupt (e.g., `KeyboardInterrupt`), write progress to `.kittify/.init-checkpoint.yaml`; on next invocation detect checkpoint and prompt "Resume previous session? [Y]es / [N]o (start over)"; restart discards checkpoint (FR-020)
-- [ ] T032 Write user journey document in `architecture/2.x/user_journey/init-doctrine-flow.md` — full flow diagram/narrative covering: accept defaults, configure manually (minimal/comprehensive), skip existing, non-interactive, resume/restart paths
+- [x] T026 Write ATDD acceptance tests in `tests/specify_cli/cli/commands/test_init_doctrine.py` (US-1 scenarios 1-3 + US-2 scenarios 1-4 including the resume-after-interrupt scenario)
+- [x] T027 Create `src/doctrine/constitution/defaults.yaml` with predefined paradigm, directive, and tool selections that represent sensible defaults for a new project
+- [x] T028 Add doctrine stack choice step to `init.py` (after `.kittify/` skeleton creation) — "Accept defaults" path: load `defaults.yaml`, call `constitution generate` with those selections, populate `.kittify/constitution/`
+- [x] T029 Add "Configure manually" path to `init.py` — present interview depth choice (minimal/comprehensive), inform user about what the interview does and how to customize later (FR-015), delegate to existing `constitution interview` flow inline
+- [x] T030 Implement skip-if-exists (FR-004) and `--non-interactive` auto-defaults (FR-005) paths in `init.py`
+- [x] T031 Implement init resume/restart checkpoint: on init interrupt (e.g., `KeyboardInterrupt`), write progress to `.kittify/.init-checkpoint.yaml`; on next invocation detect checkpoint and prompt "Resume previous session? [Y]es / [N]o (start over)"; restart discards checkpoint (FR-020)
+- [x] T032 Write user journey document in `architecture/2.x/user_journey/init-doctrine-flow.md` — full flow diagram/narrative covering: accept defaults, configure manually (minimal/comprehensive), skip existing, non-interactive, resume/restart paths
 
 ### Implementation Notes
 
@@ -403,3 +403,8 @@
 | T039 | Profile suggestion in task generation | WP09 | P2 | Yes (with T038) |
 | T040 | Profile confirmation step in finalize-tasks | WP09 | P2 | No |
 | T041 | Update mission templates with role hints | WP09 | P2 | No |
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP07: approved
+<!-- status-model:end -->
