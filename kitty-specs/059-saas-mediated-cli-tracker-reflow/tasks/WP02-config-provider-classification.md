@@ -217,3 +217,4 @@ spec-kitty implement WP02
 - 2026-03-30T19:25:39Z – orchestrator – shell_pid=46286 – lane=doing – Started implementation via workflow command
 - 2026-03-30T19:29:48Z – orchestrator – shell_pid=46286 – lane=for_review – Ready for review: project_slug config field, provider-aware is_configured, classification constants, 29 tests passing
 - 2026-03-30T19:30:31Z – codex – shell_pid=47115 – lane=doing – Started review via workflow command
+- 2026-03-30T19:32:15Z – codex – shell_pid=47115 – lane=for_review – Fixing lane after confused Codex review
