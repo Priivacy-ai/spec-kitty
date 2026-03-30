@@ -17,13 +17,13 @@
 **Requirement Refs**: FR-002, C-004
 
 ### Included Subtasks
-- [ ] T001 Create `src/specify_cli/missions/software-dev/command-templates/` directory
-- [ ] T002 Port and clean specify.md — strip 057 slugs, hardcoded paths, dev-repo references
-- [ ] T003 Port and clean plan.md
-- [ ] T004 Port and clean tasks.md (ensure ownership metadata guidance is present)
-- [ ] T005 [P] Port and clean tasks-outline.md and tasks-packages.md
-- [ ] T006 [P] Port and clean checklist.md, analyze.md, research.md, constitution.md
-- [ ] T007 Verify all 9 prompts: "project root checkout", no `.kittify/missions/` template reads, `--feature` guidance, no 057 slugs, no `/Users/robert/` paths
+- [x] T001 Create `src/specify_cli/missions/software-dev/command-templates/` directory
+- [x] T002 Port and clean specify.md — strip 057 slugs, hardcoded paths, dev-repo references
+- [x] T003 Port and clean plan.md
+- [x] T004 Port and clean tasks.md (ensure ownership metadata guidance is present)
+- [x] T005 [P] Port and clean tasks-outline.md and tasks-packages.md
+- [x] T006 [P] Port and clean checklist.md, analyze.md, research.md, constitution.md
+- [x] T007 Verify all 9 prompts: "project root checkout", no `.kittify/missions/` template reads, `--feature` guidance, no 057 slugs, no `/Users/robert/` paths
 
 ### Implementation Notes
 - Source: `.claude/commands/spec-kitty.*.md` files in this dev repo (with today's fixes applied)
