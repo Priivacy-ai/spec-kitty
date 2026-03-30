@@ -248,3 +248,4 @@ Reviewer should check:
 
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T14:23:02Z – coordinator – shell_pid=73918 – lane=doing – Started implementation via workflow command
+- 2026-03-30T14:29:30Z – coordinator – shell_pid=73918 – lane=for_review – Registry split: PROMPT_DRIVEN_COMMANDS (9) and CLI_DRIVEN_COMMANDS (7) added to registry.py with invariant assertion. Generator produces 7 shims only. shim_dispatch() returns None for all 9 prompt-driven commands. 176 tests pass, mypy clean on shims package.
