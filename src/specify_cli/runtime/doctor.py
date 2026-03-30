@@ -169,6 +169,126 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
     )
 
 
+def check_command_file_health(project_path: Path) -> list[dict]:
+    """Check all agent command files for correctness.
+
+    For each configured agent and each of the 16 consumer commands, this
+    function verifies that:
+
+    - The command file exists.
+    - The file starts with the current ``<!-- spec-kitty-command-version: X.Y.Z -->``
+      marker (stale or missing marker indicates a file that needs regeneration).
+    - The file type is correct: prompt-driven commands should be long (>50 non-empty
+      lines) and CLI-driven commands should be short (<10 non-empty lines).
+
+    Args:
+        project_path: Root directory of the project.
+
+    Returns:
+        List of issue dicts, each with keys:
+        ``agent``, ``command``, ``file``, ``issue``, ``severity``.
+        An empty list means all files are healthy.
+    """
+    try:
+        from specify_cli import __version__
+        from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, get_agent_dirs_for_project
+        from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+        from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    except ImportError:
+        return []
+
+    try:
+        from importlib.metadata import version as pkg_version
+        current_version = pkg_version("spec-kitty-cli")
+    except Exception:
+        current_version = __version__
+
+    expected_marker = f"<!-- spec-kitty-command-version: {current_version} -->"
+
+    def _compute_filename(command: str, agent_key: str) -> str:
+        config = AGENT_COMMAND_CONFIG.get(agent_key)
+        if config is None:
+            return f"spec-kitty.{command}.md"
+        ext: str = config["ext"]
+        stem = command
+        if agent_key == "codex":
+            stem = stem.replace("-", "_")
+        return f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
+
+    issues: list[dict] = []
+    agent_dirs = get_agent_dirs_for_project(project_path)
+
+    for agent_root, subdir in agent_dirs:
+        agent_dir = project_path / agent_root / subdir
+        if not agent_dir.is_dir():
+            continue
+
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key is None:
+            continue
+
+        for command in sorted(PROMPT_DRIVEN_COMMANDS | CLI_DRIVEN_COMMANDS):
+            filename = _compute_filename(command, agent_key)
+            file_path = agent_dir / filename
+            rel_path = str(file_path.relative_to(project_path))
+            is_prompt_driven = command in PROMPT_DRIVEN_COMMANDS
+
+            if not file_path.exists():
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": "missing",
+                    "severity": "error",
+                })
+                continue
+
+            try:
+                content = file_path.read_text(encoding="utf-8")
+            except OSError as exc:
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"unreadable: {exc}",
+                    "severity": "error",
+                })
+                continue
+
+            # Version marker check
+            first_line = content.split("\n", 1)[0].strip()
+            if first_line != expected_marker:
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"stale or missing version marker (expected: {expected_marker})",
+                    "severity": "warning",
+                })
+
+            # Type check: prompt-driven should be long, CLI-driven should be short
+            non_empty_lines = [line for line in content.splitlines() if line.strip()]
+            line_count = len(non_empty_lines)
+            if is_prompt_driven and line_count < 50:
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
+                    "severity": "warning",
+                })
+            elif not is_prompt_driven and line_count >= 10:
+                issues.append({
+                    "agent": agent_key,
+                    "command": command,
+                    "file": rel_path,
+                    "issue": f"CLI-driven command has {line_count} non-empty lines (expected <10 for thin shim)",
+                    "severity": "warning",
+                })
+
+    return issues
+
+
 def run_global_checks(
     project_dir: Path | None = None,
 ) -> list[DoctorCheck]:

@@ -1,0 +1,308 @@
+"""Migration 2.1.4: Enforce correct command file state for all agents.
+
+Every configured agent should have exactly the right file for each of the 16
+consumer-facing commands:
+
+- Prompt-driven commands (specify, plan, tasks, ...): full rendered prompt from
+  the global runtime templates, with a ``<!-- spec-kitty-command-version: X.Y.Z -->``
+  marker as the first line.
+- CLI-driven commands (implement, review, merge, ...): thin 3-line shim generated
+  by :func:`~specify_cli.shims.generator.generate_shim_content`, also with the
+  version marker on the first line.
+
+This migration writes ALL files for ALL configured agents unconditionally, so that
+any stale content — wrong type, wrong version, missing file — is brought up to date
+in one pass.
+
+Idempotency
+-----------
+After the first run every file starts with a
+``<!-- spec-kitty-command-version: {current_version} -->`` comment.
+On a second run ``detect()`` finds all version markers match and returns ``False``,
+so the upgrade runner skips the migration without writing anything.
+"""
+
+from __future__ import annotations
+
+import logging
+import os
+from pathlib import Path
+
+from ..registry import MigrationRegistry
+from .base import BaseMigration, MigrationResult
+from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+
+logger = logging.getLogger(__name__)
+
+_MISSION_NAME = "software-dev"
+_DEFAULT_SCRIPT_TYPE = "sh"
+_VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
+
+
+# ---------------------------------------------------------------------------
+# Private helpers
+# ---------------------------------------------------------------------------
+
+
+def _get_cli_version() -> str:
+    """Return the current CLI version string."""
+    try:
+        from importlib.metadata import version
+
+        return version("spec-kitty-cli")
+    except Exception:
+        from specify_cli import __version__
+
+        return __version__
+
+
+def _expected_version_marker() -> str:
+    """Return the full version marker comment for the current CLI version."""
+    return f"{_VERSION_MARKER_PREFIX} {_get_cli_version()} -->"
+
+
+def _file_has_current_version_marker(file_path: Path) -> bool:
+    """Return True if *file_path* starts with the current version marker."""
+    try:
+        content = file_path.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    first_line = content.split("\n", 1)[0].strip()
+    return first_line == _expected_version_marker()
+
+
+def _get_runtime_command_templates_dir() -> Path | None:
+    """Return the global runtime command-templates directory, or None if not found."""
+    from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+
+    # 1. Package-bundled assets (highest priority, always matches CLI version)
+    try:
+        pkg_root = get_package_asset_root()
+        pkg_templates = pkg_root / _MISSION_NAME / "command-templates"
+        if pkg_templates.is_dir():
+            return pkg_templates
+    except FileNotFoundError:
+        pass
+
+    # 2. Global runtime (~/.kittify/) — populated by ensure_runtime()
+    runtime_templates = get_kittify_home() / "missions" / _MISSION_NAME / "command-templates"
+    if runtime_templates.is_dir():
+        return runtime_templates
+
+    return None
+
+
+def _resolve_script_type() -> str:
+    """Return the platform-appropriate script type."""
+    return "ps" if os.name == "nt" else _DEFAULT_SCRIPT_TYPE
+
+
+def _compute_output_filename(command: str, agent_key: str) -> str:
+    """Return the correct on-disk filename for *command* + *agent_key*."""
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+
+    config = AGENT_COMMAND_CONFIG.get(agent_key)
+    if config is None:
+        return f"spec-kitty.{command}.md"
+
+    ext: str = config["ext"]
+    stem = command
+    if agent_key == "codex":
+        stem = stem.replace("-", "_")
+    if ext:
+        return f"spec-kitty.{stem}.{ext}"
+    return f"spec-kitty.{stem}"
+
+
+def _render_full_prompt(template_path: Path, agent_key: str, script_type: str) -> str | None:
+    """Render a single prompt-driven command template for *agent_key*."""
+    from specify_cli.core.config import AGENT_COMMAND_CONFIG
+    from specify_cli.template.asset_generator import render_command_template
+
+    config = AGENT_COMMAND_CONFIG.get(agent_key)
+    if config is None:
+        return None
+
+    try:
+        return render_command_template(
+            template_path=template_path,
+            script_type=script_type,
+            agent_key=agent_key,
+            arg_format=config["arg_format"],
+            extension=config["ext"],
+        )
+    except Exception as exc:
+        logger.warning("Failed to render %s for agent %s: %s", template_path.name, agent_key, exc)
+        return None
+
+
+def _render_shim(command: str, agent_key: str) -> str:
+    """Return the thin shim content for *command* + *agent_key*."""
+    from specify_cli.shims.generator import (
+        _DEFAULT_ARG_PLACEHOLDER,
+        AGENT_ARG_PLACEHOLDERS,
+        generate_shim_content,
+    )
+
+    arg_placeholder = AGENT_ARG_PLACEHOLDERS.get(agent_key, _DEFAULT_ARG_PLACEHOLDER)
+    return generate_shim_content(command, agent_key, arg_placeholder)
+
+
+def _agent_root_to_key(agent_root: str) -> str | None:
+    """Map an agent directory root to its agent key."""
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
+
+    return AGENT_DIR_TO_KEY.get(agent_root)
+
+
+# ---------------------------------------------------------------------------
+# Migration class
+# ---------------------------------------------------------------------------
+
+
+@MigrationRegistry.register
+class EnforceCommandFileStateMigration(BaseMigration):
+    """Unconditionally write all 16 command files for every configured agent.
+
+    Prompt-driven commands receive full rendered prompts; CLI-driven commands
+    receive thin shims.  Every generated file has a version marker as its first
+    line, enabling fast idempotency detection on subsequent runs.
+    """
+
+    migration_id = "2.1.4_enforce_command_file_state"
+    description = (
+        "Enforce correct command file state: full prompts for prompt-driven commands, "
+        "thin shims for CLI-driven commands, with version markers"
+    )
+    target_version = "2.1.4"
+
+    def detect(self, project_path: Path) -> bool:
+        """Return True if any command file is missing the current version marker."""
+        from specify_cli.shims.registry import CONSUMER_SKILLS
+        from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
+
+        agent_dirs = get_agent_dirs_for_project(project_path)
+        for agent_root, subdir in agent_dirs:
+            agent_dir = project_path / agent_root / subdir
+            if not agent_dir.is_dir():
+                continue
+            agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+            if agent_key is None:
+                continue
+            for command in CONSUMER_SKILLS:
+                filename = _compute_output_filename(command, agent_key)
+                file_path = agent_dir / filename
+                if not file_path.exists():
+                    return True
+                if not _file_has_current_version_marker(file_path):
+                    return True
+        return False
+
+    def can_apply(self, project_path: Path) -> tuple[bool, str]:
+        """Check that runtime templates are available for rendering."""
+        templates_dir = _get_runtime_command_templates_dir()
+        if templates_dir is None:
+            return (
+                False,
+                "Runtime command templates not found. "
+                "Run 'spec-kitty upgrade' again after reinstalling spec-kitty-cli.",
+            )
+        return True, ""
+
+    def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
+        """Write all 16 command files for all configured agents unconditionally.
+
+        Idempotent: on a second run every file already has the current version
+        marker so ``detect()`` returns ``False`` and the runner skips this migration.
+
+        Args:
+            project_path: Root of the consumer project.
+            dry_run:      When ``True``, report what *would* change but write nothing.
+
+        Returns:
+            :class:`~specify_cli.upgrade.migrations.base.MigrationResult` with
+            ``changes_made`` listing each file written (or that would be written).
+        """
+        from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
+        from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
+
+        changes: list[str] = []
+        warnings: list[str] = []
+        errors: list[str] = []
+
+        templates_dir = _get_runtime_command_templates_dir()
+        if templates_dir is None:
+            return MigrationResult(
+                success=False,
+                changes_made=changes,
+                errors=["Runtime command templates not found — cannot enforce command file state"],
+                warnings=warnings,
+            )
+
+        script_type = _resolve_script_type()
+        agent_dirs = get_agent_dirs_for_project(project_path)
+
+        for agent_root, subdir in agent_dirs:
+            agent_dir = project_path / agent_root / subdir
+            if not agent_dir.is_dir():
+                continue
+
+            agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+            if agent_key is None:
+                logger.debug("Skipping unknown agent root %s", agent_root)
+                continue
+
+            # --- Prompt-driven commands: write full rendered prompt ---
+            for command in sorted(PROMPT_DRIVEN_COMMANDS):
+                template_path = templates_dir / f"{command}.md"
+                if not template_path.is_file():
+                    warnings.append(
+                        f"Template not found for command '{command}' in {templates_dir} — skipping"
+                    )
+                    continue
+
+                filename = _compute_output_filename(command, agent_key)
+                output_path = agent_dir / filename
+                rel_path = str(output_path.relative_to(project_path))
+
+                if dry_run:
+                    changes.append(f"Would write prompt: {rel_path}")
+                    continue
+
+                rendered = _render_full_prompt(template_path, agent_key, script_type)
+                if rendered is None:
+                    errors.append(f"Failed to render {command} for {agent_key}")
+                    continue
+
+                try:
+                    output_path.write_text(rendered, encoding="utf-8")
+                    changes.append(f"Wrote prompt: {rel_path}")
+                except OSError as exc:
+                    errors.append(f"Failed to write {rel_path}: {exc}")
+
+            # --- CLI-driven commands: write thin shim ---
+            for command in sorted(CLI_DRIVEN_COMMANDS):
+                filename = _compute_output_filename(command, agent_key)
+                output_path = agent_dir / filename
+                rel_path = str(output_path.relative_to(project_path))
+
+                if dry_run:
+                    changes.append(f"Would write shim: {rel_path}")
+                    continue
+
+                shim_content = _render_shim(command, agent_key)
+                try:
+                    output_path.write_text(shim_content, encoding="utf-8")
+                    changes.append(f"Wrote shim: {rel_path}")
+                except OSError as exc:
+                    errors.append(f"Failed to write {rel_path}: {exc}")
+
+        if not changes and not errors and not warnings:
+            changes.append("No agent command directories found — nothing to do")
+
+        return MigrationResult(
+            success=len(errors) == 0,
+            changes_made=changes,
+            errors=errors,
+            warnings=warnings,
+        )

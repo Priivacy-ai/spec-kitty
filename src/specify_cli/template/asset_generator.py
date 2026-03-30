@@ -13,6 +13,18 @@ from specify_cli.core.config import AGENT_COMMAND_CONFIG
 from specify_cli.template.renderer import parse_frontmatter, render_template, rewrite_paths
 
 
+def _get_cli_version() -> str:
+    """Return the current CLI version string."""
+    try:
+        from importlib.metadata import version
+
+        return version("spec-kitty-cli")
+    except Exception:
+        from specify_cli import __version__
+
+        return __version__
+
+
 def prepare_command_templates(
     base_templates_dir: Path,
     mission_templates_dir: Path | None,
@@ -132,6 +144,8 @@ def render_command_template(
     if frontmatter_clean:
         frontmatter_clean = rewrite_paths(frontmatter_clean)
 
+    version_marker = f"<!-- spec-kitty-command-version: {_get_cli_version()} -->\n"
+
     if extension == "toml":
         # Convert Markdown variable syntax to TOML/Gemini variable syntax
         # Gemini CLI uses {{args}} instead of $ARGUMENTS
@@ -145,10 +159,13 @@ def render_command_template(
         body_text = rendered_body
         if not body_text.endswith("\n"):
             body_text += "\n"
-        return f'description = "{description_value}"\n\nprompt = """\n{body_text}"""\n'
+        # For TOML files, embed the version marker as a comment in the prompt body
+        return f'description = "{description_value}"\n\nprompt = """\n{version_marker}{body_text}"""\n'
 
     result = f"---\n{frontmatter_clean}\n---\n\n{rendered_body}" if frontmatter_clean else rendered_body
-    return result if result.endswith("\n") else result + "\n"
+    if not result.endswith("\n"):
+        result += "\n"
+    return version_marker + result
 
 
 def _convert_markdown_syntax_to_format(content: str, target_format: str) -> str:

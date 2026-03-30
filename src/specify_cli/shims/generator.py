@@ -1,9 +1,10 @@
 """Generate thin 3-line shim markdown files for all configured agents.
 
 Each generated file contains exactly:
-  1. An invariant instruction line.
-  2. A prohibition line.
-  3. A CLI call that passes all arguments through.
+  1. A version marker comment.
+  2. An invariant instruction line.
+  3. A prohibition line.
+  4. A CLI call that passes all arguments through.
 
 No workflow logic is embedded in shim files.  All resolution and
 dispatch logic lives in the CLI (see :mod:`specify_cli.shims.entrypoints`
@@ -19,6 +20,18 @@ from specify_cli.agent_utils.directories import (
     get_agent_dirs_for_project,
 )
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
+
+
+def _get_cli_version() -> str:
+    """Return the current CLI version string."""
+    try:
+        from importlib.metadata import version
+
+        return version("spec-kitty-cli")
+    except Exception:
+        from specify_cli import __version__
+
+        return __version__
 
 # Agent-specific argument placeholders.
 # Claude Code passes slash-command arguments as $ARGUMENTS.
@@ -38,10 +51,12 @@ def _get_arg_placeholder(agent_key: str) -> str:
 
 
 def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -> str:
-    """Return the 3-line shim markdown body.
+    """Return the shim markdown body with version marker.
 
     The format is invariant across all skills and agents except for the
-    ``arg_placeholder`` substitution.
+    ``arg_placeholder`` substitution.  The first line is always a
+    ``<!-- spec-kitty-command-version: X.Y.Z -->`` marker so migrations
+    and doctor checks can detect stale files.
 
     Args:
         command:         Skill verb, e.g. ``"implement"``.
@@ -51,7 +66,9 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     Returns:
         A multi-line string ready to write as a ``.md`` file.
     """
+    version = _get_cli_version()
     return (
+        f"<!-- spec-kitty-command-version: {version} -->\n"
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, or prompt contents.\n"
         "\n"
