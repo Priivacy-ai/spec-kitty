@@ -9,7 +9,7 @@ from specify_cli.shims.generator import (
     generate_shim_content,
     generate_all_shims,
 )
-from specify_cli.shims.registry import CONSUMER_SKILLS
+from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PROMPT_DRIVEN_COMMANDS
 
 
 # ---------------------------------------------------------------------------
@@ -114,10 +114,30 @@ class TestGenerateAllShims:
 
         written = generate_all_shims(tmp_path)
 
-        # Every consumer skill should appear for both agents
+        # Only CLI-driven skills should get shim files — not prompt-driven ones
         written_names = {p.name for p in written}
-        for skill in CONSUMER_SKILLS:
+        for skill in CLI_DRIVEN_COMMANDS:
             assert f"spec-kitty.{skill}.md" in written_names
+
+    def test_prompt_driven_skills_not_written(self, tmp_path: Path) -> None:
+        """Prompt-driven commands must NOT receive shim files."""
+        _setup_kittify_config(tmp_path, ["claude"])
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+        generate_all_shims(tmp_path)
+
+        cmd_dir = tmp_path / ".claude" / "commands"
+        for skill in PROMPT_DRIVEN_COMMANDS:
+            assert not (cmd_dir / f"spec-kitty.{skill}.md").exists(), (
+                f"Prompt-driven skill '{skill}' should not get a shim file"
+            )
+
+    def test_generates_exactly_seven_files_per_agent(self, tmp_path: Path) -> None:
+        """generate_all_shims produces exactly 7 shim files per configured agent."""
+        _setup_kittify_config(tmp_path, ["claude"])
+        (tmp_path / ".claude" / "commands").mkdir(parents=True)
+        written = generate_all_shims(tmp_path)
+        assert len(written) == len(CLI_DRIVEN_COMMANDS)
+        assert len(CLI_DRIVEN_COMMANDS) == 7
 
     def test_files_have_correct_content(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])

@@ -18,6 +18,7 @@ from pathlib import Path
 
 from specify_cli.context.models import MissionContext
 from specify_cli.context.resolver import resolve_or_load
+from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
 
 
 # ---------------------------------------------------------------------------
@@ -88,8 +89,14 @@ def shim_dispatch(
     raw_args: str,
     context_token: str | None,
     repo_root: Path,
-) -> MissionContext:
+) -> MissionContext | None:
     """Resolve context and dispatch to the workflow handler for *command*.
+
+    For prompt-driven commands (``PROMPT_DRIVEN_COMMANDS``), returns
+    ``None`` immediately — their full prompt template handles the workflow
+    and there is nothing for the CLI shim path to dispatch.
+
+    For CLI-driven commands, resolves the mission context and returns it.
 
     Args:
         command:       Skill verb, e.g. ``"implement"``.
@@ -99,7 +106,8 @@ def shim_dispatch(
         repo_root:     Absolute path to the repository root.
 
     Returns:
-        The resolved :class:`~specify_cli.context.models.MissionContext`.
+        The resolved :class:`~specify_cli.context.models.MissionContext`,
+        or ``None`` if *command* is prompt-driven.
 
     Raises:
         ValueError: If *command* is not a known consumer skill.
@@ -114,6 +122,11 @@ def shim_dispatch(
             f"Expected one of: {known}."
         )
         raise ValueError(msg)
+
+    # Prompt-driven commands are handled entirely by their full prompt
+    # template file.  The CLI shim pathway is a no-op for them.
+    if command in PROMPT_DRIVEN_COMMANDS:
+        return None
 
     # Parse raw_args to extract wp_code and feature_slug
     parsed = _parse_raw_args(raw_args)

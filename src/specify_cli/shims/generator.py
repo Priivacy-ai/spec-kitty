@@ -18,7 +18,7 @@ from specify_cli.agent_utils.directories import (
     AGENT_DIR_TO_KEY,
     get_agent_dirs_for_project,
 )
-from specify_cli.shims.registry import get_consumer_skills
+from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
 
 # Agent-specific argument placeholders.
 # Claude Code passes slash-command arguments as $ARGUMENTS.
@@ -60,11 +60,13 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
 
 
 def generate_all_shims(repo_root: Path) -> list[Path]:
-    """Generate shim files for all configured agents and consumer skills.
+    """Generate shim files for all configured agents and CLI-driven skills.
 
     Uses :func:`~specify_cli.agent_utils.directories.get_agent_dirs_for_project`
     to honour the project's agent configuration.  Only skills in
-    :data:`~specify_cli.shims.registry.CONSUMER_SKILLS` are written.
+    :data:`~specify_cli.shims.registry.CLI_DRIVEN_COMMANDS` are written —
+    prompt-driven commands are intentionally skipped because their full
+    prompt template files handle the workflow directly.
 
     Existing shim files are overwritten; directories that do not exist are
     created.
@@ -75,7 +77,7 @@ def generate_all_shims(repo_root: Path) -> list[Path]:
     Returns:
         Sorted list of paths written.
     """
-    consumer_skills = sorted(get_consumer_skills())
+    cli_skills = sorted(CLI_DRIVEN_COMMANDS)
     agent_dirs = get_agent_dirs_for_project(repo_root)
     written: list[Path] = []
 
@@ -86,7 +88,7 @@ def generate_all_shims(repo_root: Path) -> list[Path]:
         target_dir = repo_root / agent_root / command_subdir
         target_dir.mkdir(parents=True, exist_ok=True)
 
-        for skill in consumer_skills:
+        for skill in cli_skills:
             filename = f"spec-kitty.{skill}.md"
             content = generate_shim_content(skill, agent_key, arg_placeholder)
             out_path = target_dir / filename
