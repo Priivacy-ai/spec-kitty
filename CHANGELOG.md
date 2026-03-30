@@ -7,9 +7,33 @@ All notable changes to the Spec Kitty CLI and templates are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] → 2.2.0
 
-_No unreleased changes._
+### ✅ Added
+
+- **Doctrine artifact stack (`#305`, specs 046/048/054)**: full YAML-based domain model for 8 artifact types (directives, paradigms, tactics, styleguides, toolguides, agent profiles, skills, mission step contracts). Repository pattern, DDR-011 scoring, DFS cycle detection, and Pydantic v2 models across all artifact types.
+- **Constitution package extracted (`#305`)**: `src/constitution/` is now a standalone peer package alongside `src/specify_cli/` and `src/doctrine/`, with its own `pyproject.toml`. Contains compiler, context, interview, resolver, extractor, generator, hasher, parser, schemas, and sync modules.
+- **Constitution context command**: `spec-kitty constitution context --action <action> --json` renders governance context for the active workflow action. Supports depth levels (1=compact, 2=bootstrap, 3=extended), first-load state tracking, and action-scoped directive/tactic injection.
+- **Agent profile integration (`#305`, spec 048)**: specialist agent profiles (`architect.agent.yaml`, `implementer.agent.yaml`, etc.) shipped in `src/doctrine/agent_profiles/shipped/`. Profile-context slash command template deployed to all configured agents during `spec-kitty upgrade`.
+- **MissionStepContracts (`#305`, spec 054)**: YAML-based structured step definitions (`specify`, `plan`, `implement`, `review`) with `inputs` metadata for `--profile`/`--tool`/`--role` bootstrap flags and explicit commit delegate references (DIRECTIVE_033).
+- **Doctrine curation pipeline (`#305`, spec 046)**: import manifests, candidate review workflow, adoption records. Example zombies TDD import included.
+- **Test-first doctrine stack**: `test-first.paradigm.yaml`, `tdd-red-green-refactor.tactic.yaml`, `acceptance-test-first.tactic.yaml`, `zombies-tdd.tactic.yaml`, `test-first.directive.yaml` shipped.
+- **DIRECTIVE_033 Targeted Staging Policy**: prohibits blanket `git add -A`/`.` in agent workflows; mandates explicit file paths and pre-commit diff review; Boy Scout cleanup in a separate targeted commit.
+- **`init` scaffold improvements**: `REPO_MAP.md` and `SURFACES.md` placeholder files generated during `spec-kitty init`; post-generation notice printed for manual `_(fill in)_` fields.
+- **`spec-kitty.profile-context` slash command**: ad-hoc specialist session command deployed to all agent directories; [how-to guide](docs/how-to/specialist-sessions.md) added.
+
+### 🐛 Fixed
+
+- **`auto_commit` field dropped in `AgentConfig` → `ToolConfig` rename**: `ToolConfig` now carries `auto_commit: bool = True`; top-level `config.yaml` key respected as fallback; nested `tools.auto_commit` takes precedence.
+- **`constitution/context.py` missing `atomic_write`**: `_write_state` now uses `path.write_text` directly (no `specify_cli` import, no C1 violation).
+- **Profile discovery delegated to CLI**: profile resolution moved out of hardcoded paths into the CLI layer.
+- **OfflineQueue sqlite3 crash on import**: lazy-import guard added; `REPO_MAP`/`SURFACES` moved into `.kittify/`.
+- **Directive resolution in YAML fallback**: compiler now resolves directives from `shipped/` subdirectory.
+
+### 🔧 Changed
+
+- **Architecture docs updated** (`architecture/2.x/`): all four C4 levels updated to reflect Skills Installer, doctrine skill packs, constitution peer package, agent profile completion, and MissionStepContracts.
+- **Boy Scout Rule added to glossary** (`glossary/contexts/practices-principles.md`): canonical definition with cross-reference to DIRECTIVE_025 and DIRECTIVE_033.
 
 ## [2.1.3] - 2026-03-27
 

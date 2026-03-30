@@ -36,17 +36,28 @@ def _error_message(file_path: Path, error) -> str:
     return f"{file_path.relative_to(REPO_ROOT)} path={pointer} message={error.message}"
 
 
-ARTIFACT_GLOBS: dict[str, tuple[Path, str]] = {
-    "directive": (DOCTRINE_DIR / "directives", "*.directive.yaml"),
-    "styleguide": (DOCTRINE_DIR / "styleguides", "**/*.styleguide.yaml"),
-    "toolguide": (DOCTRINE_DIR / "toolguides", "*.toolguide.yaml"),
+def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
+    """Glob across multiple directories."""
+    results: list[Path] = []
+    for d in dirs:
+        if d.exists():
+            results.extend(d.glob(pattern))
+    return sorted(set(results))
+
+
+_BUNDLED_SUBDIRS = ("shipped", "_proposed")
+
+ARTIFACT_GLOBS: dict[str, tuple[list[Path], str]] = {
+    "directive": ([DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"),
+    "styleguide": ([DOCTRINE_DIR / "styleguides" / d for d in _BUNDLED_SUBDIRS], "**/*.styleguide.yaml"),
+    "toolguide": ([DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"),
 }
 
 
 def _artifact_cases() -> list[tuple[str, Path]]:
     cases: list[tuple[str, Path]] = []
-    for artifact_type, (base_dir, pattern) in ARTIFACT_GLOBS.items():
-        for artifact_path in sorted(base_dir.glob(pattern)):
+    for artifact_type, (base_dirs, pattern) in ARTIFACT_GLOBS.items():
+        for artifact_path in _multi_glob(base_dirs, pattern):
             cases.append((artifact_type, artifact_path))
     return cases
 
@@ -66,7 +77,9 @@ def test_artifact_files_validate_schema(artifact_type: str, artifact_path: Path)
 @pytest.fixture(scope="module")
 def tactic_ids() -> set[str]:
     ids: set[str] = set()
-    for tactic_path in sorted((DOCTRINE_DIR / "tactics").glob("*.tactic.yaml")):
+    for tactic_path in _multi_glob(
+        [DOCTRINE_DIR / "tactics" / "shipped"], "*.tactic.yaml"
+    ):
         tactic = _load_yaml(tactic_path)
         tactic_id = tactic.get("id")
         if isinstance(tactic_id, str) and tactic_id:
@@ -76,7 +89,9 @@ def tactic_ids() -> set[str]:
 
 @pytest.mark.parametrize(
     "directive_path",
-    sorted((DOCTRINE_DIR / "directives").glob("*.directive.yaml")),
+    _multi_glob(
+        [DOCTRINE_DIR / "directives" / d for d in _BUNDLED_SUBDIRS], "*.directive.yaml"
+    ),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
 def test_directive_tactic_refs_resolve(directive_path: Path, tactic_ids: set[str]) -> None:
@@ -93,7 +108,9 @@ def test_directive_tactic_refs_resolve(directive_path: Path, tactic_ids: set[str
 
 @pytest.mark.parametrize(
     "toolguide_path",
-    sorted((DOCTRINE_DIR / "toolguides").glob("*.toolguide.yaml")),
+    _multi_glob(
+        [DOCTRINE_DIR / "toolguides" / d for d in _BUNDLED_SUBDIRS], "*.toolguide.yaml"
+    ),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
 def test_toolguide_guide_path_exists(toolguide_path: Path) -> None:

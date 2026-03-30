@@ -6,6 +6,8 @@ import pytest
 
 from specify_cli.template import manager
 from specify_cli.template.manager import copy_specify_base_from_local, get_local_repo_root
+pytestmark = pytest.mark.fast
+
 
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -58,6 +60,82 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
+
+
+def test_copy_specify_base_from_local_preserves_memory_when_repo_equals_project(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    memory_dir = repo_root / ".kittify" / "memory"
+    memory_dir.mkdir(parents=True, exist_ok=True)
+    (memory_dir / "seed.txt").write_text("hello", encoding="utf-8")
+
+    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
+    (scripts_src / "bash").mkdir(parents=True)
+    (scripts_src / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
+    (scripts_src / "tasks").mkdir()
+    (scripts_src / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
+
+    templates_src = repo_root / "src" / "doctrine" / "templates" / "command-templates"
+    templates_src.mkdir(parents=True)
+    (templates_src / "sample.md").write_text("content", encoding="utf-8")
+    (repo_root / "src" / "doctrine" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
+
+    missions_src = repo_root / "src" / "doctrine" / "missions" / "default"
+    missions_src.mkdir(parents=True)
+    (missions_src / "rules.md").write_text("rules", encoding="utf-8")
+
+    commands_dir = copy_specify_base_from_local(repo_root, repo_root, "sh")
+
+    assert commands_dir.exists()
+    assert (repo_root / ".kittify" / "memory").is_dir()
+    assert (repo_root / ".kittify" / "memory" / "seed.txt").read_text(encoding="utf-8") == "hello"
+    assert (repo_root / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
+    assert (repo_root / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
+    assert (repo_root / ".kittify" / "missions" / "default" / "rules.md").exists()
+
+
+def test_copy_specify_base_from_local_handles_resolve_oserror_for_same_memory_tree(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+
+    memory_dir = repo_root / ".kittify" / "memory"
+    memory_dir.mkdir(parents=True, exist_ok=True)
+    (memory_dir / "seed.txt").write_text("hello", encoding="utf-8")
+
+    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
+    (scripts_src / "bash").mkdir(parents=True)
+    (scripts_src / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
+    (scripts_src / "tasks").mkdir()
+    (scripts_src / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
+
+    templates_src = repo_root / "src" / "doctrine" / "templates" / "command-templates"
+    templates_src.mkdir(parents=True)
+    (templates_src / "sample.md").write_text("content", encoding="utf-8")
+    (repo_root / "src" / "doctrine" / "templates" / "AGENTS.md").write_text("agents", encoding="utf-8")
+
+    missions_src = repo_root / "src" / "doctrine" / "missions" / "default"
+    missions_src.mkdir(parents=True)
+    (missions_src / "rules.md").write_text("rules", encoding="utf-8")
+
+    path_type = type(repo_root)
+    original_resolve = path_type.resolve
+
+    def flaky_resolve(self: Path, strict: bool = False) -> Path:
+        if self == memory_dir:
+            raise OSError("resolve failed")
+        return original_resolve(self, strict=strict)
+
+    monkeypatch.setattr(path_type, "resolve", flaky_resolve)
+
+    commands_dir = copy_specify_base_from_local(repo_root, repo_root, "sh")
+
+    assert commands_dir.exists()
+    assert (repo_root / ".kittify" / "memory").is_dir()
+    assert (repo_root / ".kittify" / "memory" / "seed.txt").read_text(encoding="utf-8") == "hello"
 
 
 def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

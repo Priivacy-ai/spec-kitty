@@ -11,6 +11,8 @@ from specify_cli.upgrade.metadata import ProjectMetadata
 from specify_cli.upgrade.migrations.m_0_12_0_documentation_mission import (
     InstallDocumentationMission,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture
@@ -306,6 +308,7 @@ def test_migration_detect_after_apply(migration: InstallDocumentationMission, tm
 def test_migration_is_registered() -> None:
     """Verify migration is registered and discoverable."""
     from specify_cli.upgrade.registry import MigrationRegistry
+
 
     # Check migration is in registry
     migrations = MigrationRegistry.get_all()

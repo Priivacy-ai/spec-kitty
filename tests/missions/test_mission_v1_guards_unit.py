@@ -21,6 +21,8 @@ from specify_cli.mission_v1.guards import (
     parse_guard_expression,
 )
 from specify_cli.mission_v1.schema import MissionValidationError
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------

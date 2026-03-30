@@ -170,8 +170,8 @@ def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run
     assert result.returncode != 0, "setup-plan should fail without explicit feature in ambiguous context"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "--feature" in payload["example_command"]
+    assert len(payload["available_missions"]) >= 2
+    assert "--mission" in payload["example_command"]
 
 def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_cli) -> None:
     """setup-plan should fail when spec.md is missing for an explicit feature."""
@@ -479,11 +479,11 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
         "--include-tasks",
     )
 
-    assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
+    assert result.returncode != 0, "Ambiguous feature context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "--feature" in payload["example_command"]
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
+    assert len(payload["available_missions"]) >= 2
+    assert "--mission" in payload["example_command"]
 
 def test_finalize_tasks_ambiguous_context_returns_candidates(
     test_project: Path, run_cli
@@ -516,8 +516,8 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
         "--json",
     )
 
-    assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
+    assert result.returncode != 0, "Ambiguous feature context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
-    assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "finalize-tasks --feature" in payload["example_command"]
+    assert payload["error_code"] == "MISSION_CONTEXT_UNRESOLVED"
+    assert len(payload["available_missions"]) >= 2
+    assert "finalize-tasks --mission" in payload["example_command"]

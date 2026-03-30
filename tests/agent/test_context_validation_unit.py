@@ -25,6 +25,8 @@ from specify_cli.core.context_validation import (
     require_worktree,
     set_context_env_vars,
 )
+pytestmark = pytest.mark.fast
+
 
 
 class TestContextDetection:
@@ -390,6 +392,7 @@ class TestWorktreeNestingPrevention:
         monkeypatch.chdir(worktree_path)
 
         from specify_cli.cli.commands.merge import merge
+
 
         with pytest.raises(typer.Exit) as exc_info:
             merge()

@@ -16,6 +16,8 @@ from specify_cli.core.agent_context import (
     get_agent_file_path,
     AGENT_CONFIGS,
 )
+pytestmark = pytest.mark.fast
+
 
 runner = CliRunner()
 

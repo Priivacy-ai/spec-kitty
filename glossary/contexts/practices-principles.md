@@ -57,6 +57,18 @@ Terms describing operating principles for glossary-semantic-integrity execution.
 
 ---
 
+### Boy Scout Rule
+
+| | |
+|---|---|
+| **Definition** | Leave the code better than you found it. When passing through an area of the codebase, opportunistically improve clarity, naming, or structure — even if unrelated to the current task. Improvements are committed as their own targeted commit, separate from the WP deliverable. |
+| **Context** | Practices & Principles |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **See also** | DIRECTIVE_025 (Boy Scout Rule), DIRECTIVE_033 (Targeted Staging Policy) |
+
+---
+
 ### Human-in-Charge (Cross-Reference)
 
 | | |

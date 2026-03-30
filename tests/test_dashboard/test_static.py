@@ -1,6 +1,9 @@
 from pathlib import Path
 
 from specify_cli.dashboard.templates import get_dashboard_html
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 def test_dashboard_template_references_static_assets():

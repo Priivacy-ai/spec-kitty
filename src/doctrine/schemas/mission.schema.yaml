@@ -34,8 +34,20 @@ properties:
         type: array
         minItems: 1
         items:
-          type: string
-          minLength: 1
+          oneOf:
+            - type: string
+              minLength: 1
+            - type: object
+              additionalProperties: false
+              required:
+                - id
+              properties:
+                id:
+                  type: string
+                  minLength: 1
+                agent-profile:
+                  type: string
+                  pattern: '^[a-z][a-z0-9-]*$'
       transitions:
         type: array
         minItems: 1
@@ -54,6 +66,9 @@ properties:
               minLength: 1
             on:
               type: string
+            agent-profile:
+              type: string
+              pattern: '^[a-z][a-z0-9-]*$'
       guards:
         type: array
         items:
@@ -64,3 +79,30 @@ properties:
         items:
           type: string
           minLength: 1
+  steps:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          minLength: 1
+        title:
+          type: string
+        name:
+          type: string
+        description:
+          type: string
+        prompt_template:
+          type: string
+        depends_on:
+          type: array
+          items:
+            type: string
+            minLength: 1
+        agent-profile:
+          type: string
+          pattern: '^[a-z][a-z0-9-]*$'

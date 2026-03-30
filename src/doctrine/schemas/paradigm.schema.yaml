@@ -1,0 +1,55 @@
+$schema: "https://json-schema.org/draft/2020-12/schema"
+$id: "https://spec-kitty.dev/schemas/doctrine/paradigm.schema.yaml"
+title: Paradigm
+description: Minimal schema for doctrine paradigms.
+type: object
+additionalProperties: false
+required:
+  - schema_version
+  - id
+  - name
+  - summary
+definitions:
+  contradiction:
+    type: object
+    additionalProperties: false
+    required:
+      - type
+      - id
+      - reason
+    properties:
+      type:
+        type: string
+        enum:
+          - directive
+          - tactic
+          - paradigm
+      id:
+        type: string
+        minLength: 1
+      reason:
+        type: string
+        minLength: 1
+properties:
+  schema_version:
+    type: string
+    pattern: '^1\.0$'
+  id:
+    type: string
+    pattern: '^[a-z][a-z0-9-]*$'
+  name:
+    type: string
+    minLength: 1
+  summary:
+    type: string
+    minLength: 1
+  tactic_refs:
+    type: array
+    items:
+      type: string
+      pattern: '^[a-z][a-z0-9-]*$'
+  opposed_by:
+    type: array
+    items:
+      $ref: '#/definitions/contradiction'
+

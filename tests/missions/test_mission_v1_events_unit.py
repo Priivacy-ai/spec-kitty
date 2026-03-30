@@ -28,6 +28,8 @@ from specify_cli.mission_v1.events import (
     emit_event,
     read_events,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -300,6 +302,7 @@ class TestMissionModelCallbackWiring:
     def test_multiple_transitions_accumulate_events(self, tmp_path: Path) -> None:
         """Two transitions produce 4 events (2 exits + 2 enters)."""
         from specify_cli.mission_v1.runner import StateMachineMission
+
 
         mission = StateMachineMission(
             copy.deepcopy(_CALLBACK_CONFIG), feature_dir=tmp_path

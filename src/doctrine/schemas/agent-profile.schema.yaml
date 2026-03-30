@@ -1,32 +1,234 @@
-$schema: "https://json-schema.org/draft/2020-12/schema"
+$schema: "http://json-schema.org/draft-07/schema#"
 $id: "https://spec-kitty.dev/schemas/doctrine/agent-profile.schema.yaml"
 title: Agent Profile
-description: Minimal schema for doctrine agent profiles.
+description: Rich agent profile schema with 6-section structure for spec-kitty doctrine framework
 type: object
 additionalProperties: false
+
 required:
-  - schema_version
-  - id
-  - role
-  - capabilities
+  - profile-id
+  - name
+  - purpose
+  - specialization
+
 properties:
-  schema_version:
-    type: string
-    pattern: '^1\.0$'
-  id:
+  # ========== Core Identity ==========
+  profile-id:
     type: string
     pattern: '^[a-z][a-z0-9-]*$'
+    description: Unique identifier for this agent profile (kebab-case)
+  
+  name:
+    type: string
+    minLength: 1
+    description: Human-readable name for this agent
+  
+  description:
+    type: string
+    description: Optional brief description
+  
+  schema-version:
+    type: string
+    pattern: '^1\.0$'
+    default: "1.0"
+    description: Schema version for compatibility
+  
+  purpose:
+    type: string
+    minLength: 1
+    description: The agent's primary purpose or mission statement
+  
+  # ========== Role and Capabilities ==========
   role:
     type: string
     minLength: 1
+    description: Agent role (architect, implementer, reviewer, planner, etc.) - accepts both known roles and custom roles
+  
   capabilities:
     type: array
-    minItems: 1
     items:
       type: string
       minLength: 1
-  tool_constraints:
+    description: List of capabilities this agent can perform
+  
+  specializes-from:
+    type: string
+    description: Parent profile ID this agent specializes from (for hierarchy)
+  
+  routing-priority:
+    type: integer
+    minimum: 0
+    maximum: 100
+    description: Priority for routing tasks to this agent (0-100, higher is more preferred)
+  
+  max-concurrent-tasks:
+    type: integer
+    minimum: 1
+    description: Maximum number of tasks this agent can handle concurrently
+  
+  # ========== Section 1: Context Sources ==========
+  context-sources:
+    type: object
+    additionalProperties: false
+    properties:
+      doctrine-layers:
+        type: array
+        items:
+          type: string
+        description: Doctrine layers this agent consults
+      directives:
+        type: array
+        items:
+          type: string
+        description: Directive IDs this agent references
+      additional:
+        type: array
+        items:
+          type: string
+        description: Additional context sources
+  
+  # ========== Section 2: Specialization ==========
+  specialization:
+    type: object
+    additionalProperties: false
+    required:
+      - primary-focus
+    properties:
+      primary-focus:
+        type: string
+        minLength: 1
+        description: Primary area of specialization
+      secondary-awareness:
+        type: string
+        description: Secondary areas agent is aware of
+      avoidance-boundary:
+        type: string
+        description: What this agent explicitly avoids
+      success-definition:
+        type: string
+        description: How success is defined for this agent
+  
+  # ========== Section 3: Collaboration Contract ==========
+  collaboration:
+    type: object
+    additionalProperties: false
+    properties:
+      handoff-to:
+        type: array
+        items:
+          type: string
+        description: Roles/agents this agent hands off to
+      handoff-from:
+        type: array
+        items:
+          type: string
+        description: Roles/agents that hand off to this agent
+      works-with:
+        type: array
+        items:
+          type: string
+        description: Roles/agents this agent collaborates with
+      output-artifacts:
+        type: array
+        items:
+          type: string
+        description: Artifacts this agent produces
+      operating-procedures:
+        type: array
+        items:
+          type: string
+        description: Procedures this agent follows
+      canonical-verbs:
+        type: array
+        items:
+          type: string
+        description: Standard verbs for this agent's actions
+  
+  # ========== Section 4: Mode Defaults ==========
+  mode-defaults:
     type: array
     items:
-      type: string
-      minLength: 1
+      type: object
+      additionalProperties: false
+      required:
+        - mode
+        - description
+        - use-case
+      properties:
+        mode:
+          type: string
+          minLength: 1
+          description: Mode name
+        description:
+          type: string
+          minLength: 1
+          description: Mode description
+        use-case:
+          type: string
+          minLength: 1
+          description: When to use this mode
+  
+  # ========== Section 5: Initialization Declaration ==========
+  initialization-declaration:
+    type: string
+    description: Agent's initialization prompt or declaration
+  
+  # ========== Section 6: Specialization Context ==========
+  specialization-context:
+    type: object
+    additionalProperties: false
+    properties:
+      languages:
+        type: array
+        items:
+          type: string
+        description: Programming languages this agent specializes in
+      frameworks:
+        type: array
+        items:
+          type: string
+        description: Frameworks this agent knows
+      file-patterns:
+        type: array
+        items:
+          type: string
+        description: File patterns this agent matches (glob patterns)
+      domain-keywords:
+        type: array
+        items:
+          type: string
+        description: Domain keywords for matching
+      writing-style:
+        type: array
+        items:
+          type: string
+        description: Preferred writing styles
+      complexity-preference:
+        type: array
+        items:
+          type: string
+        description: Task complexity preferences (low, medium, high)
+  
+  # ========== Directive References ==========
+  directive-references:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - code
+        - name
+        - rationale
+      properties:
+        code:
+          type: string
+          minLength: 1
+          description: Directive code
+        name:
+          type: string
+          minLength: 1
+          description: Directive name
+        rationale:
+          type: string
+          minLength: 1
+          description: Why this directive is referenced

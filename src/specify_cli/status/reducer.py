@@ -46,7 +46,7 @@ def _wp_state_from_event(
 
     return {
         "lane": str(event.to_lane),
-        "actor": event.actor,
+        "actor": event.actor.to_dict(),
         "last_transition_at": event.at,
         "last_event_id": event.event_id,
         "force_count": prior_force_count + (1 if event.force else 0),

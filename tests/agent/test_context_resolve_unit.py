@@ -6,6 +6,9 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import context
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 def _write_wp(path: Path, wp_id: str, lane: str, dependencies: str = "[]") -> None:
@@ -52,8 +55,8 @@ def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatc
     assert payload["success"] is True
     assert payload["feature_slug"] == "002-second"
     assert payload["target_branch"] == "2.x"
-    assert payload["commands"]["check_prerequisites"].endswith("--feature 002-second")
-    assert payload["commands"]["finalize_tasks"].endswith("--feature 002-second --json")
+    assert payload["commands"]["check_prerequisites"].endswith("--mission 002-second")
+    assert payload["commands"]["finalize_tasks"].endswith("--mission 002-second --json")
 
 
 def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatch) -> None:

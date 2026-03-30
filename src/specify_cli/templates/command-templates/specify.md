@@ -35,13 +35,13 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before discovery, resolve branch intent through the Python helper, not by probing git directly:
 
 ```bash
-spec-kitty agent feature branch-context --json
+spec-kitty agent mission branch-context --json
 ```
 
 If the user already told you the intended landing branch, pass it explicitly:
 
 ```bash
-spec-kitty agent feature branch-context --json --target-branch <intended-branch>
+spec-kitty agent mission branch-context --json --target-branch <intended-branch>
 ```
 
 Parse the JSON and, in your next reply, explicitly tell the user:
@@ -156,7 +156,7 @@ Given that feature description, do this:
 2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:
 
    ```bash
-   spec-kitty agent feature create-feature "<slug>" --json
+   spec-kitty agent mission create-feature "<slug>" --json
    ```
 
    Where `<slug>` is a kebab-case version of the friendly title (e.g., "Checkout Upsell Flow" → "checkout-upsell-flow").

@@ -156,3 +156,41 @@ Terms describing tool invocation and semantic safety gates during generation.
 | **Alias** | AFK mode |
 | **Related terms** | [Collaboration Mode](#collaboration-mode), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
+---
+
+### Agent Tool Connector
+
+| | |
+|---|---|
+| **Definition** | A pluggable execution provider that receives dispatched work from Orchestration and executes it through whatever mechanism the connector implements (in-tool prompt, async shell command, SDK call, remote API). Consumes Doctrine and Constitution at execution time to operate within governance constraints. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Tool](#tool), [Agent](./identity.md#agent), [Execution Dispatch](#execution-dispatch), [Collaboration Mode](#collaboration-mode) |
+| **Architecture ref** | [System Landscape](../../architecture/2.x/00_landscape/README.md#agent-tool-connectors) |
+
+---
+
+### Execution Dispatch
+
+| | |
+|---|---|
+| **Definition** | The component that receives dispatched work from Orchestration and routes it to the correct Agent Tool Connector adapter. Ensures governance context (Doctrine, Constitution) is injected into every execution. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Agent Tool Connector](#agent-tool-connector), [Slash Command](#slash-command) |
+| **Architecture ref** | [Component View](../../architecture/2.x/03_components/README.md#agent-tool-connectors) |
+
+---
+
+### Agent Adapter
+
+| | |
+|---|---|
+| **Definition** | A per-agent implementation within the Agent Tool Connector boundary. Currently realized as markdown command templates deployed to agent-specific directories (`.claude/`, `.codex/`, etc.). The architecture envisions adapters that can also dispatch via SDK, shell, or remote API. |
+| **Context** | Execution |
+| **Status** | canonical |
+| **Applicable to** | `2.x` |
+| **Related terms** | [Agent Tool Connector](#agent-tool-connector), [Tool](#tool), [Command Template](./orchestration.md#command-template) |
+

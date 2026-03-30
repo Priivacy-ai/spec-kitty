@@ -8,6 +8,7 @@ This directory is the current architecture track for Spec Kitty.
 2. End-to-end behavior expectations (`user_journey/`).
 3. Active architecture initiatives (`initiatives/`).
 4. Layered C4 documentation for system responsibilities and behavior:
+   - `00_landscape/` (system landscape — canonical top-level framing)
    - `01_context/`
    - `02_containers/`
    - `03_components/`
@@ -26,15 +27,17 @@ This removes README indirection while preserving clear expansion space.
 
 ## Recommended Reading Order
 
-1. [Domain Breakdown](#domain-breakdown) (this file)
-2. [Usage Flow High-Level User Journey](#usage-flow-high-level-user-journey)
-3. [C4 Context](01_context/README.md)
-4. [C4 Containers](02_containers/README.md)
-5. [Runtime/Execution Domain Detail](02_containers/runtime-execution-domain.md)
-6. [C4 Components](03_components/README.md)
-7. [Audience Personas](../audience/README.md)
-8. [2.x ADR Index](adr/README.md)
-9. [2.x User Journeys](user_journey/README.md)
+1. [C4 System Landscape](00_landscape/README.md) (canonical top-level framing)
+2. [Domain Breakdown](#domain-breakdown) (this file)
+3. [Usage Flow High-Level User Journey](#usage-flow-high-level-user-journey)
+4. [C4 Context](01_context/README.md)
+5. [C4 Containers](02_containers/README.md)
+6. [Runtime/Execution Domain Detail](02_containers/runtime-execution-domain.md)
+7. [C4 Components](03_components/README.md)
+8. [Implementation Mapping](04_implementation_mapping/README.md)
+9. [Audience Personas](../audience/README.md)
+10. [2.x ADR Index](adr/README.md)
+11. [2.x User Journeys](user_journey/README.md)
 
 ---
 
@@ -146,26 +149,43 @@ container, and component views can reference.
 
 ```mermaid
 flowchart LR
-    user[Human or Agent]
+    hic[Human in Charge]
+    agent[AI Agent\n'generic-agent' or specialist]
     runtime[Runtime Decisioning]
     status[Status Mutation Engine]
     repo[Repository State]
     sync[Optional Sync Projection]
 
-    user -->|invoke command| runtime
-    runtime -->|recommend next action| user
-    user -->|execute lifecycle mutation command| status
+    hic -->|invoke command| runtime
+    runtime -->|recommend next action + assign executor| hic
+    hic -->|HiC WP: human executes directly| status
+    hic -->|agent WP: dispatch to agent| agent
+    agent -->|execute with specialist profile injected| agent
+    agent -->|lifecycle mutation command| status
     status -->|persist events and snapshot| repo
     status -->|project events when enabled| sync
 ```
 
+### WP Executor Assignment
+
+Work packages are assigned an executor via the `agent_profile` frontmatter field:
+
+| Value | Executor | Behaviour |
+|---|---|---|
+| _(absent)_ | AI agent — `generic-agent` default | Generic governance injected; no specialist identity |
+| `architect`, `implementer`, etc. | AI agent — specialist profile | Specialist identity fragment injected at execution time |
+| `human-in-charge` | Human (HiC) | Sentinel profile — no agent context injected; WP appears with 👤 marker in kanban |
+
+The `human-in-charge` value is a **workflow sentinel**, not an agent identity. It signals that the WP requires direct human execution or collaborative human-AI work. The Human in Charge retains final acceptance authority regardless of executor assignment.
+
 ### Authority Notes
 
 1. Runtime decisioning and status mutation are separate responsibilities.
-2. Runtime decides what should happen next.
-3. Status engine validates and persists what did happen.
+2. Runtime decides what should happen next; executor assignment communicates *who* acts.
+3. Status engine validates and persists what did happen — authority is independent of executor.
 4. Lifecycle persistence is host-authoritative and event-sourced.
 5. External projections do not own canonical lifecycle state.
+6. The Human in Charge is always accountable; agent executor assignment is a coordination signal, not a delegation of responsibility.
 
 ### Branch and Target-Line Routing (Generic)
 
@@ -200,6 +220,10 @@ flowchart TD
     initdir["initiatives/README.md"]
 
     root --> readme
+    c0dir["00_landscape/"]
+    c0doc["README.md"]
+    root --> c0dir
+    c0dir --> c0doc
     root --> c1dir
     c1dir --> c1doc
     root --> c2dir
@@ -207,6 +231,10 @@ flowchart TD
     c2dir --> c2detail
     root --> c3dir
     c3dir --> c3doc
+    c4dir["04_implementation_mapping/"]
+    c4doc["README.md"]
+    root --> c4dir
+    c4dir --> c4doc
     root --> adrdir
     root --> ujdir
     root --> initdir

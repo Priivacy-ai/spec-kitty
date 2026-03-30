@@ -9,6 +9,8 @@ import pytest
 from specify_cli.upgrade.migrations.m_0_10_12_constitution_cleanup import (
     ConstitutionCleanupMigration,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture

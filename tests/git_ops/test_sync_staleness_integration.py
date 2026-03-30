@@ -9,6 +9,8 @@ Tests staleness detection and update functionality for parallel WP development:
 
 from __future__ import annotations
 
+import pytest
+
 import subprocess
 from pathlib import Path
 

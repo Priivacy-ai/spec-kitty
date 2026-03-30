@@ -1,8 +1,8 @@
 ---
 description: Generate a custom checklist for the current feature based on user requirements.
 scripts:
-  sh: spec-kitty agent feature check-prerequisites --json
-  ps: spec-kitty agent feature check-prerequisites --json
+  sh: spec-kitty agent mission check-prerequisites --json
+  ps: spec-kitty agent mission check-prerequisites --json
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 

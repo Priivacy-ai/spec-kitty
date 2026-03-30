@@ -13,6 +13,8 @@ from specify_cli.orchestrator_api.envelope import (
     parse_and_validate_policy,
     policy_to_dict,
 )
+pytestmark = pytest.mark.fast
+
 
 
 class TestMakeEnvelope:

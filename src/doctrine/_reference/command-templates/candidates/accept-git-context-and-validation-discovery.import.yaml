@@ -1,0 +1,32 @@
+id: "imp-command-templates-accept-git-context-003"
+source:
+  title: "Acceptance command git-context and validation discovery"
+  type: "command-template"
+  publisher: "spec-kitty doctrine"
+  url: "src/doctrine/templates/command-templates/accept.md"
+  accessed_on: "2026-02-18"
+classification:
+  target_concepts:
+    - "tactic"
+    - "template"
+  rationale: "Defines reusable auto-detection heuristics for feature context and command validation evidence."
+adaptation:
+  summary: "Use git branch and recent git-log evidence to auto-detect acceptance context with minimal user prompts."
+  notes:
+    - "Resolve feature slug from current git branch pattern."
+    - "Infer validation commands from recent commit history and project conventions."
+    - "Proceed with defaults where detection is sufficient; only prompt when ambiguity blocks execution."
+source_references:
+  - kind: "local"
+    path: "src/doctrine/templates/command-templates/accept.md"
+    lines: "27-31"
+    note: "Feature slug discovery from git branch."
+  - kind: "local"
+    path: "src/doctrine/templates/command-templates/accept.md"
+    lines: "37-50"
+    note: "Validation command discovery using git log and CI files."
+  - kind: "local"
+    path: "src/doctrine/templates/command-templates/accept.md"
+    lines: "58-63"
+    note: "No-question preferred flow."
+status: "proposed"

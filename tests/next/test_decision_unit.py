@@ -16,6 +16,8 @@ from specify_cli.next.decision import (
     derive_mission_state,
     evaluate_guards,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -553,6 +555,7 @@ class TestTaskStepAliases:
     def test_tasks_finalize_maps_to_tasks_finalize_action(self, feature_dir: Path) -> None:
         """Verify _state_to_action maps tasks_finalize → tasks-finalize via alias."""
         from specify_cli.next.decision import _state_to_action
+
 
         repo_root = feature_dir.parent.parent
         action, wp_id, workspace_path = _state_to_action(

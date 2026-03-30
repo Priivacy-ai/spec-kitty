@@ -8,6 +8,7 @@ from typing import List, Optional
 import typer
 from rich.table import Table
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.acceptance import (
     AcceptanceError,
     AcceptanceResult,
@@ -111,7 +112,8 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
 
 
 def accept(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to accept (auto-detected by default)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug to accept (auto-detected by default)"),
+    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -121,6 +123,7 @@ def accept(
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
     """Validate feature readiness before merging to main."""
+    feature = resolve_mission_or_feature(mission, feature)
 
     if not json_output:
         show_banner()

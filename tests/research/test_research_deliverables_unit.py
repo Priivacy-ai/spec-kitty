@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 
@@ -216,6 +219,7 @@ class TestMetaJsonDeliverablesPath:
         sys.path.insert(0, str(Path.cwd() / "src"))
 
         from specify_cli.mission import get_deliverables_path
+
 
         feature_dir = tmp_path / "kitty-specs" / "018-literature-review"
         feature_dir.mkdir(parents=True)

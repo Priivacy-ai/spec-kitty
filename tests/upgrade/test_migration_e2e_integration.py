@@ -339,4 +339,4 @@ class TestMigrationEdgeCases:
 
         events = read_events(feature_dir)
         assert len(events) == 1
-        assert events[0].actor == "custom-migration-bot"
+        assert events[0].actor.tool == "custom-migration-bot"

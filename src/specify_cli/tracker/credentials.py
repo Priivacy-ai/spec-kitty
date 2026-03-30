@@ -11,6 +11,9 @@ from pathlib import Path
 from typing import Any
 from collections.abc import Iterator
 
+from types import ModuleType
+
+toml: ModuleType | None
 try:  # pragma: no cover - optional dependency
     import toml  # type: ignore[import-untyped]
 except Exception:  # pragma: no cover - optional dependency

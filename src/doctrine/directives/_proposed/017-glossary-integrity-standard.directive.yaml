@@ -1,0 +1,44 @@
+schema_version: "1.0"
+id: DIRECTIVE_017
+title: Glossary Integrity Standard
+intent: >
+  Every domain term used in specifications, code, documentation, or agent
+  instructions must have a single, canonical definition agreed upon by the
+  relevant stakeholders. Ambiguous, duplicated, or locally redefined terms
+  introduce semantic drift — diverging interpretations that accumulate
+  silently until they cause integration failures or miscommunicated requirements.
+enforcement: required
+scope: >
+  Applies to all doctrine artifacts, specifications, architecture documents,
+  and agent profiles that introduce or use domain-specific terminology. Applies
+  during glossary curation, domain modelling, and cross-team integration work.
+procedures:
+  - Before using a domain term in a new artifact, verify whether a canonical
+    definition exists in the project glossary. If it does, adopt that definition.
+    If it does not, initiate a definition using the glossary-curation-interview tactic.
+  - When a term has different meanings in different bounded contexts, record
+    each context-scoped definition separately and document the distinction.
+    Do not create a single definition that silently merges conflicting meanings.
+  - When a term's definition changes, update the canonical glossary entry,
+    flag all artifacts that use the term for review, and record the change
+    with a rationale and effective date.
+  - During code and design review, flag identifiers, type names, and comments
+    that contradict or extend the canonical glossary without a documented rationale.
+integrity_rules:
+  - No term may have two canonical definitions within the same bounded context.
+    Synonyms must resolve to a single canonical form.
+  - Deprecated terms must remain in the glossary with a deprecation notice and
+    a pointer to the replacement term until all uses are migrated.
+  - Agent-generated text must use canonical terms. Paraphrasing domain terms
+    without referencing the glossary is not permitted in formal artifacts.
+validation_criteria:
+  - Every domain term in a new artifact has a resolvable canonical definition
+    in the project glossary or a bounded-context glossary.
+  - Terms introduced during this session are added to the glossary before the
+    artifact is accepted.
+  - Cross-context term collisions are documented with context-scoped definitions.
+tactic_refs:
+  - glossary-curation-interview
+references:
+  - type: directive
+    id: DIRECTIVE_032

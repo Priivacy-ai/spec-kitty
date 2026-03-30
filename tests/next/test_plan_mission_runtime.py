@@ -18,6 +18,7 @@ pytestmark = pytest.mark.fast
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture
 def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
     """Create a temporary spec-kitty project for testing.
@@ -51,19 +52,11 @@ def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
     feature_dir.mkdir()
 
     # Create meta.json with mission: "plan"
-    meta = {
-        "feature_number": "001",
-        "slug": feature_slug,
-        "mission": "plan",
-        "created_at": "2026-02-22T00:00:00+00:00"
-    }
+    meta = {"feature_number": "001", "slug": feature_slug, "mission": "plan", "created_at": "2026-02-22T00:00:00+00:00"}
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2))
 
     # Create spec.md
-    (feature_dir / "spec.md").write_text(
-        "# Test Feature\n\n"
-        "This is a test feature for plan mission integration.\n"
-    )
+    (feature_dir / "spec.md").write_text("# Test Feature\n\nThis is a test feature for plan mission integration.\n")
 
     yield (feature_slug, feature_dir)
 
@@ -86,8 +79,8 @@ def mock_runtime_bridge() -> MagicMock:
                 {"id": "specify", "order": 1, "title": "Specify"},
                 {"id": "research", "order": 2, "title": "Research"},
                 {"id": "plan", "order": 3, "title": "Plan"},
-                {"id": "review", "order": 4, "title": "Review"}
-            ]
+                {"id": "review", "order": 4, "title": "Review"},
+            ],
         }
     }
 
@@ -116,6 +109,7 @@ def mock_workspace_context() -> MagicMock:
 # ============================================================================
 # Test Classes
 # ============================================================================
+
 
 class TestPlanMissionIntegration:
     """Integration tests for plan mission feature creation and runtime."""
@@ -172,8 +166,8 @@ class TestPlanMissionIntegration:
 
         # Verify steps are in correct order
         for i, expected_id in enumerate(["specify", "research", "plan", "review"], 1):
-            assert steps[i-1]["id"] == expected_id
-            assert steps[i-1]["order"] == i
+            assert steps[i - 1]["id"] == expected_id
+            assert steps[i - 1]["order"] == i
 
     def test_next_command_plan_feature_not_blocked(self, plan_feature):
         """Verify spec-kitty next doesn't block on plan features (Feature 041 fix).
@@ -276,8 +270,8 @@ class TestPlanMissionRegressions:
         steps = data["steps"]
         assert len(steps) > 0, "software-dev must have at least one step"
 
-        # Verify core templates exist for software-dev
-        cmd_dir = Path("src/specify_cli/missions/software-dev/command-templates")
+        # Verify core templates exist for software-dev (now in doctrine/missions)
+        cmd_dir = Path("src/doctrine/missions/software-dev/command-templates")
         core_templates = ["specify.md", "plan.md", "implement.md", "review.md"]
         for template in core_templates:
             template_file = cmd_dir / template
@@ -300,8 +294,8 @@ class TestPlanMissionRegressions:
         states = data["states"]
         assert len(states) > 0, "research must have at least one state"
 
-        # Verify command templates exist
-        cmd_dir = Path("src/specify_cli/missions/research/command-templates")
+        # Verify command templates exist (now in doctrine/missions)
+        cmd_dir = Path("src/doctrine/missions/research/command-templates")
         assert cmd_dir.exists(), "research command-templates directory must exist"
         assert len(list(cmd_dir.glob("*.md"))) > 0, "research must have command templates"
 
@@ -364,7 +358,7 @@ class TestPlanMissionSteps:
 
     def test_specify_step_has_deliverables(self):
         """Verify specify step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/specify.md")
+        template = Path("src/doctrine/missions/plan/command-templates/specify.md")
         assert template.exists(), "specify.md must exist"
 
         content = template.read_text()
@@ -373,7 +367,7 @@ class TestPlanMissionSteps:
 
     def test_research_step_has_deliverables(self):
         """Verify research step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/research.md")
+        template = Path("src/doctrine/missions/plan/command-templates/research.md")
         assert template.exists(), "research.md must exist"
 
         content = template.read_text()
@@ -382,7 +376,7 @@ class TestPlanMissionSteps:
 
     def test_plan_step_has_deliverables(self):
         """Verify plan step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/plan.md")
+        template = Path("src/doctrine/missions/plan/command-templates/plan.md")
         assert template.exists(), "plan.md must exist"
 
         content = template.read_text()
@@ -391,7 +385,7 @@ class TestPlanMissionSteps:
 
     def test_review_step_has_deliverables(self):
         """Verify review step documents deliverables."""
-        template = Path("src/specify_cli/missions/plan/command-templates/review.md")
+        template = Path("src/doctrine/missions/plan/command-templates/review.md")
         assert template.exists(), "review.md must exist"
 
         content = template.read_text()
@@ -415,7 +409,6 @@ class TestPlanMissionWorkflow:
         """Verify valid transitions between steps follow dependency chain."""
         import yaml
 
-
         # Load mission definition
         mission_yaml = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
         mission = yaml.safe_load(mission_yaml.read_text())
@@ -438,12 +431,12 @@ class TestPlanMissionWorkflow:
             else:
                 # Each step depends only on the previous one
                 expected_dep = step_ids[i - 1]
-                assert depends_on == [expected_dep], \
+                assert depends_on == [expected_dep], (
                     f"Step {step_id} should depend only on {expected_dep}, got {depends_on}"
+                )
 
         # Verify no cycles (linear chain is acyclic by definition)
         assert len(step_ids) == len(set(step_ids)), "Step IDs must be unique"
 
         # Verify terminal step is correct
-        assert mission["mission"]["runtime"]["terminal_step"] == "review", \
-            "Terminal step must be review (last step)"
+        assert mission["mission"]["runtime"]["terminal_step"] == "review", "Terminal step must be review (last step)"

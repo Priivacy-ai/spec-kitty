@@ -11,6 +11,7 @@ from typing import Optional
 
 import typer
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.commands.agent import feature as agent_feature
 
 
@@ -33,10 +34,12 @@ def specify(
 
 
 def plan(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug (e.g., 001-user-authentication)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
+    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""
+    feature = resolve_mission_or_feature(mission, feature)
     agent_feature.setup_plan(feature=feature, json_output=json_output)
 
 

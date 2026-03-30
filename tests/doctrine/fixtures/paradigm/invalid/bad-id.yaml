@@ -1,0 +1,5 @@
+schema_version: "1.0"
+id: Test_First
+name: Test-First Doctrine
+summary: Invalid ID pattern with uppercase and underscore.
+

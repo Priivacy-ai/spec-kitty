@@ -1,9 +1,10 @@
-# Index of brainstorm
+# Architecture Discovery Session Index
 
-This directory captures a brainstorming session on repository structuring, and a new set of user journeys.
-Below is a timeline of different transcriptions that were created during the brainstorm session.
+This directory captures the architecture discovery sessions that led to the
+2.x system landscape and domain container model. Below is a timeline of
+transcriptions created during the discovery process.
 
-## New Spec Kitty architectural discovery
+## Architecture Discovery Sessions
 
 - [Session Start](./lineage/session_start.dump.md)
 - [Follow-up](./lineage/session_step1.dump.md)

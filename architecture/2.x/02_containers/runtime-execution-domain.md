@@ -3,7 +3,7 @@
 | Field | Value |
 |---|---|
 | Status | Draft |
-| Date | 2026-03-01 |
+| Date | 2026-03-04 |
 | Scope | Container-level runtime/execution behavior and lifecycle authority model |
 | Related ADRs | `2026-01-29-13`, `2026-02-09-1`, `2026-02-09-2`, `2026-02-17-1` |
 
@@ -13,27 +13,37 @@ Provide a focused container-level view of runtime/execution behavior, including
 decisioning authority, lifecycle mutation authority, branch-target routing, and
 the canonical work package lifecycle FSM.
 
+This document details the interaction between three landscape containers:
+**Kitty-core** (planning), **Orchestration** (execution coordination), and
+**Event Store** (persistence). See [System Landscape](../00_landscape/README.md)
+for the full container model.
+
 ## Domain Boundary (Container Level)
 
 | Concern | Primary Containers | Outcome |
 |---|---|---|
-| Runtime decisioning | `CLI Command Surface`, `Runtime and Mission Resolver`, `Runtime Asset Lifecycle` | Deterministic next-action recommendation flow |
-| Lifecycle mutation | `Status and Event Model Layer` | Guarded transition validation and event-sourced persistence |
-| Sync projection reliability | `Sync Reliability Core`, `Tracker Connector Boundary` | Ordered, durable, optional external projection |
+| Planning and decisioning | Kitty-core, Control Plane | Execution graph construction, next-action recommendation |
+| Lifecycle mutation | Orchestration, Event Store | Guarded transition validation and event-sourced persistence |
+| Execution dispatch | Orchestration, Agent Tool Connectors | Work dispatch to pluggable execution providers |
+| Sync projection | Orchestration (Sync internals) | Ordered, durable, optional external projection |
 
 ## Runtime/Execution Invariants
 
-1. Runtime decisioning and lifecycle mutation are separate authorities.
-2. Runtime decides what should happen next.
-3. Status/event model validates and persists what did happen.
-4. Lifecycle authority remains host-owned even when projection is enabled.
+1. Planning and lifecycle mutation are separate authorities.
+2. Kitty-core decides what should happen next (planning domain).
+3. Orchestration coordinates when and how it happens (execution domain).
+4. Event Store validates and persists what did happen (persistence domain).
+5. Lifecycle authority remains host-owned even when projection is enabled.
+6. Every WP execution begins with a constitution context bootstrap call that
+   injects action-scoped governance into the agent prompt (Principle 5:
+   Governance at the Execution Boundary).
 
 ## Branch Target Routing Invariants
 
-1. Feature metadata is the routing authority source (`target_branch`).
+1. Mission metadata is the routing authority source (`target_branch`).
 2. Lifecycle/status commits route to the target line, not caller location.
 3. Worktree context does not reassign lifecycle authority.
-4. Legacy features without explicit target-line metadata continue on default routing.
+4. Legacy missions without explicit target-line metadata continue on default routing.
 
 ## Canonical Work Package Lifecycle FSM
 
@@ -73,24 +83,26 @@ stateDiagram-v2
 
 ```mermaid
 flowchart LR
-    cmd[CLI Command Surface]
-    runtime[Runtime and Mission Resolver]
-    assets[Runtime Asset Lifecycle]
-    state[Status and Event Model Layer]
-    sync[Sync Reliability Core]
-    tracker[Tracker Connector Boundary]
+    cp[Control Plane]
+    core[Kitty-core]
+    es[(Event Store)]
+    orch[Orchestration]
+    conn[Agent Tool\nConnectors]
+    agents[Agent Tools]
 
-    cmd --> runtime
-    runtime --> assets
-    runtime -->|next-action decision| cmd
-    cmd -->|lifecycle mutation command| state
-    state -->|event log + snapshot| state
-    state --> sync
-    sync --> tracker
+    cp -->|planning commands| core
+    cp -->|lifecycle commands| orch
+    core -- "writes" --> es
+    orch <-- "reads / writes" --> es
+    core -->|next-action decision| cp
+    orch --> conn
+    conn <-->|SDK / prompt / shell| agents
 ```
 
 ## Traceability
 
+- System landscape: `../00_landscape/README.md`
+- Architectural principles: `../00_landscape/README.md#architectural-principles`
 - Domain overview: `../README.md#domain-breakdown`
 - Container map: `README.md`
 - Usage flow: `../README.md#usage-flow-high-level-user-journey`

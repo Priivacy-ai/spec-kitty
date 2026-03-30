@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import shutil
 import subprocess
 import sys
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from collections.abc import Callable
 
@@ -36,10 +37,10 @@ from specify_cli.core.vcs import (
 )
 from specify_cli.dashboard import ensure_dashboard_running
 from specify_cli.gitignore_manager import GitignoreManager
-from specify_cli.core.agent_config import (
-    AgentConfig,
-    AgentSelectionConfig,
-    save_agent_config,
+from specify_cli.core.tool_config import (
+    ToolConfig as AgentConfig,
+    ToolSelectionConfig as AgentSelectionConfig,
+    save_tool_config as save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
@@ -207,6 +208,217 @@ def _get_package_templates_root() -> Path | None:
     except FileNotFoundError:
         pass
     return None
+
+
+def _detect_languages(project_path: Path) -> str:
+    """Heuristically detect primary programming languages from indicator files."""
+    langs: list[str] = []
+    indicators = [
+        (project_path / "pyproject.toml", "Python"),
+        (project_path / "setup.py", "Python"),
+        (project_path / "Cargo.toml", "Rust"),
+        (project_path / "go.mod", "Go"),
+        (project_path / "pom.xml", "Java"),
+        (project_path / "build.gradle", "Java"),
+        (project_path / "build.gradle.kts", "Kotlin"),
+    ]
+    for path, lang in indicators:
+        if path.exists() and lang not in langs:
+            langs.append(lang)
+
+    # TypeScript before JavaScript (more specific)
+    if (project_path / "tsconfig.json").exists():
+        langs.append("TypeScript")
+    elif (project_path / "package.json").exists():
+        langs.append("JavaScript")
+
+    return ", ".join(langs) if langs else "_(fill in)_"
+
+
+def _detect_build_and_test(project_path: Path) -> str:
+    """Detect common build/test command entrypoints."""
+    hints: list[str] = []
+    if (project_path / "Makefile").exists():
+        hints.append("`make test`")
+    if (project_path / "pyproject.toml").exists():
+        hints.append("`pytest` (see pyproject.toml)")
+    if (project_path / "package.json").exists():
+        hints.append("`npm test`")
+    if (project_path / "Cargo.toml").exists():
+        hints.append("`cargo test`")
+    return ", ".join(hints) if hints else "_(fill in)_"
+
+
+def _detect_cli_entrypoints(project_path: Path) -> str:
+    """Extract CLI entry points from pyproject.toml [project.scripts]."""
+    pyproject = project_path / "pyproject.toml"
+    if not pyproject.exists():
+        return "_(fill in)_"
+    try:
+        text = pyproject.read_text(encoding="utf-8")
+        # Find [project.scripts] section and grab the keys
+        match = re.search(r"\[project\.scripts\](.*?)(?=\[|\Z)", text, re.DOTALL)
+        if not match:
+            return "_(fill in)_"
+        scripts = re.findall(r"^\s*(\S+)\s*=", match.group(1), re.MULTILINE)
+        return ", ".join(f"`{s}`" for s in scripts) if scripts else "_(fill in)_"
+    except OSError:
+        return "_(fill in)_"
+
+
+def _read_first_paragraph(path: Path) -> str:
+    """Return the first non-heading paragraph of a markdown file, or empty string."""
+    if not path.exists():
+        return ""
+    text = path.read_text(encoding="utf-8", errors="replace")
+    # Skip leading headings / blank lines
+    paragraph_lines: list[str] = []
+    in_para = False
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            if in_para:
+                break
+            continue
+        if not stripped:
+            if in_para:
+                break
+            continue
+        paragraph_lines.append(stripped)
+        in_para = True
+    return " ".join(paragraph_lines)
+
+
+def _build_tree_snippet(project_path: Path) -> str:
+    """Build a simple top-level directory listing."""
+    entries: list[str] = []
+    try:
+        for entry in sorted(project_path.iterdir()):
+            if entry.name.startswith("."):
+                continue
+            marker = "/" if entry.is_dir() else ""
+            entries.append(f"{entry.name}{marker}")
+    except OSError:
+        pass
+    if not entries:
+        return "_(fill in)_"
+    return "```\n" + "\n".join(entries) + "\n```"
+
+
+def _dir_purpose(project_path: Path, name: str) -> str:
+    return "_(fill in)_" if not (project_path / name).is_dir() else f"_(fill in — {name}/ exists)_"
+
+
+def _gather_structure_template_vars(project_path: Path) -> dict[str, str]:
+    """Collect substitution values for REPO_MAP.md and SURFACES.md templates."""
+    readme_summary = _read_first_paragraph(project_path / "README.md") or "_(fill in)_"
+    agents_summary = _read_first_paragraph(project_path / "AGENTS.md") or "_(fill in)_"
+
+    pyproject_summary = "_(fill in)_"
+    pyproject = project_path / "pyproject.toml"
+    if pyproject.exists():
+        try:
+            text = pyproject.read_text(encoding="utf-8")
+            m = re.search(r'description\s*=\s*["\']([^"\']+)["\']', text)
+            if m:
+                pyproject_summary = m.group(1)
+        except OSError:
+            pass
+
+    return {
+        "{{DATE}}": date.today().isoformat(),
+        "{{PROJECT_NAME}}": project_path.resolve().name,
+        "{{PRIMARY_LANGUAGES}}": _detect_languages(project_path),
+        "{{BUILD_AND_TEST}}": _detect_build_and_test(project_path),
+        "{{TREE_SNIPPET}}": _build_tree_snippet(project_path),
+        "{{SRC_PURPOSE}}": _dir_purpose(project_path, "src"),
+        "{{TESTS_PURPOSE}}": _dir_purpose(project_path, "tests"),
+        "{{DOCS_PURPOSE}}": _dir_purpose(project_path, "docs"),
+        "{{README_SUMMARY}}": readme_summary,
+        "{{PYPROJECT_SUMMARY}}": pyproject_summary,
+        "{{AGENTS_SUMMARY}}": agents_summary,
+        "{{REPO_NOTES}}": "_(fill in)_",
+        "{{CLI_ENTRYPOINTS}}": _detect_cli_entrypoints(project_path),
+        "{{SERVICE_ENTRYPOINTS}}": "_(fill in)_",
+        "{{LIBRARY_ENTRYPOINTS}}": "_(fill in)_",
+        "{{EXTERNAL_INTEGRATIONS}}": "_(fill in)_",
+        "{{PUBLIC_INTERFACES}}": "_(fill in)_",
+        "{{LOG_SURFACES}}": "_(fill in)_",
+        "{{METRIC_SURFACES}}": "_(fill in)_",
+        "{{TRACE_SURFACES}}": "_(fill in)_",
+        "{{SECURITY_BOUNDARIES}}": "_(fill in)_",
+        "{{SURFACE_NOTES}}": "_(fill in)_",
+    }
+
+
+def _render_structure_template(template_path: Path, vars: dict[str, str]) -> str:
+    """Read template and substitute all {{TOKEN}} placeholders."""
+    content = template_path.read_text(encoding="utf-8")
+    for token, value in vars.items():
+        content = content.replace(token, value)
+    return content
+
+
+def _get_structure_templates_dir() -> Path | None:
+    """Return bundled doctrine structure templates directory, if available."""
+    try:
+        pkg_root = get_package_asset_root()  # .../doctrine/missions
+        structure_dir = pkg_root.parent / "templates" / "structure"
+        if structure_dir.is_dir():
+            return structure_dir
+    except FileNotFoundError:
+        pass
+
+    return None
+
+
+def _maybe_generate_structure_templates(project_path: Path, non_interactive: bool, console: Console) -> None:
+    """Optionally generate REPO_MAP.md and SURFACES.md for a project."""
+    structure_dir = _get_structure_templates_dir()
+    if structure_dir is None:
+        return
+
+    templates = {
+        "REPO_MAP.md": structure_dir / "REPO_MAP.md",
+        "SURFACES.md": structure_dir / "SURFACES.md",
+    }
+
+    if non_interactive:
+        console.print("[dim]Skipping REPO_MAP/SURFACES generation in non-interactive mode[/dim]")
+        return
+
+    console.print()
+    should_generate = typer.confirm(
+        "Generate REPO_MAP.md and SURFACES.md from doctrine templates?",
+        default=False,
+    )
+    if not should_generate:
+        console.print("[dim]Skipped REPO_MAP/SURFACES generation[/dim]")
+        return
+
+    kittify_dir = project_path / ".kittify"
+    kittify_dir.mkdir(parents=True, exist_ok=True)
+
+    vars = _gather_structure_template_vars(project_path)
+    generated: list[str] = []
+    for target_name, template_path in templates.items():
+        target = kittify_dir / target_name
+        if target.exists():
+            console.print(f"[dim]Skipping existing .kittify/{target_name}[/dim]")
+            continue
+        rendered = _render_structure_template(template_path, vars)
+        target.write_text(rendered, encoding="utf-8")
+        console.print(f"[green]Generated[/green] .kittify/{target_name}")
+        generated.append(target_name)
+
+    if generated:
+        console.print()
+        console.print(
+            "[yellow]Note:[/yellow] Fields marked [dim]_(fill in)_[/dim] require manual input "
+            "or a follow-up interview. You can ask your AI agent to complete them by running:"
+        )
+        for name in generated:
+            console.print(f"  [cyan]Review [bold].kittify/{name}[/bold] and fill in the _(fill in)_ sections.[/cyan]")
 
 
 # =============================================================================
@@ -915,6 +1127,7 @@ def init(  # noqa: C901
     # Final static tree (ensures finished state visible after Live context ends)
     _console.print(tracker.render())
     _console.print("\n[bold green]Project ready.[/bold green]")
+    _maybe_generate_structure_templates(project_path, non_interactive, _console)
 
     # Agent folder security notice
     agent_folder_map = {

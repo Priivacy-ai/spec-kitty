@@ -158,7 +158,7 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
                     if not _has_raw_dependencies_field(wp_file):
                         failures.append(
                             f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
-                            f"(run 'spec-kitty agent feature finalize-tasks')"
+                            f"(run 'spec-kitty agent mission finalize-tasks')"
                         )
                         break  # One failure message is enough
 

@@ -23,6 +23,8 @@ from specify_cli.runtime.doctor import (
     run_global_checks,
     MANAGED_MISSION_DIRS,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -340,6 +342,7 @@ class TestRunGlobalChecks:
     ) -> None:
         """All checks pass with a properly configured runtime."""
         from specify_cli import __version__
+
 
         home = tmp_path / "kittify"
         for managed_dir in MANAGED_MISSION_DIRS:

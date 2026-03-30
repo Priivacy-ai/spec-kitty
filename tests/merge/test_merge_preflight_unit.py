@@ -9,6 +9,8 @@ Tests the preflight validation checks that run before any merge operation begins
 
 from __future__ import annotations
 
+import pytest
+
 import subprocess
 from pathlib import Path
 

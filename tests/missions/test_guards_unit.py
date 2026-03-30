@@ -18,6 +18,8 @@ from specify_cli.guards import (  # noqa: E402
     validate_git_clean,
     validate_worktree_location,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture

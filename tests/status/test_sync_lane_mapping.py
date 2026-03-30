@@ -83,7 +83,7 @@ class TestCanonicalFanOut:
             wp_id="WP01",
             from_lane=str(from_lane),
             to_lane=str(to_lane),
-            actor="test-actor",
+            actor="test-actor:unknown:unknown:unknown",
             feature_slug="039-test-feature",
             policy_metadata=None,
         )

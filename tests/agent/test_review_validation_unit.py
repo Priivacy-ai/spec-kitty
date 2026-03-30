@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 class TestValidateReadyForReview:
@@ -323,6 +326,7 @@ class TestMoveTaskPreflightCheck:
     def test_validate_ready_for_review_respects_force_flag(self, tmp_path):
         """Verify --force bypasses validation."""
         from specify_cli.cli.commands.agent.tasks import _validate_ready_for_review
+
 
         is_valid, guidance = _validate_ready_for_review(
             tmp_path,

@@ -4,7 +4,7 @@ import pytest
 import tempfile
 from pathlib import Path
 
-from specify_cli.constitution.schemas import (
+from constitution.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     Directive,

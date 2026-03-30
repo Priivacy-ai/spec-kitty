@@ -22,6 +22,9 @@ from specify_cli.merge.status_resolver import (
     resolve_history_conflict,
     resolve_lane_conflict,
 )
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 class TestConflictMarkerParsing:

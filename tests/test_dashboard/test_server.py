@@ -1,6 +1,9 @@
 import socket
 
 from specify_cli.dashboard import server
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 def test_find_free_port_returns_available_port():

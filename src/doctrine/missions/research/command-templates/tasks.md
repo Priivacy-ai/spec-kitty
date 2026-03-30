@@ -29,7 +29,7 @@ git branch --show-current  # Should show the target branch (meta.json → target
 
 ## Outline
 
-1. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks`
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
    **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
 
@@ -137,7 +137,7 @@ git branch --show-current  # Should show the target branch (meta.json → target
    **CRITICAL**: Run this command from repo root:
 
    ```bash
-   spec-kitty agent feature finalize-tasks --json
+   spec-kitty agent mission finalize-tasks --json
    ```
 
    This step is MANDATORY. Without it:

@@ -1,0 +1,6 @@
+profile-id: invalid-bad-priority
+name: Invalid Priority
+purpose: Test out-of-range routing priority
+routing-priority: 150
+specialization:
+  primary-focus: Testing validation

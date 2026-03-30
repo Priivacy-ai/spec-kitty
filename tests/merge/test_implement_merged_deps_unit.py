@@ -13,6 +13,9 @@ from pathlib import Path
 
 
 from specify_cli.core.dependency_resolver import check_dependency_status
+import pytest
+pytestmark = pytest.mark.fast
+
 
 
 class TestSingleParentMergedDependency:

@@ -642,7 +642,7 @@ class TestRunDoctor:
             "work_packages": {
                 "WP01": {
                     "lane": "in_progress",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": recent,
                     "last_event_id": "01ABC",
                     "force_count": 0,
@@ -703,7 +703,7 @@ class TestRunDoctor:
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01ABC",
                     "force_count": 0,
@@ -900,7 +900,7 @@ class TestDoctorCLI:
             "work_packages": {
                 "WP01": {
                     "lane": "in_progress",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": recent,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -978,7 +978,7 @@ class TestDoctorCLI:
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -1024,7 +1024,7 @@ class TestDoctorCLI:
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": old,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,
@@ -1106,7 +1106,7 @@ class TestDoctorCLI:
             "work_packages": {
                 "WP01": {
                     "lane": "claimed",
-                    "actor": "agent",
+                    "actor": {"tool": "agent", "model": "unknown", "profile": "unknown", "role": "unknown"},
                     "last_transition_at": two_days_ago,
                     "last_event_id": "01EVTWP01",
                     "force_count": 0,

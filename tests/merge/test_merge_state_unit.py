@@ -17,6 +17,8 @@ from specify_cli.merge.state import (
     load_state,
     save_state,
 )
+pytestmark = pytest.mark.fast
+
 
 
 class TestMergeStateDataclass:

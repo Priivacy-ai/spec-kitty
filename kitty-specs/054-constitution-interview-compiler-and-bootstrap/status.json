@@ -1,0 +1,161 @@
+{
+  "event_count": 43,
+  "feature_slug": "054-constitution-interview-compiler-and-bootstrap",
+  "last_event_id": "01KKBNKKHVEEXANZ9GM2FA55DE",
+  "materialized_at": "2026-03-10T10:45:12.891621+00:00",
+  "summary": {
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 12,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK9QNX4R9P03SP33H29ZG18H",
+      "last_transition_at": "2026-03-09T16:42:56.536486+00:00"
+    },
+    "WP02": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK9R6396N67G64ER1EHW5R3M",
+      "last_transition_at": "2026-03-09T16:51:47.110856+00:00"
+    },
+    "WP03": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK9QNX4RWDP7NWT6TS7ZX4BA",
+      "last_transition_at": "2026-03-09T16:42:56.536602+00:00"
+    },
+    "WP04": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KK9R6396XEKJ0JV5DDTWZ5ZS",
+      "last_transition_at": "2026-03-09T16:51:47.110650+00:00"
+    },
+    "WP05": {
+      "actor": {
+        "model": "unknown",
+        "profile": "unknown",
+        "role": "unknown",
+        "tool": "user"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKB0DWQVQSMDM8ZPHA8R525V",
+      "last_transition_at": "2026-03-10T04:35:05.595368+00:00"
+    },
+    "WP06": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KKB8TTNNCY827A03E6BM5JC7",
+      "last_transition_at": "2026-03-10T07:01:58.069173+00:00"
+    },
+    "WP07": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBABN44T4XGV51PS921ZV7D",
+      "last_transition_at": "2026-03-10T07:28:38.020365+00:00"
+    },
+    "WP08": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBAY6HJD7T5DS6F1GVFQMYH",
+      "last_transition_at": "2026-03-10T07:38:45.682961+00:00"
+    },
+    "WP09": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KKB8XVSXQ0HNESEHYJGGPFAH",
+      "last_transition_at": "2026-03-10T07:03:37.533925+00:00"
+    },
+    "WP10": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKB9PBKGA51TVKYQPBN19BVF",
+      "last_transition_at": "2026-03-10T07:17:00.144796+00:00"
+    },
+    "WP11": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKB9HB5HA69WET4V4QZRZC0Z",
+      "last_transition_at": "2026-03-10T07:14:15.857917+00:00"
+    },
+    "WP12": {
+      "actor": {
+        "model": "claude-sonnet-4.6",
+        "profile": "unknown",
+        "role": "reviewer",
+        "tool": "copilot"
+      },
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KKBNKKHVEEXANZ9GM2FA55DE",
+      "last_transition_at": "2026-03-10T10:45:12.891085+00:00"
+    }
+  }
+}

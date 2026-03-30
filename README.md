@@ -348,20 +348,46 @@ code     # For GitHub Copilot / Cursor
 **Verify slash commands loaded:**
 Type `/spec-kitty` and you should see autocomplete with all 13 commands.
 
-### Phase 3: Establish Project Principles (In Agent)
+### Phase 3: Establish Project Principles (Terminal + Agent)
 
-**Still in main repo** - Start with your project's governing principles:
+**Still in main repo** — Run the CLI interview first, then compile the constitution:
 
-```text
-/spec-kitty.constitution
+```bash
+# Step 1 (Terminal): Capture project answers
+spec-kitty constitution interview --profile minimal
 
-Create principles focused on code quality, testing standards,
-user experience consistency, and performance requirements.
+# Step 2 (Terminal): Compile constitution bundle from answers
+spec-kitty constitution generate --from-interview
 ```
 
+Or for deterministic defaults (no prompts):
+
+```bash
+spec-kitty constitution interview --defaults --profile minimal --json
+spec-kitty constitution generate --from-interview --json
+```
+
+> **⚠️ Interview is required.** `constitution generate` exits with an error if
+> `answers.yaml` is missing. Run `spec-kitty constitution interview` first.
+
 **What this creates:**
-- `.kittify/memory/constitution.md` - Your project's architectural DNA
-- These principles will guide all subsequent development
+- `.kittify/constitution/constitution.md` — Your project's governance document
+- `.kittify/constitution/interview/answers.yaml` — Captured selections (paradigms, directives, tools)
+- `.kittify/constitution/references.yaml` — References to shipped doctrine and any local support files
+
+**Context bootstrap (agent commands):**
+
+After generation, lifecycle commands load governance context on first use:
+
+```bash
+spec-kitty constitution context --action specify --json
+# Returns full bootstrap context on first call, compact summary on subsequent calls
+```
+
+**Key behaviours:**
+- Shipped doctrine catalog is validated at compile time; unknown IDs are reported as diagnostics
+- Project-local support files (declared in `answers.yaml`) supplement shipped doctrine — they do not replace it
+- Local support files that overlap a shipped concept emit an additive conflict warning but are still included
 - Missions do not have separate constitutions; the project constitution is the single source of truth
 
 ### Phase 4: Create Your First Feature (In Agent)
@@ -537,7 +563,7 @@ Spec Kitty automatically protects you with multiple layers:
 **Worktree Constitution Sharing:**
 When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
 ```
-.worktrees/001-feature-WP01/.kittify/memory -> ../../../../.kittify/memory
+.worktrees/001-feature-WP01/.kittify/constitution -> ../../../../.kittify/constitution
 ```
 This ensures all work packages follow the same project principles.
 
@@ -546,7 +572,8 @@ This ensures all work packages follow the same project principles.
 ✅ **DO commit:**
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission workflows
-- `.kittify/memory/constitution.md` - Project principles
+- `.kittify/constitution/constitution.md` - Project governance document
+- `.kittify/constitution/references.yaml` - Reference manifest
 - `.gitignore` - Protection rules
 
 ❌ **NEVER commit:**

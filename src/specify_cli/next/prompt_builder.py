@@ -9,8 +9,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from specify_cli.constitution.context import build_constitution_context
-from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
+from constitution.context import build_constitution_context
+from constitution.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
 
 

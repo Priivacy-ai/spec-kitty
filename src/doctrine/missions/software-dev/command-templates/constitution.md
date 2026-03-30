@@ -21,7 +21,7 @@ This command delegates constitution work to the CLI constitution workflow. Do no
 - Constitution markdown: `.kittify/constitution/constitution.md`
 - Interview answers: `.kittify/constitution/interview/answers.yaml`
 - Reference manifest: `.kittify/constitution/references.yaml`
-- Local reference docs: `.kittify/constitution/library/*.md`
+- Project-local support files: paths recorded in `.kittify/constitution/references.yaml`
 
 ## Execution Paths
 

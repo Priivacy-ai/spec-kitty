@@ -53,7 +53,7 @@ class ConstitutionDirectoryMigration(BaseMigration):
 
             # Trigger initial extraction
             try:
-                from specify_cli.constitution.sync import sync
+                from constitution.sync import sync
 
                 sync_result = sync(new_path, force=True)
                 if sync_result.synced:

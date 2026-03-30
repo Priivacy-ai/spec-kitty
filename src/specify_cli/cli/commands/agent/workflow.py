@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import re
 import shutil
 import subprocess
@@ -13,8 +12,9 @@ from typing import Optional
 import typer
 from typing_extensions import Annotated
 
+from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.constitution.context import build_constitution_context
+from constitution.context import build_constitution_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
@@ -36,7 +36,6 @@ from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
     extract_scalar,
-    find_repo_root,
     locate_work_package,
     set_scalar,
     split_frontmatter,
@@ -120,6 +119,72 @@ def _render_constitution_context(repo_root: Path, action: str) -> str:
         return context.text
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
+
+
+def _render_profile_context(
+    repo_root: Path,
+    wp_frontmatter: str,
+    allow_missing: bool = False,
+) -> str:
+    """Render agent profile identity fragment for implement prompt.
+
+    Logic matrix:
+    | agent_profile field           | Resolved? | sentinel? | allow_missing | Result              |
+    |-------------------------------|-----------|-----------|---------------|---------------------|
+    | Absent (default generic-agent)| Yes       | No        | -             | Inject identity     |
+    | Absent (generic-agent missing)| No        | -         | -             | Warn, no injection  |
+    | Set → found                   | Yes       | No        | -             | Inject identity     |
+    | Set → found                   | Yes       | Yes (HiC) | -             | No injection, HiC   |
+    | Set → not found               | No        | -         | False         | Exit 1 (error)      |
+    | Set → not found               | No        | -         | True          | Warn, no injection  |
+
+    Returns an empty string if:
+    - Profile is a sentinel (HiC WP)
+    - Profile not found and allow_missing=True (warning emitted)
+    - Profile not found and field was absent (warning emitted, graceful default)
+
+    Raises typer.Exit(1) if:
+    - Explicit profile is set and cannot be resolved and allow_missing=False
+    """
+    from doctrine.agent_profiles.repository import AgentProfileRepository
+
+    agent_profile_id = extract_scalar(wp_frontmatter, "agent_profile") or "generic-agent"
+    explicit = extract_scalar(wp_frontmatter, "agent_profile") is not None
+
+    project_dir = repo_root / ".kittify" / "constitution" / "agents"
+    repo = AgentProfileRepository(
+        project_dir=project_dir if project_dir.exists() else None,
+    )
+
+    profile = repo.get(agent_profile_id)
+    if profile is None:
+        if explicit and not allow_missing:
+            typer.echo(
+                f"Error: agent_profile '{agent_profile_id}' cannot be resolved. "
+                "Pass --allow-missing-profile to degrade to a warning.",
+                err=True,
+            )
+            raise typer.Exit(1)
+        typer.echo(
+            f"⚠️  Profile '{agent_profile_id}' not found, proceeding without specialist identity.",
+            err=True,
+        )
+        return ""
+
+    if profile.sentinel:
+        typer.echo("Human-in-charge WP: no agent identity injected.", err=True)
+        return ""
+
+    directives = ", ".join(d.code for d in profile.directive_references) or "none"
+    return (
+        f"\n## Agent Identity\n\n"
+        f"**Profile**: {profile.name} (`{profile.profile_id}`)\n"
+        f"**Role**: {profile.role}\n"
+        f"**Purpose**: {profile.purpose.strip()}\n"
+        f"**Primary Focus**: {profile.specialization.primary_focus}\n"
+        f"**Directives**: {directives}\n\n"
+        f"{profile.initialization_declaration.strip()}\n"
+    )
 
 
 app = typer.Typer(
@@ -355,9 +420,14 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
+    allow_missing_profile: Annotated[bool, typer.Option(
+        "--allow-missing-profile/--no-allow-missing-profile",
+        help="When set, an unresolvable agent_profile degrades to a warning instead of an error.",
+    )] = False,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -374,6 +444,7 @@ def implement(
         spec-kitty agent workflow implement wp01 --agent codex
         spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()
@@ -577,6 +648,10 @@ def implement(
         lines.append("")
         lines.append(_render_constitution_context(repo_root, "implement"))
         lines.append("")
+        profile_fragment = _render_profile_context(repo_root, wp.frontmatter, allow_missing=allow_missing_profile)
+        if profile_fragment:
+            lines.append(profile_fragment)
+            lines.append("")
 
         # CRITICAL: WP isolation rules
         lines.append("╔" + "=" * 78 + "╗")
@@ -887,7 +962,8 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (auto-detected if omitted)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="[Deprecated] Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -902,6 +978,7 @@ def review(
         spec-kitty agent workflow review wp02 --agent codex
         spec-kitty agent workflow review --agent gemini  # auto-detects first for_review WP
     """
+    feature = resolve_mission_or_feature(mission, feature)
     try:
         # Get repo root and feature slug
         repo_root = locate_project_root()

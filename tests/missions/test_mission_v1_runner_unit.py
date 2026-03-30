@@ -23,6 +23,8 @@ from transitions import MachineError
 
 from specify_cli.mission_v1.runner import MissionModel, StateMachineMission
 from specify_cli.mission_v1.schema import MissionValidationError
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------

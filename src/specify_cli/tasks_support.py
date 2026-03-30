@@ -23,6 +23,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
+from specify_cli.identity import ActorIdentity
 from specify_cli.legacy_detector import is_legacy_format
 
 # IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
@@ -117,9 +118,7 @@ def normalize_note(note: Optional[str], target_lane: str) -> str:
     return cleaned or default
 
 
-def detect_conflicting_wp_status(
-    status_lines: List[str], feature: str, old_path: Path, new_path: Path
-) -> List[str]:
+def detect_conflicting_wp_status(status_lines: List[str], feature: str, old_path: Path, new_path: Path) -> List[str]:
     """Return staged work-package entries unrelated to the requested move."""
     prefix = f"kitty-specs/{feature}/tasks/"
     allowed = {
@@ -165,11 +164,7 @@ def set_scalar(frontmatter: str, key: str, value: str) -> str:
         prefix = match.group(1)
         comment = match.group(3)
         comment_suffix = f"{comment}" if comment else ""
-        return (
-            frontmatter[: match.start()]
-            + f'{prefix}"{value}"{comment_suffix}'
-            + frontmatter[match.end() :]
-        )
+        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
 
     insertion = f"{replacement_line}\n"
     history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
@@ -282,8 +277,10 @@ class WorkPackage:
         return extract_scalar(self.frontmatter, "assignee")
 
     @property
-    def agent(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "agent")
+    def agent(self) -> Optional[ActorIdentity]:
+        from specify_cli.frontmatter import extract_agent_identity
+
+        return extract_agent_identity(self.frontmatter)
 
     @property
     def shell_pid(self) -> Optional[str]:
@@ -345,9 +342,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
     if len(candidates) > 1:
         joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
-        raise TaskCliError(
-            f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
-        )
+        raise TaskCliError(f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}")
 
     lane, path, base_dir = candidates[0]
     text = path.read_text(encoding="utf-8-sig")
@@ -396,27 +391,20 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
             # Import here to avoid circular dependency issues
             try:
                 from rich.console import Console
+
                 console = Console(stderr=True)
-                console.print(
-                    f"[yellow]Warning: {wp_path.name} missing lane field, "
-                    f"defaulting to 'planned'[/yellow]"
-                )
+                console.print(f"[yellow]Warning: {wp_path.name} missing lane field, defaulting to 'planned'[/yellow]")
             except ImportError:
                 import sys
-                print(
-                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
-                    file=sys.stderr
-                )
+
+                print(f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'", file=sys.stderr)
         return "planned"
 
     # Resolve aliases (e.g., "doing" -> "in_progress")
     lane = LANE_ALIASES.get(lane, lane)
 
     if lane not in LANES:
-        raise ValueError(
-            f"Invalid lane '{lane}' in {wp_path.name}. "
-            f"Valid lanes: {', '.join(LANES)}"
-        )
+        raise ValueError(f"Invalid lane '{lane}' in {wp_path.name}. Valid lanes: {', '.join(LANES)}")
 
     return lane
 

@@ -1,0 +1,32 @@
+id: "imp-ppp-ammerse-impact-analysis"
+source:
+  title: "Value-based Impact Analysis (AMMERSE Impact Analysis Algorithm)"
+  type: "practice-article"
+  publisher: "penguin-pragmatic-patterns"
+  url: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/AMMERSE_impact_analysis.md"
+  accessed_on: "2026-03-19"
+classification:
+  target_concepts:
+    - "tactic"
+  rationale: >
+    The AMMERSE Impact Analysis Algorithm provides a structured, seven-dimension
+    trade-off framework (Agile, Minimal, Maintainable, Environmental, Reachable,
+    Solvable, Extensible). It maps naturally to a reusable tactic that agents can
+    invoke to assess first- and second-order impacts of a decision.
+adaptation:
+  summary: >
+    Extract the algorithm steps (define, assign impact weights, apply first-/second-order
+    interaction matrices, summarise) into a lightweight tactic. Reserve the full
+    numeric interaction matrices as optional reference material for high-stakes decisions.
+  notes:
+    - "Tactic should emphasise pragmatic use: full numeric analysis only for high-risk decisions."
+    - "First-order reasoning is sufficient for routine design reviews."
+    - "Reference DIRECTIVE_007 (Trade-off Assessment Protocol) as the triggering directive."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/penguin-pragmatic-patterns/content/practices/AMMERSE_impact_analysis.md"
+    lines: "n/a"
+    note: "Primary source practice article."
+status: "candidate"
+resulting_artifacts:
+  - "src/doctrine/tactics/shipped/ammerse-impact-analysis.tactic.yaml"

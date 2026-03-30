@@ -55,7 +55,7 @@ git branch --show-current
 
 ### 1. Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
 
 **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path. **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 

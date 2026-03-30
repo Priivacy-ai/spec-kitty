@@ -12,6 +12,8 @@ from specify_cli.core.paths import (
     resolve_with_context,
     check_broken_symlink,
 )
+pytestmark = pytest.mark.fast
+
 
 
 def test_locate_project_root_from_main(mock_main_repo: Path, monkeypatch: pytest.MonkeyPatch) -> None:

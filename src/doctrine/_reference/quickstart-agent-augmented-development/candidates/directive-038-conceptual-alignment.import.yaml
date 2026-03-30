@@ -1,0 +1,31 @@
+id: "imp-quickstart-conceptual-alignment-038"
+source:
+  title: "Directive 038: Ensure Conceptual Alignment"
+  type: "directive"
+  publisher: "quickstart_agent-augmented-development"
+  url: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/directives/038_ensure_conceptual_alignment.md"
+  accessed_on: "2026-03-19"
+classification:
+  target_concepts:
+    - "directive"
+  rationale: >
+    QAAD 038 mandates explicit terminology confirmation before task execution.
+    This addresses a class of failures where shared vocabulary does not guarantee
+    shared meaning—critical in multi-agent and cross-team contexts.
+adaptation:
+  summary: >
+    Translate QAAD 038 into a directive that requires agents to identify domain
+    terms, state their interpretation, and confirm understanding before proceeding
+    with any design or implementation task.
+  notes:
+    - "Streamline the confirmation template into a concise procedure."
+    - "Retain the core principle: never assume understanding."
+    - "Reference DIRECTIVE_031 (Context-Aware Design) as complementary."
+source_references:
+  - kind: "local"
+    path: "/home/stijnd/Documents/code/projects/quickstart_agent-augmented-development/doctrine/directives/038_ensure_conceptual_alignment.md"
+    lines: "n/a"
+    note: "Primary source directive document."
+status: "adopted"
+resulting_artifacts:
+  - "src/doctrine/directives/shipped/009-conceptual-alignment.directive.yaml"

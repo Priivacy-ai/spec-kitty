@@ -59,7 +59,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    - Resolve the feature slug from explicit user direction, current branch, or current directory path.
    - If context is ambiguous, run `check-prerequisites` once without `--feature`, parse the JSON candidate list, and pick one explicit feature slug before continuing.
 
-2. **Setup**: Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
+2. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` from the repository root and capture `feature_dir` plus `available_docs`. All paths must be absolute.
 
    **CRITICAL**: The command returns JSON with `feature_dir` as an ABSOLUTE path (e.g., `/path/to/project/kitty-specs/001-feature-name`).
 
@@ -132,7 +132,7 @@ Work packages are generated directly in `kitty-specs/###-feature/` and committed
    **CRITICAL**: Run this command from repo root:
 
    ```bash
-   spec-kitty agent feature finalize-tasks --json --feature <feature-slug>
+   spec-kitty agent mission finalize-tasks --json --feature <feature-slug>
    ```
 
    This step is MANDATORY for workspace-per-WP features. Without it:

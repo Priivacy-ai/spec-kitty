@@ -14,6 +14,8 @@ from specify_cli.next.prompt_builder import (
     _write_to_temp,
     build_prompt,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -244,7 +246,7 @@ references:
   - id: USER:PROJECT_PROFILE
     kind: user_profile
     title: User Profile
-    local_path: library/user-project-profile.md
+    local_path: _LIBRARY/user-project-profile.md
 """,
             encoding="utf-8",
         )

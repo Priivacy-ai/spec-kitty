@@ -1,0 +1,6 @@
+version: 1
+source_id: quickstart-agent-augmented-development
+source_name: "Quickstart Agent-Augmented Development"
+source_type: "documentation"
+owner: "governance"
+notes: "Imported directives curated into Spec Kitty doctrine tactics."

@@ -1,0 +1,41 @@
+id: "imp-contributing-release-branch-tagging-002"
+source:
+  title: "CONTRIBUTING: release branch and tag discipline"
+  type: "repository-guideline"
+  publisher: "spec-kitty"
+  url: "CONTRIBUTING.md"
+  accessed_on: "2026-02-18"
+classification:
+  target_concepts:
+    - "directive"
+    - "paradigm"
+  rationale: "Captures branch strategy and tagging constraints required for reliable releases."
+adaptation:
+  summary: "Standardize release flow around `main`, annotated tags, and merge-commit strategy for release PRs."
+  notes:
+    - "Treat `main` as release branch; cherry-pick from `2.x` into `main` before release."
+    - "Use merge-commit strategy for release PRs (not squash)."
+    - "Create annotated tags from `main` only."
+    - "If tag is wrong, delete and recreate from the correct commit/branch."
+source_references:
+  - kind: "local"
+    path: "CONTRIBUTING.md"
+    lines: "141-147"
+    note: "Two-branch strategy and cherry-pick requirement."
+  - kind: "local"
+    path: "CONTRIBUTING.md"
+    lines: "215-225"
+    note: "Release PR merge strategy and tag creation sequence."
+  - kind: "local"
+    path: "CONTRIBUTING.md"
+    lines: "274-275"
+    note: "Tags from main only and annotated-tag requirement."
+  - kind: "local"
+    path: "CONTRIBUTING.md"
+    lines: "305-314"
+    note: "Recovery procedure when tagged from wrong branch."
+external_references:
+  - url: "https://semver.org/"
+    attribution_reason: "Versioning model referenced by release process."
+    extraction_action: "none"
+status: "proposed"

@@ -1,0 +1,30 @@
+{
+  "started_at": "2026-03-19T05:51:13.679677+00:00",
+  "updated_at": "2026-03-19T05:51:13.712829+00:00",
+  "decisions": {
+    "directives:DIRECTIVE_001": {
+      "artifact_type": "directives",
+      "artifact_id": "DIRECTIVE_001",
+      "filename": "001-architectural-integrity-standard.directive.yaml",
+      "verdict": "accepted",
+      "notes": "",
+      "decided_at": "2026-03-19T05:51:13.712819+00:00"
+    },
+    "directives:DIRECTIVE_009": {
+      "artifact_type": "directives",
+      "artifact_id": "DIRECTIVE_009",
+      "filename": "009-conceptual-alignment.directive.yaml",
+      "verdict": "pending",
+      "notes": "",
+      "decided_at": null
+    },
+    "tactics:connascence-analysis": {
+      "artifact_type": "tactics",
+      "artifact_id": "connascence-analysis",
+      "filename": "connascence-analysis.tactic.yaml",
+      "verdict": "pending",
+      "notes": "",
+      "decided_at": null
+    }
+  }
+}

@@ -18,6 +18,8 @@ from specify_cli.upgrade.migrations.m_0_9_0_frontmatter_only_lanes import (
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     CompleteLaneMigration,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture

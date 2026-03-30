@@ -24,6 +24,8 @@ from specify_cli.validators.paths import (
     suggest_directory_creation,
     validate_mission_paths,
 )
+pytestmark = pytest.mark.fast
+
 
 
 @pytest.fixture

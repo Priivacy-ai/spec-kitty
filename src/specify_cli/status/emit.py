@@ -21,7 +21,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -37,10 +37,12 @@ from .models import (
 )
 from .transitions import resolve_lane_alias, validate_transition
 from .legacy_bridge import update_all_views as _update_all_views
+from specify_cli.identity import ActorIdentity
 from . import store as _store
 from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
+
 
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
@@ -49,13 +51,13 @@ class TransitionError(Exception):
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
 def _now_utc() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
@@ -89,21 +91,14 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     review_data = evidence.get("review")
     if not isinstance(review_data, dict):
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
     reviewer = review_data.get("reviewer")
     verdict = review_data.get("verdict")
     reference = review_data.get("reference")
-    if (
-        not reviewer
-        or not verdict
-        or not reference
-        or not str(reference).strip()
-    ):
+    if not reviewer or not verdict or not reference or not str(reference).strip():
         raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
+            "Moving to done requires evidence with review.reviewer review.verdict, and review.reference"
         )
 
     review_approval = ReviewApproval(
@@ -112,12 +107,8 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
         reference=str(reference),
     )
 
-    repos = [
-        RepoEvidence(**r) for r in evidence.get("repos", [])
-    ]
-    verification = [
-        VerificationResult(**v) for v in evidence.get("verification", [])
-    ]
+    repos = [RepoEvidence(**r) for r in evidence.get("repos", [])]
+    verification = [VerificationResult(**v) for v in evidence.get("verification", [])]
 
     return DoneEvidence(
         review=review_approval,
@@ -154,10 +145,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    for event in _store.read_events(feature_dir):
-        if event.wp_id == wp_id:
-            return True
-    return False
+    return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
 def emit_status_transition(
@@ -165,18 +153,18 @@ def emit_status_transition(
     feature_slug: str,
     wp_id: str,
     to_lane: str,
-    actor: str,
+    actor: str | ActorIdentity,
     *,
     force: bool = False,
     reason: str | None = None,
-    evidence: dict | None = None,
+    evidence: dict[str, object] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, object] | None = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -219,20 +207,10 @@ def emit_status_transition(
     if workspace_context is None:
         context_root = repo_root if repo_root is not None else feature_dir
         workspace_context = f"{execution_mode}:{context_root}"
-    if (
-        subtasks_complete is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
+    if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
         subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if (
-        implementation_evidence_present is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        implementation_evidence_present = _infer_implementation_evidence(
-            feature_dir, wp_id
-        )
+    if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
     # Step 3: Validate the transition
     # Build DoneEvidence early so we can pass it to validate_transition
@@ -256,6 +234,7 @@ def emit_status_transition(
         raise TransitionError(error_msg)
 
     # Step 4: Create StatusEvent with ULID event_id
+    actor_identity: ActorIdentity = ActorIdentity.from_legacy(actor) if isinstance(actor, str) else actor
     event = StatusEvent(
         event_id=_generate_ulid(),
         feature_slug=feature_slug,
@@ -263,7 +242,7 @@ def emit_status_transition(
         from_lane=Lane(from_lane),
         to_lane=Lane(resolved_lane),
         at=_now_utc(),
-        actor=actor,
+        actor=actor_identity,
         force=force,
         execution_mode=execution_mode,
         reason=reason,
@@ -280,8 +259,7 @@ def emit_status_transition(
         snapshot = _reducer.materialize(feature_dir)
     except Exception:
         logger.warning(
-            "Materialization failed after event %s was persisted; "
-            "run 'status materialize' to recover",
+            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
             event.event_id,
         )
         snapshot = None
@@ -292,8 +270,7 @@ def emit_status_transition(
             _update_all_views(feature_dir, snapshot)
         except Exception:
             logger.warning(
-                "Legacy bridge update failed for event %s; "
-                "canonical log and snapshot are unaffected",
+                "Legacy bridge update failed for event %s; canonical log and snapshot are unaffected",
                 event.event_id,
             )
 
@@ -308,9 +285,11 @@ def emit_status_transition(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir, feature_slug, repo_root,
+                feature_dir,
+                feature_slug,
+                repo_root,
             )
-        except Exception:
+        except Exception:  # noqa: S110
             pass  # Never block status transitions
 
     # Step 10: Return the event
@@ -320,9 +299,9 @@ def emit_status_transition(
 def _saas_fan_out(
     event: StatusEvent,
     feature_slug: str,
-    repo_root: Path | None,
+    _repo_root: Path | None,
     *,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, object] | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 
@@ -337,7 +316,7 @@ def _saas_fan_out(
             wp_id=event.wp_id,
             from_lane=str(event.from_lane),
             to_lane=str(event.to_lane),
-            actor=event.actor,
+            actor=event.actor.to_compact(),
             feature_slug=feature_slug,
             policy_metadata=policy_metadata,
         )

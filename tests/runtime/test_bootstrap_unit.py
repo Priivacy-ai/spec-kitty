@@ -22,6 +22,8 @@ from specify_cli.runtime.bootstrap import (
     ensure_runtime,
     populate_from_package,
 )
+pytestmark = pytest.mark.fast
+
 
 
 # ---------------------------------------------------------------------------
@@ -745,6 +747,7 @@ class TestVersionPinWiredIntoCallback:
             patch("specify_cli.root_callback"),
         ):
             from specify_cli import main_callback
+
 
             main_callback(MagicMock(), version=False)
 

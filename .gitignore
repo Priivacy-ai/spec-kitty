@@ -7,6 +7,7 @@ __pycache__/
 *$py.class
 *.so
 .Python
+.python-version
 build/
 develop-eggs/
 dist/
@@ -22,7 +23,6 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
-
 
 # Virtual environments
 venv/
@@ -63,6 +63,7 @@ kitty-specs/**/.kittify/dossiers/
 .kittify/constitution/governance.yaml
 .kittify/constitution/metadata.yaml
 .kittify/constitution/references.yaml
+.kittify/constitution/interview/
 node_modules/
 
 # Spec Kit-specific files
@@ -119,6 +120,7 @@ src/doctrine/curation/imports/**
 !src/doctrine/curation/imports/.gitkeep
 
 work
+reports
 out
 .nvimlog
 
@@ -127,3 +129,5 @@ tmp/**
 pytest-of-*/
 .kittify/missions/__pycache__/
 .spec-kitty/
+src/doctrine/templates/.merged-software-dev/
+

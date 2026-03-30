@@ -173,7 +173,7 @@ class TestMigrateFeature:
 
         # Check that all events have correct fields
         for event in events:
-            assert event.actor != ""
+            assert event.actor.tool != ""
             assert event.execution_mode == "direct_repo"
             assert event.force is True
             assert event.reason is not None
@@ -222,7 +222,7 @@ class TestMigrateFeature:
 
         events = read_events(feature_dir)
         assert len(events) == 1
-        assert events[0].actor == "custom-agent"
+        assert events[0].actor.tool == "custom-agent"
 
     def test_history_actor_preserved(self, tmp_path: Path) -> None:
         """Actor from history entries is preserved (not replaced by fallback)."""
@@ -240,7 +240,7 @@ class TestMigrateFeature:
         events = read_events(feature_dir)
         assert len(events) == 1
         # Actor from history should be used, not the fallback
-        assert events[0].actor == "claude-dev"
+        assert events[0].actor.tool == "claude-dev"
 
     def test_history_timestamp_used(self, tmp_path: Path) -> None:
         """Events use the timestamp from frontmatter history."""
@@ -532,7 +532,7 @@ class TestIdempotency:
         # Original event unchanged
         events = read_events(feature_already_migrated)
         assert len(events) == 1
-        assert events[0].actor == "claude-agent"
+        assert events[0].actor.tool == "claude-agent"
 
     def test_live_events_skip_with_explicit_actor(self, tmp_path: Path) -> None:
         """Layer 2: non-migration actor detected regardless of migration request."""
@@ -565,7 +565,7 @@ class TestIdempotency:
 
         events = read_events(feature_dir)
         assert len(events) == 1
-        assert events[0].actor == "claude-agent"
+        assert events[0].actor.tool == "claude-agent"
 
     def test_migration_only_replaced_with_backup(self, tmp_path: Path) -> None:
         """Legacy bootstrap events (migration-only) are backed up and replaced (layer 3)."""
@@ -886,7 +886,7 @@ class TestMigrateCLI:
         events = read_events(feature_dir)
         assert len(events) == 1
         # Actor "migration" in history gets replaced by the custom actor "my-bot"
-        assert events[0].actor == "my-bot"
+        assert events[0].actor.tool == "my-bot"
 
 
 # ---------------------------------------------------------------------------

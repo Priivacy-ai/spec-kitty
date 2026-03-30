@@ -5,14 +5,14 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.constitution.extractor import (
+from constitution.extractor import (
     ExtractionResult,
     Extractor,
     extract_with_ai,
     write_extraction_result,
 )
-from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
-from specify_cli.constitution.schemas import (
+from constitution.parser import ConstitutionParser, ConstitutionSection
+from constitution.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
@@ -142,7 +142,7 @@ class TestMetadataGeneration:
     def extractor(self) -> Extractor:
         return Extractor()
 
-    @patch("specify_cli.constitution.extractor.datetime")
+    @patch("constitution.extractor.datetime")
     def test_metadata_has_timestamp(self, mock_datetime, extractor: Extractor) -> None:
         fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time
@@ -161,7 +161,7 @@ class TestIdempotency:
     def extractor(self) -> Extractor:
         return Extractor()
 
-    @patch("specify_cli.constitution.extractor.datetime")
+    @patch("constitution.extractor.datetime")
     def test_extract_twice_identical_results(self, mock_datetime, extractor: Extractor) -> None:
         fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time

@@ -1,0 +1,48 @@
+schema_version: "1.0"
+id: specify
+action: specify
+mission: software-dev
+steps:
+  - id: bootstrap
+    description: Load constitution context for this action
+    command: "spec-kitty constitution context --action specify --role specify --json"
+    inputs:
+      - flag: --profile
+        source: wp.agent_profile
+        optional: true
+      - flag: --tool
+        source: env.agent_tool
+        optional: true
+
+  - id: capture_intent
+    description: Capture the feature description and user intent
+    delegates_to:
+      kind: directive
+      candidates:
+        - 010-specification-fidelity-requirement
+
+  - id: validate_requirements
+    description: Validate requirements against spec fidelity rules
+    delegates_to:
+      kind: tactic
+      candidates:
+        - requirements-validation-workflow
+
+  - id: document_decisions
+    description: Record any design decisions made during specification
+    delegates_to:
+      kind: directive
+      candidates:
+        - 003-decision-documentation-requirement
+
+  - id: write_spec
+    description: Write spec.md to kitty-specs/{feature}/
+    command: "Write spec.md in kitty-specs/{feature_slug}/"
+
+  - id: commit_spec
+    description: Commit the specification to main branch
+    delegates_to:
+      kind: directive
+      candidates:
+        - 029-agent-commit-signing-policy
+        - 033-targeted-staging-policy

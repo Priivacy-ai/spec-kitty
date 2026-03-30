@@ -14,6 +14,8 @@ from specify_cli.core.agent_config import (
     load_agent_config,
     save_agent_config,
 )
+pytestmark = pytest.mark.fast
+
 
 
 def _write_config(tmp_path: Path, content: str) -> Path:
@@ -39,7 +41,7 @@ class TestCorruptYaml:
 class TestUnknownAgentKey:
     def test_unknown_agent_reported(self, tmp_path: Path) -> None:
         """Unknown agent key should be explicitly reported."""
-        _write_config(tmp_path, "agents:\n  available:\n    - unknown_agent_xyz\n")
+        _write_config(tmp_path, "tools:\n  available:\n    - unknown_agent_xyz\n")
 
         with pytest.raises(AgentConfigError) as exc_info:
             load_agent_config(tmp_path)
@@ -80,12 +82,13 @@ class TestAutoCommitLoading:
         assert get_auto_commit_default(tmp_path) is False
 
     def test_agents_auto_commit_overrides_top_level(self, tmp_path: Path) -> None:
-        """agents.auto_commit should take precedence over the legacy top-level key."""
+        """Legacy agents.auto_commit should take precedence over the top-level key."""
         _write_config(
             tmp_path,
             "auto_commit: false\nagents:\n  available: []\n  auto_commit: true\n",
         )
 
-        config = load_agent_config(tmp_path)
+        with pytest.warns(DeprecationWarning, match="agents.*deprecated"):
+            config = load_agent_config(tmp_path)
 
         assert config.auto_commit is True

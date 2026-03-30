@@ -11,6 +11,8 @@ from specify_cli.template.github_client import (
     download_and_extract_template,
     download_template_from_github,
 )
+pytestmark = pytest.mark.fast
+
 
 
 class FakeResponse:

@@ -26,6 +26,7 @@ from pathlib import Path
 from ulid import ULID
 
 from specify_cli.frontmatter import read_frontmatter
+from specify_cli.identity import ActorIdentity
 from specify_cli.status.history_parser import build_transition_chain
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
@@ -134,7 +135,7 @@ def _check_idempotency(feature_dir: Path) -> str:
 
     # Layer 2: Check for non-migration actors (live events)
     for event in events:
-        if not event.actor.startswith("migration"):
+        if not event.actor.tool.startswith("migration"):
             return "live_events"
 
     # Layer 3: All events have migration actors
@@ -336,7 +337,8 @@ def migrate_feature(  # noqa: C901
             reason = "historical_frontmatter_to_jsonl:v1" if i == 0 else "historical migration"
 
             # Actor resolution: use transition's actor unless it's "migration"
-            event_actor = t.actor if t.actor != "migration" else actor
+            raw_actor = t.actor if t.actor != "migration" else actor
+            event_actor = ActorIdentity.from_legacy(raw_actor)
 
             try:
                 event = StatusEvent(
