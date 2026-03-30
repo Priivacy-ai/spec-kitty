@@ -151,22 +151,17 @@ class TestShimDispatch:
     @pytest.mark.parametrize(
         "command",
         [
-            "specify",
-            "plan",
-            "tasks",
             "implement",
             "review",
             "accept",
             "merge",
             "status",
-            "constitution",
             "dashboard",
-            "checklist",
-            "analyze",
-            "research",
+            "tasks-finalize",
         ],
     )
-    def test_known_commands_accepted(self, command: str, tmp_path: Path) -> None:
+    def test_cli_driven_commands_return_context(self, command: str, tmp_path: Path) -> None:
+        """CLI-driven commands resolve and return a MissionContext."""
         mock_ctx = _make_mock_context(wp_code="WP01")
         with patch(
             "specify_cli.shims.entrypoints.resolve_or_load",
@@ -180,6 +175,35 @@ class TestShimDispatch:
                 repo_root=tmp_path,
             )
             assert result is mock_ctx
+
+    @pytest.mark.parametrize(
+        "command",
+        [
+            "specify",
+            "plan",
+            "tasks",
+            "tasks-outline",
+            "tasks-packages",
+            "checklist",
+            "analyze",
+            "research",
+            "constitution",
+        ],
+    )
+    def test_prompt_driven_commands_return_none(self, command: str, tmp_path: Path) -> None:
+        """Prompt-driven commands return None without calling resolve_or_load."""
+        with patch(
+            "specify_cli.shims.entrypoints.resolve_or_load",
+        ) as mock_resolve:
+            result = shim_dispatch(
+                command=command,
+                agent="claude",
+                raw_args="WP01 --feature 057-test",
+                context_token=None,
+                repo_root=tmp_path,
+            )
+            assert result is None
+            mock_resolve.assert_not_called()
 
     @pytest.mark.parametrize("internal", ["doctor", "materialize", "debug"])
     def test_internal_commands_rejected(self, internal: str, tmp_path: Path) -> None:

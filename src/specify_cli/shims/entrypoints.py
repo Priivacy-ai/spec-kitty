@@ -18,6 +18,7 @@ from pathlib import Path
 
 from specify_cli.context.models import MissionContext
 from specify_cli.context.resolver import resolve_or_load
+from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
 
 
 # ---------------------------------------------------------------------------
@@ -81,25 +82,6 @@ _KNOWN_COMMANDS: frozenset[str] = frozenset(
     }
 )
 
-# Planning-phase commands that do NOT require WP context.
-# These operate on the project or feature level, not on a specific WP.
-_PLANNING_COMMANDS: frozenset[str] = frozenset(
-    {
-        "specify",
-        "plan",
-        "tasks",
-        "tasks-outline",
-        "tasks-packages",
-        "tasks-finalize",
-        "status",
-        "dashboard",
-        "checklist",
-        "analyze",
-        "research",
-        "constitution",
-    }
-)
-
 
 def shim_dispatch(
     command: str,
@@ -110,6 +92,12 @@ def shim_dispatch(
 ) -> MissionContext | None:
     """Resolve context and dispatch to the workflow handler for *command*.
 
+    For prompt-driven commands (``PROMPT_DRIVEN_COMMANDS``), returns
+    ``None`` immediately — their full prompt template handles the workflow
+    and there is nothing for the CLI shim path to dispatch.
+
+    For CLI-driven commands, resolves the mission context and returns it.
+
     Args:
         command:       Skill verb, e.g. ``"implement"``.
         agent:         Agent key, e.g. ``"claude"``.
@@ -118,7 +106,8 @@ def shim_dispatch(
         repo_root:     Absolute path to the repository root.
 
     Returns:
-        The resolved :class:`~specify_cli.context.models.MissionContext`.
+        The resolved :class:`~specify_cli.context.models.MissionContext`,
+        or ``None`` if *command* is prompt-driven.
 
     Raises:
         ValueError: If *command* is not a known consumer skill.
@@ -134,9 +123,10 @@ def shim_dispatch(
         )
         raise ValueError(msg)
 
-    # Planning commands don't need WP context — return None
-    if command in _PLANNING_COMMANDS:
-        return None  # type: ignore[return-value]
+    # Prompt-driven commands are handled entirely by their full prompt
+    # template file.  The CLI shim pathway is a no-op for them.
+    if command in PROMPT_DRIVEN_COMMANDS:
+        return None
 
     # Parse raw_args to extract wp_code and feature_slug
     parsed = _parse_raw_args(raw_args)
