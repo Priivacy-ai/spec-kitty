@@ -244,3 +244,4 @@ Reviewer should check:
 
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T15:24:44Z – coordinator – shell_pid=20345 – lane=doing – Started implementation via workflow command
+- 2026-03-30T15:25:50Z – coordinator – shell_pid=20345 – lane=approved – Approved: deployment happens post-merge when templates are on main
