@@ -263,3 +263,4 @@ Reviewer should check:
 
 - 2026-03-30T13:59:29Z — WP created (planned)
 - 2026-03-30T14:47:37Z – coordinator – shell_pid=80689 – lane=doing – Started implementation via workflow command
+- 2026-03-30T14:56:58Z – coordinator – shell_pid=80689 – lane=for_review – Migration complete: m_2_1_3_restore_prompt_commands.py detects thin shims for prompt-driven commands and replaces with full prompts. Idempotent, config-aware, 19 tests all passing.
