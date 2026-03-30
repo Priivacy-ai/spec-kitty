@@ -1,18 +1,36 @@
-"""Tracker commands for provider bindings, mappings, and sync operations."""
+"""Tracker commands for provider bindings, mappings, and sync operations.
+
+Dispatches to SaaS-backed providers (linear, jira, github, gitlab) via the
+Spec Kitty SaaS control plane, or to local providers (beads, fp) via
+direct connectors.  Provider credentials are never accepted for SaaS-backed
+providers -- authentication flows through ``spec-kitty auth login``.
+"""
 
 from __future__ import annotations
 
 import json
-import os
 from typing import Any
 
 import typer
 
-from specify_cli.tracker.config import require_repo_root
+from specify_cli.tracker.config import (
+    LOCAL_PROVIDERS,
+    REMOVED_PROVIDERS,
+    SAAS_PROVIDERS,
+    require_repo_root,
+)
+from specify_cli.tracker.factory import normalize_provider
 from specify_cli.tracker.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
-app = typer.Typer(help="Task tracker integration commands")
+app = typer.Typer(
+    help=(
+        "Task tracker integration commands.\n\n"
+        "SaaS-backed providers (linear, jira, github, gitlab) route through "
+        "the Spec Kitty SaaS control plane.  Local providers (beads, fp) use "
+        "direct connectors."
+    )
+)
 map_app = typer.Typer(help="Work-package mapping commands")
 sync_app = typer.Typer(help="Tracker synchronization commands")
 app.add_typer(map_app, name="map")
@@ -43,7 +61,7 @@ def _doctrine_modes() -> tuple[str, ...]:
     )
 
 
-def _run_or_exit(fn):
+def _run_or_exit(fn):  # type: ignore[no-untyped-def]
     try:
         return fn()
     except (RuntimeError, ValueError) as exc:
@@ -57,70 +75,194 @@ def tracker_callback() -> None:
     _require_enabled()
 
 
+# ---------------------------------------------------------------------------
+# providers
+# ---------------------------------------------------------------------------
+
+
 @app.command("providers")
-def providers_command(as_json: bool = typer.Option(False, "--json", help="Render provider list as JSON")) -> None:
-    """List supported tracker providers."""
+def providers_command(
+    as_json: bool = typer.Option(False, "--json", help="Render provider list as JSON"),
+) -> None:
+    """List supported tracker providers, categorized by backend type.
+
+    SaaS-backed providers authenticate through ``spec-kitty auth login`` and
+    route sync operations through the Spec Kitty SaaS control plane.
+
+    Local providers use direct connectors with locally stored credentials.
+    """
 
     def _run() -> None:
-        providers = list(TrackerService.supported_providers())
+        saas = sorted(SAAS_PROVIDERS)
+        local = sorted(LOCAL_PROVIDERS)
+
         if as_json:
-            _print_json({"providers": providers})
+            _print_json({"saas": saas, "local": local})
             return
 
         typer.echo("Supported providers:")
-        for provider in providers:
-            typer.echo(f"- {provider}")
+        typer.echo("")
+        typer.echo("  SaaS-backed (authenticate via spec-kitty auth login):")
+        for p in saas:
+            typer.echo(f"    - {p}")
+        typer.echo("")
+        typer.echo("  Local (direct connectors, credentials stored locally):")
+        for p in local:
+            typer.echo(f"    - {p}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# bind
+# ---------------------------------------------------------------------------
 
 
 @app.command("bind")
 def bind_command(
     provider: str = typer.Option(
-        ..., "--provider", help="Provider name (jira, linear, azure_devops, github, gitlab, beads, fp)"
+        ...,
+        "--provider",
+        help="Provider name (linear, jira, github, gitlab, beads, fp)",
     ),
-    workspace: str = typer.Option(..., "--workspace", help="Provider workspace/team/project identifier"),
+    project_slug: str | None = typer.Option(
+        None,
+        "--project-slug",
+        help="SaaS project identifier for tracker routing (SaaS providers only)",
+    ),
+    workspace: str | None = typer.Option(
+        None,
+        "--workspace",
+        help="Provider workspace/team/project identifier (local providers only)",
+    ),
     doctrine_mode: str = typer.Option(
         "external_authoritative",
         "--doctrine-mode",
         help="Doctrine mode: external_authoritative | spec_kitty_authoritative | split_ownership",
     ),
-    field_owners: list[str] = typer.Option([], "--field-owner", help="Split ownership mapping: field=owner"),
-    credentials: list[str] = typer.Option([], "--credential", help="Provider credential key/value: key=value"),
+    field_owners: list[str] = typer.Option(
+        [],
+        "--field-owner",
+        help="Split ownership mapping: field=owner (local providers only)",
+    ),
+    credentials: list[str] = typer.Option(
+        [],
+        "--credential",
+        help="Provider credential key/value: key=value (local providers only)",
+    ),
 ) -> None:
-    """Bind the current project to an issue tracker workspace."""
+    """Bind the current project to an issue tracker.
+
+    For SaaS-backed providers (linear, jira, github, gitlab):
+      Requires --provider and --project-slug.
+      Authentication via ``spec-kitty auth login``.
+
+    For local providers (beads, fp):
+      Requires --provider, --workspace, and --credential flags.
+    """
 
     def _run() -> None:
-        mode = doctrine_mode.strip().lower()
-        if mode not in set(_doctrine_modes()):
-            raise TrackerServiceError(
-                f"Invalid doctrine mode '{doctrine_mode}'. Expected one of: {', '.join(_doctrine_modes())}"
+        provider_normalized = normalize_provider(provider)
+
+        # FR-013: Removed providers
+        if provider_normalized in REMOVED_PROVIDERS:
+            typer.secho(
+                f"Error: Provider '{provider_normalized}' is no longer supported.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(code=1)
+
+        # SaaS-backed providers
+        if provider_normalized in SAAS_PROVIDERS:
+            # FR-010: Hard-fail --credential for SaaS
+            if credentials:
+                typer.secho(
+                    "Error: Provider credentials are not accepted for SaaS-backed providers.\n"
+                    "SaaS-backed providers authenticate through Spec Kitty SaaS.\n"
+                    "If you haven't already, run `spec-kitty auth login` to authenticate.\n"
+                    "Then connect your provider in the Spec Kitty dashboard.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+
+            if not project_slug:
+                typer.secho(
+                    "Error: --project-slug is required for SaaS-backed providers.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+
+            # FR-001: SaaS bind
+            config = _service().bind(provider=provider_normalized, project_slug=project_slug)
+            typer.echo("Tracker binding saved")
+            typer.echo(f"- provider: {config.provider}")
+            typer.echo(f"- project_slug: {config.project_slug}")
+            return
+
+        # Local providers
+        if provider_normalized in LOCAL_PROVIDERS:
+            if not workspace:
+                typer.secho(
+                    "Error: --workspace is required for local providers.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(code=1)
+
+            mode = doctrine_mode.strip().lower()
+            if mode not in set(_doctrine_modes()):
+                raise TrackerServiceError(
+                    f"Invalid doctrine mode '{doctrine_mode}'. "
+                    f"Expected one of: {', '.join(_doctrine_modes())}"
+                )
+
+            parsed_field_owners = parse_kv_pairs(field_owners)
+            parsed_credentials = parse_kv_pairs(credentials)
+
+            config = _service().bind(
+                provider=provider_normalized,
+                workspace=workspace,
+                doctrine_mode=mode,
+                doctrine_field_owners=parsed_field_owners,
+                credentials=parsed_credentials,
             )
 
-        parsed_field_owners = parse_kv_pairs(field_owners)
-        parsed_credentials = parse_kv_pairs(credentials)
+            typer.echo("Tracker binding saved")
+            typer.echo(f"- provider: {config.provider}")
+            typer.echo(f"- workspace: {config.workspace}")
+            typer.echo(f"- doctrine_mode: {config.doctrine_mode}")
+            typer.echo(f"- field_owners: {len(config.doctrine_field_owners)}")
+            typer.echo(f"- credentials_saved: {'yes' if bool(parsed_credentials) else 'no'}")
+            return
 
-        config = _service().bind(
-            provider=provider,
-            workspace=workspace,
-            doctrine_mode=mode,
-            doctrine_field_owners=parsed_field_owners,
-            credentials=parsed_credentials,
+        # Unknown provider
+        raise TrackerServiceError(
+            f"Unknown provider '{provider_normalized}'. "
+            f"Supported: {', '.join(sorted(SAAS_PROVIDERS | LOCAL_PROVIDERS))}"
         )
-
-        typer.echo("Tracker binding saved")
-        typer.echo(f"- provider: {config.provider}")
-        typer.echo(f"- workspace: {config.workspace}")
-        typer.echo(f"- doctrine_mode: {config.doctrine_mode}")
-        typer.echo(f"- field_owners: {len(config.doctrine_field_owners)}")
-        typer.echo(f"- credentials_saved: {'yes' if bool(parsed_credentials) else 'no'}")
 
     _run_or_exit(_run)
 
 
+# ---------------------------------------------------------------------------
+# status
+# ---------------------------------------------------------------------------
+
+
 @app.command("status")
-def status_command(as_json: bool = typer.Option(False, "--json", help="Render status as JSON")) -> None:
-    """Show tracker binding and local cache status."""
+def status_command(
+    as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
+) -> None:
+    """Show tracker binding and sync status.
+
+    For SaaS-backed providers: displays identity path, sync state, and
+    provider info from the SaaS control plane.
+
+    For local providers: displays local cache statistics and configuration.
+    """
 
     def _run() -> None:
         payload = _service().status()
@@ -135,14 +277,27 @@ def status_command(as_json: bool = typer.Option(False, "--json", help="Render st
 
         typer.echo("Tracker status")
         typer.echo(f"- provider: {payload.get('provider')}")
-        typer.echo(f"- workspace: {payload.get('workspace')}")
-        typer.echo(f"- doctrine_mode: {payload.get('doctrine_mode')}")
-        typer.echo(f"- db_path: {payload.get('db_path')}")
-        typer.echo(f"- issue_count: {payload.get('issue_count')}")
-        typer.echo(f"- mapping_count: {payload.get('mapping_count')}")
-        typer.echo(f"- credentials_present: {'yes' if payload.get('credentials_present') else 'no'}")
+
+        # SaaS-specific fields
+        if payload.get("identity_path"):
+            ip = payload["identity_path"]
+            typer.echo(f"- type: {ip.get('type', 'unknown')}")
+            typer.echo(f"- sync_state: {payload.get('sync_state', 'unknown')}")
+        # Local-specific fields
+        else:
+            typer.echo(f"- workspace: {payload.get('workspace')}")
+            typer.echo(f"- doctrine_mode: {payload.get('doctrine_mode')}")
+            typer.echo(f"- db_path: {payload.get('db_path')}")
+            typer.echo(f"- issue_count: {payload.get('issue_count')}")
+            typer.echo(f"- mapping_count: {payload.get('mapping_count')}")
+            typer.echo(f"- credentials_present: {'yes' if payload.get('credentials_present') else 'no'}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# map add
+# ---------------------------------------------------------------------------
 
 
 @map_app.command("add")
@@ -152,7 +307,13 @@ def map_add_command(
     external_key: str | None = typer.Option(None, "--external-key", help="External issue key"),
     external_url: str | None = typer.Option(None, "--external-url", help="External issue URL"),
 ) -> None:
-    """Add or update a local WP-to-external issue mapping."""
+    """Add or update a WP-to-external issue mapping.
+
+    For local providers: stores the mapping in the local SQLite database.
+
+    For SaaS-backed providers: this command is not available.  Manage
+    mappings in the Spec Kitty dashboard instead.
+    """
 
     def _run() -> None:
         _service().map_add(
@@ -166,9 +327,22 @@ def map_add_command(
     _run_or_exit(_run)
 
 
+# ---------------------------------------------------------------------------
+# map list
+# ---------------------------------------------------------------------------
+
+
 @map_app.command("list")
-def map_list_command(as_json: bool = typer.Option(False, "--json", help="Render mappings as JSON")) -> None:
-    """List local tracker mappings."""
+def map_list_command(
+    as_json: bool = typer.Option(False, "--json", help="Render mappings as JSON"),
+) -> None:
+    """List tracker mappings.
+
+    For local providers: shows mappings from the local SQLite database.
+
+    For SaaS-backed providers: shows SaaS-authoritative mappings from the
+    control plane.
+    """
 
     def _run() -> None:
         mappings = _service().map_list()
@@ -188,12 +362,23 @@ def map_list_command(as_json: bool = typer.Option(False, "--json", help="Render 
     _run_or_exit(_run)
 
 
+# ---------------------------------------------------------------------------
+# sync pull
+# ---------------------------------------------------------------------------
+
+
 @sync_app.command("pull")
 def sync_pull_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
 ) -> None:
-    """Pull tracker updates into the local cache."""
+    """Pull tracker updates into the local cache.
+
+    For SaaS-backed providers: pulls items via the SaaS control plane.
+    The response includes an identity_path and summary envelope.
+
+    For local providers: pulls directly from the tracker API.
+    """
 
     def _run() -> None:
         payload = _service().sync_pull(limit=limit)
@@ -201,15 +386,36 @@ def sync_pull_command(
             _print_json(payload)
             return
 
-        stats = payload.get("stats", {})
-        typer.echo(f"Pulled from {payload.get('provider')}")
-        typer.echo(f"- created: {stats.get('pulled_created', 0)}")
-        typer.echo(f"- updated: {stats.get('pulled_updated', 0)}")
-        typer.echo(f"- skipped: {stats.get('skipped', 0)}")
-        typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
-        typer.echo(f"- errors: {len(payload.get('errors', []))}")
+        # SaaS envelope format
+        if "summary" in payload:
+            summary = payload.get("summary", {})
+            typer.echo(f"Pull {payload.get('status', 'complete')}")
+            if payload.get("identity_path"):
+                ip = payload["identity_path"]
+                typer.echo(f"- provider: {ip.get('provider', 'unknown')}")
+                typer.echo(f"- type: {ip.get('type', 'unknown')}")
+            typer.echo(f"- total: {summary.get('total', 0)}")
+            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
+            typer.echo(f"- failed: {summary.get('failed', 0)}")
+            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+            if payload.get("has_more"):
+                typer.echo(f"- has_more: yes (next_cursor: {payload.get('next_cursor', 'N/A')})")
+        # Local format
+        else:
+            stats = payload.get("stats", {})
+            typer.echo(f"Pulled from {payload.get('provider')}")
+            typer.echo(f"- created: {stats.get('pulled_created', 0)}")
+            typer.echo(f"- updated: {stats.get('pulled_updated', 0)}")
+            typer.echo(f"- skipped: {stats.get('skipped', 0)}")
+            typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
+            typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# sync push
+# ---------------------------------------------------------------------------
 
 
 @sync_app.command("push")
@@ -217,7 +423,13 @@ def sync_push_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
 ) -> None:
-    """Push local tracker changes to the upstream provider."""
+    """Push local tracker changes to the upstream provider.
+
+    For SaaS-backed providers: pushes via the SaaS control plane.  The
+    control plane owns push-payload construction.
+
+    For local providers: pushes directly to the tracker API.
+    """
 
     def _run() -> None:
         payload = _service().sync_push(limit=limit)
@@ -225,15 +437,30 @@ def sync_push_command(
             _print_json(payload)
             return
 
-        stats = payload.get("stats", {})
-        typer.echo(f"Pushed to {payload.get('provider')}")
-        typer.echo(f"- created: {stats.get('pushed_created', 0)}")
-        typer.echo(f"- updated: {stats.get('pushed_updated', 0)}")
-        typer.echo(f"- skipped: {stats.get('skipped', 0)}")
-        typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
-        typer.echo(f"- errors: {len(payload.get('errors', []))}")
+        # SaaS envelope format
+        if "summary" in payload:
+            summary = payload.get("summary", {})
+            typer.echo(f"Push {payload.get('status', 'complete')}")
+            typer.echo(f"- total: {summary.get('total', 0)}")
+            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
+            typer.echo(f"- failed: {summary.get('failed', 0)}")
+            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+        # Local format
+        else:
+            stats = payload.get("stats", {})
+            typer.echo(f"Pushed to {payload.get('provider')}")
+            typer.echo(f"- created: {stats.get('pushed_created', 0)}")
+            typer.echo(f"- updated: {stats.get('pushed_updated', 0)}")
+            typer.echo(f"- skipped: {stats.get('skipped', 0)}")
+            typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
+            typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# sync run
+# ---------------------------------------------------------------------------
 
 
 @sync_app.command("run")
@@ -241,7 +468,13 @@ def sync_run_command(
     limit: int = typer.Option(100, "--limit", min=1, max=10000),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
 ) -> None:
-    """Run pull+push synchronization in one operation."""
+    """Run pull+push synchronization in one operation.
+
+    For SaaS-backed providers: executes a full sync cycle via the SaaS
+    control plane.
+
+    For local providers: runs pull then push using direct connectors.
+    """
 
     def _run() -> None:
         payload = _service().sync_run(limit=limit)
@@ -249,46 +482,49 @@ def sync_run_command(
             _print_json(payload)
             return
 
-        stats = payload.get("stats", {})
-        typer.echo(f"Sync run completed ({payload.get('provider')})")
-        typer.echo(f"- pulled_created: {stats.get('pulled_created', 0)}")
-        typer.echo(f"- pulled_updated: {stats.get('pulled_updated', 0)}")
-        typer.echo(f"- pushed_created: {stats.get('pushed_created', 0)}")
-        typer.echo(f"- pushed_updated: {stats.get('pushed_updated', 0)}")
-        typer.echo(f"- skipped: {stats.get('skipped', 0)}")
-        typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
-        typer.echo(f"- errors: {len(payload.get('errors', []))}")
+        # SaaS envelope format
+        if "summary" in payload:
+            summary = payload.get("summary", {})
+            typer.echo(f"Sync run {payload.get('status', 'complete')}")
+            typer.echo(f"- total: {summary.get('total', 0)}")
+            typer.echo(f"- succeeded: {summary.get('succeeded', 0)}")
+            typer.echo(f"- failed: {summary.get('failed', 0)}")
+            typer.echo(f"- skipped: {summary.get('skipped', 0)}")
+        # Local format
+        else:
+            stats = payload.get("stats", {})
+            typer.echo(f"Sync run completed ({payload.get('provider')})")
+            typer.echo(f"- pulled_created: {stats.get('pulled_created', 0)}")
+            typer.echo(f"- pulled_updated: {stats.get('pulled_updated', 0)}")
+            typer.echo(f"- pushed_created: {stats.get('pushed_created', 0)}")
+            typer.echo(f"- pushed_updated: {stats.get('pushed_updated', 0)}")
+            typer.echo(f"- skipped: {stats.get('skipped', 0)}")
+            typer.echo(f"- conflicts: {len(payload.get('conflicts', []))}")
+            typer.echo(f"- errors: {len(payload.get('errors', []))}")
 
     _run_or_exit(_run)
 
 
+# ---------------------------------------------------------------------------
+# sync publish
+# ---------------------------------------------------------------------------
+
+
 @sync_app.command("publish")
 def sync_publish_command(
-    server_url: str = typer.Option(
-        os.getenv("SAAS_API_URL", ""),
-        "--server-url",
-        help="Spec Kitty SaaS base URL",
-    ),
-    auth_token: str | None = typer.Option(
-        os.getenv("SAAS_AUTH_TOKEN") or None,
-        "--auth-token",
-        help="Bearer token for SaaS API authentication",
-    ),
-    timeout_seconds: float = typer.Option(10.0, "--timeout-seconds", min=1.0, max=120.0),
     as_json: bool = typer.Option(False, "--json", help="Render publish result as JSON"),
 ) -> None:
-    """Publish local tracker snapshot to Spec Kitty SaaS."""
+    """Publish local tracker snapshot.
+
+    This command is not supported for SaaS-backed providers.  Use
+    ``spec-kitty tracker sync push`` instead.
+
+    For local providers: the facade will raise an error if this operation
+    is not supported by the bound provider.
+    """
 
     def _run() -> None:
-        if not server_url.strip():
-            raise TrackerServiceError("Missing --server-url (or SAAS_API_URL)")
-
-        payload = _service().sync_publish(
-            server_url=server_url,
-            auth_token=auth_token,
-            timeout_seconds=timeout_seconds,
-        )
-
+        payload = _service().sync_publish()
         if as_json:
             _print_json(payload)
             return
@@ -297,9 +533,13 @@ def sync_publish_command(
         typer.echo(f"- endpoint: {payload.get('endpoint')}")
         typer.echo(f"- status_code: {payload.get('status_code')}")
         typer.echo(f"- ok: {'yes' if payload.get('ok') else 'no'}")
-        typer.echo(f"- idempotency_key: {payload.get('idempotency_key')}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# unbind
+# ---------------------------------------------------------------------------
 
 
 @app.command("unbind")
