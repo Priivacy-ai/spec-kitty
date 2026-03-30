@@ -90,9 +90,9 @@
 **Requirement Refs**: FR-008, FR-009
 
 ### Included Subtasks
-- [ ] T016 Write `m_2_1_3_restore_prompt_commands.py` — detect thin shims for prompt-driven commands, replace with full prompts from global runtime
-- [ ] T017 Ensure migration is idempotent (running twice produces same result)
-- [ ] T018 [P] Test migration with mock consumer project
+- [x] T016 Write `m_2_1_3_restore_prompt_commands.py` — detect thin shims for prompt-driven commands, replace with full prompts from global runtime
+- [x] T017 Ensure migration is idempotent (running twice produces same result)
+- [x] T018 [P] Test migration with mock consumer project
 
 ### Implementation Notes
 - Detection: if file is <10 lines and contains "spec-kitty agent shim", it's a thin shim to replace
