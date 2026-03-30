@@ -40,9 +40,10 @@ REMOVED_PROVIDERS = frozenset({"azure_devops"})
 | push | POST | `/api/v1/tracker/push` | Yes (202) |
 | run | POST | `/api/v1/tracker/run` | Yes (202) |
 | status | GET | `/api/v1/tracker/status` | No |
-| health | GET | `/api/v1/tracker/health` | No |
 | mappings | GET | `/api/v1/tracker/mappings` | No |
 | poll | GET | `/api/v1/tracker/operations/{id}` | No |
+
+Note: `/api/v1/tracker/health` exists in the PRI-12 contract but no CLI-facing health command is in PRI-16 scope.
 
 All requests carry `Authorization: Bearer <token>` and `X-Team-Slug: <slug>`.
 Push/run also carry `Idempotency-Key: <uuid4>`.

@@ -163,7 +163,6 @@ The client implements the frozen PRI-12 API surface:
 | push | POST | `/api/v1/tracker/push` | Yes (UUID) | Yes |
 | run | POST | `/api/v1/tracker/run` | Yes (UUID) | Yes |
 | status | GET | `/api/v1/tracker/status` | No | No |
-| health | GET | `/api/v1/tracker/health` | No | No |
 | mappings | GET | `/api/v1/tracker/mappings` | No | No |
 | poll operation | GET | `/api/v1/tracker/operations/{id}` | No | No |
 
@@ -256,7 +255,7 @@ Changes:
 
 ### Phase C: SaaSTrackerService
 
-Create the SaaS-backed service that implements pull/push/run/status/health/mappings via the SaaS client.
+Create the SaaS-backed service that implements pull/push/run/status/mappings via the SaaS client.
 
 **Module**: `src/specify_cli/tracker/saas_service.py`
 
@@ -270,7 +269,8 @@ Methods:
 - `map_list()` → GET `/api/v1/tracker/mappings`
 - `map_add()` → HARD FAIL
 - `sync_publish()` → HARD FAIL
-- `health()` → GET `/api/v1/tracker/health`
+
+Note: The SaaS client exposes `/api/v1/tracker/health` at the HTTP layer for internal diagnostics, but no CLI-facing `health` command is in scope for PRI-16 (no user scenario or FR in the spec). If a CLI health command is needed later, it can be added without changing the service architecture.
 
 ### Phase D: LocalTrackerService
 

@@ -46,7 +46,7 @@ Received in `PullResultEnvelope.items[]`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `ref` | `ExternalRef` | `{system, id, key?, url?}` |
+| `ref` | `ExternalRef` | `{system, id, workspace, key?, url?}` -- `workspace` is required per PRI-12 |
 | `title` | `str` | |
 | `body` | `str \| null` | |
 | `status` | `enum` | `todo, in_progress, in_review, blocked, done, canceled` |
@@ -116,8 +116,8 @@ Received in `PullResultEnvelope.items[]`.
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `code` | `str` | Frozen error code (e.g., `identity_resolution/missing_installation`) |
-| `category` | `str` | One of 11 categories |
+| `code` | `str` | Error code within category (e.g., `missing_installation`) |
+| `category` | `str` | Top-level category (e.g., `identity_resolution`). Separate field from `code` per PRI-12. |
 | `http_status` | `int` | |
 | `message` | `str` | Human-readable |
 | `retryable` | `bool` | |
