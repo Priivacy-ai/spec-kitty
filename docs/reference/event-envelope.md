@@ -65,7 +65,7 @@ The canonical contract lives at `kitty-specs/033-github-observability-event-meta
     "previous_status": "planned",
     "new_status": "doing",
     "changed_by": "claude-opus",
-    "feature_slug": "033-github-observability-event-metadata"
+    "mission_slug": "033-github-observability-event-metadata"
   },
   "timestamp": "2026-02-07T12:00:00+00:00",
   "node_id": "abc123def456",

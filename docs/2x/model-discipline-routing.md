@@ -38,7 +38,7 @@ A team enables a **Model Discipline** doctrine rule so Spec Kitty can recommend 
 
 ### Preconditions
 
-1. Feature and work packages exist (`kitty-specs/<feature>/tasks/WP*.md`).
+1. Feature and work packages exist (`kitty-specs/<mission>/tasks/WP*.md`).
 2. `.kittify/config.yaml` has available tools configured.
 3. Doctrine bundle includes model-discipline directive/toolguide and task-type mapping file.
 

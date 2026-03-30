@@ -66,13 +66,13 @@ def parse_plan_for_tech_stack(plan_path: Path) -> dict[str, str | None]:
     }
 
 
-def format_technology_stack(tech_stack: dict[str, str | None], feature_slug: str) -> list[str]:
+def format_technology_stack(tech_stack: dict[str, str | None], mission_slug: str) -> list[str]:
     """
     Format tech stack data into markdown bullet points for Active Technologies section.
 
     Args:
         tech_stack: Dictionary from parse_plan_for_tech_stack()
-        feature_slug: Current feature branch/slug (e.g., "008-unified-python-cli")
+        mission_slug: Current mission branch/slug (e.g., "008-unified-python-cli")
 
     Returns:
         List of formatted markdown lines
@@ -94,11 +94,11 @@ def format_technology_stack(tech_stack: dict[str, str | None], feature_slug: str
 
     if parts:
         tech_line = " + ".join(parts)
-        entries.append(f"- {tech_line} ({feature_slug})")
+        entries.append(f"- {tech_line} ({mission_slug})")
 
     # Add storage as separate line if present
     if tech_stack.get("storage"):
-        entries.append(f"- {tech_stack['storage']} ({feature_slug})")
+        entries.append(f"- {tech_stack['storage']} ({mission_slug})")
 
     return entries
 
@@ -151,9 +151,9 @@ def preserve_manual_additions(old_content: str, new_content: str) -> str:
 def update_agent_context(  # noqa: C901
     agent_type: str,
     tech_stack: dict[str, str | None],
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path,
-    feature_dir: Path | None = None,
+    mission_dir: Path | None = None,
 ) -> None:
     """
     Update agent context file with tech stack from plan.md.
@@ -161,9 +161,9 @@ def update_agent_context(  # noqa: C901
     Args:
         agent_type: One of the keys in AGENT_CONFIGS (claude, gemini, etc.)
         tech_stack: Dictionary from parse_plan_for_tech_stack()
-        feature_slug: Current feature branch/slug
+        mission_slug: Current mission branch/slug
         repo_root: Repository root directory
-        feature_dir: Feature directory path (for worktree-local updates)
+        mission_dir: Mission directory path (for worktree-local updates)
 
     Raises:
         ValueError: If agent_type is not supported
@@ -174,9 +174,9 @@ def update_agent_context(  # noqa: C901
 
     agent_file_path = repo_root / AGENT_CONFIGS[agent_type]
 
-    # If it's a worktree-local file, use feature_dir
-    if feature_dir and agent_file_path.is_relative_to(repo_root):
-        worktree_agent_file = feature_dir / AGENT_CONFIGS[agent_type]
+    # If it's a worktree-local file, use mission_dir
+    if mission_dir and agent_file_path.is_relative_to(repo_root):
+        worktree_agent_file = mission_dir / AGENT_CONFIGS[agent_type]
         if worktree_agent_file.exists():
             agent_file_path = worktree_agent_file
 
@@ -187,7 +187,7 @@ def update_agent_context(  # noqa: C901
     old_content = agent_file_path.read_text()
 
     # Format new tech entries
-    new_tech_entries = format_technology_stack(tech_stack, feature_slug)
+    new_tech_entries = format_technology_stack(tech_stack, mission_slug)
 
     # Prepare change entry for Recent Changes section
     tech_parts: list[str] = []
@@ -199,7 +199,7 @@ def update_agent_context(  # noqa: C901
         tech_parts.append(t_deps)
 
     tech_description: str = " + ".join(tech_parts) if tech_parts else (tech_stack.get("storage") or "")
-    new_change_entry = f"- {feature_slug}: Added {tech_description}" if tech_description else ""
+    new_change_entry = f"- {mission_slug}: Added {tech_description}" if tech_description else ""
 
     # Process file line by line to update sections
     lines = old_content.splitlines(keepends=True)

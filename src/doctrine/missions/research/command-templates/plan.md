@@ -19,11 +19,11 @@ Before proceeding with planning, verify you are in the correct working directory
 
 **What this validates**:
 
-- Current branch follows the feature pattern like `001-feature-name`
+- Current branch follows the mission pattern like `001-mission-name`
 - You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- The validator prints clear navigation instructions if you're outside the mission worktree
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Planning Interrogation (mandatory)
 
@@ -43,7 +43,7 @@ Before executing any scripts or generating artifacts you must interrogate the sp
 
 - If the user has not provided plan context, keep interrogating with one question at a time.
 
-- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this feature's scope. For trivial features, knowing the basic stack is enough. Only continue if critical unknowns remain.
+- **Conversational cadence**: After each reply, assess if you have SUFFICIENT context for this mission's scope. For trivial features, knowing the basic stack is enough. Only continue if critical unknowns remain.
 
 Planning requirements (scale to complexity):
 
@@ -58,9 +58,9 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `{SCRIPT}` yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for FEATURE_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
+2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for MISSION_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
 
-3. **Load context**: Read FEATURE_SPEC and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
+3. **Load context**: Read MISSION_SPEC and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
 4. **Execute plan workflow**: Follow the structure in IMPL_PLAN template, using the validated planning answers as ground truth:
    - Update Technical Context with explicit statements from the user or discovery research; mark `[NEEDS CLARIFICATION: …]` only when the user deliberately postpones a decision
@@ -86,7 +86,7 @@ Planning requirements (scale to complexity):
 
    ```
    For each unknown in Technical Context:
-     Task: "Research {unknown} for {feature context}"
+     Task: "Research {unknown} for {mission context}"
    For each technology choice:
      Task: "Find best practices for {tech} in {domain}"
    ```
@@ -102,7 +102,7 @@ Planning requirements (scale to complexity):
 
 **Prerequisites:** `research.md` complete
 
-1. **Extract entities from feature spec** → `data-model.md`:
+1. **Extract entities from mission spec** → `data-model.md`:
    - Entity name, fields, relationships
    - Validation rules from requirements
    - State transitions if applicable

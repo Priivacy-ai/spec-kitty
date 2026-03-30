@@ -17,7 +17,7 @@ class WorktreeValidationResult:
     """Result of worktree location validation."""
 
     current_branch: str
-    is_feature_branch: bool
+    is_mission_branch: bool
     is_main_branch: bool
     worktree_path: Path | None
     errors: list[str]
@@ -29,7 +29,7 @@ class WorktreeValidationResult:
             return False
         if not self.current_branch:
             return True
-        return self.is_feature_branch and not self.is_main_branch
+        return self.is_mission_branch and not self.is_main_branch
 
     def format_error(self) -> str:
         """Format error message for display."""
@@ -44,13 +44,13 @@ class WorktreeValidationResult:
             output.extend(
                 [
                     "",
-                    "You are on the 'main' branch. Commands must run from feature worktrees.",
+                    "You are on the 'main' branch. Commands must run from mission worktrees.",
                     "",
                     "Available worktrees:",
                     "  $ ls .worktrees/",
                     "",
                     "Navigate to worktree:",
-                    "  $ cd .worktrees/<feature-name>",
+                    "  $ cd .worktrees/<mission-name>",
                     "",
                     "Verify branch:",
                     "  $ git branch --show-current",
@@ -61,7 +61,7 @@ class WorktreeValidationResult:
 
 
 def validate_worktree_location(project_root: Path | None = None) -> WorktreeValidationResult:
-    """Validate that commands run from a feature worktree."""
+    """Validate that commands run from a mission worktree."""
     project_root = Path(project_root) if project_root is not None else Path.cwd()
 
     try:
@@ -80,7 +80,7 @@ def validate_worktree_location(project_root: Path | None = None) -> WorktreeVali
     if result.returncode != 0:
         return WorktreeValidationResult(
             current_branch="unknown",
-            is_feature_branch=False,
+            is_mission_branch=False,
             is_main_branch=False,
             worktree_path=None,
             errors=["Not a git repository"],
@@ -91,21 +91,21 @@ def validate_worktree_location(project_root: Path | None = None) -> WorktreeVali
 
     primary = resolve_primary_branch(project_root)
     is_main_branch = current_branch == primary
-    is_feature_branch = bool(re.match(r"^\d{3}-[\w-]+$", current_branch))
+    is_mission_branch = bool(re.match(r"^\d{3}-[\w-]+$", current_branch))
 
     errors: list[str] = []
     if not current_branch:
         errors.append("Unable to determine current git branch.")
     elif is_main_branch:
-        errors.append("Command must run from feature worktree, not main branch.")
-    elif not is_feature_branch:
-        errors.append(f"Unexpected branch '{current_branch}'. Commands must run from feature worktrees.")
+        errors.append("Command must run from mission worktree, not main branch.")
+    elif not is_mission_branch:
+        errors.append(f"Unexpected branch '{current_branch}'. Commands must run from mission worktrees.")
 
-    worktree_path = project_root if is_feature_branch and not errors else None
+    worktree_path = project_root if is_mission_branch and not errors else None
 
     return WorktreeValidationResult(
         current_branch=current_branch or "unknown",
-        is_feature_branch=is_feature_branch,
+        is_mission_branch=is_mission_branch,
         is_main_branch=is_main_branch,
         worktree_path=worktree_path,
         errors=errors,
@@ -142,7 +142,7 @@ def validate_git_clean(project_root: Path | None = None) -> WorktreeValidationRe
 
     return WorktreeValidationResult(
         current_branch="",
-        is_feature_branch=not errors,
+        is_mission_branch=not errors,
         is_main_branch=False,
         worktree_path=None,
         errors=errors,

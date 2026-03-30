@@ -46,7 +46,7 @@ class ExpectedArtifactSpec(BaseModel):
     Attributes:
         artifact_key: Stable, unique key (e.g., 'input.spec.main')
         artifact_class: One of {input, workflow, output, evidence, policy, runtime}
-        path_pattern: Glob pattern relative to feature dir (e.g., 'spec.md', 'tasks/*.md')
+        path_pattern: Glob pattern relative to mission dir (e.g., 'spec.md', 'tasks/*.md')
         blocking: If True, missing artifact blocks mission completeness
     """
 
@@ -62,7 +62,7 @@ class ExpectedArtifactSpec(BaseModel):
     path_pattern: str = Field(
         ...,
         min_length=1,
-        description="Glob pattern relative to feature directory (e.g., 'spec.md', 'tasks/*.md')",
+        description="Glob pattern relative to mission directory (e.g., 'spec.md', 'tasks/*.md')",
     )
     blocking: bool = Field(
         default=False,

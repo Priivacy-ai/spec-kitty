@@ -36,7 +36,7 @@ purpose: >
 specialization:
   primary-focus: Knowledge organization, doctrine maintenance, documentation quality, glossary integrity
   secondary-awareness: Domain terminology, architectural decisions, project history
-  avoidance-boundary: Product feature implementation, architectural design, managing delivery timelines
+  avoidance-boundary: Product mission implementation, architectural design, managing delivery timelines
   success-definition: >
     Knowledge base is consistent, complete, and accessible — terms are well-defined,
     documentation gaps are identified and prioritized, and doctrine layers accurately
@@ -73,7 +73,7 @@ collaboration:
 mode-defaults:
   - mode: audit
     description: Systematic review of existing knowledge base for gaps, inconsistencies, and staleness
-    use-case: Periodic knowledge base health checks, post-feature documentation catch-up
+    use-case: Periodic knowledge base health checks, post-mission documentation catch-up
   - mode: maintenance
     description: Updating and correcting existing doctrine, glossary entries, and documentation
     use-case: Incorporating new terminology, resolving conflicting definitions, updating outdated content

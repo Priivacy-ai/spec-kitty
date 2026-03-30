@@ -132,9 +132,9 @@ def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):
     Ensures the fix works with multiple staged files, not just one.
     """
     # Stage multiple unrelated files
-    file1 = git_repo / "feature1.py"
+    file1 = git_repo / "mission1.py"
     file1.write_text("# Feature 1\n")
-    subprocess.run(["git", "add", "feature1.py"], cwd=git_repo, check=True)
+    subprocess.run(["git", "add", "mission1.py"], cwd=git_repo, check=True)
 
     file2 = git_repo / "feature2.py"
     file2.write_text("# Feature 2\n")
@@ -166,7 +166,7 @@ def test_safe_commit_preserves_multiple_unrelated_staged_files(git_repo: Path):
         check=True,
     )
 
-    assert "A  feature1.py" in status_result.stdout
+    assert "A  mission1.py" in status_result.stdout
     assert "A  feature2.py" in status_result.stdout
     assert "A  docs.md" in status_result.stdout
     assert "WP02.md" not in status_result.stdout, "WP02.md should be committed"
@@ -204,7 +204,7 @@ def test_safe_commit_with_absolute_paths(git_repo: Path):
 def test_safe_commit_with_subdirectory_files(git_repo: Path):
     """Test safe_commit works with files in subdirectories."""
     # Create subdirectory structure
-    subdir = git_repo / "kitty-specs" / "038-feature" / "tasks"
+    subdir = git_repo / "kitty-specs" / "038-mission" / "tasks"
     subdir.mkdir(parents=True)
 
     # Stage unrelated file in root
@@ -243,7 +243,7 @@ def test_safe_commit_can_commit_explicitly_ignored_file(git_repo: Path):
     gitignore.write_text("kitty-specs/**/tasks/*.md\n", encoding="utf-8")
 
     # Create ignored WP file
-    wp_file = git_repo / "kitty-specs" / "041-test-feature" / "tasks" / "WP01.md"
+    wp_file = git_repo / "kitty-specs" / "041-test-mission" / "tasks" / "WP01.md"
     wp_file.parent.mkdir(parents=True, exist_ok=True)
     wp_file.write_text("---\nlane: doing\n---\n", encoding="utf-8")
 

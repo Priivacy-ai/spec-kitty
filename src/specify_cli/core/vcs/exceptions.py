@@ -43,10 +43,10 @@ class VCSCapabilityError(VCSError):
 
 class VCSBackendMismatchError(VCSError):
     """
-    Requested backend doesn't match feature's locked VCS.
+    Requested backend doesn't match mission's locked VCS.
 
     Raised when explicitly requesting a backend that differs
-    from the VCS locked in the feature's meta.json.
+    from the VCS locked in the mission's meta.json.
     """
 
     pass
@@ -54,9 +54,9 @@ class VCSBackendMismatchError(VCSError):
 
 class VCSLockError(VCSError):
     """
-    Attempted to change VCS for a feature after it was locked.
+    Attempted to change VCS for a mission after it was locked.
 
-    Once a feature has its VCS set (on first workspace creation),
+    Once a mission has its VCS set (on first workspace creation),
     it cannot be changed. This exception is raised on such attempts.
     """
 

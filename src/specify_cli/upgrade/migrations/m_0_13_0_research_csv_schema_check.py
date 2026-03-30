@@ -1,6 +1,6 @@
 """Migration: Detect research CSV schema mismatches (informational only).
 
-This migration scans all research features for CSV files with non-standard
+This migration scans all research missions for CSV files with non-standard
 schemas and reports mismatches to help users migrate their data to the
 canonical schemas.
 
@@ -26,7 +26,7 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
     """Detect research CSV schema mismatches and inform users.
 
     This migration:
-    1. Finds all research features (mission: research in meta.json)
+    1. Finds all research missions (mission: research in meta.json)
     2. Validates evidence-log.csv and source-register.csv schemas
     3. Reports mismatches with actionable migration tips
     4. Does NOT auto-fix (users must manually migrate data)
@@ -37,17 +37,17 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
     target_version = "0.13.0"
 
     def detect(self, project_path: Path) -> bool:
-        """Check if any research features have schema mismatches."""
+        """Check if any research missions have schema mismatches."""
         kitty_specs = project_path / "kitty-specs"
         if not kitty_specs.exists():
             return False
 
-        # Find research features with potential schema issues
-        for feature_dir in kitty_specs.iterdir():
-            if not feature_dir.is_dir():
+        # Find research missions with potential schema issues
+        for mission_dir in kitty_specs.iterdir():
+            if not mission_dir.is_dir():
                 continue
 
-            meta_json = feature_dir / "meta.json"
+            meta_json = mission_dir / "meta.json"
             if not meta_json.exists():
                 continue
 
@@ -58,8 +58,8 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                         continue
 
                 # Check CSVs
-                evidence_log = feature_dir / "research" / "evidence-log.csv"
-                source_register = feature_dir / "research" / "source-register.csv"
+                evidence_log = mission_dir / "research" / "evidence-log.csv"
+                source_register = mission_dir / "research" / "source-register.csv"
 
                 if evidence_log.exists():
                     result = validate_csv_schema(evidence_log, EVIDENCE_REQUIRED_COLUMNS)
@@ -81,7 +81,7 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: ARG002
-        """Scan all research features for schema mismatches."""
+        """Scan all research missions for schema mismatches."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
@@ -96,14 +96,14 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                 warnings=warnings,
             )
 
-        mismatches: list[tuple[str, str, str, str]] = []  # (feature, csv_name, expected, actual)
+        mismatches: list[tuple[str, str, str, str]] = []  # (mission, csv_name, expected, actual)
 
-        # Scan all features
-        for feature_dir in kitty_specs.iterdir():
-            if not feature_dir.is_dir():
+        # Scan all missions
+        for mission_dir in kitty_specs.iterdir():
+            if not mission_dir.is_dir():
                 continue
 
-            meta_json = feature_dir / "meta.json"
+            meta_json = mission_dir / "meta.json"
             if not meta_json.exists():
                 continue
 
@@ -117,13 +117,13 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                 continue
 
             # Validate evidence-log.csv
-            evidence_log = feature_dir / "research" / "evidence-log.csv"
+            evidence_log = mission_dir / "research" / "evidence-log.csv"
             if evidence_log.exists():
                 result = validate_csv_schema(evidence_log, EVIDENCE_REQUIRED_COLUMNS)
                 if not result.schema_valid:
                     mismatches.append(
                         (
-                            feature_dir.name,
+                            mission_dir.name,
                             "evidence-log.csv",
                             ",".join(EVIDENCE_REQUIRED_COLUMNS),
                             ",".join(result.actual_columns or ["<missing>"]),
@@ -131,13 +131,13 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                     )
 
             # Validate source-register.csv
-            source_register = feature_dir / "research" / "source-register.csv"
+            source_register = mission_dir / "research" / "source-register.csv"
             if source_register.exists():
                 result = validate_csv_schema(source_register, SOURCE_REGISTER_REQUIRED_COLUMNS)
                 if not result.schema_valid:
                     mismatches.append(
                         (
-                            feature_dir.name,
+                            mission_dir.name,
                             "source-register.csv",
                             ",".join(SOURCE_REGISTER_REQUIRED_COLUMNS),
                             ",".join(result.actual_columns or ["<missing>"]),
@@ -156,10 +156,10 @@ class ResearchCSVSchemaCheckMigration(BaseMigration):
                 "",
             ]
 
-            for feature, csv_name, expected, actual in mismatches:
+            for mission, csv_name, expected, actual in mismatches:
                 report_lines.extend(
                     [
-                        f"{feature}/research/{csv_name}:",
+                        f"{mission}/research/{csv_name}:",
                         f"  Expected: {expected}",
                         f"  Actual:   {actual}",
                         "",

@@ -41,7 +41,7 @@ def _multi_glob(dirs: list[Path], pattern: str) -> list[Path]:
     results: list[Path] = []
     for d in dirs:
         if d.exists():
-            results.extend(d.glob(pattern))
+            results.extend(d.rglob(pattern))
     return sorted(set(results))
 
 

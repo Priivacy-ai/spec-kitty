@@ -35,7 +35,7 @@ def test_profile_init_writes_tool_context(tmp_path: Path, monkeypatch) -> None:
         project_profiles / "my-impl.agent.yaml",
         """profile-id: my-impl
 name: My Impl
-purpose: Implement features
+purpose: Implement missions
 role: implementer
 specialization:
   primary-focus: implementation

@@ -16,8 +16,8 @@
   href: review-work-package.md
 - name: Accept and Merge
   href: accept-and-merge.md
-- name: Merge a Feature
-  href: merge-feature.md
+- name: Merge a Mission
+  href: merge-mission.md
 - name: Troubleshoot Merge Issues
   href: troubleshoot-merge.md
 - name: Handle Dependencies

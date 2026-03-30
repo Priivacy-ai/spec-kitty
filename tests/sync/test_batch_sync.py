@@ -90,7 +90,7 @@ class TestSaasFeatureFlag:
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_skips_network_when_disabled(self, mock_post, populated_queue, monkeypatch):
-        """No HTTP upload should occur when SaaS sync feature is disabled."""
+        """No HTTP upload should occur when SaaS sync flag is disabled."""
         monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
         initial_size = populated_queue.size()
 

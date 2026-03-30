@@ -295,7 +295,7 @@ All agents support the same 13 slash commands:
 
 | Command | Purpose |
 |---------|---------|
-| `/spec-kitty.specify` | Create feature specification |
+| `/spec-kitty.specify` | Create mission specification |
 | `/spec-kitty.plan` | Create implementation plan |
 | `/spec-kitty.tasks` | Generate work packages |
 | `/spec-kitty.implement` | Start WP implementation |

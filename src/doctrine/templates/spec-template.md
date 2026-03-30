@@ -1,10 +1,10 @@
-# Feature Specification: [FEATURE NAME]
+# Mission Specification: [MISSION NAME]
 
 *Path: [templates/spec-template.md](templates/spec-template.md)*
 
-<!-- Replace [FEATURE NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
+<!-- Replace [MISSION NAME] with the confirmed friendly title generated during /spec-kitty.specify. -->
 
-**Feature Branch**: `[###-feature-name]`  
+**Mission Branch**: `[###-mission-name]`  
 **Created**: [DATE]  
 **Status**: Draft  
 **Input**: User description: "$ARGUMENTS"

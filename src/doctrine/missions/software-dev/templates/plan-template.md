@@ -1,7 +1,7 @@
-# Implementation Plan: [FEATURE]
+# Implementation Plan: [MISSION]
 
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
+**Branch**: `[###-mission-name]` | **Date**: [DATE] | **Spec**: [link]
+**Input**: Feature specification from `/kitty-specs/[###-mission-name]/spec.md`
 
 **Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/doctrine/missions/software-dev/command-templates/plan.md` for the execution workflow.
 
@@ -9,7 +9,7 @@ The planner will not begin until all planning questions have been answered—cap
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+[Extract from mission spec: primary requirement + technical approach from research]
 
 ## Technical Context
 
@@ -18,7 +18,7 @@ The planner will not begin until all planning questions have been answered—cap
   for the project. The structure here is presented in advisory capacity to guide
   the iteration process.
 
-  If multiple developers/agents will work on this feature, add a "Parallel Work
+  If multiple developers/agents will work on this mission, add a "Parallel Work
   Organization" section below showing the dependency graph and agent assignments.
 -->
 
@@ -40,10 +40,10 @@ The planner will not begin until all planning questions have been answered—cap
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
+kitty-specs/[###-mission]/
 ├── plan.md              # This file (/spec-kitty.plan command output)
 ├── research.md          # Phase 0 output (/spec-kitty.plan command)
 ├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
@@ -55,7 +55,7 @@ kitty-specs/[###-feature]/
 ### Source Code (repository root)
 <!--
   ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
+  for this mission. Delete unused options and expand the chosen structure with
   real paths (e.g., apps/admin, packages/something). The delivered plan must
   not include Option labels.
 -->
@@ -110,7 +110,7 @@ directories captured above]
 
 ## Parallel Work Analysis
 
-*Include this section if multiple developers/agents will implement this feature*
+*Include this section if multiple developers/agents will implement this mission*
 
 ### Dependency Graph
 

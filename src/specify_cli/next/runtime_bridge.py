@@ -9,7 +9,7 @@ Maps the CLI's Decision dataclass to the runtime's NextDecision by:
 5. Preserving the existing JSON output contract
 
 Run state is stored locally under ``.kittify/runtime/runs/<run_id>/``.
-A feature→run index lives at ``.kittify/runtime/feature-runs.json``.
+A mission→run index lives at ``.kittify/runtime/mission-runs.json``.
 """
 
 from __future__ import annotations
@@ -35,7 +35,7 @@ from spec_kitty_runtime import (
 from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission import get_mission_key
 from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.next.decision import (
@@ -50,18 +50,18 @@ logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# Feature → Run index
+# Mission → Run index
 # ---------------------------------------------------------------------------
 
-_FEATURE_RUNS_FILE = "feature-runs.json"
+_MISSION_RUNS_FILE = "mission-runs.json"
 
 
-def _feature_runs_path(repo_root: Path) -> Path:
-    return repo_root / ".kittify" / "runtime" / _FEATURE_RUNS_FILE
+def _mission_runs_path(repo_root: Path) -> Path:
+    return repo_root / ".kittify" / "runtime" / _MISSION_RUNS_FILE
 
 
-def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
-    path = _feature_runs_path(repo_root)
+def _load_mission_runs(repo_root: Path) -> dict[str, dict[str, str]]:
+    path = _mission_runs_path(repo_root)
     if not path.exists():
         return {}
     try:
@@ -70,8 +70,8 @@ def _load_feature_runs(repo_root: Path) -> dict[str, dict[str, str]]:
         return {}
 
 
-def _save_feature_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> None:
-    path = _feature_runs_path(repo_root)
+def _save_mission_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> None:
+    path = _mission_runs_path(repo_root)
     content = json.dumps(index, indent=2, sort_keys=True)
     atomic_write(path, content, mkdir=True)
 
@@ -88,14 +88,14 @@ def _is_wp_iteration_step(step_id: str) -> bool:
     return step_id in _WP_ITERATION_STEPS
 
 
-def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
+def _should_advance_wp_step(step_id: str, mission_dir: Path) -> bool:
     """Check if all WPs are done for this phase, meaning we should advance.
 
     For implement: all WPs must be handed off or complete
     (for_review, approved, or done).
     For review: all WPs must be approved or done.
     """
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.is_dir():
         return True  # no WPs to iterate over
 
@@ -119,7 +119,7 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
 # ---------------------------------------------------------------------------
 
 
-def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
+def _check_cli_guards(step_id: str, mission_dir: Path) -> list[str]:
     """Check CLI-level guard conditions before completing a step.
 
     Returns list of failure descriptions. Empty list means all guards pass.
@@ -127,24 +127,24 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
     failures: list[str] = []
 
     if step_id == "specify":
-        if not (feature_dir / "spec.md").exists():
+        if not (mission_dir / "spec.md").exists():
             failures.append("Required artifact missing: spec.md")
 
     elif step_id == "plan":
-        if not (feature_dir / "plan.md").exists():
+        if not (mission_dir / "plan.md").exists():
             failures.append("Required artifact missing: plan.md")
 
     elif step_id == "tasks_outline":
-        if not (feature_dir / "tasks.md").exists():
+        if not (mission_dir / "tasks.md").exists():
             failures.append("Required artifact missing: tasks.md")
 
     elif step_id == "tasks_packages":
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         if not tasks_dir.is_dir() or not list(tasks_dir.glob("WP*.md")):
             failures.append("Required: at least one tasks/WP*.md file")
 
     elif step_id == "tasks_finalize":
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         if not tasks_dir.is_dir():
             failures.append("Required: tasks/ directory with finalized WP files")
         else:
@@ -161,12 +161,12 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
                         break  # One failure message is enough
 
     elif step_id == "implement":
-        if not _should_advance_wp_step("implement", feature_dir):
+        if not _should_advance_wp_step("implement", mission_dir):
             failures.append(
                 "Not all work packages have required status (for_review, approved, or done)"
             )
 
-    elif step_id == "review" and not _should_advance_wp_step("review", feature_dir):
+    elif step_id == "review" and not _should_advance_wp_step("review", mission_dir):
         failures.append("Not all work packages are approved or done")
 
     return failures
@@ -317,19 +317,19 @@ def _runtime_template_key(mission_key: str, repo_root: Path) -> str:
 
 
 def get_or_start_run(
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path,
     mission_key: str,
 ) -> MissionRunRef:
     """Load existing run or start a new one.
 
-    Run mapping stored in .kittify/runtime/feature-runs.json:
-    { "042-test-feature": { "run_id": "abc", "run_dir": "..." } }
+    Run mapping stored in .kittify/runtime/mission-runs.json:
+    { "042-test-mission": { "run_id": "abc", "run_dir": "..." } }
     """
-    index = _load_feature_runs(repo_root)
+    index = _load_mission_runs(repo_root)
 
-    if feature_slug in index:
-        entry = index[feature_slug]
+    if mission_slug in index:
+        entry = index[mission_slug]
         run_dir = Path(entry["run_dir"])
         if (run_dir / "state.json").exists():
             return MissionRunRef(
@@ -345,7 +345,7 @@ def get_or_start_run(
 
     run_ref = start_mission_run(
         template_key=template_key,
-        inputs={"feature_slug": feature_slug},
+        inputs={"mission_slug": mission_slug},
         policy_snapshot=MissionPolicySnapshot(),
         context=context,
         run_store=run_store,
@@ -353,12 +353,12 @@ def get_or_start_run(
     )
 
     # Persist to index
-    index[feature_slug] = {
+    index[mission_slug] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
         "mission_key": run_ref.mission_key,
     }
-    _save_feature_runs(repo_root, index)
+    _save_mission_runs(repo_root, index)
 
     return run_ref
 
@@ -370,7 +370,7 @@ def get_or_start_run(
 
 def decide_next_via_runtime(
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     result: str,
     repo_root: Path,
 ) -> Decision:
@@ -385,21 +385,21 @@ def decide_next_via_runtime(
     4. For non-WP steps: call next_step(run_ref, agent, result) directly
     5. Map NextDecision -> Decision (preserving JSON contract)
     """
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    mission_dir = repo_root / "kitty-specs" / mission_slug
     now = datetime.now(UTC).isoformat()
 
-    if not feature_dir.is_dir():
+    if not mission_dir.is_dir():
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission="unknown",
             mission_state="unknown",
             timestamp=now,
-            reason=f"Feature directory not found: {feature_dir}",
+            reason=f"Mission directory not found: {mission_dir}",
         )
 
-    mission_key = get_feature_mission_key(feature_dir)
+    mission_key = get_mission_key(mission_dir)
 
     # Resolve origin info
     origin: dict[str, Any] = {}
@@ -413,17 +413,17 @@ def decide_next_via_runtime(
     except FileNotFoundError:
         origin = {"mission_tier": "unknown", "mission_path": "unknown"}
 
-    progress = _compute_wp_progress(feature_dir)
+    progress = _compute_wp_progress(mission_dir)
 
     # Get or start runtime run (before result handling so failed/blocked
     # decisions include canonical run_id, step_id, and mission_state)
     try:
-        run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+        run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
     except Exception as exc:
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state="unknown",
             timestamp=now,
@@ -442,36 +442,36 @@ def decide_next_via_runtime(
 
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
-        if not _should_advance_wp_step(current_step_id, feature_dir):
+        if not _should_advance_wp_step(current_step_id, mission_dir):
             # Stay in current step, return WP-level action
             return _build_wp_iteration_decision(
-                current_step_id, agent, feature_slug, mission_key,
-                feature_dir, repo_root, now, progress, origin, run_ref,
+                current_step_id, agent, mission_slug, mission_key,
+                mission_dir, repo_root, now, progress, origin, run_ref,
             )
         # All WPs done for this step — check guards before advancing
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        guard_failures = _check_cli_guards(current_step_id, mission_dir)
         if guard_failures:
             return _build_wp_iteration_decision(
-                current_step_id, agent, feature_slug, mission_key,
-                feature_dir, repo_root, now, progress, origin, run_ref,
+                current_step_id, agent, mission_slug, mission_key,
+                mission_dir, repo_root, now, progress, origin, run_ref,
                 guard_failures=guard_failures,
             )
 
     # Check guards for non-WP steps before advancing
     if result == "success" and current_step_id and not _is_wp_iteration_step(current_step_id):
-        guard_failures = _check_cli_guards(current_step_id, feature_dir)
+        guard_failures = _check_cli_guards(current_step_id, mission_dir)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
-                current_step_id, feature_slug, feature_dir, repo_root, mission_key,
+                current_step_id, mission_slug, mission_dir, repo_root, mission_key,
             )
             prompt_file = _build_prompt_safe(
-                action or current_step_id, feature_dir, feature_slug,
+                action or current_step_id, mission_dir, mission_slug,
                 wp_id, agent, repo_root, mission_key,
             ) if action else None
             return Decision(
                 kind=DecisionKind.step,
                 agent=agent,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 mission=mission_key,
                 mission_state=current_step_id,
                 timestamp=now,
@@ -498,7 +498,7 @@ def decide_next_via_runtime(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state=current_step_id or "unknown",
             timestamp=now,
@@ -508,21 +508,21 @@ def decide_next_via_runtime(
         )
 
     return _map_runtime_decision(
-        runtime_decision, agent, feature_slug, mission_key,
-        repo_root, feature_dir, now, progress, origin,
+        runtime_decision, agent, mission_slug, mission_key,
+        repo_root, mission_dir, now, progress, origin,
     )
 
 
 def answer_decision_via_runtime(
-    feature_slug: str,
+    mission_slug: str,
     decision_id: str,
     answer: str,
     agent: str,
     repo_root: Path,
 ) -> None:
     """Answer a pending decision."""
-    mission_key = get_feature_mission_key(repo_root / "kitty-specs" / feature_slug)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    mission_key = get_mission_key(repo_root / "kitty-specs" / mission_slug)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_key)
     actor = ActorIdentity(actor_id=agent, actor_type="llm")
     runtime_provide_decision_answer(
         run_ref, decision_id, answer, actor,
@@ -538,9 +538,9 @@ def answer_decision_via_runtime(
 def _build_wp_iteration_decision(
     step_id: str,
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     mission_key: str,
-    feature_dir: Path,
+    mission_dir: Path,
     repo_root: Path,
     timestamp: str,
     progress: dict | None,
@@ -550,14 +550,14 @@ def _build_wp_iteration_decision(
 ) -> Decision:
     """Build a Decision for WP iteration within a step."""
     action, wp_id, workspace_path = _state_to_action(
-        step_id, feature_slug, feature_dir, repo_root, mission_key,
+        step_id, mission_slug, mission_dir, repo_root, mission_key,
     )
 
     if action is None:
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state=step_id,
             timestamp=timestamp,
@@ -570,13 +570,13 @@ def _build_wp_iteration_decision(
         )
 
     prompt_file = _build_prompt_safe(
-        action, feature_dir, feature_slug, wp_id, agent, repo_root, mission_key,
+        action, mission_dir, mission_slug, wp_id, agent, repo_root, mission_key,
     )
 
     return Decision(
         kind=DecisionKind.step,
         agent=agent,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         mission=mission_key,
         mission_state=step_id,
         timestamp=timestamp,
@@ -595,10 +595,10 @@ def _build_wp_iteration_decision(
 def _map_runtime_decision(
     decision: NextDecision,
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     mission_key: str,
     repo_root: Path,
-    feature_dir: Path,
+    mission_dir: Path,
     timestamp: str,
     progress: dict | None,
     origin: dict,
@@ -611,7 +611,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.terminal,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state="done",
             timestamp=timestamp,
@@ -626,7 +626,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state=step_id or "unknown",
             timestamp=timestamp,
@@ -646,7 +646,7 @@ def _map_runtime_decision(
                     question=decision.question,
                     options=decision.options,
                     decision_id=decision.decision_id or "unknown",
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     agent=agent,
                 )
                 prompt_file = str(prompt_path)
@@ -656,7 +656,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.decision_required,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state=step_id or "unknown",
             timestamp=timestamp,
@@ -676,13 +676,13 @@ def _map_runtime_decision(
     if step_id and _is_wp_iteration_step(step_id):
         # WP step: map to implement/review action with WP selection
         action, wp_id, workspace_path = _state_to_action(
-            step_id, feature_slug, feature_dir, repo_root, mission_key,
+            step_id, mission_slug, mission_dir, repo_root, mission_key,
         )
         if action is None:
             return Decision(
                 kind=DecisionKind.blocked,
                 agent=agent,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 mission=mission_key,
                 mission_state=step_id,
                 timestamp=timestamp,
@@ -693,12 +693,12 @@ def _map_runtime_decision(
                 step_id=step_id,
             )
         prompt_file = _build_prompt_safe(
-            action, feature_dir, feature_slug, wp_id, agent, repo_root, mission_key,
+            action, mission_dir, mission_slug, wp_id, agent, repo_root, mission_key,
         )
         return Decision(
             kind=DecisionKind.step,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             mission=mission_key,
             mission_state=step_id,
             timestamp=timestamp,
@@ -714,17 +714,17 @@ def _map_runtime_decision(
 
     # Non-WP step: map step_id to action via template resolution
     action, wp_id, workspace_path = _state_to_action(
-        step_id or "unknown", feature_slug, feature_dir, repo_root, mission_key,
+        step_id or "unknown", mission_slug, mission_dir, repo_root, mission_key,
     )
     prompt_file = _build_prompt_safe(
-        action or step_id or "unknown", feature_dir, feature_slug,
+        action or step_id or "unknown", mission_dir, mission_slug,
         wp_id, agent, repo_root, mission_key,
     ) if action or step_id else None
 
     return Decision(
         kind=DecisionKind.step,
         agent=agent,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         mission=mission_key,
         mission_state=step_id or "unknown",
         timestamp=timestamp,

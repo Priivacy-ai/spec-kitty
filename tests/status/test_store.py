@@ -28,7 +28,7 @@ def _make_event(
     """Helper to build a minimal StatusEvent for testing."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug="034-feature-name",
+        mission_slug="034-mission-name",
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -99,7 +99,7 @@ def test_file_created_on_first_event(tmp_path: Path) -> None:
 
 def test_directory_created_on_first_event(tmp_path: Path) -> None:
     """Parent directories are created if they do not exist."""
-    nested = tmp_path / "deep" / "nested" / "feature"
+    nested = tmp_path / "deep" / "nested" / "mission"
     assert not nested.exists()
 
     append_event(nested, _make_event())

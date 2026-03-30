@@ -13,15 +13,15 @@ DEFAULT_PHASE_SOURCE = "built-in default (Phase 1: dual-write)"
 MAX_PHASE_01X = 2
 
 
-def resolve_phase(repo_root: Path, feature_slug: str) -> tuple[int, str]:
+def resolve_phase(repo_root: Path, mission_slug: str) -> tuple[int, str]:
     """Resolve active status phase. Precedence: meta.json > config.yaml > default.
 
     On 0.1x branch, caps at MAX_PHASE_01X. Returns (phase, source_description).
     """
-    meta_phase = _read_meta_phase(repo_root, feature_slug)
+    meta_phase = _read_meta_phase(repo_root, mission_slug)
     if meta_phase is not None:
         phase = meta_phase
-        source = f"meta.json override for {feature_slug}"
+        source = f"meta.json override for {mission_slug}"
     else:
         config_phase = _read_config_phase(repo_root)
         if config_phase is not None:
@@ -39,9 +39,9 @@ def resolve_phase(repo_root: Path, feature_slug: str) -> tuple[int, str]:
     return phase, source
 
 
-def _read_meta_phase(repo_root: Path, feature_slug: str) -> int | None:
-    """Read status_phase from feature meta.json. Returns None if not set or invalid."""
-    meta_path = repo_root / "kitty-specs" / feature_slug / "meta.json"
+def _read_meta_phase(repo_root: Path, mission_slug: str) -> int | None:
+    """Read status_phase from mission meta.json. Returns None if not set or invalid."""
+    meta_path = repo_root / "kitty-specs" / mission_slug / "meta.json"
     if not meta_path.exists():
         return None
     try:

@@ -65,7 +65,7 @@ class DependencyStatus:
             f"Multi-parent dependencies ({deps_str}) all done.\n"
             f"\n"
             f"RECOMMENDED: Merge dependencies to main first (avoids conflicts)\n"
-            f"  1. spec-kitty merge --feature <feature-slug>\n"
+            f"  1. spec-kitty merge --mission <mission-slug>\n"
             f"  2. spec-kitty implement {self.wp_id}\n"
             f"\n"
             f"ALTERNATIVE: Attempt auto-merge (may conflict)\n"
@@ -76,18 +76,18 @@ class DependencyStatus:
         )
 
 
-def check_dependency_status(feature_dir: Path, wp_id: str, dependencies: list[str]) -> DependencyStatus:
+def check_dependency_status(mission_dir: Path, wp_id: str, dependencies: list[str]) -> DependencyStatus:
     """Check status of a WP's dependencies.
 
     Args:
-        feature_dir: Path to feature directory (kitty-specs/###-feature/)
+        mission_dir: Path to mission directory (kitty-specs/###-mission/)
         wp_id: Work package ID to check (e.g., "WP04")
         dependencies: List of dependency WP IDs (e.g., ["WP01", "WP02", "WP03"])
 
     Returns:
         DependencyStatus with analysis and recommendation
     """
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     lanes = {}
 
     # Read lane status for each dependency
@@ -219,7 +219,7 @@ def get_merge_strategy_recommendation(status: DependencyStatus) -> dict[str, Any
     return {
         "strategy": "merge_first",
         "reason": f"Multi-parent dependencies ({', '.join(status.dependencies)}) all done",
-        "command": "spec-kitty merge --feature <feature-slug>",
+        "command": "spec-kitty merge --mission <mission-slug>",
         "warnings": [
             "Auto-merge may conflict on shared files (.gitignore, package.json)",
             "Merging dependencies to main first is safer",

@@ -41,7 +41,7 @@ def _shipped_directive_ids() -> set[str]:
 def _shipped_tactic_ids() -> set[str]:
     return {
         p.name.removesuffix(".tactic.yaml")
-        for p in TACTICS_DIR.glob("*.tactic.yaml")
+        for p in TACTICS_DIR.rglob("*.tactic.yaml")
         if p.is_file()
     }
 

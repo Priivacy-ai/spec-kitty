@@ -15,23 +15,23 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
-from specify_cli.core.feature_detection import (
-    detect_feature_slug,
-    FeatureDetectionError,
+from specify_cli.core.mission_detection import (
+    detect_mission_slug,
+    MissionDetectionError,
 )
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 console = Console()
 
 
-def show_kanban_status(feature_slug: str | None = None) -> dict:
-    """Display kanban status board for work packages in a feature.
+def show_kanban_status(mission_slug: str | None = None) -> dict:
+    """Display kanban status board for work packages in a mission.
 
     This function can be called directly by agents to get a beautiful
     status display without running a CLI command.
 
     Args:
-        feature_slug: Feature slug (e.g., "012-documentation-mission").
+        mission_slug: Mission slug (e.g., "012-documentation-mission").
                      If None, attempts to auto-detect from current directory.
 
     Returns:
@@ -49,25 +49,25 @@ def show_kanban_status(feature_slug: str | None = None) -> dict:
             console.print("[red]Error:[/red] Not in a spec-kitty project")
             return {"error": "Not in a spec-kitty project"}
 
-        # Auto-detect feature if not provided
-        if not feature_slug:
+        # Auto-detect mission if not provided
+        if not mission_slug:
             try:
-                feature_slug = detect_feature_slug(repo_root, cwd=cwd, mode="strict")
-            except FeatureDetectionError as e:
+                mission_slug = detect_mission_slug(repo_root, cwd=cwd, mode="strict")
+            except MissionDetectionError as e:
                 console.print(f"[red]Error:[/red] {e}")
                 return {"error": str(e)}
 
         # Get main repo root for correct path resolution
         main_repo_root = get_main_repo_root(repo_root)
 
-        # Locate feature directory
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        # Locate mission directory
+        mission_dir = main_repo_root / "kitty-specs" / mission_slug
 
-        if not feature_dir.exists():
-            console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
-            return {"error": f"Feature directory not found: {feature_dir}"}
+        if not mission_dir.exists():
+            console.print(f"[red]Error:[/red] Mission directory not found: {mission_dir}")
+            return {"error": f"Mission directory not found: {mission_dir}"}
 
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
 
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
@@ -135,13 +135,13 @@ def show_kanban_status(feature_slug: str | None = None) -> dict:
         parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
 
         # Display the status board
-        _display_status_board(feature_slug, work_packages, by_lane, total, done_count,
+        _display_status_board(mission_slug, work_packages, by_lane, total, done_count,
                             in_progress, planned_count, progress_pct, parallel_info)
 
         # Return structured data
         lane_counts = Counter(wp["lane"] for wp in work_packages)
         return {
-            "feature": feature_slug,
+            "mission_slug": mission_slug,
             "total_wps": total,
             "by_lane": dict(lane_counts),
             "work_packages": work_packages,
@@ -225,14 +225,14 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     }
 
 
-def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
+def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
                          total: int, done_count: int, in_progress: int,
                          planned_count: int, progress_pct: float, parallel_info: dict) -> None:
     """Display the rich-formatted status board."""
     # Create title panel
     title_text = Text()
     title_text.append("📊 Work Package Status: ", style="bold cyan")
-    title_text.append(feature_slug, style="bold white")
+    title_text.append(mission_slug, style="bold white")
 
     console.print()
     console.print(Panel(title_text, border_style="cyan"))

@@ -10,7 +10,7 @@ discover → audit → design → generate → validate → publish
 ```
 
 Supports three iteration modes: initial (from scratch), gap-filling (audit existing
-docs), and feature-specific (targeted documentation).
+docs), and mission-specific (targeted documentation).
 
 ## Contents
 

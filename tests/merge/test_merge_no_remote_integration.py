@@ -40,8 +40,8 @@ def test_execute_merge_skips_pull_without_remote(tmp_path):
     exclude_from_git_index(repo, [".worktrees/"])
 
     # Create worktree with changes
-    worktree = repo / ".worktrees" / "001-feature-WP01"
-    run_command(["git", "worktree", "add", str(worktree), "-b", "001-feature-WP01"], cwd=repo)
+    worktree = repo / ".worktrees" / "001-mission-WP01"
+    run_command(["git", "worktree", "add", str(worktree), "-b", "001-mission-WP01"], cwd=repo)
     (worktree / "test.txt").write_text("change")
     run_command(["git", "add", "."], cwd=worktree)
     run_command(["git", "commit", "-m", "Add test"], cwd=worktree)
@@ -56,11 +56,11 @@ def test_execute_merge_skips_pull_without_remote(tmp_path):
 
     # Run dry-run merge to verify pull is skipped
     tracker = StepTracker("Test Merge Dry Run")
-    wp_workspaces = [(worktree, "WP01", "001-feature-WP01")]
+    wp_workspaces = [(worktree, "WP01", "001-mission-WP01")]
     result = execute_merge(
         wp_workspaces=wp_workspaces,
-        feature_slug="001-feature",
-        feature_dir=None,
+        mission_slug="001-mission",
+        mission_dir=None,
         target_branch=default_branch,
         strategy="merge",
         repo_root=repo,
@@ -101,11 +101,11 @@ def test_execute_legacy_merge_succeeds_without_remote(tmp_path):
     run_command(["git", "add", ".gitignore"], cwd=repo)
     run_command(["git", "commit", "-m", "Initial"], cwd=repo)
 
-    # Create feature branch with changes
+    # Create mission branch with changes
     run_command(["git", "checkout", "-b", "feature-branch"], cwd=repo)
-    (repo / "test.txt").write_text("feature change")
+    (repo / "test.txt").write_text("mission change")
     run_command(["git", "add", "."], cwd=repo)
-    run_command(["git", "commit", "-m", "Add feature"], cwd=repo)
+    run_command(["git", "commit", "-m", "Add mission"], cwd=repo)
 
     # Change to repo directory before merge
     import os
@@ -120,7 +120,7 @@ def test_execute_legacy_merge_succeeds_without_remote(tmp_path):
             target_branch=default_branch,
             strategy="merge",
             merge_root=repo,
-            feature_worktree_path=repo,  # Not a real worktree in this test
+            mission_worktree_path=repo,  # Not a real worktree in this test
             tracker=tracker,
             push=False,
             remove_worktree=False,
@@ -159,8 +159,8 @@ def test_merge_dry_run_without_remote(tmp_path):
     exclude_from_git_index(repo, [".worktrees/"])
 
     # Create worktree with changes
-    worktree = repo / ".worktrees" / "001-feature-WP01"
-    run_command(["git", "worktree", "add", str(worktree), "-b", "001-feature-WP01"], cwd=repo)
+    worktree = repo / ".worktrees" / "001-mission-WP01"
+    run_command(["git", "worktree", "add", str(worktree), "-b", "001-mission-WP01"], cwd=repo)
     (worktree / "test.txt").write_text("change")
     run_command(["git", "add", "."], cwd=worktree)
     run_command(["git", "commit", "-m", "Add test"], cwd=worktree)
@@ -175,11 +175,11 @@ def test_merge_dry_run_without_remote(tmp_path):
 
     # Run dry run
     tracker = StepTracker("Test Dry Run")
-    wp_workspaces = [(worktree, "WP01", "001-feature-WP01")]
+    wp_workspaces = [(worktree, "WP01", "001-mission-WP01")]
     result = execute_merge(
         wp_workspaces=wp_workspaces,
-        feature_slug="001-feature",
-        feature_dir=None,
+        mission_slug="001-mission",
+        mission_dir=None,
         target_branch=default_branch,
         strategy="merge",
         repo_root=repo,
@@ -241,8 +241,8 @@ def test_execute_merge_skips_pull_with_untracked_branch(tmp_path):
     default_branch = default_branch.strip()
 
     # Create worktree with changes
-    worktree = repo / ".worktrees" / "001-feature-WP01"
-    run_command(["git", "worktree", "add", str(worktree), "-b", "001-feature-WP01"], cwd=repo)
+    worktree = repo / ".worktrees" / "001-mission-WP01"
+    run_command(["git", "worktree", "add", str(worktree), "-b", "001-mission-WP01"], cwd=repo)
     (worktree / "test.txt").write_text("change", encoding="utf-8")
     run_command(["git", "add", "."], cwd=worktree)
     run_command(["git", "commit", "-m", "Add test"], cwd=worktree)
@@ -258,11 +258,11 @@ def test_execute_merge_skips_pull_with_untracked_branch(tmp_path):
     # Run dry-run merge - should succeed despite no tracking
     # (Use dry run to focus on pull step validation, not full merge flow)
     tracker = StepTracker("Test Merge No Tracking")
-    wp_workspaces = [(worktree, "WP01", "001-feature-WP01")]
+    wp_workspaces = [(worktree, "WP01", "001-mission-WP01")]
     result = execute_merge(
         wp_workspaces=wp_workspaces,
-        feature_slug="001-feature",
-        feature_dir=None,
+        mission_slug="001-mission",
+        mission_dir=None,
         target_branch=default_branch,
         strategy="merge",
         repo_root=repo,

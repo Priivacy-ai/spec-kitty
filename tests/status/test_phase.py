@@ -26,11 +26,11 @@ pytestmark = pytest.mark.fast
 # ---------------------------------------------------------------------------
 
 
-def _write_meta_json(repo_root: Path, feature_slug: str, data: dict) -> Path:
-    """Write a meta.json for the given feature slug."""
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    feature_dir.mkdir(parents=True, exist_ok=True)
-    meta_path = feature_dir / "meta.json"
+def _write_meta_json(repo_root: Path, mission_slug: str, data: dict) -> Path:
+    """Write a meta.json for the given mission slug."""
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    mission_dir.mkdir(parents=True, exist_ok=True)
+    meta_path = mission_dir / "meta.json"
     meta_path.write_text(json.dumps(data), encoding="utf-8")
     return meta_path
 
@@ -63,7 +63,7 @@ class TestResolvePhase:
 
     def test_default_phase_when_no_config(self, _mock_branch, tmp_path: Path):
         """No meta.json, no config.yaml -> returns built-in default (Phase 1)."""
-        phase, source = resolve_phase(tmp_path, "some-feature")
+        phase, source = resolve_phase(tmp_path, "some-mission")
         assert phase == DEFAULT_PHASE
         assert phase == 1
         assert source == DEFAULT_PHASE_SOURCE
@@ -71,71 +71,71 @@ class TestResolvePhase:
     def test_config_yaml_overrides_default(self, _mock_branch, tmp_path: Path):
         """config.yaml has phase 0 -> overrides built-in default."""
         _write_config_yaml(tmp_path, "status:\n  phase: 0\n")
-        phase, source = resolve_phase(tmp_path, "some-feature")
+        phase, source = resolve_phase(tmp_path, "some-mission")
         assert phase == 0
         assert "config.yaml" in source
 
     def test_meta_json_overrides_config_yaml(self, _mock_branch, tmp_path: Path):
         """meta.json phase 2 overrides config.yaml phase 1."""
         _write_config_yaml(tmp_path, "status:\n  phase: 1\n")
-        _write_meta_json(tmp_path, "my-feature", {"status_phase": 2})
-        phase, source = resolve_phase(tmp_path, "my-feature")
+        _write_meta_json(tmp_path, "my-mission", {"status_phase": 2})
+        phase, source = resolve_phase(tmp_path, "my-mission")
         assert phase == 2
         assert "meta.json" in source
-        assert "my-feature" in source
+        assert "my-mission" in source
 
     def test_meta_json_overrides_default(self, _mock_branch, tmp_path: Path):
         """meta.json phase 0, no config.yaml -> meta.json wins."""
-        _write_meta_json(tmp_path, "my-feature", {"status_phase": 0})
-        phase, source = resolve_phase(tmp_path, "my-feature")
+        _write_meta_json(tmp_path, "my-mission", {"status_phase": 0})
+        phase, source = resolve_phase(tmp_path, "my-mission")
         assert phase == 0
         assert "meta.json" in source
 
     def test_invalid_meta_json_phase_ignored(self, _mock_branch, tmp_path: Path):
         """meta.json has phase 99 (invalid) -> falls through to config/default."""
-        _write_meta_json(tmp_path, "my-feature", {"status_phase": 99})
+        _write_meta_json(tmp_path, "my-mission", {"status_phase": 99})
         _write_config_yaml(tmp_path, "status:\n  phase: 0\n")
-        phase, source = resolve_phase(tmp_path, "my-feature")
+        phase, source = resolve_phase(tmp_path, "my-mission")
         assert phase == 0
         assert "config.yaml" in source
 
     def test_invalid_config_phase_ignored(self, _mock_branch, tmp_path: Path):
         """config.yaml has phase -1 (invalid) -> falls through to default."""
         _write_config_yaml(tmp_path, "status:\n  phase: -1\n")
-        phase, source = resolve_phase(tmp_path, "my-feature")
+        phase, source = resolve_phase(tmp_path, "my-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
     def test_non_integer_phase_ignored(self, _mock_branch, tmp_path: Path):
         """meta.json has non-integer phase ("two") -> falls through."""
-        _write_meta_json(tmp_path, "my-feature", {"status_phase": "two"})
-        phase, source = resolve_phase(tmp_path, "my-feature")
+        _write_meta_json(tmp_path, "my-mission", {"status_phase": "two"})
+        phase, source = resolve_phase(tmp_path, "my-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
     def test_missing_meta_json_file(self, _mock_branch, tmp_path: Path):
         """No meta.json file at all -> gracefully returns None, falls to default."""
-        phase, source = resolve_phase(tmp_path, "nonexistent-feature")
+        phase, source = resolve_phase(tmp_path, "nonexistent-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
     def test_missing_config_yaml_file(self, _mock_branch, tmp_path: Path):
         """No config.yaml -> gracefully skips, falls to default."""
-        phase, source = resolve_phase(tmp_path, "some-feature")
+        phase, source = resolve_phase(tmp_path, "some-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
     def test_config_yaml_no_status_section(self, _mock_branch, tmp_path: Path):
         """config.yaml exists but has no 'status' key -> returns default."""
         _write_config_yaml(tmp_path, "agents:\n  available:\n    - claude\n")
-        phase, source = resolve_phase(tmp_path, "some-feature")
+        phase, source = resolve_phase(tmp_path, "some-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
     def test_config_yaml_status_not_dict(self, _mock_branch, tmp_path: Path):
         """config.yaml has status: 'some string' (not a dict) -> treated as not set."""
         _write_config_yaml(tmp_path, "status: active\n")
-        phase, source = resolve_phase(tmp_path, "some-feature")
+        phase, source = resolve_phase(tmp_path, "some-mission")
         assert phase == DEFAULT_PHASE
         assert source == DEFAULT_PHASE_SOURCE
 
@@ -191,9 +191,9 @@ class TestIs01xBranch:
         assert is_01x_branch(tmp_path) is False
 
     @patch("specify_cli.status.phase.subprocess.run")
-    def test_is_01x_branch_feature(self, mock_run, tmp_path: Path):
-        """'034-feature-name' branch is NOT 0.1x -> False."""
-        mock_run.return_value = _mock_branch("034-feature-name")
+    def test_is_01x_branch_mission(self, mock_run, tmp_path: Path):
+        """'034-mission-name' branch is NOT 0.1x -> False."""
+        mock_run.return_value = _mock_branch("034-mission-name")
         assert is_01x_branch(tmp_path) is False
 
     @patch("specify_cli.status.phase.subprocess.run")
@@ -234,9 +234,9 @@ class TestReadMetaPhase:
 
     def test_malformed_json(self, tmp_path: Path):
         """Malformed JSON -> returns None (logs warning)."""
-        feature_dir = tmp_path / "kitty-specs" / "bad-json"
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
+        mission_dir = tmp_path / "kitty-specs" / "bad-json"
+        mission_dir.mkdir(parents=True)
+        (mission_dir / "meta.json").write_text("{not valid json", encoding="utf-8")
         assert _read_meta_phase(tmp_path, "bad-json") is None
 
     def test_status_phase_missing_key(self, tmp_path: Path):

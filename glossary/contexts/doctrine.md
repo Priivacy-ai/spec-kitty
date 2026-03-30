@@ -67,6 +67,20 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 ---
 
+### Failure Mode
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | A documented way in which a tactic can be misapplied or produce unintended results. Failure modes are anti-patterns specific to a tactic's domain — they describe what goes wrong when a step is skipped, over-applied, or applied in the wrong context. Listed in the `failure_modes` field on tactic YAML artifacts. |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `2.x` |
+| **Fields**        | Array of strings on tactic artifacts (`failure_modes: [...]`) |
+| **Location**      | `failure_modes` field on tactic YAML artifacts in `src/doctrine/tactics/` |
+| **Related terms** | [Tactic](#tactic), [Contradiction](#contradiction), [Schema (Doctrine Artifact)](#schema-doctrine-artifact) |
+
+---
+
 ### Procedure
 
 |                   |                                                                                                                                                                                                                                         |

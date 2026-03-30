@@ -60,13 +60,13 @@ def _write_wp(
     return wp_file
 
 
-def _write_live_event(feature_dir: Path, wp_id: str = "WP01") -> None:
+def _write_live_event(mission_dir: Path, wp_id: str = "WP01") -> None:
     """Write a StatusEvent with a non-migration actor (live data)."""
     from specify_cli.status.models import Lane, StatusEvent
 
     event = StatusEvent(
         event_id="01TEST00000000000000000000",
-        feature_slug=feature_dir.name,
+        mission_slug=mission_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane.DONE,
@@ -76,7 +76,7 @@ def _write_live_event(feature_dir: Path, wp_id: str = "WP01") -> None:
         execution_mode="worktree",
         reason="live transition",
     )
-    events_file = feature_dir / "status.events.jsonl"
+    events_file = mission_dir / "status.events.jsonl"
     events_file.write_text(
         json.dumps(event.to_dict(), sort_keys=True) + "\n",
         encoding="utf-8",
@@ -84,14 +84,14 @@ def _write_live_event(feature_dir: Path, wp_id: str = "WP01") -> None:
 
 
 def _write_migration_only_event(
-    feature_dir: Path, wp_id: str = "WP01"
+    mission_dir: Path, wp_id: str = "WP01"
 ) -> None:
     """Write a StatusEvent with a migration actor (legacy bootstrap)."""
     from specify_cli.status.models import Lane, StatusEvent
 
     event = StatusEvent(
         event_id="01MIGR00000000000000000000",
-        feature_slug=feature_dir.name,
+        mission_slug=mission_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane.DONE,
@@ -101,20 +101,20 @@ def _write_migration_only_event(
         execution_mode="worktree",
         reason=None,
     )
-    events_file = feature_dir / "status.events.jsonl"
+    events_file = mission_dir / "status.events.jsonl"
     events_file.write_text(
         json.dumps(event.to_dict(), sort_keys=True) + "\n",
         encoding="utf-8",
     )
 
 
-def _write_marker_event(feature_dir: Path, wp_id: str = "WP01") -> None:
+def _write_marker_event(mission_dir: Path, wp_id: str = "WP01") -> None:
     """Write a StatusEvent with the full-history migration marker."""
     from specify_cli.status.models import Lane, StatusEvent
 
     event = StatusEvent(
         event_id="01MARK00000000000000000000",
-        feature_slug=feature_dir.name,
+        mission_slug=mission_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane.DONE,
@@ -124,7 +124,7 @@ def _write_marker_event(feature_dir: Path, wp_id: str = "WP01") -> None:
         execution_mode="worktree",
         reason="historical_frontmatter_to_jsonl:v1",
     )
-    events_file = feature_dir / "status.events.jsonl"
+    events_file = mission_dir / "status.events.jsonl"
     events_file.write_text(
         json.dumps(event.to_dict(), sort_keys=True) + "\n",
         encoding="utf-8",
@@ -137,10 +137,10 @@ def _write_marker_event(feature_dir: Path, wp_id: str = "WP01") -> None:
 class TestDetect:
     """Tests for HistoricalStatusMigration.detect()."""
 
-    def test_unmigrated_features_detected(self, tmp_path: Path) -> None:
-        """detect() returns True when features have WPs but no events."""
-        feature_dir = tmp_path / "kitty-specs" / "900-test"
-        tasks_dir = feature_dir / "tasks"
+    def test_unmigrated_missions_detected(self, tmp_path: Path) -> None:
+        """detect() returns True when missions have WPs but no events."""
+        mission_dir = tmp_path / "kitty-specs" / "900-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
 
@@ -149,8 +149,8 @@ class TestDetect:
 
     def test_all_planned_without_events_not_detected(self, tmp_path: Path) -> None:
         """detect() returns False when all WPs are still planned."""
-        feature_dir = tmp_path / "kitty-specs" / "900a-planned"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "900a-planned"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "planned")
         _write_wp(tasks_dir, "WP02", "planned")
@@ -160,11 +160,11 @@ class TestDetect:
 
     def test_empty_events_file_detected(self, tmp_path: Path) -> None:
         """detect() returns True when events file exists but is empty."""
-        feature_dir = tmp_path / "kitty-specs" / "901-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "901-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
-        (feature_dir / "status.events.jsonl").write_text("")
+        (mission_dir / "status.events.jsonl").write_text("")
 
         migration = HistoricalStatusMigration()
         assert migration.detect(tmp_path) is True
@@ -172,33 +172,33 @@ class TestDetect:
     def test_migration_only_events_detected(self, tmp_path: Path) -> None:
         """detect() returns True when all events are from migration actor
         but lack the full-history marker."""
-        feature_dir = tmp_path / "kitty-specs" / "902-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "902-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
-        _write_migration_only_event(feature_dir)
+        _write_migration_only_event(mission_dir)
 
         migration = HistoricalStatusMigration()
         assert migration.detect(tmp_path) is True
 
     def test_all_migrated_not_detected(self, tmp_path: Path) -> None:
-        """detect() returns False when all features have live events."""
-        feature_dir = tmp_path / "kitty-specs" / "903-test"
-        tasks_dir = feature_dir / "tasks"
+        """detect() returns False when all missions have live events."""
+        mission_dir = tmp_path / "kitty-specs" / "903-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
-        _write_live_event(feature_dir)
+        _write_live_event(mission_dir)
 
         migration = HistoricalStatusMigration()
         assert migration.detect(tmp_path) is False
 
     def test_marker_events_not_detected(self, tmp_path: Path) -> None:
         """detect() returns False when events have the full-history marker."""
-        feature_dir = tmp_path / "kitty-specs" / "904-test"
-        tasks_dir = feature_dir / "tasks"
+        mission_dir = tmp_path / "kitty-specs" / "904-test"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
-        _write_marker_event(feature_dir)
+        _write_marker_event(mission_dir)
 
         migration = HistoricalStatusMigration()
         assert migration.detect(tmp_path) is False
@@ -209,7 +209,7 @@ class TestDetect:
         assert migration.detect(tmp_path) is False
 
     def test_no_wp_files_not_detected(self, tmp_path: Path) -> None:
-        """detect() returns False when features have no WP files."""
+        """detect() returns False when missions have no WP files."""
         tasks_dir = tmp_path / "kitty-specs" / "905-test" / "tasks"
         tasks_dir.mkdir(parents=True)
         # Empty tasks dir, no WP files
@@ -218,9 +218,9 @@ class TestDetect:
         assert migration.detect(tmp_path) is False
 
     def test_no_tasks_dir_not_detected(self, tmp_path: Path) -> None:
-        """detect() returns False when feature dir has no tasks/ subdir."""
-        feature_dir = tmp_path / "kitty-specs" / "906-test"
-        feature_dir.mkdir(parents=True)
+        """detect() returns False when mission dir has no tasks/ subdir."""
+        mission_dir = tmp_path / "kitty-specs" / "906-test"
+        mission_dir.mkdir(parents=True)
         # No tasks dir at all
 
         migration = HistoricalStatusMigration()
@@ -255,10 +255,10 @@ class TestCanApply:
 class TestApply:
     """Tests for HistoricalStatusMigration.apply()."""
 
-    def test_apply_migrates_single_feature(self, tmp_path: Path) -> None:
-        """apply() migrates a feature with WPs and creates events."""
-        feature_dir = tmp_path / "kitty-specs" / "910-single"
-        tasks_dir = feature_dir / "tasks"
+    def test_apply_migrates_single_mission(self, tmp_path: Path) -> None:
+        """apply() migrates a mission with WPs and creates events."""
+        mission_dir = tmp_path / "kitty-specs" / "910-single"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done", history=[
             {"timestamp": "2026-01-01T10:00:00Z", "lane": "planned", "agent": "system"},
@@ -272,11 +272,11 @@ class TestApply:
         assert len(result.changes_made) == 1
         assert "910-single" in result.changes_made[0]
 
-        events_file = feature_dir / "status.events.jsonl"
+        events_file = mission_dir / "status.events.jsonl"
         assert events_file.exists()
 
-    def test_apply_migrates_multiple_features(self, tmp_path: Path) -> None:
-        """apply() processes all features and reports per-feature results."""
+    def test_apply_migrates_multiple_missions(self, tmp_path: Path) -> None:
+        """apply() processes all missions and reports per-mission results."""
         for slug in ["911-a", "912-b"]:
             tasks_dir = tmp_path / "kitty-specs" / slug / "tasks"
             tasks_dir.mkdir(parents=True)
@@ -292,12 +292,12 @@ class TestApply:
             events_file = tmp_path / "kitty-specs" / slug / "status.events.jsonl"
             assert events_file.exists()
 
-    def test_apply_skips_feature_without_tasks(self, tmp_path: Path) -> None:
-        """apply() skips features that have no tasks/ directory."""
-        # Feature A: no tasks dir
+    def test_apply_skips_mission_without_tasks(self, tmp_path: Path) -> None:
+        """apply() skips missions that have no tasks/ directory."""
+        # Mission A: no tasks dir
         (tmp_path / "kitty-specs" / "920-no-tasks").mkdir(parents=True)
 
-        # Feature B: valid
+        # Mission B: valid
         tasks_dir = tmp_path / "kitty-specs" / "921-valid" / "tasks"
         tasks_dir.mkdir(parents=True)
         _write_wp(tasks_dir, "WP01", "done")
@@ -309,15 +309,15 @@ class TestApply:
         assert len(result.changes_made) == 1
         assert "921-valid" in result.changes_made[0]
 
-    def test_apply_handles_feature_failure(self, tmp_path: Path) -> None:
-        """apply() captures errors from individual features without aborting."""
-        # Feature A: has tasks dir with WP but will fail due to invalid content
+    def test_apply_handles_mission_failure(self, tmp_path: Path) -> None:
+        """apply() captures errors from individual missions without aborting."""
+        # Mission A: has tasks dir with WP but will fail due to invalid content
         tasks_dir_a = tmp_path / "kitty-specs" / "930-bad" / "tasks"
         tasks_dir_a.mkdir(parents=True)
         # Write an invalid WP file (no proper frontmatter)
         (tasks_dir_a / "WP01-bad.md").write_text("not valid frontmatter\n")
 
-        # Feature B: valid
+        # Mission B: valid
         tasks_dir_b = tmp_path / "kitty-specs" / "931-good" / "tasks"
         tasks_dir_b.mkdir(parents=True)
         _write_wp(tasks_dir_b, "WP01", "done")
@@ -325,7 +325,7 @@ class TestApply:
         migration = HistoricalStatusMigration()
         result = migration.apply(tmp_path)
 
-        # Feature B should still be processed regardless of A's failure
+        # Mission B should still be processed regardless of A's failure
         good_changes = [c for c in result.changes_made if "931-good" in c]
         assert len(good_changes) == 1
 
@@ -414,8 +414,8 @@ class TestCrossBranchIdempotency:
 
         from specify_cli.status.store import read_events
 
-        feature_dir = tmp_path / "kitty-specs" / "950-cross"
-        events_after_first = read_events(feature_dir)
+        mission_dir = tmp_path / "kitty-specs" / "950-cross"
+        events_after_first = read_events(mission_dir)
         count_after_first = len(events_after_first)
         assert count_after_first > 0
 
@@ -423,7 +423,7 @@ class TestCrossBranchIdempotency:
         result2 = migration.apply(tmp_path)
         assert result2.success is True
 
-        events_after_second = read_events(feature_dir)
+        events_after_second = read_events(mission_dir)
         count_after_second = len(events_after_second)
 
         # Zero additional events

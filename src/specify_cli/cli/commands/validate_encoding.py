@@ -8,28 +8,25 @@ import typer
 from rich.panel import Panel
 from rich.table import Table
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
-from specify_cli.acceptance import AcceptanceError, detect_feature_slug
+from specify_cli.acceptance import AcceptanceError, detect_mission_slug
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
-from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
+from specify_cli.core.project_resolver import resolve_worktree_aware_mission_dir
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.text_sanitization import detect_problematic_characters, sanitize_directory
 
 
 def validate_encoding(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug to validate (auto-detected when omitted)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
-    check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
+    check_all: bool = typer.Option(False, "--all", help="Check all missions, not just one"),
     backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),
 ) -> None:
-    """Validate and optionally fix file encoding in feature artifacts.
+    """Validate and optionally fix file encoding in mission artifacts.
 
     Scans markdown files for Windows-1252 smart quotes and other problematic
     characters that cause UTF-8 encoding errors. Can automatically fix issues
     by replacing problematic characters with safe alternatives.
     """
-    feature = resolve_mission_or_feature(mission, feature)
     try:
         repo_root = find_repo_root()
     except TaskCliError as exc:
@@ -40,25 +37,25 @@ def validate_encoding(
     check_version_compatibility(project_root, "validate-encoding")
 
     if check_all:
-        # Validate all features
+        # Validate all missions
         kitty_specs = repo_root / "kitty-specs"
         if not kitty_specs.exists():
             console.print("[yellow]No kitty-specs directory found.[/yellow]")
             raise typer.Exit(0)
 
-        feature_dirs = [d for d in kitty_specs.iterdir() if d.is_dir()]
-        if not feature_dirs:
-            console.print("[yellow]No feature directories found.[/yellow]")
+        mission_dirs = [d for d in kitty_specs.iterdir() if d.is_dir()]
+        if not mission_dirs:
+            console.print("[yellow]No mission directories found.[/yellow]")
             raise typer.Exit(0)
 
-        console.print(f"[cyan]Checking encoding for {len(feature_dirs)} features...[/cyan]")
+        console.print(f"[cyan]Checking encoding for {len(mission_dirs)} missions...[/cyan]")
         console.print()
 
         total_issues = 0
         total_fixed = 0
 
-        for feature_dir in sorted(feature_dirs):
-            issues, fixed = _validate_feature_dir(feature_dir, fix=fix, backup=backup)
+        for mission_dir in sorted(mission_dirs):
+            issues, fixed = _validate_mission_dir(mission_dir, fix=fix, backup=backup)
             total_issues += issues
             total_fixed += fixed
 
@@ -75,23 +72,23 @@ def validate_encoding(
 
         raise typer.Exit(0 if total_issues == 0 or fix else 1)
 
-    # Validate single feature
+    # Validate single mission
     try:
-        feature_slug = (feature or detect_feature_slug(repo_root, cwd=Path.cwd())).strip()
+        mission_slug = (mission or detect_mission_slug(repo_root, cwd=Path.cwd())).strip()
     except AcceptanceError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
+    mission_dir = resolve_worktree_aware_mission_dir(repo_root, mission_slug, Path.cwd(), console)
 
-    if not feature_dir.exists():
-        console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
+    if not mission_dir.exists():
+        console.print(f"[red]Error:[/red] Mission directory not found: {mission_dir}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Validating encoding for feature:[/cyan] {feature_slug}")
+    console.print(f"[cyan]Validating encoding for mission:[/cyan] {mission_slug}")
     console.print()
 
-    issues, fixed = _validate_feature_dir(feature_dir, fix=fix, backup=backup)
+    issues, fixed = _validate_mission_dir(mission_dir, fix=fix, backup=backup)
 
     if issues == 0:
         console.print("[green]✓ All files are properly UTF-8 encoded![/green]")
@@ -109,16 +106,16 @@ def validate_encoding(
         raise typer.Exit(1)
 
 
-def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tuple[int, int]:  # noqa: C901
-    """Validate encoding for a single feature directory.
+def _validate_mission_dir(mission_dir: Path, *, fix: bool, backup: bool) -> tuple[int, int]:  # noqa: C901
+    """Validate encoding for a single mission directory.
 
     Returns:
         Tuple of (issues_found, files_fixed)
     """
-    console.print(f"[cyan]Checking:[/cyan] {feature_dir.name}")
+    console.print(f"[cyan]Checking:[/cyan] {mission_dir.name}")
 
     # Scan all markdown files
-    results = sanitize_directory(feature_dir, pattern="**/*.md", backup=backup, dry_run=not fix)
+    results = sanitize_directory(mission_dir, pattern="**/*.md", backup=backup, dry_run=not fix)
 
     files_with_issues = []
     files_fixed = []
@@ -126,7 +123,7 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
 
     for file_path_str, (was_modified, error) in results.items():
         file_path = Path(file_path_str)
-        relative_path = file_path.relative_to(feature_dir) if file_path.is_relative_to(feature_dir) else file_path
+        relative_path = file_path.relative_to(mission_dir) if file_path.is_relative_to(mission_dir) else file_path
 
         if error:
             file_errors.append((relative_path, error))
@@ -137,7 +134,7 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
 
     # Display results
     if files_with_issues:
-        table = Table(title=f"Files with Encoding Issues: {feature_dir.name}", show_header=True)
+        table = Table(title=f"Files with Encoding Issues: {mission_dir.name}", show_header=True)
         table.add_column("File", style="cyan")
         table.add_column("Status", style="yellow")
 
@@ -149,7 +146,7 @@ def _validate_feature_dir(feature_dir: Path, *, fix: bool, backup: bool) -> tupl
 
         # Show detailed character issues for first file
         if files_with_issues and not fix:
-            first_file = feature_dir / files_with_issues[0]
+            first_file = mission_dir / files_with_issues[0]
             try:
                 # Read with fallback encoding
                 try:

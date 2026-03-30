@@ -18,8 +18,8 @@
 
 ```bash
 spec-kitty orchestrator-api contract-version
-spec-kitty orchestrator-api feature-state --feature 034-my-feature
-spec-kitty orchestrator-api list-ready --feature 034-my-feature
+spec-kitty orchestrator-api mission-state --mission 034-my-feature
+spec-kitty orchestrator-api list-ready --mission 034-my-feature
 ```
 
 ## Reference provider
@@ -27,8 +27,8 @@ spec-kitty orchestrator-api list-ready --feature 034-my-feature
 Use `spec-kitty-orchestrator` for turnkey automation:
 
 ```bash
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
 ## Custom provider guidance

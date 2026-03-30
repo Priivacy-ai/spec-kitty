@@ -13,9 +13,9 @@ classification:
 adaptation:
   summary: "Enforce planning commands to run in planning repo and commit artifacts to the feature target branch."
   notes:
-    - "Specify/plan/tasks run in planning repository, not in feature worktrees."
+    - "Specify/plan/tasks run in planning repository, not in mission worktrees."
     - "Generated planning artifacts are committed to `meta.json -> target_branch`."
-    - "Location checks must guard against running planning commands from feature branches/worktrees."
+    - "Location checks must guard against running planning commands from mission branches/worktrees."
     - "Finalize tasks must run to parse dependencies and commit task artifacts to target branch."
 source_references:
   - kind: "local"

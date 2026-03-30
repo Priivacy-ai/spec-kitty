@@ -1,7 +1,7 @@
 """Dependency graph utilities for work package relationships.
 
 This module provides functions for parsing, validating, and analyzing
-dependency relationships between work packages in Spec Kitty features.
+dependency relationships between work packages in Spec Kitty missions.
 """
 
 from __future__ import annotations
@@ -47,14 +47,14 @@ def parse_wp_dependencies(wp_file: Path) -> list[str]:
         return []
 
 
-def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
-    """Build dependency graph from all WPs in feature.
+def build_dependency_graph(mission_dir: Path) -> dict[str, list[str]]:
+    """Build dependency graph from all WPs in mission.
 
     Scans tasks/ directory for WP files and parses their dependencies.
     Validates that filename WP ID matches frontmatter work_package_id.
 
     Args:
-        feature_dir: Path to feature directory (contains tasks/ subdirectory)
+        mission_dir: Path to mission directory (contains tasks/ subdirectory)
                     OR path to tasks directory directly
 
     Returns:
@@ -62,14 +62,14 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
         Example: {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"]}
 
     Examples:
-        >>> feature_dir = Path("kitty-specs/010-feature")
-        >>> graph = build_dependency_graph(feature_dir)
+        >>> mission_dir = Path("kitty-specs/010-mission")
+        >>> graph = build_dependency_graph(mission_dir)
         >>> print(graph)  # {"WP01": [], "WP02": ["WP01"]}
     """
     graph: dict[str, list[str]] = {}
 
-    # Support both feature_dir and tasks_dir as input
-    tasks_dir = feature_dir if feature_dir.name == "tasks" else feature_dir / "tasks"
+    # Support both mission_dir and tasks_dir as input
+    tasks_dir = mission_dir if mission_dir.name == "tasks" else mission_dir / "tasks"
 
     if not tasks_dir.exists():
         return graph

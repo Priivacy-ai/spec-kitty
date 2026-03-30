@@ -81,6 +81,21 @@ properties:
         items:
           type: string
         description: Directive IDs this agent references
+      tactics:
+        type: array
+        items:
+          type: string
+        description: Tactic IDs this agent references
+      toolguides:
+        type: array
+        items:
+          type: string
+        description: Toolguide IDs this agent references
+      styleguides:
+        type: array
+        items:
+          type: string
+        description: Styleguide IDs this agent references
       additional:
         type: array
         items:
@@ -232,3 +247,87 @@ properties:
           type: string
           minLength: 1
           description: Why this directive is referenced
+
+  # ========== Tactic References ==========
+  tactic-references:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - rationale
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Tactic ID
+        rationale:
+          type: string
+          minLength: 1
+          description: Why this tactic is referenced
+
+  # ========== Toolguide References ==========
+  toolguide-references:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - rationale
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Toolguide ID
+        rationale:
+          type: string
+          minLength: 1
+          description: Why this toolguide is referenced
+
+  # ========== Styleguide References ==========
+  styleguide-references:
+    type: array
+    items:
+      type: object
+      additionalProperties: false
+      required:
+        - id
+        - rationale
+      properties:
+        id:
+          type: string
+          minLength: 1
+          description: Styleguide ID
+        rationale:
+          type: string
+          minLength: 1
+          description: Why this styleguide is referenced
+
+  # ========== Self-Review Protocol ==========
+  self-review-protocol:
+    type: object
+    additionalProperties: false
+    properties:
+      steps:
+        type: array
+        items:
+          type: object
+          additionalProperties: false
+          required:
+            - name
+            - gate
+          properties:
+            name:
+              type: string
+              minLength: 1
+              description: Step name
+            command:
+              type: string
+              description: Command to run for this step
+            gate:
+              type: string
+              minLength: 1
+              description: Pass/fail criteria for this step
+    description: Self-review checklist the agent runs before handing off work

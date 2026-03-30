@@ -152,16 +152,16 @@ def test_subprocess_inherits_isolation(run_cli, test_project):
     processes, maintaining isolation throughout the call chain.
     """
     # Run a command that triggers version checking
-    # 'mission list' should check version unless it's a skip command
-    result = run_cli(test_project, "mission", "list")
+    # 'mission-type list' should check version unless it's a skip command
+    result = run_cli(test_project, "mission-type", "list")
 
     # Should not fail with version mismatch error
     assert "Version Mismatch" not in result.stdout
     assert "Version Mismatch" not in result.stderr
 
-    # Should succeed (missions should be available in test_project)
+    # Should succeed (mission types should be available in test_project)
     assert result.returncode == 0, (
-        f"mission list failed: {result.stderr}"
+        f"mission-type list failed: {result.stderr}"
     )
 
 def test_isolated_env_has_required_variables(isolated_env):

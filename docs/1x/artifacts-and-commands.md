@@ -2,7 +2,7 @@
 
 ## Feature Artifacts
 
-For each feature directory under `kitty-specs/`, the minimum artifact set is:
+For each mission directory under `kitty-specs/`, the minimum artifact set is:
 
 1. `spec.md`
 2. `plan.md`

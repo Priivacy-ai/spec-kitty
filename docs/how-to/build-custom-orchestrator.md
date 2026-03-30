@@ -13,7 +13,7 @@ Your orchestrator must:
 
 - Call only `spec-kitty orchestrator-api ...` subcommands for workflow state (output is always JSON).
 - Treat `spec-kitty` as source of truth for lane state and dependencies.
-- Never write `kitty-specs/<feature>/tasks/*.md` lanes directly.
+- Never write `kitty-specs/<mission>/tasks/*.md` lanes directly.
 
 ## Required Flow
 
@@ -31,13 +31,13 @@ spec-kitty orchestrator-api contract-version```
 ### 2. Discover work
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug>spec-kitty orchestrator-api list-ready --feature <slug>```
+spec-kitty orchestrator-api mission-state --mission <slug>spec-kitty orchestrator-api list-ready --mission <slug>```
 
 ### 3. Start implementation
 
 ```bash
 spec-kitty orchestrator-api start-implementation \
-  --feature <slug> \
+  --mission <slug> \
   --wp WP01 \
   --actor my-orchestrator \
   --policy '<json>' \
@@ -50,21 +50,21 @@ Use returned `workspace_path` and `prompt_path` to run your agent process.
 ```bash
 # implementation complete
 spec-kitty orchestrator-api transition \
-  --feature <slug> --wp WP01 --to for_review \
+  --mission <slug> --wp WP01 --to for_review \
   --actor my-orchestrator --policy '<json>'
 # review approved
 spec-kitty orchestrator-api transition \
-  --feature <slug> --wp WP01 --to done \
+  --mission <slug> --wp WP01 --to done \
   --actor reviewer-bot
 # review rejected -> rework
 spec-kitty orchestrator-api start-review \
-  --feature <slug> --wp WP01 --actor my-orchestrator \
+  --mission <slug> --wp WP01 --actor my-orchestrator \
   --policy '<json>' --review-ref review/WP01/attempt-2```
 
 ### 5. Finalize
 
 ```bash
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestratorspec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge```
+spec-kitty orchestrator-api accept-mission --mission <slug> --actor my-orchestratorspec-kitty orchestrator-api merge-mission --mission <slug> --target main --strategy merge```
 
 ## Policy JSON Template
 
@@ -107,8 +107,8 @@ while true:
     run reviewer
     if approved: transition(wp, done)
     else: start-review(wp, review_ref)
-accept-feature(feature)
-merge-feature(feature)
+accept-mission(feature)
+merge-mission(feature)
 ```
 
 ## Reference Implementation

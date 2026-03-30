@@ -76,4 +76,4 @@ steps:
     title: Acceptance
     depends_on: [review]
     prompt_template: accept.md
-    description: Validate feature completeness
+    description: Validate mission completeness

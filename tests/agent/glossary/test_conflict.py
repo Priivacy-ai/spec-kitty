@@ -136,7 +136,7 @@ def test_classify_conflict_inconsistent(
     assert conflict_type is None
 
     # With LLM output but no contradiction (conservative heuristic), should be None
-    llm_output = "The workspace is a git worktree directory used for feature development."
+    llm_output = "The workspace is a git worktree directory used for mission development."
     conflict_type = classify_conflict(sample_term, single_sense, llm_output_text=llm_output)
     assert conflict_type is None  # Conservative: heuristic returns False for now
 

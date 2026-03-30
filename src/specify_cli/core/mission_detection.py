@@ -1,25 +1,25 @@
 """
-Centralized feature detection for spec-kitty.
+Centralized mission detection for spec-kitty.
 
-This module provides a single source of truth for detecting feature context
+This module provides a single source of truth for detecting mission context
 across all CLI commands and agent workflows. It replaces multiple scattered
 implementations with a unified, deterministic, and well-tested approach.
 
 Design principles:
 - Deterministic by default (no "highest numbered" guessing)
-- Explicit when ambiguous (error message guides user to --feature flag)
+- Explicit when ambiguous (error message guides user to --mission flag)
 - Flexible modes (strict raises errors, lenient returns None)
-- Consistent types (FeatureContext dataclass for rich results)
+- Consistent types (MissionContext dataclass for rich results)
 - Well-tested (comprehensive test coverage for all scenarios)
 
 Priority order:
-1. Explicit --feature parameter (highest priority)
-2. SPECIFY_FEATURE environment variable
+1. Explicit --mission parameter (highest priority)
+2. SPECIFY_MISSION environment variable
 3. Git branch name (strips -WP## suffix for worktree branches)
-4. Current directory path (walk up looking for ###-feature-name)
-5. Single feature auto-detect (only if exactly one feature exists)
-6. Optional fallback to latest incomplete feature (opt-in only)
-7. Error with clear guidance (if all features complete or ambiguous)
+4. Current directory path (walk up looking for ###-mission-name)
+5. Single mission auto-detect (only if exactly one mission exists)
+6. Optional fallback to latest incomplete mission (opt-in only)
+7. Error with clear guidance (if all missions complete or ambiguous)
 """
 
 import os
@@ -38,21 +38,21 @@ from specify_cli.core.paths import get_main_repo_root as _resolve_main_repo_root
 # ============================================================================
 
 
-class FeatureDetectionError(Exception):
-    """Base exception for feature detection failures."""
+class MissionDetectionError(Exception):
+    """Base exception for mission detection failures."""
     pass
 
 
-class MultipleFeaturesError(FeatureDetectionError):
-    """Raised when multiple features exist and no context clarifies which."""
+class MultipleMissionsError(MissionDetectionError):
+    """Raised when multiple missions exist and no context clarifies which."""
 
-    def __init__(self, features: list[str], message: str):
+    def __init__(self, missions: list[str], message: str):
         super().__init__(message)
-        self.features = features
+        self.missions = missions
 
 
-class NoFeatureFoundError(FeatureDetectionError):
-    """Raised when no feature can be detected."""
+class NoMissionFoundError(MissionDetectionError):
+    """Raised when no mission can be detected."""
     pass
 
 
@@ -62,15 +62,15 @@ class NoFeatureFoundError(FeatureDetectionError):
 
 
 @dataclass
-class FeatureContext:
-    """Rich result from feature detection.
+class MissionContext:
+    """Rich result from mission detection.
 
     Attributes:
-        slug: Full feature slug (e.g., "020-my-feature")
-        number: Feature number only (e.g., "020")
-        name: Feature name only (e.g., "my-feature")
-        directory: Path to feature directory (e.g., Path("kitty-specs/020-my-feature"))
-        detection_method: How feature was detected (e.g., "git_branch", "env_var", "explicit")
+        slug: Full mission slug (e.g., "020-my-mission")
+        number: Mission number only (e.g., "020")
+        name: Mission name only (e.g., "my-mission")
+        directory: Path to mission directory (e.g., Path("kitty-specs/020-my-mission"))
+        detection_method: How mission was detected (e.g., "git_branch", "env_var", "explicit")
     """
     slug: str
     number: str
@@ -79,25 +79,25 @@ class FeatureContext:
     detection_method: str
 
     @classmethod
-    def from_slug(cls, slug: str, repo_root: Path, detection_method: str) -> "FeatureContext":
-        """Construct FeatureContext from a feature slug.
+    def from_slug(cls, slug: str, repo_root: Path, detection_method: str) -> "MissionContext":
+        """Construct MissionContext from a mission slug.
 
         Args:
-            slug: Feature slug in format ###-feature-name
+            slug: Mission slug in format ###-mission-name
             repo_root: Repository root path
-            detection_method: How the feature was detected
+            detection_method: How the mission was detected
 
         Returns:
-            FeatureContext instance
+            MissionContext instance
 
         Raises:
-            FeatureDetectionError: If slug format is invalid
+            MissionDetectionError: If slug format is invalid
         """
         match = re.match(r'^(\d{3})-(.+)$', slug)
         if not match:
-            raise FeatureDetectionError(
-                f"Invalid feature slug format: {slug}\n"
-                f"Expected format: ###-feature-name (e.g., 020-my-feature)"
+            raise MissionDetectionError(
+                f"Invalid mission slug format: {slug}\n"
+                f"Expected format: ###-mission-name (e.g., 020-my-mission)"
             )
 
         number = match.group(1)
@@ -130,14 +130,14 @@ def _get_main_repo_root(repo_root: Path) -> Path:
     return _resolve_main_repo_root(repo_root)
 
 
-def _list_all_features(repo_root: Path) -> list[str]:
-    """List all feature directories in kitty-specs.
+def _list_all_missions(repo_root: Path) -> list[str]:
+    """List all mission directories in kitty-specs.
 
     Args:
         repo_root: Repository root path
 
     Returns:
-        List of feature slugs (e.g., ["020-feature-a", "021-feature-b"])
+        List of mission slugs (e.g., ["020-mission-a", "021-mission-b"])
     """
     main_repo_root = _get_main_repo_root(repo_root)
     kitty_specs_dir = main_repo_root / "kitty-specs"
@@ -145,59 +145,59 @@ def _list_all_features(repo_root: Path) -> list[str]:
     if not kitty_specs_dir.is_dir():
         return []
 
-    features = []
+    missions = []
     for path in kitty_specs_dir.iterdir():
         if path.is_dir() and re.match(r'^\d{3}-', path.name):
-            features.append(path.name)
+            missions.append(path.name)
 
-    return sorted(features)
+    return sorted(missions)
 
 
-def _resolve_numeric_feature_slug(
-    feature_number: str,
+def _resolve_numeric_mission_slug(
+    mission_number: str,
     repo_root: Path,
     *,
     mode: Literal["strict", "lenient"],
 ) -> str | None:
-    """Resolve a 3-digit feature number (e.g., ``019``) to full slug.
+    """Resolve a 3-digit mission number (e.g., ``019``) to full slug.
 
     This is a compatibility affordance for agents that pass only the numeric
-    feature id after parsing logs or UI text.
+    mission id after parsing logs or UI text.
     """
-    all_features = _list_all_features(repo_root)
-    matches = [slug for slug in all_features if slug.startswith(f"{feature_number}-")]
+    all_missions = _list_all_missions(repo_root)
+    matches = [slug for slug in all_missions if slug.startswith(f"{mission_number}-")]
 
     if len(matches) == 1:
         return matches[0]
 
     if len(matches) > 1:
         error_msg = (
-            f"Feature number '{feature_number}' matches multiple features:\n"
+            f"Mission number '{mission_number}' matches multiple missions:\n"
             + "\n".join(f"  - {slug}" for slug in matches)
-            + "\n\nUse the full slug with --feature <###-feature-name>."
+            + "\n\nUse the full slug with --mission <###-mission-name>."
         )
         if mode == "strict":
-            raise MultipleFeaturesError(matches, error_msg)
+            raise MultipleMissionsError(matches, error_msg)
         return None
 
     error_msg = (
-        f"No feature found for number '{feature_number}'.\n\n"
-        + "Available features:\n"
-        + "\n".join(f"  - {slug}" for slug in all_features[:20])
+        f"No mission found for number '{mission_number}'.\n\n"
+        + "Available missions:\n"
+        + "\n".join(f"  - {slug}" for slug in all_missions[:20])
     )
     if mode == "strict":
-        raise NoFeatureFoundError(error_msg)
+        raise NoMissionFoundError(error_msg)
     return None
 
 
 def _detect_from_git_branch(repo_root: Path) -> str | None:
-    """Detect feature from git branch name.
+    """Detect mission from git branch name.
 
     Args:
         repo_root: Repository root path
 
     Returns:
-        Feature slug if detected, None otherwise
+        Mission slug if detected, None otherwise
     """
     try:
         result = subprocess.run(
@@ -211,15 +211,15 @@ def _detect_from_git_branch(repo_root: Path) -> str | None:
         )
         branch = result.stdout.strip()
 
-        # Pattern 1: Worktree branch (###-feature-name-WP##)
+        # Pattern 1: Worktree branch (###-mission-name-WP##)
         # Check this FIRST - more specific pattern
-        # Extract feature slug by removing -WP## suffix
+        # Extract mission slug by removing -WP## suffix
         match = re.match(r'^((\d{3})-.+)-WP\d{2}$', branch)
         if match:
-            feature_slug = match.group(1)
-            return feature_slug
+            mission_slug = match.group(1)
+            return mission_slug
 
-        # Pattern 2: Feature branch (###-feature-name)
+        # Pattern 2: Mission branch (###-mission-name)
         match = re.match(r'^(\d{3})-.+$', branch)
         if match:
             return branch
@@ -231,16 +231,16 @@ def _detect_from_git_branch(repo_root: Path) -> str | None:
 
 
 def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
-    """Detect feature from current working directory.
+    """Detect mission from current working directory.
 
-    Walks up the directory tree looking for ###-feature-name pattern.
+    Walks up the directory tree looking for ###-mission-name pattern.
 
     Args:
         cwd: Current working directory
         repo_root: Repository root path
 
     Returns:
-        Feature slug if detected, None otherwise
+        Mission slug if detected, None otherwise
     """
     # Walk up directory tree
     for parent in [cwd, *cwd.parents]:
@@ -248,7 +248,7 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
         if parent == repo_root:
             break
 
-        # Check for .worktrees/###-feature-name pattern
+        # Check for .worktrees/###-mission-name pattern
         if parent.name == ".worktrees":
             continue
         if ".worktrees" in parent.parts:
@@ -263,7 +263,7 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
             except (ValueError, IndexError):
                 pass
 
-        # Check for kitty-specs/###-feature-name pattern
+        # Check for kitty-specs/###-mission-name pattern
         if parent.name == "kitty-specs":
             continue
         if "kitty-specs" in parent.parts:
@@ -283,36 +283,36 @@ def _detect_from_cwd(cwd: Path, repo_root: Path) -> str | None:
     return None
 
 
-def _validate_feature_exists(slug: str, repo_root: Path) -> bool:
-    """Check if a feature directory exists.
+def _validate_mission_exists(slug: str, repo_root: Path) -> bool:
+    """Check if a mission directory exists.
 
     Args:
-        slug: Feature slug
+        slug: Mission slug
         repo_root: Repository root path
 
     Returns:
-        True if feature directory exists
+        True if mission directory exists
     """
     main_repo_root = _get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / slug
-    return feature_dir.is_dir()
+    mission_dir = main_repo_root / "kitty-specs" / slug
+    return mission_dir.is_dir()
 
 
-def is_feature_complete(feature_dir: Path) -> bool:
-    """Check if all work packages in a feature are complete.
+def is_mission_complete(mission_dir: Path) -> bool:
+    """Check if all work packages in a mission are complete.
 
-    A feature is considered complete when all WP files have lane: 'done'.
+    A mission is considered complete when all WP files have lane: 'done'.
 
     Args:
-        feature_dir: Path to feature directory (e.g., kitty-specs/020-my-feature)
+        mission_dir: Path to mission directory (e.g., kitty-specs/020-my-mission)
 
     Returns:
         True if all WPs have lane: 'done', False otherwise
-        Returns False on any parse errors (safe default - feature stays incomplete)
+        Returns False on any parse errors (safe default - mission stays incomplete)
     """
     from specify_cli.frontmatter import read_frontmatter
 
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return False
 
@@ -333,9 +333,9 @@ def is_feature_complete(feature_dir: Path) -> bool:
     return True
 
 
-def _is_feature_runnable(feature_dir: Path) -> bool:
-    """Return True when a feature has concrete WP task files to operate on."""
-    tasks_dir = feature_dir / "tasks"
+def _is_mission_runnable(mission_dir: Path) -> bool:
+    """Return True when a mission has concrete WP task files to operate on."""
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return False
     return any(tasks_dir.glob("WP*.md"))
@@ -346,59 +346,59 @@ def _is_feature_runnable(feature_dir: Path) -> bool:
 # ============================================================================
 
 
-def detect_feature(
+def detect_mission(
     repo_root: Path,
     *,
-    explicit_feature: str | None = None,
+    explicit_mission: str | None = None,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
     mode: Literal["strict", "lenient"] = "strict",
     allow_single_auto: bool = True,
     allow_latest_incomplete: bool = False,
-) -> FeatureContext | None:
+) -> MissionContext | None:
     """
-    Unified feature detection with configurable behavior.
+    Unified mission detection with configurable behavior.
 
     Priority:
-    1. explicit_feature parameter
-    2. SPECIFY_FEATURE env var
+    1. explicit_mission parameter
+    2. SPECIFY_MISSION env var
     3. Git branch name (strips -WP## suffix)
-    4. Current directory path (walks up to find ###-feature-name)
-    5. Single feature auto-detect (if allow_single_auto=True)
+    4. Current directory path (walks up to find ###-mission-name)
+    5. Single mission auto-detect (if allow_single_auto=True)
     6. Optional latest-incomplete fallback (if allow_latest_incomplete=True)
     6. Error (strict mode) or None (lenient mode)
 
     Args:
         repo_root: Repository root path
-        explicit_feature: Feature slug passed explicitly (highest priority)
+        explicit_mission: Mission slug passed explicitly (highest priority)
         cwd: Current working directory (defaults to Path.cwd())
         env: Environment variables (defaults to os.environ)
         mode: "strict" raises error if ambiguous, "lenient" returns None
-        allow_single_auto: Auto-detect if exactly one feature exists
-        allow_latest_incomplete: Auto-select the latest incomplete feature
-            when multiple features exist and no other context is available.
+        allow_single_auto: Auto-detect if exactly one mission exists
+        allow_latest_incomplete: Auto-select the latest incomplete mission
+            when multiple missions exist and no other context is available.
 
     Returns:
-        FeatureContext with detection details, or None in lenient mode
+        MissionContext with detection details, or None in lenient mode
 
     Raises:
-        FeatureDetectionError: In strict mode when detection fails
-        MultipleFeaturesError: Multiple features exist and none selected
-        NoFeatureFoundError: No features found
+        MissionDetectionError: In strict mode when detection fails
+        MultipleMissionsError: Multiple missions exist and none selected
+        NoMissionFoundError: No missions found
 
     Examples:
-        >>> # Explicit feature (highest priority)
-        >>> ctx = detect_feature(Path("."), explicit_feature="020-my-feature")
+        >>> # Explicit mission (highest priority)
+        >>> ctx = detect_mission(Path("."), explicit_mission="020-my-mission")
         >>> ctx.slug
-        '020-my-feature'
+        '020-my-mission'
 
         >>> # From git branch
-        >>> ctx = detect_feature(Path("."))  # Assumes git branch is "020-my-feature-WP01"
+        >>> ctx = detect_mission(Path("."))  # Assumes git branch is "020-my-mission-WP01"
         >>> ctx.slug
-        '020-my-feature'
+        '020-my-mission'
 
         >>> # Lenient mode (returns None instead of raising)
-        >>> ctx = detect_feature(Path("."), mode="lenient")
+        >>> ctx = detect_mission(Path("."), mode="lenient")
         >>> ctx is None
         True
     """
@@ -408,11 +408,11 @@ def detect_feature(
     detected_slug: str | None = None
     detection_method: str = ""
 
-    # Priority 1: Explicit --feature parameter
-    if explicit_feature:
-        detected_slug = explicit_feature.strip()
+    # Priority 1: Explicit --mission parameter
+    if explicit_mission:
+        detected_slug = explicit_mission.strip()
         if re.fullmatch(r"\d{3}", detected_slug):
-            resolved = _resolve_numeric_feature_slug(detected_slug, repo_root, mode=mode)
+            resolved = _resolve_numeric_mission_slug(detected_slug, repo_root, mode=mode)
             if resolved is None:
                 return None
             detected_slug = resolved
@@ -420,11 +420,11 @@ def detect_feature(
         else:
             detection_method = "explicit"
 
-    # Priority 2: SPECIFY_FEATURE environment variable
-    elif "SPECIFY_FEATURE" in env and env["SPECIFY_FEATURE"].strip():
-        detected_slug = env["SPECIFY_FEATURE"].strip()
+    # Priority 2: SPECIFY_MISSION env var
+    elif "SPECIFY_MISSION" in env and env["SPECIFY_MISSION"].strip():
+        detected_slug = env["SPECIFY_MISSION"].strip()
         if re.fullmatch(r"\d{3}", detected_slug):
-            resolved = _resolve_numeric_feature_slug(detected_slug, repo_root, mode=mode)
+            resolved = _resolve_numeric_mission_slug(detected_slug, repo_root, mode=mode)
             if resolved is None:
                 return None
             detected_slug = resolved
@@ -442,106 +442,106 @@ def detect_feature(
         detected_slug = cwd_slug
         detection_method = "cwd_path"
 
-    # Priority 5: Single feature auto-detect
+    # Priority 5: Single mission auto-detect
     elif allow_single_auto:
-        all_features = _list_all_features(repo_root)
-        if len(all_features) == 1:
-            detected_slug = all_features[0]
+        all_missions = _list_all_missions(repo_root)
+        if len(all_missions) == 1:
+            detected_slug = all_missions[0]
             detection_method = "single_auto"
-        elif len(all_features) > 1:
+        elif len(all_missions) > 1:
             main_repo_root = _get_main_repo_root(repo_root)
             kitty_specs_dir = main_repo_root / "kitty-specs"
-            incomplete_features = [
-                slug for slug in all_features if not is_feature_complete(kitty_specs_dir / slug)
+            incomplete_missions = [
+                slug for slug in all_missions if not is_mission_complete(kitty_specs_dir / slug)
             ]
 
-            if not incomplete_features:
+            if not incomplete_missions:
                 error_msg = (
-                    f"All features are complete ({len(all_features)} features).\n\n"
+                    f"All missions are complete ({len(all_missions)} missions).\n\n"
                     + "Please specify explicitly using:\n"
-                    + "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
-                    + "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
-                    + "  Or create a new feature using:\n"
+                    + "  --mission <mission-slug>  (e.g., --mission 020-my-mission)\n"
+                    + "  SPECIFY_MISSION=<mission-slug>  (environment variable)\n"
+                    + "  Or create a new mission using:\n"
                     + "  spec-kitty specify\n"
                     + "  /spec-kitty.specify  (in agent workflow)"
                 )
                 if mode == "strict":
-                    raise MultipleFeaturesError(all_features, error_msg)
+                    raise MultipleMissionsError(all_missions, error_msg)
                 return None
             elif allow_latest_incomplete:
-                detected_slug = incomplete_features[-1]
+                detected_slug = incomplete_missions[-1]
                 detection_method = "latest_incomplete"
             else:
                 error_msg = (
-                    f"Multiple features found ({len(all_features)} total, "
-                    f"{len(incomplete_features)} incomplete).\n\n"
+                    f"Multiple missions found ({len(all_missions)} total, "
+                    f"{len(incomplete_missions)} incomplete).\n\n"
                     "Please specify explicitly using:\n"
-                    "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
-                    "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
-                    "\nAvailable features:\n"
-                    + "\n".join(f"  - {slug}" for slug in all_features[:20])
+                    "  --mission <mission-slug>  (e.g., --mission 020-my-mission)\n"
+                    "  SPECIFY_MISSION=<mission-slug>  (environment variable)\n"
+                    "\nAvailable missions:\n"
+                    + "\n".join(f"  - {slug}" for slug in all_missions[:20])
                 )
-                if len(all_features) > 20:
-                    error_msg += f"\n  ... and {len(all_features) - 20} more"
+                if len(all_missions) > 20:
+                    error_msg += f"\n  ... and {len(all_missions) - 20} more"
                 if mode == "strict":
-                    raise MultipleFeaturesError(all_features, error_msg)
+                    raise MultipleMissionsError(all_missions, error_msg)
                 return None
         else:
-            # No features found
+            # No missions found
             error_msg = (
-                "No features found in kitty-specs/\n\n"
-                "Create a feature first using:\n"
+                "No missions found in kitty-specs/\n\n"
+                "Create a mission first using:\n"
                 "  spec-kitty specify\n"
                 "  /spec-kitty.specify  (in agent workflow)"
             )
             if mode == "strict":
-                raise NoFeatureFoundError(error_msg)
+                raise NoMissionFoundError(error_msg)
             return None
 
     # If still no slug detected
     if not detected_slug:
         error_msg = (
-            "Unable to detect feature automatically.\n\n"
+            "Unable to detect mission automatically.\n\n"
             "Please specify explicitly using:\n"
-            "  --feature <feature-slug>  (e.g., --feature 020-my-feature)\n"
-            "  SPECIFY_FEATURE=<feature-slug>  (environment variable)\n"
-            "  Or run from inside a feature directory or worktree"
+            "  --mission <mission-slug>  (e.g., --mission 020-my-mission)\n"
+            "  SPECIFY_MISSION=<mission-slug>  (environment variable)\n"
+            "  Or run from inside a mission directory or worktree"
         )
         if mode == "strict":
-            raise NoFeatureFoundError(error_msg)
+            raise NoMissionFoundError(error_msg)
         return None
 
     # Validate slug format FIRST (before checking if directory exists)
     if not re.match(r'^\d{3}-.+$', detected_slug):
         error_msg = (
-            f"Invalid feature slug format: {detected_slug}\n"
-            f"Expected format: ###-feature-name (e.g., 020-my-feature)"
+            f"Invalid mission slug format: {detected_slug}\n"
+            f"Expected format: ###-mission-name (e.g., 020-my-mission)"
         )
         if mode == "strict":
-            raise FeatureDetectionError(error_msg)
+            raise MissionDetectionError(error_msg)
         return None
 
-    # Validate feature exists
-    if not _validate_feature_exists(detected_slug, repo_root):
+    # Validate mission exists
+    if not _validate_mission_exists(detected_slug, repo_root):
         error_msg = (
-            f"Feature directory not found: kitty-specs/{detected_slug}\n\n"
-            f"Available features:\n"
-            + "\n".join(f"  - {f}" for f in _list_all_features(repo_root))
-            + "\n\nCreate the feature first using:\n"
+            f"Mission directory not found: kitty-specs/{detected_slug}\n\n"
+            f"Available missions:\n"
+            + "\n".join(f"  - {m}" for m in _list_all_missions(repo_root))
+            + "\n\nCreate the mission first using:\n"
             + "  spec-kitty specify\n"
             + "  /spec-kitty.specify  (in agent workflow)"
         )
         if mode == "strict":
-            raise NoFeatureFoundError(error_msg)
+            raise NoMissionFoundError(error_msg)
         return None
 
-    # Build FeatureContext using the MAIN repo root so that the directory
+    # Build MissionContext using the MAIN repo root so that the directory
     # path always points to the real kitty-specs/ location (even when
     # called from a worktree that lacks kitty-specs/ via sparse checkout).
     main_repo_root = _get_main_repo_root(repo_root)
     try:
-        return FeatureContext.from_slug(detected_slug, main_repo_root, detection_method)
-    except FeatureDetectionError:
+        return MissionContext.from_slug(detected_slug, main_repo_root, detection_method)
+    except MissionDetectionError:
         if mode == "strict":
             raise
         return None
@@ -552,68 +552,68 @@ def detect_feature(
 # ============================================================================
 
 
-def detect_feature_slug(repo_root: Path, **kwargs) -> str:
+def detect_mission_slug(repo_root: Path, **kwargs) -> str:
     """Simplified wrapper that returns just the slug string.
 
     Args:
         repo_root: Repository root path
-        **kwargs: Additional arguments passed to detect_feature()
+        **kwargs: Additional arguments passed to detect_mission()
 
     Returns:
-        Feature slug (e.g., "020-my-feature")
+        Mission slug (e.g., "020-my-mission")
 
     Raises:
-        FeatureDetectionError: If detection fails
+        MissionDetectionError: If detection fails
     """
     # Force strict mode for this wrapper (always raises on failure)
     kwargs["mode"] = "strict"
-    ctx = detect_feature(repo_root, **kwargs)
+    ctx = detect_mission(repo_root, **kwargs)
     assert ctx is not None  # Guaranteed in strict mode
     return ctx.slug
 
 
-def detect_feature_directory(repo_root: Path, **kwargs) -> Path:
+def detect_mission_directory(repo_root: Path, **kwargs) -> Path:
     """Simplified wrapper that returns just the directory Path.
 
     Args:
         repo_root: Repository root path
-        **kwargs: Additional arguments passed to detect_feature()
+        **kwargs: Additional arguments passed to detect_mission()
 
     Returns:
-        Path to feature directory (e.g., Path("kitty-specs/020-my-feature"))
+        Path to mission directory (e.g., Path("kitty-specs/020-my-mission"))
 
     Raises:
-        FeatureDetectionError: If detection fails
+        MissionDetectionError: If detection fails
     """
     # Force strict mode for this wrapper (always raises on failure)
     kwargs["mode"] = "strict"
-    ctx = detect_feature(repo_root, **kwargs)
+    ctx = detect_mission(repo_root, **kwargs)
     assert ctx is not None  # Guaranteed in strict mode
     return ctx.directory
 
 
-def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
-    """Get target branch for feature from meta.json.
+def get_mission_target_branch(repo_root: Path, mission_slug: str) -> str:
+    """Get target branch for mission from meta.json.
 
-    This function reads the target_branch field from a feature's meta.json file.
+    This function reads the target_branch field from a mission's meta.json file.
     The target_branch determines where status commits and implementation work
-    should be routed (e.g., "main" for 1.x features, "2.x" for SaaS features).
+    should be routed (e.g., "main" for 1.x missions, "2.x" for SaaS missions).
 
     Args:
         repo_root: Repository root path (may be worktree)
-        feature_slug: Feature slug (e.g., "025-cli-event-log-integration")
+        mission_slug: Mission slug (e.g., "025-cli-event-log-integration")
 
     Returns:
-        Target branch name (defaults to "main" for legacy features without
+        Target branch name (defaults to "main" for legacy missions without
         the target_branch field, or if meta.json cannot be read)
 
     Examples:
-        >>> # Feature targeting main branch
-        >>> get_feature_target_branch(Path("."), "024-feature-name")
+        >>> # Mission targeting main branch
+        >>> get_mission_target_branch(Path("."), "024-mission-name")
         'main'
 
-        >>> # Feature targeting 2.x branch
-        >>> get_feature_target_branch(Path("."), "025-cli-event-log-integration")
+        >>> # Mission targeting 2.x branch
+        >>> get_mission_target_branch(Path("."), "025-cli-event-log-integration")
         '2.x'
 
     Note:
@@ -623,15 +623,15 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
         - target_branch field is missing
         - Any I/O error occurs
 
-        This ensures backward compatibility with legacy features created
+        This ensures backward compatibility with legacy missions created
         before the target_branch field was introduced (version 0.13.8).
     """
     import json
     from specify_cli.core.git_ops import resolve_primary_branch
 
     main_repo_root = _get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
-    meta_file = feature_dir / "meta.json"
+    mission_dir = main_repo_root / "kitty-specs" / mission_slug
+    meta_file = mission_dir / "meta.json"
 
     fallback = resolve_primary_branch(main_repo_root)
 
@@ -653,16 +653,18 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
 
 __all__ = [
     # Core types
-    "FeatureContext",
+    "MissionContext",
     # Error types
-    "FeatureDetectionError",
-    "MultipleFeaturesError",
-    "NoFeatureFoundError",
+    "MissionDetectionError",
+    "MultipleMissionsError",
+    "NoMissionFoundError",
     # Core function
-    "detect_feature",
+    "detect_mission",
     # Simplified wrappers
-    "detect_feature_slug",
-    "detect_feature_directory",
+    "detect_mission_slug",
+    "detect_mission_directory",
     # Target branch detection
-    "get_feature_target_branch",
+    "get_mission_target_branch",
+    # Mission completeness check
+    "is_mission_complete",
 ]

@@ -6,6 +6,7 @@ intent: >
   simplify review, and lower regression risk.
 tactic_refs:
 - change-apply-smallest-viable-diff
+- code-review-incremental
 enforcement: lenient-adherence
 scope: >
   Applies to code, tests, and documentation modifications made while executing a

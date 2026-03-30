@@ -26,19 +26,19 @@ class WorkspaceContext:
     Runtime context for a work package workspace.
 
     Provides all information an agent needs to understand workspace state.
-    Stored as JSON in .kittify/workspaces/###-feature-WP##.json
+    Stored as JSON in .kittify/workspaces/###-mission-WP##.json
     """
 
     # Identity
     wp_id: str  # e.g., "WP02"
-    feature_slug: str  # e.g., "010-workspace-per-wp"
+    mission_slug: str  # e.g., "010-workspace-per-wp"
 
     # Paths
-    worktree_path: str  # Relative path from repo root (e.g., ".worktrees/010-feature-WP02")
-    branch_name: str  # Git branch name (e.g., "010-feature-WP02")
+    worktree_path: str  # Relative path from repo root (e.g., ".worktrees/010-mission-WP02")
+    branch_name: str  # Git branch name (e.g., "010-mission-WP02")
 
     # Base tracking
-    base_branch: str  # Branch this was created from (e.g., "010-feature-WP01" or "main")
+    base_branch: str  # Branch this was created from (e.g., "010-mission-WP01" or "main")
     base_commit: str  # Git SHA this was created from
 
     # Dependencies
@@ -78,7 +78,7 @@ def get_context_path(repo_root: Path, workspace_name: str) -> Path:
 
     Args:
         repo_root: Repository root path
-        workspace_name: Workspace name (e.g., "010-feature-WP02")
+        workspace_name: Workspace name (e.g., "010-mission-WP02")
 
     Returns:
         Path to context JSON file
@@ -97,7 +97,7 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     Returns:
         Path to saved context file
     """
-    workspace_name = f"{context.feature_slug}-{context.wp_id}"
+    workspace_name = f"{context.mission_slug}-{context.wp_id}"
     context_path = get_context_path(repo_root, workspace_name)
 
     # Write JSON with pretty formatting
@@ -112,7 +112,7 @@ def load_context(repo_root: Path, workspace_name: str) -> WorkspaceContext | Non
 
     Args:
         repo_root: Repository root path
-        workspace_name: Workspace name (e.g., "010-feature-WP02")
+        workspace_name: Workspace name (e.g., "010-mission-WP02")
 
     Returns:
         WorkspaceContext if file exists, None otherwise
@@ -135,7 +135,7 @@ def delete_context(repo_root: Path, workspace_name: str) -> bool:
 
     Args:
         repo_root: Repository root path
-        workspace_name: Workspace name (e.g., "010-feature-WP02")
+        workspace_name: Workspace name (e.g., "010-mission-WP02")
 
     Returns:
         True if deleted, False if didn't exist
@@ -187,7 +187,7 @@ def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]
     for context in list_contexts(repo_root):
         workspace_path = repo_root / context.worktree_path
         if not workspace_path.exists():
-            workspace_name = f"{context.feature_slug}-{context.wp_id}"
+            workspace_name = f"{context.mission_slug}-{context.wp_id}"
             orphaned.append((workspace_name, context))
 
     return orphaned

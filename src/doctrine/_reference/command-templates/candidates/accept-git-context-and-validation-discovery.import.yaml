@@ -9,7 +9,7 @@ classification:
   target_concepts:
     - "tactic"
     - "template"
-  rationale: "Defines reusable auto-detection heuristics for feature context and command validation evidence."
+  rationale: "Defines reusable auto-detection heuristics for mission context and command validation evidence."
 adaptation:
   summary: "Use git branch and recent git-log evidence to auto-detect acceptance context with minimal user prompts."
   notes:

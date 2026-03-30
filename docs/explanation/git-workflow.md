@@ -34,7 +34,7 @@ Every work package worktree passes through five stages.
 spec-kitty implement WP01
 ```
 
-Python runs `git worktree add`, configures sparse checkout (excluding `kitty-specs/`), creates a workspace context file at `.kittify/workspaces/<feature>-WP01.json`, and sets the WP status to `in_progress`.
+Python runs `git worktree add`, configures sparse checkout (excluding `kitty-specs/`), creates a workspace context file at `.kittify/workspaces/<mission>-WP01.json`, and sets the WP status to `in_progress`.
 
 For dependent WPs, use the `--base` flag:
 
@@ -68,7 +68,7 @@ Python auto-commits the WP frontmatter change to record the lane transition. Bef
 ### 4. Merged
 
 ```bash
-spec-kitty merge --feature 042-feature
+spec-kitty merge --mission 042-feature
 ```
 
 Python merges WP branches into the target branch in dependency order (topological sort). For each WP:
@@ -89,7 +89,7 @@ Spec Kitty auto-commits in two situations. Both are controlled by the `auto_comm
 
 ### Planning Artifact Commits
 
-Before creating a worktree, Python checks whether `kitty-specs/<feature>/` has uncommitted changes on the primary branch. If so, it commits them automatically:
+Before creating a worktree, Python checks whether `kitty-specs/<mission>/` has uncommitted changes on the primary branch. If so, it commits them automatically:
 
 ```
 chore: Planning artifacts for 042-feature
@@ -182,7 +182,7 @@ If `spec-kitty merge` encounters conflicts, it stops and reports the conflicting
 git worktree add -b my-branch .worktrees/my-branch main
 ```
 
-Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), sparse checkout configuration, and proper branch naming (`<feature>-<WP>`). Spec Kitty commands will not recognize them.
+Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), sparse checkout configuration, and proper branch naming (`<mission>-<WP>`). Spec Kitty commands will not recognize them.
 
 Always use `spec-kitty implement`.
 

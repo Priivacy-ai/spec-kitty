@@ -56,7 +56,7 @@ class TestEmptyBranchDetection:
         """Should display warning when dependency branch has no commits."""
         # Create first empty branch (points to main)
         subprocess.run(
-            ["git", "branch", "017-feature-WP01", "main"],
+            ["git", "branch", "017-mission-WP01", "main"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -64,7 +64,7 @@ class TestEmptyBranchDetection:
 
         # Create second branch with commits (needed for multi-parent merge)
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP02"],
+            ["git", "checkout", "-b", "017-mission-WP02"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -86,7 +86,7 @@ class TestEmptyBranchDetection:
 
         # Try to create merge-base with one empty dependency and one normal
         result = create_multi_parent_base(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -94,7 +94,7 @@ class TestEmptyBranchDetection:
 
         # Verify warning was printed (to stderr, not stdout)
         captured = capsys.readouterr()
-        assert "⚠️  Warning: Dependency branch '017-feature-WP01' has no commits beyond main" in captured.err
+        assert "⚠️  Warning: Dependency branch '017-mission-WP01' has no commits beyond main" in captured.err
         assert "This may indicate incomplete work or uncommitted changes" in captured.err
         assert "The merge-base will not include any work from this branch" in captured.err
 
@@ -105,7 +105,7 @@ class TestEmptyBranchDetection:
         """Should not display warning when branches have commits."""
         # Create first branch with commits
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP01"],
+            ["git", "checkout", "-b", "017-mission-WP01"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -129,7 +129,7 @@ class TestEmptyBranchDetection:
 
         # Create second branch with commits
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP02"],
+            ["git", "checkout", "-b", "017-mission-WP02"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -153,7 +153,7 @@ class TestEmptyBranchDetection:
 
         # Create merge-base with both branches
         result = create_multi_parent_base(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -168,13 +168,13 @@ class TestEmptyBranchDetection:
         """Should display warning for each empty branch."""
         # Create three branches: two empty, one with commits
         subprocess.run(
-            ["git", "branch", "017-feature-WP01", "main"],
+            ["git", "branch", "017-mission-WP01", "main"],
             cwd=git_repo,
             check=True,
             capture_output=True,
         )
         subprocess.run(
-            ["git", "branch", "017-feature-WP02", "main"],
+            ["git", "branch", "017-mission-WP02", "main"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -182,7 +182,7 @@ class TestEmptyBranchDetection:
 
         # WP03 has commits
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP03"],
+            ["git", "checkout", "-b", "017-mission-WP03"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -204,7 +204,7 @@ class TestEmptyBranchDetection:
 
         # Create merge-base with all three dependencies
         result = create_multi_parent_base(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             wp_id="WP04",
             dependencies=["WP01", "WP02", "WP03"],
             repo_root=git_repo,
@@ -213,8 +213,8 @@ class TestEmptyBranchDetection:
         # Verify warnings for empty branches only (warnings go to stderr)
         captured = capsys.readouterr()
         assert captured.err.count("⚠️  Warning:") == 2
-        assert "017-feature-WP01" in captured.err
-        assert "017-feature-WP02" in captured.err
+        assert "017-mission-WP01" in captured.err
+        assert "017-mission-WP02" in captured.err
         # WP03 should not have warning (it has commits)
         assert result.success
 
@@ -222,7 +222,7 @@ class TestEmptyBranchDetection:
         """Merge should succeed even with empty branches (warning only)."""
         # Create empty branch
         subprocess.run(
-            ["git", "branch", "017-feature-WP01", "main"],
+            ["git", "branch", "017-mission-WP01", "main"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -230,7 +230,7 @@ class TestEmptyBranchDetection:
 
         # Create second branch with commits (needed for multi-parent merge)
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP02"],
+            ["git", "checkout", "-b", "017-mission-WP02"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -252,7 +252,7 @@ class TestEmptyBranchDetection:
 
         # Create merge-base (should succeed despite warning about WP01)
         result = create_multi_parent_base(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -260,7 +260,7 @@ class TestEmptyBranchDetection:
 
         # Verify success
         assert result.success
-        assert result.branch_name == "017-feature-WP03-merge-base"
+        assert result.branch_name == "017-mission-WP03-merge-base"
         assert result.commit_sha is not None
         assert result.error is None
 
@@ -268,7 +268,7 @@ class TestEmptyBranchDetection:
         """Should handle mix of empty and normal branches correctly."""
         # Create WP01 with commits
         subprocess.run(
-            ["git", "checkout", "-b", "017-feature-WP01"],
+            ["git", "checkout", "-b", "017-mission-WP01"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -290,7 +290,7 @@ class TestEmptyBranchDetection:
 
         # Create WP02 empty (forgot to commit)
         subprocess.run(
-            ["git", "branch", "017-feature-WP02", "main"],
+            ["git", "branch", "017-mission-WP02", "main"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -298,7 +298,7 @@ class TestEmptyBranchDetection:
 
         # Create merge-base
         result = create_multi_parent_base(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -307,5 +307,5 @@ class TestEmptyBranchDetection:
         # Should succeed with warning for WP02 only (warnings go to stderr)
         captured = capsys.readouterr()
         assert result.success
-        assert "017-feature-WP02" in captured.err
+        assert "017-mission-WP02" in captured.err
         assert captured.err.count("⚠️  Warning:") == 1

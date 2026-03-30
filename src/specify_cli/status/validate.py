@@ -41,7 +41,7 @@ def validate_event_schema(event: dict) -> list[str]:
     """Validate a single event dict against the StatusEvent schema.
 
     Checks:
-    - All required fields present: event_id, feature_slug, wp_id,
+    - All required fields present: event_id, mission_slug, wp_id,
       from_lane, to_lane, at, actor, force, execution_mode
     - event_id is valid event ID (ULID Crockford base32, or UUID)
     - from_lane and to_lane are canonical lane values (never aliases)
@@ -56,7 +56,7 @@ def validate_event_schema(event: dict) -> list[str]:
     findings: list[str] = []
     required_fields = [
         "event_id",
-        "feature_slug",
+        "mission_slug",
         "wp_id",
         "from_lane",
         "to_lane",
@@ -185,7 +185,7 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
     return findings
 
 
-def validate_materialization_drift(feature_dir: Path) -> list[str]:
+def validate_materialization_drift(mission_dir: Path) -> list[str]:
     """Compare status.json on disk vs reducer output from the event log.
 
     Returns findings describing any drift detected. An empty list means
@@ -196,8 +196,8 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
 
     findings: list[str] = []
 
-    status_path = feature_dir / SNAPSHOT_FILENAME
-    events_path = feature_dir / EVENTS_FILENAME
+    status_path = mission_dir / SNAPSHOT_FILENAME
+    events_path = mission_dir / EVENTS_FILENAME
 
     if not events_path.exists():
         if status_path.exists():
@@ -215,7 +215,7 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
     disk_data = json.loads(status_path.read_text(encoding="utf-8"))
 
     # Compute expected snapshot from events
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     expected_snapshot = reduce(events)
 
     # Compare work_packages and summary (skip materialized_at which is timestamp)
@@ -258,14 +258,14 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
 
 
 def validate_derived_views(  # noqa: C901
-    feature_dir: Path,
+    mission_dir: Path,
     snapshot_wps: dict,
     phase: int,
 ) -> list[str]:
     """Compare frontmatter lanes with canonical snapshot work package states.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/###-feature/).
+        mission_dir: Path to the mission directory (kitty-specs/###-mission/).
         snapshot_wps: The work_packages dict from the StatusSnapshot
             (mapping wp_id -> state dict with at least a "lane" key).
         phase: Current status phase (1 or 2). Phase 1 drift is WARNING;
@@ -276,7 +276,7 @@ def validate_derived_views(  # noqa: C901
     """
     severity = "ERROR" if phase >= 2 else "WARNING"
     findings: list[str] = []
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     if not tasks_dir.exists():
         return findings
 
@@ -309,7 +309,7 @@ def validate_derived_views(  # noqa: C901
                 f"{severity}: {wp_id} frontmatter lane={frontmatter_lane} but canonical state={canonical_lane}"
             )
 
-    tasks_md = feature_dir / "tasks.md"
+    tasks_md = mission_dir / "tasks.md"
     if tasks_md.exists():
         status_lines = _extract_tasks_status_lines(tasks_md.read_text(encoding="utf-8"))
         if status_lines is None:

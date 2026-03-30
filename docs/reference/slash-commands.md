@@ -12,7 +12,7 @@ Syntax format in this reference:
 
 **Syntax**: `/spec-kitty.specify [description]`
 
-**Purpose**: Create or update a feature specification from a natural-language description.
+**Purpose**: Create or update a mission specification from a natural-language description.
 
 **Prerequisites**:
 - Run from the main repository root (no worktree).
@@ -21,12 +21,12 @@ Syntax format in this reference:
 **What it does**:
 - Runs a discovery interview and confirms an intent summary.
 - Determines mission (software-dev or research).
-- Calls `spec-kitty agent feature create-feature` to create feature scaffolding.
+- Calls `spec-kitty agent mission create-mission` to create mission scaffolding.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/spec.md`
-- `kitty-specs/<feature>/meta.json`
-- `kitty-specs/<feature>/checklists/requirements.md`
+- `kitty-specs/<mission>/spec.md`
+- `kitty-specs/<mission>/meta.json`
+- `kitty-specs/<mission>/checklists/requirements.md`
 
 **Related**: `/spec-kitty.plan`, `/spec-kitty.constitution`
 
@@ -44,15 +44,15 @@ Syntax format in this reference:
 
 **What it does**:
 - Conducts planning interrogation.
-- Calls `spec-kitty agent feature setup-plan`.
+- Calls `spec-kitty agent mission setup-plan`.
 - Generates planning artifacts and updates agent context files.
 
 **Creates/updates** (as applicable):
-- `kitty-specs/<feature>/plan.md`
-- `kitty-specs/<feature>/research.md`
-- `kitty-specs/<feature>/data-model.md`
-- `kitty-specs/<feature>/contracts/`
-- `kitty-specs/<feature>/quickstart.md`
+- `kitty-specs/<mission>/plan.md`
+- `kitty-specs/<mission>/research.md`
+- `kitty-specs/<mission>/data-model.md`
+- `kitty-specs/<mission>/contracts/`
+- `kitty-specs/<mission>/quickstart.md`
 - Agent context file (e.g., `CLAUDE.md`)
 
 **Related**: `/spec-kitty.specify`, `/spec-kitty.tasks`, `/spec-kitty.research`
@@ -72,11 +72,11 @@ Syntax format in this reference:
 **What it does**:
 - Reads spec/plan (and optional research artifacts).
 - Writes `tasks.md` plus one prompt file per work package.
-- Calls `spec-kitty agent feature finalize-tasks` to populate dependencies.
+- Calls `spec-kitty agent mission finalize-tasks` to populate dependencies.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/tasks.md`
-- `kitty-specs/<feature>/tasks/WPxx-*.md` (flat directory)
+- `kitty-specs/<mission>/tasks.md`
+- `kitty-specs/<mission>/tasks/WPxx-*.md` (flat directory)
 
 **Related**: `/spec-kitty.plan`, `/spec-kitty.implement`, `/spec-kitty.analyze`
 
@@ -89,7 +89,7 @@ Syntax format in this reference:
 **Purpose**: Create a worktree and start implementation for a specific work package.
 
 **Prerequisites**:
-- Work packages exist in `kitty-specs/<feature>/tasks/`.
+- Work packages exist in `kitty-specs/<mission>/tasks/`.
 - Run from main repository for the workflow prompt; worktree is created by CLI.
 
 **What it does**:
@@ -99,8 +99,8 @@ Syntax format in this reference:
 - Implementation happens inside the created worktree.
 
 **Creates/updates**:
-- `.worktrees/<feature>-WP##/` worktree directory
-- `kitty-specs/<feature>/tasks/WP##-*.md` lane status updates
+- `.worktrees/<mission>-WP##/` worktree directory
+- `kitty-specs/<mission>/tasks/WP##-*.md` lane status updates
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.review`
 
@@ -113,7 +113,7 @@ Syntax format in this reference:
 **Purpose**: Review a completed work package and update its lane status.
 
 **Prerequisites**:
-- Run from the feature worktree.
+- Run from the mission worktree.
 - WP must be in `lane: "for_review"`.
 
 **What it does**:
@@ -125,8 +125,8 @@ Syntax format in this reference:
 - Updates `tasks.md` status when approved.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/tasks/WP##-*.md` (review feedback, lane changes)
-- `kitty-specs/<feature>/tasks.md` (checkbox status)
+- `kitty-specs/<mission>/tasks/WP##-*.md` (review feedback, lane changes)
+- `kitty-specs/<mission>/tasks.md` (checkbox status)
 
 **Related**: `/spec-kitty.implement`, `/spec-kitty.accept`
 
@@ -139,16 +139,16 @@ Syntax format in this reference:
 **Purpose**: Validate feature readiness and generate acceptance results.
 
 **Prerequisites**:
-- Run from a feature worktree or branch where feature auto-detection works.
+- Run from a mission worktree or branch where feature auto-detection works.
 - All WPs should be in `done` or intentionally waived.
 
 **What it does**:
 - Auto-detects feature slug and validation commands when possible.
-- Runs `spec-kitty agent feature accept` to perform acceptance checks.
+- Runs `spec-kitty agent mission accept` to perform acceptance checks.
 - Outputs acceptance summary and merge instructions.
 
 **Creates/updates**:
-- Acceptance output in the feature directory (and optional commits depending on mode)
+- Acceptance output in the mission directory (and optional commits depending on mode)
 
 **Related**: `/spec-kitty.review`, `/spec-kitty.merge`
 
@@ -161,7 +161,7 @@ Syntax format in this reference:
 **Purpose**: Merge an accepted feature into the target branch and clean up worktrees.
 
 **Prerequisites**:
-- Run from the feature worktree (not main).
+- Run from the mission worktree (not main).
 - Feature must pass `/spec-kitty.accept`.
 
 **What it does**:
@@ -169,8 +169,8 @@ Syntax format in this reference:
 - Optionally pushes to origin and deletes worktrees/branches.
 
 **Creates/updates**:
-- Merges feature branch into target branch.
-- Deletes worktree and/or feature branch depending on flags.
+- Merges mission branch into target branch.
+- Deletes worktree and/or mission branch depending on flags.
 
 **Related**: `/spec-kitty.accept`
 
@@ -183,7 +183,7 @@ Syntax format in this reference:
 **Purpose**: Display current kanban status for work packages.
 
 **Prerequisites**:
-- Run from a repo or worktree with access to `kitty-specs/<feature>/tasks/`.
+- Run from a repo or worktree with access to `kitty-specs/<mission>/tasks/`.
 
 **What it does**:
 - Runs `spec-kitty agent tasks status`.
@@ -240,16 +240,16 @@ Syntax format in this reference:
 **Purpose**: Scaffold research artifacts for Phase 0 research.
 
 **Prerequisites**:
-- Run from the feature worktree.
+- Run from the mission worktree.
 
 **What it does**:
 - Runs `spec-kitty research` to create research templates.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/research.md`
-- `kitty-specs/<feature>/data-model.md`
-- `kitty-specs/<feature>/research/evidence-log.csv`
-- `kitty-specs/<feature>/research/source-register.csv`
+- `kitty-specs/<mission>/research.md`
+- `kitty-specs/<mission>/data-model.md`
+- `kitty-specs/<mission>/research/evidence-log.csv`
+- `kitty-specs/<mission>/research/source-register.csv`
 
 **Related**: `/spec-kitty.plan`
 
@@ -262,14 +262,14 @@ Syntax format in this reference:
 **Purpose**: Generate a requirements-quality checklist for the current feature.
 
 **Prerequisites**:
-- Run from the feature worktree.
+- Run from the mission worktree.
 
 **What it does**:
 - Uses `spec-kitty agent check-prerequisites` for paths.
 - Creates a domain-specific checklist file (e.g., `ux.md`, `security.md`).
 
 **Creates/updates**:
-- `kitty-specs/<feature>/checklists/<domain>.md`
+- `kitty-specs/<mission>/checklists/<domain>.md`
 
 **Related**: `/spec-kitty.specify`, `/spec-kitty.analyze`
 
@@ -282,7 +282,7 @@ Syntax format in this reference:
 **Purpose**: Cross-artifact consistency analysis after tasks generation.
 
 **Prerequisites**:
-- Run from the feature worktree.
+- Run from the mission worktree.
 - `spec.md`, `plan.md`, and `tasks.md` must exist.
 
 **What it does**:
@@ -290,7 +290,7 @@ Syntax format in this reference:
 - Produces a read-only analysis report of gaps and conflicts.
 
 **Creates/updates**:
-- `kitty-specs/<feature>/analysis.md`
+- `kitty-specs/<mission>/analysis.md`
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.implement`
 

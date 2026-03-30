@@ -23,9 +23,9 @@ class TestSingleParentMergedDependency:
 
     def test_dependency_merged_uses_target_branch(self, tmp_path: Path):
         """When base WP is in 'done' lane, should branch from target branch."""
-        # Setup: Create feature directory with WP01 in 'done' lane
-        feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Create mission directory with WP01 in 'done' lane
+        mission_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 in 'done' lane
@@ -53,7 +53,7 @@ class TestSingleParentMergedDependency:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP02", ["WP01"])
+        status = check_dependency_status(mission_dir, "WP02", ["WP01"])
 
         # Assertions
         assert status.wp_id == "WP02"
@@ -69,9 +69,9 @@ class TestSingleParentMergedDependency:
 
     def test_dependency_in_progress_uses_workspace(self, tmp_path: Path):
         """When base WP is in 'doing' lane, should branch from workspace branch."""
-        # Setup: Create feature directory with WP01 in 'doing' lane
-        feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Create mission directory with WP01 in 'doing' lane
+        mission_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 in 'doing' lane (in-progress)
@@ -99,7 +99,7 @@ class TestSingleParentMergedDependency:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP02", ["WP01"])
+        status = check_dependency_status(mission_dir, "WP02", ["WP01"])
 
         # Assertions
         assert status.wp_id == "WP02"
@@ -117,9 +117,9 @@ class TestMultiParentAllDoneDependencies:
 
     def test_all_dependencies_done_branches_from_target(self, tmp_path: Path):
         """When all multi-parent dependencies are 'done', should branch from target (optimization)."""
-        # Setup: Create feature directory with all dependencies in 'done' lane
-        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Create mission directory with all dependencies in 'done' lane
+        mission_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01, WP02, WP03 all in 'done' lane
@@ -148,7 +148,7 @@ class TestMultiParentAllDoneDependencies:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP04", ["WP01", "WP02", "WP03"])
+        status = check_dependency_status(mission_dir, "WP04", ["WP01", "WP02", "WP03"])
 
         # Assertions
         assert status.wp_id == "WP04"
@@ -164,9 +164,9 @@ class TestMultiParentAllDoneDependencies:
 
     def test_mixed_status_requires_merge_base(self, tmp_path: Path):
         """When multi-parent dependencies are mixed status, should create merge base."""
-        # Setup: Create feature directory with mixed status dependencies
-        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Create mission directory with mixed status dependencies
+        mission_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 in 'done', WP02 in 'doing', WP03 in 'done'
@@ -196,7 +196,7 @@ class TestMultiParentAllDoneDependencies:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP04", ["WP01", "WP02", "WP03"])
+        status = check_dependency_status(mission_dir, "WP04", ["WP01", "WP02", "WP03"])
 
         # Assertions
         assert status.wp_id == "WP04"
@@ -215,9 +215,9 @@ class TestDependencyStatusEdgeCases:
 
     def test_dependency_file_not_found(self, tmp_path: Path):
         """When dependency WP file doesn't exist, status should be 'unknown'."""
-        # Setup: Feature directory without WP01 file
-        feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Mission directory without WP01 file
+        mission_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Only create WP02 (no WP01)
@@ -233,7 +233,7 @@ class TestDependencyStatusEdgeCases:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP02", ["WP01"])
+        status = check_dependency_status(mission_dir, "WP02", ["WP01"])
 
         # Assertions
         assert status.lanes == {"WP01": "unknown"}
@@ -241,9 +241,9 @@ class TestDependencyStatusEdgeCases:
 
     def test_dependency_no_lane_in_frontmatter(self, tmp_path: Path):
         """When dependency WP has no 'lane' field, status should be 'unknown'."""
-        # Setup: Feature directory with WP01 missing lane field
-        feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Mission directory with WP01 missing lane field
+        mission_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 without lane field
@@ -270,7 +270,7 @@ class TestDependencyStatusEdgeCases:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP02", ["WP01"])
+        status = check_dependency_status(mission_dir, "WP02", ["WP01"])
 
         # Assertions
         assert status.lanes == {"WP01": "unknown"}
@@ -278,9 +278,9 @@ class TestDependencyStatusEdgeCases:
 
     def test_no_dependencies_returns_empty_status(self, tmp_path: Path):
         """When WP has no dependencies, status should reflect that."""
-        # Setup: Feature directory with independent WP
-        feature_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
-        tasks_dir = feature_dir / "tasks"
+        # Setup: Mission directory with independent WP
+        mission_dir = tmp_path / "kitty-specs" / "025-cli-event-log-integration"
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         # Create WP01 with no dependencies
@@ -296,7 +296,7 @@ class TestDependencyStatusEdgeCases:
         )
 
         # Check dependency status
-        status = check_dependency_status(feature_dir, "WP01", [])
+        status = check_dependency_status(mission_dir, "WP01", [])
 
         # Assertions
         assert status.dependencies == []

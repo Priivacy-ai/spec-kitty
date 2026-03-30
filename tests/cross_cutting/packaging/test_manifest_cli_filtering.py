@@ -5,7 +5,7 @@ When command templates have frontmatter like 'ps: spec-kitty agent --json',
 the system should NOT treat 'spec-kitty' as a missing script file.
 
 Also validates that FileManifest no longer exposes an ``active_mission``
-attribute (feature 054 – state architecture cleanup phase 2, WP02).
+attribute (mission 054 – state architecture cleanup phase 2, WP02).
 """
 
 import platform

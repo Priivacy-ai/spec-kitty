@@ -104,28 +104,28 @@ def detect_available_backends() -> list[VCSBackend]:
 # =============================================================================
 
 
-def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
+def _get_locked_vcs_from_mission(path: Path) -> VCSBackend | None:
     """
-    Read VCS from feature meta.json if path is inside that feature.
+    Read VCS from mission meta.json if path is inside that mission.
 
     Args:
-        path: A path that might be within a feature directory.
+        path: A path that might be within a mission directory.
 
     Returns:
-        The locked VCSBackend if path is inside a feature with locked VCS, None otherwise.
+        The locked VCSBackend if path is inside a mission with locked VCS, None otherwise.
 
     Note:
-        Only returns a locked VCS if `path` is actually inside the feature directory
-        (either in kitty-specs/###-feature/ or in a worktree for that feature).
-        Does NOT return VCS for unrelated features.
+        Only returns a locked VCS if `path` is actually inside the mission directory
+        (either in kitty-specs/###-mission/ or in a worktree for that mission).
+        Does NOT return VCS for unrelated missions.
     """
     current = path.resolve()
 
-    # Strategy 1: Check if path is directly inside kitty-specs/###-feature/
-    # e.g., /repo/kitty-specs/015-feature/tasks/WP01.md
+    # Strategy 1: Check if path is directly inside kitty-specs/###-mission/
+    # e.g., /repo/kitty-specs/015-mission/tasks/WP01.md
     for parent in [current, *current.parents]:
         if parent.parent and parent.parent.name == "kitty-specs":
-            # parent is a feature directory like kitty-specs/015-feature/
+            # parent is a mission directory like kitty-specs/015-mission/
             meta_path = parent / "meta.json"
             if meta_path.is_file():
                 try:
@@ -134,11 +134,11 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                         return VCSBackend(meta["vcs"])
                 except (json.JSONDecodeError, ValueError, OSError):
                     pass
-            # Path is in a feature dir but no valid meta.json
+            # Path is in a mission dir but no valid meta.json
             return None
 
-    # Strategy 2: Check if we're in a worktree for a feature
-    # e.g., .worktrees/015-feature-name-WP01/src/file.py
+    # Strategy 2: Check if we're in a worktree for a mission
+    # e.g., .worktrees/015-mission-name-WP01/src/file.py
     if ".worktrees" in str(current):
         # Find the worktree root (direct child of .worktrees/)
         worktree_root = None
@@ -148,22 +148,22 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                 break
 
         if worktree_root:
-            # Extract feature number from worktree name
-            # Pattern: ###-feature-name-WP##
+            # Extract mission number from worktree name
+            # Pattern: ###-mission-name-WP##
             worktree_name = worktree_root.name
             match = re.match(r"(\d{3})-", worktree_name)
             if match:
-                feature_num = match.group(1)
+                mission_num = match.group(1)
                 # Find main repo (parent of .worktrees)
                 main_repo = worktree_root.parent.parent
                 kitty_specs = main_repo / "kitty-specs"
                 if kitty_specs.is_dir():
-                    # Find the specific feature directory matching feature_num
-                    for feature_dir in kitty_specs.iterdir():
-                        if feature_dir.is_dir() and feature_dir.name.startswith(
-                            f"{feature_num}-"
+                    # Find the specific mission directory matching mission_num
+                    for mission_dir in kitty_specs.iterdir():
+                        if mission_dir.is_dir() and mission_dir.name.startswith(
+                            f"{mission_num}-"
                         ):
-                            meta_path = feature_dir / "meta.json"
+                            meta_path = mission_dir / "meta.json"
                             if meta_path.is_file():
                                 try:
                                     meta = json.loads(meta_path.read_text())
@@ -171,10 +171,10 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
                                         return VCSBackend(meta["vcs"])
                                 except (json.JSONDecodeError, ValueError, OSError):
                                     pass
-                            # Found feature dir but no valid meta.json
+                            # Found mission dir but no valid meta.json
                             return None
 
-    # Path is not inside any feature
+    # Path is not inside any mission
     return None
 
 
@@ -210,7 +210,7 @@ def get_vcs(
     Factory function to get appropriate VCS implementation.
 
     Args:
-        path: Path within a repository or feature directory.
+        path: Path within a repository or mission directory.
         backend: Explicit backend choice (None = auto-detect).
 
     Returns:
@@ -218,28 +218,28 @@ def get_vcs(
 
     Raises:
         VCSNotFoundError: Git is not available.
-        VCSBackendMismatchError: Requested backend doesn't match feature's locked VCS.
+        VCSBackendMismatchError: Requested backend doesn't match mission's locked VCS.
 
     Detection order:
         1. If backend specified, use that
-        2. If path is in a feature, read meta.json for locked VCS
+        2. If path is in a mission, read meta.json for locked VCS
         3. If git available, use git
         4. Raise VCSNotFoundError
     """
     # 1. If explicit backend specified, use that
     if backend is not None:
         # Check if there's a locked VCS that conflicts
-        locked = _get_locked_vcs_from_feature(path)
+        locked = _get_locked_vcs_from_mission(path)
         if locked is not None and locked != backend:
             raise VCSBackendMismatchError(
-                f"Requested backend '{backend.value}' doesn't match feature's "
+                f"Requested backend '{backend.value}' doesn't match mission's "
                 f"locked VCS '{locked.value}'. "
-                f"Features must use the same VCS throughout their lifecycle."
+                f"Missions must use the same VCS throughout their lifecycle."
             )
         return _instantiate_backend(backend)
 
-    # 2. Check for locked VCS in feature meta.json
-    locked = _get_locked_vcs_from_feature(path)
+    # 2. Check for locked VCS in mission meta.json
+    locked = _get_locked_vcs_from_mission(path)
     if locked is not None:
         return _instantiate_backend(locked)
 

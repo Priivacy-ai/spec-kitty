@@ -183,7 +183,7 @@ For each documentation file, verify it follows principles for its declared type:
 - [ ] Outdated docs are updated
 - [ ] Coverage percentage improved
 
-**For Feature-Specific**:
+**For Mission-Specific**:
 
 - [ ] Feature is documented across relevant Divio types
 - [ ] Feature docs integrate with existing documentation

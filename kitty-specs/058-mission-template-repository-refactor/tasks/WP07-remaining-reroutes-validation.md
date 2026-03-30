@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Remaining Reroutes + Bug Fix + Validation
-lane: planned
+lane: "done"
 dependencies: [WP05, WP06]
 requirement_refs:
 - FR-017
@@ -9,6 +9,9 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation
+base_commit: 8eb05adc3d929758c53473e9b6a0ac7dec949a21
+created_at: '2026-03-28T11:09:26.777404+00:00'
 subtasks:
 - T027
 - T028
@@ -16,17 +19,20 @@ subtasks:
 - T030
 phase: Phase 2 - Consumer Rerouting
 assignee: ''
-agent: ''
-agent_profile: implementer
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: "opencode"
+shell_pid: '113162'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
+review_feedback: feedback://058-mission-template-repository-refactor/WP07/20260329T063105Z-b40c6cdd.md
 history:
 - timestamp: '2026-03-27T04:37:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+agent_profile: implementer
+approved_by: "Stijn Dejongh"
+role: reviewer
 ---
 
 # Work Package Prompt: WP07 – Remaining Reroutes + Bug Fix + Validation
@@ -45,7 +51,96 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+
+
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T08:11:08Z
+
+Reviewed and merged to feature/agent-profile-implementation. Reroutes T027/T028 verified, TemplateResult bug fixed, all acceptance criteria met. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T07:29:48Z
+
+Review passed (2nd review): All 5 acceptance criteria verified. T027-T030 reroutes correctly use MissionTemplateRepository. TemplateResult bug fixed in commit 2ef55498. Test suite: 51 failed / 7295 passed — identical to baseline (zero regressions). Validation grep confirms no direct mission path construction in rerouted callers.
+**Verdict**: changes_requested | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T06:31:05Z
+
+# WP07 Review Feedback — REJECTED
+
+**Reviewer**: opencode
+**Date**: 2026-03-29
+
+## Verdict: REJECT
+
+WP07's core reroute work (T027-T029) is correct and well-implemented. However, the commit bundles massive out-of-scope doctrine changes that violate WP isolation rules and introduce 4 test regressions.
+
+---
+
+## Issue 1: Out-of-scope doctrine pruning (BLOCKING)
+
+**Description**: The single WP07 commit deletes ~39 doctrine files and adds 5 new ones that are entirely outside WP07's scope. WP07's acceptance criteria are limited to:
+1. Reroute `constitution/compiler.py`
+2. Reroute `specify_cli/constitution/compiler.py`
+3. Fix stale path in `feature.py`
+4. Full pytest suite passes with zero regressions
+5. Validation grep confirms no direct mission path construction
+
+The following out-of-scope changes are included:
+
+- **Deleted agent profiles**: `python-implementer.agent.yaml` (165 lines)
+- **Gutted reviewer profile**: Removed tactic/toolguide references, directive references, operating procedures from `reviewer.agent.yaml`
+- **Deleted 11 quickstart candidate imports** (`_reference/quickstart-agent-augmented-development/candidates/`)
+- **Deleted 2 procedures**: `refactoring.procedure.yaml`, `test-first-bug-fixing.procedure.yaml`
+- **Deleted 1 paradigm**: `atomic-design.paradigm.yaml`
+- **Deleted 1 styleguide**: `python-conventions.styleguide.yaml`
+- **Deleted 1 directive**: `034-test-first-development.directive.yaml`
+- **Deleted ~20 shipped tactics** and emptied ~12 refactoring tactic files
+- **Deleted toolguide**: `PYTHON_REVIEW_CHECKS.md` + `python-review-checks.toolguide.yaml`
+- **Trimmed 4 schema files**: Removed `tactic-references`, `toolguide-references`, `styleguide-references`, `self-review-protocol` from agent-profile schema; removed `anti_patterns`, `notes` from procedure schema; removed `patterns`, `tooling` from styleguide schema; removed `failure_modes`, `notes` from tactic schema
+- **Added 5 new tactic/directive files**: `acceptance-test-first.tactic.yaml`, `glossary-curation-interview.tactic.yaml`, `tdd-red-green-refactor.tactic.yaml`, `zombies-tdd.tactic.yaml`, `test-first.directive.yaml`
+- **Changed tactic directory layout**: `rglob` → `glob` in multiple test files (flattening shipped tactic subdirectories)
+
+**How to fix**: Split the commit. Keep only the T027-T030 changes (compiler reroutes, feature.py fix, test updates for `MissionRepository` → `MissionTemplateRepository` API rename, and `template_path.read_text()` → `template_path.content` migration fix). Remove all doctrine file deletions, schema modifications, new tactic additions, and profile changes. Those belong in a separate WP or should be discussed with the human first.
+
+---
+
+## Issue 2: 4 test regressions introduced by WP07 (BLOCKING)
+
+**Description**: The following 4 tests pass on the base branch (`feature/agent-profile-implementation`) but fail on WP07:
+
+### 2a: `tests/doctrine/test_shipped_profiles.py::TestShippedProfilesLoad::test_all_seven_profiles_load`
+- Test expects exactly 7 profiles, but `generic-agent` still exists in `shipped/`, giving 8
+- Root cause: WP07 modified the test to expect 7 (removing `python-implementer` and `generic-agent`) and deleted `python-implementer`, but did NOT move `generic-agent` out of `shipped/`
+
+### 2b: `tests/doctrine/test_shipped_profiles.py::TestShippedProfilesLoad::test_expected_profile_ids_present`
+- Same root cause as 2a — `generic-agent` is still in `shipped/` but removed from `EXPECTED_PROFILE_IDS`
+
+### 2c: `tests/doctrine/test_generic_agent_profile.py::test_generic_agent_not_in_shipped`
+- WP07 added this new test asserting `generic-agent.agent.yaml` must NOT exist in `shipped/`, but it does exist. The test was written for a state that doesn't match the actual code.
+
+### 2d: `tests/agent/test_review_template_dependency_warnings.py::test_mission_review_template_dependency_warnings`
+- `MissionTemplateRepository.get_command_template()` returns a `TemplateResult` object, not a `Path`. The test calls `path.exists()` which fails with `AttributeError: 'TemplateResult' object has no attribute 'exists'`
+- The helper function `_assert_required_keys` expects a `Path` but now receives a `TemplateResult`
+
+**How to fix**:
+- For 2a-2c: Either move `generic-agent.agent.yaml` from `shipped/` to `_proposed/` (but this is out-of-scope for WP07), or revert the test changes and keep `generic-agent` in the expected set
+- For 2d: Use `path.content` instead of `path.read_text()` in the test helper, or extract the path from the `TemplateResult` object
+
+---
+
+## Issue 3: Acceptance criterion #4 not met (BLOCKING)
+
+**Description**: WP07 acceptance criterion #4 states "Full pytest suite passes with zero regressions." The 4 regressions above violate this criterion. All 4 failures are confirmed new (0 failures in these tests on the base branch, 4 on WP07).
+
+**How to fix**: Fix the 4 regressions listed in Issue 2.
+
+---
+
+## Summary
+
+The core reroute logic (T027-T029) is solid and correctly uses `MissionTemplateRepository`. The `feature.py` stale path fix is appropriate. The `MissionRepository` → `MissionTemplateRepository` test renames are legitimate scope for WP07. However, the doctrine pruning is out of scope and the test regressions must be fixed before approval.
+
+**Remediation priority**:
+1. Revert all doctrine file deletions, schema changes, and new tactic/directive additions (out of scope)
+2. Revert profile changes (python-implementer deletion, reviewer gutting, generic-agent test expectations)
+3. Fix the `TemplateResult` vs `Path` bug in `test_review_template_dependency_warnings`
+4. Re-run full test suite to confirm zero regressions
 
 ---
 
@@ -207,3 +302,11 @@ Expected outcome: All tests pass. Any failures are regressions from WP05-WP06 ch
 ## Activity Log
 
 - 2026-03-27T04:37:32Z – system – lane=planned – Prompt created.
+- 2026-03-28T12:51:26Z – unknown – shell_pid=98083 – lane=for_review – Ready for review: rerouted remaining direct mission paths to MissionTemplateRepository, fixed stale path, boyscout test fixes
+- 2026-03-29T06:13:32Z – opencode – shell_pid=113162 – lane=in_review – Started review via workflow command
+- 2026-03-29T06:14:11Z – opencode – shell_pid=113162 – lane=for_review – Returned to for_review - accidentally claimed during WP08 review
+- 2026-03-29T06:16:40Z – opencode – shell_pid=113162 – lane=in_review – Started review via workflow command
+- 2026-03-29T06:31:05Z – opencode – shell_pid=113162 – lane=planned – Moved to planned
+- 2026-03-29T06:45:31Z – opencode – shell_pid=113162 – lane=planned – Review feedback revised: Issue 1 (out-of-scope doctrine pruning) withdrawn — those changes are on the parallel base-branch track, not WP07. Remaining issues: (1) rebase needed onto current feature/agent-profile-implementation, (2) TemplateResult vs Path bug in test_review_template_dependency_warnings. Updated feedback at /tmp/spec-kitty-review-feedback-WP07.md
+- 2026-03-29T07:29:48Z – opencode – shell_pid=113162 – lane=approved – Review passed (2nd review): All 5 acceptance criteria verified. T027-T030 reroutes correctly use MissionTemplateRepository. TemplateResult bug fixed in commit 2ef55498. Test suite: 51 failed / 7295 passed — identical to baseline (zero regressions). Validation grep confirms no direct mission path construction in rerouted callers.
+- 2026-03-29T08:11:08Z – opencode – shell_pid=113162 – lane=done – Reviewed and merged to feature/agent-profile-implementation. Reroutes T027/T028 verified, TemplateResult bug fixed, all acceptance criteria met. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.

@@ -174,7 +174,7 @@ Standard PR process
 Rust 1.70+ with no external dependencies
 
 ### Testing Requirements
-cargo test, all features must have tests
+cargo test, all missions must have tests
 
 ### Performance and Scale
 Handle 1000 requests/second at p95 < 200ms
@@ -272,7 +272,7 @@ class TestConstitutionGracefulFallback:
         plan_template = templates_dir / "plan-template.md"
         plan_template_content = """# Implementation Plan
 
-Load context: Read FEATURE_SPEC and `.kittify/memory/constitution.md` if it exists.
+Load context: Read MISSION_SPEC and `.kittify/memory/constitution.md` if it exists.
 If the constitution file is missing, skip Constitution Check and note that it is absent.
 
 ## Plan Structure
@@ -483,9 +483,9 @@ Document in ADR, require 3 approvals, set sunset date for temporary exceptions
         )
 
         # Create worktree
-        worktree_dir = repo / ".worktrees" / "feature-WP01"
+        worktree_dir = repo / ".worktrees" / "mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,

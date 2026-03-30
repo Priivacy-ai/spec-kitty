@@ -34,14 +34,14 @@ class TestPreflightBlocking:
         """Test that preflight blocks merge when worktree has uncommitted changes."""
         repo_root, dirty_worktree = dirty_worktree_repo
 
-        # Create feature directory for preflight
-        feature_slug = "019-dirty-test"
-        repo_root / "kitty-specs" / feature_slug
+        # Create mission directory for preflight
+        mission_slug = "019-dirty-test"
+        repo_root / "kitty-specs" / mission_slug
 
-        wp_workspaces = [(dirty_worktree, "WP01", f"{feature_slug}-WP01")]
+        wp_workspaces = [(dirty_worktree, "WP01", f"{mission_slug}-WP01")]
 
         result = run_preflight(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch="main",
             repo_root=repo_root,
             wp_workspaces=wp_workspaces,
@@ -81,10 +81,10 @@ class TestPreflightBlocking:
             capture_output=True,
         )
 
-        # Create feature directory with 2 WP tasks
-        feature_slug = "020-missing-test"
-        feature_dir = repo / "kitty-specs" / feature_slug
-        tasks_dir = feature_dir / "tasks"
+        # Create mission directory with 2 WP tasks
+        mission_slug = "020-missing-test"
+        mission_dir = repo / "kitty-specs" / mission_slug
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         for wp_num in [1, 2]:
@@ -102,9 +102,9 @@ dependencies: []
             )
 
         # Only provide WP01 worktree (WP02 is missing)
-        worktree_dir = repo / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_dir = repo / ".worktrees" / f"{mission_slug}-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", f"{feature_slug}-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", f"{mission_slug}-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -118,10 +118,10 @@ dependencies: []
             capture_output=True,
         )
 
-        wp_workspaces = [(worktree_dir, "WP01", f"{feature_slug}-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", f"{mission_slug}-WP01")]
 
         result = run_preflight(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch="master",
             repo_root=repo,
             wp_workspaces=wp_workspaces,
@@ -200,10 +200,10 @@ dependencies: []
             capture_output=True,
         )
 
-        # Create feature and worktree
-        feature_slug = "021-diverged-test"
-        feature_dir = local / "kitty-specs" / feature_slug
-        tasks_dir = feature_dir / "tasks"
+        # Create mission and worktree
+        mission_slug = "021-diverged-test"
+        mission_dir = local / "kitty-specs" / mission_slug
+        tasks_dir = mission_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
         wp_file = tasks_dir / "WP01.md"
@@ -219,9 +219,9 @@ dependencies: []
 """
         )
 
-        worktree_dir = local / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_dir = local / ".worktrees" / f"{mission_slug}-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", f"{feature_slug}-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", f"{mission_slug}-WP01"],
             cwd=local,
             check=True,
             capture_output=True,
@@ -245,10 +245,10 @@ dependencies: []
         )
         default_branch = result_branch.stdout.strip()
 
-        wp_workspaces = [(worktree_dir, "WP01", f"{feature_slug}-WP01")]
+        wp_workspaces = [(worktree_dir, "WP01", f"{mission_slug}-WP01")]
 
         result = run_preflight(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch=default_branch,
             repo_root=local,
             wp_workspaces=wp_workspaces,
@@ -299,8 +299,8 @@ class TestDryRunConflictForecasting:
         )
 
         # Create initial status file
-        feature_slug = "022-status-test"
-        status_dir = repo / "kitty-specs" / feature_slug / "tasks"
+        mission_slug = "022-status-test"
+        status_dir = repo / "kitty-specs" / mission_slug / "tasks"
         status_dir.mkdir(parents=True)
         (status_dir / "WP01.md").write_text("---\nlane: planned\n---")
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -323,7 +323,7 @@ class TestDryRunConflictForecasting:
 
         # WP01 updates status
         subprocess.run(
-            ["git", "checkout", "-b", f"{feature_slug}-WP01"],
+            ["git", "checkout", "-b", f"{mission_slug}-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -345,7 +345,7 @@ class TestDryRunConflictForecasting:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", f"{feature_slug}-WP02"],
+            ["git", "checkout", "-b", f"{mission_slug}-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -367,8 +367,8 @@ class TestDryRunConflictForecasting:
         )
 
         wp_workspaces = [
-            (repo, "WP01", f"{feature_slug}-WP01"),
-            (repo, "WP02", f"{feature_slug}-WP02"),
+            (repo, "WP01", f"{mission_slug}-WP01"),
+            (repo, "WP02", f"{mission_slug}-WP02"),
         ]
 
         predictions = predict_conflicts(wp_workspaces, main_branch, repo)
@@ -388,7 +388,7 @@ class TestResumeInterruption:
 
         # Create merge state
         state = MergeState(
-            feature_slug="023-resume-test",
+            mission_slug="023-resume-test",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
             completed_wps=["WP01"],
@@ -404,7 +404,7 @@ class TestResumeInterruption:
         # Load state
         loaded = load_state(repo)
         assert loaded is not None
-        assert loaded.feature_slug == "023-resume-test"
+        assert loaded.mission_slug == "023-resume-test"
         assert loaded.completed_wps == ["WP01"]
         assert loaded.remaining_wps == ["WP02", "WP03"]
         assert loaded.current_wp == "WP02"
@@ -415,7 +415,7 @@ class TestResumeInterruption:
 
         # Create state with WP01, WP02 complete, WP03 in progress
         state = MergeState(
-            feature_slug="024-continue-test",
+            mission_slug="024-continue-test",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03", "WP04"],
             completed_wps=["WP01", "WP02"],
@@ -453,7 +453,7 @@ class TestAbortFunctionality:
 
         # Create merge state
         state = MergeState(
-            feature_slug="025-abort-test",
+            mission_slug="025-abort-test",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01"],
@@ -490,7 +490,7 @@ class TestAbortFunctionality:
 
         # Create state with pending conflicts
         state = MergeState(
-            feature_slug="026-conflict-abort-test",
+            mission_slug="026-conflict-abort-test",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=[],

@@ -50,7 +50,7 @@ def _is_2x_context(
 ) -> bool:
     """Return True when tests should apply the 2.x contract behavior.
 
-    Prefer the checked-out project version because feature branches based on
+    Prefer the checked-out project version because mission branches based on
     2.x often use unrelated branch names. Fall back to branch and CI refs for
     contexts where the version is unavailable.
     """

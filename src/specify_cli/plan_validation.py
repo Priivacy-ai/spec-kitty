@@ -10,11 +10,11 @@ from pathlib import Path
 
 # Template markers that indicate an unfilled plan
 TEMPLATE_MARKERS = [
-    "[FEATURE]",
-    "[###-feature-name]",
+    "[MISSION]",
+    "[###-mission-name]",
     "[DATE]",
     "[link]",
-    "[Extract from feature spec:",
+    "[Extract from mission spec:",
     "ACTION REQUIRED: Replace the content",
     "[e.g., Python 3.11",
     "or NEEDS CLARIFICATION",
@@ -67,14 +67,14 @@ def detect_unfilled_plan(plan_path: Path) -> tuple[bool, list[str]]:
 def validate_plan_filled(
     plan_path: Path,
     *,
-    feature_slug: str | None = None,
+    mission_slug: str | None = None,
     strict: bool = True,
 ) -> None:
     """Validate that plan.md has been filled out.
 
     Args:
         plan_path: Path to the plan.md file
-        feature_slug: Optional feature slug for error messages
+        mission_slug: Optional mission slug for error messages
         strict: If True, raise error on unfilled plan. If False, just warn.
 
     Raises:
@@ -85,12 +85,12 @@ def validate_plan_filled(
     if not is_unfilled:
         return
 
-    feature_display = f" for feature '{feature_slug}'" if feature_slug else ""
+    mission_display = f" for mission '{mission_slug}'" if mission_slug else ""
     marker_list = "\n  - ".join(markers[:5])  # Show first 5 markers
     more_markers = f"\n  ... and {len(markers) - 5} more" if len(markers) > 5 else ""
 
     error_msg = (
-        f"plan.md{feature_display} appears to be unfilled (template form).\n"
+        f"plan.md{mission_display} appears to be unfilled (template form).\n"
         f"Found {len(markers)} template markers:\n  - {marker_list}{more_markers}\n\n"
         f"Please complete the /spec-kitty.plan workflow before proceeding to research or tasks.\n"
         f"The plan.md file must have technical details filled in, not just template placeholders."

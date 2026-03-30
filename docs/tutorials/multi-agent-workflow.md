@@ -5,7 +5,7 @@
 Learn how to coordinate multiple AI agents working on different work packages simultaneously.
 
 **Time**: ~1 hour
-**Prerequisites**: Completed [Your First Feature](your-first-feature.md)
+**Prerequisites**: Completed [Your First Mission](your-first-mission.md)
 
 ## Why Parallel Development?
 
@@ -42,7 +42,7 @@ Confirm two independent packages are `lane: "planned"`.
 
 ```bash
 spec-kitty agent workflow implement WP01
-cd .worktrees/###-feature-WP01
+cd .worktrees/###-mission-WP01
 # Agent A works here
 ```
 
@@ -50,7 +50,7 @@ cd .worktrees/###-feature-WP01
 
 ```bash
 spec-kitty agent workflow implement WP02
-cd .worktrees/###-feature-WP02
+cd .worktrees/###-mission-WP02
 # Agent B works here simultaneously
 ```
 
@@ -67,7 +67,7 @@ spec-kitty implement WP02 --base WP01
 Expected output (abridged):
 
 ```
-OK Created workspace: .worktrees/###-feature-WP02
+OK Created workspace: .worktrees/###-mission-WP02
 ```
 
 ## Git Worktrees, Briefly

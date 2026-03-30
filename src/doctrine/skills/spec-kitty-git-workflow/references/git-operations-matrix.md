@@ -10,7 +10,7 @@ command agents are expected to run.
 | `git worktree add -b <branch> <path> [base]` | `spec-kitty implement WP##` | `core/vcs/git.py` | `create_workspace()` |
 | `git config core.sparseCheckout true` | After worktree creation | `core/vcs/git.py` | `create_workspace()` |
 | `git read-tree -mu HEAD` | Sparse checkout setup | `core/vcs/git.py` | `create_workspace()` |
-| `git add -f kitty-specs/<feature>/` | Before worktree creation (auto-commit) | `cli/commands/implement.py` | `_ensure_planning_artifacts_committed_git()` |
+| `git add -f kitty-specs/<mission>/` | Before worktree creation (auto-commit) | `cli/commands/implement.py` | `_ensure_planning_artifacts_committed_git()` |
 | `git commit -m "chore: Planning..."` | Before worktree creation (auto-commit) | `cli/commands/implement.py` | `_ensure_planning_artifacts_committed_git()` |
 | `git stash` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
 | `git add <wp-file>` | Lane transition safe-commit | `git/commit_helpers.py` | `safe_commit()` |
@@ -31,7 +31,7 @@ command agents are expected to run.
 | `git rev-list --count <base>..HEAD` | Topology analysis (read-only) | `core/worktree_topology.py` | `_count_commits_ahead()` |
 | `git worktree list` | Worktree discovery | `core/worktree_topology.py` | `discover_worktrees()` |
 | `git rev-parse --show-toplevel` | Repo root detection | Multiple files | Various |
-| `git branch --show-current` | Branch detection | `core/feature_detection.py` | `_detect_from_branch()` |
+| `git branch --show-current` | Branch detection | `core/mission_detection.py` | `_detect_from_branch()` |
 
 ## Agent-Expected Git Commands
 

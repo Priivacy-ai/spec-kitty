@@ -68,14 +68,14 @@ def state_roots(
     console.print()
     root_order = [
         StateRoot.PROJECT,
-        StateRoot.FEATURE,
+        StateRoot.MISSION,
         StateRoot.GLOBAL_RUNTIME,
         StateRoot.GLOBAL_SYNC,
         StateRoot.GIT_INTERNAL,
     ]
     root_labels = {
         StateRoot.PROJECT: "Project Surfaces (.kittify/)",
-        StateRoot.FEATURE: "Feature Surfaces (kitty-specs/)",
+        StateRoot.MISSION: "Mission Surfaces (kitty-specs/)",
         StateRoot.GLOBAL_RUNTIME: "Global Runtime (~/.kittify/)",
         StateRoot.GLOBAL_SYNC: "Global Sync (~/.spec-kitty/)",
         StateRoot.GIT_INTERNAL: "Git-Internal (.git/spec-kitty/)",

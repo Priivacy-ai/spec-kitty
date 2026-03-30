@@ -5,7 +5,7 @@
 Agent commands (`spec-kitty agent *`) are thin wrappers around top-level
 commands, adding agent-specific UX enhancements:
 
-1. **Auto-detection**: Auto-detect parameters from context (feature, WP)
+1. **Auto-detection**: Auto-detect parameters from context (mission, WP)
 2. **Prompt display**: Output implementation/review prompts
 3. **Status updates**: Move WPs between lanes, track agent/PID
 4. **Error recovery**: Auto-retry, navigation to correct worktree
@@ -18,7 +18,7 @@ from specify_cli.cli.commands.implement import implement as top_level_implement
 
 @app.command(name="implement")
 def implement_wrapper(...):
-    # 1. Auto-detect parameters (feature, WP ID)
+    # 1. Auto-detect parameters (mission, WP ID)
     # 2. Validate dependencies (CRITICAL for workspace creation)
     # 3. Add agent-specific logic (status updates, prompt display)
     # 4. Delegate to top-level command
@@ -37,20 +37,20 @@ from specify_cli.core.implement_validation import (
 )
 
 # Parse WP file to check dependencies
-wp = locate_work_package(repo_root, feature_slug, wp_id)
+wp = locate_work_package(repo_root, mission_slug, wp_id)
 
 # Validate dependencies (errors if single dep and no --base)
 resolved_base, auto_merge = validate_and_resolve_base(
     wp_id=wp_id,
     wp_file=wp.path,
     base=base,  # User-provided or None
-    feature_slug=feature_slug,
+    mission_slug=mission_slug,
     repo_root=repo_root
 )
 
 # Validate base workspace exists (if resolved)
 if resolved_base:
-    validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+    validate_base_workspace_exists(resolved_base, mission_slug, repo_root)
 
 # Now safe to create workspace
 top_level_implement(wp_id=wp_id, base=resolved_base, ...)
@@ -79,29 +79,29 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 def implement(wp_id: str | None, base: str | None, agent: str | None):
     # Auto-detect WP if omitted
     if not wp_id:
-        wp_id = _find_first_planned_wp(repo_root, feature_slug)
+        wp_id = _find_first_planned_wp(repo_root, mission_slug)
 
     # Normalize format
     wp_id = _normalize_wp_id(wp_id)  # "wp01" → "WP01"
 
     # CRITICAL: Validate dependencies
-    wp = locate_work_package(repo_root, feature_slug, wp_id)
+    wp = locate_work_package(repo_root, mission_slug, wp_id)
     resolved_base, auto_merge = validate_and_resolve_base(
-        wp_id, wp.path, base, feature_slug, repo_root
+        wp_id, wp.path, base, mission_slug, repo_root
     )
 
     # Create workspace if needed
     if auto_merge or resolved_base or not workspace_exists:
-        top_level_implement(wp_id, resolved_base, feature_slug)
+        top_level_implement(wp_id, resolved_base, mission_slug)
 
     # Display prompt
     display_implement_prompt(wp_id, workspace_path)
 ```
 
-### Agent Feature Accept
+### Agent Mission Accept
 
 **Responsibilities:**
-- Auto-detect feature from context
+- Auto-detect mission from context
 - Delegate to top-level accept command
 - Map parameter names (lenient, no_commit, json_output)
 
@@ -110,10 +110,10 @@ def implement(wp_id: str | None, base: str | None, agent: str | None):
 from specify_cli.cli.commands.accept import accept as top_level_accept
 
 @app.command(name="accept")
-def accept_feature(feature: str | None, mode: str, lenient: bool, json_output: bool):
+def accept_mission(mission: str | None, mode: str, lenient: bool, json_output: bool):
     # Direct delegation - no complex logic needed
     top_level_accept(
-        feature=feature,
+        mission=mission,
         mode=mode,
         actor=None,  # Agent commands don't use --actor
         test=[],  # Agent commands don't use --test
@@ -124,7 +124,7 @@ def accept_feature(feature: str | None, mode: str, lenient: bool, json_output: b
     )
 ```
 
-### Agent Feature Merge
+### Agent Mission Merge
 
 **Responsibilities:**
 - Auto-retry logic (navigate to latest worktree if in wrong location)
@@ -136,8 +136,8 @@ def accept_feature(feature: str | None, mode: str, lenient: bool, json_output: b
 from specify_cli.cli.commands.merge import merge as top_level_merge
 
 @app.command(name="merge")
-def merge_feature(
-    feature: str | None,
+def merge_mission(
+    mission: str | None,
     target: str,
     strategy: str,
     push: bool,
@@ -146,11 +146,11 @@ def merge_feature(
     auto_retry: bool,
 ):
     # Agent-specific: Auto-retry in correct worktree
-    if auto_retry and not on_feature_branch():
-        latest_worktree = _find_latest_feature_worktree(repo_root)
+    if auto_retry and not on_mission_branch():
+        latest_worktree = _find_latest_mission_worktree(repo_root)
         if latest_worktree:
             # Re-run command in worktree
-            subprocess.run(["spec-kitty", "agent", "feature", "merge", ...],
+            subprocess.run(["spec-kitty", "agent", "mission", "merge", ...],
                          cwd=latest_worktree)
             return
 
@@ -162,7 +162,7 @@ def merge_feature(
         push=push,
         target_branch=target,  # Parameter name differs
         dry_run=dry_run,
-        feature=feature,
+        mission=mission,
         resume=False,  # Agent doesn't support resume
         abort=False,  # Agent doesn't support abort
     )
@@ -214,7 +214,7 @@ See `tests/integration/test_agent_command_wrappers.py` for examples.
 ```python
 # BAD: Creates workspace without checking dependencies
 if base:
-    top_level_implement(wp_id, base, feature)
+    top_level_implement(wp_id, base, mission)
 # Otherwise just display prompt - NO VALIDATION!
 ```
 
@@ -227,7 +227,7 @@ if base:
 resolved_base, auto_merge = validate_and_resolve_base(...)
 if resolved_base:
     validate_base_workspace_exists(...)
-top_level_implement(wp_id, resolved_base, feature)
+top_level_implement(wp_id, resolved_base, mission)
 ```
 
 ### ❌ Calling Legacy Scripts
@@ -243,7 +243,7 @@ subprocess.run([sys.executable, str(tasks_cli), "accept"])
 ```python
 # GOOD: Direct import
 from specify_cli.cli.commands.accept import accept as top_level_accept
-top_level_accept(feature=feature, mode=mode, ...)
+top_level_accept(mission=mission, mode=mode, ...)
 ```
 
 ### ❌ Forgetting Parameter Inversions

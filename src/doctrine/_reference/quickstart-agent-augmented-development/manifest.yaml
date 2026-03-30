@@ -1,6 +1,10 @@
-version: 1
+version: 2
 source_id: quickstart-agent-augmented-development
 source_name: "Quickstart Agent-Augmented Development"
 source_type: "documentation"
 owner: "governance"
-notes: "Imported directives curated into Spec Kitty doctrine tactics."
+notes: >
+  Imported directives, tactics, procedures, styleguides, toolguides, and agent profiles
+  curated into Spec Kitty doctrine. Wave 1 (v1): ATDD, TDD, context-aware design,
+  conceptual alignment. Wave 2 (v2): Python Pedro profile, Python conventions styleguide,
+  test tactics, review tactics, bug-fixing procedure, review toolguide.

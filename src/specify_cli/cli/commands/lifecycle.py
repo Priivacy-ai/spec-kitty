@@ -10,45 +10,43 @@ import re
 
 import typer
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature, resolve_mission_type
-from specify_cli.cli.commands.agent import feature as agent_feature
+from specify_cli.cli.commands._flag_utils import resolve_mission_type
+from specify_cli.cli.commands.agent import mission as agent_mission
 
 
-def _slugify_feature_input(value: str) -> str:
-    """Normalize a free-form feature name to kebab-case slug text."""
+def _slugify_mission_input(value: str) -> str:
+    """Normalize a free-form mission name to kebab-case slug text."""
     slug = re.sub(r"[^a-z0-9]+", "-", value.strip().lower()).strip("-")
     if not slug:
-        raise typer.BadParameter("Feature name cannot be empty.")
+        raise typer.BadParameter("Mission name cannot be empty.")
     return slug
 
 
 def specify(
-    feature: str = typer.Argument(..., help="Mission name or slug (e.g., user-authentication)"),
+    mission_name: str = typer.Argument(..., help="Mission name or slug (e.g., user-authentication)"),
     mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
     mission_legacy: str | None = typer.Option(None, "--mission", hidden=True, help="[Removed] Use --mission-type"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a mission scaffold in kitty-specs/."""
-    slug = _slugify_feature_input(feature)
+    slug = _slugify_mission_input(mission_name)
     resolved_type = resolve_mission_type(mission_type, mission_legacy)
-    agent_feature.create_feature(feature_slug=slug, mission_type=resolved_type, json_output=json_output)
+    agent_mission.create_mission(mission_name=slug, mission_type=resolved_type, json_output=json_output)
 
 
 def plan(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
-    """Scaffold plan.md for a feature."""
-    feature = resolve_mission_or_feature(mission, feature)
-    agent_feature.setup_plan(feature=feature, json_output=json_output)
+    """Scaffold plan.md for a mission."""
+    agent_mission.setup_plan(mission=mission, json_output=json_output)
 
 
 def tasks(
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Finalize tasks metadata after task generation."""
-    agent_feature.finalize_tasks(json_output=json_output)
+    agent_mission.finalize_tasks(json_output=json_output)
 
 
 __all__ = ["specify", "plan", "tasks"]

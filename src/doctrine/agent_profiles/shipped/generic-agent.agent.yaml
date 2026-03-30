@@ -41,8 +41,8 @@ collaboration:
 
 mode-defaults:
   - mode: implementation
-    description: Active feature development and task execution
-    use-case: Building new features, implementing specifications, executing work packages
+    description: Active mission development and task execution
+    use-case: Building new missions, implementing specifications, executing work packages
   - mode: review-response
     description: Responding to reviewer feedback
     use-case: Addressing requested changes, iterating on implementation

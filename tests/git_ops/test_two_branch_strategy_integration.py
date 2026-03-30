@@ -9,8 +9,8 @@ pytestmark = pytest.mark.git_repo
 
 
 @pytest.fixture
-def git_repo_with_2x_feature(tmp_path):
-    """Create a git repo with a feature targeting 2.x branch."""
+def git_repo_with_2x_mission(tmp_path):
+    """Create a git repo with a mission targeting 2.x branch."""
     repo = tmp_path / "repo"
     repo.mkdir()
 
@@ -23,14 +23,14 @@ def git_repo_with_2x_feature(tmp_path):
     (repo / ".kittify").mkdir()
     (repo / ".kittify" / ".gitkeep").write_text("")
 
-    # Create feature with target_branch = "2.x"
-    feature_dir = repo / "kitty-specs" / "025-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    # Create mission with target_branch = "2.x"
+    mission_dir = repo / "kitty-specs" / "025-test-mission"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
-    (feature_dir / "meta.json").write_text(json.dumps({
-        "feature_number": "025",
-        "slug": "025-test-feature",
+    (mission_dir / "meta.json").write_text(json.dumps({
+        "mission_number": "025",
+        "slug": "025-test-mission",
         "target_branch": "2.x",
         "mission": "software-dev"
     }))
@@ -55,32 +55,32 @@ dependencies: []
     return repo
 
 
-def test_target_branch_detection_from_meta_json(git_repo_with_2x_feature):
+def test_target_branch_detection_from_meta_json(git_repo_with_2x_mission):
     """Bug #1: Should use target_branch from meta.json for validation."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+    from specify_cli.core.mission_detection import get_mission_target_branch
 
-    repo = git_repo_with_2x_feature
-    target = get_feature_target_branch(repo, "025-test-feature")
+    repo = git_repo_with_2x_mission
+    target = get_mission_target_branch(repo, "025-test-mission")
 
     assert target == "2.x", "Should read target_branch from meta.json"
 
 
-def test_target_branch_defaults_to_main_for_legacy(git_repo_with_2x_feature):
-    """Bug #1: Should default to main for features without target_branch."""
-    from specify_cli.core.feature_detection import get_feature_target_branch
+def test_target_branch_defaults_to_main_for_legacy(git_repo_with_2x_mission):
+    """Bug #1: Should default to main for missions without target_branch."""
+    from specify_cli.core.mission_detection import get_mission_target_branch
 
-    repo = git_repo_with_2x_feature
+    repo = git_repo_with_2x_mission
 
-    # Create legacy feature without target_branch
-    feature_dir = repo / "kitty-specs" / "024-legacy"
-    feature_dir.mkdir()
-    (feature_dir / "meta.json").write_text(json.dumps({
-        "feature_number": "024",
+    # Create legacy mission without target_branch
+    mission_dir = repo / "kitty-specs" / "024-legacy"
+    mission_dir.mkdir()
+    (mission_dir / "meta.json").write_text(json.dumps({
+        "mission_number": "024",
         "slug": "024-legacy",
         "mission": "software-dev"
         # No target_branch field
     }))
 
-    target = get_feature_target_branch(repo, "024-legacy")
+    target = get_mission_target_branch(repo, "024-legacy")
 
-    assert target == "main", "Should default to main for legacy features"
+    assert target == "main", "Should default to main for legacy missions"

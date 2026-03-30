@@ -19,7 +19,7 @@ Before any file operation, run:
 ```bash
 pwd
 ls -la
-test -f kitty-specs/<feature>/tasks/<wp-file>.md && echo "wp prompt exists"
+test -f kitty-specs/<mission>/tasks/<wp-file>.md && echo "wp prompt exists"
 ```
 
 If a file or path is uncertain, verify with `ls` or `test -f` before reading it.

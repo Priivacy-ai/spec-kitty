@@ -475,9 +475,9 @@ class TestNoDuplicateEmissions:
         # Simulate finalize-tasks batch with causation chain
         causation_id = emitter.generate_causation_id()
 
-        emitter.emit_feature_created(
-            feature_slug="032-identity-aware",
-            feature_number="032",
+        emitter.emit_mission_created(
+            mission_slug="032-identity-aware",
+            mission_number="032",
             target_branch="main",
             wp_count=3,
             causation_id=causation_id,
@@ -487,12 +487,12 @@ class TestNoDuplicateEmissions:
             emitter.emit_wp_created(
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
-                feature_slug="032-identity-aware",
+                mission_slug="032-identity-aware",
                 dependencies=[f"WP{i-1:02d}"] if i > 1 else [],
                 causation_id=causation_id,
             )
 
-        # Should be exactly 4 events (1 FeatureCreated + 3 WPCreated)
+        # Should be exactly 4 events (1 MissionCreated + 3 WPCreated)
         assert mock_queue.size() == 4
 
         events = mock_queue.drain_queue()
@@ -536,20 +536,20 @@ class TestFullWorkflowIntegration:
 
         causation_id = emitter.generate_causation_id()
 
-        # 1. Feature created (use valid feature_slug pattern: ###-slug-name)
-        emitter.emit_feature_created(
-            feature_slug="001-test-feature",
-            feature_number="001",
+        # 1. Feature created (use valid mission_slug pattern: ###-slug-name)
+        emitter.emit_mission_created(
+            mission_slug="001-test-mission",
+            mission_number="001",
             target_branch="main",
             wp_count=1,
             causation_id=causation_id,
         )
 
-        # 2. WP created (use valid feature_slug pattern: ###-slug-name)
+        # 2. WP created (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_wp_created(
             wp_id="WP01",
             title="Test Work Package",
-            feature_slug="001-test-feature",
+            mission_slug="001-test-mission",
             dependencies=[],
             causation_id=causation_id,
         )
@@ -570,9 +570,9 @@ class TestFullWorkflowIntegration:
         # 6. Accept (for_review -> done)
         emitter.emit_wp_status_changed("WP01", "for_review", "done")
 
-        # 7. Feature completed (use valid feature_slug pattern: ###-slug-name)
-        emitter.emit_feature_completed(
-            feature_slug="001-test-feature",
+        # 7. Feature completed (use valid mission_slug pattern: ###-slug-name)
+        emitter.emit_mission_completed(
+            mission_slug="001-test-mission",
             total_wps=1,
         )
 
@@ -587,13 +587,13 @@ class TestFullWorkflowIntegration:
         # Verify event types in order
         event_types = [e["event_type"] for e in events]
         assert event_types == [
-            "FeatureCreated",
+            "MissionCreated",
             "WPCreated",
             "WPAssigned",
             "WPStatusChanged",
             "WPStatusChanged",
             "WPStatusChanged",
-            "FeatureCompleted",
+            "MissionCompleted",
         ]
 
     def test_events_queued_when_offline(
@@ -681,7 +681,7 @@ class TestEventPayloadValidation:
             from_lane="planned",
             to_lane="in_progress",
             actor="claude-opus",
-            feature_slug="test-feature",
+            mission_slug="test-mission",
         )
 
         # Required fields
@@ -697,7 +697,7 @@ class TestEventPayloadValidation:
         assert payload["from_lane"] == "planned"
         assert payload["to_lane"] == "in_progress"
         assert payload["actor"] == "claude-opus"
-        assert payload["feature_slug"] == "test-feature"
+        assert payload["mission_slug"] == "test-mission"
 
     def test_event_id_is_ulid(
         self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path

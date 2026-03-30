@@ -16,7 +16,7 @@ Not all projects are the same:
 A workflow designed for software development doesn't fit research:
 - "All tests pass" makes no sense for a literature review
 - "Documented sources" isn't relevant for code implementation
-- Phases like "gather data" don't apply to feature development
+- Phases like "gather data" don't apply to mission development
 
 Missions solve this by providing domain-specific workflows, validation rules, and artifacts.
 
@@ -44,7 +44,7 @@ Mission (reusable workflow blueprint, e.g. software-dev)
 
 **Mission** -- A reusable workflow blueprint. It defines the steps, templates, artifacts, and guards. You never edit missions directly; you select one when starting a feature.
 
-**Feature** -- A concrete thing you're building, stored in `kitty-specs/###-feature-name/`. Each feature is linked to exactly one mission via its `meta.json` file. Different features in the same project can use different missions.
+**Feature** -- A concrete thing you're building, stored in `kitty-specs/###-mission-name/`. Each feature is linked to exactly one mission via its `meta.json` file. Different features in the same project can use different missions.
 
 **Work Package (WP)** -- One parallelizable slice of work within a feature. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
 
@@ -52,7 +52,7 @@ Mission (reusable workflow blueprint, e.g. software-dev)
 
 ### meta.json: The Feature-to-Mission Link
 
-Every feature directory contains a `meta.json` that records which mission it uses:
+Every mission directory contains a `meta.json` that records which mission it uses:
 
 ```json
 {
@@ -207,7 +207,7 @@ discover --> audit --> design --> generate --> validate --> publish
 **Special features:**
 - Gap analysis identifies missing documentation by classifying existing docs against the Divio grid
 - Supports auto-generation via JSDoc, Sphinx, or rustdoc for API reference docs
-- Three iteration modes: initial (from scratch), gap-filling (audit and fill), feature-specific (single component)
+- Three iteration modes: initial (from scratch), gap-filling (audit and fill), mission-specific (single component)
 
 **Guards:** No guards on step transitions. Validation checks run during acceptance: all Divio types valid, no conflicting generators, templates populated (no `[TODO]` markers), gap analysis complete.
 

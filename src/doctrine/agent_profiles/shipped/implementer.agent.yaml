@@ -65,7 +65,7 @@ collaboration:
 
 mode-defaults:
   - mode: implementation
-    description: Active feature development and code writing
+    description: Active mission development and code writing
     use-case: Building new features, implementing specifications, writing production code
   - mode: debugging
     description: Investigating and fixing defects in existing code

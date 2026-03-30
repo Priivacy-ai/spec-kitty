@@ -10,7 +10,7 @@ Covers:
 - Invalid config raises MissionValidationError
 - Fan-out transitions (multiple transitions from same source)
 - auto_transitions=False (no to_<state> methods)
-- MissionModel holds context (feature_dir, inputs, event_log_path)
+- MissionModel holds context (mission_dir, inputs, event_log_path)
 """
 
 from __future__ import annotations
@@ -168,10 +168,10 @@ class TestStateMachineMissionConstruction:
         mission = StateMachineMission(minimal_config)
         assert isinstance(mission.model, MissionModel)
 
-    def test_feature_dir_passed_to_model(self, tmp_path: Path) -> None:
+    def test_mission_dir_passed_to_model(self, tmp_path: Path) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
-        mission = StateMachineMission(config, feature_dir=tmp_path)
-        assert mission.model.feature_dir == tmp_path
+        mission = StateMachineMission(config, mission_dir=tmp_path)
+        assert mission.model.mission_dir == tmp_path
 
     def test_inputs_passed_to_model(self) -> None:
         config = copy.deepcopy(MINIMAL_V1_CONFIG)
@@ -389,9 +389,9 @@ class TestMissionModel:
         model = MissionModel()
         assert model.state == ""
 
-    def test_feature_dir(self, tmp_path: Path) -> None:
-        model = MissionModel(feature_dir=tmp_path)
-        assert model.feature_dir == tmp_path
+    def test_mission_dir(self, tmp_path: Path) -> None:
+        model = MissionModel(mission_dir=tmp_path)
+        assert model.mission_dir == tmp_path
 
     def test_inputs_default_empty(self) -> None:
         model = MissionModel()

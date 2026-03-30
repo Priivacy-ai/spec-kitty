@@ -1,13 +1,16 @@
 ---
 work_package_id: WP08
-title: "Boyscouting: Terminology Consistency (agent feature \u2192 agent mission)"
-lane: planned
+title: 'Boyscouting: Terminology Consistency (agent feature → agent mission)'
+lane: "done"
 dependencies: [WP07]
 requirement_refs:
 - Constitution terminology canon
 planning_base_branch: feature/agent-profile-implementation
 merge_target_branch: feature/agent-profile-implementation
 branch_strategy: Planning artifacts for this feature were generated on feature/agent-profile-implementation. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation unless the human explicitly redirects the landing branch.
+base_branch: 058-mission-template-repository-refactor-WP07
+base_commit: 8eb05adc3d929758c53473e9b6a0ac7dec949a21
+created_at: '2026-03-28T12:45:41.437779+00:00'
 subtasks:
 - T031
 - T032
@@ -22,17 +25,19 @@ subtasks:
 - T055
 phase: Boyscouting
 assignee: ''
-agent: ''
-agent_profile: implementer
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
+agent: "opencode"
+shell_pid: '113162'
+review_status: "approved"
+reviewed_by: "Stijn Dejongh"
 history:
 - timestamp: '2026-03-27T05:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt added manually during /spec-kitty.analyze review
+agent_profile: implementer
+approved_by: "Stijn Dejongh"
+role: reviewer
 ---
 
 # Work Package Prompt: WP08 -- Boyscouting: Terminology Consistency
@@ -51,7 +56,13 @@ history:
 
 > **Populated by `/spec-kitty.review`**
 
-*[This section is empty initially.]*
+
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T08:11:14Z
+
+Reviewed and merged to feature/agent-profile-implementation. Full clean break: all feature→mission renames, no backward-compat shims, contextive glossary regenerated. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.
+**Verdict**: approved | **Reviewer**: Stijn Dejongh | **Date**: 2026-03-29T07:48:23Z
+
+Review passed: Full clean break verified — no backward-compat shims (agent feature alias, --feature flag, SPECIFY_FEATURE env var all removed). 509 files changed. StateRoot.FEATURE→MISSION bug fixed. Contextive glossary regenerated. 52 failed / 7292 passed — no genuine regressions.
 
 ---
 
@@ -304,3 +315,8 @@ spec-kitty agent mission create-feature --help  # hidden alias, should still wor
 
 - 2026-03-27T05:00:00Z -- system -- lane=planned -- Prompt added during /spec-kitty.analyze review.
 - 2026-03-28T00:00:00Z -- agent -- lane=planned -- Added subtask T055: rename "feature" to "mission" in detection error messages, status hints, and SPECIFY_FEATURE env var references. Updated objectives, risks, and review guidance to reflect expanded scope.
+- 2026-03-28T12:45:41Z – opencode – shell_pid=113162 – lane=doing – Assigned agent via workflow command
+- 2026-03-29T06:09:19Z – opencode – shell_pid=113162 – lane=for_review – All 11 subtasks (T031-T055) completed and verified. 6 commits, 561 files. Full clean break, no backward-compat shims. Test suite: 54 failed / 7176 passed (no new regressions).
+- 2026-03-29T06:14:17Z – opencode – shell_pid=113162 – lane=in_review – Started review via workflow command
+- 2026-03-29T07:48:23Z – opencode – shell_pid=113162 – lane=approved – Review passed: Full clean break verified — no backward-compat shims (agent feature alias, --feature flag, SPECIFY_FEATURE env var all removed). 509 files changed. StateRoot.FEATURE→MISSION bug fixed. Contextive glossary regenerated. 52 failed / 7292 passed — no genuine regressions.
+- 2026-03-29T08:11:14Z – opencode – shell_pid=113162 – lane=done – Reviewed and merged to feature/agent-profile-implementation. Full clean break: all feature→mission renames, no backward-compat shims, contextive glossary regenerated. | Done override: Branch deleted after manual merge to feature/agent-profile-implementation; merge commit verified on target branch.

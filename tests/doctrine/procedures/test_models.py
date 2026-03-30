@@ -28,7 +28,7 @@ class TestProcedureModel:
 
     def test_enriched_procedure(self, enriched_procedure_data: dict) -> None:
         p = Procedure.model_validate(enriched_procedure_data)
-        assert p.id == "feature-merge-ceremony"
+        assert p.id == "mission-merge-ceremony"
         assert p.steps[0].on_failure is not None
         assert p.steps[0].tactic_refs == ["adr-drafting-workflow"]
         assert len(p.references) == 2

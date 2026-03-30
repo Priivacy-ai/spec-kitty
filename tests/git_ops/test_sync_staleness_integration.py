@@ -100,9 +100,9 @@ class TestSyncStaleness:
         main_branch = result.stdout.strip()
 
         # Create worktree from latest main
-        worktree_dir = repo / ".worktrees" / "feature-WP01"
+        worktree_dir = repo / ".worktrees" / "mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -252,9 +252,9 @@ class TestSyncStaleness:
         main_branch = result.stdout.strip()
 
         # Create WP01 worktree
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
+        wp01_dir = repo / ".worktrees" / "mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(wp01_dir), "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -285,9 +285,9 @@ class TestSyncStaleness:
         )
 
         # Create WP02 worktree (after main advanced, so up-to-date)
-        wp02_dir = repo / ".worktrees" / "feature-WP02"
+        wp02_dir = repo / ".worktrees" / "mission-WP02"
         subprocess.run(
-            ["git", "worktree", "add", str(wp02_dir), "-b", "feature-WP02"],
+            ["git", "worktree", "add", str(wp02_dir), "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -375,9 +375,9 @@ class TestSyncStaleness:
         main_branch = result.stdout.strip()
 
         # Create WP01 (base)
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
+        wp01_dir = repo / ".worktrees" / "mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(wp01_dir), "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -398,9 +398,9 @@ class TestSyncStaleness:
             check=True,
             capture_output=True,
         )
-        wp02_dir = repo / ".worktrees" / "feature-WP02"
+        wp02_dir = repo / ".worktrees" / "mission-WP02"
         subprocess.run(
-            ["git", "worktree", "add", str(wp02_dir), "feature-WP01", "-b", "feature-WP02"],
+            ["git", "worktree", "add", str(wp02_dir), "mission-WP01", "-b", "mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -447,7 +447,7 @@ class TestSyncStaleness:
 
         # Check WP02 merge-base with WP01 branch
         wp02_base = subprocess.run(
-            ["git", "merge-base", "HEAD", "feature-WP01"],
+            ["git", "merge-base", "HEAD", "mission-WP01"],
             cwd=wp02_dir,
             capture_output=True,
             text=True,
@@ -519,9 +519,9 @@ class TestSyncStaleness:
         main_branch = result.stdout.strip()
 
         # Create WP01
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
+        wp01_dir = repo / ".worktrees" / "mission-WP01"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(wp01_dir), "-b", "mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -554,7 +554,7 @@ class TestSyncStaleness:
         # Check status using git commands
         # (In real sync command, this would be formatted nicely)
         status_result = subprocess.run(
-            ["git", "rev-list", "--count", f"feature-WP01..{main_branch}"],
+            ["git", "rev-list", "--count", f"mission-WP01..{main_branch}"],
             cwd=repo,
             capture_output=True,
             text=True,

@@ -32,7 +32,7 @@ pytestmark = pytest.mark.fast
 def sample_inputs():
     """Sample step inputs."""
     return {
-        "description": "Implement feature X",
+        "description": "Implement mission X",
         "requirements": ["req1", "req2"],
     }
 
@@ -700,7 +700,7 @@ class TestVerifyInputHash:
 
     def test_reordered_keys_still_match(self, sample_checkpoint):
         """Same content with different key order should match."""
-        reordered = {"requirements": ["req1", "req2"], "description": "Implement feature X"}
+        reordered = {"requirements": ["req1", "req2"], "description": "Implement mission X"}
         matches, _, _ = verify_input_hash(sample_checkpoint, reordered)
         assert matches is True
 
@@ -711,7 +711,7 @@ class TestVerifyInputHash:
         assert matches is False
 
     def test_removed_key_does_not_match(self, sample_checkpoint):
-        partial = {"description": "Implement feature X"}
+        partial = {"description": "Implement mission X"}
         matches, _, _ = verify_input_hash(sample_checkpoint, partial)
         assert matches is False
 

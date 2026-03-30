@@ -1,16 +1,16 @@
-"""T025: Codebase sweep -- verify no direct meta.json writes outside feature_metadata.py.
+"""T025: Codebase sweep -- verify no direct meta.json writes outside mission_metadata.py.
 
 This test greps ``src/specify_cli/`` and ``scripts/tasks/`` for code patterns
 that write meta.json directly (e.g. ``json.dump(meta, ...)``,
 ``meta_path.write_text(...)``) instead of going through the canonical
-single-writer API in ``feature_metadata.py``.
+single-writer API in ``mission_metadata.py``.
 
 Migration files (``src/specify_cli/upgrade/migrations/``) are excluded
 because they are frozen historical code that uses the compatibility wrapper.
 
-The sweep also excludes ``feature_metadata.py`` itself (it *is* the writer).
+The sweep also excludes ``mission_metadata.py`` itself (it *is* the writer).
 
-Calls to ``write_meta()`` or ``write_feature_meta()`` are NOT violations --
+Calls to ``write_meta()`` or ``write_mission_meta()`` are NOT violations --
 those are the public API.  Only raw ``json.dump`` / ``json.dumps`` + file
 write patterns that bypass the single writer are flagged.
 """
@@ -37,7 +37,7 @@ _WRITE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 
 # Files that ARE the single writer (not violations).
 _ALLOWED_FILES: frozenset[str] = frozenset({
-    "feature_metadata.py",
+    "mission_metadata.py",
 })
 
 # Directories whose contents are excluded from the sweep.
@@ -91,8 +91,8 @@ def _scan_directory(directory: Path) -> list[str]:
     return violations
 
 
-def test_no_direct_meta_json_writes_outside_feature_metadata() -> None:
-    """No code outside feature_metadata.py writes meta.json directly.
+def test_no_direct_meta_json_writes_outside_mission_metadata() -> None:
+    """No code outside mission_metadata.py writes meta.json directly.
 
     This is the automated guard from T025 -- it will catch any future
     regressions that bypass the single metadata writer.
@@ -100,9 +100,9 @@ def test_no_direct_meta_json_writes_outside_feature_metadata() -> None:
     violations = _scan_directory(_src_dir())
 
     assert not violations, (
-        "Direct meta.json writes found outside feature_metadata.py:\n"
+        "Direct meta.json writes found outside mission_metadata.py:\n"
         + "\n".join(f"  - {v}" for v in violations)
-        + "\n\nAll meta.json writes must go through feature_metadata.write_meta()."
+        + "\n\nAll meta.json writes must go through mission_metadata.write_meta()."
     )
 
 
@@ -110,7 +110,7 @@ def test_no_direct_meta_json_writes_in_standalone_scripts() -> None:
     """Standalone scripts under scripts/tasks/ also use the canonical writer.
 
     The standalone scripts add src/ to sys.path and can import
-    feature_metadata.  This test ensures they don't bypass it.
+    mission_metadata.  This test ensures they don't bypass it.
     """
     scripts_dir = _scripts_dir()
     if not scripts_dir.is_dir():
@@ -121,6 +121,6 @@ def test_no_direct_meta_json_writes_in_standalone_scripts() -> None:
     assert not violations, (
         "Direct meta.json writes found in scripts/tasks/:\n"
         + "\n".join(f"  - {v}" for v in violations)
-        + "\n\nStandalone scripts must use feature_metadata.write_meta() "
+        + "\n\nStandalone scripts must use mission_metadata.write_meta() "
         "via the src/ sys.path import."
     )

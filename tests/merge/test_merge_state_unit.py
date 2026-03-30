@@ -26,11 +26,11 @@ class TestMergeStateDataclass:
 
     def test_create_minimal(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
         )
-        assert state.feature_slug == "test-feature"
+        assert state.mission_slug == "test-mission"
         assert state.target_branch == "main"
         assert state.wp_order == ["WP01", "WP02", "WP03"]
         assert state.completed_wps == []
@@ -40,7 +40,7 @@ class TestMergeStateDataclass:
 
     def test_remaining_wps(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
             completed_wps=["WP01"],
@@ -49,7 +49,7 @@ class TestMergeStateDataclass:
 
     def test_remaining_wps_all_complete(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01", "WP02"],
@@ -58,7 +58,7 @@ class TestMergeStateDataclass:
 
     def test_progress_percent_zero(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
         )
@@ -66,7 +66,7 @@ class TestMergeStateDataclass:
 
     def test_progress_percent_partial(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03", "WP04"],
             completed_wps=["WP01", "WP02"],
@@ -75,7 +75,7 @@ class TestMergeStateDataclass:
 
     def test_progress_percent_complete(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01", "WP02"],
@@ -84,7 +84,7 @@ class TestMergeStateDataclass:
 
     def test_progress_percent_empty_wp_order(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=[],
         )
@@ -92,7 +92,7 @@ class TestMergeStateDataclass:
 
     def test_mark_wp_complete(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             current_wp="WP01",
@@ -105,7 +105,7 @@ class TestMergeStateDataclass:
 
     def test_mark_wp_complete_no_duplicate(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01"],
@@ -115,7 +115,7 @@ class TestMergeStateDataclass:
 
     def test_set_current_wp(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
         )
@@ -124,7 +124,7 @@ class TestMergeStateDataclass:
 
     def test_set_pending_conflicts(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01"],
         )
@@ -135,7 +135,7 @@ class TestMergeStateDataclass:
 
     def test_to_dict(self):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01"],
@@ -143,7 +143,7 @@ class TestMergeStateDataclass:
             strategy="squash",
         )
         d = state.to_dict()
-        assert d["feature_slug"] == "test-feature"
+        assert d["mission_slug"] == "test-mission"
         assert d["target_branch"] == "main"
         assert d["wp_order"] == ["WP01", "WP02"]
         assert d["completed_wps"] == ["WP01"]
@@ -152,7 +152,7 @@ class TestMergeStateDataclass:
 
     def test_from_dict(self):
         data = {
-            "feature_slug": "test-feature",
+            "mission_slug": "test-mission",
             "target_branch": "main",
             "wp_order": ["WP01", "WP02"],
             "completed_wps": ["WP01"],
@@ -163,7 +163,7 @@ class TestMergeStateDataclass:
             "updated_at": "2026-01-18T10:30:00",
         }
         state = MergeState.from_dict(data)
-        assert state.feature_slug == "test-feature"
+        assert state.mission_slug == "test-mission"
         assert state.completed_wps == ["WP01"]
         assert state.current_wp == "WP02"
         assert state.has_pending_conflicts is True
@@ -174,7 +174,7 @@ class TestStatePersistence:
 
     def test_save_and_load_state(self, tmp_path):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
             completed_wps=["WP01"],
@@ -184,7 +184,7 @@ class TestStatePersistence:
 
         loaded = load_state(tmp_path)
         assert loaded is not None
-        assert loaded.feature_slug == "test-feature"
+        assert loaded.mission_slug == "test-mission"
         assert loaded.wp_order == ["WP01", "WP02", "WP03"]
         assert loaded.completed_wps == ["WP01"]
         assert loaded.current_wp == "WP02"
@@ -208,14 +208,14 @@ class TestStatePersistence:
     def test_load_state_missing_fields(self, tmp_path):
         state_file = tmp_path / ".kittify" / "merge-state.json"
         state_file.parent.mkdir(parents=True)
-        state_file.write_text('{"feature_slug": "test"}', encoding="utf-8")
+        state_file.write_text('{"mission_slug": "test"}', encoding="utf-8")
 
         result = load_state(tmp_path)
         assert result is None  # Missing required fields
 
     def test_clear_state(self, tmp_path):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01"],
         )
@@ -236,7 +236,7 @@ class TestStatePersistence:
 
     def test_save_creates_directory(self, tmp_path):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01"],
         )
@@ -258,7 +258,7 @@ class TestHasActiveMerge:
 
     def test_active_merge_with_remaining_wps(self, tmp_path):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01"],
@@ -268,7 +268,7 @@ class TestHasActiveMerge:
 
     def test_no_active_merge_all_complete(self, tmp_path):
         state = MergeState(
-            feature_slug="test-feature",
+            mission_slug="test-mission",
             target_branch="main",
             wp_order=["WP01", "WP02"],
             completed_wps=["WP01", "WP02"],
@@ -283,7 +283,7 @@ class TestStateRoundTrip:
     def test_complete_workflow(self, tmp_path):
         # Start merge
         state = MergeState(
-            feature_slug="017-feature",
+            mission_slug="017-mission",
             target_branch="main",
             wp_order=["WP01", "WP02", "WP03"],
             strategy="squash",

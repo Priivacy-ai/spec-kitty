@@ -42,5 +42,7 @@ references:
     id: DIRECTIVE_031
   - type: tactic
     id: glossary-curation-interview
+  - type: tactic
+    id: language-driven-design
   - type: styleguide
     id: kitty-glossary-writing

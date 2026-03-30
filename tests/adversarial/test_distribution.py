@@ -275,7 +275,7 @@ class TestInitWithoutTemplateRoot:
 
 
 class TestResearchFeatureCreation:
-    """Test research mission feature creation with packaged templates."""
+    """Test research mission mission creation with packaged templates."""
 
     def test_research_templates_bundled(self, installed_venv: Path, tmp_path: Path) -> None:
         """Research mission templates should be available from package."""
@@ -305,7 +305,7 @@ class TestResearchFeatureCreation:
 
         assert result.returncode == 0, f"Init failed: {result.stderr}"
 
-        # Initialize git after init (required for features)
+        # Initialize git after init (required for missions)
         subprocess.run(["git", "init", "-b", "main"], cwd=project_dir, check=True, capture_output=True)
         subprocess.run(
             ["git", "config", "user.email", "test@test.com"], cwd=project_dir, check=True, capture_output=True
@@ -316,9 +316,9 @@ class TestResearchFeatureCreation:
         # (The specific check depends on how templates are bundled)
 
     def test_meta_json_schema(self, installed_venv: Path, tmp_path: Path) -> None:
-        """meta.json should have correct schema for research features."""
+        """meta.json should have correct schema for research missions."""
         # This test validates the ADR 7 deliverables_path field is present
-        # when research features are created
+        # when research missions are created
         pass  # Implementation depends on exact CLI commands available
 
 

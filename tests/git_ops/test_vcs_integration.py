@@ -111,14 +111,14 @@ class TestWorkspaceCreation:
         """Should create workspace from base branch."""
         vcs = get_vcs(git_repo)
 
-        # Create a feature branch first
+        # Create a mission branch first
         subprocess.run(
-            ["git", "checkout", "-b", "feature-base"],
+            ["git", "checkout", "-b", "mission-base"],
             cwd=git_repo,
             capture_output=True,
             check=True,
         )
-        (git_repo / "feature.txt").write_text("feature content")
+        (git_repo / "mission.txt").write_text("mission content")
         subprocess.run(["git", "add", "."], cwd=git_repo, capture_output=True)
         subprocess.run(
             ["git", "commit", "-m", "Feature commit"],
@@ -133,18 +133,18 @@ class TestWorkspaceCreation:
             capture_output=True,
         )
 
-        # Create workspace from feature-base
+        # Create workspace from mission-base
         workspace_path = git_repo / ".worktrees" / "test-WP02"
         result = vcs.create_workspace(
             workspace_path=workspace_path,
             workspace_name="test-WP02",
-            base_branch="feature-base",
+            base_branch="mission-base",
             repo_root=git_repo,
         )
 
         assert result.success, f"Create failed: {result.error}"
-        # Workspace should have the feature file
-        assert (workspace_path / "feature.txt").exists()
+        # Workspace should have the mission file
+        assert (workspace_path / "mission.txt").exists()
 
     def test_remove_workspace(self, git_repo, mock_git_only):
         """Should remove workspace successfully."""
@@ -290,35 +290,35 @@ class TestFullWorkflow:
         vcs = get_vcs(git_repo)
 
         # Step 1: Create workspace (simulates implement)
-        workspace_path = git_repo / ".worktrees" / "feature-WP01"
+        workspace_path = git_repo / ".worktrees" / "mission-WP01"
         result = vcs.create_workspace(
             workspace_path=workspace_path,
-            workspace_name="feature-WP01",
+            workspace_name="mission-WP01",
             repo_root=git_repo,
         )
         assert result.success
 
         # Step 2: Make changes in workspace
-        (workspace_path / "feature_code.py").write_text("# Feature code")
+        (workspace_path / "mission_code.py").write_text("# Feature code")
 
         # Step 3: Commit in workspace
-        change = vcs.commit(workspace_path, "Implement feature")
+        change = vcs.commit(workspace_path, "Implement mission")
         assert change is not None
 
         # Step 4: Verify workspace info
         info = vcs.get_workspace_info(workspace_path)
         assert info is not None
-        assert info.name == "feature-WP01"
+        assert info.name == "mission-WP01"
 
     def test_dependent_workspaces(self, git_repo, mock_git_only):
         """Test --base flag for dependent WPs."""
         vcs = get_vcs(git_repo)
 
         # Create WP01
-        wp01_path = git_repo / ".worktrees" / "feature-WP01"
+        wp01_path = git_repo / ".worktrees" / "mission-WP01"
         result = vcs.create_workspace(
             workspace_path=wp01_path,
-            workspace_name="feature-WP01",
+            workspace_name="mission-WP01",
             repo_root=git_repo,
         )
         assert result.success
@@ -333,11 +333,11 @@ class TestFullWorkflow:
         )
 
         # Create WP02 with --base WP01
-        wp02_path = git_repo / ".worktrees" / "feature-WP02"
+        wp02_path = git_repo / ".worktrees" / "mission-WP02"
         result = vcs.create_workspace(
             workspace_path=wp02_path,
-            workspace_name="feature-WP02",
-            base_branch="feature-WP01",
+            workspace_name="mission-WP02",
+            base_branch="mission-WP01",
             repo_root=git_repo,
         )
         assert result.success

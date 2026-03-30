@@ -130,7 +130,7 @@ Ensure you're in a valid workspace directory:
 
 ```bash
 pwd
-# Should be: /path/to/project/.worktrees/<feature>-WP##/
+# Should be: /path/to/project/.worktrees/<mission>-WP##/
 ```
 
 ---

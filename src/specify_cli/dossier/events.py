@@ -34,10 +34,10 @@ class MissionDossierArtifactIndexedPayload(BaseModel):
     read, hashed, and registered in the dossier.
     """
 
-    feature_slug: str = Field(..., min_length=1, description="Feature identifier")
+    mission_slug: str = Field(..., min_length=1, description="Mission identifier")
     artifact_key: str = Field(..., min_length=1, description="Stable unique key for artifact")
     artifact_class: str = Field(..., description="Classification (input|workflow|output|evidence|policy|runtime|other)")
-    relative_path: str = Field(..., min_length=1, description="Path relative to feature directory")
+    relative_path: str = Field(..., min_length=1, description="Path relative to mission directory")
     content_hash_sha256: str = Field(..., description="SHA256 hash of artifact bytes")
     size_bytes: int = Field(..., ge=0, description="File size in bytes")
     wp_id: str | None = Field(None, description="Work package ID if linked")
@@ -77,7 +77,7 @@ class MissionDossierArtifactMissingPayload(BaseModel):
     but could not be found or read during the scan.
     """
 
-    feature_slug: str = Field(..., min_length=1, description="Feature identifier")
+    mission_slug: str = Field(..., min_length=1, description="Mission identifier")
     artifact_key: str = Field(..., min_length=1, description="Stable unique key for artifact")
     artifact_class: str = Field(..., description="Classification (input|workflow|output|evidence|policy|runtime|other)")
     expected_path_pattern: str = Field(..., description="Expected path pattern or glob")
@@ -122,7 +122,7 @@ class MissionDossierSnapshotComputedPayload(BaseModel):
     dossier snapshot, including artifact counts and completeness status.
     """
 
-    feature_slug: str = Field(..., min_length=1, description="Feature identifier")
+    mission_slug: str = Field(..., min_length=1, description="Mission identifier")
     parity_hash_sha256: str = Field(..., description="Deterministic hash of entire snapshot")
     artifact_counts: ArtifactCountsPayload = Field(..., description="Artifact count breakdown")
     completeness_status: str = Field(..., description="'complete' | 'incomplete' | 'unknown'")
@@ -153,7 +153,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
     unauthorized changes.
     """
 
-    feature_slug: str = Field(..., min_length=1, description="Feature identifier")
+    mission_slug: str = Field(..., min_length=1, description="Mission identifier")
     local_parity_hash: str = Field(..., description="Local snapshot parity hash")
     baseline_parity_hash: str = Field(..., description="Baseline snapshot parity hash")
     missing_in_local: list[str] = Field(default_factory=list, description="Artifact keys missing in local")
@@ -181,7 +181,7 @@ class MissionDossierParityDriftDetectedPayload(BaseModel):
 
 
 def emit_artifact_indexed(
-    feature_slug: str,
+    mission_slug: str,
     artifact_key: str,
     artifact_class: str,
     relative_path: str,
@@ -195,10 +195,10 @@ def emit_artifact_indexed(
     """Emit MissionDossierArtifactIndexed event.
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Mission identifier
         artifact_key: Stable unique key for artifact
         artifact_class: Classification of artifact
-        relative_path: Path relative to feature directory
+        relative_path: Path relative to mission directory
         content_hash_sha256: SHA256 hash of artifact content
         size_bytes: File size in bytes
         wp_id: Work package ID if linked (optional)
@@ -212,7 +212,7 @@ def emit_artifact_indexed(
     try:
         # Validate payload using Pydantic
         payload = MissionDossierArtifactIndexedPayload(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             artifact_key=artifact_key,
             artifact_class=artifact_class,
             relative_path=relative_path,
@@ -233,7 +233,7 @@ def emit_artifact_indexed(
         emitter = get_emitter()
         event = emitter._emit(
             event_type="MissionDossierArtifactIndexed",
-            aggregate_id=f"{feature_slug}:{artifact_key}",
+            aggregate_id=f"{mission_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
@@ -248,7 +248,7 @@ def emit_artifact_indexed(
 
 
 def emit_artifact_missing(
-    feature_slug: str,
+    mission_slug: str,
     artifact_key: str,
     artifact_class: str,
     expected_path_pattern: str,
@@ -260,7 +260,7 @@ def emit_artifact_missing(
     """Emit MissionDossierArtifactMissing event (only if required/blocking).
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Mission identifier
         artifact_key: Stable unique key for artifact
         artifact_class: Classification of artifact
         expected_path_pattern: Expected path pattern or glob
@@ -280,7 +280,7 @@ def emit_artifact_missing(
     try:
         # Validate payload using Pydantic
         payload = MissionDossierArtifactMissingPayload(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             artifact_key=artifact_key,
             artifact_class=artifact_class,
             expected_path_pattern=expected_path_pattern,
@@ -299,7 +299,7 @@ def emit_artifact_missing(
         emitter = get_emitter()
         event = emitter._emit(
             event_type="MissionDossierArtifactMissing",
-            aggregate_id=f"{feature_slug}:{artifact_key}",
+            aggregate_id=f"{mission_slug}:{artifact_key}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
@@ -314,7 +314,7 @@ def emit_artifact_missing(
 
 
 def emit_snapshot_computed(
-    feature_slug: str,
+    mission_slug: str,
     parity_hash_sha256: str,
     total_artifacts: int,
     required_artifacts: int,
@@ -329,7 +329,7 @@ def emit_snapshot_computed(
     """Emit MissionDossierSnapshotComputed event (always).
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Mission identifier
         parity_hash_sha256: Deterministic hash of entire snapshot
         total_artifacts: Total artifacts scanned
         required_artifacts: Required artifacts in manifest
@@ -347,7 +347,7 @@ def emit_snapshot_computed(
     try:
         # Validate payload using Pydantic
         payload = MissionDossierSnapshotComputedPayload(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             parity_hash_sha256=parity_hash_sha256,
             artifact_counts=ArtifactCountsPayload(
                 total=total_artifacts,
@@ -371,7 +371,7 @@ def emit_snapshot_computed(
         emitter = get_emitter()
         event = emitter._emit(
             event_type="MissionDossierSnapshotComputed",
-            aggregate_id=f"{feature_slug}:{snapshot_id}",
+            aggregate_id=f"{mission_slug}:{snapshot_id}",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )
@@ -386,7 +386,7 @@ def emit_snapshot_computed(
 
 
 def emit_parity_drift_detected(
-    feature_slug: str,
+    mission_slug: str,
     local_parity_hash: str,
     baseline_parity_hash: str,
     missing_in_local: list[str] | None = None,
@@ -397,7 +397,7 @@ def emit_parity_drift_detected(
     """Emit MissionDossierParityDriftDetected event (only if drift detected).
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Mission identifier
         local_parity_hash: Local snapshot parity hash
         baseline_parity_hash: Baseline snapshot parity hash
         missing_in_local: Artifact keys missing in local (optional)
@@ -410,13 +410,13 @@ def emit_parity_drift_detected(
     """
     # Only emit if hashes differ (drift detected)
     if local_parity_hash == baseline_parity_hash:
-        logger.debug(f"No parity drift detected for {feature_slug}")
+        logger.debug(f"No parity drift detected for {mission_slug}")
         return None
 
     try:
         # Validate payload using Pydantic
         payload = MissionDossierParityDriftDetectedPayload(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             local_parity_hash=local_parity_hash,
             baseline_parity_hash=baseline_parity_hash,
             missing_in_local=missing_in_local or [],
@@ -434,7 +434,7 @@ def emit_parity_drift_detected(
         emitter = get_emitter()
         event = emitter._emit(
             event_type="MissionDossierParityDriftDetected",
-            aggregate_id=f"{feature_slug}:drift",
+            aggregate_id=f"{mission_slug}:drift",
             aggregate_type="MissionDossier",
             payload=payload_dict,
         )

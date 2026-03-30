@@ -95,7 +95,7 @@ For documentation missions, planning interrogation is lighter than software-dev:
       - Prioritized gap list
       - Recommendations
 
-   **Output**: `gap-analysis.md` file in feature directory
+   **Output**: `gap-analysis.md` file in mission directory
 
    ---
 
@@ -244,8 +244,8 @@ For documentation missions, planning interrogation is lighter than software-dev:
    4. WP04: Generator Updates - Regenerate outdated API docs
    5. WP05: Quality Validation - Validate new and updated docs
 
-   **For Feature-Specific Mode**:
-   1. WP01: Feature Documentation - Document the specific feature across Divio types
+   **For Mission-Specific Mode**:
+   1. WP01: Mission Documentation - Document the specific feature across Divio types
    2. WP02: Integration - Integrate with existing documentation
    3. WP03: Quality Validation - Validate feature docs
 

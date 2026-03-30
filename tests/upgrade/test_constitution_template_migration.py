@@ -44,10 +44,10 @@ ALL_AGENTS = [
 def _load_canonical_constitution_template() -> str:
     """Return the current packaged software-dev constitution template content."""
     repo = MissionRepository(MissionRepository.default_missions_root())
-    path = repo.get_command_template("software-dev", "constitution")
-    if path is None:
-        raise FileNotFoundError("constitution command template not found via MissionRepository")
-    return path.read_text(encoding="utf-8")
+    result = repo.get_command_template("software-dev", "constitution")
+    if result is None:
+        raise FileNotFoundError("constitution command template not found via MissionTemplateRepository")
+    return result.content
 
 
 @pytest.mark.parametrize("agent_key,agent_dir,subdir", ALL_AGENTS)

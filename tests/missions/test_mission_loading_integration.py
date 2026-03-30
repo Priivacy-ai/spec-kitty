@@ -209,15 +209,15 @@ class TestLoadMissionDispatch:
         with pytest.raises(MissionValidationError):
             load_mission(mission_dir)
 
-    def test_v1_feature_dir_passed_through(self, v1_mission_dir, tmp_path):
-        """feature_dir is forwarded to StateMachineMission."""
-        feature = tmp_path / "kitty-specs" / "001-feature"
-        feature.mkdir(parents=True)
+    def test_v1_mission_dir_passed_through(self, v1_mission_dir, tmp_path):
+        """mission_dir is forwarded to StateMachineMission."""
+        mission = tmp_path / "kitty-specs" / "001-mission"
+        mission.mkdir(parents=True)
 
-        result = load_mission(v1_mission_dir, feature_dir=feature)
+        result = load_mission(v1_mission_dir, mission_dir=mission)
         assert isinstance(result, StateMachineMission)
-        # The model should have the feature_dir set
-        assert result.model.feature_dir == feature
+        # The model should have the mission_dir set
+        assert result.model.mission_dir == mission
 
 # ---------------------------------------------------------------------------
 # T034 -- MissionProtocol

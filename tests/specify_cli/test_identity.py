@@ -112,7 +112,7 @@ def test_actor_identity_is_frozen() -> None:
 def _make_event(**overrides: object) -> StatusEvent:
     defaults: dict[str, object] = {
         "event_id": "01JXXXXXXXXXXXXXXXXXXX0001",
-        "feature_slug": "048-test",
+        "mission_slug": "048-test",
         "wp_id": "WP01",
         "from_lane": Lane.PLANNED,
         "to_lane": Lane.CLAIMED,

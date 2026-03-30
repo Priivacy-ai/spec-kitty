@@ -16,8 +16,8 @@ pytestmark = pytest.mark.fast
 
 def test_structured_identity_flows_from_frontmatter_to_event_log(tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / "048-test-feature"
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / "048-test-mission"
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     wp_path = tasks_dir / "WP01.md"
@@ -46,8 +46,8 @@ def test_structured_identity_flows_from_frontmatter_to_event_log(tmp_path: Path)
     }
 
     event = emit_status_transition(
-        feature_dir=feature_dir,
-        feature_slug="048-test-feature",
+        mission_dir=mission_dir,
+        mission_slug="048-test-mission",
         wp_id="WP01",
         to_lane="claimed",
         actor=actor,
@@ -60,6 +60,6 @@ def test_structured_identity_flows_from_frontmatter_to_event_log(tmp_path: Path)
     assert event.actor.profile == "implementer"
     assert event.actor.role == "implementer"
 
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     assert len(events) == 1
     assert events[0].actor == actor

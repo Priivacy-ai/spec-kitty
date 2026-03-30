@@ -41,7 +41,7 @@ def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
         True if dashboard responds, False otherwise
     """
     try:
-        with urlopen(f"http://127.0.0.1:{port}/api/features", timeout=timeout) as response:
+        with urlopen(f"http://127.0.0.1:{port}/api/missions", timeout=timeout) as response:
             return response.status == 200
     except (URLError, OSError, Exception):
         return False
@@ -114,11 +114,11 @@ class TestDashboardCLIStatusReporting:
             kitty_specs = tmpdir / "kitty-specs"
             kitty_specs.mkdir()
 
-            # Create a test feature
-            feature_dir = kitty_specs / "001-test-feature"
-            feature_dir.mkdir()
-            (feature_dir / "spec.md").write_text("# Test Feature")
-            (feature_dir / "plan.md").write_text("# Test Plan")
+            # Create a test mission
+            mission_dir = kitty_specs / "001-test-mission"
+            mission_dir.mkdir()
+            (mission_dir / "spec.md").write_text("# Test Mission")
+            (mission_dir / "plan.md").write_text("# Test Plan")
 
             # Initialize git (required for spec-kitty)
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
@@ -373,19 +373,19 @@ class TestDashboardErrorMessages:
 class TestDashboardAPIVerification:
     """Test dashboard API endpoint verification."""
 
-    def test_api_features_endpoint_returns_data(self):
-        """Verify /api/features endpoint works when dashboard running."""
+    def test_api_missions_endpoint_returns_data(self):
+        """Verify /api/missions endpoint works when dashboard running."""
         with TemporaryDirectory() as tmpdir:
             tmpdir = Path(tmpdir)
 
-            # Create valid project with feature
+            # Create valid project with mission
             (tmpdir / ".kittify").mkdir()
             kitty_specs = tmpdir / "kitty-specs"
             kitty_specs.mkdir()
 
-            feature_dir = kitty_specs / "001-test"
-            feature_dir.mkdir()
-            (feature_dir / "spec.md").write_text("# Test Spec")
+            mission_dir = kitty_specs / "001-test"
+            mission_dir.mkdir()
+            (mission_dir / "spec.md").write_text("# Test Spec")
 
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
@@ -408,14 +408,14 @@ class TestDashboardAPIVerification:
             try:
                 # Test API endpoint
                 if is_dashboard_accessible(test_port):
-                    with urlopen(f"http://127.0.0.1:{test_port}/api/features", timeout=3.0) as response:
+                    with urlopen(f"http://127.0.0.1:{test_port}/api/missions", timeout=3.0) as response:
                         assert response.status == 200, "API should return 200 when dashboard running"
 
                         data = json.loads(response.read().decode())
-                        assert "features" in data, f"API should return features list. Got: {data}"
+                        assert "missions" in data, f"API should return missions list. Got: {data}"
 
-                        # Should have features array
-                        assert len(data["features"]) >= 0, "Should return features array (may be empty)"
+                        # Should have missions array
+                        assert len(data["missions"]) >= 0, "Should return missions array (may be empty)"
             finally:
                 kill_dashboard_process(test_port)
 
@@ -446,13 +446,13 @@ class TestDashboardAPIVerification:
 
             try:
                 if is_dashboard_accessible(test_port):
-                    with urlopen(f"http://127.0.0.1:{test_port}/api/features", timeout=3.0) as response:
+                    with urlopen(f"http://127.0.0.1:{test_port}/api/missions", timeout=3.0) as response:
                         data = json.loads(response.read().decode())
 
                         # Should have required fields
                         assert isinstance(data, dict), "Response should be dict"
-                        assert "features" in data, "Should have features field"
-                        assert isinstance(data["features"], list), "Features should be list"
+                        assert "missions" in data, "Should have missions field"
+                        assert isinstance(data["missions"], list), "Missions should be list"
             finally:
                 kill_dashboard_process(test_port)
 
@@ -469,12 +469,12 @@ class TestDashboardRaceConditions:
             kitty_specs = tmpdir / "kitty-specs"
             kitty_specs.mkdir()
 
-            # Create multiple features (slower startup)
+            # Create multiple missions (slower startup)
             for i in range(1, 4):
-                feature_dir = kitty_specs / f"00{i}-test"
-                feature_dir.mkdir()
-                (feature_dir / "spec.md").write_text(f"# Feature {i}")
-                (feature_dir / "plan.md").write_text(f"# Plan {i}")
+                mission_dir = kitty_specs / f"00{i}-test"
+                mission_dir.mkdir()
+                (mission_dir / "spec.md").write_text(f"# Feature {i}")
+                (mission_dir / "plan.md").write_text(f"# Plan {i}")
 
             subprocess.run(["git", "init"], cwd=tmpdir, capture_output=True)
             subprocess.run(["git", "config", "user.email", "test@test.com"], cwd=tmpdir, capture_output=True)
@@ -623,16 +623,16 @@ def test_dashboard_with_symlinked_kitty_specs():
         worktrees_dir.mkdir()
 
         # Create worktree with kitty-specs
-        worktree_feature = worktrees_dir / "001-test-feature"
-        worktree_feature.mkdir()
-        worktree_kitty_specs = worktree_feature / "kitty-specs"
+        worktree_mission = worktrees_dir / "001-test-mission"
+        worktree_mission.mkdir()
+        worktree_kitty_specs = worktree_mission / "kitty-specs"
         worktree_kitty_specs.mkdir()
-        feature_dir = worktree_kitty_specs / "001-test-feature"
-        feature_dir.mkdir()
+        mission_dir = worktree_kitty_specs / "001-test-mission"
+        mission_dir.mkdir()
 
         # Create spec.md and plan.md
-        (feature_dir / "spec.md").write_text("# Test Feature\n\nA test feature.")
-        (feature_dir / "plan.md").write_text("# Implementation Plan\n\n## Overview\nTest plan.")
+        (mission_dir / "spec.md").write_text("# Test Mission\n\nA test mission.")
+        (mission_dir / "plan.md").write_text("# Implementation Plan\n\n## Overview\nTest plan.")
 
         # Create symlink to worktree kitty-specs (this is the key test scenario)
         kitty_specs = test_project / "kitty-specs"
@@ -640,7 +640,7 @@ def test_dashboard_with_symlinked_kitty_specs():
 
         # Verify symlink structure
         assert kitty_specs.is_symlink(), "kitty-specs should be a symlink"
-        assert (kitty_specs / "001-test-feature" / "spec.md").exists(), "Should access spec.md through symlink"
+        assert (kitty_specs / "001-test-mission" / "spec.md").exists(), "Should access spec.md through symlink"
 
         try:
             # Run dashboard command

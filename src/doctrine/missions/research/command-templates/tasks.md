@@ -33,7 +33,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
 
 1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks`
 
-   **CRITICAL**: The command returns JSON with `FEATURE_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
+   **CRITICAL**: The command returns JSON with `MISSION_DIR` as an ABSOLUTE path (e.g., `/Users/robert/Code/project/kitty-specs/015-research-topic`).
 
    **YOU MUST USE THIS PATH** for ALL subsequent file operations.
 
@@ -110,7 +110,7 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
    - **P3 (polish)**: Quality validation, external review
 
 5. **Write `tasks.md`**:
-   - Location: `FEATURE_DIR/tasks.md`
+   - Location: `MISSION_DIR/tasks.md`
    - Use `templates/tasks-template.md` from research mission
    - Include work packages with subtasks
    - Mark parallel opportunities (`[P]`)
@@ -119,12 +119,12 @@ Use the returned JSON to confirm you are on the target branch (`planning_base_br
 
 6. **Generate prompt files**:
 
-   **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `FEATURE_DIR/tasks/` directory, NOT in subdirectories!
+   **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `MISSION_DIR/tasks/` directory, NOT in subdirectories!
 
-   - Create flat `FEATURE_DIR/tasks/` directory (no subdirectories!)
+   - Create flat `MISSION_DIR/tasks/` directory (no subdirectories!)
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
-     - Full path: `FEATURE_DIR/tasks/WP01-literature-search.md`
+     - Full path: `MISSION_DIR/tasks/WP01-literature-search.md`
      - Use `templates/task-prompt-template.md` to capture:
        - **YAML frontmatter with `lane: "planned"`** (CRITICAL - this is how review finds WPs!)
        - `work_package_id`, `subtasks` array, `task_type` (implement|review|plan|specify|research), `dependencies`, history entry

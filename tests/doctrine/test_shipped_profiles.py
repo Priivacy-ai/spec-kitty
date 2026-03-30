@@ -1,7 +1,7 @@
 """
-Integration tests for WP04: shipped reference profiles.
+Integration tests for shipped reference profiles.
 
-Verifies that all 7 shipped reference profiles:
+Verifies that all shipped reference profiles:
 - Load via AgentProfileRepository
 - Pass schema validation
 - Have no hierarchy errors
@@ -25,10 +25,12 @@ SHIPPED_DIR = Path(__file__).parent.parent.parent / "src" / "doctrine" / "agent_
 EXPECTED_PROFILE_IDS = {
     "architect",
     "designer",
+    "generic-agent",
     "implementer",
-    "reviewer",
     "planner",
+    "python-implementer",
     "researcher",
+    "reviewer",
     "curator",
 }
 
@@ -46,17 +48,17 @@ def all_profiles(repo: AgentProfileRepository) -> list[AgentProfile]:
 
 
 class TestShippedProfilesLoad:
-    """Verify all 7 shipped profiles load correctly."""
+    """Verify all shipped profiles load correctly."""
 
     def test_shipped_dir_exists(self):
         """Shipped profiles directory exists."""
         assert SHIPPED_DIR.exists(), f"Shipped directory not found: {SHIPPED_DIR}"
         assert SHIPPED_DIR.is_dir()
 
-    def test_all_seven_profiles_load(self, all_profiles: list[AgentProfile]):
-        """All 7 expected profiles are loaded."""
-        assert len(all_profiles) == 7, (
-            f"Expected 7 profiles, got {len(all_profiles)}: "
+    def test_all_profiles_load(self, all_profiles: list[AgentProfile]):
+        """All expected profiles are loaded."""
+        assert len(all_profiles) == len(EXPECTED_PROFILE_IDS), (
+            f"Expected {len(EXPECTED_PROFILE_IDS)} profiles, got {len(all_profiles)}: "
             f"{[p.profile_id for p in all_profiles]}"
         )
 
@@ -91,7 +93,9 @@ class TestShippedProfilesRoles:
         [
             ("architect", Role.ARCHITECT),
             ("designer", Role.DESIGNER),
+            ("generic-agent", Role.IMPLEMENTER),
             ("implementer", Role.IMPLEMENTER),
+            ("python-implementer", Role.IMPLEMENTER),
             ("reviewer", Role.REVIEWER),
             ("planner", Role.PLANNER),
             ("researcher", Role.RESEARCHER),
@@ -152,7 +156,9 @@ class TestShippedProfilesContent:
         [
             ("architect", 50),
             ("designer", 50),
+            ("generic-agent", 10),
             ("implementer", 50),
+            ("python-implementer", 80),
             ("reviewer", 50),
             ("planner", 50),
             ("researcher", 40),
@@ -178,7 +184,9 @@ class TestShippedProfilesContent:
         [
             ("architect", 3),
             ("designer", 4),
+            ("generic-agent", 5),
             ("implementer", 5),
+            ("python-implementer", 5),
             ("reviewer", 8),
             ("planner", 3),
             ("researcher", 4),
@@ -231,15 +239,17 @@ class TestShippedProfilesHierarchy:
             + "\n".join(f"  - {e}" for e in errors)
         )
 
-    def test_no_shipped_profile_specializes_from_another(
+    def test_specializes_from_targets_exist(
         self, all_profiles: list[AgentProfile]
     ):
-        """Shipped base profiles do not specialize from each other (they are roots)."""
+        """Any shipped profile that specializes from another must reference an existing shipped profile."""
+        shipped_ids = {p.profile_id for p in all_profiles}
         for profile in all_profiles:
-            assert profile.specializes_from is None, (
-                f"Shipped profile '{profile.profile_id}' unexpectedly "
-                f"specializes from '{profile.specializes_from}'"
-            )
+            if profile.specializes_from is not None:
+                assert profile.specializes_from in shipped_ids, (
+                    f"Shipped profile '{profile.profile_id}' specializes from "
+                    f"'{profile.specializes_from}', which is not a shipped profile"
+                )
 
 
 class TestShippedProfilesCollaboration:

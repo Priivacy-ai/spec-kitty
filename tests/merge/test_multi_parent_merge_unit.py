@@ -62,7 +62,7 @@ class TestMultiParentMerge:
         """Test creating merge base for WP with two dependencies."""
         # Create WP01 branch
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP01"],
+            ["git", "checkout", "-b", "010-mission-WP01"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -84,7 +84,7 @@ class TestMultiParentMerge:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP02"],
+            ["git", "checkout", "-b", "010-mission-WP02"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -108,7 +108,7 @@ class TestMultiParentMerge:
 
         # Create merge base for WP03 (depends on WP01 and WP02)
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -116,7 +116,7 @@ class TestMultiParentMerge:
 
         # Verify success
         assert result.success is True
-        assert result.branch_name == "010-feature-WP03-merge-base"
+        assert result.branch_name == "010-mission-WP03-merge-base"
         assert result.commit_sha is not None
         assert result.error is None
         assert result.conflicts == []
@@ -162,7 +162,7 @@ class TestMultiParentMerge:
                 capture_output=True,
             )
             subprocess.run(
-                ["git", "checkout", "-b", f"010-feature-WP0{i}"],
+                ["git", "checkout", "-b", f"010-mission-WP0{i}"],
                 cwd=git_repo,
                 check=True,
                 capture_output=True,
@@ -186,7 +186,7 @@ class TestMultiParentMerge:
 
         # Create merge base for WP04 (depends on WP01, WP02, WP03)
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             dependencies=["WP01", "WP02", "WP03"],
             repo_root=git_repo,
@@ -194,7 +194,7 @@ class TestMultiParentMerge:
 
         # Verify success
         assert result.success is True
-        assert result.branch_name == "010-feature-WP04-merge-base"
+        assert result.branch_name == "010-mission-WP04-merge-base"
 
         # Verify all three files present
         subprocess.run(
@@ -211,7 +211,7 @@ class TestMultiParentMerge:
         """Test merge base creation when dependencies have conflicts."""
         # Create WP01 branch
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP01"],
+            ["git", "checkout", "-b", "010-mission-WP01"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -233,7 +233,7 @@ class TestMultiParentMerge:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP02"],
+            ["git", "checkout", "-b", "010-mission-WP02"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -257,7 +257,7 @@ class TestMultiParentMerge:
 
         # Attempt to create merge base (should fail with conflict)
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],
             repo_root=git_repo,
@@ -270,7 +270,7 @@ class TestMultiParentMerge:
 
         # Verify temp branch was cleaned up
         result_check = subprocess.run(
-            ["git", "rev-parse", "--verify", "010-feature-WP03-merge-base"],
+            ["git", "rev-parse", "--verify", "010-mission-WP03-merge-base"],
             cwd=git_repo,
             capture_output=True,
             check=False,
@@ -281,7 +281,7 @@ class TestMultiParentMerge:
         """Test merge base creation when dependency branch doesn't exist."""
         # Create only WP01
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP01"],
+            ["git", "checkout", "-b", "010-mission-WP01"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -304,7 +304,7 @@ class TestMultiParentMerge:
 
         # Try to create merge base with non-existent WP02
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP03",
             dependencies=["WP01", "WP02"],  # WP02 doesn't exist
             repo_root=git_repo,
@@ -312,13 +312,13 @@ class TestMultiParentMerge:
 
         # Verify failure
         assert result.success is False
-        assert "010-feature-WP02" in result.error
+        assert "010-mission-WP02" in result.error
         assert "does not exist" in result.error
 
     def test_create_merge_base_single_dependency(self, git_repo: Path):
         """Test that single dependency fails (requires at least 2)."""
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP02",
             dependencies=["WP01"],  # Only one dependency
             repo_root=git_repo,
@@ -339,7 +339,7 @@ class TestMultiParentMerge:
                 capture_output=True,
             )
             subprocess.run(
-                ["git", "checkout", "-b", f"010-feature-WP0{i}"],
+                ["git", "checkout", "-b", f"010-mission-WP0{i}"],
                 cwd=git_repo,
                 check=True,
                 capture_output=True,
@@ -362,7 +362,7 @@ class TestMultiParentMerge:
 
         # Create merge base with dependencies in different order
         result1 = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             dependencies=["WP03", "WP01", "WP02"],  # Unsorted
             repo_root=git_repo,
@@ -373,7 +373,7 @@ class TestMultiParentMerge:
 
         # Cleanup
         subprocess.run(
-            ["git", "branch", "-D", "010-feature-WP04-merge-base"],
+            ["git", "branch", "-D", "010-mission-WP04-merge-base"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -381,7 +381,7 @@ class TestMultiParentMerge:
 
         # Create again with same dependencies in different order
         result2 = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             dependencies=["WP02", "WP03", "WP01"],  # Different order
             repo_root=git_repo,
@@ -415,7 +415,7 @@ class TestMultiParentMerge:
         """Test cleanup of temporary merge base branch."""
         # Create a temporary branch manually
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP04-merge-base"],
+            ["git", "checkout", "-b", "010-mission-WP04-merge-base"],
             cwd=git_repo,
             check=True,
             capture_output=True,
@@ -429,7 +429,7 @@ class TestMultiParentMerge:
 
         # Cleanup
         deleted = cleanup_merge_base_branch(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             repo_root=git_repo,
         )
@@ -438,7 +438,7 @@ class TestMultiParentMerge:
 
         # Verify branch deleted
         result = subprocess.run(
-            ["git", "rev-parse", "--verify", "010-feature-WP04-merge-base"],
+            ["git", "rev-parse", "--verify", "010-mission-WP04-merge-base"],
             cwd=git_repo,
             capture_output=True,
             check=False,
@@ -447,7 +447,7 @@ class TestMultiParentMerge:
 
         # Cleanup again (should return False)
         deleted_again = cleanup_merge_base_branch(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             repo_root=git_repo,
         )
@@ -499,7 +499,7 @@ class TestDiamondDependencyPattern:
 
         # Create WP01
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP01"],
+            ["git", "checkout", "-b", "010-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -515,15 +515,15 @@ class TestDiamondDependencyPattern:
 
         # Create WP02 (from WP01)
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP02"],
+            ["git", "checkout", "-b", "010-mission-WP02"],
             cwd=repo,
             check=True,
             capture_output=True,
         )
-        (repo / "feature-a.txt").write_text("Feature A\n")
+        (repo / "mission-a.txt").write_text("Feature A\n")
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
         subprocess.run(
-            ["git", "commit", "-m", "WP02: Add feature A"],
+            ["git", "commit", "-m", "WP02: Add mission A"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -531,21 +531,21 @@ class TestDiamondDependencyPattern:
 
         # Create WP03 (from WP01)
         subprocess.run(
-            ["git", "checkout", "010-feature-WP01"],
+            ["git", "checkout", "010-mission-WP01"],
             cwd=repo,
             check=True,
             capture_output=True,
         )
         subprocess.run(
-            ["git", "checkout", "-b", "010-feature-WP03"],
+            ["git", "checkout", "-b", "010-mission-WP03"],
             cwd=repo,
             check=True,
             capture_output=True,
         )
-        (repo / "feature-b.txt").write_text("Feature B\n")
+        (repo / "mission-b.txt").write_text("Feature B\n")
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
         subprocess.run(
-            ["git", "commit", "-m", "WP03: Add feature B"],
+            ["git", "commit", "-m", "WP03: Add mission B"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -564,7 +564,7 @@ class TestDiamondDependencyPattern:
         """Test creating merge base for diamond pattern (WP04 depends on WP02 + WP03)."""
         # Create merge base for WP04 (depends on WP02 and WP03)
         result = create_multi_parent_base(
-            feature_slug="010-feature",
+            mission_slug="010-mission",
             wp_id="WP04",
             dependencies=["WP02", "WP03"],
             repo_root=diamond_repo,
@@ -572,9 +572,9 @@ class TestDiamondDependencyPattern:
 
         # Verify success
         assert result.success is True
-        assert result.branch_name == "010-feature-WP04-merge-base"
+        assert result.branch_name == "010-mission-WP04-merge-base"
 
-        # Verify all three files present (base.txt, feature-a.txt, feature-b.txt)
+        # Verify all three files present (base.txt, mission-a.txt, mission-b.txt)
         subprocess.run(
             ["git", "checkout", result.branch_name],
             cwd=diamond_repo,
@@ -582,8 +582,8 @@ class TestDiamondDependencyPattern:
             capture_output=True,
         )
         assert (diamond_repo / "base.txt").exists()
-        assert (diamond_repo / "feature-a.txt").exists()
-        assert (diamond_repo / "feature-b.txt").exists()
+        assert (diamond_repo / "mission-a.txt").exists()
+        assert (diamond_repo / "mission-b.txt").exists()
 
         # Verify commit history includes all four commits
         result_log = subprocess.run(
@@ -596,6 +596,6 @@ class TestDiamondDependencyPattern:
         log = result_log.stdout
 
         assert "WP01: Base implementation" in log
-        assert "WP02: Add feature A" in log
-        assert "WP03: Add feature B" in log
+        assert "WP02: Add mission A" in log
+        assert "WP03: Add mission B" in log
         assert "Merge" in log  # Merge commit created

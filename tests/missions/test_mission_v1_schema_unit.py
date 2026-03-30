@@ -71,9 +71,9 @@ FULL_V1_CONFIG: dict = {
         {
             "name": "spec_document",
             "type": "artifact",
-            "path": "kitty-specs/{feature}/spec.md",
+            "path": "kitty-specs/{mission}/spec.md",
             "phase": "specify",
-            "description": "Feature specification",
+            "description": "Mission specification",
         },
         {
             "name": "test_report",

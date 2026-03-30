@@ -20,25 +20,25 @@ class StoreError(Exception):
     """Raised when the event store encounters corruption or I/O errors."""
 
 
-def _events_path(feature_dir: Path) -> Path:
+def _events_path(mission_dir: Path) -> Path:
     """Return the canonical path to the events JSONL file."""
-    return feature_dir / EVENTS_FILENAME
+    return mission_dir / EVENTS_FILENAME
 
 
-def append_event(feature_dir: Path, event: StatusEvent) -> None:
+def append_event(mission_dir: Path, event: StatusEvent) -> None:
     """Atomically append a StatusEvent as a single JSON line.
 
     Creates parent directories and the file if they do not exist.
     Uses ``sort_keys=True`` for deterministic key ordering.
     """
-    path = _events_path(feature_dir)
+    path = _events_path(mission_dir)
     path.parent.mkdir(parents=True, exist_ok=True)
     line = json.dumps(event.to_dict(), sort_keys=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(line + "\n")
 
 
-def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
+def read_events_raw(mission_dir: Path) -> list[dict[str, Any]]:
     """Read raw JSON dicts from the events file.
 
     Returns an empty list when the file does not exist.
@@ -46,7 +46,7 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     Raises :class:`StoreError` on invalid JSON, including the 1-based
     line number in the message.
     """
-    path = _events_path(feature_dir)
+    path = _events_path(mission_dir)
     if not path.exists():
         return []
 
@@ -64,7 +64,7 @@ def read_events_raw(feature_dir: Path) -> list[dict[str, Any]]:
     return results
 
 
-def read_events(feature_dir: Path) -> list[StatusEvent]:
+def read_events(mission_dir: Path) -> list[StatusEvent]:
     """Read and deserialize StatusEvent objects from the events file.
 
     Returns an empty list when the file does not exist.
@@ -72,7 +72,7 @@ def read_events(feature_dir: Path) -> list[StatusEvent]:
     Raises :class:`StoreError` on invalid JSON **or** invalid event
     structure, including the 1-based line number in the message.
     """
-    path = _events_path(feature_dir)
+    path = _events_path(mission_dir)
     if not path.exists():
         return []
 

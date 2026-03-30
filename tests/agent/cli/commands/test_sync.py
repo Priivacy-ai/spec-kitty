@@ -36,34 +36,34 @@ class TestDetectWorkspaceContext:
     def test_detect_from_worktree_path(self, tmp_path):
         """Test detection from .worktrees directory path."""
         # Simulate being in a worktree
-        worktree = tmp_path / ".worktrees" / "010-test-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-test-mission-WP01"
         worktree.mkdir(parents=True)
 
         with patch("pathlib.Path.cwd", return_value=worktree):
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == worktree
-            assert feature_slug == "010-test-feature"
+            assert mission_slug == "010-test-mission"
 
     def test_detect_from_git_branch(self, tmp_path):
         """Test detection from git branch name."""
         with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="015-vcs-integration-WP03\n")
 
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == tmp_path
-            assert feature_slug == "015-vcs-integration"
+            assert mission_slug == "015-vcs-integration"
 
     def test_not_in_workspace(self, tmp_path):
         """Test when not in a workspace."""
         with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == tmp_path
-            assert feature_slug is None
+            assert mission_slug is None
 
 
 class TestSyncGroupHelp:
@@ -169,7 +169,7 @@ class TestSyncCommand:
     def test_sync_up_to_date(self, tmp_path):
         """Test sync when already up to date."""
         # Setup worktree path
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree.mkdir(parents=True)
 
         with (
@@ -196,7 +196,7 @@ class TestSyncCommand:
 
     def test_sync_with_changes(self, tmp_path):
         """Test sync with changes to integrate."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree.mkdir(parents=True)
 
         with (
@@ -226,7 +226,7 @@ class TestSyncWithConflicts:
 
     def test_sync_with_conflicts_git_reports(self, tmp_path):
         """Test git sync reports conflicts (may fail)."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree.mkdir(parents=True)
 
         with (
@@ -269,7 +269,7 @@ class TestSyncRepair:
 
     def test_repair_success(self, tmp_path):
         """Test successful repair."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree.mkdir(parents=True)
 
         with (
@@ -289,7 +289,7 @@ class TestSyncRepair:
 
     def test_repair_failure(self, tmp_path):
         """Test failed repair."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-mission-WP01"
         worktree.mkdir(parents=True)
 
         with (

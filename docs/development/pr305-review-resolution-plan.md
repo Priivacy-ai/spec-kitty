@@ -20,13 +20,13 @@ the concrete implementation plan for both tracks.
 | M2 | `_PLURALS`/`_PATTERNS` dicts re-allocated on every property access | Major | Track 1 |
 | M3 | `resolve_doctrine_root()` fallback chain has no logging | Minor | Track 1 |
 | M4 | `except Exception: pass` in `context.py` YAML/JSON parsers | Major | Track 1 |
-| 241 | `--mission` naming collision in `create-feature` command | Design gap | Track 1 |
+| 241 | `--mission` naming collision in `create-mission` command | Design gap | Track 1 |
 
 ---
 
 ## Track 1 — Boyscouting PR
 
-**Form**: Single PR, 6 independent commits. No feature spec required.
+**Form**: Single PR, 6 independent commits. No mission spec required.
 
 ### Commit 1 — CI: add `src/doctrine` to mypy and missing coverage jobs
 
@@ -125,11 +125,11 @@ Add `from ruamel.yaml import YAMLError` to import blocks. `json` is already impo
 
 ---
 
-### Commit 6 — #241: rename `create-feature --mission` to `--mission-type`
+### Commit 6 — #241: rename `create-mission --mission` to `--mission-type`
 
 **File**: `src/specify_cli/cli/commands/agent/feature.py`
 
-The `create-feature` command uses `--mission` to mean "mission type" (e.g., `software-dev`,
+The `create-mission` command uses `--mission` to mean "mission type" (e.g., `software-dev`,
 `documentation`). All other commands use `--mission` for "feature slug". This is the surviving
 naming collision from issue #241.
 
@@ -144,7 +144,7 @@ naming collision from issue #241.
 
 ## Track 2 — Architectural Fix PR
 
-**Form**: Targeted PR with ADR. No full feature spec. Sequential commits.
+**Form**: Targeted PR with ADR. No full mission spec. Sequential commits.
 
 **Problem**: `src/doctrine/missions/primitives.py` and `glossary_hook.py` import from
 `specify_cli.glossary.*`, violating the rule that `doctrine` has no dependency on
@@ -337,10 +337,10 @@ Each commit must stay green: `ruff check`, `mypy --strict`, `pytest tests/doctri
 
 ```
 Track 1 (boyscouting PR)
-  └── merge to feature branch
+  └── merge to mission branch
 
 Track 2 (architectural fix PR)
-  └── merge to feature branch
+  └── merge to mission branch
 
 PR #305 ready for final review → merge to develop
 ```

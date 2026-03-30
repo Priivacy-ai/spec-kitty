@@ -1,0 +1,21 @@
+schema_version: "1.0"
+id: python-review-checks
+tool: python-quality-stack
+title: Python Review Checks
+guide_path: src/doctrine/toolguides/shipped/PYTHON_REVIEW_CHECKS.md
+summary: >
+  Catalog of automated checks a reviewer should run or verify have been run
+  before approving Python code. Organized by category: formatting, linting,
+  type safety, architecture, security, and test quality.
+commands:
+  - ruff
+  - mypy
+  - pytest
+  - pytest-cov
+  - cyclonedx-bom
+  - pip-audit
+  - pyarchtest
+  - import-linter
+  - bandit
+  - vulture
+  - mutmut

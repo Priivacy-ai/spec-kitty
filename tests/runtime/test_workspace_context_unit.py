@@ -29,9 +29,9 @@ class TestOrphanedContext:
         """Context without worktree should be detected."""
         context = WorkspaceContext(
             wp_id="WP01",
-            feature_slug="001-feature",
-            worktree_path=".worktrees/001-feature-WP01",
-            branch_name="001-feature-WP01",
+            mission_slug="001-mission",
+            worktree_path=".worktrees/001-mission-WP01",
+            branch_name="001-mission-WP01",
             base_branch="main",
             base_commit="abc123",
             dependencies=[],
@@ -45,16 +45,16 @@ class TestOrphanedContext:
         orphaned = find_orphaned_contexts(kittify_project)
 
         assert len(orphaned) == 1
-        assert orphaned[0][0] == "001-feature-WP01"
+        assert orphaned[0][0] == "001-mission-WP01"
 
 
 class TestCorruptedContext:
     def test_invalid_json_handled(self, kittify_project: Path) -> None:
         """Invalid JSON in context should be handled gracefully."""
-        context_file = kittify_project / ".kittify" / "workspaces" / "001-feature-WP01.json"
+        context_file = kittify_project / ".kittify" / "workspaces" / "001-mission-WP01.json"
         context_file.write_text("{invalid json", encoding="utf-8")
 
-        loaded = load_context(kittify_project, "001-feature-WP01")
+        loaded = load_context(kittify_project, "001-mission-WP01")
         assert loaded is None
 
         contexts = list_contexts(kittify_project)

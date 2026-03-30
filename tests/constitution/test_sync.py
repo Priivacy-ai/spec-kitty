@@ -36,7 +36,7 @@ SAMPLE_CONSTITUTION = """# Testing Standards
 
 ## Project Directives
 1. Never commit secrets to repository
-2. Always write tests for new features
+2. Always write tests for new missions
 3. Document all public APIs
 """
 

@@ -7,12 +7,12 @@ Error codes used:
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
-  FEATURE_NOT_FOUND           -- feature slug does not resolve to a kitty-specs dir
-  WP_NOT_FOUND                -- WP ID does not exist in feature
+  MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
+  WP_NOT_FOUND                -- WP ID does not exist in mission
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
-  FEATURE_NOT_READY           -- not all WPs done (for accept-feature)
-  PREFLIGHT_FAILED            -- preflight checks failed (for merge-feature)
+  MISSION_NOT_READY           -- not all WPs done (for accept-mission)
+  PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
 """
@@ -28,7 +28,6 @@ from pathlib import Path
 
 import typer
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.git.commit_helpers import safe_commit
 from specify_cli.merge import run_preflight, get_merge_order
 
@@ -179,19 +178,19 @@ def _get_main_repo_root() -> Path:
     return root
 
 
-def _resolve_feature_dir(main_repo_root: Path, feature_slug: str) -> Path | None:
-    """Return the feature directory if it exists, else None."""
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
-    if not feature_dir.exists():
+def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
+    """Return the mission directory if it exists, else None."""
+    mission_dir = main_repo_root / "kitty-specs" / mission_slug
+    if not mission_dir.exists():
         return None
-    return feature_dir
+    return mission_dir
 
 
-def _get_last_actor(feature_dir: Path, wp_id: str) -> str | None:
+def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
     """Get the actor of the most recent event for this WP."""
     from specify_cli.status.store import read_events
 
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     for event in reversed(events):
         if event.wp_id == wp_id:
             return event.actor.tool
@@ -281,26 +280,25 @@ def contract_version(
     _emit(envelope)
 
 
-# ── Command 2: feature-state ────────────────────────────────────────────────
+# ── Command 2: mission-state ────────────────────────────────────────────────
 
 
-@app.command(name="feature-state")
-def feature_state(
-    mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g. 034-my-feature)"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
+@app.command(name="mission-state")
+def mission_state(
+    mission: str | None = typer.Option(None, "--mission", help="Mission slug (e.g. 034-my-mission)"),
 ) -> None:
-    """Return the full state of a feature (all WPs, lanes, dependencies)."""
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
-        _fail("feature-state", "USAGE_ERROR", "--mission is required")
+    """Return the full state of a mission (all WPs, lanes, dependencies)."""
+    mission_slug = mission
+    if not mission_slug:
+        _fail("mission-state", "USAGE_ERROR", "--mission is required")
         return
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
         _fail(
-            "feature-state",
-            "FEATURE_NOT_FOUND",
-            f"Feature '{feature}' not found in kitty-specs/",
+            "mission-state",
+            "MISSION_NOT_FOUND",
+            f"Mission '{mission_slug}' not found in kitty-specs/",
         )
         return
 
@@ -309,12 +307,12 @@ def feature_state(
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     # Query endpoint: reduce from event log without rewriting status.json.
-    snapshot = reduce(read_events(feature_dir))
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = reduce(read_events(mission_dir))
+    dep_graph = build_dependency_graph(mission_dir)
 
     # Build the full WP set from task files + dep graph + snapshot
     # so that untouched WPs (no events yet) still appear as "planned"
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     task_file_wp_ids: set[str] = set()
     if tasks_dir.exists():
         for p in tasks_dir.iterdir():
@@ -338,10 +336,10 @@ def feature_state(
         )
 
     envelope = make_envelope(
-        command="feature-state",
+        command="mission-state",
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "summary": snapshot.summary,
             "work_packages": work_packages,
         },
@@ -355,20 +353,19 @@ def feature_state(
 @app.command(name="list-ready")
 def list_ready(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    mission_slug = mission
+    if not mission_slug:
         _fail("list-ready", "USAGE_ERROR", "--mission is required")
         return
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
         _fail(
             "list-ready",
-            "FEATURE_NOT_FOUND",
-            f"Feature '{feature}' not found in kitty-specs/",
+            "MISSION_NOT_FOUND",
+            f"Mission '{mission_slug}' not found in kitty-specs/",
         )
         return
 
@@ -377,8 +374,8 @@ def list_ready(
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     # Query endpoint: reduce from event log without rewriting status.json.
-    snapshot = reduce(read_events(feature_dir))
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = reduce(read_events(mission_dir))
+    dep_graph = build_dependency_graph(mission_dir)
     wp_states = snapshot.work_packages
 
     ready_wps = []
@@ -409,7 +406,7 @@ def list_ready(
         command="list-ready",
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "ready_work_packages": ready_wps,
         },
     )
@@ -422,15 +419,14 @@ def list_ready(
 @app.command(name="start-implementation")
 def start_implementation(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
 ) -> None:
     """Composite transition: planned→claimed→in_progress (idempotent)."""
     cmd = "start-implementation"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
@@ -448,41 +444,41 @@ def start_implementation(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission_slug}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     current_lane = wp_state.get("lane", "planned")
-    last_actor = _get_last_actor(feature_dir, wp)
+    last_actor = _get_last_actor(mission_dir, wp)
 
-    workspace_path = str(main_repo_root / ".worktrees" / f"{feature}-{wp}")
+    workspace_path = str(main_repo_root / ".worktrees" / f"{mission_slug}-{wp}")
     prompt_path = str(wp_path)
 
     try:
         if current_lane == "planned":
             # Composite: planned → claimed → in_progress
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission_slug,
                 wp,
                 "claimed",
                 actor,
                 policy_metadata=policy_dict,
             )
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission_slug,
                 wp,
                 "in_progress",
                 actor,
@@ -503,8 +499,8 @@ def start_implementation(
                 )
                 return
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission_slug,
                 wp,
                 "in_progress",
                 actor,
@@ -544,7 +540,7 @@ def start_implementation(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "wp_id": wp,
             "from_lane": from_lane_reported,
             "to_lane": "in_progress",
@@ -563,7 +559,6 @@ def start_implementation(
 @app.command(name="start-review")
 def start_review(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
@@ -571,8 +566,8 @@ def start_review(
 ) -> None:
     """Transition a WP from for_review back to in_progress (reviewer rollback)."""
     cmd = "start-review"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
@@ -593,20 +588,20 @@ def start_review(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission_slug}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     from_lane = wp_state.get("lane", "planned")
 
@@ -614,8 +609,8 @@ def start_review(
 
     try:
         emit_status_transition(
-            feature_dir,
-            feature,
+            mission_dir,
+            mission_slug,
             wp,
             "in_progress",
             actor,
@@ -631,7 +626,7 @@ def start_review(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "wp_id": wp,
             "from_lane": from_lane,
             "to_lane": "in_progress",
@@ -648,7 +643,6 @@ def start_review(
 @app.command(name="transition")
 def transition(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     to: str = typer.Option(..., "--to", help="Target lane"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
@@ -659,8 +653,8 @@ def transition(
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
@@ -694,27 +688,27 @@ def transition(
             return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission_slug}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     from_lane = wp_state.get("lane", "planned")
 
     try:
         emit_status_transition(
-            feature_dir,
-            feature,
+            mission_dir,
+            mission_slug,
             wp,
             to_lane,
             actor,
@@ -732,7 +726,7 @@ def transition(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "wp_id": wp,
             "from_lane": from_lane,
             "to_lane": to_lane,
@@ -748,27 +742,26 @@ def transition(
 @app.command(name="append-history")
 def append_history(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     note: str = typer.Option(..., "--note", help="History note to append"),
 ) -> None:
     """Append a history entry to a WP prompt file."""
     cmd = "append-history"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission_slug}")
         return
 
     from specify_cli.tasks_support import (
@@ -789,7 +782,7 @@ def append_history(
     safe_commit(
         repo_path=main_repo_root,
         files_to_commit=[wp_path],
-        commit_message=f"hist: append activity log entry for {feature}/{wp}",
+        commit_message=f"hist: append activity log entry for {mission_slug}/{wp}",
         allow_empty=True,
     )
 
@@ -799,7 +792,7 @@ def append_history(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "wp_id": wp,
             "history_entry_id": entry_id,
         },
@@ -807,33 +800,32 @@ def append_history(
     _emit(envelope)
 
 
-# ── Command 8: accept-feature ──────────────────────────────────────────────
+# ── Command 8: accept-mission ──────────────────────────────────────────────
 
 
-@app.command(name="accept-feature")
-def accept_feature(
+@app.command(name="accept-mission")
+def accept_mission(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
 ) -> None:
-    """Accept a feature after all WPs are done."""
-    cmd = "accept-feature"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    """Accept a mission after all WPs are done."""
+    cmd = "accept-mission"
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
 
-    snapshot = materialize(feature_dir)
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = materialize(mission_dir)
+    dep_graph = build_dependency_graph(mission_dir)
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
@@ -841,18 +833,18 @@ def accept_feature(
     if incomplete:
         _fail(
             cmd,
-            "FEATURE_NOT_READY",
-            f"Feature has {len(incomplete)} incomplete WP(s)",
+            "MISSION_NOT_READY",
+            f"Mission has {len(incomplete)} incomplete WP(s)",
             {"incomplete_wps": sorted(incomplete)},
         )
         return
 
     # Write acceptance record via centralized metadata writer
-    from specify_cli.feature_metadata import record_acceptance
+    from specify_cli.mission_metadata import record_acceptance
 
     accepted_at = datetime.now(UTC).isoformat()
     record_acceptance(
-        feature_dir,
+        mission_dir,
         accepted_by=actor,
         mode="orchestrator",
     )
@@ -861,7 +853,7 @@ def accept_feature(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "accepted": True,
             "mode": "auto",
             "accepted_at": accepted_at,
@@ -870,21 +862,20 @@ def accept_feature(
     _emit(envelope)
 
 
-# ── Command 9: merge-feature ───────────────────────────────────────────────
+# ── Command 9: merge-mission ───────────────────────────────────────────────
 
 
-@app.command(name="merge-feature")
-def merge_feature(
+@app.command(name="merge-mission")
+def merge_mission(
     mission: str | None = typer.Option(None, "--mission", help="Mission slug"),
-    feature: str | None = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
     """Run preflight checks then merge all WP branches into target."""
-    cmd = "merge-feature"
-    feature = resolve_mission_or_feature(mission, feature)
-    if not feature:
+    cmd = "merge-mission"
+    mission_slug = mission
+    if not mission_slug:
         _fail(cmd, "USAGE_ERROR", "--mission is required")
         return
 
@@ -899,25 +890,25 @@ def merge_feature(
         return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Feature '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission_slug)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission_slug}' not found in kitty-specs/")
         return
 
     # Auto-detect target branch from meta.json if not specified
     if target is None:
-        from specify_cli.core.feature_detection import get_feature_target_branch
+        from specify_cli.core.mission_detection import get_mission_target_branch
 
-        target = get_feature_target_branch(main_repo_root, feature)
+        target = get_mission_target_branch(main_repo_root, mission_slug)
 
-    # Discover worktrees for this feature
+    # Discover worktrees for this mission
     worktrees_root = main_repo_root / ".worktrees"
     wp_workspaces: list[tuple[Path, str, str]] = []
     if worktrees_root.exists():
         for wt_path in sorted(worktrees_root.iterdir()):
-            if wt_path.name.startswith(f"{feature}-") and wt_path.is_dir():
-                # Extract WP ID from directory name: e.g. "034-feature-WP01" → "WP01"
-                suffix = wt_path.name[len(feature) + 1 :]
+            if wt_path.name.startswith(f"{mission_slug}-") and wt_path.is_dir():
+                # Extract WP ID from directory name: e.g. "034-mission-WP01" → "WP01"
+                suffix = wt_path.name[len(mission_slug) + 1 :]
                 if suffix.startswith("WP"):
                     wp_id = suffix
                     branch_name = wt_path.name
@@ -925,7 +916,7 @@ def merge_feature(
 
     # Run preflight
     preflight_result = run_preflight(
-        feature_slug=feature,
+        mission_slug=mission_slug,
         target_branch=target,
         repo_root=main_repo_root,
         wp_workspaces=wp_workspaces,
@@ -941,7 +932,7 @@ def merge_feature(
         return
 
     # Determine merge order
-    ordered_workspaces = get_merge_order(wp_workspaces, feature_dir)
+    ordered_workspaces = get_merge_order(wp_workspaces, mission_dir)
 
     # Execute merges using git directly (simplified)
     merged_wps = []
@@ -967,7 +958,7 @@ def merge_feature(
                         str(main_repo_root),
                         "commit",
                         "-m",
-                        f"squash merge: {feature}/{wp_id} into {target}",
+                        f"squash merge: {mission_slug}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
@@ -1005,7 +996,7 @@ def merge_feature(
                         "--no-ff",
                         branch_name,
                         "-m",
-                        f"merge: {feature}/{wp_id} into {target}",
+                        f"merge: {mission_slug}/{wp_id} into {target}",
                     ],
                     check=True,
                     capture_output=True,
@@ -1040,7 +1031,7 @@ def merge_feature(
         command=cmd,
         success=True,
         data={
-            "feature_slug": feature,
+            "mission_slug": mission_slug,
             "merged": True,
             "target_branch": target,
             "strategy": strategy,

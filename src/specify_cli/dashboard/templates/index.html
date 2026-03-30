@@ -21,13 +21,13 @@
                 <h1>Spec Kitty</h1>
                 <pre class="tree-view" id="tree-info">Loading…</pre>
             </div>
-            <div class="feature-selector" id="feature-selector-container">
+            <div class="mission-selector" id="mission-selector-container">
                 <label>Mission:</label>
-                <select id="feature-select" onchange="switchFeature(this.value)">
+                <select id="mission-select" onchange="switchMission(this.value)">
                     <option value="">Loading...</option>
                 </select>
             </div>
-            <div id="single-feature-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
+            <div id="single-mission-name" style="display: none; font-size: 1.2em; color: var(--grassy-green); font-weight: 600;"></div>
         </div>
         <div class="header-right">
             <div class="mission-display" id="mission-display">
@@ -194,10 +194,10 @@
                             <div id="diagnostics-recommendations-content" style="background: #fffbeb; border-left: 4px solid #f59e0b; padding: 15px; border-radius: 4px;"></div>
                         </div>
 
-                        <!-- Feature Analysis -->
+                        <!-- Mission Analysis -->
                         <div style="margin-bottom: 30px;">
                             <h3 style="color: var(--grassy-green); margin-bottom: 15px;">Mission Analysis</h3>
-                            <div id="diagnostics-features" style="display: flex; flex-direction: column; gap: 15px;"></div>
+                            <div id="diagnostics-missions" style="display: flex; flex-direction: column; gap: 15px;"></div>
                         </div>
 
                         <!-- Actions -->
@@ -224,7 +224,7 @@
                         <div style="background: var(--baby-blue); padding: 30px; border-radius: 12px; max-width: 600px; margin: 0 auto;">
                             <h3 style="color: var(--grassy-green); margin-bottom: 20px;">Get Started</h3>
                             <ol style="text-align: left; line-height: 2; color: var(--dark-text);">
-                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first feature</li>
+                                <li>Run <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.specify</code> to create your first mission</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.plan</code> to create the implementation plan</li>
                                 <li>Then <code style="background: white; padding: 4px 8px; border-radius: 4px;">/spec-kitty.tasks</code> to generate the task breakdown</li>
                                 <li>Watch the dashboard update in real-time as you work!</li>
@@ -234,7 +234,7 @@
                 </div>
             </div>
 
-            <div id="no-features-message" class="no-features" style="display: none;">
+            <div id="no-missions-message" class="no-missions" style="display: none;">
                 <h2>No Missions Found</h2>
                 <p>Create your first mission using <code>/spec-kitty.specify</code></p>
             </div>

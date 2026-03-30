@@ -14,7 +14,7 @@ class DossierPanel {
         }
 
         this.apiBase = '/api/dossier';
-        this.featureSlug = null;
+        this.missionSlug = null;
         this.snapshot = null;
         this.artifacts = null;
         this.filters = {
@@ -27,13 +27,13 @@ class DossierPanel {
     }
 
     /**
-     * Initialize dossier panel with feature slug
-     * @param {string} featureSlug - The feature identifier
+     * Initialize dossier panel with mission slug
+     * @param {string} missionSlug - The mission identifier
      */
-    async init(featureSlug) {
+    async init(missionSlug) {
         if (!this.container) return;
 
-        this.featureSlug = featureSlug;
+        this.missionSlug = missionSlug;
 
         try {
             await this.loadSnapshot();
@@ -50,7 +50,7 @@ class DossierPanel {
      * Load snapshot overview from API
      */
     async loadSnapshot() {
-        const response = await fetch(`${this.apiBase}/overview?feature=${this.featureSlug}`);
+        const response = await fetch(`${this.apiBase}/overview?mission=${this.missionSlug}`);
         if (!response.ok) {
             throw new Error(`Failed to load snapshot: ${response.status}`);
         }
@@ -62,7 +62,7 @@ class DossierPanel {
      */
     async loadArtifacts(filters = {}) {
         const params = new URLSearchParams({
-            feature: this.featureSlug,
+            mission: this.missionSlug,
             ...filters,
         });
 
@@ -306,7 +306,7 @@ class DossierPanel {
 
         try {
             const response = await fetch(
-                `${this.apiBase}/artifacts/${encodeURIComponent(artifactKey)}?feature=${this.featureSlug}`
+                `${this.apiBase}/artifacts/${encodeURIComponent(artifactKey)}?mission=${this.missionSlug}`
             );
 
             if (!response.ok) {

@@ -260,10 +260,10 @@
 
 ### Included Subtasks
 
-- [ ] T027 Reroute `src/constitution/compiler.py` (line 601) -- replace `doctrine_root / "missions" / mission / "mission.yaml"` with `MissionTemplateRepository.default().get_mission_config(mission)`
-- [ ] T028 Reroute `src/specify_cli/constitution/compiler.py` (line 333) -- same pattern as T027
-- [ ] T029 Fix stale path in `src/specify_cli/cli/commands/agent/feature.py` (line 1716) -- `Path(__file__).parents[3] / "specify_cli" / "missions"` references pre-migration directory. Replace with `MissionTemplateRepository.default()._missions_root` or appropriate API call.
-- [ ] T030 Run full test suite (`pytest`) and fix any regressions. Validate with grep: no direct `missions_root / mission / "command-templates"`, `missions_root / mission / "templates"`, `missions_root / mission / "actions"` patterns in production code outside `repository.py`, shipped migrations, and `test_package_bundling.py`.
+- [x] T027 Reroute `src/constitution/compiler.py` (line 601) -- replace `doctrine_root / "missions" / mission / "mission.yaml"` with `MissionTemplateRepository.default().get_mission_config(mission)`
+- [x] T028 Reroute `src/specify_cli/constitution/compiler.py` (line 333) -- same pattern as T027
+- [x] T029 Fix stale path in `src/specify_cli/cli/commands/agent/feature.py` (line 1716) -- `Path(__file__).parents[3] / "specify_cli" / "missions"` references pre-migration directory. Replace with `MissionTemplateRepository.default()._missions_root` or appropriate API call.
+- [x] T030 Run full test suite (`pytest`) and fix any regressions. Validate with grep: no direct `missions_root / mission / "command-templates"`, `missions_root / mission / "templates"`, `missions_root / mission / "actions"` patterns in production code outside `repository.py`, shipped migrations, and `test_package_bundling.py`.
 
 ### Implementation Notes
 
@@ -304,17 +304,17 @@
 
 ### Included Subtasks
 
-- [ ] T031 Rename `create-feature` subcommand to `create-mission` (add hidden `create-feature` alias for backward compat)
-- [ ] T032 Update module docstring in `feature.py` (line 1: `"""Feature lifecycle commands…"""` → `"""Mission lifecycle commands…"""`) and all user-facing help strings / `rich.print` output that say "feature" when they mean "mission"
-- [ ] T033 Mark the `agent feature` registration in `__init__.py` as `hidden=True` so it still works but doesn't appear in `--help`
-- [ ] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
-- [ ] T035 [P] Update `docs/reference/slash-commands.md` — replace `spec-kitty agent feature` invocations with `spec-kitty agent mission`
-- [ ] T036 [P] Update `README.md` CLI examples (lines ~866–902) — replace `agent feature` with `agent mission`
-- [ ] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
-- [ ] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
-- [ ] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
-- [ ] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
-- [ ] T055 [P] Rename "feature" to "mission" in detection error messages (`feature_detection.py`), status hints, and `SPECIFY_FEATURE` env var references. Add `SPECIFY_MISSION` as primary env var with `SPECIFY_FEATURE` as deprecated fallback.
+- [x] T031 Rename `create-feature` subcommand to `create-mission` (add hidden `create-feature` alias for backward compat)
+- [x] T032 Update module docstring in `feature.py` (line 1: `"""Feature lifecycle commands…"""` → `"""Mission lifecycle commands…"""`) and all user-facing help strings / `rich.print` output that say "feature" when they mean "mission"
+- [x] T033 Mark the `agent feature` registration in `__init__.py` as `hidden=True` so it still works but doesn't appear in `--help`
+- [x] T034 [P] Update `docs/reference/agent-subcommands.md` — rewrite the "spec-kitty agent feature" section as "spec-kitty agent mission" with a note that `agent feature` remains as a hidden alias
+- [x] T035 [P] Update `docs/reference/slash-commands.md` — replace `spec-kitty agent feature` invocations with `spec-kitty agent mission`
+- [x] T036 [P] Update `README.md` CLI examples (lines ~866–902) — replace `agent feature` with `agent mission`
+- [x] T037 [P] Update `CLAUDE.md` reference (line ~317) — replace `spec-kitty agent feature finalize-tasks` with `spec-kitty agent mission finalize-tasks`
+- [x] T038 [P] Update doctrine command templates that emit `spec-kitty agent feature` (task-prompt-template.md files in `src/doctrine/missions/*/templates/`)
+- [x] T043 Update glossary: add "Feature Branch" as an accepted VCS term (short-lived branch based on target branch, intended for merge after validation) distinct from the prohibited "Feature" domain term. Clarify that "Mission Specification" replaces "Feature Specification" in spec-kitty artifacts.
+- [x] T048 [P] Rename `--feature` flag to `--mission` across CLI surface (pulled from 057 scope). `--mission` becomes primary, `--feature` remains as deprecated alias. Most visible instance: `spec-kitty agent workflow implement --mission <slug>`.
+- [x] T055 [P] Rename "feature" to "mission" in detection error messages (`feature_detection.py`), status hints, and `SPECIFY_FEATURE` env var references. Add `SPECIFY_MISSION` as primary env var with `SPECIFY_FEATURE` as deprecated fallback.
 
 ### Implementation Notes
 
@@ -550,5 +550,7 @@
 - WP04: done
 - WP05: done
 - WP06: done
+- WP07: done
+- WP08: done
 - WP11: done
 <!-- status-model:end -->

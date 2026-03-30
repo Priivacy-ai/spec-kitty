@@ -33,10 +33,10 @@ def get_default_branch(repo_path: Path) -> str:
     """
     Get the default/base branch name for the repository (for stale detection).
 
-    This is used to find the branch that feature branches diverged FROM.
+    This is used to find the branch that mission branches diverged FROM.
     Unlike resolve_primary_branch() in git_ops, this does NOT use the current
     branch because stale detection always runs from worktrees where the current
-    branch is always the feature branch, never the base branch.
+    branch is always the mission branch, never the base branch.
 
     Tries multiple methods to detect the default branch:
     1. Check origin's HEAD symbolic ref
@@ -252,7 +252,7 @@ def check_wp_staleness(
 
 def find_worktree_for_wp(
     main_repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
 ) -> Path | None:
     """
@@ -260,7 +260,7 @@ def find_worktree_for_wp(
 
     Args:
         main_repo_root: Root of the main repository
-        feature_slug: Feature slug (e.g., "001-my-feature")
+        mission_slug: Mission slug (e.g., "001-my-mission")
         wp_id: Work package ID (e.g., "WP01")
 
     Returns:
@@ -270,8 +270,8 @@ def find_worktree_for_wp(
     if not worktrees_dir.exists():
         return None
 
-    # Expected pattern: feature_slug-WP01
-    expected_name = f"{feature_slug}-{wp_id}"
+    # Expected pattern: mission_slug-WP01
+    expected_name = f"{mission_slug}-{wp_id}"
     worktree_path = worktrees_dir / expected_name
 
     if worktree_path.exists():
@@ -287,7 +287,7 @@ def find_worktree_for_wp(
 
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     doing_wps: list[dict],
     threshold_minutes: int = 10,
 ) -> dict[str, StaleCheckResult]:
@@ -296,7 +296,7 @@ def check_doing_wps_for_staleness(
 
     Args:
         main_repo_root: Root of the main repository
-        feature_slug: Feature slug
+        mission_slug: Mission slug
         doing_wps: List of WP dicts with at least 'id' key
         threshold_minutes: Minutes of inactivity threshold
 
@@ -310,7 +310,7 @@ def check_doing_wps_for_staleness(
         if not wp_id:
             continue
 
-        worktree_path = find_worktree_for_wp(main_repo_root, feature_slug, wp_id)
+        worktree_path = find_worktree_for_wp(main_repo_root, mission_slug, wp_id)
 
         if worktree_path:
             result = check_wp_staleness(wp_id, worktree_path, threshold_minutes)

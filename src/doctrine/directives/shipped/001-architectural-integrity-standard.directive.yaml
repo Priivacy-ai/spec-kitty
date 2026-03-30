@@ -10,6 +10,7 @@ tactic_refs:
   - premortem-risk-identification
   - connascence-analysis
   - easy-to-change
+  - language-driven-design
 enforcement: required
 scope: >
   Applies to all design proposals, implementation plans, and architectural

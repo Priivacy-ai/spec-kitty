@@ -47,7 +47,7 @@ def test_uses_centralized_runtime_treats_metadata_less_worktree_as_runtime_manag
     (home / "cache" / "version.lock").write_text("2.0.6", encoding="utf-8")
     monkeypatch.setenv("SPEC_KITTY_HOME", str(home))
 
-    worktree = tmp_path / "repo" / ".worktrees" / "001-feature-WP01"
+    worktree = tmp_path / "repo" / ".worktrees" / "001-mission-WP01"
     (worktree / "kitty-specs").mkdir(parents=True)
 
     # Assumption check

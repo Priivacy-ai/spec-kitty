@@ -23,7 +23,7 @@ SAMPLE_CONSTITUTION = """# Testing Standards
 - Pass all linters
 
 ## Project Directives
-1. Write tests for new features
+1. Write tests for new missions
 """
 
 

@@ -12,7 +12,6 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.commands._flag_utils import resolve_mission_or_feature
 from specify_cli.cli import StepTracker
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
@@ -34,11 +33,11 @@ from specify_cli.tasks_support import (
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.feature_detection import (
-    detect_feature,
-    FeatureDetectionError,
+from specify_cli.core.mission_detection import (
+    detect_mission,
+    MissionDetectionError,
 )
-from specify_cli.feature_metadata import set_vcs_lock
+from specify_cli.mission_metadata import set_vcs_lock
 from specify_cli.git import safe_commit
 from specify_cli.core.tool_config import get_auto_commit_default
 
@@ -81,40 +80,40 @@ def _json_safe_output(func):
     return wrapper
 
 
-def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
-    """Detect feature number and slug from current context using centralized detection.
+def detect_mission_context(mission_flag: str | None = None) -> tuple[str, str]:
+    """Detect mission number and slug from current context using centralized detection.
 
-    This function now uses the centralized feature detection module
+    This function now uses the centralized mission detection module
     to provide deterministic, consistent behavior across all commands.
 
     Args:
-        feature_flag: Explicit feature slug from --feature flag (optional)
+        mission_flag: Explicit mission slug from --mission flag (optional)
 
     Returns:
-        Tuple of (feature_number, feature_slug)
+        Tuple of (mission_number, mission_slug)
         Example: ("010", "010-workspace-per-wp")
 
     Raises:
-        typer.Exit: If feature context cannot be detected
+        typer.Exit: If mission context cannot be detected
     """
     try:
         repo_root = find_repo_root()
-        ctx = detect_feature(repo_root, explicit_feature=feature_flag, cwd=Path.cwd(), mode="strict")
+        ctx = detect_mission(repo_root, explicit_mission=mission_flag, cwd=Path.cwd(), mode="strict")
         return ctx.number, ctx.slug
     except TaskCliError:
         console.print("[red]Error:[/red] Not in a spec-kitty project")
         raise typer.Exit(1)
-    except FeatureDetectionError as e:
+    except MissionDetectionError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
 
 
-def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
-    """Find WP file in kitty-specs/###-feature/tasks/ directory.
+def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
+    """Find WP file in kitty-specs/###-mission/tasks/ directory.
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        mission_slug: Mission slug (e.g., "010-workspace-per-wp")
         wp_id: Work package ID (e.g., "WP01")
 
     Returns:
@@ -123,7 +122,7 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
     Raises:
         FileNotFoundError: If WP file not found
     """
-    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
@@ -243,12 +242,12 @@ def resolve_primary_branch(repo_root: Path) -> str:
     return _resolve(repo_root)
 
 
-def resolve_feature_target_branch(feature_slug: str, repo_root: Path) -> str:
-    """Resolve the feature's configured target branch from meta.json."""
+def resolve_mission_target_branch(mission_slug: str, repo_root: Path) -> str:
+    """Resolve the mission's configured target branch from meta.json."""
     from specify_cli.core.git_ops import resolve_target_branch
 
     resolution = resolve_target_branch(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         repo_path=repo_root,
         respect_current=True,
     )
@@ -279,7 +278,7 @@ def _branch_tip_reachable_from_target(repo_root: Path, branch_name: str, target_
 
 def _partition_dependencies_by_merge_state(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     dependencies: list[str],
     target_branch: str,
 ) -> tuple[list[str], list[str], list[str]]:
@@ -293,7 +292,7 @@ def _partition_dependencies_by_merge_state(
     missing_branch: list[str] = []
 
     for dep in dependencies:
-        dep_branch = f"{feature_slug}-{dep}"
+        dep_branch = f"{mission_slug}-{dep}"
         if not _branch_exists(repo_root, dep_branch):
             missing_branch.append(dep)
             continue
@@ -306,14 +305,14 @@ def _partition_dependencies_by_merge_state(
     return merged, unmerged, missing_branch
 
 
-def display_rebase_warning(workspace_path: Path, wp_id: str, base_branch: str, feature_slug: str) -> None:
+def display_rebase_warning(workspace_path: Path, wp_id: str, base_branch: str, mission_slug: str) -> None:
     """Display warning about needing to rebase on changed base.
 
     Args:
         workspace_path: Path to workspace directory
         wp_id: Work package ID (e.g., "WP02")
         base_branch: Base branch name (e.g., "010-workspace-per-wp-WP01")
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        mission_slug: Mission slug (e.g., "010-workspace-per-wp")
     """
     console.print(f"\n[bold yellow]⚠️  Base branch {base_branch} has changed[/bold yellow]")
     console.print(f"Your {wp_id} workspace may have outdated code from base\n")
@@ -328,18 +327,18 @@ def display_rebase_warning(workspace_path: Path, wp_id: str, base_branch: str, f
     console.print("[yellow]This is a git limitation.[/yellow]\n")
 
 
-def check_for_dependents(repo_root: Path, feature_slug: str, wp_id: str) -> None:
+def check_for_dependents(repo_root: Path, mission_slug: str, wp_id: str) -> None:
     """Check if any WPs depend on this WP and warn if not yet done.
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        mission_slug: Mission slug (e.g., "010-workspace-per-wp")
         wp_id: Work package ID (e.g., "WP01")
     """
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    mission_dir = repo_root / "kitty-specs" / mission_slug
 
     # Build dependency graph
-    graph = build_dependency_graph(feature_dir)
+    graph = build_dependency_graph(mission_dir)
 
     # Get dependents
     dependents = get_dependents(wp_id, graph)
@@ -350,7 +349,7 @@ def check_for_dependents(repo_root: Path, feature_slug: str, wp_id: str) -> None
     incomplete_deps = []
     for dep_id in dependents:
         try:
-            dep_file = find_wp_file(repo_root, feature_slug, dep_id)
+            dep_file = find_wp_file(repo_root, mission_slug, dep_id)
             frontmatter, _ = read_frontmatter(dep_file)
             lane = frontmatter.get("lane", "planned")
 
@@ -365,15 +364,15 @@ def check_for_dependents(repo_root: Path, feature_slug: str, wp_id: str) -> None
         console.print(f"{', '.join(incomplete_deps)} depend on {wp_id} (not yet done)")
         console.print("If you modify this WP, dependent WPs will need manual rebase:")
         for dep_id in incomplete_deps:
-            dep_workspace = f".worktrees/{feature_slug}-{dep_id}"
-            console.print(f"  cd {dep_workspace} && git rebase {feature_slug}-{wp_id}")
+            dep_workspace = f".worktrees/{mission_slug}-{dep_id}"
+            console.print(f"  cd {dep_workspace} && git rebase {mission_slug}-{wp_id}")
         console.print()
 
 
 def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     wp_id: str,
     primary_branch: str,
     *,
@@ -383,7 +382,7 @@ def _ensure_planning_artifacts_committed_git(
 
     For git repos, checks that:
     1. We're on the primary branch (main/master)
-    2. No uncommitted files exist in kitty-specs/$feature/
+    2. No uncommitted files exist in kitty-specs/$mission/
 
     If uncommitted files exist and we're on the primary branch, auto-commits them
     (unless auto_commit is False, in which case it reports the uncommitted files
@@ -391,8 +390,8 @@ def _ensure_planning_artifacts_committed_git(
 
     Args:
         repo_root: Repository root path
-        feature_dir: Path to feature directory (kitty-specs/###-feature/)
-        feature_slug: Feature slug (e.g., "001-my-feature")
+        mission_dir: Path to mission directory (kitty-specs/###-mission/)
+        mission_slug: Mission slug (e.g., "001-my-mission")
         wp_id: Work package ID (e.g., "WP01")
         primary_branch: Primary branch name (main/master)
         auto_commit: Whether to auto-commit planning artifacts
@@ -406,9 +405,9 @@ def _ensure_planning_artifacts_committed_git(
     )
     current_branch = result.stdout.strip() if result.returncode == 0 else ""
 
-    # Check git status for untracked/modified files in feature directory
+    # Check git status for untracked/modified files in mission directory
     result = subprocess.run(
-        ["git", "status", "--porcelain", str(feature_dir)], cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+        ["git", "status", "--porcelain", str(mission_dir)], cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
     )
 
     if result.returncode == 0 and result.stdout.strip():
@@ -438,17 +437,17 @@ def _ensure_planning_artifacts_committed_git(
 
             if not auto_commit:
                 console.print("\n[yellow]Auto-commit disabled.[/yellow] Planning artifacts need manual commit:")
-                console.print(f"  git add -f {feature_dir}")
-                commit_msg = f"chore: Planning artifacts for {feature_slug}"
+                console.print(f"  git add -f {mission_dir}")
+                commit_msg = f"chore: Planning artifacts for {mission_slug}"
                 console.print(f'  git commit -m "{commit_msg}"')
                 raise typer.Exit(1)
 
             console.print(f"\n[cyan]Auto-committing to {primary_branch}...[/cyan]")
 
-            # Stage all files in feature directory
+            # Stage all files in mission directory
             # Use -f to force-add files in kitty-specs/ which is in .gitignore
             result = subprocess.run(
-                ["git", "add", "-f", str(feature_dir)], cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
+                ["git", "add", "-f", str(mission_dir)], cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
             )
             if result.returncode != 0:
                 console.print("[red]Error:[/red] Failed to stage files")
@@ -456,7 +455,7 @@ def _ensure_planning_artifacts_committed_git(
                 raise typer.Exit(1)
 
             # Commit with descriptive message
-            commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
+            commit_msg = f"chore: Planning artifacts for {mission_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
             result = subprocess.run(
                 ["git", "commit", "-m", commit_msg], cwd=repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
             )
@@ -468,13 +467,13 @@ def _ensure_planning_artifacts_committed_git(
             console.print(f"[green]✓[/green] Planning artifacts committed to {primary_branch}")
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(mission_dir: Path, repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json.
 
     Always locks to git.
 
     Args:
-        feature_dir: Path to the feature directory (kitty-specs/###-feature/)
+        mission_dir: Path to the mission directory (kitty-specs/###-mission/)
         repo_root: Repository root path (not used, but kept for compatibility)
 
     Returns:
@@ -483,11 +482,11 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     Raises:
         typer.Exit: If meta.json is missing or malformed
     """
-    meta_path = feature_dir / "meta.json"
+    meta_path = mission_dir / "meta.json"
 
     if not meta_path.exists():
-        console.print(f"[red]Error:[/red] meta.json not found in {feature_dir}")
-        console.print("Run /spec-kitty.specify first to create feature structure")
+        console.print(f"[red]Error:[/red] meta.json not found in {mission_dir}")
+        console.print("Run /spec-kitty.specify first to create mission structure")
         raise typer.Exit(1)
 
     try:
@@ -502,7 +501,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 
     # VCS not yet locked - lock to git (only supported VCS)
     now_iso = datetime.now(UTC).isoformat()
-    set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
+    set_vcs_lock(mission_dir, vcs_type="git", locked_at=now_iso)
 
     console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
     return VCSBackend.GIT
@@ -514,7 +513,6 @@ def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
-    feature: str = typer.Option(None, "--feature", hidden=True, help="[Deprecated] Use --mission"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     auto_commit: Annotated[
         bool | None,
@@ -525,7 +523,7 @@ def implement(
     """Create workspace for work package implementation.
 
     Creates a git worktree for the specified work package, branching from
-    the feature's target branch (for WPs with no dependencies) or from a base WP's branch.
+    the mission's target branch (for WPs with no dependencies) or from a base WP's branch.
 
     Examples:
         # Create workspace for WP01 (no dependencies)
@@ -537,31 +535,28 @@ def implement(
         # Force auto-merge when all multi-parent dependencies are done
         spec-kitty implement WP06 --force
 
-        # Explicit feature specification
-        spec-kitty implement WP01 --mission 001-my-feature
+        # Explicit mission specification
+        spec-kitty implement WP01 --mission 001-my-mission
 
         # JSON output for scripting
         spec-kitty implement WP01 --json
     """
-    # Resolve --mission / --feature backward compat
-    feature = resolve_mission_or_feature(mission, feature)
-
     # Context validation handled by @require_main_repo decorator
     tracker = StepTracker(f"Implement {wp_id}")
-    tracker.add("detect", "Detect feature context")
+    tracker.add("detect", "Detect mission context")
     tracker.add("validate", "Validate dependencies")
     tracker.add("create", "Create workspace")
     console.print()
 
-    # Step 1: Detect feature context
+    # Step 1: Detect mission context
     tracker.start("detect")
     try:
         repo_root = find_repo_root()
         # Resolve auto_commit: CLI flag overrides project config
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        feature_number, feature_slug = detect_feature_context(feature)
-        tracker.complete("detect", f"Feature: {feature_slug}")
+        mission_number, mission_slug = detect_mission_context(mission)
+        tracker.complete("detect", f"Mission: {mission_slug}")
     except (TaskCliError, typer.Exit) as exc:
         tracker.error("detect", str(exc) if isinstance(exc, TaskCliError) else "failed")
         console.print(tracker.render())
@@ -572,7 +567,7 @@ def implement(
     auto_merge_base = False  # Track if we're using auto-merge
     try:
         # Find WP file to read dependencies
-        wp_file = find_wp_file(repo_root, feature_slug, wp_id)
+        wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
 
         # Multi-parent dependency handling
@@ -580,8 +575,8 @@ def implement(
             # Check if all dependencies are done - suggest merge-first workflow
             from specify_cli.core.dependency_resolver import check_dependency_status
 
-            feature_dir = repo_root / "kitty-specs" / feature_slug
-            dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
+            mission_dir = repo_root / "kitty-specs" / mission_slug
+            dep_status = check_dependency_status(mission_dir, wp_id, declared_deps)
 
             if dep_status.should_suggest_merge_first and not force:
                 # All dependencies done - suggest merging to main first
@@ -619,14 +614,14 @@ def implement(
 
             # Check if base is merged (ADR-18: Auto-detect merged dependencies)
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
+                base_wp = locate_work_package(repo_root, mission_slug, base)
                 base_lane = base_wp.lane or "planned"
             except Exception:
                 # Base WP file not found - error
                 tracker.error("validate", f"base WP {base} not found")
                 console.print(tracker.render())
                 console.print(f"\n[red]Error:[/red] Base work package {base} does not exist")
-                console.print(f"Feature: {feature_slug}")
+                console.print(f"Mission: {mission_slug}")
                 raise typer.Exit(1)
 
             if base_lane == "done":
@@ -635,7 +630,7 @@ def implement(
                 pass
             else:
                 # Base is in-progress - validate workspace exists
-                base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+                base_workspace = repo_root / ".worktrees" / f"{mission_slug}-{base}"
                 if not base_workspace.exists():
                     tracker.error("validate", f"base workspace {base} not found")
                     console.print(tracker.render())
@@ -662,13 +657,13 @@ def implement(
         raise typer.Exit(1)
 
     # Step 2.5: Ensure planning artifacts are committed (v0.11.0 requirement)
-    # All planning must happen on the feature target branch before workspace creation.
-    if base is None:  # Only for first WP in feature (branches from main)
+    # All planning must happen on the mission target branch before workspace creation.
+    if base is None:  # Only for first WP in mission (branches from main)
         try:
             # Detect VCS backend early to use appropriate commands
-            feature_dir = repo_root / "kitty-specs" / feature_slug
-            if not feature_dir.exists():
-                console.print(f"\n[red]Error:[/red] Feature directory not found: {feature_dir}")
+            mission_dir = repo_root / "kitty-specs" / mission_slug
+            if not mission_dir.exists():
+                console.print(f"\n[red]Error:[/red] Mission directory not found: {mission_dir}")
                 console.print("Run /spec-kitty.specify first")
                 raise typer.Exit(1)
 
@@ -676,13 +671,13 @@ def implement(
             vcs = get_vcs(repo_root)
             vcs_backend = vcs.backend
 
-            planning_branch = resolve_feature_target_branch(feature_slug, repo_root)
+            planning_branch = resolve_mission_target_branch(mission_slug, repo_root)
 
             # Git path: check branch and status using git commands
             _ensure_planning_artifacts_committed_git(
                 repo_root,
-                feature_dir,
-                feature_slug,
+                mission_dir,
+                mission_slug,
                 wp_id,
                 planning_branch,
                 auto_commit=auto_commit,
@@ -698,14 +693,14 @@ def implement(
     tracker.start("create")
     try:
         # Determine workspace path and branch name
-        workspace_name = f"{feature_slug}-{wp_id}"
+        workspace_name = f"{mission_slug}-{wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
         branch_name = workspace_name  # Same as workspace dir name
 
         # Ensure VCS is locked in meta.json and get the backend to use
         # (do this early so we can use VCS for all operations)
-        feature_dir = repo_root / "kitty-specs" / feature_slug
-        vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+        mission_dir = repo_root / "kitty-specs" / mission_slug
+        vcs_backend = _ensure_vcs_in_meta(mission_dir, repo_root)
 
         # Get VCS implementation
         vcs = get_vcs(repo_root, backend=vcs_backend)
@@ -720,15 +715,15 @@ def implement(
             # Use VCS abstraction for stale detection
             if workspace_info.is_stale:
                 if base:
-                    base_branch = f"{feature_slug}-{base}"
-                    display_rebase_warning(workspace_path, wp_id, base_branch, feature_slug)
+                    base_branch = f"{mission_slug}-{base}"
+                    display_rebase_warning(workspace_path, wp_id, base_branch, mission_slug)
                 else:
                     # No explicit base, but workspace is stale (base changed)
                     console.print("\n[yellow]⚠️  Workspace is stale (base has changed)[/yellow]")
                     console.print("Consider rebasing if needed")
 
             # Check for dependent WPs (T079)
-            check_for_dependents(repo_root, feature_slug, wp_id)
+            check_for_dependents(repo_root, mission_slug, wp_id)
 
             return
 
@@ -744,15 +739,15 @@ def implement(
             # Check if all dependencies are done first (optimization)
             from specify_cli.core.dependency_resolver import check_dependency_status
 
-            dep_status = check_dependency_status(feature_dir, wp_id, declared_deps)
+            dep_status = check_dependency_status(mission_dir, wp_id, declared_deps)
 
             if dep_status.all_done:
-                from specify_cli.core.feature_detection import get_feature_target_branch
+                from specify_cli.core.mission_detection import get_mission_target_branch
 
-                target_branch = get_feature_target_branch(repo_root, feature_slug)
+                target_branch = get_mission_target_branch(repo_root, mission_slug)
                 merged_deps, unmerged_deps, missing_deps = _partition_dependencies_by_merge_state(
                     repo_root=repo_root,
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     dependencies=declared_deps,
                     target_branch=target_branch,
                 )
@@ -777,7 +772,7 @@ def implement(
             if auto_merge_base:
                 # Create merge base when dependencies are in-progress OR done-but-unmerged.
                 merge_result = create_multi_parent_base(
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     wp_id=wp_id,
                     dependencies=declared_deps,
                     repo_root=repo_root,
@@ -797,14 +792,14 @@ def implement(
                     console.print("\n[yellow]Recovery options:[/yellow]")
                     console.print("1. Pick a dependency as the base, then merge the others in the worktree:")
                     console.print(f"   spec-kitty implement {wp_id} --base <WPxx>")
-                    console.print(f"   cd .worktrees/{feature_slug}-{wp_id}")
-                    console.print(f"   git merge {feature_slug}-<WPy>")
+                    console.print(f"   cd .worktrees/{mission_slug}-{wp_id}")
+                    console.print(f"   git merge {mission_slug}-<WPy>")
                     console.print("   # Resolve conflicts, then commit")
                     console.print("2. If you're using agent workflow:")
                     console.print(f"   spec-kitty agent workflow implement {wp_id} --base <WPxx> --agent <name>")
                     console.print("   # Then merge other dependency branches in the worktree")
                     console.print("\n[dim]Note:[/dim] There is no `spec-kitty agent workflow merge` command.")
-                    console.print("      Feature merges use: spec-kitty agent mission merge")
+                    console.print("      Mission merges use: spec-kitty agent mission merge")
 
                     raise typer.Exit(1)
 
@@ -825,21 +820,21 @@ def implement(
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
-                base_wp = locate_work_package(repo_root, feature_slug, base)
+                base_wp = locate_work_package(repo_root, mission_slug, base)
                 base_lane = base_wp.lane or "planned"
             except Exception:
                 # Base WP file not found
                 tracker.error("create", f"base WP {base} not found")
                 console.print(tracker.render())
                 console.print(f"[red]Error:[/red] Base work package {base} does not exist")
-                console.print(f"Feature: {feature_slug}")
+                console.print(f"Mission: {mission_slug}")
                 raise typer.Exit(1)
 
             if base_lane == "done":
-                from specify_cli.core.feature_detection import get_feature_target_branch
+                from specify_cli.core.mission_detection import get_mission_target_branch
 
-                target_branch = get_feature_target_branch(repo_root, feature_slug)
-                base_dependency_branch = f"{feature_slug}-{base}"
+                target_branch = get_mission_target_branch(repo_root, mission_slug)
+                base_dependency_branch = f"{mission_slug}-{base}"
 
                 if not _branch_exists(repo_root, base_dependency_branch):
                     console.print(f"\n[yellow]→ Base {base} is done; branch {base_dependency_branch} not found[/yellow]")
@@ -853,8 +848,8 @@ def implement(
                     base_branch = base_dependency_branch
             else:
                 # Base in progress - use workspace branch
-                base_branch = f"{feature_slug}-{base}"
-                base_workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+                base_branch = f"{mission_slug}-{base}"
+                base_workspace_path = repo_root / ".worktrees" / f"{mission_slug}-{base}"
                 base_workspace_info = vcs.get_workspace_info(base_workspace_path)
 
                 if base_workspace_info is None:
@@ -932,7 +927,7 @@ def implement(
 
             context = WorkspaceContext(
                 wp_id=wp_id,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 worktree_path=str(workspace_path.relative_to(repo_root)),
                 branch_name=branch_name,
                 base_branch=base_branch,
@@ -959,7 +954,7 @@ def implement(
     try:
         import os
 
-        wp = locate_work_package(repo_root, feature_slug, wp_id)
+        wp = locate_work_package(repo_root, mission_slug, wp_id)
         lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
@@ -981,13 +976,13 @@ def implement(
             commit_msg = f"chore: {wp_id} claimed for implementation"
 
             # Resolve branch routing (unified logic, no auto-checkout)
-            resolution = resolve_target_branch(feature_slug, repo_root, respect_current=True)
+            resolution = resolve_target_branch(mission_slug, repo_root, respect_current=True)
 
             # Show notification if user is on different branch than target
             if resolution.should_notify:
                 console.print(
                     f"[yellow]Note:[/yellow] You are on '{resolution.current}', "
-                    f"feature targets '{resolution.target}'. "
+                    f"mission targets '{resolution.target}'. "
                     f"Status will commit to '{resolution.current}'."
                 )
 
@@ -997,7 +992,7 @@ def implement(
 
             if auto_commit:
                 # Commit only the WP file (safe_commit preserves staging area)
-                meta_file = feature_dir / "meta.json"
+                meta_file = mission_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
                 files_to_commit = [wp.path.resolve()]
                 if meta_file.exists():
@@ -1029,7 +1024,7 @@ def implement(
                         wp_id=wp_id,
                         from_lane=current_lane,
                         to_lane="in_progress",
-                        feature_slug=feature_slug,
+                        mission_slug=mission_slug,
                     )
                 except Exception as emit_exc:
                     console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {emit_exc}")
@@ -1052,7 +1047,7 @@ def implement(
                     # Backward compatibility for existing integrations.
                     "workspace_path": workspace_rel,
                     "branch": branch_name,
-                    "feature": feature_slug,
+                    "mission": mission_slug,
                     "wp_id": wp_id,
                     "base": base or resolve_primary_branch(repo_root),
                     "status": "created",
@@ -1065,7 +1060,7 @@ def implement(
         console.print("\n[bold green]✓ Workspace created successfully[/bold green]")
 
         # Check for dependent WPs after creation (T079)
-        check_for_dependents(repo_root, feature_slug, wp_id)
+        check_for_dependents(repo_root, mission_slug, wp_id)
 
         # CRITICAL: Explicit cd instruction to prevent writing to main
         console.print()

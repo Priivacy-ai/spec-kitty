@@ -82,7 +82,7 @@ def emit_wp_status_changed(
     from_lane: str,
     to_lane: str,
     actor: str = "user",
-    feature_slug: str | None = None,
+    mission_slug: str | None = None,
     causation_id: str | None = None,
     policy_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
@@ -92,7 +92,7 @@ def emit_wp_status_changed(
         from_lane=from_lane,
         to_lane=to_lane,
         actor=actor,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         causation_id=causation_id,
         policy_metadata=policy_metadata,
     )
@@ -101,7 +101,7 @@ def emit_wp_status_changed(
 def emit_wp_created(
     wp_id: str,
     title: str,
-    feature_slug: str,
+    mission_slug: str,
     dependencies: list[str] | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
@@ -109,7 +109,7 @@ def emit_wp_created(
     return get_emitter().emit_wp_created(
         wp_id=wp_id,
         title=title,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         dependencies=dependencies,
         causation_id=causation_id,
     )
@@ -132,18 +132,18 @@ def emit_wp_assigned(
     )
 
 
-def emit_feature_created(
-    feature_slug: str,
-    feature_number: str,
+def emit_mission_created(
+    mission_slug: str,
+    mission_number: str,
     target_branch: str,
     wp_count: int,
     created_at: str | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Emit FeatureCreated event via singleton."""
-    return get_emitter().emit_feature_created(
-        feature_slug=feature_slug,
-        feature_number=feature_number,
+    """Emit MissionCreated event via singleton."""
+    return get_emitter().emit_mission_created(
+        mission_slug=mission_slug,
+        mission_number=mission_number,
         target_branch=target_branch,
         wp_count=wp_count,
         created_at=created_at,
@@ -151,16 +151,16 @@ def emit_feature_created(
     )
 
 
-def emit_feature_completed(
-    feature_slug: str,
+def emit_mission_completed(
+    mission_slug: str,
     total_wps: int,
     completed_at: str | None = None,
     total_duration: str | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Emit FeatureCompleted event via singleton."""
-    return get_emitter().emit_feature_completed(
-        feature_slug=feature_slug,
+    """Emit MissionCompleted event via singleton."""
+    return get_emitter().emit_mission_completed(
+        mission_slug=mission_slug,
         total_wps=total_wps,
         completed_at=completed_at,
         total_duration=total_duration,

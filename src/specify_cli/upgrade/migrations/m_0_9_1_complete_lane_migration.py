@@ -110,8 +110,8 @@ class CompleteLaneMigration(BaseMigration):
         # Part 1: Check for remaining lane subdirectories
         main_specs = project_path / "kitty-specs"
         if main_specs.exists():
-            for feature_dir in main_specs.iterdir():
-                if feature_dir.is_dir() and self._has_remaining_lane_dirs(feature_dir):
+            for mission_dir in main_specs.iterdir():
+                if mission_dir.is_dir() and self._has_remaining_lane_dirs(mission_dir):
                     return True
 
         worktrees_dir = project_path / ".worktrees"
@@ -120,11 +120,11 @@ class CompleteLaneMigration(BaseMigration):
                 if not worktree.is_dir():
                     continue
 
-                # Check for lane dirs in worktree features
+                # Check for lane dirs in worktree missions
                 wt_specs = worktree / "kitty-specs"
                 if wt_specs.exists():
-                    for feature_dir in wt_specs.iterdir():
-                        if feature_dir.is_dir() and self._has_remaining_lane_dirs(feature_dir):
+                    for mission_dir in wt_specs.iterdir():
+                        if mission_dir.is_dir() and self._has_remaining_lane_dirs(mission_dir):
                             return True
 
                 # Part 2: Check for agent command directories in worktree
@@ -140,9 +140,9 @@ class CompleteLaneMigration(BaseMigration):
 
         return False
 
-    def _has_remaining_lane_dirs(self, feature_path: Path) -> bool:
-        """Check if feature still has lane subdirectories with any content."""
-        tasks_dir = feature_path / "tasks"
+    def _has_remaining_lane_dirs(self, mission_path: Path) -> bool:
+        """Check if mission still has lane subdirectories with any content."""
+        tasks_dir = mission_path / "tasks"
         if not tasks_dir.exists():
             return False
 
@@ -168,19 +168,19 @@ class CompleteLaneMigration(BaseMigration):
 
         # Part 1: Complete lane migration
         changes.append("=== Part 1: Complete Lane Migration ===")
-        features_found = self._find_features_with_lanes(project_path)
+        missions_found = self._find_missions_with_lanes(project_path)
 
-        if features_found:
+        if missions_found:
             total_migrated = 0
             total_dirs_removed = 0
 
-            for feature_dir, location_label in features_found:
-                feature_changes, feature_warnings, feature_errors, migrated, dirs_removed = (
-                    self._migrate_remaining_files(feature_dir, location_label, dry_run)
+            for mission_dir, location_label in missions_found:
+                mission_changes, mission_warnings, mission_errors, migrated, dirs_removed = (
+                    self._migrate_remaining_files(mission_dir, location_label, dry_run)
                 )
-                changes.extend(feature_changes)
-                warnings.extend(feature_warnings)
-                errors.extend(feature_errors)
+                changes.extend(mission_changes)
+                warnings.extend(mission_warnings)
+                errors.extend(mission_errors)
                 total_migrated += migrated
                 total_dirs_removed += dirs_removed
 
@@ -214,16 +214,16 @@ class CompleteLaneMigration(BaseMigration):
             warnings=warnings,
         )
 
-    def _find_features_with_lanes(self, project_path: Path) -> list[tuple[Path, str]]:
-        """Find all features with remaining lane subdirectories."""
-        features: list[tuple[Path, str]] = []
+    def _find_missions_with_lanes(self, project_path: Path) -> list[tuple[Path, str]]:
+        """Find all missions with remaining lane subdirectories."""
+        missions: list[tuple[Path, str]] = []
 
         # Scan main kitty-specs/
         main_specs = project_path / "kitty-specs"
         if main_specs.exists():
-            for feature_dir in sorted(main_specs.iterdir()):
-                if feature_dir.is_dir() and self._has_remaining_lane_dirs(feature_dir):
-                    features.append((feature_dir, "main"))
+            for mission_dir in sorted(main_specs.iterdir()):
+                if mission_dir.is_dir() and self._has_remaining_lane_dirs(mission_dir):
+                    missions.append((mission_dir, "main"))
 
         # Scan .worktrees/
         worktrees_dir = project_path / ".worktrees"
@@ -232,31 +232,31 @@ class CompleteLaneMigration(BaseMigration):
                 if worktree.is_dir():
                     wt_specs = worktree / "kitty-specs"
                     if wt_specs.exists():
-                        for feature_dir in sorted(wt_specs.iterdir()):
-                            if feature_dir.is_dir() and self._has_remaining_lane_dirs(feature_dir):
-                                features.append((feature_dir, f"worktree:{worktree.name}"))
+                        for mission_dir in sorted(wt_specs.iterdir()):
+                            if mission_dir.is_dir() and self._has_remaining_lane_dirs(mission_dir):
+                                missions.append((mission_dir, f"worktree:{worktree.name}"))
 
-        return features
+        return missions
 
     def _migrate_remaining_files(  # noqa: C901
         self,
-        feature_dir: Path,
+        mission_dir: Path,
         location_label: str,
         dry_run: bool,
     ) -> tuple[list[str], list[str], list[str], int, int]:
-        """Migrate all remaining files from a feature's lane subdirectories."""
+        """Migrate all remaining files from a mission's lane subdirectories."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
         migrated = 0
         dirs_removed = 0
 
-        tasks_dir = feature_dir / "tasks"
+        tasks_dir = mission_dir / "tasks"
         if not tasks_dir.exists():
             return changes, warnings, errors, migrated, dirs_removed
 
-        feature_name = feature_dir.name
-        changes.append(f"[{location_label}] {feature_name}:")
+        mission_name = mission_dir.name
+        changes.append(f"[{location_label}] {mission_name}:")
 
         for lane in self.LANE_DIRS:
             lane_dir = tasks_dir / lane

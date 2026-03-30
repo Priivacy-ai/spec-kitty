@@ -35,7 +35,7 @@ class MissionModel:
     It also holds context needed by guards and callbacks.
 
     Attributes:
-        feature_dir: Optional path to the feature directory for guard context.
+        mission_dir: Optional path to the mission directory for guard context.
         inputs: Dict of user-supplied input values keyed by input name.
         event_log_path: Optional path to an event log file.
         mission_name: Name of the mission (used in emitted events).
@@ -44,12 +44,12 @@ class MissionModel:
 
     def __init__(
         self,
-        feature_dir: Path | None = None,
+        mission_dir: Path | None = None,
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
         mission_name: str = "",
     ) -> None:
-        self.feature_dir = feature_dir
+        self.mission_dir = mission_dir
         self.inputs: dict[str, Any] = inputs or {}
         self.event_log_path = event_log_path
         self.mission_name = mission_name
@@ -73,7 +73,7 @@ class MissionModel:
             "phase_entered",
             {"state": state_name},
             mission_name=self.mission_name,
-            feature_dir=self.feature_dir,
+            mission_dir=self.mission_dir,
         )
 
     def on_exit_state(self, event: Any) -> None:
@@ -89,7 +89,7 @@ class MissionModel:
             "phase_exited",
             {"state": state_name},
             mission_name=self.mission_name,
-            feature_dir=self.feature_dir,
+            mission_dir=self.mission_dir,
         )
 
 
@@ -142,7 +142,7 @@ class StateMachineMission:
 
     Args:
         config: Parsed YAML dict that must pass v1 schema validation.
-        feature_dir: Optional feature directory for guard context.
+        mission_dir: Optional mission directory for guard context.
         inputs: Optional dict of user-supplied input values.
         event_log_path: Optional path to an event log file.
         validate_schema: When True, validate the config against the v1 schema.
@@ -155,7 +155,7 @@ class StateMachineMission:
     def __init__(
         self,
         config: dict[str, Any],
-        feature_dir: Path | None = None,
+        mission_dir: Path | None = None,
         inputs: dict[str, Any] | None = None,
         event_log_path: Path | None = None,
         validate_schema: bool = True,
@@ -167,7 +167,7 @@ class StateMachineMission:
         self._mission_info: dict[str, Any] = config.get("mission", {})
 
         self._model = MissionModel(
-            feature_dir=feature_dir,
+            mission_dir=mission_dir,
             inputs=inputs,
             event_log_path=event_log_path,
             mission_name=self._mission_info.get("name", ""),

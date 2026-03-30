@@ -13,19 +13,19 @@ from .base import BaseMigration, MigrationResult
 class UpdateScriptsMigration(BaseMigration):
     """Update .kittify/scripts/ to latest version.
 
-    The create-new-feature.sh script was fixed in v0.7.3 to scan both
-    kitty-specs/ AND .worktrees/ for existing feature numbers. Projects
+    The create-new-mission.sh script was fixed in v0.7.3 to scan both
+    kitty-specs/ AND .worktrees/ for existing mission numbers. Projects
     initialized before v0.7.3 have the old script that only scans kitty-specs/,
-    causing duplicate feature numbers when using worktrees.
+    causing duplicate mission numbers when using worktrees.
     """
 
     migration_id = "0.7.3_update_scripts"
-    description = "Update scripts to fix worktree feature numbering"
+    description = "Update scripts to fix worktree mission numbering"
     target_version = "0.7.3"
 
     def detect(self, project_path: Path) -> bool:
         """Check if project has old scripts that need updating."""
-        script_path = project_path / ".kittify" / "scripts" / "bash" / "create-new-feature.sh"
+        script_path = project_path / ".kittify" / "scripts" / "bash" / "create-new-mission.sh"
 
         if not script_path.exists():
             return False
@@ -61,7 +61,7 @@ class UpdateScriptsMigration(BaseMigration):
 
         # Scripts to update
         scripts = [
-            ("scripts/bash/create-new-feature.sh", ".kittify/scripts/bash/create-new-feature.sh"),
+            ("scripts/bash/create-new-mission.sh", ".kittify/scripts/bash/create-new-mission.sh"),
             ("scripts/bash/common.sh", ".kittify/scripts/bash/common.sh"),
         ]
 

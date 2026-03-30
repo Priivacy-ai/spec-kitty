@@ -1,4 +1,4 @@
-"""Constitution path resolution helpers for dashboard features/API."""
+"""Constitution path resolution helpers for dashboard missions/API."""
 
 from __future__ import annotations
 

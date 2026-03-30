@@ -154,8 +154,8 @@ Defines the documentation navigation structure.
   items:
     - name: Getting Started
       href: tutorials/getting-started.md
-    - name: Your First Feature
-      href: tutorials/your-first-feature.md
+    - name: Your First Mission
+      href: tutorials/your-first-mission.md
 
 - name: How-To Guides
   items:

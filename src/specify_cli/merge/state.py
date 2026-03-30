@@ -30,7 +30,7 @@ STATE_FILE = ".kittify/merge-state.json"
 class MergeState:
     """Persisted state for resumable merge operations."""
 
-    feature_slug: str
+    mission_slug: str
     target_branch: str
     wp_order: list[str]  # Ordered list of WP IDs to merge
     completed_wps: list[str] = field(default_factory=list)

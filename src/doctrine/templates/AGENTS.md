@@ -12,15 +12,15 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 ✅ **CORRECT**:
 
-- `kitty-specs/001-feature/tasks/WP01.md`
-- `/path/to/project/kitty-specs/001-feature/spec.md`
-- `tasks/WP01.md` (relative to feature directory)
+- `kitty-specs/001-mission/tasks/WP01.md`
+- `/path/to/project/kitty-specs/001-mission/spec.md`
+- `tasks/WP01.md` (relative to mission directory)
 
 ❌ **WRONG**:
 
 - "the tasks folder" (which one? where?)
-- "WP01.md" (in which lane? which feature?)
-- "the spec" (which feature's spec?)
+- "WP01.md" (in which lane? which mission?)
+- "the spec" (which mission's spec?)
 
 **Why**: Clarity and precision prevent errors. Never refer to a folder by name alone.
 
@@ -42,7 +42,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 **Real examples that crashed the dashboard:**
 
-- "User's favorite feature" → "User's favorite feature" (smart quote)
+- "User's favorite mission" → "User's favorite mission" (smart quote)
 - "Price: $100 ± $10" → "Price: $100 +/- $10"
 - "Temperature: 72°F" → "Temperature: 72 degrees F"
 - "3 × 4 matrix" → "3 x 4 matrix"
@@ -68,8 +68,8 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 1. Paste into a plain-text buffer first (VS Code, TextEdit in plain mode)
 2. Replace smart quotes and dashes
 3. Verify no � replacement characters appear
-4. Run `spec-kitty validate-encoding --feature <feature-id>` to check
-5. Run `spec-kitty validate-encoding --feature <feature-id> --fix` to auto-repair
+4. Run `spec-kitty validate-encoding --mission <mission-id>` to check
+5. Run `spec-kitty validate-encoding --mission <mission-id> --fix` to auto-repair
 
 **Failure to follow this rule causes the dashboard to render blank pages.**
 
@@ -79,12 +79,12 @@ If you accidentally introduce problematic characters:
 
 ```bash
 # Check for encoding issues
-spec-kitty validate-encoding --feature 001-my-feature
+spec-kitty validate-encoding --mission 001-my-mission
 
 # Automatically fix all issues (creates .bak backups)
-spec-kitty validate-encoding --feature 001-my-feature --fix
+spec-kitty validate-encoding --mission 001-my-mission --fix
 
-# Check all features at once
+# Check all missions at once
 spec-kitty validate-encoding --all --fix
 ```
 
@@ -120,7 +120,7 @@ spec-kitty validate-encoding --all --fix
 - Commit only meaningful units of work.
 - Write descriptive commit messages (imperative mood).
 - Do not rewrite history of shared branches.
-- Keep feature branches up to date with main via merge or rebase as appropriate.
+- Keep mission branches up to date with main via merge or rebase as appropriate.
 - Never commit secrets, tokens, or credentials.
 
 ---
@@ -176,7 +176,7 @@ git reset HEAD .claude/
 ### Worktree Constitution Sharing
 
 In worktrees, `.kittify/memory/` is a symlink to the main repo's memory,
-ensuring all feature branches share the same constitution.
+ensuring all mission branches share the same constitution.
 
 ```bash
 # In a worktree, this should show a symlink:

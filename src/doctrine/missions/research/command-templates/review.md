@@ -11,7 +11,7 @@ Research WPs produce deliverables in a **worktree**, which merge to main like co
 | Type | Location | Review Focus |
 |------|----------|--------------|
 | **Research Deliverables** | `{{deliverables_path}}` (in worktree) | PRIMARY - Your main review target |
-| **Planning Artifacts** | `kitty-specs/{{feature_slug}}/research/` (in main) | SECONDARY - Citation validation only |
+| **Planning Artifacts** | `kitty-specs/{{mission_slug}}/research/` (in main) | SECONDARY - Citation validation only |
 
 ### Review Checklist
 
@@ -69,11 +69,11 @@ Before proceeding with review, verify you are in the correct working directory b
 
 **What this validates**:
 
-- Current branch follows the feature pattern like `001-feature-name`
+- Current branch follows the mission pattern like `001-mission-name`
 - You're not attempting to run from `main` or any release branch
-- The validator prints clear navigation instructions if you're outside the feature worktree
+- The validator prints clear navigation instructions if you're outside the mission worktree
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Citation Validation (Research Mission Specific)
 
@@ -84,7 +84,7 @@ from pathlib import Path
 from specify_cli.validators.research import validate_citations, validate_source_register
 
 # Validate evidence log
-evidence_log = FEATURE_DIR / "research" / "evidence-log.csv"
+evidence_log = MISSION_DIR / "research" / "evidence-log.csv"
 if evidence_log.exists():
     result = validate_citations(evidence_log)
     if result.has_errors:
@@ -96,7 +96,7 @@ if evidence_log.exists():
         print("\nWarnings found - consider addressing for better citation quality.")
 
 # Validate source register
-source_register = FEATURE_DIR / "research" / "source-register.csv"
+source_register = MISSION_DIR / "research" / "source-register.csv"
 if source_register.exists():
     result = validate_source_register(source_register)
     if result.has_errors:
@@ -114,7 +114,7 @@ if source_register.exists():
 
 ## Outline
 
-1. Run `{SCRIPT}` from repo root; capture `FEATURE_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
+1. Run `{SCRIPT}` from repo root; capture `MISSION_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
 
 2. Determine the review target:
    - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).
@@ -170,7 +170,7 @@ from pathlib import Path
 from specify_cli.validators.research import validate_citations, validate_source_register
 
 # Validate evidence log
-evidence_log = FEATURE_DIR / "research" / "evidence-log.csv"
+evidence_log = MISSION_DIR / "research" / "evidence-log.csv"
 if evidence_log.exists():
     result = validate_citations(evidence_log)
     if result.has_errors:
@@ -182,7 +182,7 @@ if evidence_log.exists():
         print("\nWarnings found - consider addressing for better citation quality.")
 
 # Validate source register
-source_register = FEATURE_DIR / "research" / "source-register.csv"
+source_register = MISSION_DIR / "research" / "source-register.csv"
 if source_register.exists():
     result = validate_source_register(source_register)
     if result.has_errors:
