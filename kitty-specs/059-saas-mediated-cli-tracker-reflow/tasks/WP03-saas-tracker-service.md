@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: SaaSTrackerService
-dependencies: [WP01, WP02]
+dependencies: []
 requirement_refs:
 - FR-001
 - FR-002
@@ -14,7 +14,7 @@ requirement_refs:
 - FR-011
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP01 and WP02. Use `spec-kitty implement WP03 --base WP01` then merge WP02 branch manually if needed, or wait for both to merge to main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T012, T013, T014, T015, T016]
 history:
 - at: '2026-03-30T19:14:19+00:00'

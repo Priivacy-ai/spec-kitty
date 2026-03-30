@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: CLI Command Updates
-dependencies: [WP05]
+dependencies: []
 requirement_refs:
 - FR-001
 - FR-006
@@ -16,7 +16,7 @@ requirement_refs:
 - FR-026
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP05. Use `spec-kitty implement WP06 --base WP05`.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T028, T029, T030, T031, T032, T033, T034]
 history:
 - at: '2026-03-30T19:14:19+00:00'

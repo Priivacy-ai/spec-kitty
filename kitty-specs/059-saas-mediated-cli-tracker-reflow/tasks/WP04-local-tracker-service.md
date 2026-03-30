@@ -1,12 +1,12 @@
 ---
 work_package_id: WP04
 title: LocalTrackerService
-dependencies: [WP02]
+dependencies: []
 requirement_refs:
 - FR-014
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP02 (config model). Use `spec-kitty implement WP04 --base WP02`. Can run in parallel with WP03.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T017, T018, T019, T020, T021]
 history:
 - at: '2026-03-30T19:14:19+00:00'
