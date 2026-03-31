@@ -303,7 +303,6 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
     wp01_content = """---
 work_package_id: "WP01"
 title: "Foundation"
-lane: "planned"
 subtasks:
   - "T001"
   - "T002"
@@ -317,9 +316,8 @@ owned_files:
   - src/foundation/**
 authoritative_surface: src/foundation/
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    lane: "planned"
-    agent: "system"
+  - at: "2025-01-01T00:00:00Z"
+    actor: "system"
     action: "Generated via test"
 ---
 
@@ -332,7 +330,6 @@ Test work package content.
     wp02_content = """---
 work_package_id: "WP02"
 title: "API Layer"
-lane: "planned"
 subtasks:
   - "T003"
 phase: "Phase 1"
@@ -345,9 +342,8 @@ owned_files:
   - src/api/**
 authoritative_surface: src/api/
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    lane: "planned"
-    agent: "system"
+  - at: "2025-01-01T00:00:00Z"
+    actor: "system"
     action: "Generated via test"
 ---
 
