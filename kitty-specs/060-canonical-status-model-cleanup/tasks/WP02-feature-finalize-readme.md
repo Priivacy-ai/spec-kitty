@@ -105,3 +105,4 @@ spec-kitty implement WP02 --base WP01
 ## Activity Log
 
 - 2026-03-31T07:14:31Z – orchestrator – shell_pid=83266 – lane=doing – Started implementation via workflow command
+- 2026-03-31T07:19:44Z – orchestrator – shell_pid=83266 – lane=for_review – Ready for review: bootstrap integrated into finalize-tasks, README updated to lane-free, 4 tests passing
