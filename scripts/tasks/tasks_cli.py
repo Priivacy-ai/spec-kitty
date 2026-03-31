@@ -137,11 +137,11 @@ def stage_update(
         reason=note,
     )
 
-    updated_frontmatter = set_scalar(wp.frontmatter, "lane", target_lane)
-    updated_frontmatter = set_scalar(updated_frontmatter, "agent", agent)
+    # Status is canonical in status.events.jsonl — do not write lane to frontmatter.
+    updated_frontmatter = set_scalar(wp.frontmatter, "agent", agent)
     if shell_pid:
         updated_frontmatter = set_scalar(updated_frontmatter, "shell_pid", shell_pid)
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     new_body = append_activity_log(wp.body, log_entry)
     new_content = build_document(updated_frontmatter, new_body, wp.padding)
 
@@ -287,7 +287,7 @@ def update_command(args: argparse.Namespace) -> None:
     print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
     print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}"
+        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     )
 
 
@@ -296,14 +296,10 @@ def history_command(args: argparse.Namespace) -> None:
     wp = locate_work_package(repo_root, args.feature, args.work_package)
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
-    lane = ensure_lane(args.lane or wp.current_lane)
     timestamp = args.timestamp or now_utc()
-    note = normalize_note(args.note, lane)
+    note = normalize_note(args.note, args.lane or "")
 
-    if lane != wp.current_lane:
-        wp.frontmatter = set_scalar(wp.frontmatter, "lane", lane)
-
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={lane} – {note}"
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     updated_body = append_activity_log(wp.body, log_entry)
 
     if args.update_shell and shell_pid:

@@ -34,6 +34,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 TEMPLATE_DIRS = [
     REPO_ROOT / "src" / "specify_cli" / "missions",
+    REPO_ROOT / "src" / "specify_cli" / "templates",  # shared packaged templates
     REPO_ROOT / "src" / "doctrine" / "templates",
     REPO_ROOT / "src" / "doctrine" / "missions",
 ]
@@ -94,7 +95,8 @@ _EXCLUDED_PREFIXES = [
 _EXCLUDED_FILES = [
     "status/history_parser.py",
     "task_metadata_validation.py",
-    "scripts/tasks/task_helpers.py",
+    "scripts/tasks/task_helpers.py",       # repo-relative for scripts/ scan
+    "cli/commands/validate_tasks.py",      # legacy command (migration-only)
 ]
 
 
@@ -109,13 +111,23 @@ def _is_excluded(rel_path: str) -> bool:
     return False
 
 
+SCRIPTS_ROOT = REPO_ROOT / "scripts"
+
+
 def _collect_runtime_py_files() -> list[Path]:
-    """Collect all .py files under src/specify_cli/ not in exclusion list."""
+    """Collect all .py files under src/specify_cli/ and scripts/ not in exclusion list."""
     files: list[Path] = []
     for py_file in sorted(SRC_ROOT.rglob("*.py")):
         rel = str(py_file.relative_to(SRC_ROOT))
         if not _is_excluded(rel):
             files.append(py_file)
+    # Also scan scripts/ (packaged task tooling)
+    if SCRIPTS_ROOT.exists():
+        for py_file in sorted(SCRIPTS_ROOT.rglob("*.py")):
+            # Use repo-relative path for exclusion check
+            rel = str(py_file.relative_to(REPO_ROOT))
+            if not _is_excluded(rel):
+                files.append(py_file)
     return files
 
 
@@ -208,7 +220,7 @@ _runtime_files = _collect_runtime_py_files()
 @pytest.mark.parametrize(
     "py_file",
     _runtime_files,
-    ids=[str(p.relative_to(SRC_ROOT)) for p in _runtime_files],
+    ids=[str(p.relative_to(REPO_ROOT)) for p in _runtime_files],
 )
 def test_runtime_no_frontmatter_lane_access(py_file: Path) -> None:
     """No active runtime .py file should access frontmatter lane directly.
@@ -219,7 +231,7 @@ def test_runtime_no_frontmatter_lane_access(py_file: Path) -> None:
     """
     violations = _find_frontmatter_lane_violations(py_file)
     assert not violations, (
-        f"{py_file.relative_to(SRC_ROOT)} accesses frontmatter lane directly:\n"
+        f"{py_file.relative_to(REPO_ROOT)} accesses frontmatter lane directly:\n"
         + "\n".join(f"  - {v}" for v in violations)
         + "\n\nUse status.lane_reader.get_wp_lane() or snapshot.work_packages instead."
     )

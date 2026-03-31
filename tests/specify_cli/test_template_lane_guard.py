@@ -23,6 +23,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 TEMPLATE_DIRS = [
     REPO_ROOT / "src" / "specify_cli" / "missions",
+    REPO_ROOT / "src" / "specify_cli" / "templates",  # shared packaged templates
     REPO_ROOT / "src" / "doctrine" / "templates",
     REPO_ROOT / "src" / "doctrine" / "missions",
 ]

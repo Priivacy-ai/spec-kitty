@@ -32,14 +32,14 @@ def validate_tasks(
     agent: Optional[str] = typer.Option(None, "--agent", help="Agent name for activity log"),
     shell_pid: Optional[str] = typer.Option(None, "--shell-pid", help="Shell PID for activity log"),
 ) -> None:
-    """Validate and optionally fix task metadata inconsistencies.
+    """LEGACY: Validate and repair directory/frontmatter lane mismatches.
 
-    Detects when work package frontmatter doesn't match file location:
-    - File in tasks/for_review/ but lane: "planned" in frontmatter
-    - File in tasks/doing/ but lane: "done" in frontmatter
-    - etc.
+    This command is for legacy projects that used directory-based lanes
+    (tasks/planned/, tasks/doing/, etc.). Modern projects (3.0+) use
+    flat tasks/ directories with canonical status in status.events.jsonl.
 
-    Can automatically fix by updating frontmatter to match directory.
+    For modern projects, use `spec-kitty agent feature finalize-tasks`
+    to ensure canonical status state exists.
     """
     try:
         repo_root = find_repo_root()
