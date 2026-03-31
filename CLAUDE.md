@@ -724,9 +724,9 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
 
 
-## Status Model Patterns (034+)
+## Status Model Patterns (034+, 060 cleanup)
 
-The canonical status model replaces scattered frontmatter authority with an append-only event log per feature. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`.
+The canonical status model uses an append-only event log per feature as the **sole authority** for WP lane state. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. As of 3.0 (feature 060), frontmatter `lane` is no longer part of the active model -- it is retained only in migration code paths for backward compatibility with pre-3.0 features.
 
 ### Canonical Event Log Format
 
@@ -759,17 +759,17 @@ Alias: `doing` -> `in_progress` (resolved at input boundaries, never persisted i
 
 Terminal lanes: `done`, `canceled` (force required to leave).
 
-### Phase Behavior
+### Phase Behavior (3.0: Phase 2 is active)
 
-| Phase | Write behavior | Read authority |
-|-------|---------------|----------------|
-| 0 (hardening) | No event log | Frontmatter only |
-| 1 (dual-write) | Events + frontmatter | Frontmatter (events accumulate) |
-| 2 (read-cutover) | Events + views regenerated | `status.json` is sole authority |
+Phase 2 (event-log authority) is the only active model as of 3.0. Phases 0 and 1 are historical.
 
-Resolution precedence: meta.json > config.yaml > default (Phase 1).
+| Phase | Write behavior | Read authority | Status |
+|-------|---------------|----------------|--------|
+| 0 (hardening) | No event log | Frontmatter only | **Historical** |
+| 1 (dual-write) | Events + frontmatter | Frontmatter (events accumulate) | **Historical** |
+| 2 (read-cutover) | Events are sole authority | `status.json` is derived snapshot | **Active (3.0)** |
 
-On 0.1x: phase capped at 2, reconcile `--apply` disabled.
+Frontmatter `lane` is no longer written or read by active runtime commands. `finalize-tasks` bootstraps WP definitions; all subsequent status is tracked in `status.events.jsonl`.
 
 ### Package Architecture
 
@@ -777,16 +777,19 @@ On 0.1x: phase capped at 2, reconcile `--apply` disabled.
 src/specify_cli/status/
   __init__.py          # Public API exports
   models.py            # Lane enum, StatusEvent, DoneEvidence, StatusSnapshot
-  transitions.py       # ALLOWED_TRANSITIONS (16 pairs), guards, alias resolution
+  transitions.py       # ALLOWED_TRANSITIONS, guards, alias resolution
   reducer.py           # reduce(), materialize() -- deterministic event -> snapshot
   store.py             # append_event(), read_events() -- JSONL I/O
   phase.py             # resolve_phase() -- 3-tier config precedence
   emit.py              # emit_status_transition() -- orchestration pipeline
-  legacy_bridge.py     # update_frontmatter_views() -- compatibility views
+  lane_reader.py       # get_wp_lane() -- canonical lane read (event log only)
+  bootstrap.py         # bootstrap_feature_status() -- create initial events from finalize-tasks
+  legacy_bridge.py     # update_frontmatter_views() -- compatibility views (historical)
   validate.py          # Schema, legality, drift validation
   doctor.py            # Health checks (stale claims, orphans, drift)
   reconcile.py         # Cross-repo drift detection and event generation
-  migrate.py           # Bootstrap event log from frontmatter state
+  migrate.py           # MIGRATION-ONLY: bootstrap event log from frontmatter state
+  history_parser.py    # MIGRATION-ONLY: reconstruct transitions from legacy frontmatter
 ```
 
 ### Common Operations

@@ -75,7 +75,7 @@ def detect_lane_mismatch(task_file: Path) -> tuple[bool, str | None, str | None]
     return has_mismatch, expected_lane, actual_lane
 
 
-def repair_lane_mismatch(
+def repair_lane_mismatch(  # MIGRATION-ONLY
     task_file: Path,
     *,
     agent: str = "system",
@@ -83,7 +83,11 @@ def repair_lane_mismatch(
     add_history: bool = True,
     dry_run: bool = False,
 ) -> tuple[bool, str | None]:
-    """Repair lane mismatch by updating frontmatter to match directory.
+    """MIGRATION-ONLY: Repair lane field in legacy WP frontmatter.
+
+    This function reads and writes frontmatter ``lane`` for legacy
+    migration purposes only. It must NOT be called from active runtime
+    commands. Active status authority is ``status.events.jsonl``.
 
     Args:
         task_file: Path to the work package prompt file
