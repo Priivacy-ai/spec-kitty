@@ -9,10 +9,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Rebased doctrine-stack work onto `main`'s execution architecture** — carry forward the doctrine, constitution, and template-repository work from PR #305 into PR #348 while preserving `main`'s context, ownership, event-log, merge-engine, and shim foundations instead of reviving deleted subsystems.
+- **Kernel established as the shared dependency floor** — `src/kernel/` now owns shared path, atomic-write, and glossary-boundary primitives; doctrine no longer reaches back into `specify_cli`, and the package boundary is documented by ADRs and enforced by architectural tests.
+- **Constitution now acts as the local routing layer for governance assets** — project-local mission path construction flows through `ProjectMissionPaths`, while doctrine-backed mission/template access is routed through `MissionTemplateRepository` and constitution-facing resolvers instead of scattered path assembly.
+- **Mission terminology split clarified as the architectural answer to issue #241** — a direct `--feature` → `--mission` rename would have collided with the existing mission-type concept, so the branch now separates `mission type` (`--mission-type`) from `mission run` (`--mission-run`) and keeps legacy `--feature` compatibility where required during the deprecation window.
+- **CI flows extended for the new package layout** — quality workflows now cover doctrine and kernel explicitly, including dedicated kernel coverage enforcement and updated readiness/release paths.
+- **Fork-safe SonarCloud targeting via repository variables** — CI now resolves SonarCloud settings from `SONAR_ORGANIZATION`, `SONAR_PROJECT_KEY`, and optional `SONAR_HOST_URL`, with upstream-safe defaults and a fallback project-key convention of `<organization>_<repo-name>` when `SONAR_PROJECT_KEY` is unset.
+
 ### Fixed
 
 - **Narrow exception handlers in doctrine repositories** — Replace 21 bare `except Exception` handlers across `src/doctrine/` with specific exception tuples (`YAMLError`, `ValidationError`, `OSError`, `ModuleNotFoundError`, `TypeError`, `UnicodeDecodeError`) matching actual failure modes. Addresses PR #305 review finding M1.
 - **Fix `spec-kitty --help` crash** — Add missing `Optional` import to `workflow.py` and `tasks.py`. `from __future__ import annotations` defers annotation evaluation; Typer's `eval()` of `Optional[str]` annotations raised `NameError` at app construction time.
+- **Address PR #305 architectural review gaps in the rebased branch** — resolve the core review findings by removing doctrine→`specify_cli` dependency leakage, bringing doctrine into CI coverage, lifting shared glossary/path primitives into kernel, and documenting the resulting boundary in the architecture corpus.
+
+### Documentation
+
+- **Recorded the remaining follow-on work after the PR #305 → PR #348 transition** — the compiler-backed mission-bundle follow-up remains relevant, the skills-vs-mission-composition boundary still needs to stay explicit, constitution-local routing should expand beyond mission-path centralization, issue #241 still has compatibility/documentation cleanup left on older `--feature`-based surfaces, and residual runtime/test debt remains outside this rebase-focused integration.
 
 ## [3.0.3] - 2026-04-01
 
