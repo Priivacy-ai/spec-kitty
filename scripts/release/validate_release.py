@@ -195,7 +195,11 @@ def discover_semver_tags(
 ) -> list[str]:
     output = git("tag", "--list", tag_pattern, cwd=repo_root)
     tags = [line.strip() for line in output.splitlines() if line.strip()]
-    filtered = [tag for tag in tags if tag != exclude]
+    filtered = [
+        tag
+        for tag in tags
+        if tag != exclude and SEMVER_RE.match(tag.lstrip("v"))
+    ]
     filtered.sort(key=lambda tag: parse_semver(tag.lstrip("v")), reverse=True)
     return filtered
 

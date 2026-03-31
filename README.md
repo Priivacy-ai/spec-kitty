@@ -96,18 +96,17 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v2.1.1` (`main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.0.1` (`main`, GitHub Releases, and PyPI)
 
-**2.1.1 highlights:**
-- Hotfix for PyPI wheels to bundle the canonical doctrine skill pack correctly
-- Upgrade repair migration for `2.1.0` projects that missed the managed skill pack
-- Release guardrails now fail if a wheel omits doctrine files or bundled skills
+**3.0.1 highlights:**
+- Canonical status hard cutover completed: active runtime paths no longer fall back to WP frontmatter lane state
+- `finalize-tasks` bootstraps canonical `planned` state for generated work packages
+- Release automation and maintainer tooling now accept semantic `vX.Y.Z` tags for 3.x publishing
 
-**2.1.0 highlights:**
-- Agent Skills Pack with bundled skills, installer/verification flow, and upgrade migration coverage
-- Structured requirement mapping from requirements into work-package planning
-- Deterministic branch intent injection in planning templates
-- `1.x` is now deprecated and retained only as `1.x-maintenance` for critical fixes
+**3.0.0 highlights:**
+- Event log is now the sole authority for mutable work-package status
+- Explicit feature targeting, MissionContext identity, and ownership manifests land on the 3.x stable line
+- Sparse checkout is removed in favor of in-repo planning artifacts and standard worktrees
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -121,16 +120,16 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty now uses `main` as the stable `2.x` release line.
+Spec Kitty now uses `main` as the stable `3.x` release line.
 The former `1.x` line is deprecated and moves to `1.x-maintenance` for maintenance-only fixes.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **2.1.x** | Current stable line | `pip install spec-kitty-cli` |
+| **main** | **3.0.x** | Current stable line | `pip install spec-kitty-cli` |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
-**For existing 1.x users:** migrate to `2.1.x` where possible; `1.x-maintenance` is only for critical maintenance and will no longer publish new PyPI releases.
+**For existing 1.x or 2.x users:** migrate to `3.0.x` where possible; `1.x-maintenance` is only for critical maintenance and will no longer publish new PyPI releases.
 
 ---
 
@@ -1148,10 +1147,10 @@ cat .kittify/metadata.yaml
 If you encounter issues with an agent, please open an issue so we can refine the integration.
 
 <details>
-<summary><h2>🚀 Releasing 2.x on GitHub and PyPI (Maintainers)</h2></summary>
+<summary><h2>🚀 Releasing Stable Versions on GitHub and PyPI (Maintainers)</h2></summary>
 
-The stable `2.x` line now lives on `main` and publishes from semantic tags in the form `v2.<minor>.<patch>`.
-Starting with `2.1.0`, the release workflow publishes both GitHub release artifacts and the PyPI package.
+The stable `3.x` line now lives on `main` and publishes from semantic tags in the form `vX.Y.Z`.
+The release workflow publishes both GitHub release artifacts and the PyPI package.
 
 ### 0. One-Time Setup
 
@@ -1172,7 +1171,7 @@ git checkout -b release/vX.Y.Z
 ### 2. Validate Locally
 
 ```bash
-python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
 python -m build
 twine check dist/*
@@ -1209,8 +1208,8 @@ python -m pip index versions spec-kitty-cli
 
 ### Guardrails
 
-- `release-readiness.yml`: runs on PRs to `main` (and `2.x` during the cutover window) to validate version/changelog/tests.
-- `release.yml`: runs on `v2.*.*` tags and performs:
+- `release-readiness.yml`: runs on PRs to `main` (and `2.x` if the maintenance branch is still active) to validate version/changelog/tests.
+- `release.yml`: runs on `v*.*.*` tags and performs:
   - test execution
   - release metadata validation
   - artifact build and checksums
@@ -1220,7 +1219,7 @@ python -m pip index versions spec-kitty-cli
 ### Troubleshooting
 
 **Validation fails**: "Version does not advance beyond latest tag"
-- Check latest tag: `git tag --list 'v2.*.*' --sort=-version:refname | head -1`
+- Check latest tag: `git tag --list 'v*.*.*' --sort=-version:refname | head -1`
 - Bump `pyproject.toml` to a higher semantic version
 
 **Validation fails**: "CHANGELOG.md lacks a populated section"

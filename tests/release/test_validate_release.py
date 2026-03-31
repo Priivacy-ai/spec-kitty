@@ -241,3 +241,30 @@ def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
     result_unscoped = run_validator(tmp_path, "--mode", "branch")
     assert result_unscoped.returncode == 1
     assert "does not advance beyond latest tag v3.0.0" in result_unscoped.stderr
+
+
+def test_branch_mode_ignores_prerelease_tags_for_progression(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(("1.0.0", "- Initial stable release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 1.0.0")
+    tag(tmp_path, "v1.0.0")
+
+    write_release_files(
+        tmp_path,
+        "1.0.1",
+        changelog_for_versions(
+            ("1.0.1", "- Stable patch release"),
+            ("1.0.0", "- Initial stable release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.1")
+    tag(tmp_path, "v1.0.0a1")
+
+    result = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v*.*.*")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout

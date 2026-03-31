@@ -103,10 +103,10 @@ jobs:
         run: |
           if [[ -n "${{ inputs.tag }}" ]]; then
             echo "Running validation in tag mode for dry run: ${{ inputs.tag }}"
-            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v2.*.*"
+            python scripts/release/validate_release.py --mode tag --tag "${{ inputs.tag }}" --tag-pattern "v*.*.*"
           else
             echo "Running validation in branch mode"
-            python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+            python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
           fi
 
       - name: Test packaging

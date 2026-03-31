@@ -3,7 +3,7 @@ name: Publish Release
 on:
   push:
     tags:
-      - 'v[0-9]+.*.*'
+      - 'v*.*.*'
 
 permissions:
   contents: write
@@ -75,7 +75,7 @@ jobs:
           exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
-        run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}" --tag-pattern "v2.*.*"
+        run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}" --tag-pattern "v*.*.*"
 
       - name: Build distributions
         run: python -m build
