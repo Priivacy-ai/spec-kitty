@@ -6,7 +6,7 @@ Endpoint paths match the PRI-12 frozen contract exactly.
 
 from __future__ import annotations
 
-import random
+import secrets
 import time
 import uuid
 from typing import Any
@@ -248,7 +248,9 @@ class SaaSTrackerClient:
                 raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
-            jittered_delay = delay * (0.8 + 0.4 * random.random())  # noqa: S311
+            jitter_basis_points = secrets.randbelow(4000)
+            jitter_factor = 0.8 + (jitter_basis_points / 10000)
+            jittered_delay = delay * jitter_factor
             time.sleep(jittered_delay)
             delay = min(delay * 2, cap)
 
