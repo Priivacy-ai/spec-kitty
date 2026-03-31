@@ -122,7 +122,6 @@ def create_wp_file(feature_dir: Path, wp_id: str, dependencies: list[str]) -> Pa
     frontmatter = f"""---
 work_package_id: "{wp_id}"
 dependencies: {deps_str}
-lane: "planned"
 ---
 
 # {wp_id} Test Work Package

@@ -396,7 +396,6 @@ def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, st
             f"""---
 work_package_id: {wp_id}
 title: Test WP {wp_num}
-lane: doing
 dependencies: []
 ---
 
@@ -505,7 +504,6 @@ def dirty_worktree_repo(tmp_path: Path) -> tuple[Path, Path]:
         """---
 work_package_id: WP01
 title: Test WP
-lane: doing
 dependencies: []
 ---
 

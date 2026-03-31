@@ -67,7 +67,6 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     task_content = """---
 work_package_id: "WP01"
 title: "Test Task"
-lane: "doing"
 agent: "test-agent"
 shell_pid: ""
 ---
