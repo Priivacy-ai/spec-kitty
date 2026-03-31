@@ -13,6 +13,7 @@ base_commit: 7de1e1542d5ef2a47e889db5d8acf20562eab160
 created_at: '2026-03-31T07:22:41.645329+00:00'
 subtasks: [T024, T025, T026, T027, T028, T029]
 shell_pid: "88151"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -154,3 +155,7 @@ spec-kitty implement WP07 --base WP02
 - Grep the repo for `frontmatter.*lane` and `extract_scalar.*lane` in non-migration Python files — should be zero matches after this WP
 - Verify each hard-fail message names the specific feature slug and the exact command to run
 - Verify "uninitialized" is the display label, not a lane value (it's not in the Lane enum)
+
+## Activity Log
+
+- 2026-03-31T07:22:41Z – orchestrator – shell_pid=88151 – lane=doing – Started implementation via workflow command
