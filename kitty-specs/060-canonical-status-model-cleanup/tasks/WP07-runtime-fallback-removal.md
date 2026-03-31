@@ -1,13 +1,13 @@
 ---
 work_package_id: WP07
 title: Runtime Fallback Removal
-dependencies: [WP02, WP03]
+dependencies: []
 requirement_refs:
 - FR-008
 - FR-009
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP02 and WP03. Use `spec-kitty implement WP07 --base WP02` then merge WP03.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T024, T025, T026, T027, T028, T029]
 history:
 - at: '2026-03-31T06:58:09+00:00'

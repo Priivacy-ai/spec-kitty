@@ -1,14 +1,14 @@
 ---
 work_package_id: WP06
 title: Generators + Test Fixtures
-dependencies: [WP02, WP03]
+dependencies: []
 requirement_refs:
 - FR-005
 - FR-011
 - FR-013
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP02 and WP03. Use `spec-kitty implement WP06 --base WP02` then merge WP03.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T021, T022, T023]
 history:
 - at: '2026-03-31T06:58:09+00:00'

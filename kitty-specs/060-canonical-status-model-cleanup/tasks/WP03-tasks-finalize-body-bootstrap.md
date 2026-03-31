@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: tasks.py Changes
-dependencies: [WP01]
+dependencies: []
 requirement_refs:
 - FR-001
 - FR-002
@@ -10,7 +10,7 @@ requirement_refs:
 - FR-009
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP01. Use `spec-kitty implement WP03 --base WP01`. Can run parallel with WP02.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T006, T007, T008, T009, T010]
 history:
 - at: '2026-03-31T06:58:09+00:00'

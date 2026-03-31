@@ -1,7 +1,7 @@
 ---
 work_package_id: WP08
 title: Migration Fence + Docs + Guards
-dependencies: [WP07]
+dependencies: []
 requirement_refs:
 - FR-012
 - FR-014
@@ -10,7 +10,7 @@ requirement_refs:
 - FR-017
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Depends on WP07. Use `spec-kitty implement WP08 --base WP07`.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T030, T031, T032, T033]
 history:
 - at: '2026-03-31T06:58:09+00:00'
