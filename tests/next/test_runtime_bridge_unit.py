@@ -566,6 +566,22 @@ class TestWPStepHelpers:
 
         assert _should_advance_wp_step("implement", tmp_path) is True
 
+    def test_should_advance_hardfails_without_canonical_status(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01 task\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
+        with pytest.raises(CanonicalStatusNotFoundError):
+            _should_advance_wp_step("implement", feature_dir)
+
     def test_should_advance_all_done(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"

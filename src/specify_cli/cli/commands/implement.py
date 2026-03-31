@@ -45,6 +45,7 @@ from specify_cli.sync.events import emit_wp_status_changed
 from specify_cli.core.agent_config import get_auto_commit_default
 
 console = Console()
+_WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
@@ -149,10 +150,19 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
-    # Search for WP##-*.md pattern
-    wp_files = list(tasks_dir.glob(f"{wp_id}-*.md"))
+    normalized_wp_id = wp_id.strip().upper()
+    if not _WP_ID_RE.fullmatch(normalized_wp_id):
+        raise FileNotFoundError(
+            f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01)."
+        )
+
+    wp_name_re = re.compile(
+        rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$",
+        re.IGNORECASE,
+    )
+    wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
     if not wp_files:
-        raise FileNotFoundError(f"WP file not found for {wp_id} in {tasks_dir}")
+        raise FileNotFoundError(f"WP file not found for {normalized_wp_id} in {tasks_dir}")
 
     return wp_files[0]
 

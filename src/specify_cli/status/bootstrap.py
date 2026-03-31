@@ -40,6 +40,48 @@ class BootstrapResult:
     wp_details: dict[str, str] = field(default_factory=dict)
 
 
+def _collect_wp_ids(tasks_dir: Path, result: BootstrapResult) -> list[str]:
+    """Return valid WP IDs discovered in ``tasks_dir`` and record skips."""
+    wp_ids: list[str] = []
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        try:
+            fm, _body = read_frontmatter(wp_file)
+        except FrontmatterError:
+            logger.warning("Skipping %s: malformed frontmatter", wp_file.name)
+            result.skipped += 1
+            result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
+            continue
+
+        wp_id = fm.get("work_package_id")
+        if not isinstance(wp_id, str) or not wp_id.strip():
+            logger.warning(
+                "Skipping %s: missing or invalid work_package_id",
+                wp_file.name,
+            )
+            result.skipped += 1
+            result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
+            continue
+
+        wp_ids.append(wp_id.strip())
+    return wp_ids
+
+
+def _classify_wp_ids(
+    wp_ids: list[str],
+    initialized_wp_ids: set[str],
+    result: BootstrapResult,
+) -> list[str]:
+    """Update ``result`` counts/details and return WPs that still need seeding."""
+    wps_to_seed: list[str] = []
+    for wp_id in wp_ids:
+        if wp_id in initialized_wp_ids:
+            result.already_initialized += 1
+            result.wp_details[wp_id] = _ALREADY_EXISTS
+            continue
+        wps_to_seed.append(wp_id)
+    return wps_to_seed
+
+
 def bootstrap_canonical_state(
     feature_dir: Path,
     feature_slug: str,
@@ -71,33 +113,9 @@ def bootstrap_canonical_state(
     if not tasks_dir.is_dir():
         return result
 
-    # Discover WP files sorted for deterministic order
-    wp_files = sorted(tasks_dir.glob("WP*.md"))
-    if not wp_files:
+    wp_ids = _collect_wp_ids(tasks_dir, result)
+    if not wp_ids:
         return result
-
-    # Parse WP IDs from frontmatter
-    wp_ids: list[str] = []
-    for wp_file in wp_files:
-        try:
-            fm, _body = read_frontmatter(wp_file)
-        except FrontmatterError:
-            logger.warning("Skipping %s: malformed frontmatter", wp_file.name)
-            result.skipped += 1
-            result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
-            continue
-
-        wp_id = fm.get("work_package_id")
-        if not isinstance(wp_id, str) or not wp_id.strip():
-            logger.warning(
-                "Skipping %s: missing or invalid work_package_id",
-                wp_file.name,
-            )
-            result.skipped += 1
-            result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
-            continue
-
-        wp_ids.append(wp_id.strip())
 
     result.total_wps = len(wp_ids)
 
@@ -105,14 +123,7 @@ def bootstrap_canonical_state(
     existing_events = read_events(feature_dir)
     initialized_wp_ids: set[str] = {e.wp_id for e in existing_events}
 
-    # Classify each WP
-    wps_to_seed: list[str] = []
-    for wp_id in wp_ids:
-        if wp_id in initialized_wp_ids:
-            result.already_initialized += 1
-            result.wp_details[wp_id] = _ALREADY_EXISTS
-        else:
-            wps_to_seed.append(wp_id)
+    wps_to_seed = _classify_wp_ids(wp_ids, initialized_wp_ids, result)
 
     if dry_run:
         for wp_id in wps_to_seed:

@@ -1080,7 +1080,6 @@ def move_task(
 
         with feature_status_lock(main_repo_root, feature_slug):
             event = None
-            current_canonical_lane = resolve_lane_alias(old_lane)
             current_event_lane = None
             for existing_event in reversed(read_events(feature_dir)):
                 if existing_event.wp_id == task_id:
@@ -1528,19 +1527,6 @@ def add_history(
 
         # Load work package
         wp = locate_work_package(repo_root, feature_slug, task_id)
-
-        # Get current lane from canonical event log (lane is event-log-only)
-        _ah_feature_dir = repo_root / "kitty-specs" / feature_slug
-        try:
-            from specify_cli.status.store import read_events as _ah_read_events
-            from specify_cli.status.reducer import reduce as _ah_reduce
-
-            _ah_events = _ah_read_events(_ah_feature_dir)
-            _ah_snapshot = _ah_reduce(_ah_events) if _ah_events else None
-            _ah_state = _ah_snapshot.work_packages.get(task_id) if _ah_snapshot else None
-            current_lane = str(_ah_state.get("lane", "planned")) if _ah_state else "planned"
-        except Exception:
-            current_lane = "planned"
 
         # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")

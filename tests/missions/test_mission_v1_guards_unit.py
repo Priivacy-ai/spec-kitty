@@ -211,6 +211,28 @@ class TestGatePassedGuard:
 class TestAllWpStatusGuard:
     """Tests for all_wp_status guard primitive."""
 
+    def test_internal_lane_reader_uses_canonical_event_log(self, tmp_path: Path) -> None:
+        """Guard helper should resolve lane from the canonical event log."""
+        from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
+
+        tasks_dir = tmp_path / "tasks"
+        tasks_dir.mkdir()
+        wp_path = tasks_dir / "WP01.md"
+        wp_path.write_text("---\ntitle: Demo\n---\n# WP01\n")
+        _seed_wp_lane(tmp_path, "WP01", "done")
+
+        assert _read_lane_from_frontmatter(wp_path) == "done"
+
+    def test_internal_lane_reader_returns_none_for_non_wp_filename(self, tmp_path: Path) -> None:
+        """Guard helper should return None when no WP ID can be parsed from filename."""
+        from specify_cli.mission_v1.guards import _read_lane_from_frontmatter
+
+        wp_path = tmp_path / "tasks" / "not-a-work-package.md"
+        wp_path.parent.mkdir()
+        wp_path.write_text("---\ntitle: Demo\n---\n# Demo\n")
+
+        assert _read_lane_from_frontmatter(wp_path) is None
+
     def test_all_done(self, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "tasks"
         tasks_dir.mkdir()

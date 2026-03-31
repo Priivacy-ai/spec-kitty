@@ -127,6 +127,21 @@ app = typer.Typer(
     no_args_is_help=True
 )
 
+_CANONICAL_STATUS_NOT_FOUND = "canonical status not found"
+
+
+def _is_missing_canonical_status_error(exc: BaseException) -> bool:
+    """Return True when *exc* indicates missing canonical status bootstrap."""
+    return _CANONICAL_STATUS_NOT_FOUND in str(exc).lower()
+
+
+def _missing_canonical_status_message(wp_id: str, feature_slug: str) -> str:
+    """Return a consistent hard-fail message for missing canonical status."""
+    return (
+        f"WP {wp_id} has no canonical status. "
+        f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+    )
+
 
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
@@ -320,11 +335,8 @@ def implement(
         try:
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         except RuntimeError as e:
-            if "canonical status not found" in str(e).lower():
-                print(
-                    f"Error: WP {normalized_wp_id} has no canonical status. "
-                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
-                )
+            if _is_missing_canonical_status_error(e):
+                print(f"Error: {_missing_canonical_status_message(normalized_wp_id, feature_slug)}")
                 raise typer.Exit(1)
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
@@ -384,10 +396,9 @@ def implement(
         try:
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         except RuntimeError as e:
-            if "canonical status not found" in str(e).lower():
+            if _is_missing_canonical_status_error(e):
                 raise RuntimeError(
-                    f"WP {normalized_wp_id} has no canonical status. "
-                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
                 ) from e
             raise
 
@@ -405,10 +416,7 @@ def implement(
             and normalized_wp_id in _wf_snapshot.work_packages
         )
         if not _wf_has_canonical:
-            raise RuntimeError(
-                f"WP {normalized_wp_id} has no canonical status. "
-                f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
-            )
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
         if current_lane == "in_progress":
@@ -956,10 +964,9 @@ def review(
         try:
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         except RuntimeError as e:
-            if "canonical status not found" in str(e).lower():
+            if _is_missing_canonical_status_error(e):
                 raise RuntimeError(
-                    f"WP {normalized_wp_id} has no canonical status. "
-                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
                 ) from e
             raise
 
@@ -978,10 +985,7 @@ def review(
             and normalized_wp_id in _rv_snapshot.work_packages
         )
         if not _rv_has_canonical:
-            raise RuntimeError(
-                f"WP {normalized_wp_id} has no canonical status. "
-                f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
-            )
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
         current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:

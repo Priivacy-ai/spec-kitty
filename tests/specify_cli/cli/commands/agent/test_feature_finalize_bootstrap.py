@@ -177,6 +177,42 @@ class TestValidateOnlyDryRun:
             dry_run=True,
         )
 
+    def test_validate_only_console_output_reports_bootstrap_summary(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Non-JSON validate-only output should include bootstrap dry-run stats."""
+        feature_slug = "060-test-feature"
+        _setup_feature(tmp_path, feature_slug)
+
+        patches = _common_patches(tmp_path, feature_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result(total=2, seeded=1, existing=1)
+        )
+
+        from specify_cli.cli.commands.agent.feature import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            finalize_tasks(
+                feature=feature_slug,
+                json_output=False,
+                validate_only=True,
+            )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        output = capsys.readouterr().out
+        assert "Bootstrap:" in output
+        assert "1 WPs would be seeded, 1 already initialized" in output
+
 
 class TestBootstrapStatsInJson:
     """T005-c: Bootstrap stats appear in JSON output."""
