@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - **Narrow exception handlers in doctrine repositories** — Replace 21 bare `except Exception` handlers across `src/doctrine/` with specific exception tuples (`YAMLError`, `ValidationError`, `OSError`, `ModuleNotFoundError`, `TypeError`, `UnicodeDecodeError`) matching actual failure modes. Addresses PR #305 review finding M1.
+- **Fix `spec-kitty --help` crash** — Add missing `Optional` import to `workflow.py` and `tasks.py`. `from __future__ import annotations` defers annotation evaluation; Typer's `eval()` of `Optional[str]` annotations raised `NameError` at app construction time.
 
 ## [3.0.3] - 2026-04-01
 
