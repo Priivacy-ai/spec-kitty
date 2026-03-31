@@ -24,7 +24,7 @@ Identify inconsistencies, duplications, ambiguities, and underspecified items ac
 
 ### 1. Initialize Analysis Context
 
-Run `{SCRIPT}` once from repo root and parse JSON for mission_dir and available_docs. Derive absolute paths:
+Run `spec-kitty agent mission-run check-prerequisites --json --include-tasks` once from repo root and parse JSON for mission_dir and available_docs. Derive absolute paths:
 
 - SPEC = mission_dir/spec.md
 - PLAN = mission_dir/plan.md

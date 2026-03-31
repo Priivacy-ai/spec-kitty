@@ -33,7 +33,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution Steps
 
-1. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for mission_dir and available_docs list.
+1. **Setup**: Run `spec-kitty agent mission-run check-prerequisites --json` from repo root and parse JSON for mission_dir and available_docs list.
    - All file paths must be absolute.
 
 2. **Clarify intent (dynamic)**: Derive up to THREE initial contextual clarifying questions (no pre-baked catalog). They MUST:
