@@ -364,14 +364,14 @@ class WorkPackage:
 
     @property
     def lane(self) -> Optional[str]:
-        return extract_scalar(self.frontmatter, "lane")
+        return get_lane_from_frontmatter(self.path, warn_on_missing=False)
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
     """Locate a work package by ID, supporting both legacy and new formats.
 
     Legacy format: WP files in tasks/{lane}/ subdirectories
-    New format: WP files in flat tasks/ directory with lane in frontmatter
+    New format: WP files in flat tasks/ directory with canonical status in the event log
     """
     feature_path = repo_root / "kitty-specs" / feature
     tasks_root = feature_path / "tasks"
@@ -435,51 +435,31 @@ def load_meta(meta_path: Path) -> Dict:
 
 
 def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
-    """Extract lane from WP file frontmatter.
-
-    This is the authoritative way to determine a work package's lane
-    in the frontmatter-only lane system.
+    """Return canonical lane for a WP from the event log.
 
     Args:
         wp_path: Path to the work package markdown file
-        warn_on_missing: If True, print warning when lane field is missing
+        warn_on_missing: Unused; retained for call-site compatibility
 
     Returns:
-        Lane value (planned, doing, for_review, done)
+        Canonical lane value, or ``"uninitialized"`` when the WP has no events.
 
     Raises:
-        ValueError: If lane value is not in LANES
+        TaskCliError: If canonical status is absent for the feature
     """
-    content = wp_path.read_text(encoding="utf-8-sig")
-    frontmatter, _, _ = split_frontmatter(content)
+    del warn_on_missing
 
-    lane = extract_scalar(frontmatter, "lane")
+    feature_dir = wp_path.parent.parent
+    stem = wp_path.stem
+    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
+    wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-    if lane is None:
-        if warn_on_missing:
-            # Import here to avoid circular dependency issues
-            try:
-                from rich.console import Console
-                console = Console(stderr=True)
-                console.print(
-                    f"[yellow]Warning: {wp_path.name} missing lane field, "
-                    f"defaulting to 'planned'[/yellow]"
-                )
-            except ImportError:
-                import sys
-                print(
-                    f"Warning: {wp_path.name} missing lane field, defaulting to 'planned'",
-                    file=sys.stderr
-                )
-        return "planned"
+    try:
+        from specify_cli.status.lane_reader import get_wp_lane
 
-    if lane not in LANES:
-        raise ValueError(
-            f"Invalid lane '{lane}' in {wp_path.name}. "
-            f"Valid lanes: {', '.join(LANES)}"
-        )
-
-    return lane
+        return get_wp_lane(feature_dir, wp_id)
+    except RuntimeError as exc:
+        raise TaskCliError(str(exc)) from exc
 
 
 __all__ = [

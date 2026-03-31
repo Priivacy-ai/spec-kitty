@@ -30,7 +30,6 @@ from task_helpers import (  # noqa: E402
     TaskCliError,
     WorkPackage,
     append_activity_log,
-    activity_entries,
     build_document,
     detect_conflicting_wp_status,
     ensure_lane,
@@ -103,11 +102,7 @@ def stage_update(
     timestamp: str,
     dry_run: bool = False,
 ) -> Path:
-    """Update work package lane in frontmatter (no file movement).
-
-    The frontmatter-only lane system keeps all WP files in a flat tasks/ directory.
-    Lane changes update the `lane:` field in frontmatter without moving the file.
-    """
+    """Append a canonical status event and update operational WP metadata."""
     if dry_run:
         return wp.path
 
@@ -227,11 +222,14 @@ def _check_legacy_format(feature: str, repo_root: Path) -> bool:
             print("Legacy directory-based lanes detected.", file=sys.stderr)
             print("", file=sys.stderr)
             print("Your project uses the old lane structure (tasks/planned/, tasks/doing/, etc.).", file=sys.stderr)
-            print("Run `spec-kitty upgrade` to migrate to frontmatter-only lanes.", file=sys.stderr)
+            print(
+                "Run `spec-kitty upgrade` to migrate to flat tasks with canonical status events.",
+                file=sys.stderr,
+            )
             print("", file=sys.stderr)
             print("Benefits of upgrading:", file=sys.stderr)
             print("  - No file conflicts during lane changes", file=sys.stderr)
-            print("  - Direct editing of lane: field supported", file=sys.stderr)
+            print("  - Canonical status stored in status.events.jsonl", file=sys.stderr)
             print("  - Better multi-agent compatibility", file=sys.stderr)
             print("=" * 60 + "\n", file=sys.stderr)
             _legacy_warning_shown = True
@@ -240,7 +238,7 @@ def _check_legacy_format(feature: str, repo_root: Path) -> bool:
 
 
 def update_command(args: argparse.Namespace) -> None:
-    """Update a work package's lane in frontmatter (no file movement)."""
+    """Append a canonical status transition for a work package."""
     # Validate lane value first
     try:
         validated_lane = ensure_lane(args.lane)
@@ -368,7 +366,7 @@ def list_command(args: argparse.Namespace) -> None:
                     }
                 )
     else:
-        # New format: scan flat tasks/ directory and group by frontmatter lane
+        # New format: scan flat tasks/ directory and read canonical lane from the event log
         for path in sorted(feature_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
@@ -814,7 +812,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    update = subparsers.add_parser("update", help="Update a work package's lane in frontmatter")
+    update = subparsers.add_parser("update", help="Append a canonical status transition")
     update.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
     update.add_argument("work_package", help="Work package identifier (e.g., WP03)")
     update.add_argument("lane", help=f"Target lane ({', '.join(LANES)})")

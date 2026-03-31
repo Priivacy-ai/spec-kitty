@@ -95,7 +95,6 @@ _EXCLUDED_PREFIXES = [
 _EXCLUDED_FILES = [
     "status/history_parser.py",
     "task_metadata_validation.py",
-    "scripts/tasks/task_helpers.py",       # repo-relative for scripts/ scan
     "cli/commands/validate_tasks.py",      # legacy command (migration-only)
 ]
 
@@ -215,6 +214,10 @@ def test_template_no_lane_in_activity_log(template_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 _runtime_files = _collect_runtime_py_files()
+_standalone_task_scripts = [
+    REPO_ROOT / "scripts" / "tasks" / "tasks_cli.py",
+    REPO_ROOT / "src" / "specify_cli" / "scripts" / "tasks" / "tasks_cli.py",
+]
 
 
 @pytest.mark.parametrize(
@@ -234,6 +237,25 @@ def test_runtime_no_frontmatter_lane_access(py_file: Path) -> None:
         f"{py_file.relative_to(REPO_ROOT)} accesses frontmatter lane directly:\n"
         + "\n".join(f"  - {v}" for v in violations)
         + "\n\nUse status.lane_reader.get_wp_lane() or snapshot.work_packages instead."
+    )
+
+
+@pytest.mark.parametrize(
+    "script_path",
+    _standalone_task_scripts,
+    ids=[str(p.relative_to(REPO_ROOT)) for p in _standalone_task_scripts],
+)
+def test_standalone_task_scripts_do_not_write_lane_activity_entries(script_path: Path) -> None:
+    """Standalone task scripts must not write ``lane=`` into body activity logs."""
+    text = script_path.read_text(encoding="utf-8")
+    violations = [
+        f"line {idx}: {line.strip()}"
+        for idx, line in enumerate(text.splitlines(), 1)
+        if re.search(r"""["'].*lane=.*["']""", line)
+    ]
+    assert not violations, (
+        f"{script_path.relative_to(REPO_ROOT)} still writes lane= activity entries:\n"
+        + "\n".join(f"  - {v}" for v in violations)
     )
 
 

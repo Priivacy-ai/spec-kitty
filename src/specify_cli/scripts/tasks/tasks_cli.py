@@ -5,15 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
-import logging
 import os
 import subprocess
 import sys
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 from datetime import datetime, timezone
-
-logger = logging.getLogger(__name__)
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 if str(SCRIPT_DIR) not in sys.path:
@@ -33,7 +30,6 @@ from task_helpers import (  # noqa: E402
     TaskCliError,
     WorkPackage,
     append_activity_log,
-    activity_entries,
     build_document,
     detect_conflicting_wp_status,
     ensure_lane,
@@ -56,9 +52,42 @@ from acceptance_support import (  # noqa: E402
     ArtifactEncodingError,
     choose_mode,
     collect_feature_summary,
+    detect_feature_slug,
     normalize_feature_encoding,
     perform_acceptance,
 )
+
+from specify_cli.feature_metadata import finalize_merge, record_merge  # noqa: E402
+from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
+from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
+from specify_cli.status.store import append_event  # noqa: E402
+from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
+
+
+def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
+    """Derive current canonical lane for a WP from reduced status events."""
+    from specify_cli.status.store import StoreError, read_events
+
+    events = read_events(feature_dir)  # raises StoreError on corrupt JSONL
+    if not events:
+        return "planned"
+
+    from specify_cli.status.reducer import reduce as _reduce
+
+    snapshot = _reduce(events)
+    wp_state = snapshot.work_packages.get(wp_id)
+    if wp_state and isinstance(wp_state.get("lane"), str):
+        return wp_state["lane"]
+    return "planned"
+
+
+def _generate_ulid() -> str:
+    """Generate a ULID for the status event."""
+    import ulid as _ulid_mod
+
+    if hasattr(_ulid_mod, "new"):
+        return _ulid_mod.new().str
+    return str(_ulid_mod.ULID())
 
 
 def stage_update(
@@ -71,25 +100,48 @@ def stage_update(
     timestamp: str,
     dry_run: bool = False,
 ) -> Path:
-    """Update work package operational metadata in frontmatter (no file movement).
-
-    Lane state is managed exclusively via the event log. This function only
-    updates non-status operational metadata (agent, shell_pid) and appends
-    an activity log entry.
-    """
+    """Append a canonical status event and update operational WP metadata."""
     if dry_run:
         return wp.path
 
-    wp.frontmatter = set_scalar(wp.frontmatter, "agent", agent)
+    wp_id = wp.work_package_id or wp.path.stem
+    feature_dir = wp.path.parent.parent
+    from_lane = _derive_current_lane(feature_dir, wp_id)
+
+    feature_slug = feature_dir.name
+    canonical_from = resolve_lane_alias(from_lane)
+    canonical_to = resolve_lane_alias(target_lane)
+    event = StatusEvent(
+        event_id=_generate_ulid(),
+        feature_slug=feature_slug,
+        wp_id=wp_id,
+        from_lane=Lane(canonical_from),
+        to_lane=Lane(canonical_to),
+        at=timestamp,
+        actor=agent,
+        force=True,
+        execution_mode="direct_repo",
+        reason=note,
+    )
+
+    updated_frontmatter = set_scalar(wp.frontmatter, "agent", agent)
     if shell_pid:
-        wp.frontmatter = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={target_lane} – {note}"
+        updated_frontmatter = set_scalar(updated_frontmatter, "shell_pid", shell_pid)
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     new_body = append_activity_log(wp.body, log_entry)
 
-    new_content = build_document(wp.frontmatter, new_body, wp.padding)
+    new_content = build_document(updated_frontmatter, new_body, wp.padding)
+    wp.frontmatter = updated_frontmatter
     wp.path.write_text(new_content, encoding="utf-8")
+    append_event(feature_dir, event)
+    _materialize(feature_dir)
 
     run_git(["add", str(wp.path.relative_to(repo_root))], cwd=repo_root, check=True)
+    events_path = feature_dir / "status.events.jsonl"
+    status_path = feature_dir / "status.json"
+    for p in (events_path, status_path):
+        if p.exists():
+            run_git(["add", str(p.relative_to(repo_root))], cwd=repo_root, check=True)
 
     return wp.path
 
@@ -159,11 +211,14 @@ def _check_legacy_format(feature: str, repo_root: Path) -> bool:
             print("Legacy directory-based lanes detected.", file=sys.stderr)
             print("", file=sys.stderr)
             print("Your project uses the old lane structure (tasks/planned/, tasks/doing/, etc.).", file=sys.stderr)
-            print("Run `spec-kitty upgrade` to migrate to frontmatter-only lanes.", file=sys.stderr)
+            print(
+                "Run `spec-kitty upgrade` to migrate to flat tasks with canonical status events.",
+                file=sys.stderr,
+            )
             print("", file=sys.stderr)
             print("Benefits of upgrading:", file=sys.stderr)
             print("  - No file conflicts during lane changes", file=sys.stderr)
-            print("  - Direct editing of lane: field supported", file=sys.stderr)
+            print("  - Canonical status stored in status.events.jsonl", file=sys.stderr)
             print("  - Better multi-agent compatibility", file=sys.stderr)
             print("=" * 60 + "\n", file=sys.stderr)
             _legacy_warning_shown = True
@@ -172,7 +227,7 @@ def _check_legacy_format(feature: str, repo_root: Path) -> bool:
 
 
 def update_command(args: argparse.Namespace) -> None:
-    """Update a work package's lane in frontmatter (no file movement)."""
+    """Append a canonical status transition for a work package."""
     # Validate lane value first
     try:
         validated_lane = ensure_lane(args.lane)
@@ -191,20 +246,7 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    # Lane is event-log-only; read from canonical event log not frontmatter
-    _feature_dir = repo_root / "kitty-specs" / feature
-    try:
-        from specify_cli.status.store import read_events as _uc_read_events
-        from specify_cli.status.reducer import reduce as _uc_reduce
-
-        _uc_events = _uc_read_events(_feature_dir)
-        _uc_snapshot = _uc_reduce(_uc_events) if _uc_events else None
-        _uc_state = _uc_snapshot.work_packages.get(args.work_package) if _uc_snapshot else None
-        effective_current_lane = str(_uc_state.get("lane", "planned")) if _uc_state else "planned"
-    except Exception:
-        effective_current_lane = "planned"
-
-    if effective_current_lane == validated_lane:
+    if wp.current_lane == validated_lane:
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
     timestamp = args.timestamp or now_utc()
@@ -232,7 +274,7 @@ def update_command(args: argparse.Namespace) -> None:
     print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
     print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – lane={validated_lane} – {note}"
+        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     )
 
 
@@ -241,28 +283,9 @@ def history_command(args: argparse.Namespace) -> None:
     wp = locate_work_package(repo_root, args.feature, args.work_package)
     agent = args.agent or wp.agent or "system"
     shell_pid = args.shell_pid or wp.shell_pid or ""
-    # Lane is event-log-only; read from canonical event log not frontmatter
-    if args.lane:
-        lane = ensure_lane(args.lane)
-    else:
-        _hc_feature_dir = repo_root / "kitty-specs" / args.feature
-        try:
-            from specify_cli.status.store import read_events as _hc_read_events
-            from specify_cli.status.reducer import reduce as _hc_reduce
-
-            _hc_events = _hc_read_events(_hc_feature_dir)
-            _hc_snapshot = _hc_reduce(_hc_events) if _hc_events else None
-            _hc_state = _hc_snapshot.work_packages.get(args.work_package) if _hc_snapshot else None
-            _hc_lane = str(_hc_state.get("lane", "planned")) if _hc_state else "planned"
-        except Exception:
-            _hc_lane = "planned"
-        lane = ensure_lane(_hc_lane)
     timestamp = args.timestamp or now_utc()
-    note = normalize_note(args.note, lane)
-
-    # Lane state is managed exclusively via event log — no frontmatter lane write
-
-    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={lane} – {note}"
+    note = normalize_note(args.note, args.lane or "")
+    log_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
     updated_body = append_activity_log(wp.body, log_entry)
 
     if args.update_shell and shell_pid:
@@ -331,7 +354,7 @@ def list_command(args: argparse.Namespace) -> None:
                     }
                 )
     else:
-        # New format: scan flat tasks/ directory and group by frontmatter lane
+        # New format: scan flat tasks/ directory and read canonical lane from the event log
         for path in sorted(feature_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
@@ -395,20 +418,33 @@ def list_command(args: argparse.Namespace) -> None:
 def rollback_command(args: argparse.Namespace) -> None:
     repo_root = find_repo_root()
     wp = locate_work_package(repo_root, args.feature, args.work_package)
-    entries = activity_entries(wp.body)
-    if len(entries) < 2:
-        raise TaskCliError("Not enough activity entries to determine the previous lane.")
+    wp_id = wp.work_package_id or wp.path.stem
+    feature_dir = wp.path.parent.parent
+    from specify_cli.status.store import read_events
 
-    previous_lane = ensure_lane(entries[-2]["lane"])
+    events = read_events(feature_dir)
+    wp_events = [e for e in events if e.wp_id == wp_id]
+    if not wp_events:
+        raise TaskCliError(
+            f"No canonical status events for {wp_id}. Cannot determine the previous lane."
+        )
+
+    if len(wp_events) == 1:
+        previous_lane_canonical = str(wp_events[0].from_lane)
+    else:
+        previous_lane_canonical = str(wp_events[-2].to_lane)
+    reverse_aliases: Dict[str, str] = {"in_progress": "doing"}
+    previous_lane = ensure_lane(reverse_aliases.get(previous_lane_canonical, previous_lane_canonical))
+    current_event = wp_events[-1]
     note = args.note or f"Rolled back to {previous_lane}"
     args_for_update = argparse.Namespace(
         feature=args.feature,
         work_package=args.work_package,
         lane=previous_lane,
         note=note,
-        agent=args.agent or entries[-1]["agent"],
+        agent=args.agent or current_event.actor,
         assignee=args.assignee,
-        shell_pid=args.shell_pid or entries[-1].get("shell_pid", ""),
+        shell_pid=args.shell_pid or "",
         timestamp=args.timestamp or now_utc(),
         dry_run=args.dry_run,
         force=args.force,
@@ -419,10 +455,7 @@ def rollback_command(args: argparse.Namespace) -> None:
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
     if requested:
         return requested
-    raise TaskCliError(
-        "Feature slug is required. Provide it via --feature <slug>.\n"
-        "No auto-detection is performed."
-    )
+    return detect_feature_slug(repo_root)
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
@@ -574,8 +607,6 @@ def _prepare_merge_metadata(
     strategy: str,
     pushed: bool,
 ) -> Optional[Path]:
-    from specify_cli.feature_metadata import record_merge
-
     feature_dir = repo_root / "kitty-specs" / feature
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_path = feature_dir / "meta.json"
@@ -593,8 +624,7 @@ def _prepare_merge_metadata(
             strategy=strategy,
             push=pushed,
         )
-    except (ValueError, FileNotFoundError) as exc:
-        logger.warning("Could not record merge metadata: %s", exc)
+    except (ValueError, FileNotFoundError):
         return None
     return meta_path
 
@@ -603,13 +633,11 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     if not meta_path or not meta_path.exists():
         return
 
-    from specify_cli.feature_metadata import finalize_merge
-
     feature_dir = meta_path.parent
     try:
         finalize_merge(feature_dir, merged_commit=merge_commit)
-    except (ValueError, FileNotFoundError) as exc:
-        logger.warning("Could not finalize merge metadata: %s", exc)
+    except (ValueError, FileNotFoundError):
+        pass
 
 def merge_command(args: argparse.Namespace) -> None:
     # merge_command needs the LOCAL git root (may be a worktree), not the main
@@ -630,10 +658,7 @@ def merge_command(args: argparse.Namespace) -> None:
     elif current_branch and current_branch != "HEAD":
         feature = current_branch
     else:
-        raise TaskCliError(
-            "Feature slug is required for merge. Provide it via --feature <slug>.\n"
-            "No auto-detection is performed."
-        )
+        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:
@@ -767,7 +792,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    update = subparsers.add_parser("update", help="Update a work package's lane in frontmatter")
+    update = subparsers.add_parser("update", help="Append a canonical status transition")
     update.add_argument("feature", help="Feature directory slug (e.g., 008-awesome-feature)")
     update.add_argument("work_package", help="Work package identifier (e.g., WP03)")
     update.add_argument("lane", help=f"Target lane ({', '.join(LANES)})")
