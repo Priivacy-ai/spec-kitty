@@ -14,6 +14,7 @@ base_commit: 5136cf9893211b4065292f56452a5e9cc773e0b8
 created_at: '2026-03-31T07:22:39.518059+00:00'
 subtasks: [T021, T022, T023]
 shell_pid: "88096"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -87,3 +88,7 @@ Filter out: files under `tests/*/migration*`, `tests/*/upgrade*`
 - [ ] conftest.py fixtures have no `lane` in WP frontmatter
 - [ ] Active tests don't assert `lane:` in modern WP frontmatter (migration tests exempt)
 - [ ] Full test suite passes after fixture changes
+
+## Activity Log
+
+- 2026-03-31T07:22:39Z – orchestrator – shell_pid=88096 – lane=doing – Started implementation via workflow command
