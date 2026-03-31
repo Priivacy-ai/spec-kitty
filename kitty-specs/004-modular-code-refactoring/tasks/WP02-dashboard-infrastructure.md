@@ -1,6 +1,5 @@
 ---
 work_package_id: WP02
-lane: done
 dependencies: []
 subtasks:
 - T010
@@ -19,10 +18,6 @@ subtasks:
 - T023
 - T024
 - T025
-assignee: sonnet-4.5
-agent: codex
-shell_pid: '57706'
-review_status: approved
 history:
 - date: 2025-11-11
   status: created
@@ -39,6 +34,15 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All feedback addressed, tests passing, module sizes compliant
+authoritative_surface: tests/test_dashboard/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- tests/test_dashboard/test_diagnostics.py
+- tests/test_dashboard/test_lifecycle.py
+- tests/test_dashboard/test_scanner.py
+- tests/test_dashboard/test_server.py
+- tests/test_dashboard/test_static.py
 phases: foundational
 priority: P2
 reviewer:
@@ -51,6 +55,7 @@ tags:
 - parallel
 - agent-a
 work_package_title: Dashboard Infrastructure
+wp_code: WP02
 ---
 
 # WP02: Dashboard Infrastructure

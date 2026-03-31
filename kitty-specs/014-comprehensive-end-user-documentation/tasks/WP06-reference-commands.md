@@ -1,24 +1,24 @@
 ---
 work_package_id: WP06
 title: Reference - Commands
-lane: done
 dependencies: [WP02]
 subtasks:
 - T023
 - T024
 - T025
 phase: Phase 1 - Content Creation
-assignee: ''
-agent: claude
-shell_pid: '58964'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/014-comprehensive-end-user-documentation/
+execution_mode: planning_artifact
+mission_id: 01KN2371WPA42WS6W1G5XZHZJA
+owned_files:
+- kitty-specs/014-comprehensive-end-user-documentation/**
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Reference - Commands

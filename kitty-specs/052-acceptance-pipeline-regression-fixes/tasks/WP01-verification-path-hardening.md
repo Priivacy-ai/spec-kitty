@@ -1,8 +1,11 @@
 ---
 work_package_id: WP01
 title: Verification Path Hardening
-lane: "done"
 dependencies: []
+requirement_refs:
+- FR-001
+- FR-004
+- FR-005
 base_branch: 2.x
 base_commit: a7995b280e1a76cdf3f6dc201d56233d8c028032
 created_at: '2026-03-19T16:52:08.174473+00:00'
@@ -12,22 +15,22 @@ subtasks:
 - T003
 - T004
 phase: Phase 1 - Core Bug Fixes
-assignee: ''
-agent: codex
-shell_pid: '9218'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://052-acceptance-pipeline-regression-fixes/WP01/20260319T170538Z-cdbc37a6.md
 history:
 - timestamp: '2026-03-19T16:39:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- FR-004
-- FR-005
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PY
+owned_files:
+- kitty-specs/052-acceptance-pipeline-regression-fixes/plan.md
+- kitty-specs/052-acceptance-pipeline-regression-fixes/spec.md
+- src/specify_cli/acceptance.py
+- src/specify_cli/scripts/tasks/acceptance_support.py
+- src/specify_cli/status/reducer.py:193-212
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Verification Path Hardening

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Agent Config Command Research
-lane: done
 dependencies: []
 base_branch: develop
 base_commit: 25f4b615be5b11bd0f1728f14cfc79046e99b40c
@@ -11,17 +10,22 @@ subtasks:
 - T002
 - T003
 phase: Phase 0 - Research & Validation
-assignee: ''
-agent: Claude
-shell_pid: '18985'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JZ
+owned_files:
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/plan.md
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/research.md
+- src/specify_cli/cli/commands/agent/config.py
+- src/specify_cli/orchestrator/agent_config.py
+- src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Agent Config Command Research

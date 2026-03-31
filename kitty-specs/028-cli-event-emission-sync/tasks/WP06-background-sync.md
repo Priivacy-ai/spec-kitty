@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Background Sync Service
-lane: done
 dependencies: [WP05]
 base_branch: 028-cli-event-emission-sync-WP05
 base_commit: ae915e0bb3c9337f117e99548da44735bc7ab284
@@ -15,17 +14,25 @@ subtasks:
 - T034
 - T035
 phase: Phase 3 - Infrastructure
-assignee: ''
-agent: claude-opus
-shell_pid: '56464'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDE
+owned_files:
+- kitty-specs/028-cli-event-emission-sync/plan.md
+- kitty-specs/028-cli-event-emission-sync/research.md
+- kitty-specs/028-cli-event-emission-sync/spec.md
+- src/specify_cli/__init__.py
+- src/specify_cli/cli/commands/__init__.py
+- src/specify_cli/cli/commands/sync.py
+- src/specify_cli/sync/background.py
+- src/specify_cli/sync/batch.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 - Background Sync Service

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Version Matrix Note
-lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: c68d22f347a00d33225c7ccf1f2a4dd1b7ba068a
@@ -11,17 +10,25 @@ subtasks:
 - T017
 - T018
 phase: Phase 2 - Parallel Wave
-assignee: ''
-agent: claude-opus
-shell_pid: '27166'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/045-.../**
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/artifact-tree.json
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/events.jsonl
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/generate.sh
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/namespace.json
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/version-matrix.md
+- tests/integration/test_planning_workflow.py::TestSetupPlanCommand
+- tests/specify_cli/test_cli/test_agent_feature.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Version Matrix Note

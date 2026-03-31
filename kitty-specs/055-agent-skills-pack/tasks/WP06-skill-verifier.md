@@ -1,28 +1,29 @@
 ---
 work_package_id: WP06
 title: Skill Verifier
-lane: planned
 dependencies: [WP03]
+requirement_refs:
+- FR-006
+- FR-007
 subtasks:
 - T024
 - T025
 - T026
 - T027
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-006
-- FR-007
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/specify_cli/skills/verifier.py
+- tests/specify_cli/skills/test_verifier.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Skill Verifier

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: CLI Refactoring - Update Command
-lane: done
 dependencies: []
 subtasks:
 - T005
@@ -12,11 +11,6 @@ subtasks:
 - T010
 - T011
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: claude-reviewer
-shell_pid: $$
-review_status: ''
-reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -26,6 +20,17 @@ history:
 activity_log: |-
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PQ
+owned_files:
+- kitty-specs/007-frontmatter-only-lane/plan.md
+- kitty-specs/007-frontmatter-only-lane/research.md
+- kitty-specs/007-frontmatter-only-lane/spec.md
+- src/specify_cli/legacy_detector.py
+- src/specify_cli/task_metadata_validation.py
+- src/specify_cli/tasks_support.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – CLI Refactoring - Update Command

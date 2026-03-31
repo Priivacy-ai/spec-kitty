@@ -1,25 +1,19 @@
 ---
 work_package_id: WP11
 title: Author spec-kitty-runtime-next Skill
-lane: done
 dependencies:
 - WP10
+requirement_refs:
+- FR-009
+- FR-010
+- C-006
+- C-007
 subtasks:
 - T043
 - T044
 - T045
 - T046
 phase: Phase 3 - Second Slice
-assignee: ''
-agent: claude
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-requirement_refs:
-- FR-009
-- FR-010
-- C-006
-- C-007
 history:
 - timestamp: '2026-03-21T08:30:00Z'
   lane: planned
@@ -31,6 +25,12 @@ history:
   agent: claude
   shell_pid: ''
   action: Implementation started
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/**
+wp_code: WP11
 ---
 
 # Work Package Prompt: WP11 – Author spec-kitty-runtime-next Skill

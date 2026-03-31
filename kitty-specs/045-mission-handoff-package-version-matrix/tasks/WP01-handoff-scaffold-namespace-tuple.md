@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Handoff Directory Scaffold + Namespace Tuple
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 595bf2762385da04c26488fec4d96ea3b1c23939
@@ -11,17 +10,18 @@ subtasks:
 - T002
 - T003
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude-opus
-shell_pid: '31424'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/045-mission-handoff-package-version-matrix/
+execution_mode: planning_artifact
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/045-mission-handoff-package-version-matrix/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Handoff Directory Scaffold + Namespace Tuple

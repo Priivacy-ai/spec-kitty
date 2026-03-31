@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Add sync diagnose command
-lane: done
 dependencies: [WP02]
 base_branch: 039-cli-2x-readiness-WP02
 base_commit: 0cf3f906f4f979a000cf04c78688a397d69b6a37
@@ -13,17 +12,24 @@ subtasks:
 - T018
 - T019
 phase: Wave 2 - Dependent
-assignee: ''
-agent: wp04-reviewer
-shell_pid: '75195'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- src/specify_cli/cli/commands/**
+- src/specify_cli/spec_kitty_events/models.py
+- src/specify_cli/sync/diagnose.py
+- src/specify_cli/sync/emitter.py
+- src/specify_cli/sync/queue.py
+- test/WP01/**
+- tests/sync/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Add sync diagnose command

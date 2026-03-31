@@ -1,28 +1,7 @@
 ---
 work_package_id: WP01
 title: Shared Atomic Write Utility
-lane: "doing"
 dependencies: []
-base_branch: 2.x
-base_commit: 7398e08cf45e2431807a2e804f596b30fa7f1a1b
-created_at: '2026-03-20T13:51:54.296826+00:00'
-subtasks:
-- T001
-- T002
-- T003
-phase: Phase 0 - Foundation
-assignee: ''
-agent: "coordinator"
-shell_pid: "73280"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
-history:
-- timestamp: '2026-03-20T13:39:48Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-008
 - FR-009
@@ -35,6 +14,31 @@ requirement_refs:
 - FR-016
 - NFR-001
 - C-004
+base_branch: 2.x
+base_commit: 7398e08cf45e2431807a2e804f596b30fa7f1a1b
+created_at: '2026-03-20T13:51:54.296826+00:00'
+subtasks:
+- T001
+- T002
+- T003
+phase: Phase 0 - Foundation
+history:
+- timestamp: '2026-03-20T13:39:48Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- kitty-specs/054-state-architecture-cleanup-phase-2/plan.md
+- src/specify_cli/core/__init__.py
+- src/specify_cli/core/atomic.py
+- src/specify_cli/feature_metadata.py
+- tests/specify_cli/test_atomic_write.py
+- tests/specify_cli/test_feature_metadata.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Shared Atomic Write Utility

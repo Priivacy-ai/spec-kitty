@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: State Management
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -11,17 +10,19 @@ subtasks:
 - T020
 - T021
 phase: Phase 1 - Components
-assignee: ''
-agent: claude-opus
-shell_pid: '47674'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T16:21:51Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JW
+owned_files:
+- src/specify_cli/merge/state.py
+- src/specify_cli/orchestrator/state.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – State Management

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Mission System Explanation Update
-lane: "approved"
 dependencies: [WP01]
 requirement_refs: [FR-008]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,15 +10,19 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:58:53.695123+00:00'
 subtasks: [T027, T028, T029, T030, T031]
-agent: coordinator
-shell_pid: '21973'
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
   agent: claude
   note: Generated from plan.md Phase 3
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q2
+owned_files:
+- docs/explanation/mission-system.md
+- kitty-specs/###-feature/**
+- src/doctrine/skills/spec-kitty-mission-system/SKILL.md
+wp_code: WP06
 ---
 
 # WP06: Mission System Explanation Update

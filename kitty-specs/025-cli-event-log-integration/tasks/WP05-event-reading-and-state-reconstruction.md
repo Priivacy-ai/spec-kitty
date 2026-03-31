@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Event Reading & State Reconstruction
-lane: done
 dependencies: [WP04]
 base_branch: 2.x
 base_commit: d15157619b991a25134fd1a1b0b57a2c34cee5b8
@@ -14,17 +13,21 @@ subtasks:
 - T029
 - T030
 phase: Phase 1 - Core Event Infrastructure
-assignee: ''
-agent: claude-wp05-final-reviewer
-shell_pid: '18406'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- kitty-specs/*/tasks/WP*.md
+- kitty-specs/025-cli-event-log-integration/data-model.md
+- src/specify_cli/cli/commands/status.py
+- src/specify_cli/events/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Event Reading & State Reconstruction

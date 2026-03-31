@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Documentation & Agent Updates
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -24,17 +23,34 @@ subtasks:
 - T085
 - T086
 phase: Phase 2 - Polish
-assignee: ''
-agent: claude
-shell_pid: '82623'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/**/*.md
+- docs/,/**
+- docs/_build/html/**
+- docs/conf.py
+- docs/documentation-mission.md
+- docs/how-to/customize-dashboard.md
+- docs/index.md
+- docs/reference/api/**
+- docs/reference/cli.md
+- docs/reference/dashboard-api.md
+- docs/tutorials/basic-usage.md
+- docs/tutorials/getting-started-with-spec-kitty.md
+- docs/tutorials/getting-started.md
+- docs/tutorials/understanding-missions.md
+- docs/tutorials/using-dashboard.md
+- kitty-specs/013-doc-awesome-lib/spec.md
+- src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 – Documentation & Agent Updates

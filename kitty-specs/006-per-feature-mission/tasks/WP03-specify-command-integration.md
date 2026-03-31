@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Specify Command Integration
-lane: done
 dependencies: []
 subtasks:
 - T011
@@ -11,17 +10,18 @@ subtasks:
 - T015
 - T016
 phase: Phase 2 - Core Workflow
-assignee: ''
-agent: claude
-shell_pid: '41714'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/006-per-feature-mission/
+execution_mode: planning_artifact
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Specify Command Integration

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Research Known CLI Agents
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -10,17 +9,18 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Agent Investigation
-assignee: ''
-agent: claude-opus
-shell_pid: '24482'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T14:41:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/019-autonomous-multi-agent-orchestration-research/
+execution_mode: planning_artifact
+mission_id: 01KN2371WQDXDMVSFB0KMF95JV
+owned_files:
+- kitty-specs/019-autonomous-multi-agent-orchestration-research/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Research Known CLI Agents

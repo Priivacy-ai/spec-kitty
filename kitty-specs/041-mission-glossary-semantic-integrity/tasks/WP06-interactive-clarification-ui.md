@@ -1,20 +1,22 @@
 ---
 work_package_id: WP06
 title: Interactive Clarification UI
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP05
 base_commit: e123f4871b4da4d6bae8a55af3fd48f54c7d701e
 created_at: '2026-02-16T15:55:53.271355+00:00'
 subtasks: [T025, T026, T027, T028, T029]
-agent: codex
-shell_pid: '26531'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/glossary/**
+- tests/specify_cli/glossary/**
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 -- Interactive Clarification UI

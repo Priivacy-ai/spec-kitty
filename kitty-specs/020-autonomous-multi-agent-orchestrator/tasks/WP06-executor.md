@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Executor
-lane: done
 dependencies:
 - WP02
 - WP03
@@ -13,17 +12,19 @@ subtasks:
 - T030
 - T031
 phase: Phase 2 - Core Logic
-assignee: ''
-agent: claude-opus
-shell_pid: '50038'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T16:21:51Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JW
+owned_files:
+- src/specify_cli/cli/commands/implement.py
+- src/specify_cli/orchestrator/executor.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Executor

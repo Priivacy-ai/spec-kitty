@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: ProjectIdentity Module
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: fe5dd26eb9160377ee55f83b072f5dc3db322843
@@ -14,17 +13,19 @@ subtasks:
 - T005
 - T006
 phase: Phase 0 - Foundation
-assignee: ''
-agent: codex
-shell_pid: '25757'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDG
+owned_files:
+- src/specify_cli/sync/project_identity.py
+- tests/sync/test_project_identity.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – ProjectIdentity Module

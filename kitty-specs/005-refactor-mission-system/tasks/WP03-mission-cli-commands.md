@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Mission CLI Commands
-lane: done
 dependencies: []
 subtasks:
 - T017
@@ -13,15 +12,27 @@ subtasks:
 - T023
 - T024
 phase: Phase 2 - Mission CLI
-assignee: claude
-agent: claude
-shell_pid: '88714'
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/data-model.md
+- kitty-specs/005-refactor-mission-system/plan.md
+- kitty-specs/005-refactor-mission-system/spec.md
+- src/specify_cli/__init__.py
+- src/specify_cli/cli/__init__.py
+- src/specify_cli/cli/commands/mission/**
+- src/specify_cli/cli/commands/mission.py
+- src/specify_cli/mission.py
+- tests/integration/test_mission_cli.py
+- tests/integration/test_mission_cli.py::test_mission_switch_clean_project
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Mission CLI Commands

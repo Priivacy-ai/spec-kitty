@@ -1,6 +1,5 @@
 ---
 work_package_id: WP03
-lane: done
 dependencies: []
 subtasks:
 - T020
@@ -13,9 +12,6 @@ subtasks:
 - T027
 - T028
 - T029
-assignee: codex
-agent: codex
-shell_pid: '32837'
 history:
 - date: 2025-11-11
   status: created
@@ -24,6 +20,11 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All DoD items complete, 9/9 tests passing
+authoritative_surface: tests/test_template/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- tests/test_template/**
 phases: foundational
 priority: P2
 reviewer:
@@ -36,6 +37,7 @@ tags:
 - parallel
 - agent-b
 work_package_title: Template System
+wp_code: WP03
 ---
 
 # WP03: Template System

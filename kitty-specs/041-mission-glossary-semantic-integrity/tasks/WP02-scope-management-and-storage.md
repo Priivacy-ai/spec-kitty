@@ -1,20 +1,26 @@
 ---
 work_package_id: WP02
 title: Scope Management & Storage
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP01
 base_commit: 38b22ebffcce1b3d0095c2fbec0713eb5c370948
 created_at: '2026-02-16T13:17:43.185840+00:00'
 subtasks: [T006, T007, T008, T009, T048]
-agent: codex
-shell_pid: '43929'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/glossary/scope/**
+- src/specify_cli/glossary/scope.py
+- src/specify_cli/glossary/store/**
+- src/specify_cli/glossary/store.py
+- tests/specify_cli/glossary/test_scope.py
+- tests/specify_cli/glossary/test_store.py
+wp_code: WP02
 ---
 
 # Work Package: Scope Management & Storage

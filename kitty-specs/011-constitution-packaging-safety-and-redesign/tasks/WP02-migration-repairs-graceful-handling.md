@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Migration Repairs & Graceful Handling
-lane: done
 dependencies: []
 subtasks:
 - T010
@@ -12,11 +11,6 @@ subtasks:
 - T015
 - T016
 phase: Feature - Track 1 Critical Safety
-assignee: ''
-agent: claude-sonnet-4-5
-shell_pid: ''
-review_status: approved
-reviewed_by: claude-sonnet-4-5
 history:
 - timestamp: '2026-01-12T11:30:00Z'
   lane: planned
@@ -28,6 +22,22 @@ history:
   agent: claude-sonnet-4-5
   shell_pid: ''
   action: Code review approved - All migrations implemented correctly with graceful handling and idempotency. 21/21 tests passed.
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ7
+owned_files:
+- kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/research.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md
+- src/specify_cli/upgrade/migrations/__init__.py
+- src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py
+- src/specify_cli/upgrade/migrations/m_0_10_12_constitution_cleanup.py
+- src/specify_cli/upgrade/migrations/m_0_10_2_update_slash_commands.py
+- src/specify_cli/upgrade/migrations/m_0_10_6_workflow_simplification.py
+- src/specify_cli/upgrade/migrations/m_0_7_3_update_scripts.py
+- tests/test_migration_idempotency.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Migration Repairs & Graceful Handling

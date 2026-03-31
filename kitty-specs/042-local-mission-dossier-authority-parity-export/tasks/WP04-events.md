@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Dossier Event Types & Emission
-lane: done
 dependencies:
 - WP03
 base_branch: 042-local-mission-dossier-authority-parity-export-WP03
@@ -13,11 +12,18 @@ subtasks:
 - T020
 - T021
 - T022
-agent: coordinator
-shell_pid: '90295'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/spec_kitty_events/schemas/mission_dossier_artifact_indexed.schema.json
+- src/spec_kitty_events/schemas/mission_dossier_artifact_missing.schema.json
+- src/spec_kitty_events/schemas/mission_dossier_parity_drift_detected.schema.json
+- src/spec_kitty_events/schemas/mission_dossier_snapshot_computed.schema.json
+- src/specify_cli/dossier/events.py
+- src/specify_cli/sync/events.py
+wp_code: WP04
 ---
 
 # WP04: Dossier Event Types & Emission

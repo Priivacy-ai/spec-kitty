@@ -7,5 +7,6 @@
   "created_at": "2026-02-03T12:00:00Z",
   "target_branch": "2.x",
   "vcs": "git",
-  "feature_slug": "028-cli-event-emission-sync"
+  "feature_slug": "028-cli-event-emission-sync",
+  "mission_id": "01KN2371WRE1E2BH9WR11MAGDE"
 }

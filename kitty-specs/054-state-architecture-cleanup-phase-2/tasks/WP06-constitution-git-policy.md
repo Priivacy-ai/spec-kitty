@@ -1,8 +1,12 @@
 ---
 work_package_id: WP06
 title: Constitution Git Policy Enforcement
-lane: "doing"
 dependencies: []
+requirement_refs:
+- FR-017
+- FR-018
+- FR-019
+- NFR-004
 base_branch: 2.x
 base_commit: 6e3db85e32dcfdb9c4586f193d6a8e67155dad91
 created_at: '2026-03-20T13:51:59.757350+00:00'
@@ -12,23 +16,19 @@ subtasks:
 - T025
 - T026
 phase: Phase 2 - Policy
-assignee: ''
-agent: "coordinator"
-shell_pid: "73698"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-017
-- FR-018
-- FR-019
-- NFR-004
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/state_contract.py
+- tests/specify_cli/test_state_contract.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Constitution Git Policy Enforcement

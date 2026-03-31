@@ -1,26 +1,7 @@
 ---
 work_package_id: WP02
 title: Regression Tests & Verification
-lane: "done"
 dependencies: [WP01]
-base_branch: 049-fix-merge-target-resolution-WP01
-base_commit: 05d85579ce21ededad3645e673c8cf1da30b4f3e
-created_at: '2026-03-10T11:55:39.145856+00:00'
-subtasks:
-- T004
-- T005
-phase: Phase 2 - Verification
-assignee: ''
-agent: claude-opus
-shell_pid: '2513'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-history:
-- timestamp: '2026-03-10T11:44:58Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-001
 - FR-002
@@ -28,6 +9,30 @@ requirement_refs:
 - FR-004
 - FR-005
 - FR-006
+base_branch: 049-fix-merge-target-resolution-WP01
+base_commit: 05d85579ce21ededad3645e673c8cf1da30b4f3e
+created_at: '2026-03-10T11:55:39.145856+00:00'
+subtasks:
+- T004
+- T005
+phase: Phase 2 - Verification
+history:
+- timestamp: '2026-03-10T11:44:58Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3H
+owned_files:
+- kitty-specs/049-fix-merge-target-resolution/plan.md
+- kitty-specs/049-fix-merge-target-resolution/spec.md
+- kitty-specs/<slug/**
+- src/specify_cli/core/feature_detection.py
+- src/specify_cli/missions/software-dev/command-templates/merge.md
+- tests/specify_cli/cli/commands/**
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Regression Tests & Verification

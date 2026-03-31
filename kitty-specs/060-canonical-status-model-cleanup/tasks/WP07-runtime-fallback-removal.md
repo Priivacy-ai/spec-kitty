@@ -12,14 +12,13 @@ base_branch: main
 base_commit: 7de1e1542d5ef2a47e889db5d8acf20562eab160
 created_at: '2026-03-31T07:22:41.645329+00:00'
 subtasks: [T024, T025, T026, T027, T028, T029]
-shell_pid: "88151"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/tasks_support.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/tasks_support.py
 - src/specify_cli/dashboard/scanner.py
@@ -27,6 +26,7 @@ owned_files:
 - src/specify_cli/next/runtime_bridge.py
 - src/specify_cli/cli/commands/merge.py
 - tests/specify_cli/test_runtime_hard_fail.py
+wp_code: WP07
 ---
 
 # WP07: Runtime Fallback Removal

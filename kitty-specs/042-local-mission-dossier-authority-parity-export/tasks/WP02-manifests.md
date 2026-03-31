@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Expected Artifact Manifests
-lane: done
 dependencies:
 - WP01
 base_branch: 042-local-mission-dossier-authority-parity-export-WP01
@@ -14,11 +13,16 @@ subtasks:
 - T009
 - T010
 - T011
-agent: coordinator
-shell_pid: '83547'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dossier/manifest.py
+- src/specify_cli/missions/documentation/**
+- src/specify_cli/missions/research/**
+- src/specify_cli/missions/software-dev/**
+wp_code: WP02
 ---
 
 # WP02: Expected Artifact Manifests

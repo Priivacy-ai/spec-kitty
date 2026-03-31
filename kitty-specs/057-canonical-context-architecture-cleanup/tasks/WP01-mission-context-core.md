@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: MissionContext Core
-lane: "approved"
 dependencies: []
 requirement_refs:
 - FR-001
@@ -21,18 +20,27 @@ subtasks:
 - T005
 - T006
 phase: Phase A - Foundation
-assignee: ''
-agent: codex
-shell_pid: '4081'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- kitty-specs/057-canonical-context-architecture-cleanup/data-model.md
+- kitty-specs/057-canonical-context-architecture-cleanup/plan.md
+- kitty-specs/057-canonical-context-architecture-cleanup/spec.md
+- kitty-specs/<feature_slug/**
+- src/specify_cli/context/__init__.py
+- src/specify_cli/context/middleware.py
+- src/specify_cli/context/models.py
+- src/specify_cli/context/resolver.py
+- src/specify_cli/context/store.py
+- tests/specify_cli/context/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – MissionContext Core

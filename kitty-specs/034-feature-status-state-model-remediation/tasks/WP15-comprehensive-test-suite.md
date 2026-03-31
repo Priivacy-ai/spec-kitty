@@ -1,7 +1,6 @@
 ---
 work_package_id: WP15
 title: Comprehensive Test Suite
-lane: done
 dependencies:
 - WP09
 base_branch: 2.x
@@ -15,17 +14,27 @@ subtasks:
 - T079
 - T080
 phase: Phase 2 - Read Cutover
-assignee: ''
-agent: ''
-shell_pid: '76040'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/contracts/**
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- tests/cross_branch/**
+- tests/integration/test_conflict_resolution.py
+- tests/integration/test_dual_write.py
+- tests/integration/test_migration_e2e.py
+- tests/integration/test_read_cutover.py
+- tests/integration/test_status_e2e.py
+wp_code: WP15
 ---
 
 # Work Package Prompt: WP15 -- Comprehensive Test Suite

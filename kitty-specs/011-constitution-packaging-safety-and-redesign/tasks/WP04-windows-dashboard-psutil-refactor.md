@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Windows Dashboard psutil Refactor
-lane: done
 dependencies: []
 subtasks:
 - T022
@@ -11,11 +10,6 @@ subtasks:
 - T026
 - T027
 phase: Feature - Track 2 UX Improvements
-assignee: ''
-agent: claude-sonnet-4-5
-shell_pid: ''
-review_status: approved
-reviewed_by: claude-sonnet-4-5
 history:
 - timestamp: '2026-01-12T11:30:00Z'
   lane: planned
@@ -27,6 +21,17 @@ history:
   agent: claude-sonnet-4-5
   shell_pid: ''
   action: 'Code review approved - psutil>=5.9.0 added, all signal calls replaced with psutil, proper exception handling, 41/41 dashboard tests passed. Fixes #71 Windows ERR_EMPTY_RESPONSE.'
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ7
+owned_files:
+- kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/research.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md
+- src/specify_cli/dashboard/**
+- tests/test_dashboard_lifecycle.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Windows Dashboard psutil Refactor

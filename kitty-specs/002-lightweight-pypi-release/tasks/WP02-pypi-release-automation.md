@@ -1,21 +1,24 @@
 ---
 work_package_id: WP02
 title: PyPI Release Automation
-lane: done
 dependencies: []
 subtasks:
 - T003
 - T004
 phase: Phase 1 - Automation
-assignee: ''
-agent: claude-sonnet-4.5
-shell_pid: '16185'
 history:
 - timestamp: '2025-11-02T16:58:36Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PJ
+owned_files:
+- docs/scripts/**
+- kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md
+wp_code: WP02
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP02-pypi-release-automation.md)*
 

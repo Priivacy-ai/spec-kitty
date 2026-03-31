@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: move-task Delegation
-lane: done
 dependencies:
 - WP07
 base_branch: 2.x
@@ -14,17 +13,22 @@ subtasks:
 - T046
 - T047
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '59111'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- src/specify_cli/cli/commands/agent/tasks.py
+- src/specify_cli/tasks_support.py
+- tests/integration/test_move_task_delegation.py
+- tests/specify_cli/cli/commands/test_event_emission.py
+- tests/specify_cli/test_cli/test_agent_feature.py
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 -- move-task Delegation

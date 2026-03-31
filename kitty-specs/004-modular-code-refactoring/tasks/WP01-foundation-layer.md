@@ -1,6 +1,5 @@
 ---
 work_package_id: WP01
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,9 +11,6 @@ subtasks:
 - T007
 - T008
 - T009
-assignee: codex
-agent: codex
-shell_pid: '18347'
 history:
 - date: 2025-11-11
   status: created
@@ -23,6 +19,12 @@ history:
   status: approved
   by: claude
   notes: Review approved - all modules properly integrated and tested
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- src/specify_cli/**
+- tests/specify_cli/**
 phases: setup
 priority: P1
 reviewer_agent: claude
@@ -33,6 +35,7 @@ tags:
 - blocking
 - sequential
 work_package_title: Foundation Layer
+wp_code: WP01
 ---
 
 # WP01: Foundation Layer

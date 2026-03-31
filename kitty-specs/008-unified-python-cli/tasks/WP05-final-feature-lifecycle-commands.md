@@ -1,15 +1,9 @@
 ---
 work_package_id: WP05
 title: Final Feature Lifecycle Commands
-lane: done
 dependencies: []
 subtasks: [T070, T071, T072, T073, T074, T075]
 phase: Phase 5 - Completion Commands (Stream D)
-assignee: ''
-agent: claude
-shell_pid: '18142'
-review_status: ''
-reviewed_by: claude
 history:
 - timestamp: '2025-12-17T00:00:00Z'
   lane: planned
@@ -26,6 +20,14 @@ history:
   agent: claude
   shell_pid: '18142'
   action: Code review complete - approved
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PR
+owned_files:
+- src/specify_cli/cli/commands/agent/feature/**
+- src/specify_cli/cli/commands/agent/feature.py
+- tests/unit/agent/test_feature.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Final Feature Lifecycle Commands

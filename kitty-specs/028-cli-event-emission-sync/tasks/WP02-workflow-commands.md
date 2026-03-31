@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Workflow Command Integration
-lane: done
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -13,17 +12,24 @@ subtasks:
 - T011
 - T012
 phase: Phase 2 - Command Wiring
-assignee: ''
-agent: codex
-shell_pid: '40826'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDE
+owned_files:
+- kitty-specs/028-cli-event-emission-sync/plan.md
+- kitty-specs/028-cli-event-emission-sync/quickstart.md
+- kitty-specs/028-cli-event-emission-sync/spec.md
+- src/specify_cli/cli/commands/accept.py
+- src/specify_cli/cli/commands/implement.py
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/sync/events.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 - Workflow Command Integration

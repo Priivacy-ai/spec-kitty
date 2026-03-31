@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Mission Installation Migration
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -16,17 +15,19 @@ subtasks:
 - T051
 - T052
 phase: Phase 1 - Integration
-assignee: ''
-agent: claude
-shell_pid: '94285'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- src/specify_cli/**
+- tests/specify_cli/upgrade/migrations/test_m_0_12_0_documentation_mission.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Mission Installation Migration

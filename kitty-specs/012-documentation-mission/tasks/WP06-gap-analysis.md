@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Gap Analysis & Coverage Matrix
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -13,17 +12,24 @@ subtasks:
 - T038
 - T039
 phase: Phase 1 - Core Logic
-assignee: ''
-agent: claude
-shell_pid: '65629'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/reference/api.md
+- docs/reference/auth.md
+- docs/tutorials/auth.md
+- docs/tutorials/auth/**
+- kitty-specs/###-doc-feature/**
+- src/api/**
+- src/specify_cli/gap_analysis.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Gap Analysis & Coverage Matrix

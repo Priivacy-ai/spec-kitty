@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Dashboard API Endpoints
-lane: done
 dependencies:
 - WP04
 - WP05
@@ -15,11 +14,13 @@ subtasks:
 - T031
 - T032
 - T033
-agent: coordinator
-shell_pid: '98799'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/dashboard/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dashboard/**
+wp_code: WP06
 ---
 
 # WP06: Dashboard API Endpoints

@@ -1,6 +1,5 @@
 ---
 work_package_id: WP07
-lane: done
 dependencies: []
 subtasks:
 - T060
@@ -13,10 +12,6 @@ subtasks:
 - T067
 - T068
 - T069
-assignee: codex
-agent: codex
-shell_pid: '84843'
-reviewed_by: agent-d
 history:
 - date: 2025-11-11
   status: created
@@ -26,6 +21,11 @@ history:
   by: codex
   shell_pid: '84843'
   notes: Starting implementation
+authoritative_surface: src/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- src/**
 phases: story-based
 priority: P3
 reviewer:
@@ -40,6 +40,7 @@ tags:
 - parallel
 - agent-f
 work_package_title: GitHub Client and Init Command
+wp_code: WP07
 ---
 
 ## Feedback Resolution

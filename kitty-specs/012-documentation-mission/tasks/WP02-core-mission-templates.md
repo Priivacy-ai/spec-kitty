@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Core Mission Templates
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -10,17 +9,30 @@ subtasks:
 - T010
 - T011
 phase: Phase 0 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: acknowledged
-reviewed_by: codex
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/**/*.md
+- docs/[section/**
+- docs/_build/html/**
+- docs/conf.py
+- docs/reference/api/**
+- kitty-specs/[###-feature-name/**
+- src/specify_cli/missions/documentation/**
+- src/specify_cli/missions/research/templates/*.md
+- src/specify_cli/missions/software-dev/templates/*.md
+- src/specify_cli/templates/plan-template.md
+- src/specify_cli/templates/spec-template.md
+- src/specify_cli/templates/task-prompt-template.md
+- src/specify_cli/templates/tasks-template.md
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Core Mission Templates

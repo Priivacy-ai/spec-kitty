@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Testing & Validation
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -38,17 +37,27 @@ subtasks:
 - T075
 - T076
 phase: Phase 2 - Quality
-assignee: ''
-agent: claude
-shell_pid: '82680'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/reference/api.md
+- docs/reference/auth.md
+- docs/tutorials/auth.md
+- src/specify_cli/doc_generators.py
+- src/specify_cli/doc_state.py
+- src/specify_cli/gap_analysis.py
+- src/specify_cli/missions/.
+- src/specify_cli/missions/documentation/**
+- src/specify_cli/upgrade/migrations/m_0_12_0_documentation_mission.py
+- tests/specify_cli/**
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – Testing & Validation

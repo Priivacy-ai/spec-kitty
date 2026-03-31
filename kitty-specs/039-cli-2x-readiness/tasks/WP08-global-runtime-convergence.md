@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Converge global runtime resolution
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: f04321d857c6d91834af9b3d61d395d30c6ab73d
@@ -14,17 +13,19 @@ subtasks:
 - T038
 - T039
 phase: Wave 1 - Independent Fixes
-assignee: ''
-agent: wp08-reviewer
-shell_pid: '70234'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- src/specify_cli/**
+- tests/specify_cli/core/test_project_resolver.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Converge global runtime resolution

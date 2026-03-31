@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Event Storage Foundation (Entities & File I/O)
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 3b415176a6615d2626900cab184d6d2e8307b36b
@@ -15,17 +14,24 @@ subtasks:
 - T011
 - T012
 phase: Phase 1 - Core Event Infrastructure
-assignee: ''
-agent: codex
-shell_pid: '14744'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- kitty-specs/025-cli-event-log-integration/contracts/EventV1.json
+- kitty-specs/025-cli-event-log-integration/data-model.md
+- kitty-specs/025-cli-event-log-integration/quickstart.md
+- src/specify_cli/cli/commands/init.py
+- src/specify_cli/events/clock_storage.py
+- src/specify_cli/events/file_io.py
+- src/specify_cli/events/types.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Event Storage Foundation (Entities & File I/O)

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Generator Script
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -16,17 +15,20 @@ subtasks:
 - T014
 - T015
 phase: Phase 3 - Synthesis
-assignee: ''
-agent: claude-opus
-shell_pid: '7566'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/${FEATURE_SLUG}/**
+- kitty-specs/045-mission-handoff-package-version-matrix/**
+- src/specify_cli/missions/software-dev/expected-artifacts.yaml
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Generator Script

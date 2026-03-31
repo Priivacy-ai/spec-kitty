@@ -13,17 +13,17 @@ base_branch: main
 base_commit: 88346dd70961ff1ca1d0684c30d134725c221f14
 created_at: '2026-03-31T07:05:59.680714+00:00'
 subtasks: [T001, T002]
-shell_pid: "82589"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/status/bootstrap.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/status/bootstrap.py
 - tests/status/test_bootstrap.py
+wp_code: WP01
 ---
 
 # WP01: Canonical Bootstrap Helper

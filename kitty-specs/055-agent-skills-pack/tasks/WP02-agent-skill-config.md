@@ -1,28 +1,30 @@
 ---
 work_package_id: WP02
 title: AGENT_SKILL_CONFIG Capability Matrix
-lane: planned
 dependencies: []
+requirement_refs:
+- FR-003
+- C-001
 subtasks:
 - T005
 - T006
 - T007
 - T008
 phase: Phase 0 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-003
-- C-001
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/specify_cli/core/__init__.py
+- src/specify_cli/core/config.py
+- tests/specify_cli/core/test_skill_config.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – AGENT_SKILL_CONFIG Capability Matrix

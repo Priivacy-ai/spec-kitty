@@ -1,9 +1,11 @@
 ---
 work_package_id: WP05
 title: Enforce Floor
-lane: done
 dependencies:
 - WP04
+requirement_refs:
+- FR-013
+- C-003
 subtasks:
 - T023
 - T024
@@ -11,21 +13,26 @@ subtasks:
 - T026
 - T027
 phase: Phase 3 - Hardening
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: approved
-reviewed_by: Stijn Dejongh
-review_feedback: ''
 history:
 - timestamp: '2026-03-01T16:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-013
-- C-003
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3E
+owned_files:
+- kitty-specs/047-mutmut-mutation-testing-ci/spec.md
+- src/specify_cli/core/**
+- src/specify_cli/glossary/**
+- src/specify_cli/merge/**
+- src/specify_cli/status/**
+- tests/unit/core/**
+- tests/unit/glossary/**
+- tests/unit/merge/**
+- tests/unit/status/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Enforce Floor

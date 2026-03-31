@@ -1,8 +1,14 @@
 ---
 work_package_id: WP01
 title: Fix Merge Target Resolution & Template
-lane: "done"
 dependencies: []
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-006
 base_branch: 2.x
 base_commit: 9ce9079ad35e68fccc9c681277136c34e7c40dd9
 created_at: '2026-03-10T11:48:01.299687+00:00'
@@ -11,24 +17,25 @@ subtasks:
 - T002
 - T003
 phase: Phase 1 - Runtime Fix
-assignee: ''
-agent: claude-opus
-shell_pid: '96321'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
 history:
 - timestamp: '2026-03-10T11:44:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
-- FR-005
-- FR-006
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3H
+owned_files:
+- kitty-specs/049-fix-merge-target-resolution/plan.md
+- kitty-specs/049-fix-merge-target-resolution/spec.md
+- kitty-specs/<slug/**
+- kitty-specs/{feature}/meta.json.
+- src/specify_cli/cli/commands/agent/feature.py
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/core/feature_detection.py
+- src/specify_cli/missions/software-dev/command-templates/merge.md
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Fix Merge Target Resolution & Template

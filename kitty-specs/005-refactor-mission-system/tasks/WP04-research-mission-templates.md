@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Research Mission Templates
-lane: done
 dependencies: []
 subtasks:
 - T025
@@ -11,15 +10,23 @@ subtasks:
 - T029
 - T030
 phase: Phase 3 - Research Mission
-assignee: claude
-agent: claude
-shell_pid: '76722'
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/data-model.md
+- kitty-specs/005-refactor-mission-system/research.md
+- kitty-specs/005-refactor-mission-system/spec.md
+- kitty-specs/[###-research/**
+- src/,/**
+- tests/,/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Research Mission Templates

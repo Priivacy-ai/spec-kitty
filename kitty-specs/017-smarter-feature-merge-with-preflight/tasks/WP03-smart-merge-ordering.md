@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Smart Merge Ordering
-lane: in_progress
 dependencies: [WP01, WP02]
 subtasks:
 - T010
@@ -11,17 +10,23 @@ subtasks:
 - T022
 - T023
 phase: Phase 2 - User Story 3 (P2)
-assignee: ''
-agent: claude
-shell_pid: '20739'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T10:37:13Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJB
+owned_files:
+- kitty-specs/017-smarter-feature-merge-with-preflight/plan.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/spec.md
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/core/dependency_graph.py
+- src/specify_cli/merge/executor.py
+- src/specify_cli/merge/ordering.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Smart Merge Ordering

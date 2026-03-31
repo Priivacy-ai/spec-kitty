@@ -1,7 +1,6 @@
 ---
 work_package_id: WP13
 title: Status Reconcile
-lane: done
 dependencies:
 - WP03
 base_branch: 2.x
@@ -15,17 +14,24 @@ subtasks:
 - T068
 - T069
 phase: Phase 3 - Operational
-assignee: ''
-agent: ''
-shell_pid: '50922'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/contracts/event-schema.json
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/status/reconcile.py
+- tests/specify_cli/status/test_reconcile.py
+wp_code: WP13
 ---
 
 # Work Package Prompt: WP13 -- Status Reconcile

@@ -1,10 +1,10 @@
 ---
 work_package_id: WP05
 title: Dossier Pipeline Orchestration
-lane: done
 dependencies:
 - WP03
 - WP01
+requirement_refs: [FR-001, FR-013, FR-014]
 base_branch: 047-namespace-aware-artifact-body-sync-WP05-merge-base
 base_commit: 86b3def9f0555822d369d0e1a66edf4fc1f9b49f
 created_at: '2026-03-09T08:59:44.340051+00:00'
@@ -14,18 +14,21 @@ subtasks:
 - T026
 - T027
 phase: Phase 3 - Integration
-assignee: ''
-agent: claude-opus
-shell_pid: '11265'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-001, FR-013, FR-014]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- src/specify_cli/dossier/events.py
+- src/specify_cli/dossier/indexer.py
+- src/specify_cli/sync/dossier_pipeline.py
+- tests/specify_cli/sync/test_dossier_pipeline.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Dossier Pipeline Orchestration

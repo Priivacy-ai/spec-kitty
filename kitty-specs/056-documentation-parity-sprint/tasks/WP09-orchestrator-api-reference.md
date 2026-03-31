@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Orchestrator API Reference Update
-lane: "approved"
 dependencies: [WP01]
 requirement_refs: [FR-005]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,15 +10,19 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:59:00.879725+00:00'
 subtasks: [T043, T044, T045, T046, T047, T048]
-agent: coordinator
-shell_pid: '21973'
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
   agent: claude
   note: Generated from plan.md Phase 4
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q2
+owned_files:
+- docs/reference/orchestrator-api.md
+- docs/reference/toc.yml
+- src/doctrine/skills/spec-kitty-orchestrator-api-operator/SKILL.md
+wp_code: WP09
 ---
 
 # WP09: Orchestrator API Reference Update

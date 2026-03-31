@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Design Agent Orchestration Config
-lane: done
 dependencies:
 - WP06
 subtasks:
@@ -13,17 +12,18 @@ subtasks:
 - T036
 - T037
 phase: Phase 3 - Configuration Design
-assignee: ''
-agent: claude-opus
-shell_pid: '31941'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T14:41:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/019-autonomous-multi-agent-orchestration-research/
+execution_mode: planning_artifact
+mission_id: 01KN2371WQDXDMVSFB0KMF95JV
+owned_files:
+- kitty-specs/019-autonomous-multi-agent-orchestration-research/**
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Design Agent Orchestration Config

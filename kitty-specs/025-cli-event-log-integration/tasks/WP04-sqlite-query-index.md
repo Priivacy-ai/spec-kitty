@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: SQLite Query Index
-lane: done
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 033571b9334a4d44e4858abdd9f4fffd6bf5dfa7
@@ -14,17 +13,21 @@ subtasks:
 - T023
 - T024
 phase: Phase 1 - Core Event Infrastructure
-assignee: ''
-agent: claude-wp04-final-reviewer
-shell_pid: '3709'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- kitty-specs/025-cli-event-log-integration/data-model.md
+- src/specify_cli/events/__init__.py
+- src/specify_cli/events/index.py
+- src/specify_cli/events/store.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – SQLite Query Index

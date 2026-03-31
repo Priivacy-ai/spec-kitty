@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Extended Agent Smoke Tests
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -11,17 +10,22 @@ subtasks:
 - T050
 - T051
 phase: Phase 2 - Extended
-assignee: ''
-agent: claude-opus
-shell_pid: '48751'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md
+- src/specify_cli/orchestrator/agents/**
+- src/specify_cli/orchestrator/testing/availability.py
+- tests/specify_cli/orchestrator/test_smoke.py
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 – Extended Agent Smoke Tests

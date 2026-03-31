@@ -1,7 +1,6 @@
 ---
 work_package_id: WP13
 title: One-Shot Migration — State Rebuild and Runner
-lane: "approved"
 dependencies: [WP09, WP11, WP12]
 requirement_refs:
 - C-006
@@ -21,18 +20,21 @@ subtasks:
 - T068
 - T069
 phase: Phase D - Surface and Migration
-assignee: ''
-agent: coordinator
-shell_pid: '10965'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/migration/rebuild_state.py
+- src/specify_cli/migration/runner.py
+- src/specify_cli/upgrade/migrations/m_3_0_0_canonical_context.py
+- tests/specify_cli/migration/**
+wp_code: WP13
 ---
 
 # Work Package Prompt: WP13 – One-Shot Migration — State Rebuild and Runner

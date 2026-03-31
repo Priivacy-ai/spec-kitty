@@ -1,20 +1,25 @@
 ---
 work_package_id: WP03
 title: Content Templates & Test Setup
-lane: done
 dependencies:
 - WP02
 base_branch: 041-enable-plan-mission-runtime-support-WP02
 base_commit: ffee473555152ab434da959dc854344d209aa6da
 created_at: '2026-02-22T08:19:42.941772+00:00'
 subtasks: [T010, T011, T012]
-agent: claude
-shell_pid: '96910'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: ''
 description: Create any referenced content templates and set up the test framework
 estimated_duration: 1-2 hours
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82R
+owned_files:
+- kitty-specs/NNN-test-plan-feature/**
+- src/specify_cli/missions/plan/templates/*.md
+- src/specify_cli/missions/plan/templates/{template-name}.md
+- tests/specify_cli/next/test_plan_mission_runtime.py
+- tests/specify_cli/next/test_plan_mission_runtime.py::TestPlanMissionIntegration
 priority: P1
+wp_code: WP03
 ---
 
 # WP03: Content Templates & Test Setup

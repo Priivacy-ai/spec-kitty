@@ -1,8 +1,16 @@
 ---
 work_package_id: WP01
 title: State Contract Module
-lane: "approved"
 dependencies: []
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-011
+- NFR-001
+- NFR-003
 base_branch: 2.x
 base_commit: 72ed47b6df33996bab220f03079dfe414774d713
 created_at: '2026-03-18T18:59:29.551952+00:00'
@@ -13,27 +21,24 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Foundation
-assignee: ''
-agent: codex
-shell_pid: '18064'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://050-state-model-cleanup-foundations/WP01/20260318T191021Z-4d79aed0.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
-- FR-005
-- FR-011
-- NFR-001
-- NFR-003
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PW
+owned_files:
+- kitty-specs/050-state-model-cleanup-foundations/data-model.md
+- kitty-specs/050-state-model-cleanup-foundations/plan.md
+- kitty-specs/050-state-model-cleanup-foundations/spec.md
+- kitty-specs/<feature/**
+- src/specify_cli/state_contract.py
+- tests/ruff/**
+- tests/specify_cli/test_state_contract.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – State Contract Module

@@ -1,21 +1,23 @@
 ---
 work_package_id: WP04
 title: Documentation and Secret Hygiene
-lane: done
 dependencies: []
 subtasks:
 - T007
 - T008
 phase: Phase 2 - Enablement
-assignee: ''
-agent: claude-sonnet-4.5
-shell_pid: '16185'
 history:
 - timestamp: '2025-11-02T16:58:36Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/002-lightweight-pypi-release/
+execution_mode: planning_artifact
+mission_id: 01KN2371WNZX28ME4MN97B67PJ
+owned_files:
+- kitty-specs/002-lightweight-pypi-release/**
+wp_code: WP04
 ---
 *Path: [kitty-specs/002-lightweight-pypi-release/tasks/planned/WP04-documentation-and-secret-hygiene.md](kitty-specs/002-lightweight-pypi-release/tasks/planned/WP04-documentation-and-secret-hygiene.md)*
 

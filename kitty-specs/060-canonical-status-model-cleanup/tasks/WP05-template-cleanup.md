@@ -13,14 +13,13 @@ base_branch: main
 base_commit: f40ccec41a2cd06e5cea87cfd6ea094c67cebf7c
 created_at: '2026-03-31T07:06:01.667975+00:00'
 subtasks: [T016, T017, T018, T019, T020]
-shell_pid: "82639"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/missions/
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/missions/software-dev/templates/tasks-template.md
 - src/specify_cli/missions/software-dev/templates/task-prompt-template.md
@@ -33,6 +32,7 @@ owned_files:
 - src/doctrine/missions/research/templates/task-prompt-template.md
 - src/doctrine/missions/documentation/templates/task-prompt-template.md
 - tests/specify_cli/test_template_lane_guard.py
+wp_code: WP05
 ---
 
 # WP05: Template Cleanup

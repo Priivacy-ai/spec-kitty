@@ -1,8 +1,11 @@
 ---
 work_package_id: WP03
 title: ManagedSkillManifest Dataclass & Persistence
-lane: planned
 dependencies: []
+requirement_refs:
+- FR-004
+- FR-005
+- C-005
 subtasks:
 - T009
 - T010
@@ -10,21 +13,21 @@ subtasks:
 - T012
 - T013
 phase: Phase 0 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-004
-- FR-005
-- C-005
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- kitty-specs/055-agent-skills-pack/data-model.md
+- src/specify_cli/dossier/manifest.py
+- src/specify_cli/skills/manifest.py
+- tests/specify_cli/skills/test_manifest.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – ManagedSkillManifest Dataclass & Persistence

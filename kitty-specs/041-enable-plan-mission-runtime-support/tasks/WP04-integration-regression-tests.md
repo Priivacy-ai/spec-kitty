@@ -1,20 +1,28 @@
 ---
 work_package_id: WP04
 title: Integration & Regression Tests
-lane: done
 dependencies:
 - WP03
 base_branch: 041-enable-plan-mission-runtime-support-WP03
 base_commit: 3d4e3e512079ff93bdfbab4be8a3910cbdfa82b2
 created_at: '2026-02-22T08:24:01.799702+00:00'
 subtasks: [T013, T014, T015, T016, T017]
-agent: claude
-shell_pid: '1766'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: ''
 description: Implement comprehensive test suite for plan mission and verify no regressions
 estimated_duration: 2-3 hours
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82R
+owned_files:
+- src/specify_cli/missions/plan/**
+- src/specify_cli/missions/research/command-templates/**
+- src/specify_cli/missions/research/mission-runtime.yaml
+- src/specify_cli/missions/software-dev/command-templates/**
+- src/specify_cli/missions/software-dev/mission-runtime.yaml
+- src/specify_cli/missions/{mission_key}/mission-runtime.yaml
+- src/specify_cli/next/**
+- tests/specify_cli/next/test_plan_mission_runtime.py
 priority: P0
+wp_code: WP04
 ---
 
 # WP04: Integration & Regression Tests

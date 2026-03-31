@@ -1,7 +1,6 @@
 ---
 work_package_id: WP16
 title: Backport to 0.1x & Parity Matrix
-lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -15,17 +14,27 @@ subtasks:
 - T085
 - T086
 phase: Phase 3 - Delivery
-assignee: ''
-agent: ''
-shell_pid: '80759'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/contracts/**
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/parity-matrix.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- src/specify_cli/**
+- tests/cross_branch/**
+- tests/integration/test_dual_write.py
+- tests/integration/test_read_cutover.py
+- tests/specify_cli/status/**
+wp_code: WP16
 ---
 
 # Work Package Prompt: WP16 -- Backport to 0.1x & Parity Matrix

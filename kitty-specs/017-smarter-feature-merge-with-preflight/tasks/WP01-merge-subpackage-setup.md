@@ -1,23 +1,25 @@
 ---
 work_package_id: WP01
 title: Merge Subpackage Setup
-lane: done
 dependencies: []
 subtasks:
 - T001
 - T002
 phase: Phase 0 - Foundation
-assignee: ''
-agent: codex
-shell_pid: '9049'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T10:37:13Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJB
+owned_files:
+- kitty-specs/017-smarter-feature-merge-with-preflight/plan.md
+- src/specify_cli/**
+- tests/specify_cli/test_dependency_graph.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Merge Subpackage Setup

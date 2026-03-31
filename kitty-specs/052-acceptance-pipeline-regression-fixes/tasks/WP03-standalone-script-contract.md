@@ -1,8 +1,10 @@
 ---
 work_package_id: WP03
 title: Standalone Script Contract
-lane: "done"
 dependencies: [WP01]
+requirement_refs:
+- FR-003
+- C-002
 base_branch: 052-acceptance-pipeline-regression-fixes-WP01
 base_commit: ac8a27c115c62ad99a4496d5e9de6d6395b27686
 created_at: '2026-03-19T17:17:38.328509+00:00'
@@ -12,21 +14,20 @@ subtasks:
 - T010
 - T011
 phase: Phase 2 - Runtime Contract
-assignee: ''
-agent: codex
-shell_pid: '14109'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-19T16:39:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-003
-- C-002
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PY
+owned_files:
+- kitty-specs/052-acceptance-pipeline-regression-fixes/plan.md
+- kitty-specs/052-acceptance-pipeline-regression-fixes/spec.md
+- src/specify_cli/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Standalone Script Contract

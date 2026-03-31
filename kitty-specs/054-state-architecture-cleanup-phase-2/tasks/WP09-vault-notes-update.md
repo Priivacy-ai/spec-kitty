@@ -1,31 +1,31 @@
 ---
 work_package_id: WP09
 title: Vault Notes Update and Final Validation
-lane: planned
 dependencies:
 - WP01
+requirement_refs:
+- FR-023
+- NFR-002
+- NFR-003
 subtasks:
 - T037
 - T038
 - T039
 - T040
 phase: Phase 3 - Documentation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-023
-- NFR-002
-- NFR-003
+authoritative_surface: tests/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- tests/cross_cutting/packaging/**
+- tests/test_dashboard/**
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – Vault Notes Update and Final Validation

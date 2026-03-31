@@ -29,8 +29,6 @@ subtasks:
   title: mypy --strict on modified modules
   status: planned
 phase: 1
-shell_pid: "80761"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -38,10 +36,11 @@ history:
   note: WP06 generated from tasks.md for feature 058-hybrid-prompt-and-shim-agent-surface
 authoritative_surface: tests/specify_cli/
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q4
 owned_files:
 - tests/specify_cli/shims/**
 - tests/specify_cli/cli/commands/test_init_hybrid.py
+wp_code: WP06
 ---
 
 # WP06 — Tests and Final Validation

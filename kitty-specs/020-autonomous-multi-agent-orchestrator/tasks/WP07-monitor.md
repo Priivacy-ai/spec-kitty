@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Monitor
-lane: done
 dependencies:
 - WP06
 subtasks:
@@ -12,17 +11,18 @@ subtasks:
 - T036
 - T037
 phase: Phase 2 - Core Logic
-assignee: ''
-agent: claude-opus
-shell_pid: '77775'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T16:21:51Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/orchestrator/monitor.py/
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JW
+owned_files:
+- src/specify_cli/orchestrator/monitor.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Monitor

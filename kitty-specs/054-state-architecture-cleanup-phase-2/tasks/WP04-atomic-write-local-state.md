@@ -1,27 +1,7 @@
 ---
 work_package_id: WP04
 title: Atomic Write Conversion — Local State Files
-lane: planned
 dependencies: [WP01]
-subtasks:
-- T014
-- T015
-- T016
-- T017
-- T018
-phase: Phase 2 - Hardening
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
-history:
-- timestamp: '2026-03-20T13:39:48Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-008
 - FR-009
@@ -29,6 +9,30 @@ requirement_refs:
 - FR-011
 - FR-016
 - NFR-001
+subtasks:
+- T014
+- T015
+- T016
+- T017
+- T018
+phase: Phase 2 - Hardening
+history:
+- timestamp: '2026-03-20T13:39:48Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/constitution/context.py
+- src/specify_cli/core/atomic.py
+- src/specify_cli/dashboard/lifecycle.py
+- src/specify_cli/next/runtime_bridge.py
+- src/specify_cli/upgrade/metadata.py
+- src/specify_cli/workspace_context.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Atomic Write Conversion — Local State Files

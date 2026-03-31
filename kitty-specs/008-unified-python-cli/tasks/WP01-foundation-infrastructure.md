@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Foundation Infrastructure
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -22,11 +21,6 @@ subtasks:
 - T016
 - T017
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude
-shell_pid: '18142'
-review_status: ''
-reviewed_by: claude
 history:
 - timestamp: '2025-12-17T00:00:00Z'
   lane: planned
@@ -38,6 +32,25 @@ history:
   agent: claude
   shell_pid: '18142'
   action: Code review complete - approved
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PR
+owned_files:
+- kitty-specs/008-unified-python-cli/plan.md
+- kitty-specs/008-unified-python-cli/quickstart.md
+- kitty-specs/008-unified-python-cli/research.md
+- kitty-specs/008-unified-python-cli/spec.md
+- src/specify_cli/cli/__init__.py
+- src/specify_cli/cli/commands/agent/**
+- src/specify_cli/core/paths/**
+- src/specify_cli/core/paths.py
+- tests/conftest.py
+- tests/integration/**
+- tests/unit/agent/**
+- tests/unit/test_paths.py
+- tests/unit/test_paths.py::test_broken_symlink_handling
+- tests/unit/test_paths.py::test_locate_project_root_from_worktree
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Foundation Infrastructure

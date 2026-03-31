@@ -1,8 +1,10 @@
 ---
 work_package_id: WP07
 title: Acceptance Implementation Deduplication
-lane: "doing"
 dependencies: []
+requirement_refs:
+- FR-020
+- NFR-002
 base_branch: 2.x
 base_commit: edec05ad2c5de16cc7a13967b341f5d4e4e52aec
 created_at: '2026-03-20T13:52:02.220960+00:00'
@@ -14,21 +16,21 @@ subtasks:
 - T031
 - T032
 phase: Phase 2 - Consolidation
-assignee: ''
-agent: "coordinator"
-shell_pid: "73852"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-020
-- NFR-002
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/acceptance.py
+- src/specify_cli/scripts/tasks/acceptance_support.py
+- tests/specify_cli/test_acceptance_regressions.py
+- tests/specify_cli/test_canonical_acceptance.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Acceptance Implementation Deduplication

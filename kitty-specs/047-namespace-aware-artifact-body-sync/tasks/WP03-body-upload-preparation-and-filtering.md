@@ -1,8 +1,8 @@
 ---
 work_package_id: WP03
 title: Body Upload Preparation & Filtering
-lane: done
 dependencies: [WP01, WP02]
+requirement_refs: [FR-003, FR-004, FR-005, FR-006, FR-014]
 base_branch: 047-namespace-aware-artifact-body-sync-WP03-merge-base
 base_commit: ab125a790b2bbd1290f8fa047688ae68978a2c92
 created_at: '2026-03-09T08:38:19.768273+00:00'
@@ -14,18 +14,19 @@ subtasks:
 - T017
 - T018
 phase: Phase 2 - Core Logic
-assignee: ''
-agent: claude-opus
-shell_pid: '52547'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-003, FR-004, FR-005, FR-006, FR-014]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- src/specify_cli/sync/body_upload.py
+- tests/specify_cli/sync/test_body_upload.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Body Upload Preparation & Filtering

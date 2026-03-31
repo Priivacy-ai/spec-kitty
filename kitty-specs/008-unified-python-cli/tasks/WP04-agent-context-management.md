@@ -1,15 +1,9 @@
 ---
 work_package_id: WP04
 title: Agent Context Management
-lane: done
 dependencies: []
 subtasks: [T054, T055, T056, T057, T058, T059, T060, T061, T062, T063, T064, T065, T066, T067, T068, T069]
 phase: Phase 4 - Context Commands (Stream C)
-assignee: ''
-agent: claude
-shell_pid: '18142'
-review_status: ''
-reviewed_by: claude
 history:
 - timestamp: '2025-12-17T00:00:00Z'
   lane: planned
@@ -21,6 +15,13 @@ history:
   agent: claude
   shell_pid: '18142'
   action: Code review complete - approved (19/19 tests passed)
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PR
+owned_files:
+- src/specify_cli/cli/commands/agent/context.py
+- src/specify_cli/core/agent_context.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Agent Context Management

@@ -20,18 +20,17 @@ base_branch: main
 base_commit: c5ece9e6b5bd8040663586949c076f2d98f0763d
 created_at: '2026-03-30T19:25:37.017619+00:00'
 subtasks: [T001, T002, T003, T004, T005, T006, T007]
-shell_pid: "51344"
-agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
   actor: planner
 authoritative_surface: src/specify_cli/tracker/saas_client.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WW548PPDMY6HMSB7W1
 owned_files:
 - src/specify_cli/tracker/saas_client.py
 - tests/sync/tracker/test_saas_client.py
+wp_code: WP01
 ---
 
 # WP01: SaaS Tracker Client

@@ -1,9 +1,12 @@
 ---
 work_package_id: WP02
 title: Root CLI Integration Tests
-lane: "done"
 dependencies:
 - WP01
+requirement_refs:
+- FR-003
+- NFR-003
+- C-002
 base_branch: 053-orchestrator-api-json-contract-fidelity-WP01
 base_commit: 7708b81c62d62488da9bfbed3873576d901b1771
 created_at: '2026-03-20T12:44:50.117054+00:00'
@@ -12,22 +15,21 @@ subtasks:
 - T006
 - T007
 phase: Phase 2 - Verification
-assignee: ''
-agent: codex
-shell_pid: '57980'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T12:31:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-003
-- NFR-003
-- C-002
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PZ
+owned_files:
+- src/specify_cli/__init__.py
+- src/specify_cli/orchestrator_api/commands.py
+- tests/agent/test_json_envelope_contract_integration.py
+- tests/agent/test_orchestrator_commands_integration.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Root CLI Integration Tests

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Determinism Test Suite
-lane: done
 dependencies:
 - WP01
 - WP05
@@ -14,11 +13,13 @@ subtasks:
 - T048
 - T049
 - T050
-agent: coordinator
-shell_pid: '99215'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: tests/specify_cli/dossier/test_determinism.py/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- tests/specify_cli/dossier/test_determinism.py
+wp_code: WP09
 ---
 
 # WP09: Determinism Test Suite

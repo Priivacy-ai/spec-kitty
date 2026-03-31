@@ -1,8 +1,18 @@
 ---
 work_package_id: WP01
 title: Create feature_metadata.py Module
-lane: "done"
 dependencies: []
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- FR-005
+- FR-007
+- FR-008
+- FR-010
+- NFR-001
+- NFR-002
+- NFR-003
 base_branch: 2.x
 base_commit: f48b32383ceac06813581229982d5d14984f5c10
 created_at: '2026-03-18T20:31:36.756124+00:00'
@@ -15,29 +25,25 @@ subtasks:
 - T006
 - T007
 phase: Phase 0 - Foundation
-assignee: ''
-agent: codex
-shell_pid: '49948'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP01/20260318T205259Z-585e2ebd.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- FR-005
-- FR-007
-- FR-008
-- FR-010
-- NFR-001
-- NFR-002
-- NFR-003
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PX
+owned_files:
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/data-model.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/plan.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/research.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/spec.md
+- src/specify_cli/doc_state.py
+- src/specify_cli/feature_metadata.py
+- src/specify_cli/upgrade/feature_meta.py
+- tests/specify_cli/test_feature_metadata.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Create feature_metadata.py Module

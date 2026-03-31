@@ -1,32 +1,34 @@
 ---
 work_package_id: WP05
 title: Atomic Write Conversion — Sync and Config
-lane: planned
 dependencies: [WP01]
-subtasks:
-- T019
-- T020
-- T021
-- T022
-phase: Phase 2 - Hardening
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
-history:
-- timestamp: '2026-03-20T13:39:48Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-012
 - FR-013
 - FR-014
 - FR-015
 - NFR-001
+subtasks:
+- T019
+- T020
+- T021
+- T022
+phase: Phase 2 - Hardening
+history:
+- timestamp: '2026-03-20T13:39:48Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/sync/auth.py
+- src/specify_cli/sync/clock.py
+- src/specify_cli/sync/config.py
+- src/specify_cli/tracker/config.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Atomic Write Conversion — Sync and Config

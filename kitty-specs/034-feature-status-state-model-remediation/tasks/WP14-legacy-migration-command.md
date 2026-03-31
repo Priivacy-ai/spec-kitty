@@ -1,7 +1,6 @@
 ---
 work_package_id: WP14
 title: Legacy Migration Command
-lane: done
 dependencies:
 - WP02
 base_branch: 2.x
@@ -14,17 +13,26 @@ subtasks:
 - T073
 - T074
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '51278'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/contracts/event-schema.json
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- kitty-specs/{feature}/**
+- src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/status/migrate.py
+- tests/integration/test_migration_e2e.py
+- tests/specify_cli/status/test_migrate.py
+wp_code: WP14
 ---
 
 # Work Package Prompt: WP14 -- Legacy Migration Command

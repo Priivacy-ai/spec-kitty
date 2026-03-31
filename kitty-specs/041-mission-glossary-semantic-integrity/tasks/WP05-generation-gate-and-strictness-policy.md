@@ -1,20 +1,30 @@
 ---
 work_package_id: WP05
 title: Generation Gate & Strictness Policy
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP04
 base_commit: 50ac9da5882b14d5dbf0c212e6a6708039ab0a56
 created_at: '2026-02-16T15:38:23.226688+00:00'
 subtasks: [T021, T022, T023, T024]
-agent: codex
-shell_pid: '11394'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/glossary/__init__.py
+- src/specify_cli/glossary/events.py
+- src/specify_cli/glossary/middleware/**
+- src/specify_cli/glossary/middleware.py
+- src/specify_cli/glossary/middleware.py:421-439
+- src/specify_cli/glossary/models.py
+- src/specify_cli/glossary/strictness/**
+- src/specify_cli/glossary/strictness.py
+- src/specify_cli/glossary/strictness.py:149-159
+- tests/specify_cli/glossary/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 -- Generation Gate & Strictness Policy

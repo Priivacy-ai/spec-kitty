@@ -1,8 +1,8 @@
 ---
 work_package_id: WP02
 title: Contract Documentation and Regression Validation
-lane: done
 dependencies: [WP01]
+requirement_refs: [FR-009, FR-010]
 base_branch: 048-tracker-publish-resource-routing-WP01
 base_commit: 401b0ba0d7da501680053933014d4cef89fcafab
 created_at: '2026-03-10T10:16:58.089572+00:00'
@@ -12,18 +12,23 @@ subtasks:
 - T008
 - T009
 phase: Phase 2 - Documentation and Validation
-assignee: ''
-agent: claude-opus
-shell_pid: '44035'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-10T09:49:14Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-009, FR-010]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3G
+owned_files:
+- docs/reference/event-envelope.md
+- kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md
+- kitty-specs/048-tracker-publish-resource-routing/plan.md
+- kitty-specs/048-tracker-publish-resource-routing/spec.md
+- tests/contract/**
+- tests/specify_cli/tracker/**
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Contract Documentation and Regression Validation

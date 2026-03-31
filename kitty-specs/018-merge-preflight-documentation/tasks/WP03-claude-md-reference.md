@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: CLAUDE.md Reference Update
-lane: done
 dependencies: []
 subtasks:
 - T018
@@ -12,17 +11,20 @@ subtasks:
 - T023
 - T024
 phase: Phase 2 - Developer Documentation
-assignee: ''
-agent: claude
-shell_pid: '94131'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T13:21:55Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/merge/
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJC
+owned_files:
+- src/specify_cli/merge/__init__.py
+- src/specify_cli/merge/preflight.py
+- src/specify_cli/merge/state.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – CLAUDE.md Reference Update

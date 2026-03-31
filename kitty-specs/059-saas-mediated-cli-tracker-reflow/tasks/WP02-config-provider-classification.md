@@ -13,18 +13,17 @@ base_branch: main
 base_commit: 856b78a1935a8f9ae3fea274c0424fd7d8d6c90a
 created_at: '2026-03-30T19:25:39.176884+00:00'
 subtasks: [T008, T009, T010, T011]
-shell_pid: "47115"
-agent: "codex"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
   actor: planner
 authoritative_surface: src/specify_cli/tracker/config.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WW548PPDMY6HMSB7W1
 owned_files:
 - src/specify_cli/tracker/config.py
 - tests/sync/tracker/test_config.py
+wp_code: WP02
 ---
 
 # WP02: Config Model + Provider Classification

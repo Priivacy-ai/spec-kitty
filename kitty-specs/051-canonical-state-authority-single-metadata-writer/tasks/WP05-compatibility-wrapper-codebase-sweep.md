@@ -1,10 +1,15 @@
 ---
 work_package_id: WP05
 title: Compatibility Wrapper & Codebase Sweep
-lane: "done"
 dependencies:
 - WP02
 - WP03
+requirement_refs:
+- FR-002
+- FR-006
+- FR-009
+- NFR-002
+- C-001
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP02
 base_commit: fe74fed3b1aebb64aebc0800abf835bb85b0ae95
 created_at: '2026-03-19T07:31:03.295456+00:00'
@@ -15,24 +20,22 @@ subtasks:
 - T026
 - T027
 phase: Phase 2 - Integration & Validation
-assignee: ''
-agent: codex
-shell_pid: '11885'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-002
-- FR-006
-- FR-009
-- NFR-002
-- C-001
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PX
+owned_files:
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/plan.md
+- src/specify_cli/**
+- tests/specify_cli/test_canonical_acceptance.py
+- tests/specify_cli/test_codebase_sweep.py
+- tests/specify_cli/test_feature_metadata.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Compatibility Wrapper & Codebase Sweep

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Git Dependency Setup & Library Integration
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 1e55c89f5fd0f33da7cf4f7b50c68ed65ce742ba
@@ -13,11 +12,6 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 - Foundation & Dependency Integration
-assignee: ''
-agent: claude-reviewer
-shell_pid: '25272'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
@@ -28,6 +22,17 @@ history:
   action: Review feedback acknowledged and addressed
   agent: claude-sonnet-4.5
   note: Fixed Issue 1 (base_branch metadata) and Issue 2 (CLI entry point check)
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- docs/development/ssh-deploy-keys.md
+- docs/development/ssh-deploy-keys.md\n
+- src/specify_cli/cli/app.py
+- src/specify_cli/events/__init__.py
+- src/specify_cli/events/adapter.py
+- src/specify_cli/events/store.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Git Dependency Setup & Library Integration

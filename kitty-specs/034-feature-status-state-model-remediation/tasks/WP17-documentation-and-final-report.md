@@ -1,7 +1,6 @@
 ---
 work_package_id: WP17
 title: Documentation & Final Report
-lane: done
 dependencies: [WP16]
 base_branch: 034-feature-status-state-model-remediation-WP16
 base_commit: 8347639aec1184f893a75c81e9d60c058914ba5d
@@ -14,17 +13,23 @@ subtasks:
 - T091
 - T092
 phase: Phase 3 - Delivery
-assignee: ''
-agent: ''
-shell_pid: '81788'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- docs/status-model.md
+- kitty-specs/034-feature-status-state-model-remediation/**
+- kitty-specs/099-quickstart-test/tasks/**
+- kitty-specs/<feature/**
+- src/specify_cli/status/**
+- tests/cross_branch/test_parity.py
+wp_code: WP17
 ---
 
 # Work Package Prompt: WP17 -- Documentation & Final Report

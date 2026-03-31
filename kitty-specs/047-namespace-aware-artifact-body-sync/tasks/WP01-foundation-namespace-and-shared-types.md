@@ -1,8 +1,8 @@
 ---
 work_package_id: WP01
 title: Foundation - NamespaceRef & Shared Types
-lane: done
 dependencies: []
+requirement_refs: [FR-002, FR-005, FR-011, FR-012]
 base_branch: 2.x
 base_commit: 25ddd221bc402b8ddfbbd57e5046708bbc953a37
 created_at: '2026-03-09T07:19:44.028991+00:00'
@@ -13,18 +13,23 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude-opus
-shell_pid: '45749'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-002, FR-005, FR-011, FR-012]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- kitty-specs/047-namespace-aware-artifact-body-sync/plan.md
+- kitty-specs/047-namespace-aware-artifact-body-sync/spec.md
+- src/specify_cli/dossier/manifest.py
+- src/specify_cli/sync/namespace.py
+- src/specify_cli/sync/project_identity.py
+- tests/specify_cli/sync/test_namespace.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Foundation - NamespaceRef & Shared Types

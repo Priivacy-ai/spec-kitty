@@ -1,20 +1,14 @@
 ---
 work_package_id: WP10
 title: Packaging Completeness
-lane: done
 dependencies:
 - WP09
+requirement_refs:
+- NFR-005
 subtasks:
 - T041
 - T042
 phase: Phase 3 - Second Slice
-assignee: ''
-agent: claude
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-requirement_refs:
-- NFR-005
 history:
 - timestamp: '2026-03-21T08:30:00Z'
   lane: planned
@@ -26,6 +20,12 @@ history:
   agent: claude
   shell_pid: ''
   action: Implementation started
+authoritative_surface: src/specify_cli/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/specify_cli/**
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 – Packaging Completeness

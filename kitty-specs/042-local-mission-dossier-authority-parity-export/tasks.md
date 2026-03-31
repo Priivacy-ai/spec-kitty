@@ -1,9 +1,8 @@
 ---
 feature_slug: 042-local-mission-dossier-authority-parity-export
 feature_title: Local Mission Dossier Authority & Parity Export
-total_work_packages: 10
 total_subtasks: 58
-lane: planned
+total_work_packages: 10
 ---
 
 # Work Packages: Local Mission Dossier Authority & Parity Export

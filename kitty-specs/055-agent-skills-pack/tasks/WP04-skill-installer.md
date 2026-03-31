@@ -1,9 +1,13 @@
 ---
 work_package_id: WP04
 title: Skill Installer
-lane: planned
 dependencies:
 - WP01
+requirement_refs:
+- FR-002
+- FR-003
+- FR-004
+- FR-008
 subtasks:
 - T014
 - T015
@@ -11,22 +15,19 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-002
-- FR-003
-- FR-004
-- FR-008
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/specify_cli/skills/installer.py
+- tests/specify_cli/skills/test_installer.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Skill Installer

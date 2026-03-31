@@ -1,15 +1,9 @@
 ---
 work_package_id: WP06
 title: Cleanup & Migration
-lane: done
 dependencies: []
 subtasks: [T092, T093, T094, T095, T096, T097, T098, T099, T100, T101, T102, T103, T104, T105, T106, T107, T108, T109, T110, T111, T112, T113, T114]
 phase: Phase 6 - Cleanup & Migration (Sequential)
-assignee: ''
-agent: claude
-shell_pid: '18142'
-review_status: ''
-reviewed_by: claude
 history:
 - timestamp: '2025-12-17T00:00:00Z'
   lane: planned
@@ -31,6 +25,12 @@ history:
   agent: claude
   shell_pid: '18142'
   action: Code review complete - approved without changes
+authoritative_surface: src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PR
+owned_files:
+- src/specify_cli/upgrade/migrations/m_0_10_0_python_only.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Cleanup & Migration

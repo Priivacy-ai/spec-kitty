@@ -8,5 +8,6 @@
   "vcs": "git",
   "vcs_locked_at": "2026-01-28T05:30:29.266188+00:00",
   "target_branch": "2.x",
-  "feature_slug": "025-cli-event-log-integration"
+  "feature_slug": "025-cli-event-log-integration",
+  "mission_id": "01KN2371WQDXDMVSFB0KMF95K1"
 }

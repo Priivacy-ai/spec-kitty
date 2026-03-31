@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Weighted Progress and Materialization
-lane: "approved"
 dependencies: [WP05]
 requirement_refs:
 - FR-010
@@ -21,18 +20,24 @@ subtasks:
 - T032
 - T033
 phase: Phase B - State
-assignee: ''
-agent: coordinator
-shell_pid: '91906'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- kitty-specs/*/status.json
+- src/specify_cli/cli/commands/materialize.py
+- src/specify_cli/status/cache.py
+- src/specify_cli/status/progress.py
+- src/specify_cli/status/views.py
+- tests/specify_cli/cli/commands/test_materialize.py
+- tests/specify_cli/status/test_progress.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Weighted Progress and Materialization

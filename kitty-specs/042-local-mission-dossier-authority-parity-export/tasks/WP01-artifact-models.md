@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: ArtifactRef Model & Deterministic Hashing
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: a61abc8adeb69a5452dda768efcc262bcdf7d5b3
@@ -12,11 +11,15 @@ subtasks:
 - T003
 - T004
 - T005
-agent: codex
-shell_pid: '83296'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: ''
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dossier/hasher.py
+- src/specify_cli/dossier/models.py
+- tests/specify_cli/dossier/test_hasher.py
+wp_code: WP01
 ---
 
 # WP01: ArtifactRef Model & Deterministic Hashing

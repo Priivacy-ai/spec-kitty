@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Validation & Polish
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -11,17 +10,18 @@ subtasks:
 - T046
 - T047
 phase: Phase 2 - Polish
-assignee: ''
-agent: claude
-shell_pid: '73051'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/014-comprehensive-end-user-documentation/
+execution_mode: planning_artifact
+mission_id: 01KN2371WPA42WS6W1G5XZHZJA
+owned_files:
+- kitty-specs/014-comprehensive-end-user-documentation/**
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 – Validation & Polish

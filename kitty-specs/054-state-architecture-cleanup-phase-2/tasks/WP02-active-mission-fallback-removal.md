@@ -1,8 +1,12 @@
 ---
 work_package_id: WP02
 title: Active-Mission Fallback Removal
-lane: "doing"
 dependencies: []
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-004
 base_branch: 2.x
 base_commit: ac3b601e46b48f9f9c2db1a96bc9caa9ca1a4f31
 created_at: '2026-03-20T13:51:56.768729+00:00'
@@ -13,23 +17,21 @@ subtasks:
 - T007
 - T008
 phase: Phase 1 - Core Cleanup
-assignee: ''
-agent: "coordinator"
-shell_pid: "73479"
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- FR-002
-- FR-003
-- FR-004
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/**
+- tests/cross_cutting/packaging/test_manifest_cli_filtering.py
+- tests/specify_cli/**
+- tests/test_dashboard/test_diagnostics.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Active-Mission Fallback Removal

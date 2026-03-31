@@ -1,7 +1,6 @@
 ---
 work_package_id: WP12
 title: Status Doctor
-lane: done
 dependencies: [WP03]
 base_branch: 2.x
 base_commit: 0217a254f9762da0bb27cdfb856eccf5a1e0d8d4
@@ -13,17 +12,21 @@ subtasks:
 - T062
 - T063
 phase: Phase 3 - Operational
-assignee: ''
-agent: ''
-shell_pid: '50840'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/status/__init__.py
+- src/specify_cli/status/doctor.py
+- tests/specify_cli/status/test_doctor.py
+wp_code: WP12
 ---
 
 # Work Package Prompt: WP12 -- Status Doctor

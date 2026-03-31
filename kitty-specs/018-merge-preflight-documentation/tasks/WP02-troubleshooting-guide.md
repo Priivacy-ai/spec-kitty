@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Troubleshooting Guide
-lane: done
 dependencies: []
 subtasks:
 - T009
@@ -14,17 +13,20 @@ subtasks:
 - T016
 - T017
 phase: Phase 1 - User Documentation
-assignee: ''
-agent: claude
-shell_pid: '93764'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T13:21:55Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJC
+owned_files:
+- docs/how-to/troubleshoot-merge.md
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/merge/**
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Troubleshooting Guide

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Review Feedback Warning System
-lane: done
 dependencies: [WP01, WP03, WP05]
 subtasks:
 - T079
@@ -12,17 +11,20 @@ subtasks:
 - T084
 - T085
 phase: Phase 3 - Quality & Polish
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- src/specify_cli/cli/commands/agent/workflow.py
+- src/specify_cli/cli/commands/implement.py
+- tests/specify_cli/test_review_warnings.py
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – Review Feedback Warning System

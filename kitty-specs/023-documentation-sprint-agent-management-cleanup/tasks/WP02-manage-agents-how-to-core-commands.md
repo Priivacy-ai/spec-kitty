@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Manage Agents How-To Guide - Core Commands
-lane: in_progress
 dependencies: [WP01]
 base_branch: 023-documentation-sprint-agent-management-cleanup-WP01
 base_commit: 25f4b615be5b11bd0f1728f14cfc79046e99b40c
@@ -15,17 +14,23 @@ subtasks:
 - T009
 - T010
 phase: Phase 1 - Core Documentation
-assignee: ''
-agent: codex
-shell_pid: '1491792'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JZ
+owned_files:
+- docs/how-to/manage-agents.md
+- docs/how-to/upgrade-to-0-11-0.md
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/plan.md
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md
+- src/specify_cli/cli/commands/agent/config.py
+- src/specify_cli/orchestrator/agent_config.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Manage Agents How-To Guide - Core Commands

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Documentation Generator Protocol
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -14,17 +13,20 @@ subtasks:
 - T031
 - T032
 phase: Phase 1 - Core Logic
-assignee: test
-agent: claude
-shell_pid: '69274'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/index.html
+- src/specify_cli/doc_generators.py
+- src/specify_cli/missions/documentation/templates/generators/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Documentation Generator Protocol

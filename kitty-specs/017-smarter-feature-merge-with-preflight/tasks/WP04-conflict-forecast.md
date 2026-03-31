@@ -1,24 +1,38 @@
 ---
 work_package_id: WP04
 title: Conflict Forecast
-lane: in_progress
 dependencies: [WP01, WP03]
 subtasks:
 - T007
 - T008
 - T009
 phase: Phase 2 - User Story 2 (P2)
-assignee: ''
-agent: codex
-shell_pid: '9049'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-18T10:37:13Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJB
+owned_files:
+- kitty-specs/**/tasks.md
+- kitty-specs/**/tasks/*.md
+- kitty-specs/*/*/tasks.md
+- kitty-specs/*/*/tasks/*.md
+- kitty-specs/*/tasks.md
+- kitty-specs/*/tasks/*.md
+- kitty-specs/.../tasks/WP01.md
+- kitty-specs/017-feature/tasks.md
+- kitty-specs/017-feature/tasks/WP01.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/plan.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/spec.md
+- kitty-specs/features/017/tasks/WP01.md
+- src/specify_cli/merge/forecast.py
+- tests/conftest.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Conflict Forecast

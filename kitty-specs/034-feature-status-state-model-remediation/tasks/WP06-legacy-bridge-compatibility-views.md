@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Legacy Bridge (Compatibility Views)
-lane: done
 dependencies:
 - WP03
 base_branch: 2.x
@@ -14,17 +13,27 @@ subtasks:
 - T030
 - T031
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '50563'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- kitty-specs/<feature/**
+- kitty-specs/<slug/**
+- src/specify_cli/frontmatter.py
+- src/specify_cli/status/legacy_bridge.py
+- src/specify_cli/status/phase.py
+- src/specify_cli/status/reducer.py
+- tests/specify_cli/status/test_legacy_bridge.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 -- Legacy Bridge (Compatibility Views)

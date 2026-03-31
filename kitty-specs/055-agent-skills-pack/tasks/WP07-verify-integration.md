@@ -1,28 +1,29 @@
 ---
 work_package_id: WP07
 title: Verify Integration
-lane: planned
 dependencies: [WP06]
+requirement_refs:
+- FR-006
+- FR-012
 subtasks:
 - T028
 - T029
 - T030
 - T031
 phase: Phase 2 - Integration
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-006
-- FR-012
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/specify_cli/verify_enhanced.py
+- tests/specify_cli/skills/test_verify_integration.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Verify Integration

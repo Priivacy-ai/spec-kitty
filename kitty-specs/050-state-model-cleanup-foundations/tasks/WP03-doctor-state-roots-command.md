@@ -1,9 +1,12 @@
 ---
 work_package_id: WP03
 title: Doctor State-Roots Command
-lane: done
 dependencies:
 - WP01
+requirement_refs:
+- FR-008
+- FR-009
+- NFR-002
 base_branch: 050-state-model-cleanup-foundations-WP01
 base_commit: 224fc89984e7bba1aac90032c254569380e6091d
 created_at: '2026-03-18T19:21:19.200369+00:00'
@@ -14,22 +17,23 @@ subtasks:
 - T013
 - T014
 phase: Phase 2 - Diagnostics
-assignee: ''
-agent: codex
-shell_pid: '34420'
-review_status: approved
-reviewed_by: Robert Douglass
-review_feedback: feedback://050-state-model-cleanup-foundations/WP03/20260318T194448Z-78c1dc40.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-008
-- FR-009
-- NFR-002
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PW
+owned_files:
+- kitty-specs/<feature/**
+- src/specify_cli/cli/commands/__init__.py
+- src/specify_cli/cli/commands/doctor.py
+- src/specify_cli/runtime/doctor.py
+- src/specify_cli/state/**
+- tests/specify_cli/test_state_doctor.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Doctor State-Roots Command

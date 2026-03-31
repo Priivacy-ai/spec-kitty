@@ -1,8 +1,8 @@
 ---
 work_package_id: WP01
 title: Resource Routing Implementation and Tests
-lane: done
 dependencies: []
+requirement_refs: [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-011, FR-012]
 base_branch: 2.x
 base_commit: cbae93b2edf7e9ef4460f944e676a884b2130957
 created_at: '2026-03-10T10:12:11.293482+00:00'
@@ -13,18 +13,24 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: claude-opus
-shell_pid: '43032'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-10T09:49:14Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-001, FR-002, FR-003, FR-004, FR-005, FR-006, FR-007, FR-008, FR-011, FR-012]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3G
+owned_files:
+- kitty-specs/048-tracker-publish-resource-routing/contracts/tracker-snapshot-publish.md
+- kitty-specs/048-tracker-publish-resource-routing/data-model.md
+- kitty-specs/048-tracker-publish-resource-routing/plan.md
+- kitty-specs/048-tracker-publish-resource-routing/spec.md
+- src/specify_cli/tracker/factory.py
+- src/specify_cli/tracker/service.py
+- tests/specify_cli/tracker/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Resource Routing Implementation and Tests

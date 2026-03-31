@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Create GitignoreManager Module
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,9 +11,6 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Foundation
-assignee: claude
-agent: claude
-shell_pid: '62660'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
@@ -31,6 +27,16 @@ history:
   agent: claude
   shell_pid: '61538'
   action: Completed WP01 - Ready for review
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PK
+owned_files:
+- kitty-specs/003-auto-protect-agent/data-model.md
+- kitty-specs/003-auto-protect-agent/plan.md
+- kitty-specs/003-auto-protect-agent/research.md
+- src/specify_cli/__init__.py:689-726
+- src/specify_cli/gitignore_manager.py
+wp_code: WP01
 ---
 *Path: [tasks/planned/WP01-create-gitignore-manager.md](tasks/planned/WP01-create-gitignore-manager.md)*
 

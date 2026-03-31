@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Path Convention Validation
-lane: done
 dependencies: []
 subtasks:
 - T049
@@ -13,17 +12,26 @@ subtasks:
 - T055
 - T056
 phase: Phase 4 - Integration
-assignee: codex
-agent: codex
-shell_pid: '60030'
-review_status: ''
-reviewed_by: codex
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/data-model.md
+- kitty-specs/005-refactor-mission-system/plan.md
+- kitty-specs/005-refactor-mission-system/spec.md
+- src/,/**
+- src/specify_cli/acceptance.py
+- src/specify_cli/cli/commands/mission.py
+- src/specify_cli/validators/paths.py
+- tests/,/**
+- tests/unit/test_validators.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Path Convention Validation

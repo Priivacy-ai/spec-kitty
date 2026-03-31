@@ -27,8 +27,6 @@ subtasks:
   title: Tests for registry classification and generator output count
   status: planned
 phase: 1
-shell_pid: "73918"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -36,9 +34,10 @@ history:
   note: WP02 generated from tasks.md for feature 058-hybrid-prompt-and-shim-agent-surface
 authoritative_surface: src/specify_cli/shims/
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q4
 owned_files:
 - src/specify_cli/shims/**
+wp_code: WP02
 ---
 
 # WP02 — Update Registry and Generator

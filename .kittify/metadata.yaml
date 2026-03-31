@@ -5,7 +5,14 @@
 spec_kitty:
   version: 3.0.0
   initialized_at: '2026-03-30T20:42:29.894875'
-  last_upgraded_at: null
+  last_upgraded_at: '2026-03-31T14:02:07.124148+00:00'
+  project_uuid: 01KN2371WKMG3WEEWBANSF6W37
+  schema_version: 3
+  schema_capabilities:
+  - canonical_context
+  - event_log_authority
+  - ownership_manifest
+  - thin_shims
 environment:
   python_version: 3.11.14
   platform: darwin

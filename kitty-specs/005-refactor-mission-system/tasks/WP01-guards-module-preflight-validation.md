@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Guards Module - Pre-flight Validation
-lane: planned
 dependencies: []
 subtasks:
 - T001
@@ -12,11 +11,6 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Foundation
-assignee: codex
-agent: codex
-shell_pid: '63363'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
@@ -24,6 +18,17 @@ history:
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
 activity_log: "  - timestamp: \"2025-11-16T12:45:07Z\"\n    lane: \"planned\"\n    agent: \"system\"\n    shell_pid: \"54352\"\n    action: \"Auto-repaired lane metadata (was: for_review)\"\n"
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/plan.md
+- kitty-specs/005-refactor-mission-system/research.md
+- kitty-specs/005-refactor-mission-system/spec.md
+- src/specify_cli/guards/**
+- src/specify_cli/guards.py
+- tests/unit/test_guards.py
+wp_code: WP01
 ---
 work_package_id: "WP01"
 subtasks:

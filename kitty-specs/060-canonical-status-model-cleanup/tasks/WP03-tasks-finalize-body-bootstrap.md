@@ -15,17 +15,17 @@ base_branch: main
 base_commit: b662b42b018cea5d01147be8818fc4030ab129b1
 created_at: '2026-03-31T07:14:32.783656+00:00'
 subtasks: [T006, T007, T008, T009, T010]
-shell_pid: "83317"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/cli/commands/agent/tasks.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/cli/commands/agent/tasks.py
 - tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py
+wp_code: WP03
 ---
 
 # WP03: tasks.py Changes

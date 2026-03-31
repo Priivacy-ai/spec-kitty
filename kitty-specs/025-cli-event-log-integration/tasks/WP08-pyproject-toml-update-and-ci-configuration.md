@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: pyproject.toml Update & CI Configuration
-lane: done
 dependencies:
 - WP01
 base_branch: 025-cli-event-log-integration-WP01
@@ -14,17 +13,21 @@ subtasks:
 - T044
 - T045
 phase: Phase 2 - Advanced Features & Edge Cases
-assignee: ''
-agent: codex
-shell_pid: '14744'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- docs/development/ssh-deploy-keys.md
+- src/specify_cli/__init__.py
+- src/specify_cli/cli/app.py
+- src/specify_cli/events/adapter.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – pyproject.toml Update & CI Configuration

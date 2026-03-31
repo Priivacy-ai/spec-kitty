@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Migration Implementation
-lane: done
 dependencies: [WP02]
 subtasks:
 - T049
@@ -15,11 +14,6 @@ subtasks:
 - T057
 - T058
 phase: Phase 2 - Migration & Templates
-assignee: team
-agent: Codex
-shell_pid: '80475'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
@@ -30,6 +24,18 @@ history:
   agent: claude
   shell_pid: ''
   action: 'CORRECTED: Changed from updating 48 agent directory files to updating 4 template source files'
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- kitty-specs/###-feature/**
+- src/specify_cli/cli/commands/implement.py
+- src/specify_cli/core/config.py
+- src/specify_cli/template/asset_generator.py
+- src/specify_cli/upgrade/migrations/m_0_10_9_repair_templates.py
+- src/specify_cli/upgrade/migrations/m_0_11_0_workspace_per_wp.py
+- tests/specify_cli/test_workspace_per_wp_migration.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Migration Implementation (CORRECTED)

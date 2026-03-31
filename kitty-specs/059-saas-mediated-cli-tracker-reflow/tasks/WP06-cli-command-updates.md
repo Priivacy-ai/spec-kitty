@@ -21,18 +21,17 @@ base_branch: main
 base_commit: 7acde442e94db133fd61ed13584feee8ba58ecc9
 created_at: '2026-03-30T20:02:39.142045+00:00'
 subtasks: [T028, T029, T030, T031, T032, T033, T034]
-shell_pid: "52369"
-agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
   actor: planner
 authoritative_surface: src/specify_cli/cli/commands/tracker.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WW548PPDMY6HMSB7W1
 owned_files:
 - src/specify_cli/cli/commands/tracker.py
 - tests/agent/cli/commands/test_tracker.py
+wp_code: WP06
 ---
 
 # WP06: CLI Command Updates

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Mission Infrastructure
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,17 +11,20 @@ subtasks:
 - T006
 - T007
 phase: Phase 0 - Foundation
-assignee: ''
-agent: __AGENT__
-shell_pid: '10160'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/output/**
+- src/specify_cli/mission.py
+- src/specify_cli/missions/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Mission Infrastructure

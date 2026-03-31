@@ -50,12 +50,10 @@ env/
 .worktrees/
 .kittify/.dashboard
 .kittify/active-mission
-.kittify/workspaces/
 .kittify/missions/
 .kittify/scripts/
 .kittify/runtime/
 .kittify/derived/
-.kittify/merge-state.json
 .kittify/events/
 .kittify/dossiers/
 .kittify/derived/

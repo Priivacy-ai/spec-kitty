@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Planning Workflow Refactoring
-lane: done
 dependencies: [WP01, WP03]
 subtasks:
 - T022
@@ -14,17 +13,30 @@ subtasks:
 - T029
 - T030
 phase: Phase 1 - Core Implementation
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- kitty-specs/###-feature-name/**
+- kitty-specs/###-feature/**
+- kitty-specs/011-my-feature/plan.md
+- kitty-specs/011-my-feature/spec.md
+- kitty-specs/011-my-feature/tasks/**
+- kitty-specs/<feature/**
+- src/specify_cli/cli/commands/agent/feature.py
+- src/specify_cli/cli/commands/agent/feature.py#L281
+- src/specify_cli/cli/commands/agent/feature.py#L35
+- src/specify_cli/cli/commands/agent/tasks.py
+- src/specify_cli/core/dependency_graph.py
+- tests/integration/test_planning_workflow.py#L99
+- tests/specify_cli/test_integration/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Planning Workflow Refactoring

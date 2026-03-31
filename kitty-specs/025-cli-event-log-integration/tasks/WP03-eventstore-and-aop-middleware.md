@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: EventStore & AOP Middleware
-lane: done
 dependencies: [WP02]
 base_branch: 025-cli-event-log-integration-WP02
 base_commit: 7d9a6690405ccf8b835a49d27262d99a5c337997
@@ -14,17 +13,26 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 - Core Event Infrastructure
-assignee: ''
-agent: claude-final-reviewer
-shell_pid: '78964'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-27T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95K1
+owned_files:
+- kitty-specs/025-cli-event-log-integration/data-model.md
+- kitty-specs/025-cli-event-log-integration/quickstart.md
+- kitty-specs/999-test-feature/**
+- src/specify_cli/cli/commands/agent/feature.py
+- src/specify_cli/cli/commands/agent/tasks.py
+- src/specify_cli/core/agent.py
+- src/specify_cli/core/repo.py
+- src/specify_cli/events/middleware.py
+- src/specify_cli/events/store.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – EventStore & AOP Middleware

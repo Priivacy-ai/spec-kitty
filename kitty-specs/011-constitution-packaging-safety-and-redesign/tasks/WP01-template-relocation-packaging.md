@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Template Relocation & Packaging
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -14,17 +13,25 @@ subtasks:
 - T008
 - T009
 phase: Foundational - Track 1 Critical Safety
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-12T11:30:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ7
+owned_files:
+- kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/research.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md
+- src/**/*/**
+- src/.
+- src/specify_cli/**
+- tests/**/*.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Template Relocation & Packaging

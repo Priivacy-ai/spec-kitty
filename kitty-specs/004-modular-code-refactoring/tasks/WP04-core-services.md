@@ -1,6 +1,5 @@
 ---
 work_package_id: WP04
-lane: done
 dependencies: []
 subtasks:
 - T030
@@ -13,9 +12,6 @@ subtasks:
 - T037
 - T038
 - T039
-assignee: codex
-agent: codex
-shell_pid: '33775'
 history:
 - date: 2025-11-11
   status: created
@@ -28,6 +24,11 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All DoD items complete, 19/19 tests passing
+authoritative_surface: tests/test_core/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- tests/test_core/**
 phases: foundational
 priority: P2
 reviewer:
@@ -41,6 +42,7 @@ tags:
 - parallel
 - agent-c
 work_package_title: Core Services
+wp_code: WP04
 ---
 
 # WP04: Core Services

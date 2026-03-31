@@ -1,9 +1,11 @@
 ---
 work_package_id: WP09
 title: End-to-End Integration Tests
-lane: planned
 dependencies:
 - WP05
+requirement_refs:
+- NFR-003
+- NFR-005
 subtasks:
 - T036
 - T037
@@ -11,20 +13,18 @@ subtasks:
 - T039
 - T040
 phase: Phase 2 - Integration
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- NFR-003
-- NFR-005
+authoritative_surface: tests/specify_cli/skills/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- tests/specify_cli/skills/**
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – End-to-End Integration Tests
