@@ -23,8 +23,8 @@ def test_update_and_rollback(feature_repo: Path, feature_slug: str) -> None:
     run(["git", "commit", "-am", "Update to doing"], cwd=feature_repo)
 
     updated_wp = locate_work_package(feature_repo, feature_slug, "WP01")
-    assert updated_wp.current_lane == "doing"
-    assert 'lane: "doing"' in updated_wp.frontmatter
+    assert updated_wp.current_lane == "in_progress"
+    assert "lane:" not in updated_wp.frontmatter
 
     # File should still be in same location (flat tasks/)
     assert updated_wp.path.parent.name == "tasks", "WP file should stay in tasks/ directory"
@@ -36,8 +36,8 @@ def test_update_and_rollback(feature_repo: Path, feature_slug: str) -> None:
     assert rolled_wp.current_lane == "planned"
 
 
-def test_update_modifies_frontmatter_only(feature_repo: Path, feature_slug: str) -> None:
-    """Test that update only modifies frontmatter, not file location."""
+def test_update_modifies_metadata_only(feature_repo: Path, feature_slug: str) -> None:
+    """Test that update preserves file location and custom content."""
     wp_path = feature_repo / "kitty-specs" / feature_slug / "tasks" / "WP01.md"
     original_text = wp_path.read_text(encoding="utf-8")
     wp_path.write_text(original_text + "\n<!-- reviewer note -->\n", encoding="utf-8")
@@ -50,7 +50,7 @@ def test_update_modifies_frontmatter_only(feature_repo: Path, feature_slug: str)
 
     content = wp_path.read_text(encoding="utf-8")
     assert "<!-- reviewer note -->" in content, "Custom content should be preserved"
-    assert 'lane: "doing"' in content, "Lane should be updated in frontmatter"
+    assert "lane:" not in content, "Lane should not be written into frontmatter"
 
 
 def test_list_command_output(feature_repo: Path, feature_slug: str) -> None:
@@ -282,9 +282,9 @@ def test_exact_wp_id_matching_not_prefix(feature_repo: Path, feature_slug: str) 
     result = run_tasks_cli(["update", feature_slug, "WP04", "doing", "--force"], cwd=feature_repo)
     assert_success(result)
 
-    # Verify WP04 is now "doing"
+    # Verify WP04 is now canonically in progress
     wp04 = locate_work_package(feature_repo, feature_slug, "WP04")
-    assert wp04.current_lane == "doing", "WP04 should be in doing"
+    assert wp04.current_lane == "in_progress", "WP04 should be in progress"
 
     # Verify WP04b is still "planned"
     wp04b = locate_work_package(feature_repo, feature_slug, "WP04b")
@@ -316,7 +316,7 @@ def test_exact_wp_id_matching_with_slug(feature_repo: Path, feature_slug: str) -
 
     # Verify via frontmatter
     wp04 = locate_work_package(feature_repo, feature_slug, "WP04")
-    assert wp04.current_lane == "doing", "WP04-feature-name.md should be in doing"
+    assert wp04.current_lane == "in_progress", "WP04-feature-name.md should be in progress"
 
     wp04b = locate_work_package(feature_repo, feature_slug, "WP04b")
     assert wp04b.current_lane == "planned", "WP04b should still be in planned"
@@ -371,7 +371,7 @@ def test_update_ignores_other_wp_modifications(feature_repo: Path, feature_slug:
 
     # Verify WP01 updated
     wp01 = locate_work_package(feature_repo, feature_slug, "WP01")
-    assert wp01.current_lane == "doing", "WP01 should have updated to doing"
+    assert wp01.current_lane == "in_progress", "WP01 should have updated to in_progress"
 
     # Verify WP02 still has its modifications
     wp02_content = wp02_path.read_text(encoding="utf-8")
@@ -402,7 +402,7 @@ def test_update_with_staged_other_wp_changes(feature_repo: Path, feature_slug: s
 
     # Verify WP01 updated
     wp01 = locate_work_package(feature_repo, feature_slug, "WP01")
-    assert wp01.current_lane == "doing", "WP01 should have updated to doing"
+    assert wp01.current_lane == "in_progress", "WP01 should have updated to in_progress"
 
 
 def test_sequential_updates_by_different_agents(feature_repo: Path, feature_slug: str) -> None:
@@ -428,5 +428,5 @@ def test_sequential_updates_by_different_agents(feature_repo: Path, feature_slug
     # Both should be in doing now
     wp01 = locate_work_package(feature_repo, feature_slug, "WP01")
     wp02 = locate_work_package(feature_repo, feature_slug, "WP02")
-    assert wp01.current_lane == "doing", "WP01 should be in doing"
-    assert wp02.current_lane == "doing", "WP02 should be in doing"
+    assert wp01.current_lane == "in_progress", "WP01 should be in progress"
+    assert wp02.current_lane == "in_progress", "WP02 should be in progress"

@@ -431,9 +431,7 @@ def _process_wp_file(
     wp_id = frontmatter.get("work_package_id", prompt_file.stem)
     # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
     feature_dir = prompt_file.parent.parent
-    stem = prompt_file.stem
-    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
-    canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+    canonical_wp_id = str(wp_id).strip() or prompt_file.stem
     from specify_cli.status.lane_reader import get_wp_lane
     lane = get_wp_lane(feature_dir, canonical_wp_id)
 

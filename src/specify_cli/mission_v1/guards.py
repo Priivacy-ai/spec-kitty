@@ -270,10 +270,19 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
     Raises ``CanonicalStatusNotFoundError`` when no event log exists.
     Returns ``"uninitialized"`` when the event log has no events for this WP.
     """
-    wp_id_match = re.match(r"(WP\d+)", file_path.stem)
-    if wp_id_match is None:
-        return None
-    wp_id = wp_id_match.group(1)
+    from specify_cli.frontmatter import FrontmatterError, read_frontmatter
+
+    try:
+        frontmatter, _body = read_frontmatter(file_path)
+    except (FrontmatterError, OSError):
+        frontmatter = {}
+
+    wp_id = frontmatter.get("work_package_id")
+    if not isinstance(wp_id, str) or not wp_id.strip():
+        wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", file_path.stem)
+        if wp_id_match is None:
+            return None
+        wp_id = wp_id_match.group(1)
     feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
 
     from specify_cli.status.lane_reader import get_wp_lane

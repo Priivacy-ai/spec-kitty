@@ -435,9 +435,13 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
     del warn_on_missing
 
     feature_dir = wp_path.parent.parent
-    stem = wp_path.stem
-    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
-    wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+    text = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _body, _padding = split_frontmatter(text)
+    wp_id = extract_scalar(frontmatter, "work_package_id")
+    if not wp_id:
+        stem = wp_path.stem
+        wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", stem, re.IGNORECASE)
+        wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
     try:
         from specify_cli.status.lane_reader import get_wp_lane
