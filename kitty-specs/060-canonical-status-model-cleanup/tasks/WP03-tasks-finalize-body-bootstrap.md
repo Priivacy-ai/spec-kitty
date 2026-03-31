@@ -16,6 +16,7 @@ base_commit: b662b42b018cea5d01147be8818fc4030ab129b1
 created_at: '2026-03-31T07:14:32.783656+00:00'
 subtasks: [T006, T007, T008, T009, T010]
 shell_pid: "83317"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -134,3 +135,7 @@ spec-kitty implement WP03 --base WP01
 - [ ] Bootstrap/sync block deleted from move_task
 - [ ] move_task hard-fails with actionable message when canonical state missing
 - [ ] Tests cover all changes
+
+## Activity Log
+
+- 2026-03-31T07:14:33Z – orchestrator – shell_pid=83317 – lane=doing – Started implementation via workflow command
