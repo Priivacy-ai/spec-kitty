@@ -217,7 +217,7 @@ class AgentProfileRepository:
                         continue
                     profile = AgentProfile.model_validate(data)
                     shipped_profiles[profile.profile_id] = profile
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped profile {yaml_file.name}: {e}",
                         UserWarning,
@@ -253,7 +253,7 @@ class AgentProfileRepository:
                         # New project-only profile
                         profile = AgentProfile.model_validate(data)
                         self._profiles[profile.profile_id] = profile
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project profile {yaml_file.name}: {e}",
                         UserWarning,

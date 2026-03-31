@@ -8,7 +8,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Toolguide
 
@@ -48,7 +50,7 @@ class ToolguideRepository:
                         continue
                     toolguide = Toolguide.model_validate(data)
                     shipped[toolguide.id] = toolguide
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped toolguide {yaml_file.name}: {e}",
                         UserWarning,
@@ -78,7 +80,7 @@ class ToolguideRepository:
                     else:
                         toolguide = Toolguide.model_validate(data)
                         self._toolguides[toolguide.id] = toolguide
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project toolguide {yaml_file.name}: {e}",
                         UserWarning,

@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Procedure
 
@@ -49,7 +51,7 @@ class ProcedureRepository:
                         continue
                     procedure = Procedure.model_validate(data)
                     shipped[procedure.id] = procedure
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped procedure {yaml_file.name}: {e}",
                         UserWarning,
@@ -79,7 +81,7 @@ class ProcedureRepository:
                     else:
                         procedure = Procedure.model_validate(data)
                         self._procedures[procedure.id] = procedure
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project procedure {yaml_file.name}: {e}",
                         UserWarning,

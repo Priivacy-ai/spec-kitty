@@ -9,7 +9,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-_No unreleased changes._
+### Fixed
+
+- **Narrow exception handlers in doctrine repositories** — Replace 21 bare `except Exception` handlers across `src/doctrine/` with specific exception tuples (`YAMLError`, `ValidationError`, `OSError`, `ModuleNotFoundError`, `TypeError`, `UnicodeDecodeError`) matching actual failure modes. Addresses PR #305 review finding M1.
 
 ## [3.0.3] - 2026-04-01
 

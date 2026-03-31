@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import MissionStepContract
 
@@ -57,7 +59,7 @@ class MissionStepContractRepository:
                         continue
                     contract = MissionStepContract.model_validate(data)
                     shipped[contract.id] = contract
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped step contract "
                         f"{yaml_file.name}: {e}",
@@ -91,7 +93,7 @@ class MissionStepContractRepository:
                     else:
                         contract = MissionStepContract.model_validate(data)
                         self._contracts[contract.id] = contract
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project step contract "
                         f"{yaml_file.name}: {e}",

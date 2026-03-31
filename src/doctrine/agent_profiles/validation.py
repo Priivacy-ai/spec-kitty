@@ -23,7 +23,7 @@ def _load_agent_profile_schema() -> dict[str, Any]:
             schema_path = Path(str(resource.joinpath("agent-profile.schema.yaml")))
         else:
             schema_path = Path(str(resource)) / "agent-profile.schema.yaml"
-    except Exception:
+    except (ModuleNotFoundError, TypeError):
         # Fallback to relative path
         schema_path = Path(__file__).parent.parent / "schemas" / "agent-profile.schema.yaml"
 

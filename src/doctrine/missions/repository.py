@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 
 class TemplateResult:
@@ -107,7 +108,7 @@ class MissionTemplateRepository:
 
             resource = files("doctrine") / "missions"
             return Path(str(resource))
-        except Exception:
+        except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent
 
     @classmethod
@@ -244,7 +245,7 @@ class MissionTemplateRepository:
                 return None
             origin = f"doctrine/{mission}/actions/{action}/index.yaml"
             return ConfigResult(content=content, origin=origin, parsed=parsed)
-        except Exception:
+        except (OSError, UnicodeDecodeError, YAMLError):
             return None
 
     def get_action_guidelines(self, mission: str, action: str) -> TemplateResult | None:
@@ -287,7 +288,7 @@ class MissionTemplateRepository:
                 return None
             origin = f"doctrine/{mission}/mission.yaml"
             return ConfigResult(content=content, origin=origin, parsed=parsed)
-        except Exception:
+        except (OSError, UnicodeDecodeError, YAMLError):
             return None
 
     def get_expected_artifacts(self, mission: str) -> ConfigResult | None:
@@ -310,7 +311,7 @@ class MissionTemplateRepository:
                 return None
             origin = f"doctrine/{mission}/expected-artifacts.yaml"
             return ConfigResult(content=content, origin=origin, parsed=parsed)
-        except Exception:
+        except (OSError, UnicodeDecodeError, YAMLError):
             return None
 
     # ------------------------------------------------------------------
