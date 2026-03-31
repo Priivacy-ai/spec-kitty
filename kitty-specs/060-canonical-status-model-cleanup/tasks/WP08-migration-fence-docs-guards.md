@@ -16,6 +16,7 @@ base_commit: 16db0586be2fcd116b74cd52564496c1c99a6b73
 created_at: '2026-03-31T07:42:30.731524+00:00'
 subtasks: [T030, T031, T032, T033]
 shell_pid: "4238"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -157,3 +158,7 @@ No code changes — docstring-only.
 - [ ] Template regression guard catches lane reintroduction
 - [ ] Runtime regression guard catches frontmatter-lane reads outside migration modules
 - [ ] Guards do NOT false-positive on legitimate canonical state reads
+
+## Activity Log
+
+- 2026-03-31T07:42:31Z – orchestrator – shell_pid=4238 – lane=doing – Started implementation via workflow command
