@@ -109,3 +109,4 @@ spec-kitty implement WP04 --base WP01
 ## Activity Log
 
 - 2026-03-31T07:14:35Z – orchestrator – shell_pid=83373 – lane=doing – Started implementation via workflow command
+- 2026-03-31T07:20:54Z – orchestrator – shell_pid=83373 – lane=for_review – Ready for review: lane-free body notes + hard-fail on missing canonical state
