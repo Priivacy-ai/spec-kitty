@@ -2,8 +2,10 @@
   "created_at": "2026-03-31T06:24:20.519611+00:00",
   "feature_number": "060",
   "feature_slug": "060-canonical-status-model-cleanup",
-  "friendly_name": "canonical status model cleanup",
+  "friendly_name": "Canonical Status Model Cleanup",
   "mission": "software-dev",
-  "slug": "060-canonical-status-model-cleanup",
-  "target_branch": "main"
+  "slug": "canonical-status-model-cleanup",
+  "source_description": "3.0 hard cutover: status.events.jsonl as sole WP status authority, remove frontmatter lane, hard-fail on missing canonical state.",
+  "target_branch": "main",
+  "vcs": "git"
 }
