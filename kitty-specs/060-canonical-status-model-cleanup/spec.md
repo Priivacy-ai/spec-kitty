@@ -30,14 +30,20 @@ This dual authority causes silent correctness bugs, confusing error paths, and s
 ### Scenario 1: Task Finalization Seeds Canonical State
 
 **Given** a feature with newly generated WP files after `/spec-kitty.tasks`
-**When** the user runs `spec-kitty agent feature finalize-tasks`
-**Then** every WP that lacks canonical state gets an initial `planned` status event emitted to `status.events.jsonl`, `status.json` is materialized, and the WP files contain no `lane` field in their frontmatter.
+**When** the user runs either `spec-kitty agent feature finalize-tasks` or `spec-kitty agent tasks finalize-tasks`
+**Then** every WP that lacks canonical state gets an initial `planned` status event emitted to `status.events.jsonl`, `status.json` is materialized, and the WP files contain no `lane` field in their frontmatter. Both entrypoints produce identical results.
 
-### Scenario 2: Runtime Hard-Fails on Missing Canonical State
+### Scenario 2: Runtime Hard-Fails When Event Log Is Absent
 
-**Given** a feature whose WP files exist but `status.events.jsonl` does not
+**Given** a feature whose WP files exist but `status.events.jsonl` does not exist at all
 **When** the user runs any runtime command (workflow implement, tasks move-task, next, status, merge)
-**Then** the command fails immediately with a clear error: "Canonical status not found. Run `spec-kitty agent feature finalize-tasks` to bootstrap status." No frontmatter fallback occurs.
+**Then** the command fails immediately with a clear error: "Canonical status not found for feature <slug>. Run `spec-kitty agent feature finalize-tasks --feature <slug>` to bootstrap status." No frontmatter fallback occurs.
+
+### Scenario 2b: Partial Canonical State Shows Unknown WPs
+
+**Given** a feature whose `status.events.jsonl` exists but contains events for only some WPs (e.g., WP01 and WP02 have events but WP03 does not)
+**When** the user runs `spec-kitty agent tasks status` or the dashboard
+**Then** WPs with canonical events are shown in their correct lanes. WPs without any canonical event are shown as "uninitialized" in the board output. The command does not fail — it renders what it has and flags the gap.
 
 ### Scenario 3: Generated WPs Are Lane-Free
 
@@ -55,7 +61,7 @@ This dual authority causes silent correctness bugs, confusing error paths, and s
 
 **Given** a user running `spec-kitty agent tasks status` or the dashboard scanner
 **When** the board is rendered
-**Then** WP lane positions come from the materialized `status.json`, not from frontmatter. WPs without canonical state are shown as "unknown/uninitialized" rather than inferred from frontmatter.
+**Then** WP lane positions come from the materialized `status.json`, not from frontmatter. If the event log exists but a WP has no events, that WP is shown as "uninitialized" (per Scenario 2b). If the event log is entirely absent, the command hard-fails (per Scenario 2). Frontmatter `lane` is never used as a fallback source.
 
 ### Scenario 6: Historical Artifacts Don't Pollute Active Behavior
 
@@ -66,7 +72,7 @@ This dual authority causes silent correctness bugs, confusing error paths, and s
 ### Scenario 7: Validate-Only Checks Bootstrap Readiness
 
 **Given** a feature with WP files but no canonical state yet
-**When** the user runs `spec-kitty agent feature finalize-tasks --validate-only`
+**When** the user runs `spec-kitty agent feature finalize-tasks --validate-only` (or `spec-kitty agent tasks finalize-tasks --validate-only`)
 **Then** the output reports which WPs lack canonical state and what finalization would do, without mutating any files.
 
 ### Scenario 8: Migration Tools Still Work
@@ -79,15 +85,16 @@ This dual authority causes silent correctness bugs, confusing error paths, and s
 
 | ID | Requirement | Status |
 |----|-------------|--------|
-| FR-001 | `finalize-tasks` emits an initial `planned` status event for every WP that lacks canonical state in `status.events.jsonl`. | Proposed |
-| FR-002 | `finalize-tasks` materializes `status.json` after seeding initial events. | Proposed |
-| FR-003 | `finalize-tasks --validate-only` reports which WPs lack canonical state and whether bootstrap would succeed, without mutating files. | Proposed |
+| FR-001 | Both `spec-kitty agent feature finalize-tasks` and `spec-kitty agent tasks finalize-tasks` emit an initial `planned` status event for every WP that lacks canonical state in `status.events.jsonl`. Both entrypoints produce identical bootstrap results. | Proposed |
+| FR-002 | Both finalize-tasks entrypoints materialize `status.json` after seeding initial events. | Proposed |
+| FR-003 | Both finalize-tasks entrypoints support `--validate-only`, which reports which WPs lack canonical state and whether bootstrap would succeed, without mutating files. | Proposed |
 | FR-004 | Active WP frontmatter schema no longer includes `lane`, `review_status`, `reviewed_by`, `review_feedback`, or `progress` as top-level fields. | Proposed |
 | FR-005 | Frontmatter validation for active WPs requires only static definition fields (work_package_id, title, dependencies, subtasks, owned_files, authoritative_surface, execution_mode, planning_base_branch, merge_target_branch, branch_strategy) and never requires `lane`. | Proposed |
 | FR-006 | Active WP history entries contain only timestamp (`at`), actor/agent, optional shell PID, and action text. No `lane` field in history entries. | Proposed |
 | FR-007 | Active body-section activity log text does not include `lane=` entries or lane-transition records. | Proposed |
 | FR-008 | All runtime commands that read WP status (workflow implement/review, tasks move-task/status/list, next, dashboard, acceptance, merge/preflight) read from canonical reducer state only — never from frontmatter `lane`. | Proposed |
-| FR-009 | When canonical state (`status.events.jsonl`) is missing for a feature, runtime commands fail with a clear error directing the user to run finalize-tasks or migration tooling. No silent frontmatter fallback. | Proposed |
+| FR-009 | When the event log (`status.events.jsonl`) is entirely absent for a feature, runtime commands hard-fail with a clear error directing the user to run finalize-tasks or migration tooling. No silent frontmatter fallback. | Proposed |
+| FR-009a | When the event log exists but a specific WP has no events, read-only commands (status, dashboard) show that WP as "uninitialized" in their output. Mutating commands (move-task, workflow implement) hard-fail for that specific WP with guidance to run finalize-tasks. | Proposed |
 | FR-010 | Active planning prompts and templates (task-generation guidance, tasks README bootstrap, generic WP templates, mission-specific templates) do not emit `lane: "planned"` or lane-bearing history examples. | Proposed |
 | FR-011 | Active docs (README, command help, generated README text) describe `status.events.jsonl` as sole status authority, `status.json` as derived snapshot, and WP frontmatter as static definition only. | Proposed |
 | FR-012 | Old "frontmatter-only lane" explanations in docs are relabeled as historical/versioned context, not current guidance. | Proposed |

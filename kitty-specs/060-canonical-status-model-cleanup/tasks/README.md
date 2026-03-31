@@ -1,8 +1,8 @@
 # Tasks Directory
 
-This directory contains work package (WP) prompt files with lane status in frontmatter.
+This directory contains work package (WP) prompt files with static definitions in frontmatter.
 
-## Directory Structure (v0.9.0+)
+## Directory Structure
 
 ```
 tasks/
@@ -12,62 +12,52 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, approved, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`.
+
+## Status Authority
+
+WP status (lane) is NOT stored in frontmatter. The sole authority for WP lane state is `status.events.jsonl` in the feature directory, materialized as `status.json` by the reducer.
+
+- To read WP status: `spec-kitty agent tasks status`
+- To move a WP: `spec-kitty agent tasks move-task <WPID> --to <lane>`
+
+Both commands operate on the canonical event log, not on WP files.
 
 ## Work Package File Format
 
-Each WP file **MUST** use YAML frontmatter:
+Each WP file uses YAML frontmatter for **static definition only**:
 
 ```yaml
 ---
 work_package_id: "WP01"
 title: "Work Package Title"
-lane: "planned"
 dependencies: []
-planning_base_branch: "2.x"
-merge_target_branch: "2.x"
-branch_strategy: "Planning artifacts were generated on 2.x; completed changes must merge back into 2.x."
+planning_base_branch: "main"
+merge_target_branch: "main"
+branch_strategy: "Branch from main."
 subtasks:
   - "T001"
   - "T002"
-phase: "Phase 1 - Setup"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
+execution_mode: "code_change"
+owned_files:
+  - "src/myapp/feature.py"
+authoritative_surface: "src/myapp/"
+requirement_refs:
+  - "FR-001"
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    lane: "planned"
-    agent: "system"
+  - at: "2026-01-01T00:00:00Z"
+    actor: "planner"
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 
-# Work Package Prompt: WP01 – Work Package Title
+# Work Package Prompt: WP01 - Work Package Title
 
 [Content follows...]
 ```
 
-## Valid Lane Values
+Frontmatter does NOT include `lane`, `review_status`, `reviewed_by`, `review_feedback`, or `progress`. Those are managed by the canonical status model.
 
-- `planned` - Ready for implementation
-- `doing` - Currently being worked on
-- `for_review` - Awaiting review
-- `approved` - Review passed; awaiting merge-complete recording
-- `done` - Completed
-
-## Moving Between Lanes
-
-Use the CLI (updates frontmatter only, no file movement):
-```bash
-spec-kitty agent tasks move-task <WPID> --to <lane>
-```
-
-Example:
-```bash
-spec-kitty agent tasks move-task WP01 --to doing
-```
+Operational metadata (`agent`, `assignee`, `shell_pid`) may be present for runtime coordination.
 
 ## File Naming
 
