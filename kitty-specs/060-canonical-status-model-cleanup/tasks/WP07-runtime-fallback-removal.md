@@ -159,3 +159,4 @@ spec-kitty implement WP07 --base WP02
 ## Activity Log
 
 - 2026-03-31T07:22:41Z – orchestrator – shell_pid=88151 – lane=doing – Started implementation via workflow command
+- 2026-03-31T07:31:20Z – orchestrator – shell_pid=88151 – lane=for_review – Ready for review: removed all 5 frontmatter-lane fallbacks, 22 tests pass
