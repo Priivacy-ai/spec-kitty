@@ -6,7 +6,7 @@ Endpoint paths match the PRI-12 frozen contract exactly.
 
 from __future__ import annotations
 
-import random
+import secrets
 import time
 import uuid
 from typing import Any
@@ -19,6 +19,11 @@ from specify_cli.sync.config import SyncConfig
 
 class SaaSTrackerClientError(RuntimeError):
     """Raised when a SaaS tracker API call fails."""
+
+
+def _poll_jitter_multiplier() -> float:
+    """Return a cryptographically strong jitter multiplier in [0.8, 1.2]."""
+    return 0.8 + (secrets.randbelow(4001) / 10000.0)
 
 
 # ---------------------------------------------------------------------------
@@ -86,6 +91,13 @@ class SaaSTrackerClient:
         self._sync_config = sync_config or SyncConfig()  # type: ignore[no-untyped-call]
         self._base_url: str = self._sync_config.get_server_url()
         self._timeout = timeout
+
+    _STATUS_PATH = "/api/v1/tracker/status/"
+    _MAPPINGS_PATH = "/api/v1/tracker/mappings/"
+    _PULL_PATH = "/api/v1/tracker/pull/"
+    _PUSH_PATH = "/api/v1/tracker/push/"
+    _RUN_PATH = "/api/v1/tracker/run/"
+    _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
 
     # ----- low-level request helpers -----
 
@@ -225,7 +237,7 @@ class SaaSTrackerClient:
 
             response = self._request_with_retry(
                 "GET",
-                f"/api/v1/tracker/operations/{operation_id}",
+                self._OPERATIONS_PATH.format(operation_id=operation_id),
             )
 
             body: dict[str, Any] = response.json()
@@ -248,7 +260,7 @@ class SaaSTrackerClient:
                 raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
-            jittered_delay = delay * (0.8 + 0.4 * random.random())  # noqa: S311
+            jittered_delay = delay * _poll_jitter_multiplier()
             time.sleep(jittered_delay)
             delay = min(delay * 2, cap)
 
@@ -274,7 +286,7 @@ class SaaSTrackerClient:
         if filters is not None:
             payload["filters"] = filters
 
-        response = self._request_with_retry("POST", "/api/v1/tracker/pull", json=payload)
+        response = self._request_with_retry("POST", self._PULL_PATH, json=payload)
         result: dict[str, Any] = response.json()
         return result
 
@@ -282,7 +294,7 @@ class SaaSTrackerClient:
         """GET /api/v1/tracker/status -- connection/sync status."""
         response = self._request_with_retry(
             "GET",
-            "/api/v1/tracker/status",
+            self._STATUS_PATH,
             params={"provider": provider, "project_slug": project_slug},
         )
         result: dict[str, Any] = response.json()
@@ -292,7 +304,7 @@ class SaaSTrackerClient:
         """GET /api/v1/tracker/mappings -- field mappings."""
         response = self._request_with_retry(
             "GET",
-            "/api/v1/tracker/mappings",
+            self._MAPPINGS_PATH,
             params={"provider": provider, "project_slug": project_slug},
         )
         result: dict[str, Any] = response.json()
@@ -320,7 +332,7 @@ class SaaSTrackerClient:
         }
         response = self._request_with_retry(
             "POST",
-            "/api/v1/tracker/push",
+            self._PUSH_PATH,
             json=payload,
             headers={"Idempotency-Key": key},
         )
@@ -355,7 +367,7 @@ class SaaSTrackerClient:
         }
         response = self._request_with_retry(
             "POST",
-            "/api/v1/tracker/run",
+            self._RUN_PATH,
             json=payload,
             headers={"Idempotency-Key": key},
         )

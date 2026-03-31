@@ -118,7 +118,7 @@ def test_bind_saas_provider_credential_hard_fail(monkeypatch) -> None:
         ],
     )
     assert result.exit_code == 1
-    assert "credentials are not accepted for SaaS-backed providers" in result.output
+    assert "Direct provider credentials are no longer supported for linear" in result.output
     assert "spec-kitty auth login" in result.output
     assert "dashboard" in result.output.lower()
 
