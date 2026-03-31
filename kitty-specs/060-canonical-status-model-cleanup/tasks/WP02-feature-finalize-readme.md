@@ -15,6 +15,7 @@ base_commit: d6a4d21122fb44cd0629394506a182fad1c92753
 created_at: '2026-03-31T07:14:30.787876+00:00'
 subtasks: [T003, T004, T005]
 shell_pid: "83266"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -100,3 +101,7 @@ spec-kitty implement WP02 --base WP01
 - [ ] Generated README describes lane-free frontmatter
 - [ ] Tests verify bootstrap integration
 - [ ] `mypy --strict` passes
+
+## Activity Log
+
+- 2026-03-31T07:14:31Z – orchestrator – shell_pid=83266 – lane=doing – Started implementation via workflow command
