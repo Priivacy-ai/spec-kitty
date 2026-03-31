@@ -44,6 +44,7 @@ from specify_cli.core.worktree import (
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.ownership import infer_ownership, validate_ownership
+from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
 
 app = typer.Typer(
@@ -637,7 +638,7 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, approved, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`. Status is tracked in `status.events.jsonl`, not in WP frontmatter.
 
 ## Work Package File Format
 
@@ -647,7 +648,6 @@ Each WP file **MUST** use YAML frontmatter:
 ---
 work_package_id: "WP01"
 title: "Work Package Title"
-lane: "planned"
 dependencies: []
 planning_base_branch: "2.x"
 merge_target_branch: "2.x"
@@ -664,7 +664,6 @@ reviewed_by: ""
 review_feedback: ""
 history:
   - timestamp: "2025-01-01T00:00:00Z"
-    lane: "planned"
     agent: "system"
     action: "Prompt generated via /spec-kitty.tasks"
 ---
@@ -674,17 +673,11 @@ history:
 [Content follows...]
 ```
 
-## Valid Lane Values
+## Status Tracking
 
-- `planned` - Ready for implementation
-- `doing` - Currently being worked on
-- `for_review` - Awaiting review
-- `approved` - Review passed; awaiting merge-complete recording
-- `done` - Completed
+Status is tracked via the canonical event log (`status.events.jsonl`), not in WP frontmatter.
+Use `spec-kitty agent tasks move-task` to change WP status:
 
-## Moving Between Lanes
-
-Use the CLI (updates frontmatter only, no file movement):
 ```bash
 spec-kitty agent tasks move-task <WPID> --to <lane>
 ```
@@ -1899,19 +1892,43 @@ def finalize_tasks(
         files_committed = []
 
         if validate_only:
+            # Bootstrap dry-run: report what would be seeded (no mutation)
+            bootstrap_result = bootstrap_canonical_state(
+                feature_dir, feature_slug, dry_run=True,
+            )
+            bootstrap_stats = {
+                "total_wps": bootstrap_result.total_wps,
+                "newly_seeded": bootstrap_result.newly_seeded,
+                "already_initialized": bootstrap_result.already_initialized,
+            }
             if json_output:
                 _emit_json({
                     "result": "validation_passed",
                     "feature_slug": feature_slug,
-                    "wp_count": wp_count,
+                    "wp_count": len(work_packages),
                     "validate_only": True,
+                    "bootstrap": bootstrap_stats,
                     "message": "All validations passed. Run without --validate-only to commit.",
                 })
             else:
                 console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
                 console.print(f"  Feature: {feature_slug}")
-                console.print(f"  WPs validated: {wp_count}")
+                console.print(f"  WPs validated: {len(work_packages)}")
+                console.print(
+                    f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, "
+                    f"{bootstrap_result.already_initialized} already initialized"
+                )
             return
+
+        # Bootstrap canonical status state for all WPs
+        bootstrap_result = bootstrap_canonical_state(
+            feature_dir, feature_slug, dry_run=False,
+        )
+        if not json_output and bootstrap_result.newly_seeded:
+            console.print(
+                f"[green]✓[/green] Bootstrapped canonical status: "
+                f"{bootstrap_result.newly_seeded} WPs seeded"
+            )
 
         try:
             # Build list of all files to commit via safe_commit
@@ -2037,6 +2054,11 @@ def finalize_tasks(
                     "files_committed": files_committed,
                     "dependencies_parsed": wp_dependencies,
                     "requirement_refs_parsed": wp_requirement_refs,
+                    "bootstrap": {
+                        "total_wps": bootstrap_result.total_wps,
+                        "newly_seeded": bootstrap_result.newly_seeded,
+                        "already_initialized": bootstrap_result.already_initialized,
+                    },
                 }
             )
 
