@@ -1,0 +1,1 @@
+{"mission": "software-dev", "payload": {"action": "research", "agent": "orchestrator", "decision_kind": "step", "mission_state": "discovery", "result_input": "success", "wp_id": null}, "timestamp": "2026-03-30T19:25:08.727938+00:00", "type": "MissionNextInvoked"}
