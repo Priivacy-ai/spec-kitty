@@ -14,6 +14,7 @@ base_commit: f40ccec41a2cd06e5cea87cfd6ea094c67cebf7c
 created_at: '2026-03-31T07:06:01.667975+00:00'
 subtasks: [T016, T017, T018, T019, T020]
 shell_pid: "82639"
+agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
@@ -136,3 +137,7 @@ Fail if any match found. This is a cheap grep-based guard, not a YAML parser.
 - Verify ALL 10 template files were updated (easy to miss one)
 - Verify the regression test actually finds lane: if reintroduced (not just a pass-everything stub)
 - Check that operational metadata (agent, assignee, shell_pid) is preserved — only status fields removed
+
+## Activity Log
+
+- 2026-03-31T07:06:01Z – orchestrator – shell_pid=82639 – lane=doing – Started implementation via workflow command
