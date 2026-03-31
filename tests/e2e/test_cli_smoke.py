@@ -173,7 +173,6 @@ class TestFullCLIWorkflow:
         wp01_content = """---
 work_package_id: "WP01"
 title: "Hello World"
-lane: "planned"
 subtasks:
   - "T001"
 phase: "Phase 1"
@@ -183,10 +182,8 @@ shell_pid: ""
 review_status: ""
 reviewed_by: ""
 history:
-  - timestamp: "2026-02-12T00:00:00Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
+  - at: "2026-02-12T00:00:00Z"
+    actor: "system"
     action: "Generated via test"
 ---
 

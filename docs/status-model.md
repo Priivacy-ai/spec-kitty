@@ -1,13 +1,18 @@
 # Status Model: Operator Documentation
 
 **Feature**: 034-feature-status-state-model-remediation
-**Since**: 2.x (backport to 0.1x planned)
+**Since**: 2.x (3.0 cleanup: feature 060)
 
 ## Overview
 
-The status model replaces spec-kitty's scattered status authority (frontmatter, meta.json, tasks.md) with a single canonical append-only event log per feature. Every lane transition becomes an immutable `StatusEvent`. A deterministic reducer produces `status.json` snapshots and human-readable compatibility views.
+The status model uses a single canonical append-only event log per feature as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
-**Key principle**: `status.events.jsonl` is the single source of truth. Everything else is derived and regenerable.
+**Key principles (3.0)**:
+- `status.events.jsonl` is the **sole source of truth** for WP lane state
+- `status.json` is a **derived** materialized snapshot (regenerable)
+- WP frontmatter is for **static definition only** (title, dependencies, subtasks) -- the `lane` field is no longer written or read by active runtime code
+- `finalize-tasks` is the **canonical bootstrap point** -- it creates initial WP definitions; status transitions are tracked exclusively in the event log
+- Frontmatter `lane` is a **historical/migration-only** concept retained in migration code paths for backward compatibility
 
 ## CLI Commands
 
@@ -99,7 +104,7 @@ spec-kitty agent status validate --feature 034-feature-name --json
 2. **Transition legality**: Every `(from_lane, to_lane)` pair is in the allowed transitions set (force transitions are always legal)
 3. **Done-evidence completeness**: Every done transition has evidence or force flag
 4. **Materialization drift**: Compares `status.json` on disk with reducer output from event log
-5. **Derived-view drift**: Compares WP frontmatter `lane` fields against canonical snapshot (Phase 1: warning, Phase 2: error)
+5. **Derived-view drift**: Compares materialized `status.json` against canonical event log (error if diverged)
 
 ### `spec-kitty agent status reconcile`
 
@@ -142,7 +147,7 @@ spec-kitty agent status doctor --feature 034-feature-name
 | Stale claims | Warning | WPs in `claimed` for >7 days or `in_progress` for >14 days |
 | Orphan workspaces | Warning | Worktrees existing for features where all WPs are terminal (done/canceled) |
 | Materialization drift | Warning | `status.json` does not match reducer output |
-| Derived-view drift | Warning/Error | Frontmatter lanes differ from canonical state (Warning in Phase 1, Error in Phase 2) |
+| Derived-view drift | Error | Materialized snapshot differs from canonical event log |
 
 ### `spec-kitty agent status migrate`
 
@@ -162,13 +167,15 @@ spec-kitty agent status migrate --all
 spec-kitty agent status migrate --all --dry-run
 ```
 
-**Migration behavior**:
+**Migration behavior** (for pre-3.0 features):
 - Reads current frontmatter `lane` values from all WP files in the feature
 - Resolves aliases (`doing` -> `in_progress`) before creating events
 - Generates one bootstrap event per WP: `from_lane=planned, to_lane=<current_lane>`
 - WPs already at `planned` produce no events (no transition occurred)
 - Idempotent: features with existing non-empty `status.events.jsonl` are skipped
 - Verification: reads back persisted events and confirms count matches
+
+**For new features (3.0+)**: `finalize-tasks` bootstraps WP definitions. All subsequent status transitions are emitted directly to the event log via `emit_status_transition()`. No frontmatter lane is written.
 
 ### Legacy Compatibility
 
@@ -251,15 +258,15 @@ blocked     -> canceled
 
 ## Migration Phases
 
-The status model uses a phased rollout to minimize risk:
+The status model used a phased rollout. As of 3.0, **Phase 2 is the active and only supported model**. Phases 0 and 1 are historical and no longer apply to new features.
 
-| Phase | Name | Behavior |
-|-------|------|----------|
-| 0 | Hardening | Transition matrix enforced, no event log. Frontmatter is sole authority. |
-| 1 | Dual-write | Events AND frontmatter updated on every transition. Reads still come from frontmatter. |
-| 2 | Read-cutover | `status.json` is sole authority. Frontmatter is a generated compatibility view. |
+| Phase | Name | Behavior | Status |
+|-------|------|----------|--------|
+| 0 | Hardening | Transition matrix enforced, no event log. Frontmatter was sole authority. | **Historical** |
+| 1 | Dual-write | Events AND frontmatter updated on every transition. Reads came from frontmatter. | **Historical** |
+| 2 | Read-cutover | `status.events.jsonl` is sole authority. `status.json` is derived snapshot. | **Active (3.0)** |
 
-**Default**: Phase 1 (dual-write).
+**Default**: Phase 2 (event-log authority). Frontmatter lane is no longer written or read by active runtime commands.
 
 ### Configuration
 
@@ -314,10 +321,10 @@ kitty-specs/<feature>/
   tasks.md               # DERIVED: status sections from snapshot
 ```
 
-**Authority hierarchy**:
+**Authority hierarchy** (3.0):
 1. `status.events.jsonl` -- canonical truth (append-only, immutable events)
 2. `status.json` -- derived snapshot (regenerable via `status materialize`)
-3. WP frontmatter `lane` -- compatibility view (regenerable via legacy bridge)
+3. WP frontmatter -- static definition only (title, dependencies, subtasks); `lane` field is historical/migration-only
 4. `tasks.md` status sections -- human view (regenerable)
 
 ## Troubleshooting
@@ -326,7 +333,7 @@ kitty-specs/<feature>/
 
 **Materialization drift detected**: Run `spec-kitty agent status materialize` to regenerate `status.json` from the event log.
 
-**Frontmatter lane drift**: In Phase 1 this is a warning (frontmatter is still authoritative for reads). In Phase 2 this is an error. Run `status materialize` to resync the compatibility views.
+**Frontmatter lane drift** (legacy features only): Frontmatter lane is no longer part of the active status model. For pre-3.0 features that still have frontmatter lane values, run `spec-kitty agent status migrate --feature <slug>` to bootstrap the event log, then status is managed exclusively via events.
 
 **"No event log found"**: Run `spec-kitty agent status migrate --feature <slug>` to bootstrap from existing frontmatter state.
 

@@ -3,10 +3,28 @@
 import pytest
 from pathlib import Path
 
-
-from specify_cli.dashboard.scanner import scan_feature_kanban
+from specify_cli.dashboard.scanner import scan_feature_kanban, _count_wps_by_lane
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = pytest.mark.fast
+
+
+def _write_event(feature_dir: Path, wp_id: str, to_lane: str, from_lane: str = "planned") -> None:
+    """Append a single status event to the feature's event log."""
+    event = StatusEvent(
+        event_id=f"01TEST{wp_id}{to_lane.upper()[:4]}",
+        feature_slug=feature_dir.name,
+        wp_id=wp_id,
+        from_lane=Lane(from_lane),
+        to_lane=Lane(to_lane),
+        at="2026-03-30T12:00:00+00:00",
+        actor="test-agent",
+        force=False,
+        execution_mode="worktree",
+    )
+    append_event(feature_dir, event)
+
 
 def test_dashboard_cli_status_parity(tmp_path: Path):
     """Verify dashboard and CLI status use same defaults and encoding."""
@@ -46,19 +64,17 @@ This WP has an explicit lane.
         encoding="utf-8",
     )
 
+    # Bootstrap event log: WP01 planned (bootstrap), WP02 in_progress
+    _write_event(feature_dir, "WP01", "planned")
+    _write_event(feature_dir, "WP02", "in_progress")
+
     # Get results from both systems
     dashboard_lanes = scan_feature_kanban(tmp_path, "001-test-feature")
 
-    # For CLI status, we can't call show_kanban_status directly (needs full setup)
-    # Instead, let's verify the default lane value by checking the code path
-    # This is tested by the integration - here we just verify the constants match
-    from specify_cli.dashboard.scanner import _count_wps_by_lane_frontmatter
-
-
     # Test dashboard counts
-    counts = _count_wps_by_lane_frontmatter(tasks_dir)
+    counts = _count_wps_by_lane(tasks_dir)
     assert counts["planned"] == 1  # WP01 should default to planned
-    assert counts["doing"] == 1    # WP02 explicitly set
+    assert counts["doing"] == 1    # WP02 in_progress mapped to doing
 
     # Test dashboard scanner
     assert len(dashboard_lanes["planned"]) == 1
@@ -88,6 +104,9 @@ Windows BOM test.
 """,
         encoding="utf-8-sig",
     )
+
+    # Bootstrap event log with planned state
+    _write_event(feature_dir, "WP01", "planned")
 
     # Dashboard should handle it
     dashboard_lanes = scan_feature_kanban(tmp_path, "002-test-bom")

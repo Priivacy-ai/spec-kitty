@@ -1,8 +1,12 @@
-"""History parser for reconstructing transition chains from WP frontmatter.
+"""MIGRATION-ONLY: Reconstruct status transitions from legacy frontmatter history.
+
+This module reads WP frontmatter ``history[]`` arrays to rebuild transition
+chains for migration from pre-3.0 frontmatter-lane state to canonical
+event-log state. It must NOT be called from active runtime paths.
 
 Provides pure functions that convert raw frontmatter history[] arrays
 into normalized, deduplicated transition chains suitable for creating
-canonical StatusEvent records. This module performs NO I/O — it only
+canonical StatusEvent records. This module performs NO I/O -- it only
 transforms data structures.
 
 Exports:

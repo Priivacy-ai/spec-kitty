@@ -103,18 +103,14 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     if not wp_files:
         return True
 
-    # Get canonical lane state from event log
-    from specify_cli.status.store import read_events
-    from specify_cli.status.reducer import reduce
-
-    events = read_events(feature_dir)
-    snapshot = reduce(events)
+    # Get canonical lane state from event log (hard-fail if absent)
     import re as _re
+    from specify_cli.status.lane_reader import get_wp_lane
+
     for wp_file in wp_files:
         wp_match = _re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        wp_state = snapshot.work_packages.get(wp_id, {})
-        lane = resolve_lane_alias(str(wp_state.get("lane", "planned")))
+        lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
         if step_id == "implement":
             if lane not in ("done", "approved", "for_review"):
                 return False

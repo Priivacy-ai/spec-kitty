@@ -146,7 +146,7 @@ Prompts do not rediscover feature context. Commands do.
 7. **Generate prompt files (one per work package)**:
    - **CRITICAL PATH RULE**: All work package files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
    - Correct structure: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
-   - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY lane subdirectories
+   - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
    - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
    - Use `artifact_dirs.tasks_dir` when available.
    - Do **not** shell out with `mkdir -p`; `create-feature` already creates `tasks/` in normal flow.
@@ -155,7 +155,7 @@ Prompts do not rediscover feature context. Commands do.
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
      - Full path example: `feature_dir/tasks/WP01-create-html-page.md` (use ABSOLUTE path from feature_dir variable)
      - Follow the WP prompt template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**) to capture:
-     - Frontmatter with `work_package_id`, `subtasks` array, `lane: "planned"`, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, and history entry
+     - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, and history entry
        - Objective, context, detailed guidance per subtask
        - A Branch Strategy section that repeats the planning branch, final merge target, and notes that the actual `base_branch` may later differ for stacked WPs during `/spec-kitty.implement`
        - Test strategy (only if requested)
@@ -236,7 +236,6 @@ Each WP prompt file MUST include a `dependencies` field:
 ---
 work_package_id: "WP02"
 title: "Build API"
-lane: "planned"
 dependencies: ["WP01"]  # Generated from tasks.md
 subtasks: ["T001", "T002"]
 ---

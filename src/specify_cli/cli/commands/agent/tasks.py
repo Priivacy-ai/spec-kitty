@@ -37,6 +37,7 @@ from specify_cli.mission import get_feature_mission_key
 from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
+from specify_cli.status.bootstrap import bootstrap_canonical_state
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -1085,33 +1086,11 @@ def move_task(
                 if existing_event.wp_id == task_id:
                     current_event_lane = str(existing_event.to_lane)
                     break
-            if (
-                current_canonical_lane != "planned"
-                and current_event_lane != current_canonical_lane
-            ):
-                # Seed/sync canonical history from frontmatter so strict transitions can continue.
-                sync_reason = (
-                    "bootstrap from frontmatter lane "
-                    if current_event_lane is None
-                    else "sync from frontmatter lane "
-                )
-                emit_status_transition(
-                    feature_dir=feature_dir,
-                    feature_slug=feature_slug,
-                    wp_id=task_id,
-                    to_lane=current_canonical_lane,
-                    actor=actor,
-                    force=True,
-                    reason=(
-                        f"{sync_reason}"
-                        f"{current_canonical_lane} before move-task transition"
-                    ),
-                    workspace_context=f"move-task:{main_repo_root}",
-                    subtasks_complete=True if current_canonical_lane == "for_review" else None,
-                    implementation_evidence_present=(
-                        True if current_canonical_lane == "for_review" else None
-                    ),
-                    repo_root=main_repo_root,
+            if current_event_lane is None:
+                # No canonical state for this WP — finalize-tasks must be run first
+                raise RuntimeError(
+                    f"WP {task_id} has no canonical status in feature {feature_slug}. "
+                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
                 )
 
             for target in transition_targets:
@@ -1166,7 +1145,7 @@ def move_task(
             note_text = note_text or f"Moved to {target_lane}"
 
             shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
-            history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={target_lane} – {note_text}"
+            history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note_text}"
 
             # Add history entry to body
             updated_body = append_activity_log(updated_body, history_entry)
@@ -1569,7 +1548,7 @@ def add_history(
         shell_pid_val = shell_pid or extract_scalar(wp.frontmatter, "shell_pid") or ""
 
         shell_part = f"shell_pid={shell_pid_val} – " if shell_pid_val else ""
-        history_entry = f"- {timestamp} – {agent_name} – {shell_part}lane={current_lane} – {note}"
+        history_entry = f"- {timestamp} – {agent_name} – {shell_part}{note}"
 
         # Add history entry to body
         updated_body = append_activity_log(wp.body, history_entry)
@@ -1621,6 +1600,7 @@ def add_history(
 def finalize_tasks(
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
+    validate_only: Annotated[bool, typer.Option("--validate-only", help="Validate without writing changes")] = False,
 ) -> None:
     """Parse tasks.md and inject dependencies into WP frontmatter.
 
@@ -1720,17 +1700,31 @@ def finalize_tasks(
             _output_error(json_output, f"Circular dependencies detected: {cycles}")
             raise typer.Exit(1)
 
+        # Bootstrap canonical status state for all WPs
+        bootstrap_result = bootstrap_canonical_state(
+            feature_dir, feature_slug, dry_run=validate_only
+        )
+
         result = {
             "result": "success",
             "updated": updated_count,
             "dependencies": dependencies_map,
-            "feature": feature_slug
+            "feature": feature_slug,
+            "bootstrap": {
+                "total_wps": bootstrap_result.total_wps,
+                "already_initialized": bootstrap_result.already_initialized,
+                "newly_seeded": bootstrap_result.newly_seeded,
+                "skipped": bootstrap_result.skipped,
+                "wp_details": bootstrap_result.wp_details,
+            },
         }
 
         _output_result(
             json_output,
             result,
             f"[green]✓[/green] Updated {updated_count} WP files with dependencies"
+            f" (bootstrap: {bootstrap_result.newly_seeded} seeded,"
+            f" {bootstrap_result.already_initialized} existing)"
         )
 
     except Exception as e:

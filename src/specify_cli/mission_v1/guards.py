@@ -256,7 +256,7 @@ GUARD_REGISTRY: dict[str, Callable[..., Callable[..., bool]]] = {
 
 
 # ---------------------------------------------------------------------------
-# Frontmatter helper (minimal, avoids coupling to specify_cli.frontmatter)
+# Canonical lane helper (reads from event log only)
 # ---------------------------------------------------------------------------
 
 
@@ -266,31 +266,18 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
     The feature_dir is derived from the WP file path:
     tasks/WP##-*.md is inside kitty-specs/<feature-slug>/tasks/.
 
-    Falls back to "planned" if the event log does not exist or the WP
-    has no events yet. Returns None only on unrecoverable IO errors.
+    Returns ``None`` when the WP ID cannot be extracted from the filename.
+    Raises ``CanonicalStatusNotFoundError`` when no event log exists.
+    Returns ``"uninitialized"`` when the event log has no events for this WP.
     """
-    try:
-        feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
-        wp_id_match = __import__("re").match(r"(WP\d+)", file_path.stem)
-        if wp_id_match is None:
-            return None
-        wp_id = wp_id_match.group(1)
-
-        from specify_cli.status.store import read_events
-        from specify_cli.status.reducer import reduce
-
-        events = read_events(feature_dir)
-        if not events:
-            return "planned"
-
-        snapshot = reduce(events)
-        wp_state = snapshot.work_packages.get(wp_id)
-        if wp_state is None:
-            return "planned"
-
-        return str(wp_state.get("lane", "planned"))
-    except Exception:
+    wp_id_match = re.match(r"(WP\d+)", file_path.stem)
+    if wp_id_match is None:
         return None
+    wp_id = wp_id_match.group(1)
+    feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
+
+    from specify_cli.status.lane_reader import get_wp_lane
+    return get_wp_lane(feature_dir, wp_id)
 
 
 # ---------------------------------------------------------------------------
