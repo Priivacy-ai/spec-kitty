@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [3.0.1] - 2026-03-31
+
+### Fixed
+
+- **Canonical status hard cutover completed.** Work-package lane state is now consistently sourced from `status.events.jsonl` across active CLI commands, packaged task tooling, templates, docs, and standalone helpers. Frontmatter lane fallbacks and `lane=` body-log writes are removed from active 3.0 flows.
+- **Canonical bootstrap and hard-fail behavior hardened.** `finalize-tasks` now seeds canonical `planned` state for generated WPs, while runtime commands fail explicitly when canonical status is missing instead of silently reconstructing it from abandoned frontmatter state.
+- **Release automation updated for 3.x.** GitHub release validation, maintainer docs, and workflow tag handling now use semantic `vX.Y.Z` tags generically, so `v3.0.1` publishes correctly to GitHub Releases and PyPI.
+
 ## [3.0.0] - 2026-03-30
 
 ### Breaking Changes

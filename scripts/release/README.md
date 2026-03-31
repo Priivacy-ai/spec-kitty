@@ -1,14 +1,14 @@
 # Release Scripts
 
 This directory contains helper scripts that keep local release checks aligned with the
-automated GitHub-only release pipeline for the `2.x` branch.
+automated release pipeline for stable releases from `main`.
 
-## 2.x Release Scope
+## Stable Release Scope
 
-- Branch: `2.x`
+- Branch: `main`
 - Versioning: semantic versions (`X.Y.Z`) in `pyproject.toml`
-- Tags: `v2.<minor>.<patch>`
-- Publication target: GitHub Releases only (no PyPI publish from `2.x`)
+- Tags: `vX.Y.Z`
+- Publication targets: GitHub Releases and PyPI
 
 ## Scripts
 
@@ -21,10 +21,10 @@ version progression relative to existing tags.
 
 ```bash
 # Branch mode (for PRs and local development)
-python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 
 # Tag mode (for release workflow)
-python scripts/release/validate_release.py --mode tag --tag v2.0.0 --tag-pattern "v2.*.*"
+python scripts/release/validate_release.py --mode tag --tag v3.0.1 --tag-pattern "v*.*.*"
 ```
 
 #### What it validates
@@ -32,7 +32,7 @@ python scripts/release/validate_release.py --mode tag --tag v2.0.0 --tag-pattern
 - `pyproject.toml` version is valid semantic version (`X.Y.Z`)
 - `CHANGELOG.md` contains populated section for that version
 - Version advances beyond latest existing release tag
-- In tag mode: tag matches version (for example `v2.0.0` <-> `2.0.0`)
+- In tag mode: tag matches version (for example `v3.0.1` <-> `3.0.1`)
 
 ### `extract_changelog.py`
 
@@ -44,8 +44,8 @@ python scripts/release/extract_changelog.py 2.0.0
 
 ## Workflow Integration
 
-- PR checks: `.github/workflows/release-readiness.yml` (targets `2.x`)
-- Tag releases: `.github/workflows/release.yml` (triggers on `v2.*.*`)
+- PR checks: `.github/workflows/release-readiness.yml`
+- Tag releases: `.github/workflows/release.yml` (triggers on `v*.*.*`)
 
 Release workflow sequence:
 
@@ -59,11 +59,11 @@ Release workflow sequence:
 
 ```bash
 # 1) prepare version + changelog
-vim pyproject.toml   # version = "2.0.0"
-vim CHANGELOG.md     # add ## [2.0.0] - YYYY-MM-DD
+vim pyproject.toml   # version = "3.0.1"
+vim CHANGELOG.md     # add ## [3.0.1] - YYYY-MM-DD
 
 # 2) validate
-python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
 python -m pytest
 python -m build
 twine check dist/*
@@ -71,9 +71,9 @@ twine check dist/*
 # 3) clean build artifacts
 rm -rf dist/ build/
 
-# 4) merge to 2.x, then tag
-git tag v2.0.0 -m "Release 2.0.0"
-git push origin v2.0.0
+# 4) merge to main, then tag
+git tag v3.0.1 -m "Release 3.0.1"
+git push origin v3.0.1
 ```
 
 ## Troubleshooting
@@ -81,7 +81,7 @@ git push origin v2.0.0
 ### Version does not advance
 
 ```bash
-git tag --list 'v2.*.*' --sort=-version:refname | head -1
+git tag --list 'v*.*.*' --sort=-version:refname | head -1
 ```
 
 Then bump `pyproject.toml` to a higher semantic version.
@@ -91,7 +91,7 @@ Then bump `pyproject.toml` to a higher semantic version.
 Add:
 
 ```markdown
-## [2.0.0] - 2026-02-22
+## [3.0.1] - 2026-03-31
 ```
 
 with non-empty notes below the heading.
@@ -101,10 +101,10 @@ with non-empty notes below the heading.
 If tag and `pyproject.toml` do not match:
 
 ```bash
-git tag -d v2.0.0
-git push origin :refs/tags/v2.0.0
-git tag v2.0.0 -m "Release 2.0.0"
-git push origin v2.0.0
+git tag -d v3.0.1
+git push origin :refs/tags/v3.0.1
+git tag v3.0.1 -m "Release 3.0.1"
+git push origin v3.0.1
 ```
 
 ## Testing

@@ -1,10 +1,10 @@
 # Release Checklist
 
-Use this checklist for stable `2.x` releases from `main`.
+Use this checklist for stable releases from `main`.
 
-> `main` is the primary `2.x` line and publishes both GitHub releases and PyPI packages.
+> `main` is the primary stable release line and publishes both GitHub releases and PyPI packages.
 > `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
-> For the branch rename/cutover itself, see `docs/how-to/2-1-main-cutover-checklist.md`.
+> Historical 2.x release notes remain in Git tags and changelog history; new stable releases ship from `main`.
 
 ## Pre-Release Preparation
 
@@ -38,7 +38,7 @@ Use this checklist for stable `2.x` releases from `main`.
   ```
 - [ ] Run release validation in branch mode:
   ```bash
-  python scripts/release/validate_release.py --mode branch --tag-pattern "v2.*.*"
+  python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
   ```
 - [ ] Run linting and formatting checks appropriate for changed files:
   ```bash
@@ -56,7 +56,7 @@ Use this checklist for stable `2.x` releases from `main`.
 - [ ] Bump `version` in `pyproject.toml`.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 - [ ] Review `README.md` release-track messaging:
-  - `main` should be described as the stable `2.x` line.
+  - `main` should be described as the stable `3.x` line.
   - `1.x-maintenance` should be described as deprecated maintenance-only.
 - [ ] Review installation docs if distribution channels changed.
 - [ ] If new ADRs were added, verify they are filed under the correct versioned architecture path.
@@ -163,7 +163,7 @@ git push origin vX.Y.Z
 
 - [ ] If this is a minor or major release, publish release notes and migration guidance.
 - [ ] If release-track policy changed, call it out explicitly:
-  - `main` is the stable `2.x` line
+  - `main` is the stable `3.x` line
   - `1.x-maintenance` is deprecated maintenance-only
   - no new `1.x` PyPI releases are planned
 
