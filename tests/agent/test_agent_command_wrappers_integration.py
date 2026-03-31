@@ -7,6 +7,7 @@ and validate dependencies before creating workspaces.
 from __future__ import annotations
 
 import contextlib
+import json
 import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -140,6 +141,7 @@ class TestAgentWorkflowImplement:
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
         ):
             mock_locate_root.return_value = mock_repo
@@ -185,6 +187,7 @@ class TestAgentWorkflowImplement:
             patch("specify_cli.cli.commands.agent.workflow.locate_project_root") as mock_locate_root,
             patch("specify_cli.cli.commands.agent.workflow.locate_work_package") as mock_locate_wp,
             patch("specify_cli.cli.commands.agent.workflow._find_feature_slug") as mock_find_slug,
+            patch("specify_cli.cli.commands.agent.workflow.is_worktree_context", return_value=False),
             patch("specify_cli.cli.commands.agent.workflow.top_level_implement") as mock_top_level,
         ):
             mock_locate_root.return_value = mock_repo
@@ -250,6 +253,7 @@ class TestAgentWorkflowImplement:
         """Workflow implement must fail loudly when status commit fails."""
         feature_slug = "001-test-feature"
         wp_file = mock_repo / "kitty-specs" / feature_slug / "tasks" / "WP01-setup.md"
+        events_file = mock_repo / "kitty-specs" / feature_slug / "status.events.jsonl"
         wp_file.write_text(
             "---\n"
             "work_package_id: WP01\n"
@@ -264,7 +268,22 @@ class TestAgentWorkflowImplement:
             "- 2026-01-01T00:00:00Z – system – lane=planned – Prompt created.\n",
             encoding="utf-8",
         )
-        subprocess.run(["git", "add", "-f", str(wp_file)], cwd=mock_repo, check=True, capture_output=True)
+        seed_event = {
+            "actor": "test",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01JTEST00000000000000000000",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "feature_slug": feature_slug,
+            "force": False,
+            "from_lane": "planned",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "planned",
+            "wp_id": "WP01",
+        }
+        events_file.write_text(json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-f", str(wp_file), str(events_file)], cwd=mock_repo, check=True, capture_output=True)
         subprocess.run(["git", "commit", "-m", "Add WP01"], cwd=mock_repo, check=True, capture_output=True)
 
         # Ensure command does not delegate to top-level implement.

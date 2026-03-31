@@ -626,7 +626,7 @@ def create_feature(
         # Create tasks/README.md (using same content from setup_feature_directory)
         tasks_readme_content = '''# Tasks Directory
 
-This directory contains work package (WP) prompt files with lane status in frontmatter.
+This directory contains work package (WP) prompt files.
 
 ## Directory Structure (v0.9.0+)
 
@@ -659,9 +659,6 @@ phase: "Phase 1 - Setup"
 assignee: ""
 agent: ""
 shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
 history:
   - timestamp: "2025-01-01T00:00:00Z"
     agent: "system"
