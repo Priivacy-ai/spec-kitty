@@ -58,12 +58,17 @@ def test_cli_help_simple_mode_avoids_rich_tables(monkeypatch) -> None:
     assert "╭" not in result.stdout
 
 
-def test_verify_setup_command_runs() -> None:
-    """Test that verify-setup command works (replaces deprecated check command)."""
-    # verify-setup requires being in a project or exits with code 1
-    # This is expected behavior - when not in a project, it shows helpful error
+def test_verify_setup_command_runs(monkeypatch, tmp_path: Path) -> None:
+    """Test that verify-setup renders the tool-checking section."""
+    monkeypatch.setattr(verify_module, "check_tool_for_tracker", lambda *_args, **_kwargs: True)
+    monkeypatch.setattr(verify_module, "find_repo_root", lambda: tmp_path)
+    monkeypatch.setattr(verify_module, "get_project_root_or_exit", lambda repo_root: repo_root)
+    monkeypatch.setattr(verify_module, "check_version_compatibility", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(verify_module, "run_enhanced_verify", lambda **_kwargs: {})
+
     result = runner.invoke(cli_app, ["verify-setup"])
-    # Should show tool checking results even when not in a project
+
+    assert result.exit_code == 0
     assert "Check Available Tools" in result.stdout or "Checking for installed tools" in result.stdout
 
 

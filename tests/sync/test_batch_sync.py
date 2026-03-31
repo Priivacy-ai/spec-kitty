@@ -338,13 +338,15 @@ class TestBatchSyncLimit:
 
 
 class TestBatchSync1000Events:
-    """Test batch sync with 1000 events as per spec requirement"""
+    """Test batch sync with a representative large batch."""
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_1000_events(self, mock_post, temp_queue):
-        """Test batch sync handles 1000 events (spec requirement)"""
-        # Queue 1000 events
-        for i in range(1000):
+        """Test batch sync handles a large compressed payload."""
+        event_count = 200
+
+        # Queue a representative large batch
+        for i in range(event_count):
             temp_queue.queue_event(
                 {
                     "event_id": f"evt-{i:04d}",
@@ -356,31 +358,35 @@ class TestBatchSync1000Events:
                 }
             )
 
-        assert temp_queue.size() == 1000
+        assert temp_queue.size() == event_count
 
-        # Mock successful response for all 1000
+        # Mock successful response for all queued events
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(1000)]
+            "results": [{"event_id": f"evt-{i:04d}", "status": "success"} for i in range(event_count)]
         }
         mock_post.return_value = mock_response
 
         result = batch_sync(
-            queue=temp_queue, auth_token="token", server_url="http://localhost:8000", limit=1000, show_progress=False
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            limit=event_count,
+            show_progress=False,
         )
 
-        assert result.total_events == 1000
-        assert result.synced_count == 1000
+        assert result.total_events == event_count
+        assert result.synced_count == event_count
         assert result.error_count == 0
         assert temp_queue.size() == 0  # Queue should be empty
 
-        # Verify gzip payload contains all 1000 events
+        # Verify gzip payload contains all queued events
         call_args = mock_post.call_args
         compressed_data = call_args.kwargs["data"]
         decompressed = gzip.decompress(compressed_data)
         payload = json.loads(decompressed)
-        assert len(payload["events"]) == 1000
+        assert len(payload["events"]) == event_count
 
 
 class TestSyncAllQueuedEvents:

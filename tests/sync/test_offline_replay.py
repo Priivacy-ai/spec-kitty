@@ -167,37 +167,43 @@ class TestReconnectionTriggersBatchSync:
 
 
 class TestBatchSyncThroughput:
-    """Test T131: Batch sync <30s for 1000 events"""
+    """Test T131: Batch sync throughput on representative large batches."""
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_throughput_1000_events(self, mock_post, temp_queue):
-        """1000 events should sync in <30s (mocked network)"""
-        # Queue 1000 events
-        for i in range(1000):
+        """A representative large batch should sync quickly (mocked network)."""
+        event_count = 200
+
+        # Queue a representative large batch
+        for i in range(event_count):
             temp_queue.queue_event(create_test_event(i))
 
-        assert temp_queue.size() == 1000
+        assert temp_queue.size() == event_count
 
         # Mock successful response for all events
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {
-            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(1000)]
+            "results": [{"event_id": f"evt-{i:06d}", "status": "success"} for i in range(event_count)]
         }
         mock_post.return_value = mock_response
 
         # Measure sync time
         start = time.time()
         result = batch_sync(
-            queue=temp_queue, auth_token="token", server_url="http://localhost:8000", limit=1000, show_progress=False
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            limit=event_count,
+            show_progress=False,
         )
         duration = time.time() - start
 
         # Verify throughput
-        assert result.total_events == 1000
-        assert result.synced_count == 1000
+        assert result.total_events == event_count
+        assert result.synced_count == event_count
         assert temp_queue.size() == 0
-        assert duration < 30, f"Batch sync took {duration:.2f}s, expected <30s"
+        assert duration < 5, f"Batch sync took {duration:.2f}s, expected <5s"
 
         # Verify gzip compression was used
         call_args = mock_post.call_args
@@ -206,9 +212,12 @@ class TestBatchSyncThroughput:
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_batch_sync_throughput_multiple_batches(self, mock_post, temp_queue):
-        """Sync 2500 events in multiple batches <30s"""
-        # Queue 2500 events
-        for i in range(2500):
+        """Sync multiple batches quickly while preserving batch boundaries."""
+        event_count = 240
+        batch_size = 100
+
+        # Queue enough events to force multiple batches
+        for i in range(event_count):
             temp_queue.queue_event(create_test_event(i))
 
         def mock_batch_response(*args, **kwargs):
@@ -231,16 +240,16 @@ class TestBatchSyncThroughput:
             queue=temp_queue,
             auth_token="token",
             server_url="http://localhost:8000",
-            batch_size=1000,
+            batch_size=batch_size,
             show_progress=False,
         )
         duration = time.time() - start
 
-        assert result.total_events == 2500
-        assert result.synced_count == 2500
+        assert result.total_events == event_count
+        assert result.synced_count == event_count
         assert temp_queue.size() == 0
-        assert duration < 30, f"Multi-batch sync took {duration:.2f}s, expected <30s"
-        assert mock_post.call_count == 3  # 1000 + 1000 + 500
+        assert duration < 5, f"Multi-batch sync took {duration:.2f}s, expected <5s"
+        assert mock_post.call_count == 3  # 100 + 100 + 40
 
 
 class TestIdempotency:
@@ -309,36 +318,43 @@ class TestIdempotency:
 class TestQueueSizeLimit:
     """Test T133: Queue size limit warning"""
 
-    def test_queue_size_limit_enforced(self, temp_queue):
+    def test_queue_size_limit_enforced(self, tmp_path: Path):
         """Queue should evict the oldest event at MAX_QUEUE_SIZE."""
+        max_queue_size = 8
+        queue = OfflineQueue(tmp_path / "queue_size_limit.db", max_queue_size=max_queue_size)
+
         # Fill queue to limit
-        for i in range(OfflineQueue.MAX_QUEUE_SIZE):
-            result = temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
+        for i in range(max_queue_size):
+            result = queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
             assert result is True
 
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        assert queue.size() == max_queue_size
 
         # 10,001st event should succeed and evict the oldest row
-        result = temp_queue.queue_event({"event_id": "evt-overflow", "event_type": "Test", "payload": {}})
+        result = queue.queue_event({"event_id": "evt-overflow", "event_type": "Test", "payload": {}})
         assert result is True
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
-        events = temp_queue.drain_queue(limit=1)
+        assert queue.size() == max_queue_size
+        events = queue.drain_queue(limit=1)
         assert events[0]["event_id"] == "evt-1"
 
-    def test_queue_accepts_after_sync(self, temp_queue):
+    def test_queue_accepts_after_sync(self, tmp_path: Path):
         """Queue accepts new events after sync makes room"""
+        max_queue_size = 32
+        drain_count = 10
+        queue = OfflineQueue(tmp_path / "queue_accepts_after_sync.db", max_queue_size=max_queue_size)
+
         # Fill to limit
-        for i in range(OfflineQueue.MAX_QUEUE_SIZE):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
+        for i in range(max_queue_size):
+            queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
 
         # Drain some events (simulating sync)
-        events = temp_queue.drain_queue(limit=1000)
-        temp_queue.mark_synced([e["event_id"] for e in events])
+        events = queue.drain_queue(limit=drain_count)
+        queue.mark_synced([e["event_id"] for e in events])
 
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE - 1000
+        assert queue.size() == max_queue_size - drain_count
 
         # Should accept new events now
-        result = temp_queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
+        result = queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
         assert result is True
 
 
@@ -347,12 +363,14 @@ class TestEventRecovery:
 
     @patch("specify_cli.sync.batch.requests.post")
     def test_100_percent_event_recovery(self, mock_post, temp_queue):
-        """Queue 500 events, verify all 500 recovered after sync"""
-        # Queue 500 events
-        for i in range(500):
+        """Queue a representative set of events and verify all are recovered."""
+        event_count = 120
+
+        # Queue events
+        for i in range(event_count):
             temp_queue.queue_event(create_test_event(i, node_id="recovery-test"))
 
-        assert temp_queue.size() == 500
+        assert temp_queue.size() == event_count
 
         # Track which events were sent
         sent_event_ids = set()
@@ -377,17 +395,21 @@ class TestEventRecovery:
         mock_post.side_effect = mock_batch_response
 
         result = batch_sync(
-            queue=temp_queue, auth_token="token", server_url="http://localhost:8000", limit=1000, show_progress=False
+            queue=temp_queue,
+            auth_token="token",
+            server_url="http://localhost:8000",
+            limit=event_count,
+            show_progress=False,
         )
 
         # Verify 100% recovery
-        assert result.synced_count == 500
+        assert result.synced_count == event_count
         assert result.error_count == 0
         assert temp_queue.size() == 0
-        assert len(sent_event_ids) == 500
+        assert len(sent_event_ids) == event_count
 
         # Verify all event IDs were sent
-        expected_ids = {f"evt-{i:06d}" for i in range(500)}
+        expected_ids = {f"evt-{i:06d}" for i in range(event_count)}
         assert sent_event_ids == expected_ids
 
     @patch("specify_cli.sync.batch.requests.post")

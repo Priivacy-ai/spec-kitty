@@ -133,40 +133,46 @@ class TestOfflineQueue:
 class TestOfflineQueueSizeLimit:
     """Test queue size limit enforcement"""
 
-    def test_queue_size_limit_enforced(self, temp_queue):
+    def test_queue_size_limit_enforced(self, tmp_path: Path):
         """Test queue evicts oldest events when at capacity."""
-        # Queue up to the limit
-        for i in range(OfflineQueue.MAX_QUEUE_SIZE):
-            event = {"event_id": f"evt-{i}", "event_type": "Test", "payload": {}}
-            result = temp_queue.queue_event(event)
-            if i < OfflineQueue.MAX_QUEUE_SIZE:
-                assert result is True
+        max_queue_size = 8
+        queue = OfflineQueue(tmp_path / "queue_size_limit.db", max_queue_size=max_queue_size)
 
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        # Queue up to the limit
+        for i in range(max_queue_size):
+            event = {"event_id": f"evt-{i}", "event_type": "Test", "payload": {}}
+            result = queue.queue_event(event)
+            assert result is True
+
+        assert queue.size() == max_queue_size
 
         # One more should succeed by evicting the oldest row
         overflow_event = {"event_id": "evt-overflow", "event_type": "Test", "payload": {}}
-        result = temp_queue.queue_event(overflow_event)
+        result = queue.queue_event(overflow_event)
         assert result is True
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE
-        events = temp_queue.drain_queue(limit=1)
+        assert queue.size() == max_queue_size
+        events = queue.drain_queue(limit=1)
         assert events[0]["event_id"] == "evt-1"
 
-    def test_queue_accepts_after_drain_and_sync(self, temp_queue):
+    def test_queue_accepts_after_drain_and_sync(self, tmp_path: Path):
         """Test queue accepts events after making room"""
+        max_queue_size = 32
+        drain_count = 10
+        queue = OfflineQueue(tmp_path / "queue_accepts_after_drain.db", max_queue_size=max_queue_size)
+
         # Fill to limit
-        for i in range(OfflineQueue.MAX_QUEUE_SIZE):
-            temp_queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
+        for i in range(max_queue_size):
+            queue.queue_event({"event_id": f"evt-{i}", "event_type": "Test", "payload": {}})
 
         # Remove some events
-        events = temp_queue.drain_queue(limit=100)
+        events = queue.drain_queue(limit=drain_count)
         event_ids = [e["event_id"] for e in events]
-        temp_queue.mark_synced(event_ids)
+        queue.mark_synced(event_ids)
 
-        assert temp_queue.size() == OfflineQueue.MAX_QUEUE_SIZE - 100
+        assert queue.size() == max_queue_size - drain_count
 
         # Should accept new events now
-        result = temp_queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
+        result = queue.queue_event({"event_id": "evt-new", "event_type": "Test", "payload": {}})
         assert result is True
 
 
