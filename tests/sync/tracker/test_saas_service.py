@@ -199,10 +199,18 @@ class TestSyncPush:
         mock_client.push.assert_called_once_with("linear", "my-proj", items=[])
         assert result["pushed"] == 0
 
-    def test_push_sends_empty_items(
+    def test_push_forwards_items(
         self, service: SaaSTrackerService, mock_client: MagicMock
     ) -> None:
-        """Verify items=[] is always sent (SaaS owns payload construction)."""
+        """Verify caller-supplied items are forwarded to the SaaS client."""
+        items = [{"ref": {"system": "linear", "id": "LIN-1", "workspace": "team"}, "action": "update"}]
+        service.sync_push(items=items)
+        mock_client.push.assert_called_once_with("linear", "my-proj", items=items)
+
+    def test_push_defaults_to_empty_items(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
+        """When no items provided, sends empty list."""
         service.sync_push()
         _, _, kwargs = mock_client.push.mock_calls[0]
         assert kwargs["items"] == []

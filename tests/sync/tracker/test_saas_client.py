@@ -90,7 +90,7 @@ class TestParseErrorEnvelope:
                 "category": "identity_resolution",
                 "message": "No installation found",
                 "retryable": False,
-                "user_action_required": "Install the app",
+                "user_action_required": True,
                 "source": "jira",
                 "retry_after_seconds": None,
             },
@@ -100,7 +100,7 @@ class TestParseErrorEnvelope:
         assert envelope["category"] == "identity_resolution"
         assert envelope["message"] == "No installation found"
         assert envelope["retryable"] is False
-        assert envelope["user_action_required"] == "Install the app"
+        assert envelope["user_action_required"] is True
         assert envelope["source"] == "jira"
 
     def test_handles_malformed_json(self) -> None:
@@ -683,7 +683,7 @@ class TestRetryBehaviors:
                 "code": "missing_installation",
                 "category": "identity_resolution",
                 "message": "Jira app not installed",
-                "user_action_required": "Install the Spec Kitty app in Jira",
+                "user_action_required": True,
             },
         )
 
@@ -691,7 +691,7 @@ class TestRetryBehaviors:
             SaaSTrackerClientError, match="Jira app not installed"
         ) as exc_info:
             client._request_with_retry("GET", "/api/v1/tracker/status")
-        assert "Install the Spec Kitty app" in str(exc_info.value)
+        assert "action required" in str(exc_info.value)
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_5xx_error_envelope_parsed(
@@ -809,7 +809,7 @@ class TestAsyncErrorEnvelopeParsing:
             "code": "provider_auth_expired",
             "category": "auth",
             "message": "Jira OAuth token has expired",
-            "user_action_required": "Re-authorize the Jira integration in Settings",
+            "user_action_required": True,
         }
         mock_http.request.side_effect = [
             _make_response(202, {"operation_id": "op-err-envelope"}),
@@ -823,8 +823,8 @@ class TestAsyncErrorEnvelopeParsing:
         error_text = str(exc_info.value)
         # Must contain the readable message
         assert "Jira OAuth token has expired" in error_text
-        # Must contain the user action
-        assert "Re-authorize the Jira integration in Settings" in error_text
+        # user_action_required is boolean True → generic guidance appended
+        assert "action required" in error_text
         # Must NOT contain raw dict syntax
         assert "{'code'" not in error_text
         assert "provider_auth_expired" not in error_text

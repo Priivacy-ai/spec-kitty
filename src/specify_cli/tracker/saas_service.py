@@ -91,13 +91,16 @@ class SaaSTrackerService:
         """Pull items from the external tracker via the SaaS control plane."""
         return self._client.pull(self.provider, self.project_slug, limit=limit)
 
-    def sync_push(self) -> dict[str, Any]:
+    def sync_push(self, *, items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Push items to the external tracker via the SaaS control plane.
 
-        The SaaS control plane owns push-payload construction in this model,
-        so the CLI sends an empty items list.
+        ``items`` is a list of ``PushItem`` dicts as defined by the PRI-12
+        ``TrackerPushRequest`` contract.  Each item carries a ``ref``,
+        ``action``, and optional ``patch`` / ``target_status``.
         """
-        return self._client.push(self.provider, self.project_slug, items=[])
+        return self._client.push(
+            self.provider, self.project_slug, items=items or [],
+        )
 
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
         """Run a full sync cycle via the SaaS control plane."""

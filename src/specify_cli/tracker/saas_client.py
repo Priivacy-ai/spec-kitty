@@ -194,16 +194,12 @@ class SaaSTrackerClient:
         # --- Other non-2xx ---
         if response.status_code >= 400:
             envelope = _parse_error_envelope(response)
-            parts: list[str] = []
-            msg = envelope.get("message")
-            if msg:
-                parts.append(str(msg))
-            action = envelope.get("user_action_required")
-            if action:
-                parts.append(str(action))
-            raise SaaSTrackerClientError(
-                " ".join(parts) if parts else f"HTTP {response.status_code}"
-            )
+            msg = envelope.get("message") or f"HTTP {response.status_code}"
+            # user_action_required is a boolean per PRI-12 ErrorEnvelope.
+            # When True, suffix the message with generic guidance.
+            if envelope.get("user_action_required"):
+                msg += " (action required — check the Spec Kitty dashboard)"
+            raise SaaSTrackerClientError(msg)
 
         return response
 
@@ -242,14 +238,11 @@ class SaaSTrackerClient:
             if status == "failed":
                 error_data = body.get("error")
                 if isinstance(error_data, dict):
-                    parts: list[str] = []
-                    msg = error_data.get("message")
-                    if msg:
-                        parts.append(str(msg))
-                    action = error_data.get("user_action_required")
-                    if action:
-                        parts.append(str(action))
-                    error_msg = " ".join(parts) if parts else "Operation failed"
+                    # error_data is an ErrorEnvelope per PRI-12.
+                    # user_action_required is boolean, not a string.
+                    error_msg = error_data.get("message") or "Operation failed"
+                    if error_data.get("user_action_required"):
+                        error_msg += " (action required — check the Spec Kitty dashboard)"
                 else:
                     error_msg = str(error_data) if error_data else "Operation failed"
                 raise SaaSTrackerClientError(error_msg)
