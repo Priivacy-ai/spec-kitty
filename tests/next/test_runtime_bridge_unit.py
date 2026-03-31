@@ -82,9 +82,8 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
             f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
             encoding="utf-8",
         )
-        # Seed event log for non-planned lanes
-        if lane != "planned":
-            _seed_wp_lane(feature_dir, wp_id, lane)
+        # Always seed event log (canonical status is required)
+        _seed_wp_lane(feature_dir, wp_id, lane)
 
 
 # ---------------------------------------------------------------------------

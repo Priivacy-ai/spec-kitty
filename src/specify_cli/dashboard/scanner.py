@@ -289,8 +289,13 @@ def resolve_active_feature(
     return features[0]
 
 
-def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
-    """Count work packages by lane from event log (new format)."""
+def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
+    """Count work packages by lane from the canonical event log.
+
+    Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
+    WPs not present in the event log are counted as ``"planned"``
+    (mapped from ``"uninitialized"``).
+    """
     counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
 
     if not tasks_dir.exists():
@@ -299,29 +304,18 @@ def _count_wps_by_lane_frontmatter(tasks_dir: Path) -> Dict[str, int]:
     # feature_dir is the parent of tasks/
     feature_dir = tasks_dir.parent
 
-    try:
-        from specify_cli.status.lane_reader import get_all_wp_lanes
-        event_lanes = get_all_wp_lanes(feature_dir)
-    except Exception:
-        event_lanes = {}
+    from specify_cli.status.lane_reader import get_all_wp_lanes
+    event_lanes = get_all_wp_lanes(feature_dir)
 
     for wp_file in tasks_dir.glob("WP*.md"):
-        import re as _re
         stem = wp_file.stem
-        wp_id_match = _re.match(r"^(WP\d+)", stem, _re.IGNORECASE)
+        wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-        if wp_id in event_lanes:
-            lane = event_lanes[wp_id]
-        else:
-            # Fallback to frontmatter for WPs not yet in event log
-            content, error = read_file_resilient(wp_file, auto_fix=True)
-            if content is None:
-                continue
-            frontmatter, _, _ = parse_frontmatter(content)
-            lane = frontmatter.get("lane", "planned") if isinstance(frontmatter, dict) else "planned"
+        lane = event_lanes.get(wp_id, "uninitialized")
 
-        if lane == "claimed":
+        # Map display aliases
+        if lane in ("claimed", "uninitialized"):
             lane = "planned"
         elif lane == "in_progress":
             lane = "doing"
@@ -369,8 +363,8 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                         kanban_stats[lane] = count
                         kanban_stats["total"] += count
             else:
-                # New format: count WPs by frontmatter lane
-                lane_counts = _count_wps_by_lane_frontmatter(tasks_dir)
+                # New format: count WPs by canonical event log lane
+                lane_counts = _count_wps_by_lane(tasks_dir)
                 for lane, count in lane_counts.items():
                     kanban_stats[lane] = count
                     kanban_stats["total"] += count
@@ -437,25 +431,11 @@ def _process_wp_file(
     wp_id = frontmatter.get("work_package_id", prompt_file.stem)
     # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
     feature_dir = prompt_file.parent.parent
-    try:
-        import re as _re
-        stem = prompt_file.stem
-        wp_id_match = _re.match(r"^(WP\d+)", stem, _re.IGNORECASE)
-        canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
-        from specify_cli.status.lane_reader import get_wp_lane
-        from specify_cli.status.store import read_events
-        from specify_cli.status.reducer import reduce
-        events = read_events(feature_dir)
-        if events:
-            snapshot = reduce(events)
-            if canonical_wp_id in snapshot.work_packages:
-                lane = get_wp_lane(feature_dir, canonical_wp_id)
-            else:
-                lane = frontmatter.get("lane", default_lane)
-        else:
-            lane = frontmatter.get("lane", default_lane)
-    except Exception:
-        lane = frontmatter.get("lane", default_lane)
+    stem = prompt_file.stem
+    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
+    canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+    from specify_cli.status.lane_reader import get_wp_lane
+    lane = get_wp_lane(feature_dir, canonical_wp_id)
 
     return {
         "id": wp_id,
@@ -475,7 +455,7 @@ def _process_wp_file(
 def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Dict[str, Any]]]:
     """Scan kanban board for a specific feature.
 
-    Supports both legacy (directory-based) and new (frontmatter-based) lane formats.
+    Supports both legacy (directory-based) and new (event-log-based) lane formats.
     """
     feature_dir = resolve_feature_dir(project_dir, feature_id)
     lanes: Dict[str, List[Dict[str, Any]]] = {

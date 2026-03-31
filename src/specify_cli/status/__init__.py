@@ -42,6 +42,12 @@ from .emit import (
     TransitionError,
     emit_status_transition,
 )
+from .lane_reader import (
+    CanonicalStatusNotFoundError,
+    get_all_wp_lanes,
+    get_wp_lane,
+    has_event_log,
+)
 from .views import (
     generate_status_view,
     materialize_if_stale,
@@ -65,6 +71,7 @@ from .validate import (
 
 __all__ = [
     "ALLOWED_TRANSITIONS",
+    "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",
     "ProgressResult",
     "WPProgress",
@@ -90,6 +97,9 @@ __all__ = [
     "append_event",
     "emit_status_transition",
     "generate_status_view",
+    "get_all_wp_lanes",
+    "get_wp_lane",
+    "has_event_log",
     "is_terminal",
     "materialize",
     "materialize_to_json",
