@@ -423,7 +423,6 @@ class TestMoveTaskAtomicCommit:
         task_content = """---
 work_package_id: "WP01"
 title: "Test Task"
-lane: "doing"
 agent: "test-agent"
 shell_pid: ""
 ---
@@ -434,12 +433,19 @@ Test content.
 
 ## Activity Log
 
-- 2025-01-01T00:00:00Z - system - lane=planned - Initial
+- 2025-01-01T00:00:00Z - system - Initial
 """
         (tasks_dir / "WP01-test.md").write_text(task_content)
 
         meta = {"mission": "research"}
         (feature_dir / "meta.json").write_text(json.dumps(meta))
+        _append_status_event(
+            feature_dir,
+            feature_slug="017-test-feature",
+            wp_id="WP01",
+            from_lane=Lane.PLANNED,
+            to_lane=Lane.IN_PROGRESS,
+        )
 
         subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
         subprocess.run(

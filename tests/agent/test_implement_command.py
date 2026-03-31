@@ -87,6 +87,15 @@ class TestFindWpFile:
         with pytest.raises(FileNotFoundError, match="WP file not found"):
             find_wp_file(tmp_path, "010-feature", "WP01")
 
+    def test_find_wp_file_rejects_invalid_wp_id(self, tmp_path):
+        """Reject path-like or malformed WP identifiers before filesystem lookup."""
+        tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tasks_dir / "WP01-setup.md").write_text("# WP01")
+
+        with pytest.raises(FileNotFoundError, match="Invalid work package ID"):
+            find_wp_file(tmp_path, "010-feature", "../WP01")
+
     def test_find_wp_file_tasks_dir_missing(self, tmp_path):
         """Test error when tasks directory doesn't exist."""
         with pytest.raises(FileNotFoundError, match="Tasks directory not found"):

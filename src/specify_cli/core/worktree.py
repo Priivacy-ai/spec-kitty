@@ -369,7 +369,7 @@ def setup_feature_directory(
     # Create tasks/README.md with frontmatter format reference
     tasks_readme_content = '''# Tasks Directory
 
-This directory contains work package (WP) prompt files with lane status in frontmatter.
+This directory contains work package (WP) prompt files.
 
 ## Directory Structure (v0.9.0+)
 
@@ -381,7 +381,12 @@ tasks/
 └── README.md
 ```
 
-All WP files are stored flat in `tasks/`. The lane (planned, doing, for_review, done) is stored in the YAML frontmatter `lane:` field.
+All WP files are stored flat in `tasks/`.
+
+## Status Tracking
+
+Status is tracked in `status.events.jsonl`, not in WP frontmatter.
+Use `spec-kitty agent tasks move-task` to change WP status.
 
 ## Work Package File Format
 
@@ -391,7 +396,6 @@ Each WP file **MUST** use YAML frontmatter:
 ---
 work_package_id: "WP01"
 title: "Work Package Title"
-lane: "planned"
 subtasks:
   - "T001"
   - "T002"
@@ -399,31 +403,20 @@ phase: "Phase 1 - Setup"
 assignee: ""
 agent: ""
 shell_pid: ""
-review_status: ""
-reviewed_by: ""
-review_feedback: ""
 history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    lane: "planned"
-    agent: "system"
+  - at: "2025-01-01T00:00:00Z"
+    actor: "system"
     action: "Prompt generated via /spec-kitty.tasks"
 ---
 
-# Work Package Prompt: WP01 – Work Package Title
+# Work Package Prompt: WP01 -- Work Package Title
 
 [Content follows...]
 ```
 
-## Valid Lane Values
-
-- `planned` - Ready for implementation
-- `doing` - Currently being worked on
-- `for_review` - Awaiting review
-- `done` - Completed
-
 ## Moving Between Lanes
 
-Use the CLI (updates frontmatter only, no file movement):
+Use the CLI to emit a status transition event:
 ```bash
 spec-kitty agent tasks move-task <WPID> --to <lane>
 ```

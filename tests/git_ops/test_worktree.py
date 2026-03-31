@@ -285,8 +285,9 @@ class TestSetupFeatureDirectory:
         assert readme.exists()
         content = readme.read_text()
         assert "# Tasks Directory" in content
-        assert "lane:" in content
         assert "YAML frontmatter" in content
+        assert "status.events.jsonl" in content
+        assert "lane:" not in content
 
     def test_copies_spec_template_when_exists(self, tmp_path: Path):
         """Should copy spec template to spec.md when template exists."""

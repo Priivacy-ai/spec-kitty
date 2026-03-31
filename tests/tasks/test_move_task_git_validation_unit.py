@@ -14,6 +14,8 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app, _validate_ready_for_review
+from specify_cli.status.store import append_event
+from specify_cli.status.models import StatusEvent, Lane
 
 pytestmark = pytest.mark.git_repo
 
@@ -65,7 +67,6 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     task_content = """---
 work_package_id: "WP01"
 title: "Test Task"
-lane: "doing"
 agent: "test-agent"
 shell_pid: ""
 ---
@@ -79,6 +80,25 @@ Test content here.
 - 2025-01-01T00:00:00Z – system – lane=planned – Initial creation
 """
     task_file.write_text(task_content)
+
+    # Seed canonical status events so move_task hard-fail check passes.
+    # The WP starts at "doing" (in_progress), so seed planned -> in_progress.
+    for lane_val in ("planned", "in_progress"):
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id=f"seed-WP01-{lane_val}",
+                feature_slug="017-test-feature",
+                wp_id="WP01",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane(lane_val),
+                at="2025-01-01T00:00:00+00:00",
+                actor="test-fixture",
+                force=True,
+                execution_mode="worktree",
+            ),
+        )
+
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
     subprocess.run(
         ["git", "commit", "-m", "Add task file"],

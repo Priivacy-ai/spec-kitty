@@ -1,0 +1,74 @@
+{
+  "event_count": 33,
+  "feature_slug": "060-canonical-status-model-cleanup",
+  "last_event_id": "01KN1DYA7FDVQNFSN7XF9670CZ",
+  "materialized_at": "2026-03-31T07:50:14.511853+00:00",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 1,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1BNHY0Q4DSJCG3MJCBPWWJ",
+      "last_transition_at": "2026-03-31T07:10:30.336821+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1C75QBK017MZSN7EERDZAZ",
+      "last_transition_at": "2026-03-31T07:20:07.659564+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1CB5V8149Q6CNRJ39HP44E",
+      "last_transition_at": "2026-03-31T07:22:18.856333+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1C9A6SZE323KGPP3ATK9FN",
+      "last_transition_at": "2026-03-31T07:21:17.785314+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1BW37V4CMETD2EB5RHPZQJ",
+      "last_transition_at": "2026-03-31T07:14:04.667845+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1DFFXPMYDXKWTMBMQGDFQB",
+      "last_transition_at": "2026-03-31T07:42:08.822047+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KN1CWMYT91A6428Y9K0Z6R33",
+      "last_transition_at": "2026-03-31T07:31:51.386170+00:00"
+    },
+    "WP08": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KN1DYA7FDVQNFSN7XF9670CZ",
+      "last_transition_at": "2026-03-31T07:50:14.511341+00:00"
+    }
+  }
+}

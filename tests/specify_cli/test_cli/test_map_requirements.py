@@ -40,7 +40,7 @@ def _setup_feature(tmp_path: Path, *, wp_ids: list[str] | None = None) -> Path:
 
     for wp_id in (wp_ids or ["WP01", "WP02"]):
         (tasks_dir / f"{wp_id}-test.md").write_text(
-            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"{wp_id}\"\nlane: planned\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"{wp_id}\"\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 

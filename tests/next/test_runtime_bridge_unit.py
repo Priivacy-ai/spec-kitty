@@ -82,9 +82,8 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
             f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
             encoding="utf-8",
         )
-        # Seed event log for non-planned lanes
-        if lane != "planned":
-            _seed_wp_lane(feature_dir, wp_id, lane)
+        # Always seed event log (canonical status is required)
+        _seed_wp_lane(feature_dir, wp_id, lane)
 
 
 # ---------------------------------------------------------------------------
@@ -566,6 +565,22 @@ class TestWPStepHelpers:
         from specify_cli.next.runtime_bridge import _should_advance_wp_step
 
         assert _should_advance_wp_step("implement", tmp_path) is True
+
+    def test_should_advance_hardfails_without_canonical_status(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        feature_dir = repo_root / "kitty-specs" / "042-test-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(exist_ok=True)
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: WP01 task\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        from specify_cli.next.runtime_bridge import _should_advance_wp_step
+        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
+        with pytest.raises(CanonicalStatusNotFoundError):
+            _should_advance_wp_step("implement", feature_dir)
 
     def test_should_advance_all_done(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)

@@ -127,6 +127,21 @@ app = typer.Typer(
     no_args_is_help=True
 )
 
+_CANONICAL_STATUS_NOT_FOUND = "canonical status not found"
+
+
+def _is_missing_canonical_status_error(exc: BaseException) -> bool:
+    """Return True when *exc* indicates missing canonical status bootstrap."""
+    return _CANONICAL_STATUS_NOT_FOUND in str(exc).lower()
+
+
+def _missing_canonical_status_message(wp_id: str, feature_slug: str) -> str:
+    """Return a consistent hard-fail message for missing canonical status."""
+    return (
+        f"WP {wp_id} has no canonical status. "
+        f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+    )
+
 
 def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
@@ -319,6 +334,12 @@ def implement(
         # Find WP file to read dependencies
         try:
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if _is_missing_canonical_status_error(e):
+                print(f"Error: {_missing_canonical_status_message(normalized_wp_id, feature_slug)}")
+                raise typer.Exit(1)
+            print(f"Error locating work package: {e}")
+            raise typer.Exit(1)
         except Exception as e:
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
@@ -372,26 +393,31 @@ def implement(
                 raise typer.Exit(1)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if _is_missing_canonical_status_error(e):
+                raise RuntimeError(
+                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
+                ) from e
+            raise
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
-        # Lane is event-log-only; read from canonical event log not frontmatter
+        # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         _wf_feature_dir = repo_root / "kitty-specs" / feature_slug
-        try:
-            from specify_cli.status.store import read_events as _wf_read_events
-            from specify_cli.status.reducer import reduce as _wf_reduce
+        from specify_cli.status.lane_reader import get_wp_lane as _wf_get_wp_lane
+        from specify_cli.status.store import read_events as _wf_read_events
+        from specify_cli.status.reducer import reduce as _wf_reduce
 
-            _wf_events = _wf_read_events(_wf_feature_dir)
-            _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
-            _wf_state = _wf_snapshot.work_packages.get(normalized_wp_id) if _wf_snapshot else None
-            if _wf_state is not None:
-                current_lane = str(_wf_state.get("lane", "planned"))
-            else:
-                # No event log state — fall back to frontmatter lane (migration period read-only)
-                current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
-        except Exception:
-            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
-            current_lane = str(extract_scalar(wp.frontmatter, "lane") or "planned")
+        _wf_events = _wf_read_events(_wf_feature_dir)
+        _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
+        _wf_has_canonical = (
+            _wf_snapshot is not None
+            and normalized_wp_id in _wf_snapshot.work_packages
+        )
+        if not _wf_has_canonical:
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
+        current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
         if current_lane == "in_progress":
             current_lane = "doing"
@@ -470,12 +496,12 @@ def implement(
             updated_front = set_scalar(updated_front, "agent", agent)
             updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-            # Build history entry
+            # Build history entry (no lane= segment; event log is sole lane authority)
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != "doing":
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started implementation via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via workflow command"
             else:
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Assigned agent via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via workflow command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -935,31 +961,32 @@ def review(
                 raise typer.Exit(1)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if _is_missing_canonical_status_error(e):
+                raise RuntimeError(
+                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
+                ) from e
+            raise
 
         # Move to "doing" lane if not already there.
         # Explicit WP review requests must target for_review (or already-claimed doing).
-        # Lane is event-log-only; read from canonical event log not frontmatter
+        # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         feature_dir = main_repo_root / "kitty-specs" / feature_slug
-        try:
-            from specify_cli.status.store import read_events as _rv_read_events
-            from specify_cli.status.reducer import reduce as _rv_reduce
+        from specify_cli.status.lane_reader import get_wp_lane as _rv_get_wp_lane
+        from specify_cli.status.store import read_events as _rv_read_events
+        from specify_cli.status.reducer import reduce as _rv_reduce
 
-            _rv_events = _rv_read_events(feature_dir)
-            _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
-            _rv_state = _rv_snapshot.work_packages.get(normalized_wp_id) if _rv_snapshot else None
-            if _rv_state is not None:
-                current_lane_raw = str(_rv_state.get("lane", "planned"))
-            else:
-                # No event log state — fall back to frontmatter lane (migration period read-only)
-                current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
-                current_lane_raw = str(current_lane_raw)
-        except typer.Exit:
-            raise
-        except Exception:
-            # Event log unreadable — fall back to frontmatter lane (migration period read-only)
-            current_lane_raw = extract_scalar(wp.frontmatter, "lane") or "planned"
-            current_lane_raw = str(current_lane_raw)
+        _rv_events = _rv_read_events(feature_dir)
+        _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
+        _rv_has_canonical = (
+            _rv_snapshot is not None
+            and normalized_wp_id in _rv_snapshot.work_packages
+        )
+        if not _rv_has_canonical:
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
+        current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
@@ -1005,9 +1032,9 @@ def review(
                 updated_front = set_scalar(updated_front, "agent", agent)
                 updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
 
-                # Build history entry
+                # Build history entry (no lane= segment; event log is sole lane authority)
                 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane=doing – Started review via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via workflow command"
 
                 # Add history entry to body
                 updated_body = append_activity_log(updated_body, history_entry)

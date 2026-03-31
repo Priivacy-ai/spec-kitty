@@ -89,7 +89,7 @@ class TestReadValidInput:
         """Standard WP frontmatter fields round-trip correctly."""
         # Arrange
         content = (
-            "---\nwork_package_id: WP01\ntitle: Setup\nlane: planned\ndependencies: []\n---\n# Setup\n\nBody text.\n"
+            "---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---\n# Setup\n\nBody text.\n"
         )
         f = tmp_path / "WP01.md"
         f.write_text(content, encoding="utf-8")
@@ -102,7 +102,7 @@ class TestReadValidInput:
 
         # Assert
         assert frontmatter["work_package_id"] == "WP01"
-        assert frontmatter["lane"] == "planned"
+        assert frontmatter["title"] == "Setup"
         assert frontmatter["dependencies"] == []
         assert "Body text." in body
 

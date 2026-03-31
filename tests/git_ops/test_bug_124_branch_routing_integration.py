@@ -46,6 +46,7 @@ def get_current_branch(repo: Path) -> str:
 
 def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
     """Create minimal feature targeting main branch."""
+    import time
     import yaml
 
     # Create .kittify
@@ -72,11 +73,26 @@ def create_feature_on_main(repo: Path, feature_slug: str) -> Path:
     (tasks_dir / "WP01-test.md").write_text(
         "---\n"
         "work_package_id: WP01\n"
-        "lane: planned\n"
         "dependencies: []\n"
         "---\n\n"
         "# WP01\n"
     )
+    seed_event = {
+        "event_id": f"{feature_slug}-wp01-planned-{time.time_ns()}",
+        "feature_slug": feature_slug,
+        "wp_id": "WP01",
+        "from_lane": "planned",
+        "to_lane": "planned",
+        "at": "2026-02-11T00:00:00+00:00",
+        "actor": "test",
+        "force": False,
+        "execution_mode": "direct_repo",
+        "reason": None,
+        "review_ref": None,
+        "evidence": None,
+        "policy_metadata": None,
+    }
+    (feature_dir / "status.events.jsonl").write_text(json.dumps(seed_event) + "\n", encoding="utf-8")
 
     # Commit
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)

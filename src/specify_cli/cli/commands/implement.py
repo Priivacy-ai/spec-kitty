@@ -24,13 +24,10 @@ from specify_cli.core.vcs import (
     VCSBackend,
     VCSLockError,
 )
-from specify_cli.frontmatter import read_frontmatter, update_fields
+from specify_cli.frontmatter import update_fields
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
-    locate_work_package,
-    set_scalar,
-    build_document,
 )
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
@@ -45,6 +42,7 @@ from specify_cli.sync.events import emit_wp_status_changed
 from specify_cli.core.agent_config import get_auto_commit_default
 
 console = Console()
+_WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
 
 
 def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
@@ -149,10 +147,19 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
-    # Search for WP##-*.md pattern
-    wp_files = list(tasks_dir.glob(f"{wp_id}-*.md"))
+    normalized_wp_id = wp_id.strip().upper()
+    if not _WP_ID_RE.fullmatch(normalized_wp_id):
+        raise FileNotFoundError(
+            f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01)."
+        )
+
+    wp_name_re = re.compile(
+        rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$",
+        re.IGNORECASE,
+    )
+    wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
     if not wp_files:
-        raise FileNotFoundError(f"WP file not found for {wp_id} in {tasks_dir}")
+        raise FileNotFoundError(f"WP file not found for {normalized_wp_id} in {tasks_dir}")
 
     return wp_files[0]
 
@@ -670,7 +677,7 @@ def implement(
 
             # Check if base is merged (ADR-18: Auto-detect merged dependencies)
             try:
-                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                find_wp_file(repo_root, feature_slug, base)
                 base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception:
                 # Base WP file not found - error
@@ -883,7 +890,7 @@ def implement(
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
-                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                find_wp_file(repo_root, feature_slug, base)
                 base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception as e:
                 # Base WP file not found
@@ -1024,7 +1031,6 @@ def implement(
     try:
         import os
 
-        wp = locate_work_package(repo_root, feature_slug, wp_id)
         lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
@@ -1033,12 +1039,6 @@ def implement(
         if current_lane == "planned":
             # Capture current shell PID for audit trail
             shell_pid = str(os.getppid())
-
-            # Update shell_pid in frontmatter (lane is event-log-only)
-            updated_front = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
-
-            # Build updated document (write after ensuring target branch)
-            updated_doc = build_document(updated_front, wp.body, wp.padding)
 
             # Auto-commit to current branch (respects user context, no auto-checkout)
             from specify_cli.core.git_ops import resolve_target_branch
@@ -1055,15 +1055,15 @@ def implement(
                     f"Status will commit to '{resolution.current}'."
                 )
 
-            # Write updated WP file (always, regardless of auto_commit)
-            wp.path.write_text(updated_doc, encoding="utf-8")
+            # Update shell_pid in frontmatter (lane is event-log-only)
+            update_fields(wp_file, {"shell_pid": shell_pid})
             lane_changed = True
 
             if auto_commit:
                 # Commit only the WP file (safe_commit preserves staging area)
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
-                files_to_commit = [wp.path.resolve()]
+                files_to_commit = [wp_file.resolve()]
                 if meta_file.exists():
                     files_to_commit.append(meta_file.resolve())
                 if config_file.exists():

@@ -1,4 +1,11 @@
-"""Migration: Complete lane migration, clean up worktrees, and normalize frontmatter."""
+"""Legacy migration: reads and writes frontmatter ``lane`` field.
+
+This migration predates the canonical event-log status model (3.0).
+Frontmatter lane is no longer authoritative for active features.
+
+Original purpose: Complete lane migration, clean up worktrees, and
+normalize frontmatter.
+"""
 
 from __future__ import annotations
 
