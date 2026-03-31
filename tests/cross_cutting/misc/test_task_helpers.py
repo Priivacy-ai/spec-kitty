@@ -25,14 +25,14 @@ def test_split_frontmatter_handles_padding() -> None:
 
 
 def test_append_activity_log_creates_section() -> None:
-    entry = "- 2025-01-01T00:00:00Z – system – shell_pid=1 – lane=planned – Created"
+    entry = "- 2025-01-01T00:00:00Z – system – shell_pid=1 – Created"
     body = th.append_activity_log("", entry)
     assert "## Activity Log" in body
     assert entry in body
 
-    second = th.append_activity_log(body, "- 2025-01-02T00:00:00Z – agent – shell_pid=2 – lane=doing – Moved")
+    second = th.append_activity_log(body, "- 2025-01-02T00:00:00Z – agent – shell_pid=2 – Moved")
     assert second.count("Activity Log") == 1
-    assert "lane=doing" in second
+    assert "shell_pid=2" in second
 
 
 def test_detect_conflicting_wp_status() -> None:

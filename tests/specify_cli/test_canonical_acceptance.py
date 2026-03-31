@@ -14,8 +14,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from specify_cli.acceptance import collect_feature_summary
 from specify_cli.feature_metadata import load_meta, record_acceptance
+from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
 
@@ -323,21 +326,12 @@ class TestCanonicalStateAuthority:
         with patch("specify_cli.acceptance.run_git") as mock_git, \
              patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
-            summary = collect_feature_summary(
-                tmp_path,
-                "099-test-feature",
-                strict_metadata=False,
-            )
-
-        # Should have explicit error about missing canonical state
-        assert any(
-            "status.events.jsonl" in issue
-            for issue in summary.activity_issues
-        ), f"Expected missing event log error, got: {summary.activity_issues}"
-        assert any(
-            "canonical state" in issue.lower() or "No canonical state" in issue
-            for issue in summary.activity_issues
-        ), f"Expected actionable error message, got: {summary.activity_issues}"
+            with pytest.raises(CanonicalStatusNotFoundError, match="Canonical status not found"):
+                collect_feature_summary(
+                    tmp_path,
+                    "099-test-feature",
+                    strict_metadata=False,
+                )
 
     def test_wp_with_no_events_reports_no_canonical_state(self, tmp_path: Path) -> None:
         """WP exists in task files but has no events in the log."""
