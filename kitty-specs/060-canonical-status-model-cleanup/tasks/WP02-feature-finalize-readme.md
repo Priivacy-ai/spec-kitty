@@ -1,0 +1,98 @@
+---
+work_package_id: WP02
+title: feature.py Changes
+dependencies: [WP01]
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
+- FR-011
+planning_base_branch: main
+merge_target_branch: main
+branch_strategy: Depends on WP01. Use `spec-kitty implement WP02 --base WP01`.
+subtasks: [T003, T004, T005]
+history:
+- at: '2026-03-31T06:58:09+00:00'
+  actor: planner
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/cli/commands/agent/feature.py
+execution_mode: code_change
+owned_files:
+- src/specify_cli/cli/commands/agent/feature.py
+- tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py
+---
+
+# WP02: feature.py Changes
+
+## Objective
+
+Integrate canonical bootstrap into `feature.py`'s `finalize_tasks` command, add `--validate-only` support, and update the README generator at line 640 to describe lane-free WP frontmatter.
+
+## Context
+
+- `feature.py` finalize-tasks is at lines 1560-1639. It currently parses dependencies and updates frontmatter but does NOT seed canonical status.
+- The README generator at line 640 currently documents `lane:` in WP frontmatter.
+- `bootstrap_canonical_state()` from WP01 provides the shared bootstrap logic.
+
+## Implementation Command
+
+```bash
+spec-kitty implement WP02 --base WP01
+```
+
+---
+
+## Subtask T003: Integrate Bootstrap + --validate-only
+
+**Purpose**: After dependency parsing, call `bootstrap_canonical_state()` to seed planned events for uninitialized WPs.
+
+**Steps**:
+1. Read the existing `finalize_tasks()` function in `feature.py` (around line 1560)
+2. After the dependency-parsing and frontmatter-update logic, add:
+   ```python
+   from specify_cli.status.bootstrap import bootstrap_canonical_state
+   result = bootstrap_canonical_state(feature_dir, feature_slug, dry_run=validate_only)
+   ```
+3. If `validate_only`: include bootstrap result in the JSON/console output (how many WPs would be seeded)
+4. If not `validate_only`: bootstrap runs, events emitted, `status.json` materialized
+5. Include bootstrap stats in the JSON output: `"bootstrap": {"total_wps": N, "newly_seeded": M, "already_initialized": K}`
+
+**Files**: `src/specify_cli/cli/commands/agent/feature.py` (~20 lines added)
+
+---
+
+## Subtask T004: Update README Generator
+
+**Purpose**: The generated README at line 640 currently documents `lane:` in WP frontmatter. Update it to describe the 3.0 model.
+
+**Steps**:
+1. Find the README generation code around line 640
+2. Replace the `lane:` field documentation with: "Status is tracked in `status.events.jsonl`, not in WP frontmatter."
+3. Remove "Valid Lane Values" section if present
+4. Remove "Moving Between Lanes updates frontmatter" wording
+5. Keep "Use `spec-kitty agent tasks move-task` to change WP status" guidance
+
+**Files**: `src/specify_cli/cli/commands/agent/feature.py` (~10 lines changed)
+
+---
+
+## Subtask T005: Write Tests
+
+**Steps**:
+1. Create `tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py`
+2. Test that finalize-tasks calls `bootstrap_canonical_state()` after dependency parsing
+3. Test that `--validate-only` calls with `dry_run=True` and does not mutate files
+4. Test that bootstrap stats appear in JSON output
+
+**Files**: `tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py` (~100 lines)
+
+---
+
+## Definition of Done
+
+- [ ] `feature.py` finalize-tasks calls `bootstrap_canonical_state()` after dependency parsing
+- [ ] `--validate-only` uses `dry_run=True` and reports bootstrap readiness
+- [ ] JSON output includes bootstrap stats
+- [ ] Generated README describes lane-free frontmatter
+- [ ] Tests verify bootstrap integration
+- [ ] `mypy --strict` passes
