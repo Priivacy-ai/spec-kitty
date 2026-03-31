@@ -863,6 +863,28 @@ jobs:
             echo ""
           fi
 
+      - name: "[INFO] Resolve SonarCloud project settings"
+        id: sonar_settings
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          organization="${{ vars.SONAR_ORGANIZATION || 'priivacy-ai' }}"
+          host_url="${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}"
+          repo_name="${{ github.event.repository.name }}"
+          project_key="${{ vars.SONAR_PROJECT_KEY }}"
+
+          if [ -z "$project_key" ]; then
+            project_key="${organization}_${repo_name}"
+          fi
+
+          echo "organization=$organization" >> "$GITHUB_OUTPUT"
+          echo "host_url=$host_url" >> "$GITHUB_OUTPUT"
+          echo "project_key=$project_key" >> "$GITHUB_OUTPUT"
+
+          echo "Using SonarCloud settings:"
+          echo "  host_url=$host_url"
+          echo "  organization=$organization"
+          echo "  project_key=$project_key"
+
       - name: "[ENFORCED] Check out repository"
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: actions/checkout@v4
@@ -928,6 +950,11 @@ jobs:
       - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'
         uses: SonarSource/sonarqube-scan-action@v6
+        with:
+          args: >
+            -Dsonar.host.url=${{ steps.sonar_settings.outputs.host_url }}
+            -Dsonar.organization=${{ steps.sonar_settings.outputs.organization }}
+            -Dsonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -938,3 +965,4 @@ jobs:
         timeout-minutes: 5
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ steps.sonar_settings.outputs.host_url }}
