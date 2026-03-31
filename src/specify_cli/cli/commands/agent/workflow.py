@@ -319,6 +319,15 @@ def implement(
         # Find WP file to read dependencies
         try:
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if "canonical status not found" in str(e).lower():
+                print(
+                    f"Error: WP {normalized_wp_id} has no canonical status. "
+                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                )
+                raise typer.Exit(1)
+            print(f"Error locating work package: {e}")
+            raise typer.Exit(1)
         except Exception as e:
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
@@ -372,7 +381,15 @@ def implement(
                 raise typer.Exit(1)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if "canonical status not found" in str(e).lower():
+                raise RuntimeError(
+                    f"WP {normalized_wp_id} has no canonical status. "
+                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                ) from e
+            raise
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
@@ -936,7 +953,15 @@ def review(
                 raise typer.Exit(1)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        try:
+            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        except RuntimeError as e:
+            if "canonical status not found" in str(e).lower():
+                raise RuntimeError(
+                    f"WP {normalized_wp_id} has no canonical status. "
+                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                ) from e
+            raise
 
         # Move to "doing" lane if not already there.
         # Explicit WP review requests must target for_review (or already-claimed doing).

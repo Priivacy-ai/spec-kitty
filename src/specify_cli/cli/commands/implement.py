@@ -28,9 +28,9 @@ from specify_cli.frontmatter import read_frontmatter, update_fields
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
-    locate_work_package,
     set_scalar,
     build_document,
+    split_frontmatter,
 )
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
@@ -670,7 +670,7 @@ def implement(
 
             # Check if base is merged (ADR-18: Auto-detect merged dependencies)
             try:
-                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                find_wp_file(repo_root, feature_slug, base)
                 base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception:
                 # Base WP file not found - error
@@ -883,7 +883,7 @@ def implement(
         else:
             # Has dependencies - check if base is merged or in-progress
             try:
-                locate_work_package(repo_root, feature_slug, base)  # validate it exists
+                find_wp_file(repo_root, feature_slug, base)
                 base_lane = _get_wp_lane_from_event_log(feature_dir, base)
             except Exception as e:
                 # Base WP file not found
@@ -1024,7 +1024,6 @@ def implement(
     try:
         import os
 
-        wp = locate_work_package(repo_root, feature_slug, wp_id)
         lane_changed = False
 
         # Only update if currently planned (avoid overwriting existing doing/review state)
@@ -1034,11 +1033,14 @@ def implement(
             # Capture current shell PID for audit trail
             shell_pid = str(os.getppid())
 
+            wp_text = wp_file.read_text(encoding="utf-8-sig")
+            wp_frontmatter, wp_body, wp_padding = split_frontmatter(wp_text)
+
             # Update shell_pid in frontmatter (lane is event-log-only)
-            updated_front = set_scalar(wp.frontmatter, "shell_pid", shell_pid)
+            updated_front = set_scalar(wp_frontmatter, "shell_pid", shell_pid)
 
             # Build updated document (write after ensuring target branch)
-            updated_doc = build_document(updated_front, wp.body, wp.padding)
+            updated_doc = build_document(updated_front, wp_body, wp_padding)
 
             # Auto-commit to current branch (respects user context, no auto-checkout)
             from specify_cli.core.git_ops import resolve_target_branch
@@ -1056,14 +1058,14 @@ def implement(
                 )
 
             # Write updated WP file (always, regardless of auto_commit)
-            wp.path.write_text(updated_doc, encoding="utf-8")
+            wp_file.write_text(updated_doc, encoding="utf-8")
             lane_changed = True
 
             if auto_commit:
                 # Commit only the WP file (safe_commit preserves staging area)
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
-                files_to_commit = [wp.path.resolve()]
+                files_to_commit = [wp_file.resolve()]
                 if meta_file.exists():
                     files_to_commit.append(meta_file.resolve())
                 if config_file.exists():
