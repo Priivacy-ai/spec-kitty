@@ -1,8 +1,8 @@
 {
-  "event_count": 10,
+  "event_count": 12,
   "feature_slug": "060-canonical-status-model-cleanup",
-  "last_event_id": "01KN1BWX17Y2WJPN4Q4DX4Z5B6",
-  "materialized_at": "2026-03-31T07:14:31.079197+00:00",
+  "last_event_id": "01KN1BWYZKNZM8Q877VGGN3TGJ",
+  "materialized_at": "2026-03-31T07:14:33.075712+00:00",
   "summary": {
     "approved": 2,
     "blocked": 0,
@@ -10,7 +10,7 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 2,
     "planned": 0
   },
   "work_packages": {
@@ -27,6 +27,13 @@
       "lane": "in_progress",
       "last_event_id": "01KN1BWX17Y2WJPN4Q4DX4Z5B6",
       "last_transition_at": "2026-03-31T07:14:31.079033+00:00"
+    },
+    "WP03": {
+      "actor": "orchestrator",
+      "force_count": 0,
+      "lane": "in_progress",
+      "last_event_id": "01KN1BWYZKNZM8Q877VGGN3TGJ",
+      "last_transition_at": "2026-03-31T07:14:33.075548+00:00"
     },
     "WP05": {
       "actor": "user",
