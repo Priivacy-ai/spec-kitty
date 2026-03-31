@@ -311,20 +311,22 @@ def test_sync_push_saas_with_items_json(mock_service_fn, mock_load_cfg, mock_rep
 @patch("specify_cli.cli.commands.tracker.require_repo_root")
 @patch("specify_cli.cli.commands.tracker.load_tracker_config")
 @patch("specify_cli.cli.commands.tracker._service")
-def test_sync_push_saas_no_items_no_mappings(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
-    """SaaS push with no items and no mappings exits with guidance."""
+def test_sync_push_saas_requires_items_json(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """SaaS push without --items-json fails with clear guidance."""
     from specify_cli.tracker.config import TrackerProjectConfig
 
     app = _make_app(monkeypatch)
     mock_svc = MagicMock()
-    mock_svc.map_list.return_value = []
     mock_service_fn.return_value = mock_svc
     mock_load_cfg.return_value = TrackerProjectConfig(provider="jira", project_slug="proj")
     mock_repo_root.return_value = tmp_path
 
     result = runner.invoke(app, ["sync", "push"])
-    # Exit code 0 — not an error, just nothing to push
-    assert "No pending changes" in result.output
+    assert result.exit_code == 1
+    assert "--items-json is required" in result.output
+    assert "tracker sync run" in result.output
+    # Verify sync_push was never called (we errored before reaching it)
+    mock_svc.sync_push.assert_not_called()
 
 
 @patch("specify_cli.cli.commands.tracker._service")
