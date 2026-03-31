@@ -24,13 +24,10 @@ from specify_cli.core.vcs import (
     VCSBackend,
     VCSLockError,
 )
-from specify_cli.frontmatter import read_frontmatter, update_fields
+from specify_cli.frontmatter import update_fields
 from specify_cli.tasks_support import (
     TaskCliError,
     find_repo_root,
-    set_scalar,
-    build_document,
-    split_frontmatter,
 )
 from specify_cli.workspace_context import WorkspaceContext, save_context
 from specify_cli.core.multi_parent_merge import create_multi_parent_base
@@ -1043,15 +1040,6 @@ def implement(
             # Capture current shell PID for audit trail
             shell_pid = str(os.getppid())
 
-            wp_text = wp_file.read_text(encoding="utf-8-sig")
-            wp_frontmatter, wp_body, wp_padding = split_frontmatter(wp_text)
-
-            # Update shell_pid in frontmatter (lane is event-log-only)
-            updated_front = set_scalar(wp_frontmatter, "shell_pid", shell_pid)
-
-            # Build updated document (write after ensuring target branch)
-            updated_doc = build_document(updated_front, wp_body, wp_padding)
-
             # Auto-commit to current branch (respects user context, no auto-checkout)
             from specify_cli.core.git_ops import resolve_target_branch
             commit_msg = f"chore: {wp_id} claimed for implementation"
@@ -1067,8 +1055,8 @@ def implement(
                     f"Status will commit to '{resolution.current}'."
                 )
 
-            # Write updated WP file (always, regardless of auto_commit)
-            wp_file.write_text(updated_doc, encoding="utf-8")
+            # Update shell_pid in frontmatter (lane is event-log-only)
+            update_fields(wp_file, {"shell_pid": shell_pid})
             lane_changed = True
 
             if auto_commit:
