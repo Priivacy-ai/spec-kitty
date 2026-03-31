@@ -13,7 +13,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Tactic
 
@@ -55,7 +57,7 @@ class TacticRepository:
                         continue
                     tactic = Tactic.model_validate(data)
                     shipped[tactic.id] = tactic
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped tactic {yaml_file.name}: {e}",
                         UserWarning,
@@ -85,7 +87,7 @@ class TacticRepository:
                     else:
                         tactic = Tactic.model_validate(data)
                         self._tactics[tactic.id] = tactic
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project tactic {yaml_file.name}: {e}",
                         UserWarning,

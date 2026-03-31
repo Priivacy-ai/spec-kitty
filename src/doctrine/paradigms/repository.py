@@ -7,7 +7,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Paradigm
 
@@ -49,7 +51,7 @@ class ParadigmRepository:
                         continue
                     paradigm = Paradigm.model_validate(data)
                     shipped[paradigm.id] = paradigm
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped paradigm {yaml_file.name}: {e}",
                         UserWarning,
@@ -79,7 +81,7 @@ class ParadigmRepository:
                     else:
                         paradigm = Paradigm.model_validate(data)
                         self._paradigms[paradigm.id] = paradigm
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project paradigm {yaml_file.name}: {e}",
                         UserWarning,

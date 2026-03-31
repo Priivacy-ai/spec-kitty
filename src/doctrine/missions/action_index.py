@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 
 @dataclass(frozen=True)
@@ -59,5 +60,5 @@ def load_action_index(missions_root: Path, mission: str, action: str) -> ActionI
             toolguides=_str_list("toolguides"),
             procedures=_str_list("procedures"),
         )
-    except Exception:
+    except (OSError, UnicodeDecodeError, YAMLError):
         return fallback

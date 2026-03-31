@@ -43,7 +43,7 @@ class CentralTemplateRepository:
 
             resource = files("doctrine") / "templates" / "command-templates"
             return Path(str(resource))
-        except Exception:
+        except (ModuleNotFoundError, TypeError):
             return Path(__file__).parent / "command-templates"
 
     # ------------------------------------------------------------------

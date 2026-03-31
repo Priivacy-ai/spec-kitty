@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Styleguide
 
@@ -57,7 +59,7 @@ class StyleguideRepository:
                         continue
                     styleguide = Styleguide.model_validate(data)
                     shipped[styleguide.id] = styleguide
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped styleguide {yaml_file.name}: {e}",
                         UserWarning,
@@ -89,7 +91,7 @@ class StyleguideRepository:
                     else:
                         styleguide = Styleguide.model_validate(data)
                         self._styleguides[styleguide.id] = styleguide
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project styleguide {yaml_file.name}: {e}",
                         UserWarning,

@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Any
 
 from importlib.resources import files
+from pydantic import ValidationError
 from ruamel.yaml import YAML
+from ruamel.yaml.error import YAMLError
 
 from .models import Directive
 
@@ -57,7 +59,7 @@ class DirectiveRepository:
                         continue
                     directive = Directive.model_validate(data)
                     shipped[directive.id] = directive
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid shipped directive {yaml_file.name}: {e}",
                         UserWarning,
@@ -87,7 +89,7 @@ class DirectiveRepository:
                     else:
                         directive = Directive.model_validate(data)
                         self._directives[directive.id] = directive
-                except Exception as e:
+                except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
                         f"Skipping invalid project directive {yaml_file.name}: {e}",
                         UserWarning,
