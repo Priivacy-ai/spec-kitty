@@ -280,9 +280,74 @@ def test_sync_pull_json(mock_service_fn, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
+@patch("specify_cli.cli.commands.tracker.require_repo_root")
+@patch("specify_cli.cli.commands.tracker.load_tracker_config")
+@patch("specify_cli.cli.commands.tracker._service")
+def test_sync_push_saas_with_items_json(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """SaaS push with --items-json sends items to the service."""
+    from specify_cli.tracker.config import TrackerProjectConfig
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.sync_push.return_value = {
+        "status": "ok",
+        "summary": {"total": 1, "succeeded": 1, "failed": 0, "skipped": 0},
+    }
+    mock_service_fn.return_value = mock_svc
+    mock_load_cfg.return_value = TrackerProjectConfig(provider="linear", project_slug="proj")
+    mock_repo_root.return_value = tmp_path
+
+    items_file = tmp_path / "items.json"
+    items_file.write_text('[{"ref": {"system": "linear", "id": "LIN-1", "workspace": "team"}, "action": "update"}]')
+
+    result = runner.invoke(app, ["sync", "push", "--items-json", str(items_file), "--json"])
+    assert result.exit_code == 0, result.output
+    mock_svc.sync_push.assert_called_once()
+    call_kwargs = mock_svc.sync_push.call_args[1]
+    assert len(call_kwargs["items"]) == 1
+    assert call_kwargs["items"][0]["action"] == "update"
+
+
+@patch("specify_cli.cli.commands.tracker.require_repo_root")
+@patch("specify_cli.cli.commands.tracker.load_tracker_config")
+@patch("specify_cli.cli.commands.tracker._service")
+def test_sync_push_saas_no_items_no_mappings(mock_service_fn, mock_load_cfg, mock_repo_root, monkeypatch, tmp_path) -> None:
+    """SaaS push with no items and no mappings exits with guidance."""
+    from specify_cli.tracker.config import TrackerProjectConfig
+
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.map_list.return_value = []
+    mock_service_fn.return_value = mock_svc
+    mock_load_cfg.return_value = TrackerProjectConfig(provider="jira", project_slug="proj")
+    mock_repo_root.return_value = tmp_path
+
+    result = runner.invoke(app, ["sync", "push"])
+    # Exit code 0 — not an error, just nothing to push
+    assert "No pending changes" in result.output
+
+
+@patch("specify_cli.cli.commands.tracker._service")
+def test_sync_push_local_uses_limit(mock_service_fn, monkeypatch) -> None:
+    """Local push passes limit kwarg (not items)."""
+    app = _make_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.sync_push.return_value = {
+        "provider": "beads",
+        "stats": {"pushed_created": 2, "pushed_updated": 0, "skipped": 0},
+        "conflicts": [],
+        "errors": [],
+    }
+    mock_service_fn.return_value = mock_svc
+
+    result = runner.invoke(app, ["sync", "push", "--limit", "50"])
+    assert result.exit_code == 0
+    mock_svc.sync_push.assert_called_once_with(limit=50)
+
+
 @patch("specify_cli.cli.commands.tracker._service")
 def test_sync_push_json(mock_service_fn, monkeypatch) -> None:
-    """sync push --json outputs the raw envelope dict."""
+    """sync push --json outputs the raw envelope dict (local provider path)."""
     app = _make_app(monkeypatch)
     mock_svc = MagicMock()
     mock_svc.sync_push.return_value = {

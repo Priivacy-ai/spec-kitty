@@ -17,6 +17,7 @@ from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
     SAAS_PROVIDERS,
+    load_tracker_config,
     require_repo_root,
 )
 from specify_cli.tracker.factory import normalize_provider
@@ -420,19 +421,91 @@ def sync_pull_command(
 
 @sync_app.command("push")
 def sync_push_command(
-    limit: int = typer.Option(100, "--limit", min=1, max=10000),
+    limit: int = typer.Option(100, "--limit", min=1, max=10000, help="Max items (local providers only)"),
+    items_json: str | None = typer.Option(
+        None, "--items-json",
+        help="Path to JSON file with PushItem[] array (SaaS providers). Use '-' for stdin.",
+    ),
     as_json: bool = typer.Option(False, "--json", help="Render sync result as JSON"),
 ) -> None:
-    """Push local tracker changes to the upstream provider.
+    """Push changes to the upstream provider.
 
-    For SaaS-backed providers: pushes via the SaaS control plane.  The
-    control plane owns push-payload construction.
+    For SaaS-backed providers: sends explicit PushItem mutations via the
+    SaaS control plane.  Provide items with --items-json (a JSON array of
+    PushItem objects per the PRI-12 TrackerPushRequest contract).  Each item
+    must have a ``ref``, ``action``, and optionally ``patch`` / ``target_status``.
 
-    For local providers: pushes directly to the tracker API.
+    If no --items-json is given for a SaaS-backed provider, this command
+    collects pending WP status transitions from the local mapping state and
+    pushes those.  If there are no pending changes, it exits with guidance.
+
+    For local providers: pushes directly to the tracker API using --limit.
     """
+    import sys as _sys
 
     def _run() -> None:
-        payload = _service().sync_push(limit=limit)
+        service = _service()
+        config = load_tracker_config(require_repo_root())
+
+        if config.provider and config.provider in SAAS_PROVIDERS:
+            # --- SaaS path: push explicit items ---
+            items: list[dict[str, Any]] = []
+
+            if items_json is not None:
+                # Read from file or stdin
+                if items_json == "-":
+                    raw = _sys.stdin.read()
+                else:
+                    from pathlib import Path as _Path  # noqa: PLC0415
+
+                    raw = _Path(items_json).read_text(encoding="utf-8")
+                parsed = json.loads(raw)
+                if not isinstance(parsed, list):
+                    typer.secho("Error: --items-json must contain a JSON array of PushItem objects.", fg=typer.colors.RED, err=True)
+                    raise typer.Exit(code=1)
+                items = parsed
+            else:
+                # Auto-collect: try to build items from SaaS mappings + local WP state.
+                # This is a best-effort path — if no mappings or no pending changes,
+                # tell the user how to push explicitly.
+                try:
+                    mappings = service.map_list()
+                except Exception:
+                    mappings = []
+
+                if not mappings:
+                    typer.echo(
+                        "No pending changes to push.\n"
+                        "For explicit mutations, use: tracker sync push --items-json <file>\n"
+                        "For full bidirectional sync, use: tracker sync run"
+                    )
+                    return
+
+                # Build transition items from mappings that have pending status changes.
+                # Each mapping from SaaS includes the external ref — use those as push items.
+                for mapping in mappings:
+                    ext_ref = mapping.get("external_ref") or mapping.get("ref")
+                    target_status = mapping.get("pending_status") or mapping.get("target_status")
+                    if ext_ref and target_status:
+                        items.append({
+                            "ref": ext_ref,
+                            "action": "transition",
+                            "target_status": target_status,
+                        })
+
+                if not items:
+                    typer.echo(
+                        "No pending status transitions found in mappings.\n"
+                        "For explicit mutations, use: tracker sync push --items-json <file>\n"
+                        "For full bidirectional sync, use: tracker sync run"
+                    )
+                    return
+
+            payload = service.sync_push(items=items)
+        else:
+            # --- Local path: push via direct connector ---
+            payload = service.sync_push(limit=limit)
+
         if as_json:
             _print_json(payload)
             return
