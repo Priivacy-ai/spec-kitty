@@ -162,3 +162,4 @@ No code changes — docstring-only.
 ## Activity Log
 
 - 2026-03-31T07:42:31Z – orchestrator – shell_pid=4238 – lane=doing – Started implementation via workflow command
+- 2026-03-31T07:48:46Z – orchestrator – shell_pid=4238 – lane=for_review – Ready for review - final WP: migration-only fences, docs update, regression guards (430 tests pass)
