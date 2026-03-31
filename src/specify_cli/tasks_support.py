@@ -291,15 +291,12 @@ class WorkPackage:
 
     @property
     def lane(self) -> Optional[str]:
-        try:
-            from specify_cli.status.lane_reader import get_wp_lane
-            # WP files are at kitty-specs/<feature_slug>/tasks/WP01.md
-            # feature_dir is the parent of the tasks/ directory
-            feature_dir = self.path.parent.parent
-            wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
-            return get_wp_lane(feature_dir, wp_id)
-        except Exception:
-            return extract_scalar(self.frontmatter, "lane")
+        from specify_cli.status.lane_reader import get_wp_lane
+        # WP files are at kitty-specs/<feature_slug>/tasks/WP01.md
+        # feature_dir is the parent of the tasks/ directory
+        feature_dir = self.path.parent.parent
+        wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]
+        return get_wp_lane(feature_dir, wp_id)
 
 
 def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackage:
@@ -379,17 +376,17 @@ def load_meta(meta_path: Path) -> Dict:
 
 
 def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> str:
-    """Return canonical lane for a WP, reading from the event log first.
+    """Return canonical lane for a WP from the event log.
 
-    Tries the event log (canonical source of truth) first, falling back to
-    frontmatter only when no event log data exists (migration compatibility).
+    Reads exclusively from the canonical event log via ``get_wp_lane()``.
+    Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
 
     Args:
         wp_path: Path to the work package markdown file
         warn_on_missing: Unused; retained for call-site compatibility
 
     Returns:
-        Lane value (planned, claimed, in_progress, for_review, approved, done, blocked, canceled)
+        Lane value from event log, or ``"uninitialized"`` when WP has no events.
     """
     # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
     feature_dir = wp_path.parent.parent
@@ -399,40 +396,8 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
     wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
     wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-    try:
-        from specify_cli.status.lane_reader import get_wp_lane
-        lane = get_wp_lane(feature_dir, wp_id)
-        # get_wp_lane returns "planned" as default — check if event log actually
-        # has data for this WP or if it's just the fallback default.
-        from specify_cli.status.store import read_events
-        from specify_cli.status.reducer import reduce
-        events = read_events(feature_dir)
-        if events:
-            snapshot = reduce(events)
-            if wp_id in snapshot.work_packages:
-                return lane
-            # WP not in event log yet — fall through to frontmatter
-    except Exception:
-        pass
-
-    # Fallback: read from frontmatter (migration / pre-event-log scenario)
-    content = wp_path.read_text(encoding="utf-8-sig")
-    frontmatter, _, _ = split_frontmatter(content)
-    lane = extract_scalar(frontmatter, "lane")
-
-    if lane is None:
-        return "planned"
-
-    # Resolve aliases (e.g., "doing" -> "in_progress")
-    lane = LANE_ALIASES.get(lane, lane)
-
-    if lane not in LANES:
-        raise ValueError(
-            f"Invalid lane '{lane}' in {wp_path.name}. "
-            f"Valid lanes: {', '.join(LANES)}"
-        )
-
-    return lane
+    from specify_cli.status.lane_reader import get_wp_lane
+    return get_wp_lane(feature_dir, wp_id)
 
 
 __all__ = [
