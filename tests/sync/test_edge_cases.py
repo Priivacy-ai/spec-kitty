@@ -114,10 +114,11 @@ class TestQueueOverflow:
 
     def test_queue_rejects_at_max(self, tmp_path: Path):
         """Queue evicts the oldest event when it reaches MAX_QUEUE_SIZE."""
-        queue = OfflineQueue(db_path=tmp_path / "overflow.db")
+        max_queue_size = 8
+        queue = OfflineQueue(db_path=tmp_path / "overflow.db", max_queue_size=max_queue_size)
 
         # Fill to capacity
-        for i in range(OfflineQueue.MAX_QUEUE_SIZE):
+        for i in range(max_queue_size):
             result = queue.queue_event(
                 {
                     "event_id": f"evt{i:06d}00000000000000000000",
@@ -127,7 +128,7 @@ class TestQueueOverflow:
             )
             assert result is True
 
-        assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        assert queue.size() == max_queue_size
 
         # Next event should succeed by evicting the oldest row
         result = queue.queue_event(
@@ -138,7 +139,7 @@ class TestQueueOverflow:
             }
         )
         assert result is True
-        assert queue.size() == OfflineQueue.MAX_QUEUE_SIZE
+        assert queue.size() == max_queue_size
         events = queue.drain_queue(limit=1)
         assert events[0]["event_id"] != "evt0000000000000000000000"
 
