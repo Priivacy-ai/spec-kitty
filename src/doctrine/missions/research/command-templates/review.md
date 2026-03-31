@@ -114,7 +114,7 @@ if source_register.exists():
 
 ## Outline
 
-1. Run `{SCRIPT}` from repo root; capture `MISSION_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
+1. Run `spec-kitty agent mission-run check-prerequisites --json` from repo root; capture `MISSION_DIR`, `AVAILABLE_DOCS`, and `tasks.md` path.
 
 2. Determine the review target:
    - If user input specifies a filename, validate it exists under `tasks/` (flat structure, check `lane: "for_review"` in frontmatter).

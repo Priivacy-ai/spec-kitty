@@ -55,10 +55,10 @@ Planning requirements (scale to complexity):
 ## Outline
 
 1. **Check planning discovery status**:
-   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `{SCRIPT}` yet.
+   - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user’s response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run `spec-kitty agent mission-run check-prerequisites --json` yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Setup**: Run `{SCRIPT}` from repo root and parse JSON for MISSION_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
+2. **Setup**: Run `spec-kitty agent mission-run check-prerequisites --json` from repo root and parse JSON for MISSION_SPEC, IMPL_PLAN, SPECS_DIR, BRANCH.
 
 3. **Load context**: Read MISSION_SPEC and `.kittify/constitution/constitution.md` if it exists. If the constitution file is missing, skip Constitution Check and note that it is absent. Load IMPL_PLAN template (already copied).
 
