@@ -1,17 +1,17 @@
 {
-  "event_count": 12,
+  "event_count": 15,
   "feature_slug": "061-ticket-first-mission-origin-binding",
-  "last_event_id": "01KN537GJ7SCNDD8RBHNM0E1TF",
-  "materialized_at": "2026-04-01T17:59:59.303808+00:00",
+  "last_event_id": "01KN537NFB0VAX182G5KKN8NMS",
+  "materialized_at": "2026-04-01T18:00:04.332229+00:00",
   "summary": {
     "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
+    "for_review": 3,
     "in_progress": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -29,11 +29,11 @@
       "last_transition_at": "2026-04-01T17:59:59.303545+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "user",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KN525PBKQ5BW660WE2NR11MV",
-      "last_transition_at": "2026-04-01T17:41:31.123424+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KN537NFB0VAX182G5KKN8NMS",
+      "last_transition_at": "2026-04-01T18:00:04.331952+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
