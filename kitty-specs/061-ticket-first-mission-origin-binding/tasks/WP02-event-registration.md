@@ -154,3 +154,4 @@ Already handled in T008 — the validators dict in `_PAYLOAD_RULES` covers this.
 ## Activity Log
 
 - 2026-04-01T17:59:59Z – unknown – Implementation complete: 15 tests passing. Ready for review.
+- 2026-04-01T18:03:42Z – unknown – Done override: Code merged to feat/implement-review-skill from worktree branches; all tests passing; review approved by Codex reviewer
