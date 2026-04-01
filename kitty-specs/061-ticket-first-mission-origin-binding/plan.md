@@ -1,108 +1,205 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Ticket-First Mission Origin Binding
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `main` | **Date**: 2026-04-01 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `kitty-specs/061-ticket-first-mission-origin-binding/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+Add a service-layer workflow in `src/specify_cli/tracker/origin.py` that lets `/spec-kitty.specify` and agent workflows search for an existing Jira or Linear ticket through SaaS, present candidates for developer confirmation, create a mission from the confirmed ticket, and persist durable origin-ticket provenance in local metadata. Extends `SaaSTrackerClient` with two new methods (`search_issues`, `bind_mission_origin`), adds a `set_origin_ticket()` mutation helper to `feature_metadata.py`, and registers a `MissionOriginBound` event type in the emitter.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (existing spec-kitty codebase)
+**Primary Dependencies**: typer, rich, httpx, ruamel.yaml, pydantic (existing), ulid (existing)
+**Storage**: Filesystem only (meta.json via atomic_write, status.events.jsonl)
+**Testing**: pytest with unittest.mock (MagicMock + @patch), TEST_FIRST directive
+**Target Platform**: CLI (repo-local, cross-platform)
+**Project Type**: Single Python package (`specify_cli`)
+**Performance Goals**: Issue search completes within 10 seconds under normal network conditions
+**Constraints**: No provider credentials held locally; all Jira/Linear API access flows through SaaS
+**Scale/Scope**: 3 new service functions, 2 client methods, 1 metadata helper, 1 event type
 
 ## Constitution Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+*No project-level constitution file exists (governance.yaml and directives.yaml not found). Governance defaults applied:*
 
-[Gates determined based on constitution file]
+- **TEST_FIRST directive**: Tests written before or alongside implementation for all new modules
+- **Tools**: git, mypy, poetry, pytest, python, ruff, spec-kitty
+- **Template set**: software-dev-default
+
+No violations to justify.
 
 ## Project Structure
 
 ### Documentation (this feature)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/061-ticket-first-mission-origin-binding/
+├── plan.md              # This file
+├── research.md          # Phase 0 output
+├── data-model.md        # Phase 1 output
+├── spec.md              # Feature specification
+├── checklists/
+│   └── requirements.md  # Quality checklist
+└── tasks.md             # Phase 2 output (NOT created by /spec-kitty.plan)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/
+├── tracker/
+│   ├── origin.py              # NEW: ticket-first origin orchestration
+│   │                          #   - OriginCandidate, SearchOriginResult, MissionFromTicketResult
+│   │                          #   - search_origin_candidates()
+│   │                          #   - bind_mission_origin()
+│   │                          #   - start_mission_from_ticket()
+│   ├── saas_client.py         # EXTEND: search_issues(), bind_mission_origin()
+│   ├── saas_service.py        # (unchanged)
+│   ├── service.py             # (unchanged)
+│   └── config.py              # (unchanged)
+├── feature_metadata.py        # EXTEND: set_origin_ticket() mutation helper,
+│                              #   FeatureMetaOptional TypedDict update
+└── sync/
+    └── emitter.py             # EXTEND: MissionOriginBound event type,
+                               #   emit_mission_origin_bound(), _PAYLOAD_RULES entry
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── sync/tracker/
+│   ├── test_origin.py         # NEW: service-layer tests for origin.py
+│   ├── test_saas_client.py    # EXTEND: tests for search_issues(), bind_mission_origin()
+│   └── test_saas_service.py   # (unchanged)
+├── specify_cli/
+│   └── test_feature_metadata.py  # EXTEND: tests for set_origin_ticket()
+└── sync/
+    └── test_emitter.py        # EXTEND: tests for MissionOriginBound event
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: New module `tracker/origin.py` follows existing tracker package conventions. Client extensions stay in `saas_client.py`. Metadata helper stays in `feature_metadata.py`. Event registration stays in `emitter.py`. No new packages created.
 
-## Complexity Tracking
+## Module Layering
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+```
+/spec-kitty.specify (agent workflow)
+        │
+        ▼
+tracker/origin.py  ◄── normative service-layer API
+   │         │         │
+   │         │         ▼
+   │         │    feature_metadata.py  (set_origin_ticket → write_meta)
+   │         │
+   │         ▼
+   │    sync/emitter.py  (emit_mission_origin_bound — observational telemetry)
+   │
+   ▼
+tracker/saas_client.py  (search_issues, bind_mission_origin — transport)
+   │
+   ▼
+SaaS control plane  (Team B — HTTP wire format, upstream dependency)
+```
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+**Authority chain:**
+- `SaaSTrackerClient.bind_mission_origin()` API call = authoritative write for SaaS-side `MissionOriginLink`
+- `MissionOriginBound` event = observational telemetry only (offline audit, analytics)
+- `set_origin_ticket()` = authoritative local write for `meta.json` origin provenance
+
+## Key Design Decisions
+
+### D1: Dataclasses for origin models
+
+`OriginCandidate`, `SearchOriginResult`, and `MissionFromTicketResult` use `@dataclass(slots=True)` — consistent with `TrackerProjectConfig` and `MergeState` in the tracker/merge packages. Pydantic is reserved for mission schema validation; these are simple value objects.
+
+### D2: create-feature integration via direct function call
+
+`start_mission_from_ticket()` invokes the `create_feature()` typer command from `specify_cli.cli.commands.agent.feature` directly, passing `json_output=True` to capture structured output. This matches the pattern used in `lifecycle.py`. The function handles number allocation, directory creation, meta.json scaffolding, and git commit internally.
+
+**Caveat**: `create_feature()` uses `typer.Exit()` for error handling, which raises `SystemExit`. The caller must catch `SystemExit` and translate to a domain error.
+
+### D3: Re-bind semantics
+
+- **Same origin** (same `external_issue_id`): local overwrite + SaaS no-op success
+- **Different origin**: hard error (one origin per mission in v1)
+
+The service layer checks `meta.json` before calling SaaS to short-circuit same-origin no-ops locally.
+
+### D4: match_type enum aligned with upstream
+
+Values are `"exact"` and `"text"` — aligned with the tracker/SaaS contract. The CLI spec does not invent its own enum.
+
+### D5: SaaS endpoint paths are not defined here
+
+The `SaaSTrackerClient` extensions define method signatures and behavioral semantics. URL paths and HTTP methods are Team B's decision. The client methods will use `self._request_with_retry()` to call whatever paths Team B implements. Placeholder paths (e.g., `_SEARCH_ISSUES_PATH`, `_BIND_ORIGIN_PATH`) will be defined as class constants, following the existing pattern (`_STATUS_PATH`, `_PULL_PATH`, etc.).
+
+## Dependencies
+
+### Internal (within spec-kitty)
+
+| Dependency | Module | Usage |
+|-----------|--------|-------|
+| Tracker config | `tracker/config.py` | Load provider + project_slug from `.kittify/config.yaml` |
+| SaaS client transport | `tracker/saas_client.py` | HTTP transport with auth, retry, polling |
+| Metadata writer | `feature_metadata.py` | `write_meta()` atomic writes, `load_meta()` reads |
+| Event emitter | `sync/emitter.py` | Event creation, validation, offline queue routing |
+| Feature creation | `cli/commands/agent/feature.py` | `create_feature()` for mission scaffolding |
+| Project root | `core/paths.py` | `locate_project_root()` |
+
+### Upstream (external teams)
+
+| Dependency | Owner | Status | Notes |
+|-----------|-------|--------|-------|
+| Issue-search SaaS endpoint | Team B | Not yet implemented | CLI codes to client method contract; wire format is Team B's |
+| Bind SaaS endpoint | Team B | Not yet implemented | Same approach — client method contract only |
+| Candidate shape normalization | Team A | Coordination required | `OriginCandidate` fields must align with tracker-connector output |
+
+### Risk: SaaS endpoints not ready
+
+If Team B's endpoints are not available when CLI implementation begins, the `SaaSTrackerClient` methods can be implemented with the correct signatures and error handling, tested against mocked HTTP responses, and wired to real endpoints later by updating path constants only. No architecture changes required.
+
+## Test Strategy
+
+Following the TEST_FIRST directive and existing patterns in the tracker test suite.
+
+### Layer 1: SaaSTrackerClient methods (HTTP transport)
+
+**File**: `tests/sync/tracker/test_saas_client.py` (extend)
+**Pattern**: `@patch("specify_cli.tracker.saas_client.httpx.Client")` + `_make_response()` helper
+**Coverage**:
+- `search_issues()`: 200 with candidates, 200 empty, 401/403 user-action-required, 404, 422, 429 retry
+- `bind_mission_origin()`: 200 success, 200 same-origin no-op, 409 different-origin, 401/403
+
+### Layer 2: Service-layer functions (origin.py)
+
+**File**: `tests/sync/tracker/test_origin.py` (new)
+**Pattern**: MagicMock `SaaSTrackerClient` injected into service functions
+**Coverage**:
+- `search_origin_candidates()`: happy path, no binding, wrong provider, empty results, user-link error
+- `bind_mission_origin()`: happy path, same-origin no-op, different-origin error, meta.json written correctly
+- `start_mission_from_ticket()`: full flow, create-feature failure handling, slug derivation
+
+### Layer 3: Metadata helper
+
+**File**: `tests/specify_cli/test_feature_metadata.py` (extend)
+**Pattern**: tmp_path with pre-seeded meta.json
+**Coverage**:
+- `set_origin_ticket()`: writes origin_ticket block, preserves existing fields, validates via write_meta
+
+### Layer 4: Event emission
+
+**File**: `tests/sync/test_emitter.py` (extend)
+**Pattern**: Existing emitter test patterns
+**Coverage**:
+- `emit_mission_origin_bound()`: payload validation, event routing, offline queue
+
+## Implementation Sequence
+
+The implementation follows a bottom-up dependency order:
+
+1. **Foundation** — Data models (`OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult`) + metadata helper (`set_origin_ticket`) + event type (`MissionOriginBound`). No external dependencies.
+
+2. **Transport** — `SaaSTrackerClient.search_issues()` and `.bind_mission_origin()`. Depends on foundation data models for result shape. Can be fully tested with mocked HTTP.
+
+3. **Orchestration** — `tracker/origin.py` service functions. Depends on transport + foundation. This is the normative API surface.
+
+4. **Integration testing** — End-to-end flow tests with all layers wired together (mocked HTTP only at the httpx boundary).
+
+Each layer is independently testable. Layers 1-2 can proceed in parallel. Layer 3 depends on both.
