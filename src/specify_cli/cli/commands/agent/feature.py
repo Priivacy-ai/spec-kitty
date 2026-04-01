@@ -22,7 +22,6 @@ from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
     detect_cycles,
-    parse_wp_dependencies,
     validate_dependencies,
 )
 from specify_cli.core.git_ops import get_current_branch, is_git_repo, run_command
@@ -30,22 +29,20 @@ from specify_cli.core.git_preflight import (
     build_git_preflight_failure_payload,
     run_git_preflight,
 )
-from specify_cli.core.paths import get_main_repo_root, is_worktree_context, locate_project_root
+from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.core.paths import (
     get_feature_target_branch,
     require_explicit_feature,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
-    get_next_feature_number,
-    setup_feature_directory,
     validate_feature_structure,
 )
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_feature_mission_key
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.status.bootstrap import bootstrap_canonical_state
-from specify_cli.sync.events import emit_feature_created, emit_wp_created, get_emitter
+from specify_cli.sync.events import emit_wp_created, get_emitter
 
 app = typer.Typer(
     name="feature",
@@ -523,37 +520,29 @@ def create_feature(
     Examples:
         spec-kitty agent create-feature "new-dashboard" --json
     """
-    # Validate kebab-case format early (before any operations)
-    KEBAB_CASE_PATTERN = r'^[a-z][a-z0-9]*(-[a-z0-9]+)*$'
-    if not re.match(KEBAB_CASE_PATTERN, feature_slug):
-        error_msg = (
-            f"Invalid feature slug '{feature_slug}'. "
-            "Must be kebab-case (lowercase letters, numbers, hyphens only)."
-            "\n\nValid examples:"
-            "\n  - user-auth"
-            "\n  - fix-bug-123"
-            "\n  - new-dashboard"
-            "\n\nInvalid examples:"
-            "\n  - User-Auth (uppercase)"
-            "\n  - user_auth (underscores)"
-            "\n  - 123-fix (starts with number)"
+    from specify_cli.core.feature_creation import (
+        FeatureCreationError,
+        create_feature_core,
+    )
+
+    repo_root = locate_project_root()
+
+    try:
+        result = create_feature_core(
+            repo_root=repo_root,
+            feature_slug=feature_slug,
+            mission=mission,
+            target_branch=target_branch,
         )
+    except FeatureCreationError as exc:
+        error_msg = str(exc)
         if json_output:
             _emit_json({"error": error_msg})
         else:
-            console.print(f"[red]Error:[/red] {error_msg}")
-        raise typer.Exit(1)
-
-    try:
-        # GUARD: Refuse to run from inside a worktree (must be in planning repo)
-        cwd = Path.cwd().resolve()
-        if is_worktree_context(cwd):
-            error_msg = "Cannot create features from inside a worktree. Run from the project root checkout."
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[bold red]Error:[/bold red] {error_msg}")
-                # Find and suggest the main repo path
+            console.print(f"[bold red]Error:[/bold red] {error_msg}")
+            # Provide worktree navigation hint when applicable
+            if "worktree" in error_msg.lower():
+                cwd = Path.cwd().resolve()
                 main_repo = locate_project_root(cwd)
                 if main_repo is None:
                     # Fallback: try .worktrees path heuristic
@@ -565,272 +554,50 @@ def create_feature(
                     console.print("\n[cyan]Run from the main repository instead:[/cyan]")
                     console.print(f"  cd {main_repo}")
                     console.print(f"  spec-kitty agent create-feature {feature_slug}")
-            raise typer.Exit(1)
-
-        repo_root = locate_project_root()
-        if repo_root is None:
-            error_msg = "Could not locate project root. Run from within spec-kitty repository."
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        # Verify we're in a git repository
-        if not is_git_repo(repo_root):
-            error_msg = "Not in a git repository. Feature creation requires git."
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        # Verify we're on a branch (not detached HEAD)
-        current_branch = get_current_branch(repo_root)
-        if not current_branch or current_branch == "HEAD":
-            error_msg = "Must be on a branch to create features (detached HEAD detected)."
-            if json_output:
-                _emit_json({"error": error_msg})
-            else:
-                console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
-
-        # Use explicit --target-branch if provided, otherwise current branch
-        if target_branch:
-            planning_branch = target_branch
-        else:
-            planning_branch = current_branch
-        if not json_output:
-            console.print(
-                f"[bold cyan]Branch:[/bold cyan] {planning_branch} "
-                f"(target for this feature)"
-            )
-
-        # Get next feature number
-        feature_number = get_next_feature_number(repo_root)
-        feature_slug_formatted = f"{feature_number:03d}-{feature_slug}"
-
-        # Create feature directory in main repo
-        feature_dir = repo_root / "kitty-specs" / feature_slug_formatted
-        feature_dir.mkdir(parents=True, exist_ok=True)
-
-        # Create subdirectories
-        (feature_dir / "checklists").mkdir(exist_ok=True)
-        (feature_dir / "research").mkdir(exist_ok=True)
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(exist_ok=True)
-
-        # Create tasks/.gitkeep and README.md
-        (tasks_dir / ".gitkeep").touch()
-
-        # Initialize empty event log so the feature has canonical status from birth.
-        # finalize-tasks will later append WP-level "planned" events.
-        (feature_dir / "status.events.jsonl").touch(exist_ok=True)
-
-        # Create tasks/README.md (using same content from setup_feature_directory)
-        tasks_readme_content = '''# Tasks Directory
-
-This directory contains work package (WP) prompt files.
-
-## Directory Structure (v0.9.0+)
-
-```
-tasks/
-├── WP01-setup-infrastructure.md
-├── WP02-user-authentication.md
-├── WP03-api-endpoints.md
-└── README.md
-```
-
-All WP files are stored flat in `tasks/`. Status is tracked in `status.events.jsonl`, not in WP frontmatter.
-
-## Work Package File Format
-
-Each WP file **MUST** use YAML frontmatter:
-
-```yaml
----
-work_package_id: "WP01"
-title: "Work Package Title"
-dependencies: []
-planning_base_branch: "2.x"
-merge_target_branch: "2.x"
-branch_strategy: "Planning artifacts were generated on 2.x; completed changes must merge back into 2.x."
-subtasks:
-  - "T001"
-  - "T002"
-phase: "Phase 1 - Setup"
-assignee: ""
-agent: ""
-shell_pid: ""
-history:
-  - timestamp: "2025-01-01T00:00:00Z"
-    agent: "system"
-    action: "Prompt generated via /spec-kitty.tasks"
----
-
-# Work Package Prompt: WP01 – Work Package Title
-
-[Content follows...]
-```
-
-## Status Tracking
-
-Status is tracked via the canonical event log (`status.events.jsonl`), not in WP frontmatter.
-Use `spec-kitty agent tasks move-task` to change WP status:
-
-```bash
-spec-kitty agent tasks move-task <WPID> --to <lane>
-```
-
-Example:
-```bash
-spec-kitty agent tasks move-task WP01 --to doing
-```
-
-## File Naming
-
-- Format: `WP01-kebab-case-slug.md`
-- Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-        (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
-
-        # Copy spec template if it exists
-        spec_file = feature_dir / "spec.md"
-        if not spec_file.exists():
-            spec_template_candidates = [
-                repo_root / ".kittify" / "templates" / "spec-template.md",
-                repo_root / "templates" / "spec-template.md",
-            ]
-
-            for template in spec_template_candidates:
-                if template.exists():
-                    shutil.copy2(template, spec_file)
-                    break
-            else:
-                # No template found, create empty spec.md
-                spec_file.touch()
-
-        # Commit spec.md to planning branch
-        _commit_to_branch(spec_file, feature_slug_formatted, "spec", repo_root, planning_branch, json_output)
-
-        # Ensure baseline feature metadata exists for downstream commands
-        # (implement/merge/mission detection rely on meta.json in every mission).
-        meta_file = feature_dir / "meta.json"
-        meta: dict[str, object] = {}
-        if meta_file.exists():
-            try:
-                meta = json.loads(meta_file.read_text(encoding="utf-8"))
-            except (json.JSONDecodeError, OSError):
-                meta = {}
-
-        meta.setdefault("feature_number", f"{feature_number:03d}")
-        meta.setdefault("slug", feature_slug_formatted)
-        meta.setdefault("feature_slug", feature_slug_formatted)
-        meta.setdefault("friendly_name", feature_slug.replace("-", " ").strip())
-        meta.setdefault("mission", mission or "software-dev")
-        meta.setdefault("target_branch", planning_branch)
-        meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())
-
-        from specify_cli.feature_metadata import write_meta, set_documentation_state
-
-        write_meta(feature_dir, meta)
-        try:
-            _commit_to_branch(
-                meta_file,
-                feature_slug_formatted,
-                "meta",
-                repo_root,
-                planning_branch,
-                json_output,
-            )
-        except Exception:
-            # Non-fatal: file is still present for local workflows.
-            pass
-
-        # T013: Initialize documentation state if mission is documentation
-        if mission == "documentation":
-            meta.setdefault("mission", "documentation")
-            if "documentation_state" not in meta:
-                doc_state = {
-                    "iteration_mode": "initial",
-                    "divio_types_selected": [],
-                    "generators_configured": [],
-                    "target_audience": "developers",
-                    "last_audit_date": None,
-                    "coverage_percentage": 0.0,
-                }
-                set_documentation_state(feature_dir, doc_state)
-            else:
-                # documentation_state already present, re-read for consistency
-                pass
-            try:
-                _commit_to_branch(
-                    meta_file,
-                    feature_slug_formatted,
-                    "meta",
-                    repo_root,
-                    planning_branch,
-                    json_output,
-                )
-            except Exception:
-                pass
-            if not json_output:
-                console.print("[cyan]→ Documentation state initialized in meta.json[/cyan]")
-
-        # Emit FeatureCreated event (non-blocking)
-        try:
-            emit_feature_created(
-                feature_slug=feature_slug_formatted,
-                feature_number=f"{feature_number:03d}",
-                target_branch=planning_branch,
-                wp_count=0,
-            )
-        except Exception:
-            pass  # Non-blocking, event emission failures are not fatal
-
-        # Dossier sync (fire-and-forget)
-        try:
-            from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
-            )
-
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir, feature_slug_formatted, repo_root,
-            )
-        except Exception:
-            pass
-
-        if json_output:
-            create_payload = {
-                "result": "success",
-                "feature": feature_slug_formatted,
-                "feature_dir": str(feature_dir),
-                "spec_file": str(spec_file),
-                "meta_file": str(meta_file),
-                "created_at": str(meta.get("created_at", "")),
-                "created_files": [str(spec_file), str(meta_file), str(tasks_dir / "README.md")],
-                "write_mode": "update_existing_files",
-                "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
-            }
-            _emit_json(
-                _inject_branch_contract(
-                    create_payload,
-                    target_branch=planning_branch,
-                    current_branch=current_branch,
-                )
-            )
-        else:
-            console.print(f"[green]✓[/green] Feature created: {feature_slug_formatted}")
-            console.print(f"   Directory: {feature_dir}")
-            console.print(f"   Spec committed to {planning_branch}")
-
+        raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:
             _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from e
+
+    # -- Output formatting (stays in the CLI layer) --
+    if not json_output:
+        console.print(
+            f"[bold cyan]Branch:[/bold cyan] {result.target_branch} "
+            f"(target for this feature)"
+        )
+        if mission == "documentation":
+            console.print("[cyan]\u2192 Documentation state initialized in meta.json[/cyan]")
+
+    if json_output:
+        feature_dir = result.feature_dir
+        spec_file = feature_dir / "spec.md"
+        meta_file = feature_dir / "meta.json"
+        tasks_readme = feature_dir / "tasks" / "README.md"
+        create_payload: dict[str, object] = {
+            "result": "success",
+            "feature": result.feature_slug,
+            "feature_dir": str(feature_dir),
+            "spec_file": str(spec_file),
+            "meta_file": str(meta_file),
+            "created_at": str(result.meta.get("created_at", "")),
+            "created_files": [str(spec_file), str(meta_file), str(tasks_readme)],
+            "write_mode": "update_existing_files",
+            "next_step": "Read then update spec_file/meta_file; do not recreate with blind write.",
+        }
+        _emit_json(
+            _inject_branch_contract(
+                create_payload,
+                target_branch=result.target_branch,
+                current_branch=result.current_branch,
+            )
+        )
+    else:
+        console.print(f"[green]\u2713[/green] Feature created: {result.feature_slug}")
+        console.print(f"   Directory: {result.feature_dir}")
+        console.print(f"   Spec committed to {result.target_branch}")
 
 
 @app.command(name="check-prerequisites")

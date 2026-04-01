@@ -167,7 +167,7 @@ class TestCreateFeatureCommand:
         assert "Error:" in result.stdout
         assert "Could not locate project root" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
+    @patch("specify_cli.core.feature_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_main_repo_hint(
@@ -190,7 +190,7 @@ class TestCreateFeatureCommand:
         assert "/main-repo" in result.stdout
         assert "spec-kitty agent create-feature test-feature" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.is_worktree_context")
+    @patch("specify_cli.core.feature_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_worktrees_fallback_hint(
@@ -213,11 +213,11 @@ class TestCreateFeatureCommand:
         assert "/main-repo" in result.stdout
         assert "spec-kitty agent create-feature test-feature" in result.stdout
 
+    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
-    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    @patch("specify_cli.core.feature_creation.is_git_repo")
     def test_handles_git_errors(
-        self, mock_branch: Mock, mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, tmp_path: Path
     ):
         """Should handle errors when not in git repo or wrong branch."""
         # Setup: Not in git repo
@@ -235,60 +235,66 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
+    @patch("specify_cli.core.feature_creation.emit_feature_created")
+    @patch("specify_cli.core.feature_creation._commit_feature_file")
+    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
-    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.feature_creation.get_current_branch")
+    @patch("specify_cli.core.feature_creation.get_next_feature_number")
     def test_allows_feature_creation_from_any_branch(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
+        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on any branch (records it as target)."""
         # Setup: On non-main branch — should succeed (not block)
         mock_locate.return_value = tmp_path
-        mock_is_git.return_value = True
         mock_branch.return_value = "develop"
         mock_get_number.return_value = 1
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
         # Verify — should succeed, recording "develop" as target_branch
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"Command failed: {result.output}"
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
 
+    @patch("specify_cli.core.feature_creation.emit_feature_created")
+    @patch("specify_cli.core.feature_creation._commit_feature_file")
+    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
-    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
-    @patch("specify_cli.cli.commands.agent.feature.get_next_feature_number")
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.feature_creation.get_current_branch")
+    @patch("specify_cli.core.feature_creation.get_next_feature_number")
     def test_creates_feature_on_primary_branch(
-        self, mock_commit: Mock, mock_get_number: Mock, mock_branch: Mock,
-        mock_is_git: Mock, mock_locate: Mock, tmp_path: Path
+        self, mock_get_number: Mock, mock_branch: Mock,
+        mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
+        mock_commit: Mock, mock_emit: Mock, tmp_path: Path
     ):
         """Should allow feature creation on the primary branch."""
         # Setup: On primary branch
         mock_locate.return_value = tmp_path
-        mock_is_git.return_value = True
         mock_branch.return_value = "main"
         mock_get_number.return_value = 1
 
         # Create necessary directories
         (tmp_path / ".kittify" / "templates").mkdir(parents=True)
         (tmp_path / ".kittify" / "templates" / "spec-template.md").write_text("# Spec Template")
+        (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
         # Verify
-        assert result.exit_code == 0
+        assert result.exit_code == 0, f"Command failed: {result.output}"
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert output["result"] == "success"
