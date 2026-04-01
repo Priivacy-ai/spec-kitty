@@ -241,6 +241,7 @@ class TestEventTypeCoverage:
             "MissionDossierArtifactMissing",
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
+            "MissionOriginBound",
         }
         assert expected == VALID_EVENT_TYPES
 
