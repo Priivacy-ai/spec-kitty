@@ -15,6 +15,7 @@ from specify_cli.cli.commands.agent.feature import app
 pytestmark = pytest.mark.fast
 
 _FEATURE_MODULE = "specify_cli.cli.commands.agent.feature"
+_CORE_MODULE = "specify_cli.core.feature_creation"
 
 runner = CliRunner()
 
@@ -35,11 +36,13 @@ def _run_create_feature(
     args = ["create-feature", slug, "--json"] + (extra_args or [])
     with (
         patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=repo),
-        patch(f"{_FEATURE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_FEATURE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_FEATURE_MODULE}.get_current_branch", return_value=current_branch),
-        patch(f"{_FEATURE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_FEATURE_MODULE}.safe_commit", return_value=True),
+        patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value=current_branch),
+        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
+        patch(f"{_CORE_MODULE}.safe_commit", return_value=True),
+        patch(f"{_CORE_MODULE}.emit_feature_created"),
     ):
         result = runner.invoke(app, args)
 
@@ -154,9 +157,7 @@ def test_create_feature_rejects_worktree_context(tmp_path: Path) -> None:
     _setup_kittify(tmp_path)
     with (
         patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_FEATURE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_FEATURE_MODULE}.is_worktree_context", return_value=True),
-        patch(f"{_FEATURE_MODULE}.get_current_branch", return_value="main"),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=True),
     ):
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
@@ -168,9 +169,9 @@ def test_create_feature_rejects_detached_head(tmp_path: Path) -> None:
     _setup_kittify(tmp_path)
     with (
         patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_FEATURE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_FEATURE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_FEATURE_MODULE}.get_current_branch", return_value=None),
+        patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
+        patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
+        patch(f"{_CORE_MODULE}.get_current_branch", return_value=None),
     ):
         result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
 
@@ -180,12 +181,7 @@ def test_create_feature_rejects_detached_head(tmp_path: Path) -> None:
 def test_create_feature_rejects_invalid_slug(tmp_path: Path) -> None:
     """create_feature exits non-zero for non-kebab-case slugs."""
     _setup_kittify(tmp_path)
-    with (
-        patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=tmp_path),
-        patch(f"{_FEATURE_MODULE}.is_git_repo", return_value=True),
-        patch(f"{_FEATURE_MODULE}.is_worktree_context", return_value=False),
-        patch(f"{_FEATURE_MODULE}.get_current_branch", return_value="main"),
-    ):
-        result = runner.invoke(app, ["create-feature", "Invalid_Slug", "--json"])
+    # Slug validation happens before any git checks, so no core patches needed
+    result = runner.invoke(app, ["create-feature", "Invalid_Slug", "--json"])
 
     assert result.exit_code != 0
