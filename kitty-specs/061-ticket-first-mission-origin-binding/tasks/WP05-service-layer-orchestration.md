@@ -231,3 +231,7 @@ def _derive_slug_from_ticket(candidate: OriginCandidate) -> str:
 - Verify slug derivation handles edge cases (special chars, empty key)
 - Verify `client` parameter injection works (for testability)
 - Verify no local meta.json inspection is used to short-circuit SaaS bind
+
+## Activity Log
+
+- 2026-04-01T18:11:43Z – unknown – Implementation complete: 25 tests passing, SaaS-first ordering verified. Ready for review.
