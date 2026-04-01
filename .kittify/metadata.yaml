@@ -3,9 +3,9 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.0.1
+  version: 3.0.2
   initialized_at: '2026-03-30T20:42:29.894875'
-  last_upgraded_at: '2026-03-31T16:02:07.773010'
+  last_upgraded_at: '2026-04-01T16:34:26.729269'
 environment:
   python_version: 3.11.14
   platform: darwin
@@ -17,3 +17,8 @@ migrations:
     result: success
     notes: Migrated 56 feature(s), 302 WPs backfilled, 10 events generated; Moved
       45 derived file(s)
+  - id: 3.0.2_restore_prompt_commands
+    applied_at: '2026-04-01T16:34:26.728073'
+    result: success
+    notes: Processed 3 agent directories; Wrote 48 command files; Deleted 0 stale
+      files

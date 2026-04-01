@@ -59,6 +59,7 @@ class FeatureMetaOptional(TypedDict, total=False):
     merged_commit: str
     merge_history: list[dict[str, Any]]
     documentation_state: dict[str, Any]
+    origin_ticket: dict[str, Any]
     source_description: str
 
 
@@ -287,6 +288,43 @@ def set_documentation_state(
 
     meta["documentation_state"] = state
 
+    write_meta(feature_dir, meta)
+    return meta
+
+
+def set_origin_ticket(
+    feature_dir: Path,
+    origin_ticket: dict[str, Any],
+) -> dict[str, Any]:
+    """Set or replace ``origin_ticket`` subtree in meta.json.
+
+    The *origin_ticket* dict must contain all required keys:
+    ``provider``, ``resource_type``, ``resource_id``,
+    ``external_issue_id``, ``external_issue_key``,
+    ``external_issue_url``, ``title``.
+
+    Raises:
+        FileNotFoundError: If meta.json does not exist in *feature_dir*.
+        ValueError: If any required key is missing from *origin_ticket*.
+    """
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+
+    required_keys = {
+        "provider",
+        "resource_type",
+        "resource_id",
+        "external_issue_id",
+        "external_issue_key",
+        "external_issue_url",
+        "title",
+    }
+    missing = required_keys - set(origin_ticket.keys())
+    if missing:
+        raise ValueError(f"origin_ticket missing required keys: {sorted(missing)}")
+
+    meta["origin_ticket"] = origin_ticket
     write_meta(feature_dir, meta)
     return meta
 

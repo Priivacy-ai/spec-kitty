@@ -1,0 +1,60 @@
+{
+  "event_count": 36,
+  "feature_slug": "061-ticket-first-mission-origin-binding",
+  "last_event_id": "01KN54AYN7CWJ16WZ8782V0CVF",
+  "materialized_at": "2026-04-01T18:19:20.616153+00:00",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN53E5PCEDHW6Y0Z11H4SSVM",
+      "last_transition_at": "2026-04-01T18:03:37.549019+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN53EAKVWX1RK1DEETXQ8MQ3",
+      "last_transition_at": "2026-04-01T18:03:42.587412+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN53EFTQNNBHPEECRK63CFJ3",
+      "last_transition_at": "2026-04-01T18:03:47.927991+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN53EMJV0G06E1ZTR4AA4JET",
+      "last_transition_at": "2026-04-01T18:03:52.795571+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN54066J46PQ8XS8BP8ZYC5B",
+      "last_transition_at": "2026-04-01T18:13:27.890887+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KN54AYN7CWJ16WZ8782V0CVF",
+      "last_transition_at": "2026-04-01T18:19:20.615815+00:00"
+    }
+  }
+}
