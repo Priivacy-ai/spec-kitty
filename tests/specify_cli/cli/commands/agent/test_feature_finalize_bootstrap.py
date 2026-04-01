@@ -22,6 +22,7 @@ from specify_cli.status.bootstrap import BootstrapResult
 # ---------------------------------------------------------------------------
 
 MODULE = "specify_cli.cli.commands.agent.feature"
+CORE_MODULE = "specify_cli.core.feature_creation"
 
 
 def _setup_feature(tmp_path: Path, feature_slug: str = "060-test-feature") -> Path:
@@ -87,7 +88,7 @@ def _common_patches(tmp_path: Path, feature_slug: str = "060-test-feature"):
         f"{MODULE}._ensure_branch_checked_out": MagicMock(),
         f"{MODULE}.safe_commit": MagicMock(return_value=True),
         f"{MODULE}.run_command": MagicMock(return_value=(0, "abc1234", "")),
-        f"{MODULE}.emit_feature_created": MagicMock(),
+        f"{CORE_MODULE}.emit_feature_created": MagicMock(),
         f"{MODULE}.emit_wp_created": MagicMock(),
         f"{MODULE}.get_emitter": MagicMock(
             return_value=MagicMock(generate_causation_id=MagicMock(return_value="test-id")),
