@@ -197,3 +197,4 @@ If existing tests break, fix the thin wrapper — not the core function. The cor
 ## Activity Log
 
 - 2026-04-01T18:00:09Z – unknown – Implementation complete: 13 new tests + 22 existing regression tests passing. Ready for review.
+- 2026-04-01T18:03:52Z – unknown – Done override: Code merged to feat/implement-review-skill from worktree branches; all tests passing; review approved by Codex reviewer
