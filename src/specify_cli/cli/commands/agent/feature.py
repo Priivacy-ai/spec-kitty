@@ -1689,7 +1689,7 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         wp_ids: list[str] = []
         for wp_file in wp_files:
-            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
             if wp_id_match:
                 wp_ids.append(wp_id_match.group(1))
 
@@ -1757,7 +1757,7 @@ def finalize_tasks(
 
         for wp_file in wp_files:
             # Extract WP ID from filename
-            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
             if not wp_id_match:
                 continue
 
@@ -1846,7 +1846,7 @@ def finalize_tasks(
         # Validate ownership manifests across all WPs (hard errors block finalization)
         wp_manifests: dict[str, object] = {}
         for wp_file in wp_files:
-            wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
             if not wp_id_match:
                 continue
             wp_id = wp_id_match.group(1)
@@ -2149,7 +2149,7 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
 
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:
-        wp_id_match = re.match(r"(WP\d{2})", wp_file.name)
+        wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
         if not wp_id_match:
             continue
         wp_id = wp_id_match.group(1)

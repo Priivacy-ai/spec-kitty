@@ -3,18 +3,38 @@ from pathlib import Path
 
 from specify_cli.dashboard import scanner
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.reducer import materialize
+from specify_cli.status.store import append_event
 
 
-def _create_feature(tmp_path: Path, slug: str = "001-demo-feature") -> Path:
+def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=f"TEST{wp_id}{lane.upper()}0000000000000000"[:26],
+            feature_slug=feature_dir.name,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane(lane),
+            at="2026-03-31T09:00:00+00:00",
+            actor="test",
+            force=True,
+            execution_mode="direct_repo",
+        ),
+    )
+    materialize(feature_dir)
+
+
+def _create_feature(tmp_path: Path, slug: str = "001-demo-feature", *, lane: str = "planned") -> Path:
     feature_dir = tmp_path / "kitty-specs" / slug
-    (feature_dir / "tasks" / "planned").mkdir(parents=True)
+    (feature_dir / "tasks").mkdir(parents=True)
     (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
     (feature_dir / "plan.md").write_text("# Plan\n", encoding="utf-8")
     (feature_dir / "tasks.md").write_text("# Tasks\n", encoding="utf-8")
 
     prompt = """---
 work_package_id: WP01
-lane: planned
 subtasks: ["T1"]
 agent: codex
 ---
@@ -22,7 +42,8 @@ agent: codex
 
 Body
 """
-    (feature_dir / "tasks" / "planned" / "WP01-demo.md").write_text(prompt, encoding="utf-8")
+    (feature_dir / "tasks" / "WP01-demo.md").write_text(prompt, encoding="utf-8")
+    _set_wp_lane(feature_dir, "WP01", lane)
     return feature_dir
 
 
@@ -135,40 +156,9 @@ def test_new_path_preferred_when_both_exist(tmp_path):
     assert resolved == new_path
 
 
-def _write_status_event(feature_dir, wp_id, to_lane, from_lane="planned"):
-    """Write a status event to the feature's event log."""
-    import json
-    from datetime import datetime, UTC
-
-    event = {
-        "event_id": f"01TEST{wp_id}{to_lane.upper()[:4]}",
-        "feature_slug": feature_dir.name,
-        "wp_id": wp_id,
-        "from_lane": from_lane,
-        "to_lane": to_lane,
-        "actor": "test",
-        "at": datetime.now(UTC).isoformat(),
-        "force": False,
-        "reason": None,
-        "evidence": None,
-        "review_ref": None,
-        "execution_mode": "worktree",
-    }
-    events_path = feature_dir / "status.events.jsonl"
-    with events_path.open("a", encoding="utf-8") as fh:
-        fh.write(json.dumps(event, sort_keys=True) + "\n")
-
-
 def test_scan_feature_kanban_approved_lane(tmp_path):
-    """WPs with approved status in event log should land in the approved column."""
-    feature_dir = tmp_path / "kitty-specs" / "001-demo"
-    (feature_dir / "tasks").mkdir(parents=True)
-    (feature_dir / "tasks" / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: WP01\n",
-        encoding="utf-8",
-    )
-    _write_status_event(feature_dir, "WP01", "planned", from_lane="planned")
-    _write_status_event(feature_dir, "WP01", "approved", from_lane="for_review")
+    """WPs with canonical lane approved should land in the approved column."""
+    feature_dir = _create_feature(tmp_path, "001-demo", lane="approved")
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0
@@ -179,13 +169,12 @@ def test_scan_feature_kanban_lane_mapping(tmp_path):
     """claimed maps to planned, in_progress maps to doing."""
     feature_dir = tmp_path / "kitty-specs" / "001-demo"
     (feature_dir / "tasks").mkdir(parents=True)
-    for wp_id in ["WP01", "WP02"]:
+    for wp_id, lane in [("WP01", "claimed"), ("WP02", "in_progress")]:
         (feature_dir / "tasks" / f"{wp_id}.md").write_text(
             f"---\nwork_package_id: {wp_id}\n---\n# Work Package Prompt: {wp_id}\n",
             encoding="utf-8",
         )
-    _write_status_event(feature_dir, "WP01", "claimed", from_lane="planned")
-    _write_status_event(feature_dir, "WP02", "in_progress", from_lane="claimed")
+        _set_wp_lane(feature_dir, wp_id, lane)
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["planned"]) == 1  # claimed -> planned
     assert len(lanes["doing"]) == 1  # in_progress -> doing

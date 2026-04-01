@@ -391,10 +391,13 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
     # Derive feature_dir: WP files live at kitty-specs/<slug>/tasks/WP01.md
     feature_dir = wp_path.parent.parent
 
-    # Extract wp_id from filename (e.g. WP01.md -> WP01, WP04-something.md -> WP04)
-    stem = wp_path.stem
-    wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
-    wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
+    text = wp_path.read_text(encoding="utf-8-sig")
+    frontmatter, _body, _padding = split_frontmatter(text)
+    wp_id = extract_scalar(frontmatter, "work_package_id")
+    if not wp_id:
+        stem = wp_path.stem
+        wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", stem, re.IGNORECASE)
+        wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
     from specify_cli.status.lane_reader import get_wp_lane
     return get_wp_lane(feature_dir, wp_id)

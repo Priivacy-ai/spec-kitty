@@ -36,6 +36,54 @@ def run_tasks_cli(args: list[str], *, cwd: Path, env: dict[str, str] | None = No
     return run_python_script(TASKS_DIR / "tasks_cli.py", args, cwd=cwd, env=env)
 
 
+def _canonical_lane(lane: str) -> str:
+    return {"doing": "in_progress"}.get(lane, lane)
+
+
+def _event_timestamp(timestamp: str) -> str:
+    return timestamp[:-1] + "+00:00" if timestamp.endswith("Z") else timestamp
+
+
+def _seed_canonical_wp_state(
+    repo_root: Path,
+    feature: str,
+    wp_id: str,
+    lane: str,
+    *,
+    actor: str,
+    timestamp: str,
+) -> None:
+    from specify_cli.status.models import Lane, StatusEvent
+    from specify_cli.status.reducer import materialize, reduce
+    from specify_cli.status.store import append_event, read_events
+
+    feature_dir = repo_root / "kitty-specs" / feature
+    canonical_target = _canonical_lane(lane)
+    existing_events = read_events(feature_dir)
+    snapshot = reduce(existing_events)
+    current_lane = snapshot.work_packages.get(wp_id, {}).get("lane")
+
+    if current_lane == canonical_target:
+        if existing_events and not (feature_dir / "status.json").exists():
+            materialize(feature_dir)
+        return
+
+    event = StatusEvent(
+        event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
+        feature_slug=feature,
+        wp_id=wp_id,
+        from_lane=Lane(current_lane or "planned"),
+        to_lane=Lane(canonical_target),
+        at=_event_timestamp(timestamp),
+        actor=actor,
+        force=True,
+        execution_mode="direct_repo",
+        reason="test fixture bootstrap",
+    )
+    append_event(feature_dir, event)
+    materialize(feature_dir)
+
+
 def write_wp(
     repo_root: Path,
     feature: str,
@@ -48,6 +96,7 @@ def write_wp(
     note: str = "Created",
     timestamp: str = "2025-01-01T00:00:00Z",
     legacy: bool = False,
+    seed_canonical: bool = True,
 ) -> Path:
     """Create a work package file for testing.
 
@@ -68,27 +117,38 @@ def write_wp(
         tasks_dir.mkdir(parents=True, exist_ok=True)
         path = tasks_dir / f"{wp_id}.md"
 
-    frontmatter = "\n".join(
+    frontmatter_lines = [f'work_package_id: "{wp_id}"']
+    if legacy:
+        frontmatter_lines.append(f'lane: "{lane}"')
+    frontmatter_lines.extend(
         [
-            f'work_package_id: "{wp_id}"',
-            f'lane: "{lane}"',
             f'agent: "{agent}"',
             f'assignee: "{assignee}"',
             f'shell_pid: "{shell_pid}"',
         ]
     )
+    frontmatter = "\n".join(frontmatter_lines)
     document = build_document(frontmatter, "", "\n")
     path.write_text(document, encoding="utf-8")
 
     front, body, padding = split_frontmatter(path.read_text(encoding="utf-8"))
     updated_body = append_activity_log(
         body,
-        f"- {timestamp} – {agent} – shell_pid={shell_pid} – lane={lane} – {note}",
+        f"- {timestamp} – {agent} – shell_pid={shell_pid} – {note}",
     )
-    updated_front = set_scalar(
-        set_scalar(set_scalar(set_scalar(front, "lane", lane), "agent", agent), "assignee", assignee),
-        "shell_pid",
-        shell_pid,
-    )
+    updated_front = front
+    if legacy:
+        updated_front = set_scalar(updated_front, "lane", lane)
+    updated_front = set_scalar(set_scalar(updated_front, "agent", agent), "assignee", assignee)
+    updated_front = set_scalar(updated_front, "shell_pid", shell_pid)
     path.write_text(build_document(updated_front, updated_body, padding), encoding="utf-8")
+    if seed_canonical and not legacy:
+        _seed_canonical_wp_state(
+            repo_root,
+            feature,
+            wp_id,
+            lane,
+            actor=agent,
+            timestamp=timestamp,
+        )
     return path

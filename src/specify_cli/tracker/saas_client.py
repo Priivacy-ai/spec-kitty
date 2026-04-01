@@ -260,7 +260,9 @@ class SaaSTrackerClient:
                 raise SaaSTrackerClientError(error_msg)
 
             # pending / running -- sleep with jitter then retry
-            jittered_delay = delay * _poll_jitter_multiplier()
+            jitter_basis_points = secrets.randbelow(4000)
+            jitter_factor = 0.8 + (jitter_basis_points / 10000)
+            jittered_delay = delay * jitter_factor
             time.sleep(jittered_delay)
             delay = min(delay * 2, cap)
 

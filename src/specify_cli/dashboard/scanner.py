@@ -460,8 +460,6 @@ def _process_wp_file(
         # No event log at either level — use default_lane only for legacy
         # features (where the directory structure IS the lane). For flat-task
         # features the event log is mandatory; let the caller handle it.
-        # candidate is parent.parent of the WP file: for flat layout that's
-        # the feature dir, for legacy layout that's the tasks dir.
         feature_candidate = (
             candidate if candidate.name != "tasks" else candidate.parent
         )
