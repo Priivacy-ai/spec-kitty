@@ -26,7 +26,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Documentation
 
-- **Recorded the remaining follow-on work after the PR #305 → PR #348 transition** — the compiler-backed mission-bundle follow-up remains relevant, the skills-vs-mission-composition boundary still needs to stay explicit, constitution-local routing should expand beyond mission-path centralization, issue #241 still has compatibility/documentation cleanup left on older `--feature`-based surfaces, and residual runtime/test debt remains outside this rebase-focused integration.
+- **Doctrine inclusion assessment** — `docs/development/doctrine-inclusion-assessment.md` evaluates the current state of the three Doctrine+Kitty merger pillars (agent profiles ~80%, mission type customization ~45%, ad-hoc experimentation ~25%) with gap analysis, dependency violation status, and phased recommendations.
+- **Doctrine skills README** — `src/doctrine/skills/README.md` documents the skills-vs-mission-composition boundary, the iterative context loading pattern, and the skill inventory. Captures the architectural distinction from the PR #305 review.
+- **Updated skill: spec-kitty-runtime-next** — new "Doctrine-Aware Step Execution" section teaches agents to load agent profiles at init, apply action-scoped constitution context at step boundaries, and pull specific tactics/directives on demand instead of dumping all doctrine upfront.
+- **Updated skill: spec-kitty-constitution-doctrine** — new "Programmatic Doctrine Access", "Doctrine Artifact Kinds", and "Iterative Context Loading Pattern" sections document `DoctrineService` entry points, explain all 8 artifact kinds (directives, tactics, paradigms, styleguides, toolguides, procedures, agent profiles, step contracts) with access patterns, and teach the anti-pattern of upfront context dumps.
+- **Updated skill: spec-kitty-mission-system** — new "Doctrine Composition Layer" section documents `MissionStepContract`, `Procedure`, and action index artifacts as the structured primitives backing mission behavior.
+- **New skill: ad-hoc-profile-load** — teaches agents how to load a profile on demand for interactive sessions outside the mission loop: resolve by ID or task context, adopt identity/boundaries/governance scope, maintain role throughout the session, and persist to tool context.
+- **Recorded the remaining follow-on work after the PR #305 -> PR #348 transition** — the compiler-backed mission-bundle follow-up remains relevant, the skills-vs-mission-composition boundary still needs to stay explicit, constitution-local routing should expand beyond mission-path centralization, issue #241 still has compatibility/documentation cleanup left on older `--feature`-based surfaces, and residual runtime/test debt remains outside this rebase-focused integration.
 
 ## [3.0.3] - 2026-04-01
 

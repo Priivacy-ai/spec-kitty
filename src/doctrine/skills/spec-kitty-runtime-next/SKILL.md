@@ -2,7 +2,8 @@
 name: spec-kitty-runtime-next
 description: >-
   Drive the canonical spec-kitty next --agent <name> control loop for mission
-  advancement.
+  advancement. Load agent profiles at init, apply action-scoped doctrine
+  context at each step boundary, and pull specific tactics/directives on demand.
   Triggers: "run the next step", "what should runtime do next", "advance the
   mission", "what is the next task", "continue the workflow", "what step comes
   next".
@@ -13,7 +14,8 @@ description: >-
 # spec-kitty-runtime-next
 
 This skill teaches agents how to advance a Spec Kitty mission through the
-canonical runtime control loop.
+canonical runtime control loop, including doctrine-aware context loading at
+each step boundary.
 
 ## When to Use This Skill
 
@@ -204,6 +206,103 @@ When `--mission` is omitted, the runtime detects the mission via (in order):
 5. Error with guidance if ambiguous
 
 **NOTE:** Always use `--mission <slug>` in multi-mission repositories.
+
+---
+
+## Doctrine-Aware Step Execution
+
+The runtime-next loop should load doctrine context **iteratively** — not all
+at once. Each step boundary is a context loading opportunity.
+
+### Agent Profile at Init
+
+At the start of a session, resolve the active agent profile. This scopes
+your role, boundaries, and initialization context:
+
+```bash
+# List available profiles
+spec-kitty agent profile list
+
+# Show your resolved profile (includes initialization_declaration)
+spec-kitty agent profile show <profile-id>
+```
+
+The profile's `initialization_declaration` is your startup context. Its
+`specialization.boundaries` defines what you should and should not do. Consult
+boundaries before acting outside your stated role.
+
+Profiles are loaded from `DoctrineService.agent_profiles`:
+
+```python
+from doctrine.service import DoctrineService
+
+service = DoctrineService(shipped_root, project_root)
+profile = service.agent_profiles.find_best_match(task_context)
+# Use profile.initialization_declaration as startup context
+# Check profile.specialization.boundaries before acting outside role
+```
+
+### Action-Scoped Context at Each Step
+
+At each step boundary (when `spec-kitty next` returns a `step` decision),
+load governance context scoped to the current action — not the full doctrine:
+
+```bash
+# Load only what's relevant to this action (compact after first load)
+spec-kitty constitution context --action implement --json
+```
+
+The context system uses two depth levels:
+
+| Depth | When | Content |
+|---|---|---|
+| `bootstrap` (depth-2) | First load for this action | Full policy summary + reference list |
+| `compact` (depth-1) | Subsequent loads | Resolved paradigms, directives, tools only |
+
+First-load state is tracked per action in
+`.kittify/constitution/context-state.json`. This means `implement` and
+`review` each get their own first-load bootstrap independently.
+
+### Pull Specific Doctrine On Demand
+
+When you need governance guidance mid-step (e.g., how to structure tests,
+which review criteria apply), pull the specific tactic or directive by ID
+rather than re-loading the full context:
+
+```python
+from doctrine.service import DoctrineService
+
+service = DoctrineService(shipped_root, project_root)
+
+# Pull a specific tactic when it becomes relevant
+tactic = service.tactics.get("tdd-red-green-refactor")
+
+# Pull a specific directive
+directive = service.directives.get("TEST_FIRST")
+```
+
+The action index (`actions/<action>/index.yaml`) tells you which doctrine
+artifacts are relevant to the current step. Load the index to discover what
+to pull:
+
+```python
+from doctrine.missions.action_index import load_action_index
+
+index = load_action_index(missions_root, "software-dev", "implement")
+# index.directives → ["TEST_FIRST", ...]
+# index.tactics → ["tdd-red-green-refactor", ...]
+# index.procedures → [...]
+```
+
+### Anti-Pattern: Upfront Context Dump
+
+Do NOT load all doctrine into context at session start. This wastes tokens
+and dilutes relevance. Instead:
+
+1. **At init**: Load agent profile + initialization declaration.
+2. **At each step boundary**: Call `constitution context --action <action>`.
+3. **When stuck or need guidance**: Pull specific tactic/directive by ID.
+4. **When reviewing**: Pull review-scoped doctrine, not implement-scoped.
 
 ---
 
