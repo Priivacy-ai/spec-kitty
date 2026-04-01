@@ -193,3 +193,7 @@ If existing tests break, fix the thin wrapper — not the core function. The cor
 - Verify the thin wrapper catches `FeatureCreationError` and translates to `typer.Exit(1)`
 - Verify JSON output format is identical before and after refactor
 - Check that `lifecycle.py` (which imports from `agent.feature`) still works
+
+## Activity Log
+
+- 2026-04-01T18:00:09Z – unknown – Implementation complete: 13 new tests + 22 existing regression tests passing. Ready for review.
