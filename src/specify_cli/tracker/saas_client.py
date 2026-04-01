@@ -366,7 +366,7 @@ class SaaSTrackerClient:
         payload: dict[str, Any] = {
             "provider": provider,
             "project_slug": project_slug,
-            "feature_slug": feature_slug,
+            "mission_id": feature_slug,
             "external_issue_id": external_issue_id,
             "external_issue_key": external_issue_key,
             "external_issue_url": external_issue_url,

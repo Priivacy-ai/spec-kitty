@@ -236,7 +236,7 @@ class TestSearchConfirmBindFlow:
             mock_emitter = MagicMock()
             mock_get_emitter.return_value = mock_emitter
 
-            meta = bind_mission_origin(
+            meta, emitted = bind_mission_origin(
                 feature_dir_with_meta,
                 candidate,
                 "linear",
@@ -246,6 +246,7 @@ class TestSearchConfirmBindFlow:
             )
 
         # Step 3: Verify meta.json was written with all 7 required keys
+        assert emitted is True
         assert "origin_ticket" in meta
         ot = meta["origin_ticket"]
         assert ot["provider"] == "linear"

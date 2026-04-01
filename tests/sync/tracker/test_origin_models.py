@@ -51,14 +51,14 @@ class TestOriginCandidate:
             candidate.title = "Changed"  # type: ignore[misc]
 
     def test_equality(self) -> None:
-        kwargs = dict(
-            external_issue_id="id-1",
-            external_issue_key="KEY-1",
-            title="Title",
-            status="Open",
-            url="https://example.com",
-            match_type="exact",
-        )
+        kwargs = {
+            "external_issue_id": "id-1",
+            "external_issue_key": "KEY-1",
+            "title": "Title",
+            "status": "Open",
+            "url": "https://example.com",
+            "match_type": "exact",
+        }
         assert OriginCandidate(**kwargs) == OriginCandidate(**kwargs)
 
     def test_text_match_type(self) -> None:

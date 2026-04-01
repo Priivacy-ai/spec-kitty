@@ -299,7 +299,7 @@ class TestBindMissionOrigin:
             mock_emitter = MagicMock()
             mock_get_emitter.return_value = mock_emitter
 
-            result = bind_mission_origin(
+            result, emitted = bind_mission_origin(
                 feature_dir, candidate, "linear", "linear_team", "team-uuid",
                 client=client,
             )
@@ -314,6 +314,7 @@ class TestBindMissionOrigin:
         assert ot["external_issue_key"] == "WEB-123"
 
         # Verify event was emitted
+        assert emitted is True
         mock_emitter.emit_mission_origin_bound.assert_called_once()
 
     def test_saas_first_ordering_saas_fails_no_local_write(
@@ -378,11 +379,11 @@ class TestBindMissionOrigin:
         }
 
         with patch("specify_cli.sync.events.get_emitter"):
-            result1 = bind_mission_origin(
+            result1, _ = bind_mission_origin(
                 feature_dir, candidate, "linear", "linear_team", "team-uuid",
                 client=client,
             )
-            result2 = bind_mission_origin(
+            result2, _ = bind_mission_origin(
                 feature_dir, candidate, "linear", "linear_team", "team-uuid",
                 client=client,
             )
@@ -427,7 +428,7 @@ class TestBindMissionOrigin:
         client.bind_mission_origin.return_value = {"origin_link_id": "x"}
 
         with patch("specify_cli.sync.events.get_emitter"):
-            result = bind_mission_origin(
+            result, _ = bind_mission_origin(
                 feature_dir, candidate, "linear", "linear_team", "team-uuid",
                 client=client,
             )

@@ -9,10 +9,10 @@ from __future__ import annotations
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
 from specify_cli.sync.emitter import EventEmitter
 from specify_cli.sync.queue import OfflineQueue
+
+pytestmark = pytest.mark.fast
 
 
 # ── T011: Payload validation ──────────────────────────────────────

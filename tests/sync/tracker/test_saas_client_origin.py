@@ -452,7 +452,7 @@ class TestBindMissionOrigin:
         payload = kwargs["json"]
         assert payload["provider"] == "jira"
         assert payload["project_slug"] == "proj-1"
-        assert payload["feature_slug"] == "061-ticket-first"
+        assert payload["mission_id"] == "061-ticket-first"
         assert payload["external_issue_id"] == "12345"
         assert payload["external_issue_key"] == "PROJ-42"
         assert payload["external_issue_url"] == "https://jira.example.com/browse/PROJ-42"

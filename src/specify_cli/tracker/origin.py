@@ -185,7 +185,7 @@ def bind_mission_origin(
     resource_id: str,
     *,
     client: SaaSTrackerClient | None = None,
-) -> dict[str, Any]:
+) -> tuple[dict[str, Any], bool]:
     """Bind an origin ticket to a mission. SaaS-first, local-second.
 
     **CRITICAL**: The SaaS call is the authoritative write. If it fails,
@@ -209,8 +209,8 @@ def bind_mission_origin(
 
     Returns
     -------
-    dict
-        Updated meta.json contents.
+    tuple[dict, bool]
+        (Updated meta.json contents, whether MissionOriginBound event was emitted).
 
     Raises
     ------
@@ -282,10 +282,8 @@ def bind_mission_origin(
     except Exception:
         logger.debug("MissionOriginBound event emission failed", exc_info=True)
 
-    _ = event_emitted  # available for callers that care
-
-    # 7. Return updated meta dict
-    return updated_meta
+    # 7. Return updated meta dict and event status
+    return updated_meta, event_emitted
 
 
 # ---------------------------------------------------------------------------
@@ -350,10 +348,8 @@ def start_mission_from_ticket(
         raise OriginBindingError(str(exc)) from exc
 
     # 3. Bind origin (SaaS-first, local-second)
-    event_emitted = False
-    origin_ticket: dict[str, str] = {}
     try:
-        updated_meta = bind_mission_origin(
+        updated_meta, event_emitted = bind_mission_origin(
             creation_result.feature_dir,
             candidate,
             provider,
@@ -361,8 +357,7 @@ def start_mission_from_ticket(
             resource_id,
             client=client,
         )
-        origin_ticket = updated_meta.get("origin_ticket", {})
-        event_emitted = True
+        origin_ticket: dict[str, str] = updated_meta.get("origin_ticket", {})
     except OriginBindingError:
         # Feature exists but has no origin. Acceptable -- agent can retry
         # the bind separately. Re-raise so caller knows.
