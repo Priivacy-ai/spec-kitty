@@ -308,6 +308,10 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     try:
         event_lanes = get_all_wp_lanes(feature_dir)
     except CanonicalStatusNotFoundError:
+        logger.warning(
+            "No event log for feature '%s' — showing all WPs as planned",
+            feature_dir.name,
+        )
         event_lanes = {}  # All WPs default to "uninitialized" -> "planned"
 
     for wp_file in tasks_dir.glob("WP*.md"):
@@ -442,6 +446,11 @@ def _process_wp_file(
     try:
         lane = get_wp_lane(feature_dir, canonical_wp_id)
     except CanonicalStatusNotFoundError:
+        logger.warning(
+            "No event log for feature '%s' — defaulting %s to planned",
+            feature_dir.name,
+            canonical_wp_id,
+        )
         lane = "planned"
 
     return {

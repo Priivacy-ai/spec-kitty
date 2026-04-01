@@ -179,9 +179,11 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
         return result
 
     # Step 2: Generate prompt-driven full templates (9 commands)
+    prompt_generation_succeeded = False
     try:
         prompt_written = _generate_prompt_templates(repo_root)
         result.files_written.extend(prompt_written)
+        prompt_generation_succeeded = len(prompt_written) > 0
     except Exception as exc:
         msg = f"_generate_prompt_templates failed: {exc}"
         logger.warning(msg)
@@ -190,7 +192,11 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
 
     written_set: set[Path] = set(result.files_written)
 
-    # Step 3: Delete stale files not in the combined generated set
+    # Step 3: Delete stale files not in the combined generated set.
+    # Safety: if prompt generation failed, preserve existing prompt-driven
+    # files to avoid destroying working templates.
+    from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+
     agent_dirs = get_agent_dirs_for_project(repo_root)
     seen_dirs: set[Path] = set()
 
@@ -206,15 +212,28 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
 
         # Remove stale spec-kitty.* files not in the freshly generated set
         for stale_file in sorted(agent_cmd_dir.glob("spec-kitty.*")):
-            if stale_file not in written_set:
-                try:
-                    stale_file.unlink()
-                    result.files_deleted.append(stale_file)
-                    logger.info("Deleted stale command file: %s", stale_file)
-                except Exception as exc:
-                    msg = f"Failed to delete stale file {stale_file}: {exc}"
-                    logger.warning(msg)
-                    result.warnings.append(msg)
+            if stale_file in written_set:
+                continue
+
+            # If prompt generation failed, preserve files for prompt-driven
+            # commands so we don't nuke working templates on partial failure.
+            if not prompt_generation_succeeded:
+                stem = stale_file.stem  # e.g. "spec-kitty.plan"
+                command = stem.removeprefix("spec-kitty.")
+                if command in PROMPT_DRIVEN_COMMANDS:
+                    logger.info(
+                        "Preserving %s (prompt generation unavailable)", stale_file
+                    )
+                    continue
+
+            try:
+                stale_file.unlink()
+                result.files_deleted.append(stale_file)
+                logger.info("Deleted stale command file: %s", stale_file)
+            except Exception as exc:
+                msg = f"Failed to delete stale file {stale_file}: {exc}"
+                logger.warning(msg)
+                result.warnings.append(msg)
 
     logger.info(
         "rewrite_agent_shims: %d agents, %d written, %d deleted",

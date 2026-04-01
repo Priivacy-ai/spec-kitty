@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -227,6 +230,10 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             try:
                 lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             except CanonicalStatusNotFoundError:
+                logger.warning(
+                    "No event log for feature '%s' — defaulting %s to planned",
+                    feature, path.stem,
+                )
                 lane = "planned"
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(

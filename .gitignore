@@ -56,7 +56,8 @@ env/
 .kittify/derived/
 .kittify/events/
 .kittify/dossiers/
-.kittify/derived/
+.kittify/workspaces/
+.kittify/merge-state.json
 .kittify/.migration-backup/
 kitty-specs/**/.kittify/dossiers/
 .kittify/constitution/context-state.json
