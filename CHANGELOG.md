@@ -11,6 +11,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [3.0.3] - 2026-04-01
+
+### Added
+
+- **Ticket-first mission origin binding** (feature 061): Service-layer workflow for starting a mission from an existing Jira or Linear ticket. Adds `search_origin_candidates()`, `bind_mission_origin()`, and `start_mission_from_ticket()` in `tracker/origin.py`. Persists durable `origin_ticket` provenance in `meta.json` with 7-field validation. Emits `MissionOriginBound` observational telemetry event. SaaS-first write ordering ensures local metadata never runs ahead of the authoritative control plane.
+- **Reusable feature-creation API**: Extracted `create_feature_core()` from the CLI command into `core/feature_creation.py` — a stable, programmatic API returning `FeatureCreationResult` with domain exceptions instead of `typer.Exit()`.
+- **SaaS tracker client extensions**: `search_issues()` and `bind_mission_origin()` transport methods on `SaaSTrackerClient` with full retry, auth refresh, and error handling.
+
 ## [3.0.2] - 2026-04-01
 
 ### Fixed
