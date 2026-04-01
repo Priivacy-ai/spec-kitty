@@ -243,6 +243,20 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "severity": lambda v: v in {"info", "warning", "error"},
         },
     },
+    "MissionOriginBound": {
+        "required": {
+            "feature_slug", "provider", "external_issue_id",
+            "external_issue_key", "external_issue_url", "title",
+        },
+        "validators": {
+            "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
+            "provider": lambda v: v in {"jira", "linear"},
+            "external_issue_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "external_issue_key": lambda v: isinstance(v, str) and len(v) >= 1,
+            "external_issue_url": lambda v: isinstance(v, str) and len(v) >= 1,
+            "title": lambda v: isinstance(v, str) and len(v) >= 1,
+        },
+    },
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
@@ -528,6 +542,33 @@ class EventEmitter:
             event_type="DependencyResolved",
             aggregate_id=wp_id,
             aggregate_type="WorkPackage",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_mission_origin_bound(
+        self,
+        feature_slug: str,
+        provider: str,
+        external_issue_id: str,
+        external_issue_key: str,
+        external_issue_url: str,
+        title: str,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit MissionOriginBound event (observational telemetry only)."""
+        payload: dict[str, Any] = {
+            "feature_slug": feature_slug,
+            "provider": provider,
+            "external_issue_id": external_issue_id,
+            "external_issue_key": external_issue_key,
+            "external_issue_url": external_issue_url,
+            "title": title,
+        }
+        return self._emit(
+            event_type="MissionOriginBound",
+            aggregate_id=feature_slug,
+            aggregate_type="Feature",
             payload=payload,
             causation_id=causation_id,
         )
