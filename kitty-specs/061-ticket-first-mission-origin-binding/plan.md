@@ -21,13 +21,21 @@ Add a service-layer workflow in `src/specify_cli/tracker/origin.py` that lets `/
 
 ## Constitution Check
 
-*No project-level constitution file exists (governance.yaml and directives.yaml not found). Governance defaults applied:*
+*Source: `.kittify/constitution/constitution.md` (v1.0.0, 2026-01-27)*
 
-- **TEST_FIRST directive**: Tests written before or alongside implementation for all new modules
-- **Tools**: git, mypy, poetry, pytest, python, ruff, spec-kitty
-- **Template set**: software-dev-default
+| Standard | Constitution Requirement | This Feature | Status |
+|----------|------------------------|-------------|--------|
+| Language | Python 3.11+ | Python 3.11+ | Pass |
+| Testing | pytest, 90%+ coverage for new code | All new modules tested TEST_FIRST; target 90%+ coverage for `tracker/origin.py`, `set_origin_ticket()`, event registration, and client extensions | Pass |
+| Type checking | mypy --strict, no type errors | All new code fully typed with strict annotations | Pass |
+| Integration tests | Required for CLI commands | No new CLI commands; integration tests for service-layer orchestration (`start_mission_from_ticket` end-to-end with mocked HTTP) | Pass (adapted) |
+| Unit tests | Required for core logic | Unit tests per layer: client, service, metadata, event | Pass |
+| CLI performance | < 2 seconds for typical operations | Local operations (metadata write, event emit) well under 2s. Network-bound search is 10s max per spec — see justification below | Justified exception |
+| Cross-platform | Linux, macOS, Windows 10+ | No platform-specific code; uses pathlib, httpx, standard library | Pass |
+| Docstrings | Required for public APIs | All public functions and dataclasses will have docstrings | Pass |
+| Terminology | "Mission" not "Feature" in product language | Code identifiers (`feature_dir`, `meta.json`) remain; product-facing language uses "Mission" | Pass |
 
-No violations to justify.
+**CLI performance justification**: The constitution's < 2 second target applies to local CLI operations (status display, metadata reads, dashboard rendering). The `search_origin_candidates()` method is a network-bound SaaS API call that queries external Jira/Linear providers — fundamentally different from local operations. The spec's 10-second threshold (NFR-001) is the appropriate bound for this class of operation. Local-only operations in this feature (metadata writes, event emission) complete well within 2 seconds.
 
 ## Project Structure
 
@@ -103,17 +111,33 @@ SaaS control plane  (Team B — HTTP wire format, upstream dependency)
 - `MissionOriginBound` event = observational telemetry only (offline audit, analytics)
 - `set_origin_ticket()` = authoritative local write for `meta.json` origin provenance
 
+**Write ordering (prevents split-brain):**
+The `bind_mission_origin()` service method must use **SaaS-first, local-second** ordering:
+1. Call `SaaSTrackerClient.bind_mission_origin()` — if this fails, stop and raise. No local state written.
+2. Call `set_origin_ticket()` to write `meta.json` — if this fails (unlikely with atomic_write), the SaaS record exists but local does not. The next retry will see the same-origin no-op from SaaS and succeed locally.
+3. Emit `MissionOriginBound` event — fire-and-forget (queued offline if SaaS unreachable).
+
+This ensures local metadata can never be ahead of the authoritative SaaS state. The only possible inconsistency is SaaS-ahead-of-local (step 2 failure), which self-heals on retry.
+
 ## Key Design Decisions
 
 ### D1: Dataclasses for origin models
 
 `OriginCandidate`, `SearchOriginResult`, and `MissionFromTicketResult` use `@dataclass(slots=True)` — consistent with `TrackerProjectConfig` and `MergeState` in the tracker/merge packages. Pydantic is reserved for mission schema validation; these are simple value objects.
 
-### D2: create-feature integration via direct function call
+### D2: create-feature integration via extracted core function
 
-`start_mission_from_ticket()` invokes the `create_feature()` typer command from `specify_cli.cli.commands.agent.feature` directly, passing `json_output=True` to capture structured output. This matches the pattern used in `lifecycle.py`. The function handles number allocation, directory creation, meta.json scaffolding, and git commit internally.
+The existing `create_feature()` in `cli/commands/agent/feature.py` is a 300+ line typer command that returns `None`, emits JSON to stdout, and uses `typer.Exit()` for control flow. That is not a stable service seam.
 
-**Caveat**: `create_feature()` uses `typer.Exit()` for error handling, which raises `SystemExit`. The caller must catch `SystemExit` and translate to a domain error.
+**Approach**: Extract the core feature-creation logic from `create_feature()` into a reusable internal function:
+- New function: `_create_feature_core(repo_root, feature_slug, mission, target_branch) -> dict[str, Any]`
+- Returns a structured result dict (feature_dir, feature_slug, meta, etc.) instead of printing to stdout
+- Raises domain exceptions instead of `typer.Exit()`
+- The existing typer command becomes a thin wrapper that calls this function and formats output
+
+This extraction is a prerequisite work package for the origin orchestration. It is a contained refactor that does not change external CLI behavior.
+
+`start_mission_from_ticket()` then calls `_create_feature_core()` directly, getting a structured result without stdout capture or SystemExit handling.
 
 ### D3: Re-bind semantics
 
@@ -198,8 +222,10 @@ The implementation follows a bottom-up dependency order:
 
 2. **Transport** — `SaaSTrackerClient.search_issues()` and `.bind_mission_origin()`. Depends on foundation data models for result shape. Can be fully tested with mocked HTTP.
 
-3. **Orchestration** — `tracker/origin.py` service functions. Depends on transport + foundation. This is the normative API surface.
+3. **create-feature extraction** — Extract `_create_feature_core()` from the typer command in `cli/commands/agent/feature.py`. Returns structured dict, raises domain exceptions. Existing typer command becomes thin wrapper. Prerequisite for orchestration layer.
 
-4. **Integration testing** — End-to-end flow tests with all layers wired together (mocked HTTP only at the httpx boundary).
+4. **Orchestration** — `tracker/origin.py` service functions (`search_origin_candidates`, `bind_mission_origin`, `start_mission_from_ticket`). Depends on transport + foundation + extracted create-feature API. Uses SaaS-first write ordering. This is the normative API surface.
 
-Each layer is independently testable. Layers 1-2 can proceed in parallel. Layer 3 depends on both.
+5. **Integration testing** — End-to-end flow tests with all layers wired together (mocked HTTP only at the httpx boundary). Covers full search → confirm → bind → create flow.
+
+Layers 1-2 can proceed in parallel. Layer 3 is an independent prerequisite. Layer 4 depends on 1, 2, and 3. Layer 5 depends on all.

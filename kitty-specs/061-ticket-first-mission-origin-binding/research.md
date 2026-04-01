@@ -7,18 +7,20 @@
 
 **Question**: Can `start_mission_from_ticket()` create a mission via Python API, or does it need a subprocess call to the CLI?
 
-**Decision**: Direct function call to `create_feature()` from `specify_cli.cli.commands.agent.feature`
+**Decision**: Extract a reusable core function from `create_feature()`, then call it from `start_mission_from_ticket()`.
 
-**Rationale**: The `create_feature()` function in `src/specify_cli/cli/commands/agent/feature.py` (line 512) accepts `feature_slug`, `mission`, `json_output`, and `target_branch` parameters. It handles number allocation, directory creation, meta.json scaffolding, git commit, and event emission internally. The function is importable and callable from Python — `lifecycle.py` already uses this pattern.
+**Rationale**: The `create_feature()` function in `src/specify_cli/cli/commands/agent/feature.py` (line 512) is a 300+ line typer command that handles number allocation, directory creation, meta.json scaffolding, git commit, and event emission. However, it returns `None`, emits JSON to stdout, and uses `typer.Exit()` for control flow — making it unsuitable as a service-layer dependency.
 
-**Caveats**:
-- The function uses `typer.Exit()` for error handling, which raises `SystemExit`. The `start_mission_from_ticket()` caller must catch `SystemExit` and translate to a domain-specific error (e.g., `OriginBindingError`).
-- The function prints to stdout/stderr via typer.echo/rich console. When called with `json_output=True`, it emits structured JSON that can be captured.
-- The function modifies git state (commits files). This is expected and desired.
+**Approach**: Extract the core logic into `_create_feature_core(repo_root, feature_slug, mission, target_branch) -> dict[str, Any]`:
+- Returns a structured result dict instead of printing to stdout
+- Raises domain exceptions instead of `typer.Exit()`
+- The existing typer command becomes a thin wrapper
+- This is a contained refactor — no external CLI behavior changes
 
 **Alternatives considered**:
-- Subprocess call (`spec-kitty agent feature create-feature --json`): Higher overhead, harder to test, but cleaner process isolation. Rejected because the direct-call pattern already exists in the codebase.
-- Extract core logic into a reusable function: Ideal long-term but out of scope — would require refactoring `create_feature()` which is a large function (300+ lines).
+- Direct function call with SystemExit catching: Fragile, couples service layer to CLI control flow. Rejected.
+- Subprocess call (`spec-kitty agent feature create-feature --json`): Higher overhead, stdout parsing, harder to test. Rejected.
+- Skip extraction, accept fragility: Violates the service-layer contract this spec establishes. Rejected.
 
 ## R2: SaaSTrackerClient test patterns
 

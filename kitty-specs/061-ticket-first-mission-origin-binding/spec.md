@@ -177,11 +177,11 @@ bind_mission_origin(
 ) -> dict
 ```
 
-**Behavior:**
-- Writes additive `origin_ticket` block to `meta.json` via canonical `write_meta()`
-- Calls `SaaSTrackerClient.bind_mission_origin()` to create the control-plane record (authoritative write)
-- Emits `MissionOriginBound` event via the event emitter (observational telemetry only)
-- Returns the updated metadata dict
+**Behavior (SaaS-first, local-second write ordering):**
+1. Calls `SaaSTrackerClient.bind_mission_origin()` to create the control-plane record (authoritative write). If this fails, stops and raises -- no local state written.
+2. Writes additive `origin_ticket` block to `meta.json` via canonical `write_meta()`. If this fails (unlikely), SaaS record exists but local does not -- self-heals on retry via same-origin no-op.
+3. Emits `MissionOriginBound` event via the event emitter (observational telemetry only, fire-and-forget).
+4. Returns the updated metadata dict.
 
 **Re-bind semantics:**
 - **Same origin** (same `external_issue_id`): no-op success -- local write overwrites identically, SaaS returns success without creating a duplicate

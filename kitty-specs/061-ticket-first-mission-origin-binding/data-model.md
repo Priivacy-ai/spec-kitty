@@ -67,8 +67,9 @@ Additive metadata block. Written via `set_origin_ticket()` → `write_meta()`.
 }
 ```
 
-**Required keys**: `provider`, `external_issue_id`, `external_issue_key`, `external_issue_url`, `title`
-**Optional keys**: `resource_type`, `resource_id` (routing context, may be absent if SaaS doesn't return them)
+**Required keys**: `provider`, `resource_type`, `resource_id`, `external_issue_id`, `external_issue_key`, `external_issue_url`, `title`
+
+All seven fields are required. `resource_type` and `resource_id` are routing context needed for offline intelligibility and possible future rebind/replay. They are always available from `SearchOriginResult` at bind time.
 
 ### FeatureMetaOptional TypedDict extension
 
