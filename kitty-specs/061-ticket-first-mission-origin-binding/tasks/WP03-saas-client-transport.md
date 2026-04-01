@@ -197,3 +197,4 @@ Use the existing test pattern: `@patch("specify_cli.tracker.saas_client.httpx.Cl
 ## Activity Log
 
 - 2026-04-01T18:00:04Z – unknown – Implementation complete: 17 tests passing, 42 existing tests still green. Ready for review.
+- 2026-04-01T18:03:47Z – unknown – Done override: Code merged to feat/implement-review-skill from worktree branches; all tests passing; review approved by Codex reviewer
