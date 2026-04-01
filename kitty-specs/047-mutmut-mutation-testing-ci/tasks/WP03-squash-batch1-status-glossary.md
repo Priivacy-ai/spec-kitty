@@ -1,9 +1,13 @@
 ---
 work_package_id: WP03
 title: Squash Survivors — Batch 1 (status/, glossary/)
-lane: done
 dependencies:
 - WP02
+requirement_refs:
+- FR-009
+- FR-010
+- FR-011
+- FR-012
 subtasks:
 - T011
 - T012
@@ -13,23 +17,22 @@ subtasks:
 - T016
 - T017
 phase: Phase 2 - Squashing Campaign
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-01T16:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-009
-- FR-010
-- FR-011
-- FR-012
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3E
+owned_files:
+- kitty-specs/047-mutmut-mutation-testing-ci/mutmut-equivalents.md
+- src/specify_cli/glossary/**
+- src/specify_cli/status/**
+- tests/unit/glossary/**
+- tests/unit/status/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Squash Survivors — Batch 1 (status/, glossary/)

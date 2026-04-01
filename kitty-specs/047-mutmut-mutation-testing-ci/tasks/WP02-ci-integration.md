@@ -1,28 +1,8 @@
 ---
 work_package_id: WP02
 title: CI Integration
-lane: done
 dependencies:
 - WP01
-subtasks:
-- T006
-- T007
-- T008
-- T009
-- T010
-phase: Phase 1 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: approved
-reviewed_by: Stijn Dejongh
-review_feedback: ''
-history:
-- timestamp: '2026-03-01T16:00:00Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-003
 - FR-004
@@ -33,6 +13,26 @@ requirement_refs:
 - NFR-001
 - C-003
 - C-004
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+phase: Phase 1 - Foundation
+history:
+- timestamp: '2026-03-01T16:00:00Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/047-mutmut-mutation-testing-ci/
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3E
+owned_files:
+- kitty-specs/047-mutmut-mutation-testing-ci/plan.md
+- kitty-specs/047-mutmut-mutation-testing-ci/research.md
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – CI Integration

@@ -23,8 +23,6 @@ subtasks:
   title: Test migration with mock consumer project
   status: planned
 phase: 1
-shell_pid: "80689"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -32,9 +30,10 @@ history:
   note: WP04 generated from tasks.md for feature 058-hybrid-prompt-and-shim-agent-surface
 authoritative_surface: src/specify_cli/upgrade/migrations/
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q4
 owned_files:
 - src/specify_cli/upgrade/migrations/m_2_1_3_restore_prompt_commands.py
+wp_code: WP04
 ---
 
 # WP04 — Migration for Consumer Projects

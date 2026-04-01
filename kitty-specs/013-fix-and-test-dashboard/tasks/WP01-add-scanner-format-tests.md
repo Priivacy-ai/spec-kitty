@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Add Scanner Format Tests
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,17 +11,24 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Test Coverage
-assignee: ''
-agent: claude
-shell_pid: '89648'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T13:44:43Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ9
+owned_files:
+- kitty-specs/013-fix-and-test-dashboard/plan.md
+- kitty-specs/013-fix-and-test-dashboard/quickstart.md
+- kitty-specs/013-fix-and-test-dashboard/spec.md
+- src/specify_cli/dashboard/scanner/**
+- src/specify_cli/dashboard/scanner.py
+- src/specify_cli/legacy_detector.py
+- tests/test_dashboard/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Add Scanner Format Tests

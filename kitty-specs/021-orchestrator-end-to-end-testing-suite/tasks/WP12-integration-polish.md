@@ -1,7 +1,6 @@
 ---
 work_package_id: WP12
 title: Integration and Polish
-lane: done
 dependencies: []
 subtasks:
 - T056
@@ -10,17 +9,24 @@ subtasks:
 - T059
 - T060
 phase: Phase 3 - Polish
-assignee: ''
-agent: claude-opus
-shell_pid: '67957'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/quickstart.md
+- tests/conftest.py
+- tests/specify_cli/orchestrator/config.py
+- tests/specify_cli/orchestrator/conftest.py
+- tests/specify_cli/orchestrator/test_quickstart.py
+- tests/specify_cli/orchestrator/validation.py
+wp_code: WP12
 ---
 
 # Work Package Prompt: WP12 – Integration and Polish

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Downstream Command Updates
-lane: done
 dependencies: []
 subtasks:
 - T017
@@ -13,17 +12,20 @@ subtasks:
 - T023
 - T024
 phase: Phase 3 - Integration
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/plan.md
+- kitty-specs/006-per-feature-mission/spec.md
+- src/specify_cli/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Downstream Command Updates

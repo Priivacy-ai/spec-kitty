@@ -31,6 +31,6 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+- All items pass. Spec is ready for `/spec-kitty.plan`.
 - FR-014 (worktree-aware resolution) is important given the workspace-per-WP model.
 - The "GitMetadataResolver" entity name in Key Entities is a logical concept, not an implementation prescription.

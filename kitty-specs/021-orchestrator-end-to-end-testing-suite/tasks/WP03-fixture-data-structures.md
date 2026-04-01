@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Fixture Data Structures
-lane: done
 dependencies: []
 subtasks:
 - T010
@@ -10,17 +9,21 @@ subtasks:
 - T013
 - T014
 phase: Phase 0 - Foundation
-assignee: ''
-agent: claude
-shell_pid: '10945'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- src/specify_cli/orchestrator/state.py
+- src/specify_cli/orchestrator/testing/fixtures.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Fixture Data Structures

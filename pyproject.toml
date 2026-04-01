@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.0.1"
+version = "3.0.2"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -255,7 +255,6 @@ module = [
     "specify_cli.upgrade.migrations.m_0_11_1_update_implement_slash_command",
     "specify_cli.upgrade.migrations.m_0_13_0_update_research_implement_templates",
     "specify_cli.upgrade.migrations.m_0_13_5_add_commit_workflow_to_templates",
-    "specify_cli.upgrade.migrations.m_0_13_5_fix_clarify_template",
     "specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration",
     "specify_cli.verify_enhanced",
 ]

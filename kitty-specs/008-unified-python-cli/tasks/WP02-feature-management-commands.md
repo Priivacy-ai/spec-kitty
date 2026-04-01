@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Feature Management Commands
-lane: done
 dependencies: []
 subtasks:
 - T018
@@ -21,11 +20,6 @@ subtasks:
 - T032
 - T033
 phase: Phase 2 - Feature Commands (Stream A)
-assignee: ''
-agent: claude
-shell_pid: '18142'
-review_status: ''
-reviewed_by: claude
 history:
 - timestamp: '2025-12-17T00:00:00Z'
   lane: planned
@@ -37,6 +31,22 @@ history:
   agent: claude
   shell_pid: '18142'
   action: Code review complete - approved (63/63 tests passed)
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PR
+owned_files:
+- kitty-specs/###-name/**
+- kitty-specs/008-unified-python-cli/plan.md
+- kitty-specs/008-unified-python-cli/quickstart.md
+- kitty-specs/008-unified-python-cli/spec.md
+- src/specify_cli/cli/commands/agent/feature/**
+- src/specify_cli/cli/commands/agent/feature.py
+- src/specify_cli/core/worktree/**
+- src/specify_cli/core/worktree.py
+- tests/integration/test_agent_workflows.py
+- tests/integration/test_agent_workflows.py::test_create_feature
+- tests/unit/agent/test_feature.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Feature Management Commands

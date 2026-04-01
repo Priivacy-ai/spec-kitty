@@ -1,20 +1,28 @@
 ---
 work_package_id: WP09
 title: Middleware Pipeline Integration
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP08
 base_commit: ff769aa6a680f4ad197e1d71736da9f8a69eced5
 created_at: '2026-02-16T17:25:17.996693+00:00'
 subtasks: [T040, T041, T042, T043]
-agent: codex
-shell_pid: '60384'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/cli/commands/specify.py
+- src/specify_cli/glossary/__init__.py
+- src/specify_cli/glossary/attachment/**
+- src/specify_cli/glossary/attachment.py
+- src/specify_cli/glossary/pipeline/**
+- src/specify_cli/glossary/pipeline.py
+- src/specify_cli/missions/**
+- tests/specify_cli/glossary/**
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 -- Middleware Pipeline Integration

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Dashboard Mission Display
-lane: done
 dependencies: []
 subtasks:
 - T062
@@ -11,17 +10,21 @@ subtasks:
 - T066
 - T067
 phase: Phase 5 - Polish
-assignee: codex
-agent: codex
-shell_pid: '37165'
-review_status: ''
-reviewed_by: codex
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/research.md
+- kitty-specs/005-refactor-mission-system/spec.md
+- src/specify_cli/dashboard/server.py
+- src/specify_cli/dashboard/templates/__init__.py
+wp_code: WP09
 ---
 
 ## Review Feedback

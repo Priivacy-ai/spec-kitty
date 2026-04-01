@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Documentation and Migration Guide
-lane: done
 dependencies: [WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP09]
 subtasks:
 - T086
@@ -13,17 +12,24 @@ subtasks:
 - T092
 - T093
 phase: Phase 3 - Quality & Polish
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- docs/dependency-syntax.md
+- docs/upgrading-to-0-11-0.md
+- docs/workspace-per-wp.md
+- kitty-specs/###-feature/**
+- kitty-specs/010-workspace-per-work-package-for-parallel-development/quickstart.md
+- kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md
+- tests/specify_cli/test_workspace_per_wp_migration.py
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 – Documentation and Migration Guide

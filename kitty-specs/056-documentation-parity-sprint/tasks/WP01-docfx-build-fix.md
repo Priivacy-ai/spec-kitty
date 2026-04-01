@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: DocFX Build Fix and Navigation
-lane: "approved"
 dependencies: []
 requirement_refs: [FR-001, FR-010, FR-012, FR-013, FR-014]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,15 +10,24 @@ base_branch: fix/skill-audit-and-expansion
 base_commit: dd425f9c4c453cdb215c8ecedd4798a38ecd7eca
 created_at: '2026-03-22T14:50:35.943533+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-agent: codex
-shell_pid: '20880'
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
   agent: claude
   note: Generated from plan.md Phase 1
+authoritative_surface: docs/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q2
+owned_files:
+- docs/docfx.json
+- docs/explanation/toc.yml
+- docs/how-to/toc.yml
+- docs/how-to/use-operation-history.md
+- docs/index.md
+- docs/reference/toc.yml
+- docs/toc.yml
+- docs/tutorials/toc.yml
+wp_code: WP01
 ---
 
 # WP01: DocFX Build Fix and Navigation

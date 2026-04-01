@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Synthesize CLI Capability Matrix
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -17,17 +16,18 @@ subtasks:
 - T029
 - T030
 phase: Phase 2 - Synthesis
-assignee: ''
-agent: claude-wp06-reviewer
-shell_pid: '30399'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T14:41:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/019-autonomous-multi-agent-orchestration-research/
+execution_mode: planning_artifact
+mission_id: 01KN2371WQDXDMVSFB0KMF95JV
+owned_files:
+- kitty-specs/019-autonomous-multi-agent-orchestration-research/**
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Synthesize CLI Capability Matrix

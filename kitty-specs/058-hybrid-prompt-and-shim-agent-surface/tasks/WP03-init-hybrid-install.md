@@ -28,8 +28,6 @@ subtasks:
   title: 'Integration test: spec-kitty init in temp dir produces hybrid output'
   status: planned
 phase: 1
-shell_pid: "77070"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -37,10 +35,11 @@ history:
   note: WP03 generated from tasks.md for feature 058-hybrid-prompt-and-shim-agent-surface
 authoritative_surface: src/specify_cli/cli/commands/init.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q4
 owned_files:
 - src/specify_cli/cli/commands/init.py
 - src/specify_cli/runtime/**
+wp_code: WP03
 ---
 
 # WP03 — Update Init for Hybrid Install

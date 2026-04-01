@@ -15,21 +15,20 @@ base_branch: main
 base_commit: 4df5fa0905c8b9f31bacf72b7587fc78fa6141fa
 created_at: '2026-03-30T19:57:16.692216+00:00'
 subtasks: [T022, T023, T024, T025, T026, T027]
-shell_pid: "51932"
-agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
   actor: planner
 authoritative_surface: src/specify_cli/tracker/service.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WW548PPDMY6HMSB7W1
 owned_files:
 - src/specify_cli/tracker/service.py
 - src/specify_cli/tracker/factory.py
 - src/specify_cli/tracker/__init__.py
 - tests/sync/tracker/test_service.py
 - tests/sync/tracker/test_service_publish.py
+wp_code: WP05
 ---
 
 # WP05: Façade, Factory + Dead Code Removal

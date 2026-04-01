@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Core Mission Discovery
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -10,17 +9,22 @@ subtasks:
 - T004
 - T005
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude
-shell_pid: '41190'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/data-model.md
+- kitty-specs/006-per-feature-mission/plan.md
+- kitty-specs/006-per-feature-mission/spec.md
+- src/specify_cli/mission.py
+- tests/unit/test_mission.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Core Mission Discovery

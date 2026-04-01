@@ -1,20 +1,28 @@
 ---
 work_package_id: WP10
 title: Glossary Management CLI
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP09
 base_commit: 982caa3a76885020cadacef5107c105f50b42454
 created_at: '2026-02-16T17:59:56.173426+00:00'
 subtasks: [T044, T045, T046, T047]
-agent: codex
-shell_pid: '82698'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/cli/commands/glossary/**
+- src/specify_cli/cli/commands/glossary.py
+- src/specify_cli/cli/commands/glossary.py:93-106
+- src/specify_cli/cli/main.py
+- src/specify_cli/glossary/events.py
+- src/specify_cli/glossary/scope.py
+- src/specify_cli/glossary/scope.py:105-116
+- tests/specify_cli/cli/**
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 -- Glossary Management CLI

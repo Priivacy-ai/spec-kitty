@@ -1,20 +1,23 @@
 ---
 work_package_id: WP04
 title: Semantic Check & Conflict Detection
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 50240be10a0ea2da7e20c8406142f76249a3f8b7
 created_at: '2026-02-16T15:04:11.047257+00:00'
 subtasks: [T016, T017, T018, T019, T020]
-agent: codex
-shell_pid: '99555'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: tests/specify_cli/glossary/
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- tests/specify_cli/glossary/test_conflict.py
+- tests/specify_cli/glossary/test_middleware.py::test_semantic_check
+- tests/specify_cli/glossary/test_resolution.py
+wp_code: WP04
 ---
 
 # Work Package: Semantic Check & Conflict Detection

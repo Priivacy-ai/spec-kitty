@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: 2x Versioned Docs Expansion
-lane: "approved"
 dependencies: [WP02, WP03, WP06]
 requirement_refs: [FR-011]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,15 +10,20 @@ base_branch: 056-documentation-parity-sprint-WP10-merge-base
 base_commit: c2e0ca9d75e42e104483b8d54f408f4a55d82f9c
 created_at: '2026-03-22T15:07:16.088509+00:00'
 subtasks: [T049, T050, T051, T052, T053]
-agent: coordinator
-shell_pid: '26483'
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
   agent: claude
   note: Generated from plan.md Phase 5
+authoritative_surface: docs/2x/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q2
+owned_files:
+- docs/2x/doctrine-and-constitution.md
+- docs/2x/glossary-system.md
+- docs/2x/runtime-and-missions.md
+- docs/2x/toc.yml
+wp_code: WP10
 ---
 
 # WP10: 2x Versioned Docs Expansion

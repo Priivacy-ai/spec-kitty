@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Implement Command (NEW)
-lane: done
 dependencies: [WP01, WP03]
 subtasks:
 - T031
@@ -15,17 +14,24 @@ subtasks:
 - T039
 - T040
 phase: Phase 1 - Core Implementation
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- kitty-specs/###-feature-name/**
+- kitty-specs/###-feature/**
+- src/specify_cli/cli/__init__.py
+- src/specify_cli/cli/app.py
+- src/specify_cli/cli/commands/implement.py
+- src/specify_cli/core/git_ops.py
+- tests/specify_cli/test_implement_command.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Implement Command (NEW)

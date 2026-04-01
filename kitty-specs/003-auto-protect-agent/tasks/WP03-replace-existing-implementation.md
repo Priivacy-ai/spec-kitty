@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Replace Existing Implementation
-lane: done
 dependencies: []
 subtasks:
 - T016
@@ -12,9 +11,6 @@ subtasks:
 - T021
 - T022
 phase: Phase 3 - Integration
-assignee: claude
-agent: claude
-shell_pid: '62660'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
@@ -31,6 +27,14 @@ history:
   agent: claude
   shell_pid: '61538'
   action: Completed WP03 - Ready for review
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PK
+owned_files:
+- kitty-specs/003-auto-protect-agent/plan.md
+- kitty-specs/003-auto-protect-agent/spec.md
+- src/specify_cli/__init__.py
+wp_code: WP03
 ---
 *Path: [tasks/planned/WP03-replace-existing-implementation.md](tasks/planned/WP03-replace-existing-implementation.md)*
 

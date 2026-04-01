@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Thin Agent Shims
-lane: "approved"
 dependencies: [WP01]
 requirement_refs:
 - C-007
@@ -21,18 +20,24 @@ subtasks:
 - T048
 - T049
 phase: Phase D - Surface and Migration
-assignee: ''
-agent: coordinator
-shell_pid: '5682'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/cli/commands/shim.py
+- src/specify_cli/shims/__init__.py
+- src/specify_cli/shims/entrypoints.py
+- src/specify_cli/shims/generator.py
+- src/specify_cli/shims/models.py
+- src/specify_cli/shims/registry.py
+- tests/specify_cli/shims/**
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – Thin Agent Shims

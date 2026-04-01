@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Snapshot Computation & Parity Hash
-lane: done
 dependencies:
 - WP01
 - WP03
@@ -14,11 +13,13 @@ subtasks:
 - T025
 - T026
 - T027
-agent: coordinator
-shell_pid: '93614'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/dossier/store.py/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dossier/store.py
+wp_code: WP05
 ---
 
 # WP05: Snapshot Computation & Parity Hash

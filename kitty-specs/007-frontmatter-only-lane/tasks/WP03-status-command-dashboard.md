@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Status Command & Dashboard
-lane: done
 dependencies: []
 subtasks:
 - T012
@@ -10,11 +9,6 @@ subtasks:
 - T015
 - T016
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: claude
-shell_pid: $$
-review_status: ''
-reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -30,6 +24,15 @@ activity_log: |-
   - 2025-12-17T13:15:00Z – system – lane=planned – Prompt created
   - 2025-12-17T16:30:00Z – claude – lane=for_review – Implementation complete
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PQ
+owned_files:
+- kitty-specs/007-frontmatter-only-lane/research.md
+- kitty-specs/007-frontmatter-only-lane/spec.md
+- src/specify_cli/acceptance.py
+- src/specify_cli/dashboard/scanner.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Status Command & Dashboard

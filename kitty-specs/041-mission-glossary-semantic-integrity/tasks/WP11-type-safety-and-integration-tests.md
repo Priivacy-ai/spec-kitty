@@ -1,20 +1,23 @@
 ---
 work_package_id: WP11
 title: Type Safety & Integration Tests
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 88ad24685d9db6b360378df47d72f5cb50067874
 created_at: '2026-02-16T18:39:16.143906+00:00'
 subtasks: [T049, T050, T051]
-agent: codex
-shell_pid: '99183'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- kitty-specs/041-mission-glossary-semantic-integrity/quickstart.md
+- src/specify_cli/glossary/**
+- tests/specify_cli/glossary/**
+wp_code: WP11
 ---
 
 # Work Package Prompt: WP11 -- Type Safety & Integration Tests

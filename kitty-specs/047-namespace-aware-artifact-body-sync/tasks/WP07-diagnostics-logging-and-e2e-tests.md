@@ -1,8 +1,8 @@
 ---
 work_package_id: WP07
 title: Diagnostics, Logging & End-to-End Tests
-lane: done
 dependencies: [WP05, WP06]
+requirement_refs: [FR-011, FR-012]
 base_branch: 047-namespace-aware-artifact-body-sync-WP07-merge-base
 base_commit: 6a2e9982824aa43dfa11e43c0f2d471442d0de41
 created_at: '2026-03-09T10:13:23.903795+00:00'
@@ -12,18 +12,26 @@ subtasks:
 - T036
 - T037
 phase: Phase 4 - Polish
-assignee: ''
-agent: claude-opus
-shell_pid: '18698'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-011, FR-012]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- src/specify_cli/sync/background.py
+- src/specify_cli/sync/body_queue.py
+- src/specify_cli/sync/body_transport.py
+- src/specify_cli/sync/body_upload.py
+- src/specify_cli/sync/diagnose.py
+- src/specify_cli/sync/dossier_pipeline.py
+- src/specify_cli/sync/namespace.py
+- src/specify_cli/sync/runtime.py
+- tests/specify_cli/sync/test_body_integration.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Diagnostics, Logging & End-to-End Tests

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Command Templates
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -12,17 +11,29 @@ subtasks:
 - T023
 - T024
 phase: Phase 0 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: acknowledged
-reviewed_by: codex
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- docs/**/*.md
+- docs/**:/**
+- docs/_build/html/**
+- docs/conf.py
+- docs/how-to/authentication.md
+- docs/reference/api.md
+- docs/reference/api/javascript/**
+- docs/tutorials/getting-started.md
+- docs/{tutorials,how-to,reference/api,explanation}/**
+- src/specify_cli/missions/documentation/**
+- src/specify_cli/missions/research/command-templates/*.md
+- src/specify_cli/missions/software-dev/command-templates/*.md
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Command Templates

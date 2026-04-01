@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Merge Guide
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -13,17 +12,22 @@ subtasks:
 - T007
 - T008
 phase: Phase 1 - User Documentation
-assignee: ''
-agent: claude
-shell_pid: '93326'
-review_status: acknowledged
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T13:21:55Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJC
+owned_files:
+- docs/how-to/**
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/merge/executor.py
+- src/specify_cli/merge/forecast.py
+- src/specify_cli/merge/preflight.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Merge Guide

@@ -1,8 +1,12 @@
 ---
 work_package_id: WP05
 title: Init Integration
-lane: planned
 dependencies: [WP04]
+requirement_refs:
+- FR-002
+- FR-008
+- FR-011
+- NFR-001
 subtasks:
 - T019
 - T020
@@ -10,22 +14,20 @@ subtasks:
 - T022
 - T023
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-002
-- FR-008
-- FR-011
-- NFR-001
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/doctrine/skills/**
+- src/specify_cli/cli/commands/init.py
+- tests/specify_cli/skills/test_init_integration.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Init Integration

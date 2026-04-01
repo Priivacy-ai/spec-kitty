@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: CLI Reference - Agent Config Commands
-lane: done
 dependencies: [WP01]
 subtasks:
 - T019
@@ -11,17 +10,20 @@ subtasks:
 - T023
 - T024
 phase: Phase 2 - Reference Documentation
-assignee: ''
-agent: Claude
-shell_pid: '38505'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JZ
+owned_files:
+- docs/reference/cli-commands.md
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md
+- src/specify_cli/cli/commands/agent/config.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – CLI Reference - Agent Config Commands

@@ -14,17 +14,17 @@ base_branch: main
 base_commit: d6a4d21122fb44cd0629394506a182fad1c92753
 created_at: '2026-03-31T07:14:30.787876+00:00'
 subtasks: [T003, T004, T005]
-shell_pid: "83266"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/cli/commands/agent/feature.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/cli/commands/agent/feature.py
 - tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py
+wp_code: WP02
 ---
 
 # WP02: feature.py Changes

@@ -11,18 +11,17 @@ base_branch: main
 base_commit: 0ec9cb101d757e8411eb21e82ed90744ca8c4196
 created_at: '2026-03-30T19:39:08.173782+00:00'
 subtasks: [T017, T018, T019, T020, T021]
-shell_pid: "49505"
-agent: "orchestrator"
 history:
 - at: '2026-03-30T19:14:19+00:00'
   event: created
   actor: planner
 authoritative_surface: src/specify_cli/tracker/local_service.py
 execution_mode: code_change
-lane: planned
+mission_id: 01KN2371WW548PPDMY6HMSB7W1
 owned_files:
 - src/specify_cli/tracker/local_service.py
 - tests/sync/tracker/test_local_service.py
+wp_code: WP04
 ---
 
 # WP04: LocalTrackerService

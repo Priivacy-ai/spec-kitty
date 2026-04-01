@@ -1,7 +1,7 @@
 """Tests for migration/rewrite_shims.py — Subtask T063.
 
 Covers:
-- T063-1: Agent command files replaced with 3-line thin shims
+- T063-1: All 16 command files generated (7 CLI shims + 9 prompt templates)
 - T063-2: Old template content is gone after rewrite
 - T063-3: Stale spec-kitty.*.md files not in generated set are deleted
 - T063-4: RewriteResult reports correct counts
@@ -51,34 +51,51 @@ def _get_codex_cmd_dir(tmp_path: Path) -> Path:
 
 
 class TestRewriteAgentShims:
-    def test_shims_written(self, tmp_path: Path) -> None:
-        """T063-1: Shim files are created for each configured agent."""
+    def test_all_commands_written(self, tmp_path: Path) -> None:
+        """T063-1: All 16 command files are created for each configured agent."""
+        from specify_cli.shims.registry import CONSUMER_SKILLS
+
         _setup_project(tmp_path, agents=["claude"])
         result = rewrite_agent_shims(tmp_path)
         assert isinstance(result, RewriteResult)
-        assert len(result.files_written) > 0
 
-        # At least one spec-kitty.*.md written for claude
         claude_dir = _get_claude_cmd_dir(tmp_path)
-        shims = list(claude_dir.glob("spec-kitty.*.md"))
-        assert len(shims) > 0
+        command_files = list(claude_dir.glob("spec-kitty.*.md"))
+        assert len(command_files) == len(CONSUMER_SKILLS), (
+            f"Expected {len(CONSUMER_SKILLS)} command files, got {len(command_files)}"
+        )
 
-    def test_shim_content_is_thin(self, tmp_path: Path) -> None:
-        """T063-1: Shim content has the canonical 3-line format."""
+    def test_cli_shim_content_is_thin(self, tmp_path: Path) -> None:
+        """T063-1: CLI-driven shim files have the canonical 3-line format."""
+        from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
+
         _setup_project(tmp_path, agents=["claude"])
         rewrite_agent_shims(tmp_path)
 
         claude_dir = _get_claude_cmd_dir(tmp_path)
-        shim_files = list(claude_dir.glob("spec-kitty.*.md"))
-        assert len(shim_files) > 0
-
-        for shim_file in shim_files:
+        for command in CLI_DRIVEN_COMMANDS:
+            shim_file = claude_dir / f"spec-kitty.{command}.md"
+            assert shim_file.exists(), f"CLI shim missing: {command}"
             content = shim_file.read_text()
-            # Must contain the CLI invocation line
             assert "spec-kitty agent shim" in content
-            # Must not contain lengthy workflow/step logic
-            assert "## Steps" not in content
-            assert "## Objectives" not in content
+
+    def test_prompt_templates_are_full(self, tmp_path: Path) -> None:
+        """T063-1: Prompt-driven command files are full templates, not thin shims."""
+        from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+
+        _setup_project(tmp_path, agents=["claude"])
+        rewrite_agent_shims(tmp_path)
+
+        claude_dir = _get_claude_cmd_dir(tmp_path)
+        for command in PROMPT_DRIVEN_COMMANDS:
+            template_file = claude_dir / f"spec-kitty.{command}.md"
+            assert template_file.exists(), f"Prompt template missing: {command}"
+            content = template_file.read_text()
+            # Prompt templates should NOT contain the shim marker
+            assert "spec-kitty agent shim" not in content
+            # They should be substantial (not thin)
+            lines = [l for l in content.splitlines() if l.strip()]
+            assert len(lines) > 10, f"Prompt template {command} too short ({len(lines)} lines)"
 
     def test_stale_files_deleted(self, tmp_path: Path) -> None:
         """T063-3: Legacy workflow files not in generated set are removed."""

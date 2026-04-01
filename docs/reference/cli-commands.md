@@ -1454,9 +1454,9 @@ spec-kitty doctor state-roots --json
 
 **Commands**:
 - `providers` - List supported tracker providers
-- `bind` - Bind the current project to an issue tracker workspace
-- `status` - Show tracker binding and local cache status
-- `unbind` - Remove tracker binding and provider credentials for this project
+- `bind` - Bind the current project to a tracker
+- `status` - Show tracker binding and sync status
+- `unbind` - Remove tracker binding for this project
 - `map` - Work-package mapping commands
 - `sync` - Tracker synchronization commands
 
@@ -1464,7 +1464,7 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker providers [OPTIONS]`
 
-**Description**: List supported tracker providers.
+**Description**: List supported tracker providers, grouped into SaaS-backed (`linear`, `jira`, `github`, `gitlab`) and local/native (`beads`, `fp`) modes.
 
 **Options**:
 | Flag | Description |
@@ -1476,23 +1476,24 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker bind [OPTIONS]`
 
-**Description**: Bind the current project to an issue tracker workspace.
+**Description**: Bind the current project to a tracker. SaaS-backed providers require `--project-slug` and authenticate through `spec-kitty auth login`; local/native providers require `--workspace` and may accept `--credential`.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--provider TEXT` | Provider name (`jira`, `linear`, `azure_devops`, `github`, `gitlab`, `beads`, `fp`) [required] |
-| `--workspace TEXT` | Provider workspace/team/project identifier [required] |
+| `--provider TEXT` | Provider name (`linear`, `jira`, `github`, `gitlab`, `beads`, `fp`) [required] |
+| `--project-slug TEXT` | SaaS project identifier used for control-plane routing (SaaS-backed providers only) |
+| `--workspace TEXT` | Provider workspace/team/project identifier (local/native providers only) |
 | `--doctrine-mode TEXT` | Doctrine mode: `external_authoritative`, `spec_kitty_authoritative`, or `split_ownership` (default: `external_authoritative`) |
-| `--field-owner TEXT` | Split ownership mapping: `field=owner` |
-| `--credential TEXT` | Provider credential key/value: `key=value` |
+| `--field-owner TEXT` | Split ownership mapping: `field=owner` (local/native providers only) |
+| `--credential TEXT` | Provider credential key/value: `key=value` (local/native providers only) |
 | `--help` | Show this message and exit |
 
 ### spec-kitty tracker status
 
 **Synopsis**: `spec-kitty tracker status [OPTIONS]`
 
-**Description**: Show tracker binding and local cache status.
+**Description**: Show tracker binding and sync status. SaaS-backed providers read status from the Spec Kitty SaaS control plane; local/native providers show local config and cache details.
 
 **Options**:
 | Flag | Description |
@@ -1504,7 +1505,7 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker unbind [OPTIONS]`
 
-**Description**: Remove tracker binding and provider credentials for this project.
+**Description**: Remove tracker binding for this project. For SaaS-backed providers this clears only local project config; unlinking the provider account still happens in the Spec Kitty dashboard.
 
 **Options**:
 | Flag | Description |
@@ -1523,14 +1524,14 @@ spec-kitty doctor state-roots --json
 | `--help` | Show this message and exit |
 
 **Commands**:
-- `add` - Add or update a local WP-to-external issue mapping
-- `list` - List local tracker mappings
+- `add` - Add or update a WP-to-external issue mapping
+- `list` - List tracker mappings
 
 #### spec-kitty tracker map add
 
 **Synopsis**: `spec-kitty tracker map add [OPTIONS]`
 
-**Description**: Add or update a local WP-to-external issue mapping.
+**Description**: Add or update a WP-to-external issue mapping. For SaaS-backed providers this command hard-fails and directs you to the Spec Kitty dashboard, where mappings are managed server-side.
 
 **Options**:
 | Flag | Description |
@@ -1545,7 +1546,7 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker map list [OPTIONS]`
 
-**Description**: List local tracker mappings.
+**Description**: List tracker mappings. For SaaS-backed providers this reads the SaaS-authoritative mapping view; for local/native providers it reads the local mapping store.
 
 **Options**:
 | Flag | Description |
@@ -1566,9 +1567,9 @@ spec-kitty doctor state-roots --json
 
 **Commands**:
 - `pull` - Pull tracker updates into the local cache
-- `push` - Push local tracker changes to the upstream provider
+- `push` - Push explicit tracker mutations to the upstream provider
 - `run` - Run pull+push synchronization in one operation
-- `publish` - Publish local tracker snapshot to Spec Kitty SaaS
+- `publish` - Legacy snapshot publish command
 
 #### spec-kitty tracker sync pull
 
@@ -1587,12 +1588,13 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker sync push [OPTIONS]`
 
-**Description**: Push local tracker changes to the upstream provider.
+**Description**: Push explicit tracker mutations to the upstream provider. For SaaS-backed providers this is an explicit-mutation path and requires `--items-json`; use `tracker sync run` for the normal full-sync path.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--limit INTEGER` | Maximum items to push (default: 100, range: 1-10000) |
+| `--limit INTEGER` | Maximum items to push (local/native providers only; default: 100, range: 1-10000) |
+| `--items-json TEXT` | Path to a JSON file containing a `PushItem[]` array for SaaS-backed providers. Use `-` for stdin |
 | `--json` | Render sync result as JSON |
 | `--help` | Show this message and exit |
 
@@ -1600,7 +1602,7 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker sync run [OPTIONS]`
 
-**Description**: Run pull+push synchronization in one operation.
+**Description**: Run pull+push synchronization in one operation. For SaaS-backed providers this is the normal full-sync path executed entirely through Spec Kitty SaaS.
 
 **Options**:
 | Flag | Description |
@@ -1613,7 +1615,7 @@ spec-kitty doctor state-roots --json
 
 **Synopsis**: `spec-kitty tracker sync publish [OPTIONS]`
 
-**Description**: Publish local tracker snapshot to Spec Kitty SaaS.
+**Description**: Publish a local tracker snapshot to Spec Kitty SaaS. This command is retired for SaaS-backed providers and fails with guidance to use `tracker sync push` or `tracker sync run` instead.
 
 **Options**:
 | Flag | Description |

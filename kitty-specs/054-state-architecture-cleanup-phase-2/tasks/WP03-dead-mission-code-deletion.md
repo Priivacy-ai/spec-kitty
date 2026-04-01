@@ -1,8 +1,11 @@
 ---
 work_package_id: WP03
 title: Dead Mission Code Deletion
-lane: planned
 dependencies: [WP02]
+requirement_refs:
+- FR-005
+- FR-006
+- FR-007
 subtasks:
 - T009
 - T010
@@ -10,22 +13,20 @@ subtasks:
 - T012
 - T013
 phase: Phase 1 - Core Cleanup
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-005
-- FR-006
-- FR-007
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/**
+- tests/runtime/**
+- tests/specify_cli/test_state_contract.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Dead Mission Code Deletion

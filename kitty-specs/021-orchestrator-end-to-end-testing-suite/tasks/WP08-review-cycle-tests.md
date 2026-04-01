@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Review Cycle Tests
-lane: done
 dependencies:
 - WP05
 subtasks:
@@ -11,17 +10,22 @@ subtasks:
 - T039
 - T040
 phase: Phase 1 - Core Tests
-assignee: ''
-agent: claude-opus
-shell_pid: '43990'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md
+- tests/fixtures/orchestrator/checkpoint_review_pending/**
+- tests/specify_cli/orchestrator/conftest.py
+- tests/specify_cli/orchestrator/test_review_cycles.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Review Cycle Tests

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Update Command Prompts
-lane: done
 dependencies: []
 subtasks:
 - T041
@@ -13,15 +12,20 @@ subtasks:
 - T047
 - T048
 phase: Phase 4 - Integration
-assignee: codex
-agent: claude
-shell_pid: '5794'
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/$FEATURE_SLUG/**
+- kitty-specs/005-refactor-mission-system/spec.md
+- kitty-specs/<feature/**
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Update Command Prompts

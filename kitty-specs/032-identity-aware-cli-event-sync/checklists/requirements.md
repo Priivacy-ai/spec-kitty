@@ -32,6 +32,6 @@
 ## Notes
 
 - All items passed validation
-- Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`
+- Spec is ready for `/spec-kitty.plan`
 - Target branch is 2.x (not main) - ensure work packages branch from 2.x
 - Assumes sync infrastructure exists on 2.x branch (WebSocketClient, EventEmitter, OfflineQueue, etc.)

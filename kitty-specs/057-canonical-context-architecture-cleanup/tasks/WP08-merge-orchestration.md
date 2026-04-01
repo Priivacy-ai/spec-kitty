@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Merge Engine v2 — Orchestration
-lane: "approved"
 dependencies: [WP07]
 requirement_refs:
 - FR-013
@@ -21,18 +20,22 @@ subtasks:
 - T042
 - T043
 phase: Phase C - Merge
-assignee: ''
-agent: coordinator
-shell_pid: '9348'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/cli/commands/merge.py
+- src/specify_cli/merge/conflict_resolver.py
+- src/specify_cli/merge/engine.py
+- src/specify_cli/merge/reconciliation.py
+- tests/specify_cli/merge/test_engine.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Merge Engine v2 — Orchestration

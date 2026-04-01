@@ -1,7 +1,6 @@
 ---
 work_package_id: WP09
 title: Parallel and Dependency Tests
-lane: done
 dependencies:
 - WP05
 subtasks:
@@ -12,17 +11,22 @@ subtasks:
 - T045
 - T046
 phase: Phase 1 - Core Tests
-assignee: ''
-agent: claude-opus
-shell_pid: '46994'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/spec.md
+- src/specify_cli/core/dependency_graph.py
+- tests/fixtures/orchestrator/**
+- tests/specify_cli/orchestrator/test_parallel_deps.py
+wp_code: WP09
 ---
 
 # Work Package Prompt: WP09 – Parallel and Dependency Tests

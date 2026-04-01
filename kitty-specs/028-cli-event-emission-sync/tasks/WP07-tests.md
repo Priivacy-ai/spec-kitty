@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Test Suite
-lane: done
 dependencies: [WP06]
 base_branch: 028-cli-event-emission-sync-WP06
 base_commit: 0eb801bdecc083e0b4413d391270dbfff605a2ed
@@ -16,17 +15,24 @@ subtasks:
 - T042
 - T043
 phase: Phase 4 - Validation
-assignee: ''
-agent: claude-opus
-shell_pid: '83862'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDE
+owned_files:
+- kitty-specs/028-cli-event-emission-sync/contracts/events.schema.json
+- kitty-specs/028-cli-event-emission-sync/plan.md
+- kitty-specs/028-cli-event-emission-sync/spec.md
+- src/specify_cli/sync/**
+- tests/cli/commands/conftest.py
+- tests/cli/commands/test_event_emission.py
+- tests/sync/**
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 - Test Suite

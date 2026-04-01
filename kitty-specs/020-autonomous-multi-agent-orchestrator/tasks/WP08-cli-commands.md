@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: CLI Commands
-lane: done
 dependencies:
 - WP05
 - WP06
@@ -13,17 +12,19 @@ subtasks:
 - T041
 - T042
 phase: Phase 3 - CLI & Integration
-assignee: ''
-agent: claude-opus
-shell_pid: '85610'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T16:21:51Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/cli/
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JW
+owned_files:
+- src/specify_cli/cli/__init__.py
+- src/specify_cli/cli/commands/**
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – CLI Commands

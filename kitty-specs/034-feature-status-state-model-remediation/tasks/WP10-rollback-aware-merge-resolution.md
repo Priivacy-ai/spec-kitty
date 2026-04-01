@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Rollback-Aware Merge Resolution
-lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -14,17 +13,26 @@ subtasks:
 - T051
 - T052
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '50709'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/*/*/tasks.md
+- kitty-specs/*/*/tasks/*.md
+- kitty-specs/*/status.events.jsonl
+- kitty-specs/*/tasks.md
+- kitty-specs/*/tasks/*.md
+- src/specify_cli/merge/status_resolver.py
+- tests/integration/**
+- tests/specify_cli/merge/**
+- tests/specify_cli/status/test_conflict_resolution.py
+wp_code: WP10
 ---
 
 # Work Package Prompt: WP10 -- Rollback-Aware Merge Resolution

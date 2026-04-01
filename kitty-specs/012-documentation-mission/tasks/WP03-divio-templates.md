@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Divio Documentation Templates
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -13,17 +12,18 @@ subtasks:
 - T017
 - T018
 phase: Phase 0 - Foundation
-assignee: ''
-agent: test
-shell_pid: '71983'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-12T17:18:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/missions/documentation/
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ8
+owned_files:
+- src/specify_cli/missions/documentation/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Divio Documentation Templates

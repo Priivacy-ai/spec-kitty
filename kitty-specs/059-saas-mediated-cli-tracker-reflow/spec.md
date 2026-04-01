@@ -1,5 +1,7 @@
 # SaaS-Mediated CLI Tracker Reflow
 
+**Status**: Complete
+
 ## Overview
 
 Migrate all CLI tracker commands for SaaS-backed providers (`linear`, `jira`, `github`, `gitlab`) from direct-connector local execution to SaaS API client mode. The CLI becomes a thin client that talks exclusively to Spec Kitty SaaS for these providers, using the frozen PRI-12 control-plane contract. Local/native providers (`beads`, `fp`) retain their direct execution paths unchanged. Azure DevOps support is removed entirely from the CLI tracker surface.
@@ -16,7 +18,7 @@ The current CLI tracker implementation holds provider-native credentials locally
 - Maintains Azure DevOps support that has no SaaS-side backing and no active users
 - Splits authority over mappings, identity, and transport between CLI and SaaS
 
-The SaaS control plane (PRI-14, complete) now provides the runtime for all tracker operations. The tracker SDK (PRI-15) is being repositioned as a SaaS-hosted engine. PRI-16 completes the chain by making the CLI a proper SaaS client.
+The SaaS control plane (PRI-14, complete) now provides the runtime for all tracker operations. The tracker SDK (PRI-15, complete) is repositioned as a SaaS-hosted engine. PRI-16 completes the chain by making the CLI a proper SaaS client.
 
 ## Actors
 
@@ -175,7 +177,7 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 |------------|--------|--------|
 | PRI-12: Control Plane Contract Freeze | Complete | Provides the frozen API contract this feature implements against. |
 | PRI-14: SaaS Control Plane Runtime | Complete | Server-side implementation of all tracker endpoints. |
-| PRI-15: Tracker SDK Repositioning | In Progress | Aligns the tracker SDK as SaaS-hosted engine. Not a hard blocker for CLI work -- the CLI talks to SaaS, not the SDK directly. |
+| PRI-15: Tracker SDK Repositioning | Complete | Aligns the tracker SDK as a SaaS-hosted engine and removes SDK-level nudges back toward CLI-held provider credentials. |
 | Existing `sync/auth.py` auth stack | Available | Bearer/refresh token management, credential store. |
 | Existing `sync/config.py` server config | Available | SaaS server URL configuration. |
 
@@ -195,7 +197,7 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 |------|-----------|--------|------------|
 | SaaS endpoints not ready when CLI ships | Low | High | Feature flag gates all tracker commands. CLI can be merged before SaaS is production-ready. |
 | Network-dependent operations degrade CLI UX | Medium | Medium | Clear timeout behavior, actionable error messages, and the error envelope's `retryable` + `user_action_required` fields. |
-| Users have existing Azure DevOps bindings in local config | Low | Low | Zero live users confirmed. Stale local config is inert -- the CLI will not recognize the provider. Migration tooling, if needed, belongs to PRI-17. |
+| Users have existing Azure DevOps bindings in local config | Low | Low | Zero live users confirmed. Stale local config is inert because the CLI no longer recognizes the provider and no compatibility path is provided. |
 
 ## Out of Scope
 
@@ -203,5 +205,5 @@ The SaaS control plane (PRI-14, complete) now provides the runtime for all track
 - Mapping write operations from CLI (deferred to future phase)
 - New auth families or OAuth flows in the CLI
 - WebSocket-based real-time tracker sync
-- Migration tooling for existing direct-provider bindings (belongs to PRI-17)
+- Compatibility shims or migration tooling for legacy direct-provider SaaS-backed bindings
 - Canonical event expansion beyond existing contract

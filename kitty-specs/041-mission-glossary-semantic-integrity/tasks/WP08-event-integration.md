@@ -1,20 +1,26 @@
 ---
 work_package_id: WP08
 title: Event Integration
-lane: done
 dependencies: []
 base_branch: 041-mission-glossary-semantic-integrity-WP07
 base_commit: 2107124ad5b63c0c73071503b1cac6032e0a7958
 created_at: '2026-02-16T16:27:51.105337+00:00'
 subtasks: [T036, T037, T038, T039]
-agent: codex
-shell_pid: '45969'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - event: created
   timestamp: '2026-02-16T00:00:00Z'
   actor: llm:claude-sonnet-4.5
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82S
+owned_files:
+- src/specify_cli/glossary/__init__.py
+- src/specify_cli/glossary/checkpoint.py
+- src/specify_cli/glossary/events/**
+- src/specify_cli/glossary/events.py
+- src/specify_cli/glossary/middleware.py
+- tests/specify_cli/glossary/**
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 -- Event Integration

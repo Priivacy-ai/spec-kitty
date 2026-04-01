@@ -7,5 +7,6 @@
   "source_description": "Extend spec-kitty sync to upload renderable artifact bodies (markdown, JSON, YAML, CSV) to SaaS using the same namespace identity already present in local dossier events. Sender-side only: discover supported artifacts in kitty-specs/<feature>/..., upload bodies with canonical namespace tuple, queue and retry durably, preserve namespace isolation across features and branches.",
   "created_at": "2026-03-09T06:31:18.780049+00:00",
   "target_branch": "2.x",
-  "vcs": "git"
+  "vcs": "git",
+  "mission_id": "01KN2371WTANS0Z2M6JEHAJS3F"
 }

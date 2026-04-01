@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Canonical State — Event Log Authority
-lane: "approved"
 dependencies: [WP02]
 requirement_refs:
 - C-004
@@ -22,18 +21,19 @@ subtasks:
 - T027
 - T028
 phase: Phase B - State
-assignee: ''
-agent: coordinator
-shell_pid: '31099'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/**
+- tests/specify_cli/status/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Canonical State — Event Log Authority

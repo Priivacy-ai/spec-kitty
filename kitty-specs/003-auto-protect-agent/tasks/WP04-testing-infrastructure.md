@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Testing Infrastructure
-lane: done
 dependencies: []
 subtasks:
 - T023
@@ -15,15 +14,22 @@ subtasks:
 - T031
 - T032
 phase: Phase 4 - Quality Assurance
-assignee: claude
-agent: claude
-shell_pid: '64252'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PK
+owned_files:
+- kitty-specs/003-auto-protect-agent/spec.md
+- src/specify_cli/gitignore_manager/**
+- tests/integration/test_init_flow.py
+- tests/test_gitignore_management.py
+- tests/unit/**
+wp_code: WP04
 ---
 *Path: [tasks/planned/WP04-testing-infrastructure.md](tasks/planned/WP04-testing-infrastructure.md)*
 

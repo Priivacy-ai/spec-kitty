@@ -7,5 +7,6 @@
   "slug": "canonical-status-model-cleanup",
   "source_description": "3.0 hard cutover: status.events.jsonl as sole WP status authority, remove frontmatter lane, hard-fail on missing canonical state.",
   "target_branch": "main",
-  "vcs": "git"
+  "vcs": "git",
+  "mission_id": "01KN2371WW548PPDMY6HMSB7W2"
 }

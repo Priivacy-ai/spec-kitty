@@ -1,7 +1,6 @@
 ---
 work_package_id: WP11
 title: Status Validate Command
-lane: done
 dependencies:
 - WP03
 base_branch: 2.x
@@ -15,17 +14,22 @@ subtasks:
 - T057
 - T058
 phase: Phase 2 - Read Cutover
-assignee: ''
-agent: ''
-shell_pid: '50777'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/status/validate.py
+- tests/integration/**
+- tests/specify_cli/cli/commands/test_status_validate.py
+- tests/specify_cli/status/test_validate.py
+wp_code: WP11
 ---
 
 # Work Package Prompt: WP11 -- Status Validate Command

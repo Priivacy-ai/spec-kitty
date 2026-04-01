@@ -11,6 +11,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 _No unreleased changes._
 
+## [3.0.2] - 2026-04-01
+
+### Fixed
+
+- **Missing prompt-driven slash commands**: `rewrite_agent_shims()` (3.0.0 migration step 6) deleted 9 prompt-driven template files (specify, plan, tasks, etc.) leaving only 7 CLI shims. Now regenerates all 16 command files per the hybrid architecture (feature 058). Added `m_3_0_2` migration to restore prompt files for already-affected projects.
+- **Event log not created at feature birth**: `status.events.jsonl` was only bootstrapped during `finalize-tasks`, causing `CanonicalStatusNotFoundError` when the dashboard scanned features in the specify/plan phase. Now initialized when `create-feature` runs.
+- **Dashboard scanner crash on pre-finalization features**: `_count_wps_by_lane()` and `_process_wp_file()` propagate `CanonicalStatusNotFoundError` (hard-fail contract); callers `scan_all_features()` and `scan_feature_kanban()` catch at feature level with actionable error messages.
+- **Stale `/spec-kitty.clarify` references**: Removed 14 remaining references to the deleted clarify command across kitty-specs checklists, coverage tables, and `pyproject.toml`.
+- **Missing `.gitignore` entries**: Added `.kittify/workspaces/` and `.kittify/merge-state.json` to match `state_contract.py` expectations.
+
 ## [3.0.1] - 2026-03-31
 
 ### Fixed

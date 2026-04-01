@@ -12,17 +12,17 @@ base_branch: main
 base_commit: bc4a356816f2c05aa92b24918b87d4bfd3e93764
 created_at: '2026-03-31T07:14:34.858146+00:00'
 subtasks: [T011, T012, T013, T014, T015]
-shell_pid: "83373"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/cli/commands/agent/workflow.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/cli/commands/agent/workflow.py
 - tests/specify_cli/cli/commands/agent/test_workflow_canonical_cleanup.py
+wp_code: WP04
 ---
 
 # WP04: workflow.py Changes

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP10
 title: Integration & Edge Cases
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -24,11 +23,13 @@ subtasks:
 - T056
 - T057
 - T058
-agent: coordinator
-shell_pid: '4443'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: tests/specify_cli/dossier/integration/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- tests/specify_cli/dossier/integration/**
+wp_code: WP10
 ---
 
 # WP10: Integration & Edge Cases

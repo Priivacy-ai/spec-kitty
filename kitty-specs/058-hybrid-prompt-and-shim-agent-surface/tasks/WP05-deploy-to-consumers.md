@@ -28,8 +28,6 @@ subtasks:
   title: Verify hybrid output in all 3 consumer projects
   status: planned
 phase: 1
-shell_pid: "20345"
-agent: "coordinator"
 history:
 - at: '2026-03-30T13:59:29Z'
   event: created
@@ -37,9 +35,10 @@ history:
   note: WP05 generated from tasks.md for feature 058-hybrid-prompt-and-shim-agent-surface
 authoritative_surface: kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP05-deploy-to-consumers.md
 execution_mode: planning_artifact
-lane: planned
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q4
 owned_files:
 - kitty-specs/058-hybrid-prompt-and-shim-agent-surface/tasks/WP05-deploy-to-consumers.md
+wp_code: WP05
 ---
 
 # WP05 — Deploy to Consumer Projects

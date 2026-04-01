@@ -35,7 +35,7 @@
 
 ## Notes
 
-- All items pass after revision. Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+- All items pass after revision. Spec is ready for `/spec-kitty.plan`.
 - Constitution upload explicitly scoped out per discovery (Q1 answer A).
 - `manifest_version` definition clarified per discovery (Q2 answer A) and captured in C-004.
 - Constraint C-001 references SQLite offline queue reuse — this is an architectural constraint, not an implementation detail, because it bounds the design space for planning.

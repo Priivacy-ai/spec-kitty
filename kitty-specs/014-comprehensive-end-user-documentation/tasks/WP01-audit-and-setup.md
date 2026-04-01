@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Audit & Directory Setup
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -9,17 +8,18 @@ subtasks:
 - T003
 - T004
 phase: Phase 0 - Foundation
-assignee: ''
-agent: claude
-shell_pid: '57334'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/014-comprehensive-end-user-documentation/
+execution_mode: planning_artifact
+mission_id: 01KN2371WPA42WS6W1G5XZHZJA
+owned_files:
+- kitty-specs/014-comprehensive-end-user-documentation/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Audit & Directory Setup

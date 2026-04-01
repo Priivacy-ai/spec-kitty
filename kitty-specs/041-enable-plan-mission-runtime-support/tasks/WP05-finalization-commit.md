@@ -1,20 +1,21 @@
 ---
 work_package_id: WP05
 title: Finalization & Commit
-lane: done
 dependencies:
 - WP04
 base_branch: 041-enable-plan-mission-runtime-support-WP04
 base_commit: e4d3cebd9abf157e11ad07174efa709b0450aa1e
 created_at: '2026-02-22T08:29:06.279401+00:00'
 subtasks: [T018]
-agent: codex
-shell_pid: '15393'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: kitty-specs/041-enable-plan-mission-runtime-support/
 description: Parse dependencies and commit all work packages to 2.x branch
 estimated_duration: 15-30 minutes
+execution_mode: planning_artifact
+mission_id: 01KN2371WSJ7573ZG5D21WP82R
+owned_files:
+- kitty-specs/041-enable-plan-mission-runtime-support/**
 priority: P0
+wp_code: WP05
 ---
 
 # WP05: Finalization & Commit

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Local Parity-Drift Detector
-lane: done
 dependencies:
 - WP04
 - WP05
@@ -15,11 +14,13 @@ subtasks:
 - T043
 - T044
 - T045
-agent: coordinator
-shell_pid: '99003'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/dossier/drift_detector.py/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dossier/drift_detector.py
+wp_code: WP08
 ---
 
 # WP08: Local Parity-Drift Detector

@@ -1,30 +1,30 @@
 ---
 work_package_id: WP08
 title: Legacy Bridge Import Hardening
-lane: planned
 dependencies: []
+requirement_refs:
+- FR-021
+- FR-022
+- NFR-002
 subtasks:
 - T033
 - T034
 - T035
 - T036
 phase: Phase 2 - Correctness
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-20T13:39:48Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-021
-- FR-022
-- NFR-002
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q0
+owned_files:
+- src/specify_cli/status/emit.py
+- tests/status/test_emit.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Legacy Bridge Import Hardening

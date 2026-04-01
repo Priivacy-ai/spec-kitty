@@ -7,5 +7,6 @@
   "slug": "canonical-context-architecture-cleanup",
   "source_description": "Big-bang architectural cleanup addressing four root failures: context rediscovery, multi-authority state, single execution model for different WP types, and generated state in merge paths.",
   "target_branch": "main",
-  "vcs": "git"
+  "vcs": "git",
+  "mission_id": "01KN2371WVZGV7TH7WMR2CN9Q3"
 }

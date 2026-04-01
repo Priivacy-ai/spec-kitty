@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Orchestrate Integration
-lane: done
 dependencies: [WP01]
 base_branch: 028-cli-event-emission-sync-WP01
 base_commit: 9803132cccfd6602b0c5e16c535bb105439b00ce
@@ -14,17 +13,21 @@ subtasks:
 - T027
 - T028
 phase: Phase 2 - Command Wiring
-assignee: ''
-agent: codex
-shell_pid: '25757'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDE
+owned_files:
+- kitty-specs/028-cli-event-emission-sync/data-model.md
+- kitty-specs/028-cli-event-emission-sync/plan.md
+- kitty-specs/028-cli-event-emission-sync/spec.md
+- src/specify_cli/cli/commands/orchestrate.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 - Orchestrate Integration

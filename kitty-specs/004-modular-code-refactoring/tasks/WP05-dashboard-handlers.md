@@ -1,6 +1,5 @@
 ---
 work_package_id: WP05
-lane: done
 dependencies: []
 subtasks:
 - T040
@@ -9,9 +8,6 @@ subtasks:
 - T043
 - T044
 - T045
-assignee: agent-d
-agent: agent-d
-shell_pid: unknown
 history:
 - date: 2025-11-11
   status: created
@@ -29,6 +25,14 @@ history:
   status: approved
   by: sonnet-4.5
   notes: All handlers implemented, tests passing, architecture clean
+authoritative_surface: tests/test_dashboard/test_handlers/
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- tests/test_dashboard/test_handlers/test_api.py
+- tests/test_dashboard/test_handlers/test_features.py
+- tests/test_dashboard/test_handlers/test_router.py
+- tests/test_dashboard/test_handlers/test_static.py
 phases: story-based
 priority: P3
 reviewer:
@@ -42,6 +46,7 @@ tags:
 - parallel
 - agent-d
 work_package_title: Dashboard Handlers
+wp_code: WP05
 ---
 
 # WP05: Dashboard Handlers

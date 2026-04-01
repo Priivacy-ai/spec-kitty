@@ -56,7 +56,7 @@
 
 ## Notes
 
-All checklist items pass. Specification is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+All checklist items pass. Specification is ready for `/spec-kitty.plan`.
 
 The specification successfully captures all four goals:
 1. **Packaging safety** (FR-001 through FR-006) - Clear separation of templates vs runtime artifacts

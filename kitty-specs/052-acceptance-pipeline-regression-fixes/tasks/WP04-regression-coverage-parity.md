@@ -1,8 +1,12 @@
 ---
 work_package_id: WP04
 title: Regression Coverage and Copy-Parity Sweep
-lane: "done"
 dependencies: [WP03]
+requirement_refs:
+- NFR-002
+- NFR-003
+- C-001
+- C-003
 base_branch: 052-acceptance-pipeline-regression-fixes-WP03
 base_commit: 80e1da9f381882629d974cbf25af003791cd3b39
 created_at: '2026-03-19T17:24:07.240529+00:00'
@@ -13,23 +17,25 @@ subtasks:
 - T015
 - T016
 phase: Phase 3 - Verification
-assignee: ''
-agent: codex
-shell_pid: '19436'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-19T16:39:32Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- NFR-002
-- NFR-003
-- C-001
-- C-003
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PY
+owned_files:
+- kitty-specs/052-acceptance-pipeline-regression-fixes/plan.md
+- kitty-specs/052-acceptance-pipeline-regression-fixes/spec.md
+- kitty-specs/099-test-feature/meta.json
+- kitty-specs/099-test-feature/spec.md
+- kitty-specs/099-test-feature/status.events.jsonl
+- kitty-specs/099-test-feature/tasks/WP01-test.md
+- src/specify_cli/scripts/tasks/tasks_cli.py
+- tests/specify_cli/test_acceptance_regressions.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Regression Coverage and Copy-Parity Sweep

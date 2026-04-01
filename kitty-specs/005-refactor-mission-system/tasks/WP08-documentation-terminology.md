@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Documentation & Terminology Clarification
-lane: done
 dependencies: []
 subtasks:
 - T057
@@ -10,15 +9,19 @@ subtasks:
 - T060
 - T061
 phase: Phase 5 - Polish
-assignee: claude
-agent: claude
-shell_pid: '5975'
 history:
 - timestamp: '2025-01-16T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PN
+owned_files:
+- kitty-specs/005-refactor-mission-system/spec.md
+- src/specify_cli/**
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Documentation & Terminology Clarification

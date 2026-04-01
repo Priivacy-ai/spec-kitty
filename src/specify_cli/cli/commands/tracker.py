@@ -179,9 +179,8 @@ def bind_command(
             # FR-010: Hard-fail --credential for SaaS
             if credentials:
                 typer.secho(
-                    "Error: Provider credentials are not accepted for SaaS-backed providers.\n"
-                    "SaaS-backed providers authenticate through Spec Kitty SaaS.\n"
-                    "If you haven't already, run `spec-kitty auth login` to authenticate.\n"
+                    f"Error: Direct provider credentials are no longer supported for {provider_normalized}.\n"
+                    "Run `spec-kitty auth login` to authenticate.\n"
                     "Then connect your provider in the Spec Kitty dashboard.",
                     fg=typer.colors.RED,
                     err=True,
@@ -583,7 +582,11 @@ def sync_publish_command(
 
 @app.command("unbind")
 def unbind_command() -> None:
-    """Remove tracker binding and provider credentials for this project."""
+    """Remove tracker binding for this project.
+
+    For SaaS-backed providers this clears only local project configuration.
+    Provider unlinking remains a SaaS dashboard action.
+    """
 
     def _run() -> None:
         _service().unbind()

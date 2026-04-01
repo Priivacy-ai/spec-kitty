@@ -6,5 +6,6 @@
   "source_description": "Full documentation for the feature we just built in line with existing documentation norms - this is a documentation feature sprint",
   "created_at": "2026-01-18T14:14:00Z",
   "target_branch": "main",
-  "feature_slug": "018-merge-preflight-documentation"
+  "feature_slug": "018-merge-preflight-documentation",
+  "mission_id": "01KN2371WPA42WS6W1G5XZHZJC"
 }

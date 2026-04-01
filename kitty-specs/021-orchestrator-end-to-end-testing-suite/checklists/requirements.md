@@ -32,7 +32,7 @@
 ## Notes
 
 - All items pass validation
-- Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`
+- Spec is ready for `/spec-kitty.plan`
 - Key design decisions documented in Overview section
 - Tiered agent coverage clearly defined (5 core, 7 extended)
 - Fixture checkpoint strategy specified for test performance

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Reference - Configuration & Structure
-lane: done
 dependencies: [WP02]
 subtasks:
 - T026
@@ -10,17 +9,24 @@ subtasks:
 - T029
 - T030
 phase: Phase 1 - Content Creation
-assignee: ''
-agent: claude
-shell_pid: '57036'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJA
+owned_files:
+- docs/reference/configuration.md
+- docs/reference/environment-variables.md
+- docs/reference/file-structure.md
+- docs/reference/missions.md
+- docs/reference/supported-agents.md
+- kitty-specs/014-comprehensive-end-user-documentation/plan.md
+- kitty-specs/014-comprehensive-end-user-documentation/spec.md
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Reference - Configuration & Structure

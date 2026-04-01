@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Project Governance Guide
-lane: "approved"
 dependencies: [WP01]
 requirement_refs: [FR-003]
 planning_base_branch: fix/skill-audit-and-expansion
@@ -11,15 +10,19 @@ base_branch: 056-documentation-parity-sprint-WP01
 base_commit: a3c2fae9fa7c40e05f6ae6b06619574b80195a42
 created_at: '2026-03-22T14:58:46.685627+00:00'
 subtasks: [T011, T012, T013, T014, T015, T016]
-agent: coordinator
-shell_pid: '21973'
-reviewed_by: "Robert Douglass"
-review_status: "approved"
 history:
 - date: '2026-03-22'
   action: created
   agent: claude
   note: Generated from plan.md Phase 2
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q2
+owned_files:
+- docs/how-to/setup-governance.md
+- docs/how-to/toc.yml
+- src/doctrine/skills/spec-kitty-constitution-doctrine/SKILL.md
+wp_code: WP03
 ---
 
 # WP03: Project Governance Guide

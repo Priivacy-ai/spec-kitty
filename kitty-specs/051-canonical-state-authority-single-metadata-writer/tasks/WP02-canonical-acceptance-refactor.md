@@ -1,8 +1,14 @@
 ---
 work_package_id: WP02
 title: Canonical Acceptance Refactor
-lane: "done"
 dependencies: [WP01]
+requirement_refs:
+- FR-001
+- FR-009
+- FR-011
+- NFR-002
+- C-001
+- C-004
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
 created_at: '2026-03-18T21:03:21.651733+00:00'
@@ -14,25 +20,25 @@ subtasks:
 - T012
 - T013
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: codex
-shell_pid: '82692'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP02/20260318T215527Z-310aa000.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- FR-009
-- FR-011
-- NFR-002
-- C-001
-- C-004
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PX
+owned_files:
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/plan.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/research.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/spec.md
+- src/specify_cli/acceptance.py
+- src/specify_cli/orchestrator_api/commands.py
+- src/specify_cli/scripts/tasks/acceptance_support.py
+- src/specify_cli/status/reducer.py
+- tests/specify_cli/test_canonical_acceptance.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Canonical Acceptance Refactor

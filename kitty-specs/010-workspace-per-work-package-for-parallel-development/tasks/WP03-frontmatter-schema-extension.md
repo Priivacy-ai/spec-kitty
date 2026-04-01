@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Frontmatter Schema Extension
-lane: done
 dependencies: [WP01]
 subtasks:
 - T016
@@ -11,17 +10,19 @@ subtasks:
 - T020
 - T021
 phase: Phase 0 - Test Infrastructure
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- src/specify_cli/frontmatter.py
+- tests/specify_cli/test_frontmatter.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Frontmatter Schema Extension

@@ -1,6 +1,5 @@
 ---
 work_package_id: WP06
-lane: done
 dependencies: []
 subtasks:
 - T050
@@ -13,11 +12,6 @@ subtasks:
 - T057
 - T058
 - T059
-assignee: codex
-agent: codex
-shell_pid: '84843'
-review_status: approved
-reviewed_by: agent-d
 history:
 - date: 2025-11-11
   status: created
@@ -27,6 +21,14 @@ history:
   by: sonnet-4.5
   shell_pid: '84843'
   notes: Starting implementation
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PM
+owned_files:
+- src/specify_cli/__init__.py:29-80
+- src/specify_cli/cli/commands/__init__.py:7-30
+- src/specify_cli/cli/commands/check.py:26-39
+- tests/specify_cli/test_cli/**
 phases: story-based
 priority: P3
 reviewer:
@@ -40,6 +42,7 @@ tags:
 - parallel
 - agent-e
 work_package_title: CLI Commands Extraction
+wp_code: WP06
 ---
 
 ## Review Feedback

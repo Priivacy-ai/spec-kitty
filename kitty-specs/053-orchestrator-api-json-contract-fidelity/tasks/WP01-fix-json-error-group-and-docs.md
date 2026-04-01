@@ -1,29 +1,7 @@
 ---
 work_package_id: WP01
 title: Fix _JSONErrorGroup Error Handling + Docs
-lane: "done"
 dependencies: []
-base_branch: 2.x
-base_commit: 9812ee34905de737259c9019dd6e85fb9249a129
-created_at: '2026-03-20T12:35:22.058330+00:00'
-subtasks:
-- T001
-- T002
-- T003
-- T004
-phase: Phase 1 - Core Fix
-assignee: ''
-agent: codex
-shell_pid: '49444'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://053-orchestrator-api-json-contract-fidelity/WP01/20260320T124502Z-8d9acc3b.md
-history:
-- timestamp: '2026-03-20T12:31:02Z'
-  lane: planned
-  agent: system
-  shell_pid: ''
-  action: Prompt generated via /spec-kitty.tasks
 requirement_refs:
 - FR-001
 - FR-002
@@ -33,6 +11,32 @@ requirement_refs:
 - NFR-002
 - C-001
 - C-003
+base_branch: 2.x
+base_commit: 9812ee34905de737259c9019dd6e85fb9249a129
+created_at: '2026-03-20T12:35:22.058330+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+phase: Phase 1 - Core Fix
+history:
+- timestamp: '2026-03-20T12:31:02Z'
+  lane: planned
+  agent: system
+  shell_pid: ''
+  action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PZ
+owned_files:
+- docs/reference/orchestrator-api.md
+- src/specify_cli/__init__.py
+- src/specify_cli/cli/commands/__init__.py
+- src/specify_cli/orchestrator_api/commands.py
+- tests/agent/test_json_envelope_contract_integration.py
+- tests/agent/test_orchestrator_commands_integration.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Fix _JSONErrorGroup Error Handling + Docs

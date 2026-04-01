@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: WP Ownership Manifest
-lane: "approved"
 dependencies: [WP01]
 requirement_refs:
 - FR-004
@@ -20,18 +19,27 @@ subtasks:
 - T016
 - T017
 phase: Phase A - Foundation
-assignee: ''
-agent: coordinator
-shell_pid: '5606'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- kitty-specs/<feature_slug/**
+- src/**/**
+- src/context/**/**
+- src/specify_cli/agent/**
+- src/specify_cli/cli/commands/**
+- src/specify_cli/ownership/__init__.py
+- src/specify_cli/ownership/inference.py
+- src/specify_cli/ownership/models.py
+- src/specify_cli/ownership/validation.py
+- tests/specify_cli/ownership/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – WP Ownership Manifest

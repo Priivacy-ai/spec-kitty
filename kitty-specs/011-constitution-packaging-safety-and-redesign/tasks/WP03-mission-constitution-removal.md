@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Mission Constitution Removal
-lane: done
 dependencies: []
 subtasks:
 - T017
@@ -10,11 +9,6 @@ subtasks:
 - T020
 - T021
 phase: Feature - Track 1 Critical Safety
-assignee: ''
-agent: claude-sonnet-4-5
-shell_pid: ''
-review_status: approved
-reviewed_by: claude-sonnet-4-5
 history:
 - timestamp: '2026-01-12T11:30:00Z'
   lane: planned
@@ -26,6 +20,21 @@ history:
   agent: claude-sonnet-4-5
   shell_pid: ''
   action: Code review approved - constitution_dir removed from mission.py, constitution scanning removed from manifest.py, no mission constitution directories remain. 5/5 tests passed.
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ7
+owned_files:
+- 'docs/*.md:'
+- kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/research.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md
+- src/specify_cli/**
+- tests/integration/test_feature_commands.py
+- tests/path/to/test_file.py
+- tests/specify_cli/test_core/test_worktree.py
+- tests/test_plan_validation.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Mission Constitution Removal

@@ -623,6 +623,10 @@ def create_feature(
         # Create tasks/.gitkeep and README.md
         (tasks_dir / ".gitkeep").touch()
 
+        # Initialize empty event log so the feature has canonical status from birth.
+        # finalize-tasks will later append WP-level "planned" events.
+        (feature_dir / "status.events.jsonl").touch(exist_ok=True)
+
         # Create tasks/README.md (using same content from setup_feature_directory)
         tasks_readme_content = '''# Tasks Directory
 

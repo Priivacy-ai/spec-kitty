@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Migration and Release
-lane: done
 dependencies: []
 subtasks:
 - T031
@@ -11,17 +10,21 @@ subtasks:
 - T035
 - T036
 phase: Phase 5 - Release
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/plan.md
+- kitty-specs/006-per-feature-mission/quickstart.md
+- kitty-specs/006-per-feature-mission/spec.md
+- src/specify_cli/cli/commands/upgrade.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Migration and Release

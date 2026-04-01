@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Context CLI Integration
-lane: "approved"
 dependencies: [WP01]
 requirement_refs:
 - FR-002
@@ -19,18 +18,21 @@ subtasks:
 - T010
 - T011
 phase: Phase A - Foundation
-assignee: ''
-agent: coordinator
-shell_pid: '5530'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/cli/commands/**
+- src/specify_cli/core/**
+- tests/specify_cli/cli/commands/test_context.py
+- tests/specify_cli/core/test_feature_detection.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Context CLI Integration

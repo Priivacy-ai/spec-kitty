@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Indexing & Missing Detection
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -12,11 +11,13 @@ subtasks:
 - T015
 - T016
 - T017
-agent: coordinator
-shell_pid: '85771'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/dossier/indexer.py/
+execution_mode: code_change
 feature_slug: 042-local-mission-dossier-authority-parity-export
+mission_id: 01KN2371WSJ7573ZG5D21WP82T
+owned_files:
+- src/specify_cli/dossier/indexer.py
+wp_code: WP03
 ---
 
 # WP03: Indexing & Missing Detection

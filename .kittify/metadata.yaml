@@ -3,12 +3,17 @@
 # DO NOT EDIT MANUALLY
 
 spec_kitty:
-  version: 3.0.0
+  version: 3.0.1
   initialized_at: '2026-03-30T20:42:29.894875'
-  last_upgraded_at: null
+  last_upgraded_at: '2026-03-31T16:02:07.773010'
 environment:
   python_version: 3.11.14
   platform: darwin
   platform_version: macOS-15.7.3-arm64-arm-64bit
 migrations:
-  applied: []
+  applied:
+  - id: 3.0.0_canonical_context
+    applied_at: '2026-03-31T16:02:07.771453'
+    result: success
+    notes: Migrated 56 feature(s), 302 WPs backfilled, 10 events generated; Moved
+      45 derived file(s)

@@ -1,28 +1,34 @@
 ---
 work_package_id: WP01
 title: Canonical Skill Source Layout & Registry
-lane: planned
 dependencies: []
+requirement_refs:
+- FR-001
+- C-004
 subtasks:
 - T001
 - T002
 - T003
 - T004
 phase: Phase 0 - Foundation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-001
-- C-004
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/doctrine/**
+- src/specify_cli/runtime/home.py
+- src/specify_cli/skills/**
+- src/specify_cli/template/__init__.py
+- src/specify_cli/templates/skills/<skill-name/**
+- tests/specify_cli/skills/__init__.py
+- tests/specify_cli/skills/test_registry.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Canonical Skill Source Layout & Registry

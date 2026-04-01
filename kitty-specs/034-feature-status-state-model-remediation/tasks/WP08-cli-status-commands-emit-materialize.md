@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: CLI Status Commands (emit & materialize)
-lane: done
 dependencies: [WP07]
 base_branch: 2.x
 base_commit: b8f921f8901326a8d6b083c36c434346dec760b2
@@ -13,17 +12,23 @@ subtasks:
 - T041
 - T042
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '58568'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- src/specify_cli/cli/commands/agent/__init__.py
+- src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/cli/commands/agent/tasks.py
+- src/specify_cli/core/feature_detection.py
+- tests/integration/test_status_cli_integration.py
+- tests/specify_cli/cli/commands/test_status_cli.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 -- CLI Status Commands (emit & materialize)

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Artifact Manifest Snapshot + Tree Snapshot
-lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: daad18d1a6cc861106e5879e1875fda34517d0a2
@@ -12,17 +11,20 @@ subtasks:
 - T006
 - T007
 phase: Phase 2 - Parallel Wave
-assignee: ''
-agent: claude-opus
-shell_pid: '44442'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/045-.../**
+- kitty-specs/045-mission-handoff-package-version-matrix/**
+- src/specify_cli/missions/software-dev/expected-artifacts.yaml
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Artifact Manifest Snapshot + Tree Snapshot

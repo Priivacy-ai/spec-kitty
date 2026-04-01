@@ -22,19 +22,17 @@ def test_provider_credentials_round_trip(tmp_path) -> None:
 
     # Act
     store.set_provider(
-        "jira",
+        "beads",
         {
-            "base_url": "https://jira.example.com",
-            "email": "alice@example.com",
-            "api_token": "secret",
+            "command": "beads",
+            "workspace": "spec-kitty-demo",
         },
     )
-    loaded = store.get_provider("jira")
+    loaded = store.get_provider("beads")
 
     # Assert
-    assert loaded["base_url"] == "https://jira.example.com"
-    assert loaded["email"] == "alice@example.com"
-    assert loaded["api_token"] == "secret"
+    assert loaded["command"] == "beads"
+    assert loaded["workspace"] == "spec-kitty-demo"
 
 
 def test_provider_credentials_clear(tmp_path) -> None:
@@ -42,16 +40,16 @@ def test_provider_credentials_clear(tmp_path) -> None:
     # Arrange
     path = tmp_path / "credentials"
     store = TrackerCredentialStore(path)
-    store.set_provider("linear", {"api_key": "token", "team_id": "team-1"})
+    store.set_provider("fp", {"command": "fp", "workspace": "feature-1"})
 
     # Assumption check
-    assert store.get_provider("linear"), "credentials must be present before clearing"
+    assert store.get_provider("fp"), "credentials must be present before clearing"
 
     # Act
-    store.clear_provider("linear")
+    store.clear_provider("fp")
 
     # Assert
-    assert store.get_provider("linear") == {}
+    assert store.get_provider("fp") == {}
 
 
 def test_credentials_file_permissions_posix(tmp_path) -> None:
@@ -64,7 +62,7 @@ def test_credentials_file_permissions_posix(tmp_path) -> None:
     # (no precondition)
 
     # Act
-    store.set_provider("github", {"token": "abc", "owner": "org", "repo": "repo"})
+    store.set_provider("beads", {"command": "beads", "workspace": "spec-kitty-demo"})
 
     # Assert
     if os.name != "nt":

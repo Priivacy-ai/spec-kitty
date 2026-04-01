@@ -15,14 +15,13 @@ base_branch: main
 base_commit: 16db0586be2fcd116b74cd52564496c1c99a6b73
 created_at: '2026-03-31T07:42:30.731524+00:00'
 subtasks: [T030, T031, T032, T033]
-shell_pid: "4238"
-agent: "orchestrator"
 history:
 - at: '2026-03-31T06:58:09+00:00'
   actor: planner
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: src/specify_cli/task_metadata_validation.py
 execution_mode: code_change
+mission_id: 01KN2371WW548PPDMY6HMSB7W2
 owned_files:
 - src/specify_cli/task_metadata_validation.py
 - src/specify_cli/status/history_parser.py
@@ -30,6 +29,7 @@ owned_files:
 - src/specify_cli/upgrade/migrations/m_2_0_6_consistency_sweep.py
 - docs/status-model.md
 - tests/specify_cli/test_lane_regression_guard.py
+wp_code: WP08
 ---
 
 # WP08: Migration Fence + Docs + Guards

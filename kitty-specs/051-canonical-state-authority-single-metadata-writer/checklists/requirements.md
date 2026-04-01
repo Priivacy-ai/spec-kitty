@@ -35,5 +35,5 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/spec-kitty.plan` or `/spec-kitty.clarify`.
+- All items pass. Spec is ready for `/spec-kitty.plan`.
 - The spec references specific module names (`feature_metadata.py`, `status.events.jsonl`) as domain terms, not implementation choices — these are the existing canonical names in the codebase.

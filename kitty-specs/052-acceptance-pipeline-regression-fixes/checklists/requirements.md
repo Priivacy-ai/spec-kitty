@@ -35,5 +35,5 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+- All items pass. Spec is ready for `/spec-kitty.plan`.
 - The spec references specific function names and file paths because this is a bug-fix feature — these are part of the problem description, not implementation details.

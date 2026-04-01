@@ -1,7 +1,6 @@
 ---
 work_package_id: WP02
 title: Script Mission Parameter
-lane: done
 dependencies: []
 subtasks:
 - T006
@@ -10,17 +9,18 @@ subtasks:
 - T009
 - T010
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude
-shell_pid: '41644'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/006-per-feature-mission/
+execution_mode: planning_artifact
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/**
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Script Mission Parameter

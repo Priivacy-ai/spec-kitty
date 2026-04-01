@@ -7,5 +7,6 @@
   "created_at": "2026-02-22T00:00:00Z",
   "target_branch": "2.x",
   "vcs": "git",
-  "feature_slug": "043-doctrine-lite-constitution-generator"
+  "feature_slug": "043-doctrine-lite-constitution-generator",
+  "mission_id": "01KN2371WSJ7573ZG5D21WP82V"
 }

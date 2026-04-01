@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Documentation and Polish
-lane: done
 dependencies: []
 subtasks:
 - T033
@@ -13,15 +12,21 @@ subtasks:
 - T039
 - T040
 phase: Phase 5 - Finalization
-assignee: claude
-agent: claude
-shell_pid: '64252'
 history:
 - timestamp: '2025-11-10T10:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PK
+owned_files:
+- kitty-specs/003-auto-protect-agent/quickstart.md
+- kitty-specs/003-auto-protect-agent/spec.md
+- src/specify_cli/__init__.py
+- src/specify_cli/gitignore_manager.py
+wp_code: WP05
 ---
 *Path: [tasks/planned/WP05-documentation-polish.md](tasks/planned/WP05-documentation-polish.md)*
 

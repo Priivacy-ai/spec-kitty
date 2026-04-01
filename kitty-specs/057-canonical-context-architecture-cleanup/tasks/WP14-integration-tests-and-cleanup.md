@@ -1,7 +1,6 @@
 ---
 work_package_id: WP14
 title: Integration Tests and Final Cleanup
-lane: "approved"
 dependencies:
 - WP08
 requirement_refs:
@@ -21,18 +20,27 @@ subtasks:
 - T073
 - T074
 phase: Phase D - Surface and Migration
-assignee: ''
-agent: coordinator
-shell_pid: '17109'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/context/**
+- src/specify_cli/core/**
+- src/specify_cli/merge/**
+- src/specify_cli/migration/**
+- src/specify_cli/ownership/**
+- src/specify_cli/shims/**
+- src/specify_cli/status/**
+- tests/specify_cli/integration/test_context_lifecycle.py
+- tests/specify_cli/integration/test_merge_e2e.py
+- tests/specify_cli/integration/test_migration_e2e.py
+wp_code: WP14
 ---
 
 # Work Package Prompt: WP14 – Integration Tests and Final Cleanup

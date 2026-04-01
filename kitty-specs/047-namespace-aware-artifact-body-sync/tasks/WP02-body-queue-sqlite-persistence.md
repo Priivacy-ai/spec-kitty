@@ -1,8 +1,8 @@
 ---
 work_package_id: WP02
 title: Body Queue - SQLite Persistence Layer
-lane: done
 dependencies: [WP01]
+requirement_refs: [FR-007, FR-009, FR-010]
 base_branch: 047-namespace-aware-artifact-body-sync-WP01
 base_commit: 221cac1a3567575e5241d4768086572e970e2e6d
 created_at: '2026-03-09T08:23:00.317907+00:00'
@@ -15,18 +15,20 @@ subtasks:
 - T011
 - T012
 phase: Phase 1 - Foundation
-assignee: ''
-agent: claude-opus
-shell_pid: '50890'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-007, FR-009, FR-010]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- src/specify_cli/sync/body_queue.py
+- src/specify_cli/sync/queue.py
+- tests/specify_cli/sync/test_body_queue.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Body Queue - SQLite Persistence Layer

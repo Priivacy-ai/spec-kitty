@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Deterministic Reducer
-lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -15,17 +14,24 @@ subtasks:
 - T015
 - T016
 phase: Phase 0 - Foundation
-assignee: ''
-agent: claude-wp03
-shell_pid: '42678'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/contracts/snapshot-schema.json
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- src/specify_cli/status/reducer.py
+- tests/specify_cli/status/test_conflict_resolution.py
+- tests/specify_cli/status/test_reducer.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 -- Deterministic Reducer

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Agent Invokers - Additional Agents
-lane: done
 dependencies:
 - WP01
 - WP02
@@ -13,17 +12,23 @@ subtasks:
 - T015
 - T016
 phase: Phase 1 - Components
-assignee: ''
-agent: claude-opus
-shell_pid: '46825'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T16:21:51Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: src/specify_cli/orchestrator/agents/
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JW
+owned_files:
+- src/specify_cli/orchestrator/agents/__init__.py
+- src/specify_cli/orchestrator/agents/augment.py
+- src/specify_cli/orchestrator/agents/cursor.py
+- src/specify_cli/orchestrator/agents/kilocode.py
+- src/specify_cli/orchestrator/agents/opencode.py
+- src/specify_cli/orchestrator/agents/qwen.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Agent Invokers - Additional Agents

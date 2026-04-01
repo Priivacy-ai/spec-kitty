@@ -1,8 +1,12 @@
 ---
 work_package_id: WP03
 title: Migrate VCS, Merge, and Feature Creation Writes
-lane: "done"
 dependencies: [WP01]
+requirement_refs:
+- FR-002
+- FR-004
+- FR-009
+- NFR-004
 base_branch: 051-canonical-state-authority-single-metadata-writer-WP01
 base_commit: 620c971a1797bf16c0855f7a67edb72a5fbab49c
 created_at: '2026-03-18T21:03:24.173978+00:00'
@@ -13,23 +17,24 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: codex
-shell_pid: '73586'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: feedback://051-canonical-state-authority-single-metadata-writer/WP03/20260318T211746Z-58c47bd5.md
 history:
 - timestamp: '2026-03-18T20:21:07Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-002
-- FR-004
-- FR-009
-- NFR-004
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PX
+owned_files:
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/plan.md
+- kitty-specs/051-canonical-state-authority-single-metadata-writer/research.md
+- src/specify_cli/cli/commands/agent/feature.py
+- src/specify_cli/cli/commands/implement.py
+- src/specify_cli/scripts/tasks/tasks_cli.py
+- tests/specify_cli/test_feature_metadata.py
+- tests/specify_cli/test_write_site_migrations.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Migrate VCS, Merge, and Feature Creation Writes

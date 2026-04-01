@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Opportunistic Documentation Fixes
-lane: done
 dependencies:
 - WP01
 subtasks:
@@ -9,17 +8,23 @@ subtasks:
 - T035
 - T036
 phase: Phase 3 - Cleanup
-assignee: ''
-agent: Claude
-shell_pid: '51920'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-23T10:23:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JZ
+owned_files:
+- docs/path/to/target.md
+- docs/reference/cli-commands.md
+- docs/tutorials/*.md
+- kitty-specs/023-documentation-sprint-agent-management-cleanup/spec.md
+- src/specify_cli/cli/commands/*.py
+- src/specify_cli/orchestrator/agent_config.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Opportunistic Documentation Fixes

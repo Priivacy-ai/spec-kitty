@@ -1,19 +1,23 @@
 ---
 work_package_id: WP01
 title: Runtime Schema Foundation
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 7605f1577bdaa18cc2ab61c4f0fd5ba28fc1ae4c
 created_at: '2026-02-22T08:12:56.105802+00:00'
 subtasks: [T001, T002, T003, T016]
-agent: codex
-shell_pid: '92995'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/
 description: Create the runtime schema that enables plan mission discovery in the runtime loop
 estimated_duration: 1-2 hours
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82R
+owned_files:
+- src/specify_cli/missions/plan/**
+- src/specify_cli/missions/research/mission-runtime.yaml
+- src/specify_cli/missions/software-dev/mission-runtime.yaml
+- src/specify_cli/next/runtime_bridge.py
 priority: P0
+wp_code: WP01
 ---
 
 # WP01: Runtime Schema Foundation

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Merge Engine v2 — Workspace and State
-lane: "approved"
 dependencies:
 - WP02
 requirement_refs:
@@ -20,18 +19,25 @@ subtasks:
 - T037
 - T038
 phase: Phase C - Merge
-assignee: ''
-agent: coordinator
-shell_pid: '91988'
-review_status: "approved"
-reviewed_by: "Robert Douglass"
-review_feedback: ''
 history:
 - timestamp: '2026-03-27T17:23:39Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q3
+owned_files:
+- src/specify_cli/merge/__init__.py
+- src/specify_cli/merge/executor.py
+- src/specify_cli/merge/forecast.py
+- src/specify_cli/merge/preflight.py
+- src/specify_cli/merge/state.py
+- src/specify_cli/merge/status_resolver.py
+- src/specify_cli/merge/workspace.py
+- tests/specify_cli/merge/**
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – Merge Engine v2 — Workspace and State

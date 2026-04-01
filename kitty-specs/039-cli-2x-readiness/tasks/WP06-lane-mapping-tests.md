@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Test and document 7-to-4 lane collapse mapping
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 93014a047608b387e301437a965f3c6944fcef7f
@@ -12,17 +11,20 @@ subtasks:
 - T027
 - T028
 phase: Wave 1 - Independent Fixes
-assignee: ''
-agent: wp06-reviewer
-shell_pid: '53766'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- kitty-specs/039-cli-2x-readiness/contracts/lane-mapping.md
+- src/specify_cli/**
+- tests/specify_cli/status/**
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Test and document 7-to-4 lane collapse mapping

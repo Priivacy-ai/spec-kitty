@@ -1,9 +1,12 @@
 ---
 work_package_id: WP04
 title: Squash Survivors — Batch 2 (merge/, core/)
-lane: done
 dependencies:
 - WP03
+requirement_refs:
+- FR-009
+- FR-010
+- FR-012
 subtasks:
 - T018
 - T019
@@ -11,22 +14,22 @@ subtasks:
 - T021
 - T022
 phase: Phase 2 - Squashing Campaign
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
-review_feedback: ''
 history:
 - timestamp: '2026-03-01T16:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-009
-- FR-010
-- FR-012
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3E
+owned_files:
+- kitty-specs/047-mutmut-mutation-testing-ci/mutmut-equivalents.md
+- src/specify_cli/core/**
+- src/specify_cli/merge/**
+- tests/unit/core/**
+- tests/unit/merge/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Squash Survivors — Batch 2 (merge/, core/)

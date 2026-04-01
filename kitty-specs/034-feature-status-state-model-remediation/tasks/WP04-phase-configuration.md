@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Phase Configuration
-lane: done
 dependencies:
 - WP01
 base_branch: 2.x
@@ -14,17 +13,24 @@ subtasks:
 - T020
 - T021
 phase: Phase 0 - Foundation
-assignee: ''
-agent: claude-wp04
-shell_pid: '42771'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- kitty-specs/034-feature-status-state-model-remediation/data-model.md
+- kitty-specs/034-feature-status-state-model-remediation/plan.md
+- kitty-specs/034-feature-status-state-model-remediation/spec.md
+- src/specify_cli/agent_config.py
+- src/specify_cli/core/feature_detection.py
+- src/specify_cli/status/phase.py
+- tests/specify_cli/status/test_phase.py
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 -- Phase Configuration

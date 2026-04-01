@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Fix setup-plan NameError on 2.x
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 4c64827e8919bb3a1708d00cddacce86b87c4002
@@ -11,17 +10,23 @@ subtasks:
 - T002
 - T003
 phase: Wave 1 - Independent Fixes
-assignee: ''
-agent: wp01-reviewer
-shell_pid: '54201'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- kitty-specs/039-cli-2x-readiness/spec.md
+- src/specify_cli/**
+- tests/integration/test_planning_workflow.py
+- tests/integration/test_planning_workflow.py::test_full_planning_workflow_no_worktrees
+- tests/integration/test_task_workflow.py
+- tests/specify_cli/cli/commands/agent/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Fix setup-plan NameError on 2.x

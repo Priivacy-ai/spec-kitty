@@ -1,7 +1,6 @@
 ---
 work_package_id: WP08
 title: Integration Tests (Full Workflow Validation)
-lane: done
 dependencies: [WP01, WP03, WP04, WP05, WP06, WP07]
 subtasks:
 - T070
@@ -14,17 +13,20 @@ subtasks:
 - T077
 - T078
 phase: Phase 3 - Quality & Polish
-assignee: team
-agent: team
-shell_pid: manual
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- src/specify_cli/cli/commands/**
+- tests/integration/test_workspace_per_wp_workflow.py
+- tests/specify_cli/test_integration/test_workspace_per_wp_workflow.py
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Integration Tests (Full Workflow Validation)

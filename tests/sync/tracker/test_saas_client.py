@@ -246,7 +246,7 @@ class TestPull:
 
         args, kwargs = mock_http.request.call_args
         assert args[0] == "POST"
-        assert "/api/v1/tracker/pull" in args[1]
+        assert args[1].endswith("/api/v1/tracker/pull/")
 
 
 class TestStatus:
@@ -264,7 +264,7 @@ class TestStatus:
         assert result["connected"] is True
         args, kwargs = mock_http.request.call_args
         assert args[0] == "GET"
-        assert "/api/v1/tracker/status" in args[1]
+        assert args[1].endswith("/api/v1/tracker/status/")
         assert kwargs["params"]["provider"] == "jira"
         assert kwargs["params"]["project_slug"] == "proj-1"
 
@@ -284,7 +284,7 @@ class TestMappings:
         assert result["fields"][0]["src"] == "title"
         args, kwargs = mock_http.request.call_args
         assert args[0] == "GET"
-        assert "/api/v1/tracker/mappings" in args[1]
+        assert args[1].endswith("/api/v1/tracker/mappings/")
 
 
 # ---------------------------------------------------------------------------
@@ -448,6 +448,10 @@ class TestRun:
 
 
 class TestPolling:
+    @patch(
+        "specify_cli.tracker.saas_client._poll_jitter_multiplier",
+        side_effect=[0.9, 1.0, 1.1],
+    )
     @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
@@ -456,6 +460,7 @@ class TestPolling:
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
         mock_sleep: MagicMock,
+        mock_jitter: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_http = MagicMock()
@@ -472,10 +477,6 @@ class TestPolling:
         # Provide enough time values: start, check1, check2, check3, check4
         mock_monotonic.side_effect = [0.0, 1.0, 3.0, 7.0, 15.0]
 
-        # Seed random for deterministic jitter
-        import random
-        random.seed(42)
-
         result = client._poll_operation("op-backoff")
         assert result == {"done": True}
 
@@ -483,12 +484,10 @@ class TestPolling:
         sleep_calls = mock_sleep.call_args_list
         assert len(sleep_calls) == 3
         # delay starts at 1, doubles each iteration
-        # jitter: delay * (0.8 + 0.4 * random())
+        # jitter uses the patched multiplier helper
         delays = [c.args[0] for c in sleep_calls]
-        # First delay based on 1.0, second on 2.0, third on 4.0
-        assert 0.8 <= delays[0] <= 1.2
-        assert 1.6 <= delays[1] <= 2.4
-        assert 3.2 <= delays[2] <= 4.8
+        assert delays == [0.9, 2.0, 4.4]
+        assert mock_jitter.call_count == 3
 
     @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")

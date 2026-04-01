@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Foundation - Legacy Detection & Shared Utilities
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -9,11 +8,6 @@ subtasks:
 - T003
 - T004
 phase: Phase 0 - Foundation
-assignee: Claude
-agent: claude-reviewer
-shell_pid: $$
-review_status: ''
-reviewed_by: claude-reviewer
 history:
 - timestamp: '2025-12-17T13:15:00Z'
   lane: planned
@@ -25,6 +19,18 @@ activity_log: |-
   - 2025-12-17T12:11:54Z – claude – shell_pid=63393 – lane=doing – Started implementation
   - 2025-12-17T14:00:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: All deliverables met, tests pass
   - 2025-12-17T14:05:00Z – claude-reviewer – shell_pid=$$ – lane=done – Approved: implementation verified
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PQ
+owned_files:
+- kitty-specs/007-frontmatter-only-lane/data-model.md
+- kitty-specs/007-frontmatter-only-lane/plan.md
+- kitty-specs/007-frontmatter-only-lane/research.md
+- kitty-specs/007-frontmatter-only-lane/spec.md
+- src/specify_cli/legacy_detector.py
+- src/specify_cli/tasks_support.py
+- src/specify_cli/tasks_support.py:14
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Foundation - Legacy Detection & Shared Utilities

@@ -1,20 +1,21 @@
 ---
 work_package_id: WP02
 title: Command Templates - All Steps
-lane: done
 dependencies:
 - WP01
 base_branch: 041-enable-plan-mission-runtime-support-WP01
 base_commit: fd8b09d0a2d065f9ddd08efc49a5bbc21291c599
 created_at: '2026-02-22T08:15:40.811638+00:00'
 subtasks: [T004, T005, T006, T007, T008, T009]
-agent: claude
-shell_pid: '93261'
-review_status: approved
-reviewed_by: Robert Douglass
+authoritative_surface: src/specify_cli/missions/plan/command-templates/
 description: Create mission-scoped command templates for all 4 planning steps
 estimated_duration: 2-3 hours
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82R
+owned_files:
+- src/specify_cli/missions/plan/command-templates/**
 priority: P0
+wp_code: WP02
 ---
 
 # WP02: Command Templates - All Steps

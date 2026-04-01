@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: How-To Guides - Core Workflow
-lane: done
 dependencies: [WP02]
 subtasks:
 - T012
@@ -12,17 +11,18 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 - Content Creation
-assignee: ''
-agent: claude
-shell_pid: '58526'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-16T16:16:58Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/014-comprehensive-end-user-documentation/
+execution_mode: planning_artifact
+mission_id: 01KN2371WPA42WS6W1G5XZHZJA
+owned_files:
+- kitty-specs/014-comprehensive-end-user-documentation/**
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – How-To Guides - Core Workflow

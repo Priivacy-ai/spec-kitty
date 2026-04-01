@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: Event Stream Export
-lane: done
 dependencies: [WP01]
 base_branch: 2.x
 base_commit: d9cacce44e9b10233e49d0f9fdd19a2f0f4a78da
@@ -11,17 +10,18 @@ subtasks:
 - T009
 - T010
 phase: Phase 2 - Parallel Wave
-assignee: ''
-agent: claude-opus
-shell_pid: '96811'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: kitty-specs/045-mission-handoff-package-version-matrix/
+execution_mode: planning_artifact
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/045-mission-handoff-package-version-matrix/**
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – Event Stream Export

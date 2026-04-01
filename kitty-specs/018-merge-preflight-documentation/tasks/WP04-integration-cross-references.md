@@ -1,7 +1,6 @@
 ---
 work_package_id: WP04
 title: Integration & Cross-References
-lane: done
 dependencies: [WP01, WP02, WP03]
 subtasks:
 - T025
@@ -11,17 +10,19 @@ subtasks:
 - T029
 - T030
 phase: Phase 3 - Polish
-assignee: ''
-agent: claude
-shell_pid: '94502'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-18T13:21:55Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: docs/
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJC
+owned_files:
+- docs/how-to/**
+- docs/toc.yml
+wp_code: WP04
 ---
 
 # Work Package Prompt: WP04 – Integration & Cross-References

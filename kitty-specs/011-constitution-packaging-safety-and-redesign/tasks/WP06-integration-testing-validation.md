@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Integration Testing & Validation
-lane: done
 dependencies: []
 subtasks:
 - T034
@@ -12,17 +11,33 @@ subtasks:
 - T039
 - T040
 phase: Integration - Quality Gate
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-12T11:30:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJ7
+owned_files:
+- kitty-specs/001-test-feature/**
+- kitty-specs/011-constitution-packaging-safety-and-redesign/data-model.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/plan.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/research.md
+- kitty-specs/011-constitution-packaging-safety-and-redesign/spec.md
+- src/,/**
+- src/:/**
+- src/specify_cli/**
+- tests/integration/test_commands_without_constitution.sh
+- tests/integration/test_constitution_comprehensive.sh
+- tests/integration/test_constitution_minimal.sh
+- tests/integration/test_dashboard_windows.ps1
+- tests/integration/test_dogfooding_safety.sh
+- tests/integration/test_feature_011_validation.sh
+- tests/integration/test_upgrade_path.sh
+- tests/test_packaging_safety.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Integration Testing & Validation

@@ -3,8 +3,11 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import re
+
+logger = logging.getLogger(__name__)
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -222,7 +225,6 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
                 continue
             text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
-            # Get lane from frontmatter
             lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(

@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: Status Emit Orchestration
-lane: done
 dependencies:
 - WP02
 base_branch: 2.x
@@ -15,17 +14,22 @@ subtasks:
 - T036
 - T037
 phase: Phase 1 - Canonical Log
-assignee: ''
-agent: ''
-shell_pid: '50636'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-08T14:07:18Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDJ
+owned_files:
+- src/specify_cli/status/__init__.py
+- src/specify_cli/status/emit.py
+- src/specify_cli/status/transitions.py
+- tests/integration/test_status_emit_flow.py
+- tests/specify_cli/status/test_emit.py
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 -- Status Emit Orchestration

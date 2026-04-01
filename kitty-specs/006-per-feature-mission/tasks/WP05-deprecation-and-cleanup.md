@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Deprecation and Cleanup
-lane: done
 dependencies: []
 subtasks:
 - T025
@@ -11,17 +10,22 @@ subtasks:
 - T029
 - T030
 phase: Phase 4 - Cleanup
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2025-12-15T11:55:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PP
+owned_files:
+- kitty-specs/006-per-feature-mission/plan.md
+- kitty-specs/006-per-feature-mission/spec.md
+- src/specify_cli/cli/commands/init.py
+- src/specify_cli/cli/commands/mission.py
+- src/specify_cli/mission.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Deprecation and Cleanup

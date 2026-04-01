@@ -1,8 +1,8 @@
 ---
 work_package_id: WP06
 title: Background Sync & Runtime Integration
-lane: done
 dependencies: [WP02, WP04]
+requirement_refs: [FR-007, FR-009]
 base_branch: 047-namespace-aware-artifact-body-sync-WP06-merge-base
 base_commit: 192ee0b889e1235647c4d3c7aac8af04a58cb04f
 created_at: '2026-03-09T10:00:57.143960+00:00'
@@ -14,18 +14,20 @@ subtasks:
 - T032
 - T033
 phase: Phase 3 - Integration
-assignee: ''
-agent: claude-opus
-shell_pid: '14904'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-03-09T07:09:45Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs: [FR-007, FR-009]
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3F
+owned_files:
+- src/specify_cli/sync/background.py
+- src/specify_cli/sync/runtime.py
+- tests/specify_cli/sync/test_background_body.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Background Sync & Runtime Integration

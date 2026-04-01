@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Status File Auto-Resolution
-lane: in_progress
 dependencies: [WP03]
 subtasks:
 - T013
@@ -12,17 +11,25 @@ subtasks:
 - T028
 - T029
 phase: Phase 3 - User Story 4 (P3)
-assignee: ''
-agent: codex
-shell_pid: '9049'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-18T10:37:13Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WPA42WS6W1G5XZHZJB
+owned_files:
+- kitty-specs/**/tasks.md
+- kitty-specs/**/tasks/*.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/data-model.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/plan.md
+- kitty-specs/017-smarter-feature-merge-with-preflight/spec.md
+- src/specify_cli/merge/executor.py
+- src/specify_cli/merge/status_resolver.py
+- src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Status File Auto-Resolution

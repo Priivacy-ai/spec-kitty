@@ -5,5 +5,6 @@
   "friendly_name": "per feature mission",
   "mission": "software-dev",
   "target_branch": "main",
-  "created_at": "2026-03-09T06:17:37.431968+00:00"
+  "created_at": "2026-03-09T06:17:37.431968+00:00",
+  "mission_id": "01KN2371WNZX28ME4MN97B67PP"
 }

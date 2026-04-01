@@ -1,30 +1,32 @@
 ---
 work_package_id: WP08
 title: Author spec-kitty-setup-doctor Skill
-lane: planned
 dependencies: [WP01]
+requirement_refs:
+- FR-009
+- FR-010
+- C-006
+- C-007
 subtasks:
 - T032
 - T033
 - T034
 - T035
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: ''
-shell_pid: ''
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-03-21T07:39:56Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-009
-- FR-010
-- C-006
-- C-007
+authoritative_surface: src/doctrine/skills/spec-kitty-setup-doctor/
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9Q1
+owned_files:
+- src/doctrine/skills/spec-kitty-setup-doctor/SKILL.md
+- src/doctrine/skills/spec-kitty-setup-doctor/references/agent-path-matrix.md
+- src/doctrine/skills/spec-kitty-setup-doctor/references/common-failure-signatures.md
+wp_code: WP08
 ---
 
 # Work Package Prompt: WP08 – Author spec-kitty-setup-doctor Skill

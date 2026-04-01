@@ -1,7 +1,6 @@
 ---
 work_package_id: WP05
 title: Extend sync status with queue health
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: a621880125a2dc6518cb41b45b395c39b50ec5ec
@@ -13,17 +12,19 @@ subtasks:
 - T023
 - T024
 phase: Wave 1 - Independent Fixes
-assignee: ''
-agent: wp05-reviewer
-shell_pid: '53683'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- src/specify_cli/sync/queue.py
+- tests/sync/**
+wp_code: WP05
 ---
 
 # Work Package Prompt: WP05 – Extend sync status with queue health

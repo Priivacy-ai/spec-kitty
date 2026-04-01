@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Event Factory Module
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,17 +11,23 @@ subtasks:
 - T006
 - T007
 phase: Phase 1 - Foundation
-assignee: ''
-agent: codex
-shell_pid: '25757'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-03T18:58:09Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDE
+owned_files:
+- kitty-specs/028-cli-event-emission-sync/contracts/events.schema.json
+- kitty-specs/028-cli-event-emission-sync/data-model.md
+- kitty-specs/028-cli-event-emission-sync/plan.md
+- kitty-specs/028-cli-event-emission-sync/quickstart.md
+- src/specify_cli/sync/**
+- tests/sync/test_events.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 - Event Factory Module

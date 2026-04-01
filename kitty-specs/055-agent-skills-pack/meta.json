@@ -7,5 +7,6 @@
   "slug": "agent-skills-pack",
   "source_description": "Ship one canonical customer-facing skill pack for Spec Kitty 2.0.11+ with 8 composable skills, managed manifest, and deterministic distribution through spec-kitty init.",
   "target_branch": "2.x",
-  "vcs": "git"
+  "vcs": "git",
+  "mission_id": "01KN2371WVZGV7TH7WMR2CN9Q1"
 }

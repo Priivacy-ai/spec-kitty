@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Dependency Graph Utilities (TDD Foundation)
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -12,17 +11,19 @@ subtasks:
 - T006
 - T007
 phase: Phase 0 - Test Infrastructure
-assignee: team
-agent: Codex
-shell_pid: '80441'
-review_status: ''
-reviewed_by: ''
 history:
 - timestamp: '2026-01-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WNZX28ME4MN97B67PS
+owned_files:
+- src/specify_cli/core/dependency_graph.py
+- tests/specify_cli/test_dependency_graph.py
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Dependency Graph Utilities (TDD Foundation)

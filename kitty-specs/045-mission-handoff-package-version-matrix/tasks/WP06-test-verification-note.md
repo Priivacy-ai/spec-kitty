@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Test Run + Verification Note
-lane: done
 dependencies: [WP02, WP03, WP04, WP05]
 base_branch: 2.x
 base_commit: 21a6cf3bce5293de281d8f0b2a272ab505eae166
@@ -12,18 +11,22 @@ subtasks:
 - T021
 - T022
 phase: Phase 4 - Evidence Gate
-assignee: ''
-agent: claude-opus
-shell_pid: '48536'
-review_status: has_feedback
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-23T18:04:02Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WTANS0Z2M6JEHAJS3C
+owned_files:
+- kitty-specs/045-mission-handoff-package-version-matrix/handoff/verification.md
+- tests/integration/test_planning_workflow.py
+- tests/integration/test_planning_workflow.py::TestSetupPlanCommand
+- tests/specify_cli/test_cli/test_agent_feature.py
 review_feedback_file: /private/var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/spec-kitty-review-feedback-WP06.md
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Test Run + Verification Note

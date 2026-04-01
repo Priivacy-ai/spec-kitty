@@ -1,7 +1,6 @@
 ---
 work_package_id: WP03
 title: AuthClient Team Slug
-lane: done
 dependencies: []
 base_branch: 2.x
 base_commit: 17494c989889e7f168aad99f859d99995d2850f2
@@ -12,17 +11,20 @@ subtasks:
 - T014
 - T015
 phase: Phase 1 - Core Implementation
-assignee: ''
-agent: codex
-shell_pid: '25757'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDG
+owned_files:
+- src/specify_cli/sync/auth.py
+- src/specify_cli/sync/emitter.py
+- tests/sync/test_auth.py
+wp_code: WP03
 ---
 
 # Work Package Prompt: WP03 – AuthClient Team Slug

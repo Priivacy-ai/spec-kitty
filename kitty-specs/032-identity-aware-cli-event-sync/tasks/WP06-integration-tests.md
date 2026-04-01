@@ -1,7 +1,6 @@
 ---
 work_package_id: WP06
 title: Integration Tests
-lane: done
 dependencies: [WP01, WP02, WP04, WP05]
 base_branch: 032-identity-aware-cli-event-sync-WP05
 base_commit: d33c73c5a1e39aeb7f97aefec13efba66c6287fe
@@ -14,17 +13,18 @@ subtasks:
 - T031
 - T032
 phase: Phase 4 - Validation
-assignee: ''
-agent: codex
-shell_pid: '49562'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-07T00:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: tests/integration/test_sync_e2e.py/
+execution_mode: code_change
+mission_id: 01KN2371WRE1E2BH9WR11MAGDG
+owned_files:
+- tests/integration/test_sync_e2e.py
+wp_code: WP06
 ---
 
 # Work Package Prompt: WP06 – Integration Tests

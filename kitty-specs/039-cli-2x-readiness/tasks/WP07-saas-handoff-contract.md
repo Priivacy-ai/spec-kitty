@@ -1,7 +1,6 @@
 ---
 work_package_id: WP07
 title: SaaS handoff contract document
-lane: done
 dependencies:
 - WP02
 base_branch: 039-cli-2x-readiness-WP02
@@ -14,17 +13,22 @@ subtasks:
 - T032
 - T033
 phase: Wave 2 - Dependent
-assignee: ''
-agent: wp07-reviewer
-shell_pid: '75824'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-02-12T12:00:00Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WSJ7573ZG5D21WP82P
+owned_files:
+- kitty-specs/039-cli-2x-readiness/contracts/batch-ingest.md
+- src/specify_cli/spec_kitty_events/models.py
+- src/specify_cli/status/emit.py
+- src/specify_cli/sync/emitter.py
+- tests/contract/**
+wp_code: WP07
 ---
 
 # Work Package Prompt: WP07 – SaaS handoff contract document

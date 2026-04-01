@@ -7,5 +7,6 @@
   "created_at": "2026-02-22T17:00:00+00:00",
   "target_branch": "2.x",
   "vcs": "git",
-  "feature_slug": "041-enable-plan-mission-runtime-support"
+  "feature_slug": "041-enable-plan-mission-runtime-support",
+  "mission_id": "01KN2371WSJ7573ZG5D21WP82R"
 }

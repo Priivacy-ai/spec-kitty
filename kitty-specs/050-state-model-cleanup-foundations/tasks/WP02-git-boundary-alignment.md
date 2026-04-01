@@ -1,9 +1,13 @@
 ---
 work_package_id: WP02
 title: Git Boundary Alignment
-lane: done
 dependencies:
 - WP01
+requirement_refs:
+- FR-006
+- FR-007
+- FR-010
+- C-005
 base_branch: 050-state-model-cleanup-foundations-WP01
 base_commit: 224fc89984e7bba1aac90032c254569380e6091d
 created_at: '2026-03-18T19:21:17.263914+00:00'
@@ -13,23 +17,21 @@ subtasks:
 - T008
 - T009
 phase: Phase 2 - Alignment
-assignee: ''
-agent: codex
-shell_pid: '32698'
-review_status: approved
-reviewed_by: Robert Douglass
-review_feedback: feedback://050-state-model-cleanup-foundations/WP02/20260318T193659Z-ce03e9fa.md
 history:
 - timestamp: '2026-03-18T18:52:42Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
-requirement_refs:
-- FR-006
-- FR-007
-- FR-010
-- C-005
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WVZGV7TH7WMR2CN9PW
+owned_files:
+- src/specify_cli/gitignore_manager.py
+- src/specify_cli/upgrade/migrations/**
+- tests/specify_cli/test_gitignore_contract.py
+- tests/specify_cli/test_state_gitignore_migration.py
+wp_code: WP02
 ---
 
 # Work Package Prompt: WP02 – Git Boundary Alignment

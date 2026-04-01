@@ -1,7 +1,6 @@
 ---
 work_package_id: WP01
 title: Test Utilities Foundation
-lane: done
 dependencies: []
 subtasks:
 - T001
@@ -10,17 +9,22 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 - Foundation
-assignee: ''
-agent: claude-opus
-shell_pid: '10866'
-review_status: approved
-reviewed_by: Robert Douglass
 history:
 - timestamp: '2026-01-19T09:30:27Z'
   lane: planned
   agent: system
   shell_pid: ''
   action: Prompt generated via /spec-kitty.tasks
+authoritative_surface: ''
+execution_mode: code_change
+mission_id: 01KN2371WQDXDMVSFB0KMF95JX
+owned_files:
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/data-model.md
+- kitty-specs/021-orchestrator-end-to-end-testing-suite/plan.md
+- src/specify_cli/orchestrator/agents/__init__.py
+- src/specify_cli/orchestrator/agents/base.py
+- src/specify_cli/orchestrator/testing/**
+wp_code: WP01
 ---
 
 # Work Package Prompt: WP01 – Test Utilities Foundation
