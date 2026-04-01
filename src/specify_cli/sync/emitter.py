@@ -568,7 +568,7 @@ class EventEmitter:
         return self._emit(
             event_type="MissionOriginBound",
             aggregate_id=feature_slug,
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
         )
