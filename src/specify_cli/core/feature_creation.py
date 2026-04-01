@@ -312,7 +312,7 @@ def create_feature_core(
     if mission == "documentation":
         meta.setdefault("mission", "documentation")
         if "documentation_state" not in meta:
-            doc_state = {
+            doc_state: dict[str, Any] = {
                 "iteration_mode": "initial",
                 "divio_types_selected": [],
                 "generators_configured": [],
