@@ -98,6 +98,8 @@ class SaaSTrackerClient:
     _PUSH_PATH = "/api/v1/tracker/push/"
     _RUN_PATH = "/api/v1/tracker/run/"
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
+    _SEARCH_ISSUES_PATH = "/api/v1/tracker/issues/search/"
+    _BIND_ORIGIN_PATH = "/api/v1/tracker/origin/bind/"
 
     # ----- low-level request helpers -----
 
@@ -308,6 +310,73 @@ class SaaSTrackerClient:
             "GET",
             self._MAPPINGS_PATH,
             params={"provider": provider, "project_slug": project_slug},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def search_issues(
+        self,
+        provider: str,
+        project_slug: str,
+        *,
+        query_text: str | None = None,
+        query_key: str | None = None,
+        limit: int = 10,
+    ) -> dict[str, Any]:
+        """POST search endpoint — find candidate issues for origin binding.
+
+        Returns a dict with 'candidates' list and routing context
+        ('resource_type', 'resource_id').
+
+        query_key takes precedence over query_text when both provided.
+        """
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "project_slug": project_slug,
+            "limit": limit,
+        }
+        if query_key is not None:
+            payload["query_key"] = query_key
+        if query_text is not None:
+            payload["query_text"] = query_text
+
+        response = self._request_with_retry("POST", self._SEARCH_ISSUES_PATH, json=payload)
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_mission_origin(
+        self,
+        provider: str,
+        project_slug: str,
+        *,
+        feature_slug: str,
+        external_issue_id: str,
+        external_issue_key: str,
+        external_issue_url: str,
+        title: str,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """POST bind endpoint — create MissionOriginLink on SaaS.
+
+        This is the authoritative write for the control-plane record.
+        Same-origin re-bind returns success (no-op). Different-origin
+        returns 409.
+        """
+        key = idempotency_key or str(uuid.uuid4())
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "project_slug": project_slug,
+            "feature_slug": feature_slug,
+            "external_issue_id": external_issue_id,
+            "external_issue_key": external_issue_key,
+            "external_issue_url": external_issue_url,
+            "title": title,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_ORIGIN_PATH,
+            json=payload,
+            headers={"Idempotency-Key": key},
         )
         result: dict[str, Any] = response.json()
         return result
