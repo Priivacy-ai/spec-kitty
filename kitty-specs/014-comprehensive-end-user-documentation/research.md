@@ -182,7 +182,6 @@ The existing documentation in `docs/` is **woefully outdated** compared to the 0
 | `/spec-kitty.status` | ❌ Missing | ❌ Missing | ❌ Missing |
 | `/spec-kitty.dashboard` | ❌ Missing | ❌ Missing | ⚠️ Partial |
 | `/spec-kitty.constitution` | ❌ Missing | ❌ Missing | ⚠️ Partial |
-| `/spec-kitty.clarify` | ❌ Missing | ❌ Missing | ⚠️ Partial |
 | `/spec-kitty.research` | ❌ Missing | ❌ Missing | ⚠️ Partial |
 | `/spec-kitty.checklist` | ❌ Missing | ❌ Missing | ⚠️ Partial |
 | `/spec-kitty.analyze` | ❌ Missing | ❌ Missing | ⚠️ Partial |

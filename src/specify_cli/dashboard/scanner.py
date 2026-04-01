@@ -292,9 +292,8 @@ def resolve_active_feature(
 def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     """Count work packages by lane from the canonical event log.
 
-    Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
-    WPs not present in the event log are counted as ``"planned"``
-    (mapped from ``"uninitialized"``).
+    Falls back to treating all WPs as ``"planned"`` when the event log
+    is absent (feature not yet finalized).
     """
     counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
 
@@ -304,8 +303,12 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     # feature_dir is the parent of tasks/
     feature_dir = tasks_dir.parent
 
-    from specify_cli.status.lane_reader import get_all_wp_lanes
-    event_lanes = get_all_wp_lanes(feature_dir)
+    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_all_wp_lanes
+
+    try:
+        event_lanes = get_all_wp_lanes(feature_dir)
+    except CanonicalStatusNotFoundError:
+        event_lanes = {}  # All WPs default to "uninitialized" -> "planned"
 
     for wp_file in tasks_dir.glob("WP*.md"):
         stem = wp_file.stem
@@ -434,8 +437,12 @@ def _process_wp_file(
     stem = prompt_file.stem
     wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
     canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
-    from specify_cli.status.lane_reader import get_wp_lane
-    lane = get_wp_lane(feature_dir, canonical_wp_id)
+    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
+
+    try:
+        lane = get_wp_lane(feature_dir, canonical_wp_id)
+    except CanonicalStatusNotFoundError:
+        lane = "planned"
 
     return {
         "id": wp_id,

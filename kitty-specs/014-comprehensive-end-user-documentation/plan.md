@@ -114,7 +114,6 @@ docs/
 | `/spec-kitty.status` | ✅ |
 | `/spec-kitty.dashboard` | ✅ |
 | `/spec-kitty.constitution` | ✅ |
-| `/spec-kitty.clarify` | ✅ |
 | `/spec-kitty.research` | ✅ |
 | `/spec-kitty.checklist` | ✅ |
 | `/spec-kitty.analyze` | ✅ |

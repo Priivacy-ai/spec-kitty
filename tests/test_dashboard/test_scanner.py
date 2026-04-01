@@ -135,14 +135,40 @@ def test_new_path_preferred_when_both_exist(tmp_path):
     assert resolved == new_path
 
 
+def _write_status_event(feature_dir, wp_id, to_lane, from_lane="planned"):
+    """Write a status event to the feature's event log."""
+    import json
+    from datetime import datetime, UTC
+
+    event = {
+        "event_id": f"01TEST{wp_id}{to_lane.upper()[:4]}",
+        "feature_slug": feature_dir.name,
+        "wp_id": wp_id,
+        "from_lane": from_lane,
+        "to_lane": to_lane,
+        "actor": "test",
+        "at": datetime.now(UTC).isoformat(),
+        "force": False,
+        "reason": None,
+        "evidence": None,
+        "review_ref": None,
+        "execution_mode": "worktree",
+    }
+    events_path = feature_dir / "status.events.jsonl"
+    with events_path.open("a", encoding="utf-8") as fh:
+        fh.write(json.dumps(event, sort_keys=True) + "\n")
+
+
 def test_scan_feature_kanban_approved_lane(tmp_path):
-    """WPs with lane: approved should land in the approved column, not planned."""
+    """WPs with approved status in event log should land in the approved column."""
     feature_dir = tmp_path / "kitty-specs" / "001-demo"
     (feature_dir / "tasks").mkdir(parents=True)
     (feature_dir / "tasks" / "WP01.md").write_text(
-        "---\nwork_package_id: WP01\nlane: approved\n---\n# Work Package Prompt: WP01\n",
+        "---\nwork_package_id: WP01\n---\n# Work Package Prompt: WP01\n",
         encoding="utf-8",
     )
+    _write_status_event(feature_dir, "WP01", "planned", from_lane="planned")
+    _write_status_event(feature_dir, "WP01", "approved", from_lane="for_review")
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0
@@ -153,11 +179,13 @@ def test_scan_feature_kanban_lane_mapping(tmp_path):
     """claimed maps to planned, in_progress maps to doing."""
     feature_dir = tmp_path / "kitty-specs" / "001-demo"
     (feature_dir / "tasks").mkdir(parents=True)
-    for wp_id, lane in [("WP01", "claimed"), ("WP02", "in_progress")]:
+    for wp_id in ["WP01", "WP02"]:
         (feature_dir / "tasks" / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\nlane: {lane}\n---\n# Work Package Prompt: {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\n---\n# Work Package Prompt: {wp_id}\n",
             encoding="utf-8",
         )
+    _write_status_event(feature_dir, "WP01", "claimed", from_lane="planned")
+    _write_status_event(feature_dir, "WP02", "in_progress", from_lane="claimed")
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["planned"]) == 1  # claimed -> planned
     assert len(lanes["doing"]) == 1  # in_progress -> doing

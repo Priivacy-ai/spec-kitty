@@ -35,6 +35,6 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+- All items pass. Spec is ready for `/spec-kitty.plan`.
 - The 7 cleanup areas map to 7 user stories with independently testable acceptance scenarios.
 - Constitution Git policy decision confirmed by user: commit answers.yaml + library/*.md, ignore references.yaml.

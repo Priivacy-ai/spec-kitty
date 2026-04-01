@@ -31,4 +31,4 @@
 
 ## Notes
 
-- Items marked incomplete require spec updates before `/spec-kitty.clarify` or `/spec-kitty.plan`
+- Items marked incomplete require spec updates before `/spec-kitty.plan`

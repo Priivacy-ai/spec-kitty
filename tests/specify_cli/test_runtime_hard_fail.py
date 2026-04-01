@@ -122,14 +122,15 @@ class TestEventLogAbsent:
         with pytest.raises(CanonicalStatusNotFoundError):
             get_lane_from_frontmatter(wp_path)
 
-    def test_dashboard_count_wps_by_lane_raises(self, tmp_path: Path) -> None:
-        """Dashboard _count_wps_by_lane should propagate CanonicalStatusNotFoundError."""
+    def test_dashboard_count_wps_by_lane_graceful(self, tmp_path: Path) -> None:
+        """Dashboard _count_wps_by_lane returns planned counts when event log absent."""
         from specify_cli.dashboard.scanner import _count_wps_by_lane
 
         feature_dir = _make_feature_dir(tmp_path)
         tasks_dir = feature_dir / "tasks"
-        with pytest.raises(CanonicalStatusNotFoundError):
-            _count_wps_by_lane(tasks_dir)
+        # Should NOT raise — gracefully defaults all WPs to "planned"
+        counts = _count_wps_by_lane(tasks_dir)
+        assert counts["planned"] == 2  # WP01 + WP02 from _make_feature_dir
 
 
 # ---------------------------------------------------------------------------

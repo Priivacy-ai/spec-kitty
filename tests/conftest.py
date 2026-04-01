@@ -262,6 +262,25 @@ def feature_repo(temp_repo: Path) -> Path:
     (feature_dir / "data-model.md").write_text("Data model", encoding="utf-8")
     (feature_dir / "research.md").write_text("Research", encoding="utf-8")
     write_wp(temp_repo, feature_slug, "planned", "WP01")
+    # Bootstrap event log with planned status for WP01
+    import json
+    from datetime import datetime, UTC
+    event = {
+        "event_id": "01TESTFIXTUREWP01",
+        "feature_slug": feature_slug,
+        "wp_id": "WP01",
+        "from_lane": "planned",
+        "to_lane": "planned",
+        "actor": "test-fixture",
+        "at": datetime.now(UTC).isoformat(),
+        "force": True,
+        "reason": "fixture bootstrap",
+        "evidence": None,
+        "review_ref": None,
+        "execution_mode": "worktree",
+    }
+    events_path = feature_dir / "status.events.jsonl"
+    events_path.write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
     run(["git", "add", "."], cwd=temp_repo)
     run(["git", "commit", "-m", "Initial commit"], cwd=temp_repo)
     return temp_repo

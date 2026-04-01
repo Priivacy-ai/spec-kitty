@@ -39,7 +39,7 @@
 - Measurable success criteria with specific metrics
 - Well-defined scope boundaries (6 out-of-scope items prevent scope creep)
 
-**Ready for**: `/spec-kitty.clarify` or `/spec-kitty.plan`
+**Ready for**: `/spec-kitty.plan`
 
 ## Notes
 

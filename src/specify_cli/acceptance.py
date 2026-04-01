@@ -222,8 +222,12 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
                 continue
             text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
-            # Get lane from frontmatter
-            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            # Get lane from canonical event log
+            from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+            try:
+                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            except CanonicalStatusNotFoundError:
+                lane = "planned"
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(
                 feature=feature,

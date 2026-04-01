@@ -31,7 +31,7 @@
 
 ## Notes
 
-All items passed validation. The specification is ready for `/spec-kitty.clarify` or `/spec-kitty.plan`.
+All items passed validation. The specification is ready for `/spec-kitty.plan`.
 
 ### Validation Summary
 
