@@ -4,9 +4,9 @@ title: Event Registration
 dependencies: []
 requirement_refs:
 - FR-012
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Feature branch from main. No WP dependencies — can implement immediately.
+planning_base_branch: feat/implement-review-skill
+merge_target_branch: feat/implement-review-skill
+branch_strategy: Planning artifacts for this feature were generated on feat/implement-review-skill. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/implement-review-skill unless the human explicitly redirects the landing branch.
 subtasks: [T008, T009, T010, T011, T012]
 history:
 - date: '2026-04-01'

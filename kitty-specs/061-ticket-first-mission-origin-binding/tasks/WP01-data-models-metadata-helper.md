@@ -10,9 +10,9 @@ requirement_refs:
 - FR-015
 - FR-016
 - FR-017
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Feature branch from main. No WP dependencies — can implement immediately.
+planning_base_branch: feat/implement-review-skill
+merge_target_branch: feat/implement-review-skill
+branch_strategy: Planning artifacts for this feature were generated on feat/implement-review-skill. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/implement-review-skill unless the human explicitly redirects the landing branch.
 subtasks: [T001, T002, T003, T004, T005, T006, T007]
 history:
 - date: '2026-04-01'
@@ -21,7 +21,7 @@ history:
 authoritative_surface: src/specify_cli/tracker/
 execution_mode: code_change
 owned_files:
-- src/specify_cli/tracker/origin.py
+- src/specify_cli/tracker/origin_models.py
 - tests/sync/tracker/test_origin_models.py
 - tests/specify_cli/test_feature_metadata_origin.py
 ---
@@ -30,7 +30,7 @@ owned_files:
 
 ## Objective
 
-Create the three origin dataclasses (`OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult`) in `src/specify_cli/tracker/origin.py` and add the `set_origin_ticket()` mutation helper to `src/specify_cli/feature_metadata.py`. Write tests for all of them.
+Create the three origin dataclasses (`OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult`) in `src/specify_cli/tracker/origin_models.py` and add the `set_origin_ticket()` mutation helper to `src/specify_cli/feature_metadata.py`. Write tests for all of them. WP05 will later import these models into `tracker/origin.py` as the public API surface.
 
 This WP establishes the data foundation that all downstream WPs depend on.
 
@@ -53,7 +53,7 @@ This WP establishes the data foundation that all downstream WPs depend on.
 
 **Purpose**: Immutable value object representing one candidate external issue from search.
 
-**File**: `src/specify_cli/tracker/origin.py` (new file)
+**File**: `src/specify_cli/tracker/origin_models.py` (new file)
 
 **Implementation**:
 ```python
@@ -82,7 +82,7 @@ class OriginCandidate:
 
 **Purpose**: Structured result from `search_origin_candidates()` including candidates and routing context.
 
-**File**: `src/specify_cli/tracker/origin.py`
+**File**: `src/specify_cli/tracker/origin_models.py`
 
 ```python
 @dataclass(frozen=True, slots=True)
@@ -99,7 +99,7 @@ class SearchOriginResult:
 
 **Purpose**: Result of `start_mission_from_ticket()` with created feature info + origin metadata.
 
-**File**: `src/specify_cli/tracker/origin.py`
+**File**: `src/specify_cli/tracker/origin_models.py`
 
 ```python
 @dataclass(slots=True)
@@ -190,7 +190,7 @@ This is for static type checking documentation only — `write_meta` works with 
 
 ## Definition of Done
 
-- [ ] `OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult` defined in `tracker/origin.py`
+- [ ] `OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult` defined in `tracker/origin_models.py`
 - [ ] `set_origin_ticket()` implemented in `feature_metadata.py`
 - [ ] `origin_ticket` added to `FeatureMetaOptional`
 - [ ] All dataclass tests pass

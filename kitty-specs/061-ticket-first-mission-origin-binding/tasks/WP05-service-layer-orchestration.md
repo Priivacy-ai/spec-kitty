@@ -8,9 +8,9 @@ requirement_refs:
 - FR-006
 - FR-011
 - FR-014
-planning_base_branch: main
-merge_target_branch: main
-branch_strategy: Feature branch from WP04 (last merged dependency). Use --base WP04 or whichever WP merges last.
+planning_base_branch: feat/implement-review-skill
+merge_target_branch: feat/implement-review-skill
+branch_strategy: Planning artifacts for this feature were generated on feat/implement-review-skill. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/implement-review-skill unless the human explicitly redirects the landing branch.
 subtasks: [T024, T025, T026, T027, T028, T029, T030]
 history:
 - date: '2026-04-01'
@@ -42,7 +42,7 @@ This is the convergence point and the most critical WP — it establishes the pr
 
 - **Spec**: `kitty-specs/061-ticket-first-mission-origin-binding/spec.md` — "Service-Layer API Contract" section (normative)
 - **Plan**: `kitty-specs/061-ticket-first-mission-origin-binding/plan.md` — "Module Layering", "Write ordering", D3 (re-bind semantics)
-- **WP01 output**: `OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult` dataclasses; `set_origin_ticket()` helper
+- **WP01 output**: `OriginCandidate`, `SearchOriginResult`, `MissionFromTicketResult` dataclasses in `tracker/origin_models.py`; `set_origin_ticket()` helper in `feature_metadata.py`. Import models into `origin.py` for the public API surface.
 - **WP02 output**: `emit_mission_origin_bound()` emitter method
 - **WP03 output**: `SaaSTrackerClient.search_issues()`, `.bind_mission_origin()` transport methods
 - **WP04 output**: `create_feature_core()` in `core/feature_creation.py`
