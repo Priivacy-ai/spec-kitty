@@ -225,16 +225,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
                 continue
             text = _read_text_strict(path)
             front, body, padding = split_frontmatter(text)
-            # Get lane from canonical event log
-            from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-            try:
-                lane = get_lane_from_frontmatter(path, warn_on_missing=False)
-            except CanonicalStatusNotFoundError:
-                logger.warning(
-                    "No event log for feature '%s' — defaulting %s to planned",
-                    feature, path.stem,
-                )
-                lane = "planned"
+            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
             relative = path.relative_to(tasks_dir)
             yield WorkPackage(
                 feature=feature,
@@ -473,8 +464,17 @@ def collect_feature_summary(
             )
 
     # Collect WP IDs from task files
+    from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
     expected_wp_ids: List[str] = []
-    for wp in _iter_work_packages(repo_root, feature):
+    try:
+        wp_iter = list(_iter_work_packages(repo_root, feature))
+    except CanonicalStatusNotFoundError:
+        # Event log missing — already reported in activity_issues above.
+        # Cannot iterate WPs without canonical state.
+        logger.warning("Skipping WP iteration for '%s' — no event log", feature)
+        wp_iter = []
+    for wp in wp_iter:
         wp_id = wp.work_package_id or wp.path.stem
         title = (wp.title or "").strip('"')
         expected_wp_ids.append(wp_id)

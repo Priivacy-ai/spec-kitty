@@ -179,11 +179,9 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
         return result
 
     # Step 2: Generate prompt-driven full templates (9 commands)
-    prompt_generation_succeeded = False
     try:
         prompt_written = _generate_prompt_templates(repo_root)
         result.files_written.extend(prompt_written)
-        prompt_generation_succeeded = len(prompt_written) > 0
     except Exception as exc:
         msg = f"_generate_prompt_templates failed: {exc}"
         logger.warning(msg)
@@ -192,12 +190,26 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
 
     written_set: set[Path] = set(result.files_written)
 
-    # Step 3: Delete stale files not in the combined generated set.
-    # Safety: if prompt generation failed, preserve existing prompt-driven
-    # files to avoid destroying working templates.
+    # Step 3: Build the set of prompt files that SHOULD exist for each agent.
+    # Any expected file that wasn't successfully written is preserved during
+    # stale-file cleanup — this prevents partial generation failures or
+    # unavailable templates from destroying working prompt files.
+    from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY
     from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
 
+    expected_prompt_files: set[Path] = set()
     agent_dirs = get_agent_dirs_for_project(repo_root)
+
+    for agent_root, command_subdir in agent_dirs:
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key is None:
+            continue
+        agent_cmd_dir = repo_root / agent_root / command_subdir
+        for command in PROMPT_DRIVEN_COMMANDS:
+            filename = _compute_output_filename(command, agent_key)
+            expected_prompt_files.add(agent_cmd_dir / filename)
+
+    # Step 4: Delete stale files not in the generated or expected-prompt sets
     seen_dirs: set[Path] = set()
 
     for agent_root, command_subdir in agent_dirs:
@@ -210,21 +222,17 @@ def rewrite_agent_shims(repo_root: Path) -> RewriteResult:
         seen_dirs.add(agent_cmd_dir)
         result.agents_processed += 1
 
-        # Remove stale spec-kitty.* files not in the freshly generated set
         for stale_file in sorted(agent_cmd_dir.glob("spec-kitty.*")):
             if stale_file in written_set:
                 continue
 
-            # If prompt generation failed, preserve files for prompt-driven
-            # commands so we don't nuke working templates on partial failure.
-            if not prompt_generation_succeeded:
-                stem = stale_file.stem  # e.g. "spec-kitty.plan"
-                command = stem.removeprefix("spec-kitty.")
-                if command in PROMPT_DRIVEN_COMMANDS:
-                    logger.info(
-                        "Preserving %s (prompt generation unavailable)", stale_file
-                    )
-                    continue
+            # Preserve prompt files that weren't regenerated — they may
+            # still be working templates from a prior successful run.
+            if stale_file in expected_prompt_files:
+                logger.info(
+                    "Preserving %s (not regenerated this run)", stale_file
+                )
+                continue
 
             try:
                 stale_file.unlink()
