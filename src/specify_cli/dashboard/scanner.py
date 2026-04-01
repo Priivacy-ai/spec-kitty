@@ -457,7 +457,24 @@ def _process_wp_file(
         # Legacy layout (tasks/planned/WP01.md → feature_dir is parent.parent.parent)
         lane = get_wp_lane(candidate.parent, canonical_wp_id)
     else:
-        lane = default_lane
+        # No event log at either level — use default_lane only for legacy
+        # features (where the directory structure IS the lane). For flat-task
+        # features the event log is mandatory; let the caller handle it.
+        # candidate is parent.parent of the WP file: for flat layout that's
+        # the feature dir, for legacy layout that's the tasks dir.
+        feature_candidate = (
+            candidate if candidate.name != "tasks" else candidate.parent
+        )
+        if is_legacy_format(feature_candidate):
+            lane = default_lane
+        else:
+            from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+            raise CanonicalStatusNotFoundError(
+                f"Canonical status not found for feature "
+                f"'{feature_candidate.name}'. Run 'spec-kitty agent feature "
+                f"finalize-tasks --feature {feature_candidate.name}' to "
+                f"bootstrap the event log."
+            )
 
     return {
         "id": wp_id,
