@@ -449,8 +449,8 @@ class TestRun:
 
 class TestPolling:
     @patch(
-        "specify_cli.tracker.saas_client._poll_jitter_multiplier",
-        side_effect=[0.9, 1.0, 1.1],
+        "specify_cli.tracker.saas_client.secrets.randbelow",
+        side_effect=[1000, 2000, 3000],  # basis points → jitter factors 0.9, 1.0, 1.1
     )
     @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
@@ -460,7 +460,7 @@ class TestPolling:
         mock_cls: MagicMock,
         mock_monotonic: MagicMock,
         mock_sleep: MagicMock,
-        mock_jitter: MagicMock,
+        mock_randbelow: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_http = MagicMock()
@@ -481,13 +481,13 @@ class TestPolling:
         assert result == {"done": True}
 
         # Verify sleep was called with increasing delays (with jitter)
+        # jitter_factor = 0.8 + (basis_points / 10000)
+        # 1000 bp → 0.9, 2000 bp → 1.0, 3000 bp → 1.1
         sleep_calls = mock_sleep.call_args_list
         assert len(sleep_calls) == 3
-        # delay starts at 1, doubles each iteration
-        # jitter uses the patched multiplier helper
         delays = [c.args[0] for c in sleep_calls]
         assert delays == [0.9, 2.0, 4.4]
-        assert mock_jitter.call_count == 3
+        assert mock_randbelow.call_count == 3
 
     @patch("specify_cli.tracker.saas_client.time.sleep")
     @patch("specify_cli.tracker.saas_client.time.monotonic")
