@@ -138,3 +138,4 @@ Write end-to-end integration tests that wire all layers (transport, service, met
 ## Activity Log
 
 - 2026-04-01T18:17:41Z – unknown – Implementation complete: 14 integration tests, 6 write-ordering invariant tests, byte-level meta.json verification. 101 total feature tests passing.
+- 2026-04-01T18:19:20Z – unknown – Done override: Code merged from worktree; 14 integration tests passing; write-ordering invariant verified byte-for-byte; review approved
