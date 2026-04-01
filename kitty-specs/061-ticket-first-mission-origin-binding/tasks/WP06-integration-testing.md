@@ -134,3 +134,7 @@ Write end-to-end integration tests that wire all layers (transport, service, met
 - Verify T031 uses real config loading, real metadata writes — only HTTP is mocked
 - Verify error messages in T033 are user-actionable
 - Verify T035 checks the offline queue, not just that the emit call was made
+
+## Activity Log
+
+- 2026-04-01T18:17:41Z – unknown – Implementation complete: 14 integration tests, 6 write-ordering invariant tests, byte-level meta.json verification. 101 total feature tests passing.
