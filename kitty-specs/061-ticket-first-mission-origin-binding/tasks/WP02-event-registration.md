@@ -150,3 +150,7 @@ Already handled in T008 — the validators dict in `_PAYLOAD_RULES` covers this.
 - Verify `provider` validator only accepts `"jira"` and `"linear"` (not all SAAS_PROVIDERS)
 - Verify `aggregate_type` is `"Feature"` (not a new aggregate type)
 - Confirm the event is documented as observational telemetry only
+
+## Activity Log
+
+- 2026-04-01T17:59:59Z – unknown – Implementation complete: 15 tests passing. Ready for review.
