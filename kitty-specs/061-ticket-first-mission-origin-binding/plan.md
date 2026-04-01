@@ -56,6 +56,9 @@ kitty-specs/061-ticket-first-mission-origin-binding/
 
 ```
 src/specify_cli/
+├── core/
+│   └── feature_creation.py    # NEW: create_feature_core() + FeatureCreationResult
+│                              #   Extracted from cli/commands/agent/feature.py
 ├── tracker/
 │   ├── origin.py              # NEW: ticket-first origin orchestration
 │   │                          #   - OriginCandidate, SearchOriginResult, MissionFromTicketResult
@@ -66,6 +69,9 @@ src/specify_cli/
 │   ├── saas_service.py        # (unchanged)
 │   ├── service.py             # (unchanged)
 │   └── config.py              # (unchanged)
+├── cli/commands/agent/
+│   └── feature.py             # REFACTOR: create_feature() becomes thin wrapper
+│                              #   around core/feature_creation.create_feature_core()
 ├── feature_metadata.py        # EXTEND: set_origin_ticket() mutation helper,
 │                              #   FeatureMetaOptional TypedDict update
 └── sync/
@@ -73,6 +79,8 @@ src/specify_cli/
                                #   emit_mission_origin_bound(), _PAYLOAD_RULES entry
 
 tests/
+├── specify_cli/core/
+│   └── test_feature_creation.py  # NEW: tests for create_feature_core()
 ├── sync/tracker/
 │   ├── test_origin.py         # NEW: service-layer tests for origin.py
 │   ├── test_saas_client.py    # EXTEND: tests for search_issues(), bind_mission_origin()
@@ -127,24 +135,25 @@ This ensures local metadata can never be ahead of the authoritative SaaS state. 
 
 ### D2: create-feature integration via extracted core function
 
-The existing `create_feature()` in `cli/commands/agent/feature.py` is a 300+ line typer command that returns `None`, emits JSON to stdout, and uses `typer.Exit()` for control flow. That is not a stable service seam.
+The existing `create_feature()` in `cli/commands/agent/feature.py` is a 300+ line typer command that returns `None`, emits JSON to stdout, and uses `typer.Exit()` for control flow. That is not a stable service seam, and the service layer should not depend on CLI-command internals.
 
-**Approach**: Extract the core feature-creation logic from `create_feature()` into a reusable internal function:
-- New function: `_create_feature_core(repo_root, feature_slug, mission, target_branch) -> dict[str, Any]`
-- Returns a structured result dict (feature_dir, feature_slug, meta, etc.) instead of printing to stdout
-- Raises domain exceptions instead of `typer.Exit()`
-- The existing typer command becomes a thin wrapper that calls this function and formats output
+**Approach**: Extract the core feature-creation logic into a neutral module:
+- New module: `src/specify_cli/core/feature_creation.py`
+- New public function: `create_feature_core(repo_root, feature_slug, mission, target_branch) -> FeatureCreationResult`
+- `FeatureCreationResult` is a dataclass with `feature_dir`, `feature_slug`, `feature_number`, `meta`, `target_branch`
+- Raises domain exceptions (e.g., `FeatureCreationError`) instead of `typer.Exit()`
+- The existing typer command in `cli/commands/agent/feature.py` becomes a thin wrapper that calls `create_feature_core()` and formats output
 
-This extraction is a prerequisite work package for the origin orchestration. It is a contained refactor that does not change external CLI behavior.
+This placement in `core/` (alongside `paths.py`, `atomic.py`, `worktree.py`) makes the function importable from any layer without creating a dependency on CLI-command modules. `tracker/origin.py` imports from `core/feature_creation.py`, not from `cli/commands/`.
 
-`start_mission_from_ticket()` then calls `_create_feature_core()` directly, getting a structured result without stdout capture or SystemExit handling.
+This extraction is a prerequisite work package. It is a contained refactor that does not change external CLI behavior.
 
 ### D3: Re-bind semantics
 
-- **Same origin** (same `external_issue_id`): local overwrite + SaaS no-op success
-- **Different origin**: hard error (one origin per mission in v1)
+- **Same origin** (same `external_issue_id`): SaaS returns no-op success, local overwrites identically
+- **Different origin**: SaaS returns 409, service raises hard error (one origin per mission in v1)
 
-The service layer checks `meta.json` before calling SaaS to short-circuit same-origin no-ops locally.
+The service layer always calls SaaS first — it does not inspect local `meta.json` to short-circuit. SaaS is the sole authority for deciding whether a bind is a no-op or a conflict. This is consistent with the SaaS-first write ordering defined above.
 
 ### D4: match_type enum aligned with upstream
 
@@ -164,7 +173,7 @@ The `SaaSTrackerClient` extensions define method signatures and behavioral seman
 | SaaS client transport | `tracker/saas_client.py` | HTTP transport with auth, retry, polling |
 | Metadata writer | `feature_metadata.py` | `write_meta()` atomic writes, `load_meta()` reads |
 | Event emitter | `sync/emitter.py` | Event creation, validation, offline queue routing |
-| Feature creation | `cli/commands/agent/feature.py` | `create_feature()` for mission scaffolding |
+| Feature creation | `core/feature_creation.py` | `create_feature_core()` for mission scaffolding (extracted from CLI command) |
 | Project root | `core/paths.py` | `locate_project_root()` |
 
 ### Upstream (external teams)
@@ -222,7 +231,7 @@ The implementation follows a bottom-up dependency order:
 
 2. **Transport** — `SaaSTrackerClient.search_issues()` and `.bind_mission_origin()`. Depends on foundation data models for result shape. Can be fully tested with mocked HTTP.
 
-3. **create-feature extraction** — Extract `_create_feature_core()` from the typer command in `cli/commands/agent/feature.py`. Returns structured dict, raises domain exceptions. Existing typer command becomes thin wrapper. Prerequisite for orchestration layer.
+3. **create-feature extraction** — Extract `create_feature_core()` into `src/specify_cli/core/feature_creation.py`. Returns `FeatureCreationResult` dataclass, raises `FeatureCreationError`. Existing typer command becomes thin wrapper. Prerequisite for orchestration layer.
 
 4. **Orchestration** — `tracker/origin.py` service functions (`search_origin_candidates`, `bind_mission_origin`, `start_mission_from_ticket`). Depends on transport + foundation + extracted create-feature API. Uses SaaS-first write ordering. This is the normative API surface.
 

@@ -11,14 +11,16 @@
 
 **Rationale**: The `create_feature()` function in `src/specify_cli/cli/commands/agent/feature.py` (line 512) is a 300+ line typer command that handles number allocation, directory creation, meta.json scaffolding, git commit, and event emission. However, it returns `None`, emits JSON to stdout, and uses `typer.Exit()` for control flow — making it unsuitable as a service-layer dependency.
 
-**Approach**: Extract the core logic into `_create_feature_core(repo_root, feature_slug, mission, target_branch) -> dict[str, Any]`:
-- Returns a structured result dict instead of printing to stdout
-- Raises domain exceptions instead of `typer.Exit()`
+**Approach**: Extract the core logic into a neutral module `src/specify_cli/core/feature_creation.py`:
+- Public function: `create_feature_core(repo_root, feature_slug, mission, target_branch) -> FeatureCreationResult`
+- `FeatureCreationResult` dataclass with `feature_dir`, `feature_slug`, `feature_number`, `meta`, `target_branch`
+- Raises domain exceptions (`FeatureCreationError`) instead of `typer.Exit()`
 - The existing typer command becomes a thin wrapper
-- This is a contained refactor — no external CLI behavior changes
+- Placed in `core/` (alongside `paths.py`, `atomic.py`) so any layer can import it without depending on CLI-command modules
 
 **Alternatives considered**:
 - Direct function call with SystemExit catching: Fragile, couples service layer to CLI control flow. Rejected.
+- Private helper inside `cli/commands/agent/feature.py`: Still makes service layer depend on CLI-command internals. Rejected.
 - Subprocess call (`spec-kitty agent feature create-feature --json`): Higher overhead, stdout parsing, harder to test. Rejected.
 - Skip extraction, accept fragility: Violates the service-layer contract this spec establishes. Rejected.
 
