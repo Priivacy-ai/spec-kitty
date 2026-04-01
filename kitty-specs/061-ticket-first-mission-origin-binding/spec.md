@@ -37,7 +37,7 @@ The primary consumer is the `/spec-kitty.specify` slash command and agent workfl
 ### Scenario 2: Agent searches by explicit ticket key
 
 1. Agent calls `search_origin_candidates(repo_root, query_key="IAM-42")`.
-2. Key-based search takes precedence; service returns exactly one candidate with `match_type="key_exact"`.
+2. Key-based search takes precedence; service returns exactly one candidate with `match_type="exact"`.
 3. Agent still presents the single candidate for developer confirmation (confirmation is always required).
 4. Developer confirms. Origin is bound as in Scenario 1.
 
@@ -160,7 +160,7 @@ search_origin_candidates(
 | `title` | `str` | Issue title / summary |
 | `status` | `str` | Current issue status in the provider |
 | `url` | `str` | Deep link to the issue in the provider UI |
-| `match_type` | `str` | `"key_exact"` or `"text_search"` |
+| `match_type` | `str` | `"exact"` (key match) or `"text"` (free-text search) -- aligned with upstream tracker/SaaS contract |
 
 ### bind_mission_origin()
 
@@ -179,10 +179,13 @@ bind_mission_origin(
 
 **Behavior:**
 - Writes additive `origin_ticket` block to `meta.json` via canonical `write_meta()`
-- Calls `SaaSTrackerClient.bind_mission_origin()` to notify the control plane
-- Emits `MissionOriginBound` event via the event emitter
+- Calls `SaaSTrackerClient.bind_mission_origin()` to create the control-plane record (authoritative write)
+- Emits `MissionOriginBound` event via the event emitter (observational telemetry only)
 - Returns the updated metadata dict
-- Idempotent: calling again with the same candidate overwrites the origin_ticket block
+
+**Re-bind semantics:**
+- **Same origin** (same `external_issue_id`): no-op success -- local write overwrites identically, SaaS returns success without creating a duplicate
+- **Different origin** (different `external_issue_id` for an already-bound mission): hard error -- one origin per mission in v1, the caller must unbind first or create a new mission
 
 ### start_mission_from_ticket()
 
@@ -264,12 +267,13 @@ bind_mission_origin(
 
 **Expected success semantics:**
 - Returns confirmation dict with `origin_link_id` and `bound_at` timestamp
+- Same-origin re-bind (same `external_issue_id`): returns success with existing `origin_link_id` (no-op, no duplicate)
 
 **Expected error semantics:**
 
 | HTTP Status | Meaning | CLI Behavior |
 |-------------|---------|-------------|
-| 409 | Origin already bound for this mission | Hard error (one origin per mission in v1) |
+| 409 | Different origin already bound for this mission | Hard error (one origin per mission in v1; caller must unbind first or create a new mission) |
 | 401/403 | Auth failure | Same handling as `search_issues()` |
 
 ## Local Metadata Shape
@@ -314,9 +318,10 @@ A new `MissionOriginBound` event type shall be added to the event emitter system
 
 **Aggregate:** `Feature` (aggregate_id = feature_slug)
 
-This event enables SaaS to:
-- Persist the corresponding `MissionOriginLink` control-plane record
-- Begin lifecycle egress when mission phases advance (Phase 2, out of scope for this feature)
+**Authority rule:** The `SaaSTrackerClient.bind_mission_origin()` API call is the authoritative write path for creating the SaaS-side `MissionOriginLink`. The `MissionOriginBound` event is **observational telemetry only** -- it does not create or replace the control-plane record. Its purposes are:
+- Offline audit trail (queued locally when SaaS is unreachable)
+- Downstream analytics and lifecycle egress triggers (Phase 2, out of scope for this feature)
+- Enabling SaaS to correlate the binding with other telemetry events
 
 ## Assumed Upstream API Dependencies
 
