@@ -266,6 +266,13 @@ properties:
     type: string
     description: Agent role (architect, implementer, reviewer, planner, etc.) - accepts both known roles and custom 
       roles
+  sentinel:
+    type: boolean
+    default: false
+  tags:
+    type: array
+    items:
+      type: string
   capabilities:
     type: array
     description: List of capabilities this agent can perform

@@ -2,10 +2,13 @@
 name: spec-kitty-constitution-doctrine
 description: >-
   Run constitution interview, generation, context, and sync workflows for
-  project governance in Spec Kitty 2.x.
+  project governance in Spec Kitty 3.x. Access doctrine artifacts
+  programmatically via DoctrineService. Resolve agent profiles. Load
+  action-scoped governance context iteratively, not all at once.
   Triggers: "interview for constitution", "generate constitution",
   "sync constitution", "use doctrine", "set up governance",
-  "constitution status", "extract governance config".
+  "constitution status", "extract governance config", "load doctrine",
+  "agent profile", "DoctrineService", "action index".
   Does NOT handle: generic spec writing not tied to governance, direct runtime
   loop advancement, setup/repair diagnostics, or editorial glossary maintenance.
 ---
@@ -13,9 +16,16 @@ description: >-
 # spec-kitty-constitution-doctrine
 
 Manage the constitution lifecycle: interview, generate, context-load, sync,
-and status. The constitution is the single authoritative governance document
-for a Spec Kitty project. All structured config (governance.yaml,
-directives.yaml, references.yaml) is derived from it.
+and status. Access doctrine artifacts programmatically via `DoctrineService`.
+Resolve agent profiles for role-scoped behavior. Load governance context
+iteratively at action boundaries rather than dumping everything upfront.
+
+The constitution is the single authoritative governance document for a Spec
+Kitty project. All structured config (governance.yaml, directives.yaml,
+references.yaml) is derived from it. The doctrine layer (`src/doctrine/`)
+provides the reusable knowledge artifacts (directives, tactics, paradigms,
+styleguides, toolguides, procedures, agent profiles, step contracts) that
+the constitution references.
 
 ---
 
@@ -160,24 +170,136 @@ First-load state is tracked in `.kittify/constitution/context-state.json`.
 Each action (specify, plan, implement, review) has an independent first-load
 timestamp.
 
-### Available Doctrine Assets
+### Doctrine Artifact Kinds
 
-**Paradigms** (from `src/doctrine/paradigms/`):
-- `test-first` — Prefer acceptance-first and red-green-refactor loops
+Doctrine organizes knowledge into 8 artifact kinds. Each kind has a
+dedicated repository in `DoctrineService`, follows two-source loading
+(shipped defaults + project overrides), and is accessible programmatically
+or via CLI.
 
-**Directives** (from `src/doctrine/directives/`):
-- `TEST_FIRST` — Require test-first behavior across acceptance and implementation.
-  References tactics: acceptance-test-first, tdd-red-green-refactor, zombies-tdd.
+**Directives** — Numbered project rules that constrain agent behavior.
+Each directive has a severity (`error`, `warn`, `info`), an `applies_to`
+scope listing which actions it fires on, and may reference tactics.
+Directives are the *what you must do* layer.
+
+```python
+directive = service.directives.get("DIRECTIVE_034")
+# directive.title → "Test-First Development"
+# directive.severity → "warn"
+# directive.applies_to → ["implement", "review"]
+```
+
+```bash
+spec-kitty doctrine list --kind directive
+```
+
+**Tactics** — Reusable implementation approaches that describe *how* to do
+something. Tactics cover testing (TDD, ZOMBIES, acceptance-test-first),
+domain modeling (bounded context, aggregate boundaries), refactoring
+(strangler fig, extract class), review (intent-and-risk-first), and
+planning (problem decomposition, eisenhower). The shipped set includes a
+refactoring sub-catalog.
+
+```python
+tactic = service.tactics.get("tdd-red-green-refactor")
+# tactic.title, tactic.description, tactic.steps
+```
+
+**Paradigms** — High-level development philosophies that group related
+tactics and directives. A paradigm (e.g., `domain-driven-design`) declares
+which tactics it recommends. Paradigms are selected during the constitution
+interview and scope which tactics appear in governance context.
+
+```python
+paradigm = service.paradigms.get("domain-driven-design")
+# paradigm.tactics → ["bounded-context-identification", ...]
+```
+
+**Styleguides** — Language- or domain-specific writing and coding style
+rules. Applied when the constitution's `languages_frameworks` answer
+matches the styleguide's target language.
+
+```python
+styleguide = service.styleguides.get("python-conventions")
+```
+
+**Toolguides** — Operational guidance for specific tools. Teaches agents
+how to use git, pytest, diagramming tools, etc. within the project's
+governance constraints.
+
+```python
+toolguide = service.toolguides.get("efficient-local-tooling")
+```
+
+**Procedures** — Multi-step workflow primitives with prerequisites and
+ordered steps. Procedures are the reusable building blocks that step
+contracts delegate to. They describe a complete mini-workflow (e.g.,
+"refactoring", "test-first-bug-fixing", "situational-assessment").
+
+```python
+procedure = service.procedures.get("refactoring")
+# procedure.steps → ordered list of actions
+# procedure.prerequisites → what must be true before starting
+```
+
+**Agent Profiles** — Role definitions with 6 sections: context_sources,
+purpose, specialization, collaboration, mode_defaults, and
+initialization_declaration. Profiles form a hierarchy (`specializes_from`)
+and support weighted matching against task context (DDR-011 algorithm).
+
+```python
+profile = service.agent_profiles.get("implementer")
+# profile.purpose.mandate → what this agent is responsible for
+# profile.specialization.boundaries → what it should not do
+
+# Or resolve the best match for a task:
+best = service.agent_profiles.find_best_match(task_context)
+```
+
+```bash
+spec-kitty agent profile list
+spec-kitty agent profile show implementer
+```
+
+**Step Contracts** — Structured action definitions that link public actions
+(specify, plan, implement, review) to doctrine artifacts via `DelegatesTo`.
+Each contract defines ordered steps; each step may delegate to a tactic,
+directive, or procedure by kind and candidate list.
+
+```python
+contract = service.mission_step_contracts.get("implement")
+for step in contract.steps:
+    if step.delegates_to:
+        # Load the referenced doctrine artifact
+        artifact = getattr(service, step.delegates_to.kind + "s").get(
+            step.delegates_to.candidates[0]
+        )
+```
+
+### Discovering Available Artifacts
+
+```bash
+# List all artifacts of a kind
+spec-kitty doctrine list --kind directive
+spec-kitty doctrine list --kind tactic
+spec-kitty doctrine list --kind paradigm
+
+# Show detail for one artifact
+spec-kitty doctrine show DIRECTIVE_034
+
+# List agent profiles
+spec-kitty agent profile list
+```
+
+Shipped artifacts live in `src/doctrine/<kind>/shipped/`. Project-local
+overrides live in `.kittify/<kind>/`. Two-source loading merges both,
+with project artifacts taking precedence on field-level merge.
 
 **Template sets** (from `src/doctrine/missions/`):
 - `software-dev-default` — Core development workflow
 - `plan-default` — Goal-oriented planning
 - `documentation-default` — Documentation creation (Divio)
 - `research-default` — Research and evidence gathering
-
-**Styleguides** (from `src/doctrine/styleguides/`):
-- `python-implementation` — Python coding principles
-- `kitty-glossary-writing` — Glossary authoring style
 
 **Default tool registry:** spec-kitty, git, python, pytest, ruff, mypy, poetry
 
@@ -316,6 +438,132 @@ unless `--force` is passed.
 
 ---
 
+## Programmatic Doctrine Access (DoctrineService)
+
+`DoctrineService` is the single entry point for programmatic access to all
+doctrine artifacts. It lazily instantiates repositories on first access.
+
+```python
+from doctrine.service import DoctrineService
+
+service = DoctrineService(shipped_root, project_root)
+```
+
+### Available Repositories
+
+| Property | Returns | Artifacts |
+|---|---|---|
+| `service.agent_profiles` | `AgentProfileRepository` | Agent role profiles with DDR-011 matching |
+| `service.directives` | `DirectiveRepository` | Numbered project rules (TEST_FIRST, etc.) |
+| `service.tactics` | `TacticRepository` | Reusable implementation approaches (TDD, ZOMBIES, etc.) |
+| `service.styleguides` | `StyleguideRepository` | Language/domain writing style guides |
+| `service.toolguides` | `ToolguideRepository` | Tool-specific operational guidance |
+| `service.paradigms` | `ParadigmRepository` | High-level development paradigms |
+| `service.procedures` | `ProcedureRepository` | Multi-step reusable workflow primitives |
+| `service.mission_step_contracts` | `MissionStepContractRepository` | Structured action contracts with delegation |
+
+### Common Repository Operations
+
+All repositories share a consistent pattern:
+
+```python
+# List all artifacts of a kind
+all_tactics = service.tactics.list_all()
+
+# Get a specific artifact by ID
+tactic = service.tactics.get("tdd-red-green-refactor")
+
+# Save a project-local artifact (procedures, step contracts)
+service.procedures.save(my_procedure)
+```
+
+### Agent Profile Resolution
+
+Agent profiles support weighted context-based matching. When the runtime
+needs to assign an agent to a task, it resolves the best profile:
+
+```python
+from doctrine.agent_profiles.profile import TaskContext
+
+context = TaskContext(
+    languages=["python"],
+    frameworks=["pytest", "typer"],
+    file_patterns=["src/**/*.py"],
+    domain_keywords=["cli", "testing"],
+)
+
+profile = service.agent_profiles.find_best_match(context)
+# profile.purpose.mandate → what this agent is responsible for
+# profile.specialization.boundaries → what it should not do
+# profile.initialization_declaration → startup context text
+```
+
+Profiles support hierarchy (`specializes_from` field). A `python-implementer`
+specializes from `implementer`, inheriting base capabilities and adding
+language-specific ones.
+
+### Action-Scoped Doctrine via Action Indices
+
+Each mission action (specify, plan, implement, review) has an action index
+that lists which doctrine artifacts are relevant to that step:
+
+```python
+from doctrine.missions.action_index import load_action_index
+
+index = load_action_index(missions_root, "software-dev", "implement")
+# index.directives → ["TEST_FIRST"]
+# index.tactics → ["tdd-red-green-refactor", "zombies-tdd"]
+# index.procedures → ["implementation-handoff"]
+```
+
+The constitution context builder uses these indices internally. When you call
+`spec-kitty constitution context --action implement`, only the doctrine
+artifacts listed in the implement action index are included.
+
+### MissionStepContract: Structured Action Contracts
+
+Step contracts define the structure of each public action and link to
+doctrine artifacts via `DelegatesTo`:
+
+```python
+contract = service.mission_step_contracts.get("implement")
+for step in contract.steps:
+    if step.delegates_to:
+        # step.delegates_to.kind → ArtifactKind (e.g., "tactic")
+        # step.delegates_to.candidates → ["tdd-red-green-refactor", ...]
+        pass
+```
+
+This is the bridge between the mission execution surface and the doctrine
+knowledge layer. Step contracts say *what* to do; doctrine artifacts say
+*how*.
+
+---
+
+## Iterative Context Loading Pattern
+
+Agents should load doctrine context **iteratively**, not all at once. The
+architecture supports this through depth-controlled context and per-artifact
+retrieval.
+
+### The Pattern
+
+1. **At session init**: Resolve agent profile. Load `initialization_declaration`.
+2. **At each step boundary**: Call `constitution context --action <action>`.
+   First call gets bootstrap (depth-2), subsequent calls get compact (depth-1).
+3. **Mid-step, when guidance needed**: Pull specific tactic or directive by ID
+   through `DoctrineService`.
+4. **Never**: Load the full doctrine catalog into prompt context.
+
+### Why This Matters
+
+Each doctrine artifact consumes tokens. Loading all directives, tactics,
+paradigms, and styleguides at session start wastes context on artifacts that
+are irrelevant to the current action. Action indices exist specifically to
+scope which artifacts matter for each step.
+
+---
+
 ## When Doctrine Constrains Runtime
 
 Doctrine constrains runtime behavior when the constitution has been generated
@@ -342,6 +590,9 @@ Doctrine does NOT constrain when:
    policy. Run `status` to check, `sync` to fix.
 4. **Legacy path assumptions** — canonical path is
    `.kittify/constitution/constitution.md`, not `.kittify/memory/`.
+5. **Upfront context dump** — loading all doctrine at session start wastes
+   tokens and dilutes relevance. Use action-scoped loading and pull specific
+   artifacts on demand.
 
 See `references/doctrine-artifact-structure.md` for the full anti-pattern table.
 

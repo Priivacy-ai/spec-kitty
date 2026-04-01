@@ -1,12 +1,15 @@
 ---
 name: spec-kitty-mission-system
 description: >-
-  Understand how Spec Kitty missions work: the 4 built-in missions, how they
-  define workflows, how missions and work packages relate, how templates are
-  resolved, and how to select the right mission for a project.
+  Understand how Spec Kitty missions work: the 4 built-in mission types, how
+  they define workflows via step contracts and action indices, how missions and
+  work packages relate, how templates are resolved through the 5-tier chain,
+  and how doctrine artifacts (procedures, tactics, directives) compose mission
+  behavior.
   Triggers: "what missions are available", "how do missions work",
   "which mission should I use", "explain the mission system",
-  "what is a mission", "change the mission", "mission templates".
+  "what is a mission", "change the mission", "mission templates",
+  "step contracts", "action index", "mission procedures".
   Does NOT handle: runtime loop advancement (use runtime-next),
   setup or repair (use setup-doctor), governance (use constitution-doctrine),
   or glossary curation (use glossary-context).
@@ -261,6 +264,115 @@ Scaffolding files for artifacts:
 - `plan-template.md` — Starting structure for plan.md
 - `task-prompt-template.md` — Starting structure for WP prompt files
 - `tasks-template.md` — Starting structure for tasks.md
+
+---
+
+## Doctrine Composition Layer
+
+Missions are backed by structured doctrine artifacts that define action
+behavior and link to reusable knowledge.
+
+### MissionStepContract (Action Contracts)
+
+Each public action (specify, plan, implement, review) has a step contract
+that defines its internal structure:
+
+```yaml
+# implement.step-contract.yaml
+id: implement
+action: implement
+mission: software-dev
+schema_version: "1.0"
+steps:
+  - id: setup-workspace
+    description: "Create or enter the WP workspace"
+  - id: implement-code
+    description: "Write code following governance constraints"
+    delegates_to:
+      kind: tactic
+      candidates: [tdd-red-green-refactor, zombies-tdd]
+  - id: validate
+    description: "Run tests and lint checks"
+```
+
+The `delegates_to` field links a step to doctrine artifacts. This is how
+mission behavior connects to the knowledge layer: the contract says *what*
+to do, the referenced tactic/directive/procedure says *how*.
+
+### Procedure (Reusable Workflow Primitives)
+
+Procedures are multi-step doctrine artifacts with prerequisites and ordered
+steps. They are the reusable building blocks that step contracts delegate to.
+Each procedure describes a complete mini-workflow (e.g., a refactoring
+sequence, a test-first bug fix, a situational assessment).
+
+Procedures live in `src/doctrine/procedures/shipped/` (shipped) or
+`.kittify/procedures/` (project-local). Access via `DoctrineService`:
+
+```python
+procedure = service.procedures.get("refactoring")
+# procedure.steps → ordered list of actions
+# procedure.prerequisites → what must be true before starting
+```
+
+```bash
+spec-kitty doctrine list --kind procedure
+```
+
+### Agent Profiles (Role-Based WP Assignment)
+
+Agent profiles define roles, specializations, and boundaries for work
+package assignment. Each profile has 6 sections: context_sources, purpose,
+specialization (languages, frameworks, boundaries), collaboration (handoffs,
+outputs), mode_defaults, and initialization_declaration.
+
+Profiles form a hierarchy via `specializes_from` — a language-specific
+profile inherits from a general implementer profile, adding language-scoped
+capabilities. The DDR-011 algorithm resolves which profile best matches a
+given task context based on weighted signals (language, framework,
+file-pattern, keyword, exact-id).
+
+The `mission.yaml` `task_types` section maps WP actions to agent roles:
+
+```yaml
+task_types:
+  implement:
+    agent_role: implementer
+  review:
+    agent_role: reviewer
+  plan:
+    agent_role: planner
+```
+
+```bash
+# Discover available profiles
+spec-kitty agent profile list
+
+# Inspect a profile's boundaries and initialization context
+spec-kitty agent profile show <profile-id>
+
+# Visualize the specialization hierarchy
+spec-kitty agent profile hierarchy
+```
+
+### Action Indices (Doctrine Scoping)
+
+Each mission action has an index that declares which doctrine artifacts are
+relevant to that step:
+
+```yaml
+# src/doctrine/missions/software-dev/actions/implement/index.yaml
+action: implement
+directives: [TEST_FIRST]
+tactics: [tdd-red-green-refactor, zombies-tdd, acceptance-test-first]
+styleguides: [python-implementation]
+toolguides: []
+procedures: [implementation-handoff]
+```
+
+The constitution context builder uses these indices to scope what gets
+injected into the agent prompt at each step. This prevents agents from
+seeing review-scoped doctrine during implementation and vice versa.
 
 ---
 
