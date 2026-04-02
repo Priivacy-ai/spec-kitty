@@ -24,7 +24,7 @@ history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
   action: Prompt generated via /spec-kitty.tasks
-agent_profile: implementer
+agent_profile: python-implementer
 authoritative_surface: tests/missions/
 execution_mode: code_change
 lane: planned
