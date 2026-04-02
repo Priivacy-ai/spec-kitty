@@ -151,3 +151,4 @@ task_type: implement
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-02T20:33:14Z – unknown – shell_pid=2451078 – All 4 test files updated to use MissionTemplateRepository.default_missions_root(). 60/60 mission tests pass. 36 pre-existing content failures in test_command_template_cleanliness.py deferred to WP02+.
