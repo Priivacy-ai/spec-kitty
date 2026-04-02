@@ -274,7 +274,7 @@ class TestSearchIssues:
 
         args, _ = mock_http.request.call_args
         assert args[0] == "POST"
-        assert args[1].endswith("/api/v1/tracker/issues/search/")
+        assert args[1].endswith("/api/v1/tracker/issue-search/")
 
 
 # ---------------------------------------------------------------------------
@@ -433,7 +433,7 @@ class TestBindMissionOrigin:
 
         args, _ = mock_http.request.call_args
         assert args[0] == "POST"
-        assert args[1].endswith("/api/v1/tracker/origin/bind/")
+        assert args[1].endswith("/api/v1/tracker/mission-origin/bind/")
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_payload_contains_all_fields(
@@ -456,4 +456,5 @@ class TestBindMissionOrigin:
         assert payload["external_issue_id"] == "12345"
         assert payload["external_issue_key"] == "PROJ-42"
         assert payload["external_issue_url"] == "https://jira.example.com/browse/PROJ-42"
-        assert payload["title"] == "Fix login bug"
+        assert payload["external_title"] == "Fix login bug"
+        assert payload["external_status"] == ""
