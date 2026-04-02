@@ -17,7 +17,9 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '2451078'
+shell_pid: "2451078"
+agent: "opencode"
+role: "reviewer"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -152,3 +154,4 @@ task_type: implement
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
 - 2026-04-02T20:33:14Z – unknown – shell_pid=2451078 – All 4 test files updated to use MissionTemplateRepository.default_missions_root(). 60/60 mission tests pass. 36 pre-existing content failures in test_command_template_cleanliness.py deferred to WP02+.
+- 2026-04-02T20:48:11Z – opencode – shell_pid=2451078 – Started review via workflow command
