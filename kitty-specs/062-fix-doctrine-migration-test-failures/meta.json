@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-04-02T16:48:38.348783+00:00",
+  "friendly_name": "fix doctrine migration test failures",
+  "mission": "software-dev",
+  "mission_number": "062",
+  "mission_slug": "062-fix-doctrine-migration-test-failures",
+  "slug": "062-fix-doctrine-migration-test-failures",
+  "target_branch": "feature/agent-profile-implementation-rebased"
+}
