@@ -8,12 +8,16 @@ requirement_refs:
 planning_base_branch: feature/agent-profile-implementation-rebased
 merge_target_branch: feature/agent-profile-implementation-rebased
 branch_strategy: Planning artifacts for this mission were generated on feature/agent-profile-implementation-rebased. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feature/agent-profile-implementation-rebased unless the human explicitly redirects the landing branch.
+base_branch: feature/agent-profile-implementation-rebased
+base_commit: 23e167d263e8056dde6a92d3adb90d8e56d9d634
+created_at: '2026-04-02T20:26:27.188157+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 - T005
+shell_pid: '2451078'
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
