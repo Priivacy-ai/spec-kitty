@@ -1,7 +1,7 @@
 {
-  "event_count": 11,
-  "last_event_id": "01KN7YCTV7Z5JTR6NJAX82P5M6",
-  "materialized_at": "2026-04-02T20:33:14.088052+00:00",
+  "event_count": 12,
+  "last_event_id": "01KN7Z877FHNR1G4A4EW18MPBJ",
+  "materialized_at": "2026-04-02T20:48:11.504183+00:00",
   "mission_slug": "062-fix-doctrine-migration-test-failures",
   "summary": {
     "approved": 0,
@@ -9,9 +9,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
+    "for_review": 0,
     "in_progress": 0,
-    "in_review": 0,
+    "in_review": 1,
     "planned": 7
   },
   "work_packages": {
@@ -20,12 +20,12 @@
         "model": "unknown",
         "profile": "unknown",
         "role": "unknown",
-        "tool": "user"
+        "tool": "opencode"
       },
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KN7YCTV7Z5JTR6NJAX82P5M6",
-      "last_transition_at": "2026-04-02T20:33:14.087845+00:00"
+      "force_count": 2,
+      "lane": "in_review",
+      "last_event_id": "01KN7Z877FHNR1G4A4EW18MPBJ",
+      "last_transition_at": "2026-04-02T20:48:11.503974+00:00"
     },
     "WP02": {
       "actor": {
