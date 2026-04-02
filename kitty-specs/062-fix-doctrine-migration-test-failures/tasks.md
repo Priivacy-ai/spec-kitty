@@ -25,7 +25,7 @@
 ### Included Subtasks
 
 - [x] T001 [P] Fix `tests/missions/test_mission_software_dev_integration.py` path (lines 34-40)
-- [ ] T002 [P] Fix `tests/missions/test_documentation_mission.py` path (lines 12-13, 19)
+- [x] T002 [P] Fix `tests/missions/test_documentation_mission.py` path (lines 12-13, 19)
 - [ ] T003 [P] Fix `tests/missions/test_documentation_templates.py` path (line 11)
 - [ ] T004 [P] Fix `tests/specify_cli/test_command_template_cleanliness.py` path
 - [ ] T005 Run all 4 files and verify zero failures
