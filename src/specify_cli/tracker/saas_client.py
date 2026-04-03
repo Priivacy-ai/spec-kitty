@@ -98,8 +98,8 @@ class SaaSTrackerClient:
     _PUSH_PATH = "/api/v1/tracker/push/"
     _RUN_PATH = "/api/v1/tracker/run/"
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
-    _SEARCH_ISSUES_PATH = "/api/v1/tracker/issues/search/"
-    _BIND_ORIGIN_PATH = "/api/v1/tracker/origin/bind/"
+    _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
+    _BIND_ORIGIN_PATH = "/api/v1/tracker/mission-origin/bind/"
 
     # ----- low-level request helpers -----
 
@@ -354,6 +354,7 @@ class SaaSTrackerClient:
         external_issue_key: str,
         external_issue_url: str,
         title: str,
+        external_status: str = "",
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """POST bind endpoint — create MissionOriginLink on SaaS.
@@ -370,7 +371,8 @@ class SaaSTrackerClient:
             "external_issue_id": external_issue_id,
             "external_issue_key": external_issue_key,
             "external_issue_url": external_issue_url,
-            "title": title,
+            "external_title": title,
+            "external_status": external_status,
         }
         response = self._request_with_retry(
             "POST",

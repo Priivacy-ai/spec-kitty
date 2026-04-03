@@ -246,6 +246,7 @@ def bind_mission_origin(
             external_issue_key=candidate.external_issue_key,
             external_issue_url=candidate.url,
             title=candidate.title,
+            external_status=candidate.status,
         )
     except SaaSTrackerClientError as exc:
         raise OriginBindingError(str(exc)) from exc
