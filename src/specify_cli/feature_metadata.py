@@ -61,6 +61,7 @@ class FeatureMetaOptional(TypedDict, total=False):
     documentation_state: dict[str, Any]
     origin_ticket: dict[str, Any]
     source_description: str
+    mission_branch: str
 
 
 # ---------------------------------------------------------------------------
