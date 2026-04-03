@@ -422,6 +422,7 @@ def _process_wp_file(
             "lane": default_lane,
             "subtasks": [],
             "agent": "",
+            "model": "",
             "assignee": "",
             "phase": "",
             "prompt_markdown": f"**Encoding Error**\n\n{error}",
@@ -474,12 +475,27 @@ def _process_wp_file(
                 f"bootstrap the event log."
             )
 
+    agent_raw = frontmatter.get("agent", "")
+    # Normalize structured agent mapping (e.g. {tool: claude, model: opus, ...}) to tool string
+    if isinstance(agent_raw, dict):
+        agent_str = agent_raw.get("tool", "")
+        model_str = agent_raw.get("model", "")
+    else:
+        agent_str = str(agent_raw) if agent_raw else ""
+        model_str = ""
+
+    # Also check top-level frontmatter 'model' key as fallback
+    if not model_str:
+        model_str = str(frontmatter.get("model", "")) if frontmatter.get("model") else ""
     return {
         "id": wp_id,
         "title": title,
         "lane": lane,
         "subtasks": frontmatter.get("subtasks", []),
-        "agent": frontmatter.get("agent", ""),
+        "agent": agent_str,
+        "model": model_str,
+        "agent_profile": frontmatter.get("agent_profile", ""),
+        "role": frontmatter.get("role", ""),
         "assignee": frontmatter.get("assignee", ""),
         "phase": frontmatter.get("phase", ""),
         "prompt_markdown": prompt_body.strip(),

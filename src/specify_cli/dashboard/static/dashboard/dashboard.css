@@ -495,6 +495,12 @@ body {
 .lane.approved .card { border-left-color: var(--soft-peach); }
 .lane.done .card { border-left-color: var(--grassy-green); }
 
+/* In-review cards: darker purple border on ALL edges to signal active review */
+.card.in-review {
+    border: 2px solid #9b6bb0;
+    border-left-width: 4px;
+}
+
 .card-id {
     font-weight: 600;
     color: #6b7280;
@@ -533,6 +539,24 @@ body {
 .badge.subtasks {
     background: var(--lavender);
     color: #5a3a6e;
+}
+
+.badge.model {
+    background: #fef3c7;
+    color: #92400e;
+}
+
+.agent-identity-section {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: wrap;
+}
+
+.agent-identity-label {
+    font-weight: 600;
+    font-size: 0.8em;
+    color: #6b7280;
 }
 
 .empty-state {

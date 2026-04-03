@@ -417,7 +417,10 @@ function loadKanban() {
 }
 
 function renderKanban(lanes) {
-    const total = lanes.planned.length + lanes.doing.length + lanes.for_review.length + (lanes.approved || []).length + lanes.done.length;
+    const inReviewTasks = lanes.in_review || [];
+    const forReviewTasks = lanes.for_review || [];
+    const reviewColumnTasks = forReviewTasks.concat(inReviewTasks);
+    const total = lanes.planned.length + lanes.doing.length + reviewColumnTasks.length + (lanes.approved || []).length + lanes.done.length;
     const completed = lanes.done.length;
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
 
@@ -440,7 +443,7 @@ function renderKanban(lanes) {
         </div>
         <div class="status-card review">
             <div class="status-label">Review</div>
-            <div class="status-value">${lanes.for_review.length}</div>
+            <div class="status-value">${reviewColumnTasks.length}</div>
         </div>
         <div class="status-card approved">
             <div class="status-label">Approved</div>
@@ -461,17 +464,23 @@ function renderKanban(lanes) {
         </div>
     `;
 
-    const createCard = (task) => `
-        <div class="card" role="button">
+    const createCard = (task) => {
+        const isInReview = task.lane === 'in_review';
+        const cardClass = isInReview ? 'card in-review' : 'card';
+        return `
+        <div class="${cardClass}" role="button">
             <div class="card-id">${task.id}</div>
             <div class="card-title">${task.title}</div>
             <div class="card-meta">
-                ${task.agent ? `<span class="badge agent">${task.agent}</span>` : ''}
+                ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
+                ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
+                ${task.role ? `<span class="badge role">${escapeHtml(task.role)}</span>` : ''}
                 ${task.subtasks && task.subtasks.length > 0 ?
                   `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>` : ''}
             </div>
         </div>
     `;
+    };
 
     document.getElementById('kanban-board').innerHTML = `
         <div class="lane planned">
@@ -491,9 +500,9 @@ function renderKanban(lanes) {
         <div class="lane for_review">
             <div class="lane-header">
                 <span>👀 For Review</span>
-                <span class="count">${lanes.for_review.length}</span>
+                <span class="count">${reviewColumnTasks.length}</span>
             </div>
-            <div>${lanes.for_review.length === 0 ? '<div class="empty-state">No tasks</div>' : lanes.for_review.map(createCard).join('')}</div>
+            <div>${reviewColumnTasks.length === 0 ? '<div class="empty-state">No tasks</div>' : reviewColumnTasks.map(createCard).join('')}</div>
         </div>
         <div class="lane approved">
             <div class="lane-header">
@@ -511,10 +520,18 @@ function renderKanban(lanes) {
         </div>
     `;
 
-    ['planned', 'doing', 'for_review', 'approved', 'done'].forEach(laneName => {
+    // Bind click handlers — for_review lane now contains combined reviewColumnTasks
+    const laneTaskMap = {
+        'planned': lanes.planned,
+        'doing': lanes.doing,
+        'for_review': reviewColumnTasks,
+        'approved': lanes.approved || [],
+        'done': lanes.done,
+    };
+    Object.entries(laneTaskMap).forEach(([laneName, tasks]) => {
         const laneCards = document.querySelectorAll(`.lane.${laneName} .card`);
         laneCards.forEach((card, index) => {
-            const task = lanes[laneName][index];
+            const task = tasks[index];
             if (!task) return;
             if (!card.hasAttribute('tabindex')) {
                 card.setAttribute('tabindex', '0');
@@ -561,12 +578,22 @@ function showPromptModal(task) {
     if (metaEl) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
-        if (task.agent) metaItems.push(`<span>Agent: ${escapeHtml(task.agent)}</span>`);
         if (task.subtasks && task.subtasks.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
         if (task.prompt_path) metaItems.push(`<span>Source: ${escapeHtml(task.prompt_path)}</span>`);
+
+        // Agent Identity section — only rendered when at least one identity field is present
+        const identityBadges = [];
+        if (task.agent) identityBadges.push(`<span class="badge agent">${escapeHtml(task.agent)}</span>`);
+        if (task.agent_profile) identityBadges.push(`<span class="badge profile">${escapeHtml(task.agent_profile)}</span>`);
+        if (task.role) identityBadges.push(`<span class="badge role">${escapeHtml(task.role)}</span>`);
+        if (task.model) identityBadges.push(`<span class="badge model">${escapeHtml(task.model)}</span>`);
+
+        if (identityBadges.length > 0) {
+            metaItems.push(`<span class="agent-identity-section"><span class="agent-identity-label">Agent:</span> ${identityBadges.join(' ')}</span>`);
+        }
 
         if (metaItems.length > 0) {
             metaEl.innerHTML = metaItems.join('');
@@ -1244,6 +1271,7 @@ function fetchData(isInitialLoad = false) {
                 updateFeatureList(data.features, data.active_feature_id || null);
             } else {
                 updateFeatureListSilent(data.features);
+            }
 
                 // Refresh kanban board if currently viewing it
                 if (currentPage === 'kanban' && !isConstitutionView && currentFeature) {
