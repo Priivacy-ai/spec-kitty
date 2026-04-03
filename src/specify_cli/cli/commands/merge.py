@@ -433,6 +433,21 @@ def merge_workspace_per_wp(
     # Find all WP worktrees (this function also uses get_main_repo_root internally)
     wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
 
+    # Evaluate merge gates before proceeding.
+    from specify_cli.policy.config import load_policy_config as _load_pol
+    from specify_cli.policy.merge_gates import evaluate_merge_gates as _eval_gates
+
+    _pol = _load_pol(main_repo)
+    _wp_ids = [wp_id for _, wp_id, _ in wp_workspaces]
+    _feature_dir = main_repo / "kitty-specs" / feature_slug
+    _gate_eval = _eval_gates(_feature_dir, feature_slug, _wp_ids, _pol.merge_gates, main_repo)
+    for _g in _gate_eval.gates:
+        _icon = "✓" if _g.verdict == "pass" else "⚠" if not _g.blocking else "✗"
+        console.print(f"  {_icon} Gate {_g.gate_name}: {_g.details}")
+    if not _gate_eval.overall_pass:
+        console.print("\n[red]Error:[/red] Merge gates failed. Use --force to override.")
+        raise typer.Exit(1)
+
     # Filter out already-completed WPs if resuming
     if resume_state and resume_state.completed_wps:
         completed_set = set(resume_state.completed_wps)
@@ -748,6 +763,24 @@ def _run_lane_based_merge(
     console.print(f"[bold]Lane-based merge for {feature_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
+
+    # Evaluate merge gates before proceeding.
+    from specify_cli.policy.config import load_policy_config
+    from specify_cli.policy.merge_gates import evaluate_merge_gates
+
+    _policy = load_policy_config(main_repo)
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    gate_eval = evaluate_merge_gates(
+        feature_dir, feature_slug, all_wp_ids, _policy.merge_gates, main_repo,
+    )
+    for g in gate_eval.gates:
+        icon = "[green]✓[/green]" if g.verdict == "pass" else "[yellow]⚠[/yellow]" if not g.blocking else "[red]✗[/red]"
+        console.print(f"  {icon} Gate {g.gate_name}: {g.details}")
+    if not gate_eval.overall_pass:
+        console.print("\n[red]Error:[/red] Merge gates failed. Use --force to override.")
+        raise typer.Exit(1)
+    for w in gate_eval.warnings:
+        console.print(f"  [yellow]Warning:[/yellow] {w}")
 
     # Step 1: Merge all lane branches into mission branch.
     all_lanes_ok = True

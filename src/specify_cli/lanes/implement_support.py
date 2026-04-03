@@ -76,6 +76,10 @@ def create_lane_workspace(
         lanes_manifest=lanes_manifest,
     )
 
+    # Install pre-commit ownership guard.
+    from specify_cli.policy.hook_installer import install_commit_guard
+    install_commit_guard(workspace_path, repo_root)
+
     lane = lanes_manifest.lane_for_wp(wp_id)
     lane_id = lane.lane_id if lane else "unknown"
 

@@ -1744,6 +1744,40 @@ def finalize_tasks(
                     f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)"
                 )
 
+            # Compute parallelization risk report
+            from specify_cli.policy.config import load_policy_config
+            from specify_cli.policy.risk_scorer import compute_risk_report
+
+            _policy = load_policy_config(repo_root)
+            risk_report = compute_risk_report(
+                lanes_manifest, wp_bodies=wp_bodies, policy=_policy.risk,
+            )
+            if risk_report.overall_score > 0 and not json_output:
+                console.print(
+                    f"[yellow]⚠[/yellow] Parallelization risk: {risk_report.overall_score:.2f} "
+                    f"(threshold: {risk_report.threshold:.2f})"
+                )
+                for pr in risk_report.lane_pair_risks:
+                    if pr.score > 0:
+                        console.print(f"  {pr.lane_a} ↔ {pr.lane_b}: {pr.score:.2f}")
+                        for d in pr.shared_parent_dirs[:3]:
+                            console.print(f"    shared dir: {d}")
+                        for c in pr.import_coupling[:3]:
+                            console.print(f"    coupling: {c}")
+            if risk_report.exceeds_threshold and _policy.risk.mode == "block":
+                error_msg = (
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds "
+                    f"threshold {risk_report.threshold:.2f}. Use --force to override."
+                )
+                if json_output:
+                    _emit_json({"error": error_msg, "risk_report": {
+                        "overall_score": risk_report.overall_score,
+                        "threshold": risk_report.threshold,
+                    }})
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                raise typer.Exit(1)
+
         try:
             # Build list of all files to commit via safe_commit
             files_to_commit = []
