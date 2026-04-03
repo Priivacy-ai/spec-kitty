@@ -13,12 +13,12 @@ from typing import Any
 import jsonschema
 from ruamel.yaml import YAML
 import pytest
+
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
+DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 SCHEMA_PATH = DOCTRINE_ROOT / "schemas" / "procedure.schema.yaml"
 
 _SCAN_SUBDIRS = ("shipped", "_proposed")

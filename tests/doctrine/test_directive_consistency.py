@@ -14,13 +14,14 @@ import pytest
 import jsonschema
 from ruamel.yaml import YAML
 
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT, REPO_ROOT
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-_DOCTRINE_ROOT = REPO_ROOT / "src" / "doctrine"
+_DOCTRINE_ROOT = DOCTRINE_SOURCE_ROOT
 
 PROFILES_DIR = _DOCTRINE_ROOT / "agent_profiles" / "shipped"
-DIRECTIVE_SCHEMA = REPO_ROOT / "src" / "doctrine" / "schemas" / "directive.schema.yaml"
+DIRECTIVE_SCHEMA = _DOCTRINE_ROOT / "schemas" / "directive.schema.yaml"
 
 # Scan both shipped and _proposed for each artifact type
 _DIRECTIVES_DIRS = [_DOCTRINE_ROOT / "directives" / d for d in ("shipped", "_proposed")]

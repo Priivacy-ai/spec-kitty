@@ -4,12 +4,12 @@ from __future__ import annotations
 
 from pathlib import Path
 import pytest
+
+from tests.doctrine.conftest import DOCTRINE_SOURCE_ROOT
+
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
-
-
-REPO_ROOT = Path(__file__).resolve().parents[2]
-STRUCTURE_DIR = REPO_ROOT / "src" / "doctrine" / "templates" / "structure"
+STRUCTURE_DIR = DOCTRINE_SOURCE_ROOT / "templates" / "structure"
 
 
 def test_structure_templates_exist() -> None:
