@@ -211,6 +211,20 @@ def test_parse_agent_identity_compact_four_part_string() -> None:
     assert ai.role == "implementer"
 
 
+def test_parse_agent_identity_compact_four_part_string() -> None:
+    """Compact --agent string is split into the four identity fields.
+
+    Verifies the real-world pattern used in WP frontmatter and CLI invocations:
+      --agent claude:opus-4-6:python-implementer:implementer
+    """
+    ai = parse_agent_identity(agent="claude:opus-4-6:python-implementer:implementer")
+    assert ai is not None
+    assert ai.tool == "claude"
+    assert ai.model == "opus-4-6"
+    assert ai.profile == "python-implementer"
+    assert ai.role == "implementer"
+
+
 def test_parse_agent_identity_mutual_exclusion_raises() -> None:
     import typer
 
