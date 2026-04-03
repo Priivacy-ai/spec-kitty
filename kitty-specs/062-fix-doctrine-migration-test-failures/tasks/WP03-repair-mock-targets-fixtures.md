@@ -13,6 +13,9 @@ subtasks:
 - T010
 - T011
 - T012
+agent: "opencode"
+role: "reviewer"
+shell_pid: "191531"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -114,3 +117,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-03T14:37:33Z – opencode – T010 fixed (_proposed/ → shipped/), T009/T011 already passing, T012 all 43 tests pass
+- 2026-04-03T14:38:03Z – opencode:unknown:generic:unknown – shell_pid=191531 – Started review via workflow command
+- 2026-04-03T14:38:16Z – opencode – shell_pid=191531 – Review passed: Implementation committed directly to base branch (single-file path fix). _PROPOSED_DIR→_SHIPPED_DIR matches actual filesystem. T009/T011 non-issues. 43/43 pass.
+- 2026-04-03T16:47:45Z – opencode – shell_pid=191531 – Moved to done

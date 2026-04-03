@@ -114,7 +114,7 @@ def test_accept_command_delegates_to_toplevel(mock_locate: MagicMock, mock_accep
 
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
-        feature=None,
+        mission=None,
         mode="auto",
         actor=None,
         test=[],
@@ -140,7 +140,7 @@ def test_accept_command_passes_flags(mock_locate: MagicMock, mock_accept: MagicM
 
     # Verify all flags passed to top-level accept
     mock_accept.assert_called_once_with(
-        feature="001-test",
+        mission="001-test",
         mode="checklist",
         actor=None,
         test=[],
@@ -190,7 +190,7 @@ def test_merge_command_delegates_to_toplevel(
         push=False,
         target_branch="main",
         dry_run=False,
-        feature=None,
+        mission="",
         resume=False,
         abort=False,
     )
@@ -278,7 +278,7 @@ def test_merge_command_passes_all_flags(
         push=True,
         target_branch="develop",  # Parameter name differs
         dry_run=True,
-        feature="001-test",
+        mission="001-test",
         resume=False,
         abort=False,
     )
@@ -461,7 +461,7 @@ def test_accept_command_with_all_flags_console_output(mock_locate: MagicMock, mo
 
     # Verify top-level accept was called
     mock_accept.assert_called_once_with(
-        feature="001-test",
+        mission="001-test",
         mode="checklist",
         actor=None,
         test=[],

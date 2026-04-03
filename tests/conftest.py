@@ -48,12 +48,53 @@ def pytest_configure(config: pytest.Config) -> None:
         "markers",
         "adversarial: adversarial scenarios for merge and dependency handling",
     )
+    config.addinivalue_line(
+        "markers",
+        "real_worktree_detection: opt out of autouse worktree detection neutralization",
+    )
 
 
 @pytest.fixture(autouse=True)
 def _enable_saas_sync_feature_flag(monkeypatch: pytest.MonkeyPatch) -> None:
     """Keep legacy sync/auth tests enabled unless a test opts out explicitly."""
     monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+
+
+@pytest.fixture(autouse=True)
+def _neutralize_worktree_detection(request, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent worktree detection from failing tests run inside a worktree.
+
+    The ``@require_main_repo`` decorator checks the physical CWD for a
+    ``.worktrees`` path component.  When the test suite itself runs inside
+    a spec-kitty worktree (e.g. during WP implementation), every CLI
+    invocation via ``CliRunner`` inherits that CWD and is incorrectly
+    rejected.  Patching ``detect_execution_context`` to always return
+    MAIN_REPO makes the tests location-independent.
+
+    Tests that explicitly test worktree detection should use the
+    ``@pytest.mark.real_worktree_detection`` marker to opt out.
+    """
+    if "real_worktree_detection" in {m.name for m in request.node.iter_markers()}:
+        return
+
+    from specify_cli.core.context_validation import (
+        CurrentContext,
+        ExecutionContext,
+    )
+
+    def _always_main_repo(cwd=None):
+        return CurrentContext(
+            location=ExecutionContext.MAIN_REPO,
+            cwd=Path.cwd(),
+            repo_root=None,
+            worktree_name=None,
+            worktree_path=None,
+        )
+
+    monkeypatch.setattr(
+        "specify_cli.core.context_validation.detect_execution_context",
+        _always_main_repo,
+    )
 
 
 def _venv_python(venv_dir: Path) -> Path:

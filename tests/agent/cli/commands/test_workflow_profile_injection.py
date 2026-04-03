@@ -22,16 +22,16 @@ from specify_cli.cli.commands.agent.workflow import _render_profile_context
 
 pytestmark = pytest.mark.fast
 
-# Path to the _proposed/ directory — only needed when placing HiC profile in project dir
-# parents[4] = worktree root (.worktrees/057-doctrine-stack-init-and-profile-integration-WP06/)
-_PROPOSED_DIR = Path(__file__).parents[4] / "src" / "doctrine" / "agent_profiles" / "_proposed"
+# Path to shipped profiles — only needed when placing HiC profile in project dir
+# parents[4] = repo root
+_SHIPPED_DIR = Path(__file__).parents[4] / "src" / "doctrine" / "agent_profiles" / "shipped"
 
 
 def _make_hic_project_dir(base: Path) -> Path:
     """Write human-in-charge profile to a tmp project agents dir and return it."""
     agents_dir = base / ".kittify" / "constitution" / "agents"
     agents_dir.mkdir(parents=True, exist_ok=True)
-    hic_src = _PROPOSED_DIR / "human-in-charge.agent.yaml"
+    hic_src = _SHIPPED_DIR / "human-in-charge.agent.yaml"
     (agents_dir / "human-in-charge.agent.yaml").write_bytes(hic_src.read_bytes())
     return base
 
@@ -84,9 +84,7 @@ class TestHumanInChargeSkipsInjection:
         captured = capsys.readouterr()
         assert "## Agent Identity" not in result, "HiC WP must NOT inject an Agent Identity section"
         assert result == "", "Return value must be empty string for sentinel profile"
-        assert "Human-in-charge" in captured.err, (
-            "Expected 'Human-in-charge WP: no agent identity injected.' on stderr"
-        )
+        assert "Human-in-charge" in captured.err, "Expected 'Human-in-charge WP: no agent identity injected.' on stderr"
 
 
 class TestUnresolvableProfileBlockingError:

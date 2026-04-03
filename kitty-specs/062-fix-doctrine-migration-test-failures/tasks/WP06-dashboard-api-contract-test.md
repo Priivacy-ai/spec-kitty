@@ -12,6 +12,9 @@ subtasks:
 - T020
 - T021
 - T022
+agent: "opencode"
+role: "reviewer"
+shell_pid: "203316"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -152,3 +155,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-03T14:45:31Z – opencode – Contract test created and validated. 2/2 pass. T022 bug-detection validated.
+- 2026-04-03T14:45:37Z – opencode:unknown:generic:unknown – shell_pid=203316 – Started review via workflow command
+- 2026-04-03T14:45:44Z – opencode – shell_pid=203316 – Review passed: Key sets verified against handler source (handle_missions_list returns 6 keys, 5 consumed by JS; handle_kanban returns 3 keys, 1 consumed). Bug detection validated via T022.
+- 2026-04-03T16:47:47Z – opencode – shell_pid=203316 – Moved to done

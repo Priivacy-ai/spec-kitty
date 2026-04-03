@@ -71,7 +71,7 @@ class TestMissionOriginBoundMissingFields:
         event = emitter._emit(
             event_type="MissionOriginBound",
             aggregate_id="061-ticket-first-mission-origin-binding",
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
         )
         assert event is None
@@ -90,7 +90,7 @@ class TestMissionOriginBoundMissingFields:
         event = emitter._emit(
             event_type="MissionOriginBound",
             aggregate_id="061-ticket-first-mission-origin-binding",
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
         )
         assert event is None
@@ -108,7 +108,7 @@ class TestMissionOriginBoundMissingFields:
         event = emitter._emit(
             event_type="MissionOriginBound",
             aggregate_id="061-ticket-first-mission-origin-binding",
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
         )
         assert event is None
@@ -189,8 +189,8 @@ class TestMissionOriginBoundEventRouting:
         assert event is not None
         assert temp_queue.size() == 1
 
-    def test_aggregate_type_is_feature(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """aggregate_type must be 'Feature'."""
+    def test_aggregate_type_is_mission(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """aggregate_type must be 'Mission'."""
         event = emitter.emit_mission_origin_bound(
             feature_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
@@ -200,7 +200,7 @@ class TestMissionOriginBoundEventRouting:
             title="Test",
         )
         assert event is not None
-        assert event["aggregate_type"] == "Feature"
+        assert event["aggregate_type"] == "Mission"
 
     def test_aggregate_id_is_feature_slug(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """aggregate_id must be the feature_slug value."""

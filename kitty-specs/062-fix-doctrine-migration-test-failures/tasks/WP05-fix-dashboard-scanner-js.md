@@ -12,6 +12,9 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "opencode"
+role: "reviewer"
+shell_pid: "199038"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -31,7 +34,7 @@ task_type: implement
 ## Objectives & Success Criteria
 
 - Validate the two dashboard fixes already applied during triage
-- Dashboard loads at `http://127.0.0.1:9239` and feature selector shows all missions
+- Dashboard loads at `http://127.0.0.1:9239` and mission selector shows all missions
 - No JS console errors related to undefined properties
 
 ## Context & Constraints
@@ -93,3 +96,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-03T14:42:45Z – opencode – Fixed remaining feature_dir NameError at line 554. JS fix already in place. 45/45 dashboard tests pass.
+- 2026-04-03T14:42:50Z – opencode:unknown:generic:unknown – shell_pid=199038 – Started review via workflow command
+- 2026-04-03T14:43:02Z – opencode – shell_pid=199038 – Review passed: feature_dir→mission_dir fix verified against function signature (line 500: mission_dir = resolve_mission_dir()). Zero feature_dir refs remain. 45/45 tests pass.
+- 2026-04-03T16:47:46Z – opencode – shell_pid=199038 – Moved to done
