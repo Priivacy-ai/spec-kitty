@@ -520,13 +520,17 @@ def collect_feature_summary(
         )
 
     # Validate canonical state for all WPs (only if event log exists and has events)
+    # WPs must be in 'approved' or 'done' — acceptance transitions approved → done.
     if events_path.exists() and snapshot_wps:
         for wp_id in expected_wp_ids:
             wp_snapshot = snapshot_wps.get(wp_id)
             if wp_snapshot is None:
                 activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
-            elif wp_snapshot.get("lane") != "done":
-                activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'")
+            elif wp_snapshot.get("lane") not in {"approved", "done"}:
+                activity_issues.append(
+                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', "
+                    f"expected 'approved' or 'done'"
+                )
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
@@ -575,22 +579,44 @@ def collect_feature_summary(
                 f"not {branch}"
             )
 
-        # Gate: acceptance matrix must exist and pass
+        # Gate: acceptance matrix must exist when lanes.json exists
         from specify_cli.acceptance_matrix import (
+            enforce_negative_invariants,
             read_acceptance_matrix,
             validate_matrix_evidence,
+            write_acceptance_matrix,
         )
         acc_matrix = read_acceptance_matrix(feature_dir)
-        if acc_matrix is not None:
+        if acc_matrix is None:
+            activity_issues.append(
+                "Acceptance matrix (acceptance-matrix.json) is required for "
+                "lane-based features but was not found"
+            )
+        else:
+            # Run negative invariant enforcement (not just read stored verdict)
+            if acc_matrix.negative_invariants:
+                acc_matrix.negative_invariants = enforce_negative_invariants(
+                    repo_root, acc_matrix.negative_invariants,
+                )
+                write_acceptance_matrix(feature_dir, acc_matrix)
+
+            # Validate evidence completeness
             evidence_errors = validate_matrix_evidence(acc_matrix)
             for err in evidence_errors:
                 activity_issues.append(f"Evidence: {err}")
-            if acc_matrix.overall_verdict == "fail":
+
+            # Block on fail or pending
+            verdict = acc_matrix.overall_verdict
+            if verdict == "fail":
                 activity_issues.append(
                     "Acceptance matrix verdict is 'fail' — "
                     "negative invariants or criteria not satisfied"
                 )
-            # Negative invariant failures are already reflected in overall_verdict
+            elif verdict == "pending":
+                activity_issues.append(
+                    "Acceptance matrix verdict is 'pending' — "
+                    "criteria or invariants have not been verified"
+                )
 
     return AcceptanceSummary(
         feature=feature,

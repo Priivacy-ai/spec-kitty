@@ -719,6 +719,92 @@ def merge_workspace_per_wp(
         )
 
 
+def _run_lane_based_merge(
+    repo_root: Path,
+    feature_slug: str,
+    *,
+    push: bool = False,
+    delete_branch: bool = True,
+    remove_worktree: bool = True,
+) -> None:
+    """Execute lane-based two-tier merge: lanes → mission → target.
+
+    Merges all lane branches into the mission integration branch, then
+    merges the mission branch into the target. Cleans up worktrees and
+    branches afterward based on flags. Raises typer.Exit on failure.
+    """
+    from specify_cli.lanes.branch_naming import lane_branch_name as _lane_br
+    from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    main_repo = get_main_repo_root(repo_root)
+    feature_dir = main_repo / "kitty-specs" / feature_slug
+    lanes_manifest = read_lanes_json(feature_dir)
+
+    if lanes_manifest is None:
+        console.print("[red]Error:[/red] lanes.json missing or corrupt")
+        raise typer.Exit(1)
+
+    console.print(f"[bold]Lane-based merge for {feature_slug}[/bold]")
+    console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
+    console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
+
+    # Step 1: Merge all lane branches into mission branch.
+    all_lanes_ok = True
+    for lane in lanes_manifest.lanes:
+        lane_result = merge_lane_to_mission(
+            main_repo, feature_slug, lane.lane_id, lanes_manifest,
+        )
+        if lane_result.success:
+            console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
+        else:
+            all_lanes_ok = False
+            for err in lane_result.errors:
+                console.print(f"  [red]✗[/red] {lane.lane_id}: {err}")
+
+    if not all_lanes_ok:
+        console.print("\n[red]Error:[/red] Not all lanes merged. Fix issues above and retry.")
+        raise typer.Exit(1)
+
+    # Step 2: Merge mission branch into target.
+    mission_result = merge_mission_to_target(main_repo, feature_slug, lanes_manifest)
+    if mission_result.success:
+        console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
+        if mission_result.commit:
+            console.print(f"  Commit: {mission_result.commit[:7]}")
+    else:
+        for err in mission_result.errors:
+            console.print(f"[red]Error:[/red] {err}")
+        raise typer.Exit(1)
+
+    # Push.
+    if push and has_remote(main_repo):
+        run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
+        console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
+
+    # Cleanup lane worktrees.
+    if remove_worktree:
+        for lane in lanes_manifest.lanes:
+            wt_path = main_repo / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            if wt_path.exists():
+                run_command(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=main_repo,
+                )
+                console.print(f"  Removed worktree: {wt_path.name}")
+
+    # Cleanup lane and mission branches.
+    if delete_branch:
+        for lane in lanes_manifest.lanes:
+            branch = _lane_br(feature_slug, lane.lane_id)
+            run_command(["git", "branch", "-D", branch], cwd=main_repo, check_return=False)
+        run_command(
+            ["git", "branch", "-D", lanes_manifest.mission_branch],
+            cwd=main_repo, check_return=False,
+        )
+        console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
+
+
 @require_main_repo
 def merge(
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
@@ -1053,59 +1139,71 @@ def merge(
         if current_branch == target_branch:
             # Check if --feature flag was provided
             if feature:
-                # Validate feature exists by checking for worktrees
                 main_repo = get_main_repo_root(repo_root)
-                worktrees_dir = main_repo / ".worktrees"
-                wp_pattern = list(worktrees_dir.glob(f"{feature}-WP*")) if worktrees_dir.exists() else []
 
-                if not wp_pattern:
-                    tracker.error("detect", f"no WP worktrees found for {feature}")
-                    console.print(tracker.render())
-                    console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{feature}'.")
-                    console.print("Check the feature slug or create workspaces first.")
-                    raise typer.Exit(1)
+                # Check for lane-based structure first
+                structure = detect_worktree_structure(main_repo, feature)
+                if structure == "lane-based":
+                    # Dispatch to lane merge flow (handled below after detect block)
+                    resolved_feature = feature
+                    feature_slug = feature
+                    in_worktree = False
+                    merge_root = main_repo
+                    tracker.complete("detect", f"lane-based feature {feature}")
+                    # Fall through to the lane-based dispatch below
+                else:
+                    # Validate feature exists by checking for WP worktrees
+                    worktrees_dir = main_repo / ".worktrees"
+                    wp_pattern = list(worktrees_dir.glob(f"{feature}-WP*")) if worktrees_dir.exists() else []
 
-                # Use the provided feature slug and continue
-                feature_slug = feature
-                tracker.complete("detect", f"using --feature {feature_slug}")
+                    if not wp_pattern:
+                        tracker.error("detect", f"no WP worktrees found for {feature}")
+                        console.print(tracker.render())
+                        console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{feature}'.")
+                        console.print("Check the feature slug or create workspaces first.")
+                        raise typer.Exit(1)
 
-                # Get WP workspaces for preflight and merge
-                wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
+                    # Use the provided feature slug and continue
+                    feature_slug = feature
+                    tracker.complete("detect", f"using --feature {feature_slug}")
 
-                # Run preflight checks
-                tracker.skip("verify", "handled in preflight")
-                tracker.start("preflight")
-                preflight_result = run_preflight(
-                    feature_slug=feature_slug,
-                    target_branch=target_branch,
-                    repo_root=main_repo,
-                    wp_workspaces=wp_workspaces,
-                )
-                display_preflight_result(preflight_result, console)
+                if structure != "lane-based":
+                    # WP-per-worktree path: preflight + merge + return
+                    wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
 
-                if not preflight_result.passed:
-                    tracker.error("preflight", "validation failed")
-                    console.print(tracker.render())
-                    raise typer.Exit(1)
-                tracker.complete("preflight", "all checks passed")
+                    tracker.skip("verify", "handled in preflight")
+                    tracker.start("preflight")
+                    preflight_result = run_preflight(
+                        feature_slug=feature_slug,
+                        target_branch=target_branch,
+                        repo_root=main_repo,
+                        wp_workspaces=wp_workspaces,
+                    )
+                    display_preflight_result(preflight_result, console)
 
-                # Proceed directly to workspace-per-wp merge
-                merge_workspace_per_wp(
-                    repo_root=repo_root,
-                    merge_root=merge_root,
-                    feature_slug=feature_slug,
-                    current_branch=current_branch,
-                    target_branch=target_branch,
-                    strategy=strategy,
-                    delete_branch=delete_branch,
-                    remove_worktree=remove_worktree,
-                    push=push,
-                    dry_run=dry_run,
-                    json_output=json_output,
-                    tracker=tracker,
-                    resume_state=resume_state,
-                )
-                return
+                    if not preflight_result.passed:
+                        tracker.error("preflight", "validation failed")
+                        console.print(tracker.render())
+                        raise typer.Exit(1)
+                    tracker.complete("preflight", "all checks passed")
+
+                    merge_workspace_per_wp(
+                        repo_root=repo_root,
+                        merge_root=merge_root,
+                        feature_slug=feature_slug,
+                        current_branch=current_branch,
+                        target_branch=target_branch,
+                        strategy=strategy,
+                        delete_branch=delete_branch,
+                        remove_worktree=remove_worktree,
+                        push=push,
+                        dry_run=dry_run,
+                        json_output=json_output,
+                        tracker=tracker,
+                        resume_state=resume_state,
+                    )
+                    return
+                # Lane-based: fall through to lane dispatch below
             else:
                 tracker.error("detect", f"already on {target_branch}")
                 console.print(tracker.render())
@@ -1135,52 +1233,10 @@ def merge(
 
     # Lane-based merge: two-tier flow (lane→mission, then mission→target)
     if structure == "lane-based":
-        from specify_cli.lanes.persistence import read_lanes_json
-        from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
-
-        main_repo = get_main_repo_root(repo_root)
-        feature_dir = main_repo / "kitty-specs" / feature_slug
-        lanes_manifest = read_lanes_json(feature_dir)
-
-        if lanes_manifest is None:
-            console.print("[red]Error:[/red] lanes.json missing or corrupt")
-            raise typer.Exit(1)
-
-        console.print(f"[bold]Lane-based merge for {feature_slug}[/bold]")
-        console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
-        console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
-
-        # Step 1: Merge all lane branches into mission branch
-        all_lanes_ok = True
-        for lane in lanes_manifest.lanes:
-            lane_result = merge_lane_to_mission(
-                main_repo, feature_slug, lane.lane_id, lanes_manifest,
-            )
-            if lane_result.success:
-                console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
-            else:
-                all_lanes_ok = False
-                for err in lane_result.errors:
-                    console.print(f"  [red]✗[/red] {lane.lane_id}: {err}")
-
-        if not all_lanes_ok:
-            console.print("\n[red]Error:[/red] Not all lanes merged. Fix issues above and retry.")
-            raise typer.Exit(1)
-
-        # Step 2: Merge mission branch into target
-        mission_result = merge_mission_to_target(main_repo, feature_slug, lanes_manifest)
-        if mission_result.success:
-            console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
-            if mission_result.commit:
-                console.print(f"  Commit: {mission_result.commit[:7]}")
-        else:
-            for err in mission_result.errors:
-                console.print(f"[red]Error:[/red] {err}")
-            raise typer.Exit(1)
-
-        if push and has_remote(main_repo):
-            run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
-            console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
+        _run_lane_based_merge(
+            repo_root, feature_slug, push=push,
+            delete_branch=delete_branch, remove_worktree=remove_worktree,
+        )
 
         return
 

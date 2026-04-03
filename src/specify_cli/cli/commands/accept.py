@@ -237,7 +237,8 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
+    # Move approved WPs to done. Acceptance transitions approved → done.
+    _emit_acceptance_events(feature_slug, result.summary.lanes.get("approved", []))
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))
