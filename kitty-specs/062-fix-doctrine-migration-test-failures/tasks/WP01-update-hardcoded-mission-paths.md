@@ -156,3 +156,4 @@ task_type: implement
 - 2026-04-02T20:33:14Z – unknown – shell_pid=2451078 – All 4 test files updated to use MissionTemplateRepository.default_missions_root(). 60/60 mission tests pass. 36 pre-existing content failures in test_command_template_cleanliness.py deferred to WP02+.
 - 2026-04-02T20:48:11Z – opencode – shell_pid=2451078 – Started review via workflow command
 - 2026-04-02T20:52:24Z – opencode – shell_pid=2451078 – Review passed (opencode). Code: all 4 test files correctly use MissionTemplateRepository.default_missions_root() — zero specify_cli/missions/ refs remain, zero hardcoded doctrine paths. 60/60 mission tests pass. Non-blocking finding: WP01-WP07 should use agent_profile: python-implementer (Python Pedro) instead of generic implementer — update frontmatter before starting remaining WPs.
+- 2026-04-03T16:47:43Z – opencode – shell_pid=2451078 – Moved to done

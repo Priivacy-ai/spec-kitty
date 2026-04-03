@@ -14,6 +14,10 @@ subtasks:
 - T025
 - T026
 - T027
+assignee: "claude"
+agent: "opencode"
+role: "reviewer"
+shell_pid: "254171"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -176,3 +180,7 @@ task_type: implement
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-03T16:51:43Z – claude:opus-4-6:python-implementer:implementer – Moved to in_progress
+- 2026-04-03T18:49:50Z – claude:opus-4-6:python-implementer:implementer – Implementation complete: CI split + critical-path tests + worktree detection fix
+- 2026-04-03T18:58:00Z – opencode:unknown:generic:unknown – shell_pid=254171 – Started review via workflow command
+- 2026-04-03T19:00:58Z – opencode – shell_pid=254171 – Review passed: CI split into enforced 90% critical-path gate + advisory full report. Dashboard handler tests, worktree detection fix, and identity parser test all target genuine critical logic. YAML valid. Critical-path list comprehensive (adds kernel/doctrine/constitution beyond spec minimum). Non-blocking: owned_files list was too narrow for actual scope; T025 coverage achieved via existing test modifications rather than new file.

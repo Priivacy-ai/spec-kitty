@@ -12,6 +12,9 @@ subtasks:
 - T029
 - T030
 - T031
+agent: "opencode"
+shell_pid: "254171"
+role: "reviewer"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -125,3 +128,6 @@ task_type: review
 ## Activity Log
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
+- 2026-04-03T19:02:09Z – opencode:unknown:generic:unknown – shell_pid=254171 – Started implementation via workflow command
+- 2026-04-03T19:13:45Z – opencode – shell_pid=254171 – Architectural review complete. Verdict: APPROVE with follow-up items. All subtasks T028-T031 done. Force-override: review.md is in WP08 owned_files allowlist.
+- 2026-04-03T19:31:07Z – opencode:unknown:generic:unknown – shell_pid=254171 – Started review via workflow command

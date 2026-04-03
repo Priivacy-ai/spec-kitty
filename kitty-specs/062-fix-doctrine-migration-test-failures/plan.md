@@ -5,7 +5,7 @@
 
 ## Summary
 
-Fix 120 test failures + 43 errors caused by commit `bd7a288c` moving mission YAML/templates from `src/specify_cli/missions/` to `src/doctrine/missions/`. Additionally fix two dashboard bugs discovered during triage (scanner NameError, JS key mismatch), add a contract test to prevent future key drift, and raise diff-coverage above 80%.
+Fix 120 test failures + 43 errors caused by commit `bd7a288c` moving mission YAML/templates from `src/specify_cli/missions/` to `src/doctrine/missions/`. Additionally fix two dashboard bugs discovered during triage (scanner NameError, JS key mismatch), add a contract test to prevent future key drift, and achieve risk-proportional diff-coverage (>= 90% on critical paths, advisory on remainder).
 
 ## Technical Context
 
@@ -19,7 +19,18 @@ Fix 120 test failures + 43 errors caused by commit `bd7a288c` moving mission YAM
 
 ## Constitution Check
 
-Constitution file absent — skipped.
+Constitution loaded from `.kittify/constitution/constitution.md` (generated 2026-04-03).
+
+| Principle | Status | Notes |
+|-----------|--------|-------|
+| pytest with risk-proportional coverage | **Aligned** | Constitution amended to adopt risk-proportional model: >= 90% on critical paths, advisory on rest. |
+| Tests pass, lint clean, type checks pass | **Aligned** | Each WP has verification subtask. Lint (ruff) and type-check (mypy) run as part of WP07 cross-cutting gate. |
+| At least one focused reviewer approves | **Aligned** | WP08 assigns architect review. |
+| Must run on macOS and Linux | **Aligned** | CI targets Linux; tests are platform-independent. |
+| DIRECTIVE_001 (separation of concerns) | **Aligned** | WPs are file-scoped with clear boundaries. |
+| DIRECTIVE_010 (faithful to specs) | **Aligned** | WP09 now has backing requirements FR-011, FR-012. |
+| DIRECTIVE_030 (pass tests before handoff) | **Aligned** | Each WP has independent test commands. |
+| DIRECTIVE_033 (stage only expected deliverables) | **Aligned** | WP scoping is file-granular. |
 
 ## Project Structure
 
@@ -215,6 +226,23 @@ This keeps the gate meaningful while not forcing obtuse tests for migrations and
 
 **Output**: Approve or request-changes with documented follow-up items.
 
+### WP09: Dashboard In-Review Lane Display and WP Card Identity
+
+**Depends on**: WP05
+
+Two dashboard UI enhancements discovered during WP02 implementation:
+
+1. **In-review lane rendering**: WPs with `lane: in_review` appear in the "For Review" column with a distinct border style (darker purple, all edges) to visually distinguish them from WPs awaiting review.
+2. **Agent identity on card modals**: WP detail modal shows agent tool, profile, role, and model in a structured header section. Scanner needs to expose `model` field.
+
+| File | Change |
+|------|--------|
+| `src/specify_cli/dashboard/static/dashboard/dashboard.js` | Include `in_review` WPs in For Review lane; add agent identity to detail modal |
+| `src/specify_cli/dashboard/static/dashboard/dashboard.css` | `.card.in-review` style with distinct border |
+| `src/specify_cli/dashboard/scanner.py` | Extract and emit `model` field from WP frontmatter |
+
+**Verification**: Playwright tests (headless).
+
 ## Dependency Graph
 
 ```
@@ -222,17 +250,18 @@ WP01 ─┐
 WP02 ─┤
 WP03 ─┼──→ WP07 ──→ WP08
 WP04 ─┤
-WP05 ──→ WP06 ─┘
+WP05 ──→ WP06 ─┤
+     └──→ WP09 ─┘
 ```
 
-WP01-04 are independent (parallel). WP05 is independent. WP06 depends on WP05. WP07 depends on all others. WP08 depends on WP07.
+WP01-04 are independent (parallel). WP05 is independent. WP06 and WP09 both depend on WP05 and can run in parallel. WP07 depends on all others. WP08 depends on WP07.
 
 ## Execution Strategy
 
-**Parallel wave 1** (Pedro): WP01, WP02, WP03, WP04, WP05 — all independent
-**Sequential after wave 1** (Pedro): WP06 (needs WP05 done)
-**After all fixes** (Pedro): WP07 — measure coverage, fill gaps
-**Final** (Alphonso): WP08 — architectural review
+**Parallel wave 1** (Pedro): WP01, WP02, WP03, WP04, WP05 -- all independent
+**Wave 2 after WP05** (Pedro): WP06, WP09 -- both depend on WP05, can run in parallel
+**After all fixes** (Pedro): WP07 -- measure coverage, fill gaps
+**Final** (Alphonso): WP08 -- architectural review
 
 ## Risk Register
 

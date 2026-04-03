@@ -75,9 +75,14 @@ An architect reviews the branch direction and validates that the doctrine migrat
 | FR-005 | Fix migration test assertions | As a contributor, I want the documentation mission migration test to assert behavior consistent with the current migration logic. | Medium | Open |
 | FR-006 | Targeted coverage for critical paths | As a contributor, I want meaningful tests for critical changed code (status model, mission detection, dashboard API) rather than chasing a flat coverage number, so that test effort is proportional to risk. | Medium | Open |
 | FR-007 | Architect review of branch direction | As an architect, I want to review the branch's test patterns and path conventions to confirm alignment with the doctrine package architectural vision. | Low | Open |
-| FR-008 | Fix dashboard scanner NameError | As a user, I want the dashboard to scan all missions without crashing on missions that lack an event log, so that the feature selector populates correctly. | High | Open |
+| FR-008 | Fix dashboard scanner NameError | As a user, I want the dashboard to scan all missions without crashing on missions that lack an event log, so that the mission selector populates correctly. | High | Open |
 | FR-009 | Fix dashboard JS key mismatch | As a user, I want the dashboard frontend to read the correct API response keys (`missions`, `active_mission_id`) so that the feature list renders. | High | Open |
 | FR-010 | Dashboard API contract test | As a contributor, I want a pytest that validates the dashboard JS reads the same keys the Python API emits, so that key renames are caught before CI merges. | Medium | Open |
+| FR-011 | Dashboard in_review lane rendering | As a user, I want WPs in the `in_review` lane to appear in the dashboard "For Review" column with a visually distinct card style, so that I can see which WPs are actively being reviewed. | Medium | Open |
+| FR-012 | WP card agent identity display | As a user, I want the WP detail modal to show the agent tool, profile, role, and model, so that I can see which agent is working on each WP. | Medium | Open |
+| FR-013 | Centralize hardcoded doctrine path constants | As a contributor, I want compliance guard tests to import a shared `DOCTRINE_SOURCE_ROOT` constant instead of duplicating the path literal, so that a future path change requires only one update. | Low | Open |
+| FR-014 | Dashboard JS terminology clean break | As a contributor, I want the dashboard JS to use only `data.missions` / `data.active_mission_id` and fetch from `/api/missions`, removing dead `feature*` fallbacks, so that the codebase complies with the Terminology Canon. | Medium | Open |
+| FR-015 | Feature-to-mission bulk rename | As a contributor, I want ~30 missed `feature*` identifiers across 18 production files renamed to `mission*` equivalents, so that active codepaths comply with the Terminology Canon. | Medium | Open |
 
 ### Non-Functional Requirements
 
@@ -122,3 +127,7 @@ An architect reviews the branch direction and validates that the doctrine migrat
 | WP06 | Add dashboard API contract test | python-implementer | FR-010 | WP05 |
 | WP07 | Targeted coverage + CI gate split (Cat E) | python-implementer | FR-006 | WP01, WP02, WP03, WP04, WP05, WP06 |
 | WP08 | Architectural fitness review | architect | FR-007 | WP07 |
+| WP09 | Dashboard in-review lane + card identity | python-implementer | FR-011, FR-012 | WP05 |
+| WP10 | Centralize doctrine path constants | python-implementer | FR-013 | WP08 |
+| WP11 | Dashboard JS terminology clean break (cleanup) | python-implementer | FR-014 | WP09 |
+| WP12 | Feature-to-mission bulk rename | python-implementer | FR-015 | WP11 |

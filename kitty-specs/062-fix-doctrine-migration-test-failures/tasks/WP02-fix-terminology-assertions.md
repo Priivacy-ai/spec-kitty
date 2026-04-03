@@ -11,6 +11,9 @@ subtasks:
 - T006
 - T007
 - T008
+agent: "opencode"
+shell_pid: "13292"
+role: "reviewer"
 history:
 - at: '2026-04-02T17:58:00Z'
   actor: system
@@ -98,3 +101,8 @@ task_type: implement
 
 - 2026-04-02T17:58:00Z -- system -- Prompt created.
 - 2026-04-02T21:02:58Z – unknown – Starting implementation (opencode)
+- 2026-04-03T14:03:16Z – opencode:unknown:generic:unknown – shell_pid=13292 – Assigned agent via workflow command
+- 2026-04-03T14:08:43Z – opencode – shell_pid=13292 – Ready for review: Fixed aggregate_type Feature→Mission in test_emitter_origin.py and feature=→mission= param name in test_feature_lifecycle_unit.py. Also fixed merge assertions. All 31 tests pass.
+- 2026-04-03T14:31:47Z – opencode:unknown:generic:unknown – shell_pid=13292 – Started review via workflow command
+- 2026-04-03T14:33:22Z – opencode – shell_pid=13292 – Review passed: All 5 assertions correctly updated (3 accept feature->mission, 2 merge feature->mission). 4 aggregate_type Feature->Mission fixes in emitter test. Test method renamed. All 31 tests pass. Production code verified. No stale terminology remains in owned files.
+- 2026-04-03T16:47:44Z – opencode – shell_pid=13292 – Moved to done
