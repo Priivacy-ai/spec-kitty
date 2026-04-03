@@ -1698,6 +1698,30 @@ def finalize_tasks(
                 f"{bootstrap_result.newly_seeded} WPs seeded"
             )
 
+        # Compute execution lanes from dependency graph + ownership manifests
+        lanes_path = None
+        if wp_manifests and wp_dependencies:
+            try:
+                from specify_cli.lanes.compute import compute_lanes
+                from specify_cli.lanes.persistence import write_lanes_json
+
+                lanes_manifest = compute_lanes(
+                    dependency_graph=wp_dependencies,
+                    ownership_manifests=wp_manifests,  # type: ignore[arg-type]
+                    feature_slug=feature_slug,
+                    target_branch=target_branch,
+                )
+                lanes_path = write_lanes_json(feature_dir, lanes_manifest)
+                if not json_output:
+                    console.print(
+                        f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)"
+                    )
+            except Exception as exc:
+                if not json_output:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Lane computation failed: {exc}"
+                    )
+
         try:
             # Build list of all files to commit via safe_commit
             files_to_commit = []
@@ -1717,6 +1741,13 @@ def finalize_tasks(
                     rel_path = str(f.relative_to(repo_root))
                     files_to_commit_rel.append(rel_path)
                     files_committed.append(rel_path)
+
+            # Include lanes.json if computed
+            if lanes_path and lanes_path.exists():
+                files_to_commit.append(lanes_path)
+                rel_path = str(lanes_path.relative_to(repo_root))
+                files_to_commit_rel.append(rel_path)
+                files_committed.append(rel_path)
 
             # Detect changes only within finalize-tasks outputs.
             # This avoids treating unrelated dirty files as commit failures.
@@ -1827,6 +1858,11 @@ def finalize_tasks(
                         "newly_seeded": bootstrap_result.newly_seeded,
                         "already_initialized": bootstrap_result.already_initialized,
                     },
+                    "lanes": {
+                        "computed": lanes_path is not None,
+                        "count": len(lanes_manifest.lanes) if lanes_path else 0,
+                        "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_path else [],
+                    } if lanes_path else {"computed": False},
                 }
             )
 
