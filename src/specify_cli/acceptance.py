@@ -88,7 +88,14 @@ class AcceptanceSummary:
 
     @property
     def all_done(self) -> bool:
-        return not (self.lanes.get("planned") or self.lanes.get("doing") or self.lanes.get("for_review"))
+        """True when all WPs are approved or done (no WPs still in progress or review)."""
+        return not (
+            self.lanes.get("planned")
+            or self.lanes.get("claimed")
+            or self.lanes.get("doing")
+            or self.lanes.get("in_progress")
+            or self.lanes.get("for_review")
+        )
 
     @property
     def ok(self) -> bool:
@@ -107,7 +114,9 @@ class AcceptanceSummary:
         buckets = {
             "not_done": [
                 *self.lanes.get("planned", []),
+                *self.lanes.get("claimed", []),
                 *self.lanes.get("doing", []),
+                *self.lanes.get("in_progress", []),
                 *self.lanes.get("for_review", []),
             ],
             "metadata": self.metadata_issues,
@@ -550,6 +559,38 @@ def collect_feature_summary(
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
+
+    # Lane-based acceptance gates
+    try:
+        from specify_cli.lanes.persistence import read_lanes_json
+        lanes_manifest = read_lanes_json(feature_dir)
+    except Exception:
+        lanes_manifest = None
+
+    if lanes_manifest is not None:
+        # Gate: must be on mission branch
+        if branch and branch != lanes_manifest.mission_branch:
+            activity_issues.append(
+                f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, "
+                f"not {branch}"
+            )
+
+        # Gate: acceptance matrix must exist and pass
+        from specify_cli.acceptance_matrix import (
+            read_acceptance_matrix,
+            validate_matrix_evidence,
+        )
+        acc_matrix = read_acceptance_matrix(feature_dir)
+        if acc_matrix is not None:
+            evidence_errors = validate_matrix_evidence(acc_matrix)
+            for err in evidence_errors:
+                activity_issues.append(f"Evidence: {err}")
+            if acc_matrix.overall_verdict == "fail":
+                activity_issues.append(
+                    "Acceptance matrix verdict is 'fail' — "
+                    "negative invariants or criteria not satisfied"
+                )
+            # Negative invariant failures are already reflected in overall_verdict
 
     return AcceptanceSummary(
         feature=feature,
