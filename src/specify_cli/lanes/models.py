@@ -62,7 +62,9 @@ class LanesManifest:
 
     Attributes:
         version: Schema version (currently 1).
-        feature_slug: Canonical feature identifier (= mission_id).
+        feature_slug: Human-readable slug used in branch names.
+        mission_id: Immutable ULID from meta.json. Used for merge locks and
+            runtime identity. May equal feature_slug if backfill hasn't run.
         mission_branch: Integration branch name (kitty/mission-{feature_slug}).
         target_branch: Branch the mission merges into (e.g. "main").
         lanes: Ordered list of execution lanes.
@@ -72,6 +74,7 @@ class LanesManifest:
 
     version: int
     feature_slug: str
+    mission_id: str
     mission_branch: str
     target_branch: str
     lanes: list[ExecutionLane]
@@ -96,6 +99,7 @@ class LanesManifest:
         return {
             "version": self.version,
             "feature_slug": self.feature_slug,
+            "mission_id": self.mission_id,
             "mission_branch": self.mission_branch,
             "target_branch": self.target_branch,
             "lanes": [lane.to_dict() for lane in self.lanes],
@@ -105,9 +109,11 @@ class LanesManifest:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LanesManifest:
+        feature_slug = data["feature_slug"]
         return cls(
             version=data["version"],
-            feature_slug=data["feature_slug"],
+            feature_slug=feature_slug,
+            mission_id=data.get("mission_id", feature_slug),
             mission_branch=data["mission_branch"],
             target_branch=data["target_branch"],
             lanes=[ExecutionLane.from_dict(lane) for lane in data["lanes"]],

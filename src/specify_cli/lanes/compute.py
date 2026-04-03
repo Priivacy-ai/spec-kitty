@@ -143,6 +143,7 @@ def compute_lanes(
     feature_slug: str,
     target_branch: str = "main",
     wp_bodies: dict[str, str] | None = None,
+    mission_id: str | None = None,
 ) -> LanesManifest:
     """Compute execution lanes from dependency graph and ownership manifests.
 
@@ -164,10 +165,12 @@ def compute_lanes(
     Returns:
         A LanesManifest ready for persistence.
     """
+    resolved_mission_id = mission_id or feature_slug
+
     # Collect all WP IDs from the graph.
     all_wp_ids = sorted(dependency_graph.keys())
     if not all_wp_ids:
-        return _empty_manifest(feature_slug, target_branch)
+        return _empty_manifest(feature_slug, target_branch, resolved_mission_id)
 
     # Separate planning artifacts — they don't get lanes.
     code_wp_ids: list[str] = []
@@ -178,7 +181,7 @@ def compute_lanes(
         code_wp_ids.append(wp_id)
 
     if not code_wp_ids:
-        return _empty_manifest(feature_slug, target_branch)
+        return _empty_manifest(feature_slug, target_branch, resolved_mission_id)
 
     # Build union-find over code WPs.
     uf = _UnionFind(code_wp_ids)
@@ -296,6 +299,7 @@ def compute_lanes(
     return LanesManifest(
         version=1,
         feature_slug=feature_slug,
+        mission_id=resolved_mission_id,
         mission_branch=mission_branch,
         target_branch=target_branch,
         lanes=final_lanes,
@@ -331,11 +335,14 @@ def _compute_lane_depths(
     return depths
 
 
-def _empty_manifest(feature_slug: str, target_branch: str) -> LanesManifest:
+def _empty_manifest(
+    feature_slug: str, target_branch: str, mission_id: str,
+) -> LanesManifest:
     """Return an empty LanesManifest (no code WPs to lane)."""
     return LanesManifest(
         version=1,
         feature_slug=feature_slug,
+        mission_id=mission_id,
         mission_branch=f"kitty/mission-{feature_slug}",
         target_branch=target_branch,
         lanes=[],

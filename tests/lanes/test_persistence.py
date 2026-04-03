@@ -1,13 +1,20 @@
 """Tests for lanes.json persistence."""
 
+import pytest
+
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
-from specify_cli.lanes.persistence import read_lanes_json, write_lanes_json
+from specify_cli.lanes.persistence import (
+    CorruptLanesError,
+    read_lanes_json,
+    write_lanes_json,
+)
 
 
 def _make_manifest() -> LanesManifest:
     return LanesManifest(
         version=1,
         feature_slug="010-feature",
+        mission_id="01HTEST_ULID",
         mission_branch="kitty/mission-010-feature",
         target_branch="main",
         lanes=[
@@ -42,11 +49,20 @@ def test_read_missing_returns_none(tmp_path):
     assert read_lanes_json(tmp_path) is None
 
 
-def test_read_corrupt_returns_none(tmp_path):
+def test_read_corrupt_raises(tmp_path):
     (tmp_path / "lanes.json").write_text("not json", encoding="utf-8")
-    assert read_lanes_json(tmp_path) is None
+    with pytest.raises(CorruptLanesError, match="corrupt or malformed"):
+        read_lanes_json(tmp_path)
 
 
-def test_read_invalid_schema_returns_none(tmp_path):
+def test_read_invalid_schema_raises(tmp_path):
     (tmp_path / "lanes.json").write_text('{"foo": "bar"}', encoding="utf-8")
-    assert read_lanes_json(tmp_path) is None
+    with pytest.raises(CorruptLanesError, match="corrupt or malformed"):
+        read_lanes_json(tmp_path)
+
+
+def test_atomic_write_leaves_no_temp_on_success(tmp_path):
+    manifest = _make_manifest()
+    write_lanes_json(tmp_path, manifest)
+    tmp_files = list(tmp_path.glob(".lanes-*.tmp"))
+    assert len(tmp_files) == 0
