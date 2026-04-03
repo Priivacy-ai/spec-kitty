@@ -757,16 +757,16 @@ def implement(
     tracker.start("create")
 
     # Check for lane-based execution (Phase 2+).
+    # No exception handling here — CorruptLanesError must propagate.
+    # If lanes.json exists but is broken, we fail loudly rather than
+    # silently falling back to legacy mode.
     feature_dir = repo_root / "kitty-specs" / feature_slug
     _lane_mode = False
-    try:
-        from specify_cli.lanes.implement_support import try_lane_mode, create_lane_workspace
+    from specify_cli.lanes.implement_support import try_lane_mode, create_lane_workspace
 
-        _lanes_manifest = try_lane_mode(feature_dir)
-        if _lanes_manifest is not None:
-            _lane_mode = True
-    except Exception:
-        _lanes_manifest = None
+    _lanes_manifest = try_lane_mode(feature_dir)
+    if _lanes_manifest is not None:
+        _lane_mode = True
 
     if _lane_mode and _lanes_manifest is not None:
         try:

@@ -207,7 +207,10 @@ def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]
     for context in list_contexts(repo_root):
         workspace_path = repo_root / context.worktree_path
         if not workspace_path.exists():
-            workspace_name = f"{context.feature_slug}-{context.wp_id}"
+            if context.lane_id:
+                workspace_name = f"{context.feature_slug}-{context.lane_id}"
+            else:
+                workspace_name = f"{context.feature_slug}-{context.wp_id}"
             orphaned.append((workspace_name, context))
 
     return orphaned

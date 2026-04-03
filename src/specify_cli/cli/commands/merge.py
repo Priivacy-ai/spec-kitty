@@ -273,21 +273,28 @@ def _build_workspace_per_wp_merge_plan(
 
 
 def detect_worktree_structure(repo_root: Path, feature_slug: str) -> str:
-    """Detect if feature uses legacy or workspace-per-WP model.
+    """Detect if feature uses lane-based, workspace-per-WP, or legacy model.
 
-    Returns: "legacy", "workspace-per-wp", or "none"
+    Returns: "lane-based", "legacy", "workspace-per-wp", or "none"
 
     IMPORTANT: This function must work correctly when called from within a worktree.
     repo_root may be a worktree directory, so we need to find the main repo first.
     """
     # Get the main repository root (handles case where repo_root is a worktree)
     main_repo = get_main_repo_root(repo_root)
+
+    # Check for lanes.json FIRST — lane-based takes precedence.
+    feature_dir = main_repo / "kitty-specs" / feature_slug
+    lanes_file = feature_dir / "lanes.json"
+    if lanes_file.exists():
+        return "lane-based"
+
     worktrees_dir = main_repo / ".worktrees"
 
     if not worktrees_dir.exists():
         return "none"
 
-    # Look for workspace-per-WP pattern FIRST (takes precedence per spec)
+    # Look for workspace-per-WP pattern (takes precedence over legacy)
     # Pattern: .worktrees/###-feature-WP##/
     wp_pattern = list(worktrees_dir.glob(f"{feature_slug}-WP*"))
     if wp_pattern:
@@ -924,6 +931,19 @@ def merge(
         structure = detect_worktree_structure(repo_root, feature_slug)
         main_repo = get_main_repo_root(repo_root)
 
+        if structure == "lane-based":
+            from specify_cli.lanes.persistence import read_lanes_json
+            lanes_manifest = read_lanes_json(main_repo / "kitty-specs" / feature_slug)
+            print(json.dumps({
+                "spec_kitty_version": SPEC_KITTY_VERSION,
+                "feature_slug": feature_slug,
+                "structure": "lane-based",
+                "mission_branch": lanes_manifest.mission_branch if lanes_manifest else None,
+                "lanes": [l.to_dict() for l in lanes_manifest.lanes] if lanes_manifest else [],
+                "dry_run": True,
+            }))
+            raise typer.Exit(0)
+
         if structure == "workspace-per-wp":
             wp_workspaces = find_wp_worktrees(repo_root, feature_slug)
             merge_plan = _build_workspace_per_wp_merge_plan(
@@ -1112,6 +1132,57 @@ def merge(
     # Detect workspace structure and extract feature slug
     feature_slug = resolved_feature or extract_feature_slug(current_branch)
     structure = detect_worktree_structure(repo_root, feature_slug)
+
+    # Lane-based merge: two-tier flow (lane→mission, then mission→target)
+    if structure == "lane-based":
+        from specify_cli.lanes.persistence import read_lanes_json
+        from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
+
+        main_repo = get_main_repo_root(repo_root)
+        feature_dir = main_repo / "kitty-specs" / feature_slug
+        lanes_manifest = read_lanes_json(feature_dir)
+
+        if lanes_manifest is None:
+            console.print("[red]Error:[/red] lanes.json missing or corrupt")
+            raise typer.Exit(1)
+
+        console.print(f"[bold]Lane-based merge for {feature_slug}[/bold]")
+        console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
+        console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
+
+        # Step 1: Merge all lane branches into mission branch
+        all_lanes_ok = True
+        for lane in lanes_manifest.lanes:
+            lane_result = merge_lane_to_mission(
+                main_repo, feature_slug, lane.lane_id, lanes_manifest,
+            )
+            if lane_result.success:
+                console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
+            else:
+                all_lanes_ok = False
+                for err in lane_result.errors:
+                    console.print(f"  [red]✗[/red] {lane.lane_id}: {err}")
+
+        if not all_lanes_ok:
+            console.print("\n[red]Error:[/red] Not all lanes merged. Fix issues above and retry.")
+            raise typer.Exit(1)
+
+        # Step 2: Merge mission branch into target
+        mission_result = merge_mission_to_target(main_repo, feature_slug, lanes_manifest)
+        if mission_result.success:
+            console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
+            if mission_result.commit:
+                console.print(f"  Commit: {mission_result.commit[:7]}")
+        else:
+            for err in mission_result.errors:
+                console.print(f"[red]Error:[/red] {err}")
+            raise typer.Exit(1)
+
+        if push and has_remote(main_repo):
+            run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
+            console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
+
+        return
 
     # Branch to workspace-per-WP merge if detected
     if structure == "workspace-per-wp":

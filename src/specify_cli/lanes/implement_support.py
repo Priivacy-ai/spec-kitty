@@ -86,9 +86,21 @@ def create_lane_workspace(
         workspace_path, lanes_manifest.mission_branch,
     )
 
-    if not is_reuse:
+    from specify_cli.workspace_context import load_context
+
+    base_branch = lanes_manifest.mission_branch
+
+    if is_reuse:
+        # Reuse — refresh context to reflect the new active WP.
+        context_name = f"{feature_slug}-{lane_id}"
+        existing_ctx = load_context(repo_root, context_name)
+        if existing_ctx is not None:
+            existing_ctx.wp_id = wp_id
+            existing_ctx.current_wp = wp_id
+            existing_ctx.dependencies = declared_deps
+            save_context(repo_root, existing_ctx)
+    else:
         # Fresh creation — update frontmatter and create context.
-        base_branch = lanes_manifest.mission_branch
         base_commit_sha = _rev_parse(repo_root, base_branch)
         created_at = datetime.now(timezone.utc).isoformat()
 
