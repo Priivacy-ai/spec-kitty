@@ -1,6 +1,6 @@
 # Worktree Cleanup at Merge, Not Eager
 
-**Status:** Accepted
+**Status:** Superseded
 
 **Date:** 2026-01-26
 
@@ -9,6 +9,10 @@
 **Technical Story:** Workspace-per-Work-Package Workflow Enhancement
 
 ---
+
+> Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> This ADR assumed one worktree per work package. The current execution model
+> uses one worktree per execution lane and one mission integration branch.
 
 ## Context and Problem Statement
 
