@@ -163,3 +163,4 @@ Known locations:
 ## Activity Log
 
 - 2026-04-04T20:08:30Z – claude – shell_pid=19995 – Started implementation via action command
+- 2026-04-04T20:13:50Z – claude – shell_pid=19995 – Agent artifacts and config renamed: skill dirs, command-map refs, AGENTS.md, .gitignore, CLAUDE.md, .kittify/charter/, memory file
