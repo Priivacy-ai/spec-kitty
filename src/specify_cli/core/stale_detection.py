@@ -16,6 +16,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from specify_cli.core.vcs import get_vcs, VCSError
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 @dataclass
@@ -267,21 +268,9 @@ def find_worktree_for_wp(
     Returns:
         Path to worktree if found, None otherwise
     """
-    worktrees_dir = main_repo_root / ".worktrees"
-    if not worktrees_dir.exists():
-        return None
-
-    # Expected pattern: feature_slug-WP01
-    expected_name = f"{feature_slug}-{wp_id}"
-    worktree_path = worktrees_dir / expected_name
-
-    if worktree_path.exists():
-        return worktree_path
-
-    # Try case-insensitive search
-    for item in worktrees_dir.iterdir():
-        if item.is_dir() and item.name.lower() == expected_name.lower():
-            return item
+    resolved = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+    if resolved.exists:
+        return resolved.worktree_path
 
     return None
 

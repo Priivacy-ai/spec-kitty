@@ -48,7 +48,7 @@ Workflow:
 - Specify -> Plan -> Tasks -> Implement -> Review
 
 Key artifacts:
-- `spec.md`, `plan.md`, `tasks/`, WP workspaces
+- `spec.md`, `plan.md`, `tasks/`, execution workspaces
 
 ### Research Mission
 

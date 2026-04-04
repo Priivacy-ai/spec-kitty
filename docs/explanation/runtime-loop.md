@@ -67,7 +67,7 @@ The runtime has identified work to do. The decision includes an `action` (such a
   "mission": "software-dev",
   "action": "implement",
   "wp_id": "WP02",
-  "workspace_path": ".worktrees/042-test-feature-WP02",
+  "workspace_path": ".worktrees/042-test-feature-lane-b",
   "prompt_file": "/tmp/spec-kitty-next-claude-042-test-feature-implement-WP02.md",
   "reason": null,
   "guard_failures": [],

@@ -1,6 +1,6 @@
 # Git Workflow: Who Does What
 
-Spec Kitty draws a hard line between **infrastructure git** and **content git**. Python handles all the plumbing -- creating worktrees, committing status changes, merging branches, cleaning up. Agents (and humans) handle all the content -- writing code, committing implementations, rebasing, and resolving conflicts.
+Spec Kitty draws a hard line between **infrastructure git** and **content git**. Python handles all the plumbing -- resolving execution workspaces, creating worktrees, committing status changes, merging branches, cleaning up. Agents (and humans) handle all the content -- writing code, committing implementations, rebasing, and resolving conflicts.
 
 Understanding this boundary matters because crossing it causes breakage. An agent that creates a worktree manually will end up without workspace context, without sparse checkout, and without proper branch naming. A human who commits planning artifacts from inside a worktree will pollute the wrong branch.
 
@@ -26,7 +26,7 @@ The pattern is straightforward: Python owns the lifecycle scaffolding. Agents ow
 
 ## Worktree Lifecycle
 
-Every work package worktree passes through five stages.
+Every execution workspace passes through five stages.
 
 ### 1. Created
 
@@ -34,7 +34,7 @@ Every work package worktree passes through five stages.
 spec-kitty implement WP01
 ```
 
-Python runs `git worktree add`, configures sparse checkout (excluding `kitty-specs/`), creates a workspace context file at `.kittify/workspaces/<feature>-WP01.json`, and sets the WP status to `in_progress`.
+Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, configures sparse checkout (excluding `kitty-specs/`), creates a workspace context file at `.kittify/workspaces/<feature>-<workspace>.json`, and sets the WP status to `in_progress`.
 
 For dependent WPs, use the `--base` flag:
 
@@ -42,14 +42,14 @@ For dependent WPs, use the `--base` flag:
 spec-kitty implement WP02 --base WP01
 ```
 
-This branches from WP01's branch instead of the target branch, so WP02 starts with WP01's changes already present.
+This branches from WP01's branch instead of the target branch, so WP02 starts with WP01's changes already present. If WP01 and WP02 share a lane, the same workspace may be reused sequentially.
 
 ### 2. Active
 
 The agent works inside the worktree directory:
 
 ```bash
-cd .worktrees/042-feature-WP01
+cd .worktrees/042-feature-lane-a
 # Write code, run tests, iterate
 git add src/ tests/
 git commit -m "feat(WP01): implement auth middleware"
@@ -71,9 +71,9 @@ Python auto-commits the WP frontmatter change to record the lane transition. Bef
 spec-kitty merge --feature 042-feature
 ```
 
-Python merges WP branches into the target branch in dependency order (topological sort). For each WP:
+Python merges execution branches into the target branch in dependency order. In lane mode, it first merges lane branches into the mission branch, then merges the mission branch into the target branch. For each execution worktree:
 
-1. `git merge --no-ff <wp-branch>` (preserving merge history)
+1. `git merge --no-ff <workspace-branch>` (preserving merge history)
 2. `git worktree remove` (cleaning up the directory)
 3. `git branch -d` (removing the branch)
 
@@ -132,7 +132,7 @@ These operations are never automated. Each requires judgment that Python cannot 
 All code, tests, and configuration changes must be committed by the agent:
 
 ```bash
-cd .worktrees/042-feature-WP01
+cd <workspace path printed by spec-kitty implement>
 git add src/ tests/
 git commit -m "feat(WP01): implement auth middleware"
 ```
@@ -144,8 +144,8 @@ There is no auto-save, no auto-commit of code. If the agent does not commit, the
 When WP02 depends on WP01 and WP01 receives new commits after WP02 branched:
 
 ```bash
-cd .worktrees/042-feature-WP02
-git rebase 042-feature-WP01
+cd <workspace path printed by spec-kitty implement>
+git rebase <base branch printed by spec-kitty>
 # Resolve conflicts if any
 git add .
 git rebase --continue
@@ -159,7 +159,7 @@ Git can only branch from one parent. If WP04 depends on both WP02 and WP03:
 
 ```bash
 spec-kitty implement WP04 --base WP03
-cd .worktrees/042-feature-WP04
+cd <workspace path printed by spec-kitty implement>
 git merge 042-feature-WP02
 ```
 
@@ -182,7 +182,7 @@ If `spec-kitty merge` encounters conflicts, it stops and reports the conflicting
 git worktree add -b my-branch .worktrees/my-branch main
 ```
 
-Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), sparse checkout configuration, and proper branch naming (`<feature>-<WP>`). Spec Kitty commands will not recognize them.
+Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), sparse checkout configuration, and canonical branch naming. Spec Kitty commands will not recognize them reliably.
 
 Always use `spec-kitty implement`.
 
@@ -201,7 +201,7 @@ The main repository is for planning artifacts only. Implementation commits belon
 
 ```bash
 # WRONG: Auto-pushing
-git push origin 042-feature-WP01
+git push origin <resolved workspace branch>
 ```
 
 Never push unless the user explicitly requests it or you are using `spec-kitty merge --push`. Unexpected pushes can trigger CI pipelines, interfere with other agents, and make rollbacks difficult.
@@ -226,7 +226,7 @@ Spec Kitty does not install or manage git hooks. The pre-commit hook that previo
 
 ---
 
-*This document explains the git workflow boundary. For the underlying worktree technology, see [Git Worktrees](git-worktrees.md). For the workspace-per-WP development model, see [Workspace-per-WP Model](workspace-per-wp.md).*
+*This document explains the git workflow boundary. For the underlying worktree technology, see [Git Worktrees](git-worktrees.md). For the execution workspace model, see [Execution Workspace Model](workspace-per-wp.md).*
 
 ## Try It
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)

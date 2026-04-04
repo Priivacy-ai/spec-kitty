@@ -73,6 +73,30 @@ class WorkspaceContext:
         return cls(**filtered)
 
 
+@dataclass(frozen=True)
+class ResolvedWorkspace:
+    """Resolved workspace contract for a work package.
+
+    This normalizes legacy WP-specific worktrees and newer lane-based worktrees
+    into one shape so agent/runtime commands can display the real workspace path
+    without duplicating lane fallback logic in every caller.
+    """
+
+    feature_slug: str
+    wp_id: str
+    workspace_name: str
+    worktree_path: Path
+    branch_name: str
+    lane_id: str | None = None
+    lane_wp_ids: list[str] | None = None
+    context: WorkspaceContext | None = None
+
+    @property
+    def exists(self) -> bool:
+        """Return True when the resolved worktree currently exists on disk."""
+        return self.worktree_path.exists()
+
+
 def get_workspaces_dir(repo_root: Path) -> Path:
     """Get or create the workspaces context directory.
 
@@ -193,6 +217,145 @@ def list_contexts(repo_root: Path) -> list[WorkspaceContext]:
     return contexts
 
 
+def build_feature_context_index(
+    repo_root: Path,
+    feature_slug: str,
+) -> dict[str, WorkspaceContext]:
+    """Index feature contexts by WP ID, expanding lane contexts to all WPs.
+
+    Lane-mode contexts are stored one-per-lane and retain `lane_wp_ids`, so a
+    caller asking for WP01 should still find the lane context even after the
+    active WP in that lane has advanced to WP02.
+    """
+    index: dict[str, WorkspaceContext] = {}
+
+    for context in list_contexts(repo_root):
+        if context.feature_slug != feature_slug:
+            continue
+
+        if context.lane_wp_ids:
+            for lane_wp_id in context.lane_wp_ids:
+                index.setdefault(lane_wp_id, context)
+
+        if context.current_wp:
+            index[context.current_wp] = context
+        if context.wp_id:
+            index.setdefault(context.wp_id, context)
+
+    return index
+
+
+def find_context_for_wp(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+) -> WorkspaceContext | None:
+    """Return the best matching workspace context for a work package."""
+    # Fast path: legacy context naming is still one-file-per-WP.
+    direct = load_context(repo_root, f"{feature_slug}-{wp_id}")
+    if direct is not None and direct.feature_slug == feature_slug:
+        return direct
+
+    return build_feature_context_index(repo_root, feature_slug).get(wp_id)
+
+
+def resolve_workspace_for_wp(
+    repo_root: Path,
+    feature_slug: str,
+    wp_id: str,
+) -> ResolvedWorkspace:
+    """Resolve the real workspace/branch contract for a work package.
+
+    Resolution order:
+    1. Existing workspace context (legacy or lane context)
+    2. `lanes.json` lane mapping for the WP
+    3. Legacy `.worktrees/<feature>-WP##` fallback
+
+    The returned path may not exist yet; callers can inspect `.exists`.
+    """
+    context = find_context_for_wp(repo_root, feature_slug, wp_id)
+    if context is not None:
+        worktree_path = repo_root / context.worktree_path
+        return ResolvedWorkspace(
+            feature_slug=feature_slug,
+            wp_id=wp_id,
+            workspace_name=worktree_path.name,
+            worktree_path=worktree_path,
+            branch_name=context.branch_name,
+            lane_id=context.lane_id,
+            lane_wp_ids=list(context.lane_wp_ids) if context.lane_wp_ids else None,
+            context=context,
+        )
+
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    lanes_manifest = read_lanes_json(feature_dir)
+
+    if lanes_manifest is not None:
+        lane = lanes_manifest.lane_for_wp(wp_id)
+        if lane is not None:
+            workspace_name = f"{feature_slug}-{lane.lane_id}"
+            return ResolvedWorkspace(
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                workspace_name=workspace_name,
+                worktree_path=repo_root / ".worktrees" / workspace_name,
+                branch_name=lane_branch_name(feature_slug, lane.lane_id),
+                lane_id=lane.lane_id,
+                lane_wp_ids=list(lane.wp_ids),
+                context=None,
+            )
+
+    workspace_name = f"{feature_slug}-{wp_id}"
+    return ResolvedWorkspace(
+        feature_slug=feature_slug,
+        wp_id=wp_id,
+        workspace_name=workspace_name,
+        worktree_path=repo_root / ".worktrees" / workspace_name,
+        branch_name=workspace_name,
+        lane_id=None,
+        lane_wp_ids=[wp_id],
+        context=None,
+    )
+
+
+def resolve_feature_worktree(repo_root: Path, feature_slug: str) -> Path | None:
+    """Find a deterministic worktree to operate on for a feature.
+
+    Prefer active workspace contexts first, then lane-based paths inferred from
+    `lanes.json`, then legacy fallbacks.
+    """
+    for context in list_contexts(repo_root):
+        if context.feature_slug != feature_slug:
+            continue
+        candidate = repo_root / context.worktree_path
+        if candidate.is_dir():
+            return candidate
+
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    from specify_cli.lanes.persistence import read_lanes_json
+
+    lanes_manifest = read_lanes_json(feature_dir)
+
+    if lanes_manifest is not None:
+        for lane in lanes_manifest.lanes:
+            candidate = repo_root / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            if candidate.is_dir():
+                return candidate
+
+    worktrees_dir = repo_root / ".worktrees"
+    exact = worktrees_dir / feature_slug
+    if exact.is_dir():
+        return exact
+
+    candidates = sorted(
+        path for path in worktrees_dir.glob(f"{feature_slug}-WP*") if path.is_dir()
+    )
+    return candidates[0] if candidates else None
+
+
 def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]]:
     """Find context files for workspaces that no longer exist.
 
@@ -234,13 +397,18 @@ def cleanup_orphaned_contexts(repo_root: Path) -> int:
 
 
 __all__ = [
+    "ResolvedWorkspace",
     "WorkspaceContext",
+    "build_feature_context_index",
     "get_workspaces_dir",
     "get_context_path",
     "save_context",
     "load_context",
     "delete_context",
     "list_contexts",
+    "find_context_for_wp",
+    "resolve_workspace_for_wp",
+    "resolve_feature_worktree",
     "find_orphaned_contexts",
     "cleanup_orphaned_contexts",
 ]

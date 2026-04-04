@@ -787,12 +787,12 @@ contract envelope. Use `orchestrator-api transition` instead.
 
 ```bash
 # WRONG
-git worktree add .worktrees/017-feature-WP01 -b 017-feature-WP01
+git worktree add .worktrees/017-feature-lane-a -b 017-feature-lane-a
 ```
 
-Manual worktree creation skips state transitions, policy recording, and claim
-tracking. Use `orchestrator-api start-implementation` first, then create the
-worktree at the returned `workspace_path`.
+Manual worktree creation skips state transitions, policy recording, claim
+tracking, and canonical workspace resolution. Use `orchestrator-api start-implementation`
+first, then create or attach the worktree at the returned `workspace_path`.
 
 **4. Poll by reading files**
 

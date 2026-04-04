@@ -41,7 +41,7 @@ When a WP has dependencies, implement it with a base WP so your workspace branch
 spec-kitty implement WP02 --base WP01
 ```
 
-This creates the WP02 workspace with WP01's changes already present.
+This resolves the correct workspace for WP02 with WP01's changes already present.
 
 ## Multiple Dependencies
 
@@ -49,7 +49,7 @@ Git can only branch from one base commit, so you choose the primary dependency a
 
 ```bash
 spec-kitty implement WP04 --base WP03
-cd .worktrees/###-feature-WP04
+cd <workspace path printed by spec-kitty implement>
 
 # Merge the other dependency manually
 git merge ###-feature-WP02
@@ -61,7 +61,7 @@ git merge ###-feature-WP02
 When a dependency changes after you've started work, use `spec-kitty sync workspace` to update your workspace:
 
 ```bash
-cd .worktrees/###-feature-WP02
+cd <workspace path printed by spec-kitty implement>
 spec-kitty sync workspace
 ```
 
@@ -78,9 +78,9 @@ You may need to resolve conflicts during sync. See [Sync Workspaces](sync-worksp
 If the parent WP changes after your dependent WP is in progress, rebase the child workspace:
 
 ```bash
-cd .worktrees/###-feature-WP02
+cd <workspace path printed by spec-kitty implement>
 
-git rebase ###-feature-WP01
+git rebase <base branch printed by spec-kitty>
 ```
 
 Repeat for each dependent WP that needs the updated base.

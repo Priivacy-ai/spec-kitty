@@ -15,7 +15,7 @@ AI coding workflows often break down on larger features:
 - Parallel work is hard to coordinate across branches
 - Review and acceptance criteria become inconsistent from one feature to the next
 
-Spec Kitty addresses this with repository-native artifacts, work package workflows, and git worktree isolation.
+Spec Kitty addresses this with repository-native artifacts, work package workflows, and lane-aware git worktree isolation.
 
 ### Who it's for
 
@@ -47,7 +47,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 |------------|--------------------------|
 | **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
 | **Work package execution** | Uses canonical 2.x lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
-| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/` for work package execution |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; lane-based features share a worktree per execution lane and legacy features may still use one worktree per work package |
 | **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
 | **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
 | **Multi-agent support** | Template and command generation for 12 AI agent integrations |
@@ -176,7 +176,7 @@ sequenceDiagram
 
 **Key Benefits:**
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
-- 🌳 **Worktree isolation** - One workspace per WP to reduce branch contention
+- 🌳 **Worktree isolation** - Lane-based features reuse shared lane worktrees; legacy features still isolate one workspace per WP
 - 👀 **Full visibility** - Dashboard shows who's doing what
 - 🔒 **Security boundary** - Orchestration policy and transitions are validated at the host API boundary
 
@@ -426,7 +426,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 **Check your dashboard:** You'll now see tasks in the `planned` lane.
 
-### Phase 5: Implement Features (In Feature Worktree)
+### Phase 5: Implement Features (In Execution Workspace)
 
 #### 5a. Execute Implementation
 
@@ -454,7 +454,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 - Agent reviews code and provides feedback or approval
 - Shows commands to move to `lane: "done"` (passed) or `lane: "planned"` (changes needed)
 
-### Phase 6: Accept & Merge (In Feature Worktree)
+### Phase 6: Accept & Merge
 
 #### 6a. Validate Feature Complete
 
@@ -497,7 +497,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
 4️⃣  /spec-kitty.tasks            → Generate work packages (in main repo)
-5️⃣  spec-kitty implement WP01    → Create workspace for WP01 (first worktree)
+5️⃣  spec-kitty implement WP01    → Create or reuse the execution workspace for WP01
     /spec-kitty.implement        → Build the work package
 6️⃣  /spec-kitty.review           → Review completed work
 7️⃣  /spec-kitty.accept           → Validate feature ready
@@ -534,9 +534,9 @@ Spec Kitty automatically protects you with multiple layers:
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
 
 **Worktree Constitution Sharing:**
-When creating WP workspaces, Spec Kitty uses symlinks to share the constitution:
+When creating execution workspaces, Spec Kitty uses symlinks to share the constitution:
 ```
-.worktrees/001-feature-WP01/.kittify/memory -> ../../../../.kittify/memory
+.worktrees/001-feature-lane-a/.kittify/memory -> ../../../../.kittify/memory
 ```
 This ensures all work packages follow the same project principles.
 
@@ -581,7 +581,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ---
 
 ### Feature
-**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and implementation worktree.
+**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more execution worktrees.
 
 **Examples**:
 - "001-auth-system feature"
@@ -592,13 +592,13 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - Specification: `/kitty-specs/###-feature-name/spec.md`
 - Plan: `/kitty-specs/###-feature-name/plan.md`
 - Tasks: `/kitty-specs/###-feature-name/tasks.md`
-- Implementation: `.worktrees/###-feature-name/`
+- Implementation: `.worktrees/###-feature-name-lane-a/` (modern lane-based features) or `.worktrees/###-feature-name-WP01/` (legacy fallback)
 
 **Lifecycle**:
 1. `/spec-kitty.specify` – Create the feature and its branch
 2. `/spec-kitty.plan` – Document the technical design
 3. `/spec-kitty.tasks` – Break work into packages
-4. `/spec-kitty.implement` – Build the feature inside its worktree
+4. `/spec-kitty.implement` – Build the feature inside the execution workspace printed by Spec Kitty
 5. `/spec-kitty.review` – Peer review
 6. `/spec-kitty.accept` – Validate according to gates
 7. `/spec-kitty.merge` – Merge and clean up
@@ -924,7 +924,7 @@ spec-kitty accept --json
 |--------|-------------|
 | `--strategy <type>` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
 | `--delete-branch` / `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
-| `--remove-worktree` / `--keep-worktree` | Remove or keep feature worktree after merge (default: remove) |
+| `--remove-worktree` / `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target <branch>` | Target branch to merge into (default: `main`) |
 | `--dry-run` | Show what would be done without executing |
@@ -1013,16 +1013,16 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 > **📖 Quick Start:** See the [Getting Started guide](#-getting-started-complete-workflow) for practical examples of worktree usage in context.
 
-Spec Kitty uses an **opinionated worktree approach** for parallel feature development:
+Spec Kitty uses an **opinionated execution-workspace model** for parallel feature development:
 
 ### Parallel Development Without Branch Switching
 
 ```mermaid
 graph TD
     Main[main branch<br/>🔒 Clean production code]
-    WT1[.worktrees/001-auth-WP01<br/>🔐 Authentication]
-    WT2[.worktrees/001-auth-WP02<br/>💾 Database]
-    WT3[.worktrees/002-dashboard-WP01<br/>📊 UI Components]
+    WT1[.worktrees/001-auth-lane-a<br/>🔐 Shared foundation lane]
+    WT2[.worktrees/001-auth-lane-b<br/>💾 Parallel API lane]
+    WT3[.worktrees/002-dashboard-lane-a<br/>📊 Dashboard lane]
 
     Main --> WT1
     Main --> WT2
@@ -1038,29 +1038,31 @@ graph TD
 ```
 
 **Why this works:**
-- Each WP gets its own directory + branch
-- Work on Feature 001 WP01 while another agent handles Feature 002 WP01
-- Main branch stays clean - no `git checkout` juggling
-- Merge conflicts detected early with pre-flight validation
+- Planning stays in the main checkout, so artifacts remain visible and auditable
+- Lane-based features can share a worktree across sequential WPs in the same execution lane
+- Independent lanes still run in parallel in separate directories with separate branches
+- Legacy features without `lanes.json` still fall back to one worktree per WP
+- Main branch stays clean without manual `git checkout` juggling
 
 ### The Pattern
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
-│   ├── 001-auth-system-WP01/  # Feature 1 WP01 (isolated sandbox)
-│   ├── 001-auth-system-WP02/  # Feature 1 WP02 (parallel work)
-│   └── 002-dashboard-WP01/    # Feature 2 WP01 (different feature)
+│   ├── 001-auth-system-lane-a/  # Feature 1 lane A (shared by sequential WPs)
+│   ├── 001-auth-system-lane-b/  # Feature 1 lane B (parallel work)
+│   └── 002-dashboard-WP01/      # Legacy feature fallback
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
 ```
 
 ### The Rules
-1. **Main branch** stays in the primary repo root
-2. **Feature branches** live in `.worktrees/<feature-slug>/`
-3. **Work on features** happens in their worktrees (complete isolation)
-4. **No branch switching** in main repo - just `cd` between worktrees
-5. **Automatic cleanup** - worktrees removed after merge
+1. **Planning commands** run in the primary repo root
+2. **Implementation branches** live under `.worktrees/`
+3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
+4. **Lane-based features** reuse `.worktrees/<feature>-lane-<id>` when multiple WPs share a lane
+5. **Legacy features without `lanes.json`** still use `.worktrees/<feature>-WP##`
+6. **Automatic cleanup** removes execution worktrees after merge
 
 ### The Complete Workflow
 
@@ -1068,19 +1070,22 @@ my-project/                    # Main repo (main branch)
 # ========== IN MAIN REPO ==========
 /spec-kitty.constitution     # Step 1: Establish project governance (one time per project)
 
-# ========== CREATE FEATURE BRANCH & WORKTREE ==========
-/spec-kitty.specify          # Step 2: Creates feature branch + isolated worktree
-cd .worktrees/001-my-feature # Enter isolated sandbox for feature development
-
-# ========== IN FEATURE WORKTREE ==========
+# ========== PLAN IN MAIN REPO ==========
+/spec-kitty.specify          # Step 2: Create the feature artifacts
 /spec-kitty.plan             # Step 3: Design technical implementation
 /spec-kitty.research         # Step 4 (as needed): Research technologies, patterns, etc.
 /spec-kitty.tasks            # Step 5: Break plan into actionable tasks
 /spec-kitty.analyze          # Step 6 (optional): Check cross-artifact consistency
-/spec-kitty.implement        # Step 7: Execute implementation tasks
-/spec-kitty.review           # Step 8: Review and refine completed work
-/spec-kitty.accept           # Step 9: Acceptance checks & final metadata
-/spec-kitty.merge --push     # Step 10: Merge to main + cleanup worktree
+
+# ========== CREATE OR RESOLVE EXECUTION WORKSPACE ==========
+spec-kitty implement WP01    # Step 7: Creates or reuses the execution workspace
+cd .worktrees/001-my-feature-lane-a  # Use the exact path Spec Kitty printed
+
+# ========== IN EXECUTION WORKSPACE ==========
+/spec-kitty.implement        # Step 8: Execute implementation tasks
+/spec-kitty.review           # Step 9: Review and refine completed work
+/spec-kitty.accept           # Step 10: Acceptance checks & final metadata
+/spec-kitty.merge --push     # Step 11: Merge to main + cleanup execution worktrees
 
 # ========== BACK IN MAIN REPO ==========
 # Ready for next feature!

@@ -38,8 +38,8 @@ Mission (reusable workflow blueprint, e.g. software-dev)
   |         WP02.md
   |         WP03.md
   |           |
-  |           +-- Workspace (.worktrees/042-auth-system-WP03/)
-  |                 isolated git worktree for this WP
+  |           +-- Execution Workspace (.worktrees/042-auth-system-lane-a/)
+  |                 isolated git worktree resolved for this WP
 ```
 
 **Mission** -- A reusable workflow blueprint. It defines the steps, templates, artifacts, and guards. You never edit missions directly; you select one when starting a feature.

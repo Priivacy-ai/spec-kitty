@@ -23,7 +23,8 @@ history:
 
 - **Planning/base branch at prompt creation**: `{{planning_base_branch}}`
 - **Final merge target for completed work**: `{{merge_target_branch}}`
-- **Actual worktree base may differ later**: `/spec-kitty.implement` populates frontmatter `base_branch` when the worktree is created. For stacked WPs it may point at another WP branch, but the final merge target remains `{{merge_target_branch}}` unless the human explicitly changes the landing branch.
+- **Actual execution workspace is resolved later**: `/spec-kitty.implement` decides the real workspace path and `base_branch` when implementation starts. Modern features may place multiple sequential WPs in one lane worktree such as `.worktrees/<feature>-lane-a`; legacy features without lanes still use `.worktrees/<feature>-WP##`.
+- **If the resolved workspace differs from your expectation**: trust the path printed by `spec-kitty agent workflow implement/review`; do not manually create a different worktree.
 - **If human instructions contradict these fields**: stop and resolve the intended landing branch before working.
 
 ---

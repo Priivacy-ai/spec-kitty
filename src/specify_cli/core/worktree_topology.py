@@ -22,7 +22,10 @@ from typing import Optional
 
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
-from specify_cli.workspace_context import list_contexts
+from specify_cli.workspace_context import (
+    build_feature_context_index,
+    resolve_workspace_for_wp,
+)
 from specify_cli.frontmatter import read_frontmatter
 
 
@@ -143,13 +146,8 @@ def materialize_worktree_topology(
         # Cycle detected — fall back to sorted keys
         topo_order = sorted(graph.keys())
 
-    # Build WP branch map from workspace contexts
-    contexts = list_contexts(main_repo_root)
-    feature_contexts = {
-        ctx.wp_id: ctx
-        for ctx in contexts
-        if ctx.feature_slug == feature_slug
-    }
+    # Build WP branch map from workspace contexts, expanding lane contexts.
+    feature_contexts = build_feature_context_index(main_repo_root, feature_slug)
 
     # Map WP ID -> branch name for base resolution
     wp_branches: dict[str, str] = {}
@@ -188,8 +186,9 @@ def materialize_worktree_topology(
 
         # Count commits ahead of base
         commits_ahead = 0
-        worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
-        worktree_exists = worktree_path.exists()
+        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+        worktree_path = workspace.worktree_path
+        worktree_exists = workspace.exists
         if worktree_exists and base_branch:
             commits_ahead = _count_commits_ahead(worktree_path, base_branch)
 

@@ -21,6 +21,8 @@ from specify_cli.cli.commands.agent.workflow import (
 )
 
 import pytest
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 
 pytestmark = pytest.mark.git_repo
 
@@ -310,6 +312,94 @@ class TestAgentWorkflowImplement:
         captured = capsys.readouterr()
         assert "Failed to commit workflow status update for WP01" in captured.out
         assert "✓ Claimed WP01" not in captured.out
+
+    def test_lane_mode_implement_prints_lane_workspace(self, mock_repo, capsys):
+        """Workflow implement should surface the real lane workspace path."""
+        feature_slug = "001-test-feature"
+        feature_dir = mock_repo / "kitty-specs" / feature_slug
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        events_file = feature_dir / "status.events.jsonl"
+        meta_file = feature_dir / "meta.json"
+
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "title: Setup\n"
+            "dependencies: []\n"
+            "lane: planned\n"
+            'agent: ""\n'
+            'shell_pid: ""\n'
+            "---\n"
+            "# Setup\n",
+            encoding="utf-8",
+        )
+        meta_file.write_text('{"mission": "software-dev", "vcs": "git"}', encoding="utf-8")
+        seed_event = {
+            "actor": "test",
+            "at": "2026-01-01T00:00:00+00:00",
+            "event_id": "01JTEST00000000000000000010",
+            "evidence": None,
+            "execution_mode": "direct_repo",
+            "feature_slug": feature_slug,
+            "force": False,
+            "from_lane": "planned",
+            "reason": None,
+            "review_ref": None,
+            "to_lane": "planned",
+            "wp_id": "WP01",
+        }
+        events_file.write_text(json.dumps(seed_event, sort_keys=True) + "\n", encoding="utf-8")
+        subprocess.run(["git", "add", "-f", str(wp_file), str(events_file), str(meta_file)], cwd=mock_repo, check=True, capture_output=True)
+        subprocess.run(["git", "commit", "-m", "Add lane-mode WP01"], cwd=mock_repo, check=True, capture_output=True)
+
+        manifest = LanesManifest(
+            version=1,
+            feature_slug=feature_slug,
+            mission_id="mission-001-test-feature",
+            mission_branch="kitty/mission-001-test-feature",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01", "WP02"),
+                    write_scope=("src/**",),
+                    predicted_surfaces=("core",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-04T10:00:00Z",
+            computed_from="test",
+        )
+        write_lanes_json(feature_dir, manifest)
+
+        lane_workspace = mock_repo / ".worktrees" / f"{feature_slug}-lane-a"
+
+        def fake_top_level_implement(**_: object) -> None:
+            lane_workspace.mkdir(parents=True, exist_ok=True)
+
+        with (
+            patch("specify_cli.cli.commands.agent.workflow.locate_project_root", return_value=mock_repo),
+            patch("specify_cli.cli.commands.agent.workflow._find_feature_slug", return_value=feature_slug),
+            patch(
+                "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
+                return_value=(mock_repo, "main"),
+            ),
+            patch("specify_cli.cli.commands.agent.workflow.top_level_implement", side_effect=fake_top_level_implement),
+            patch("specify_cli.cli.commands.agent.workflow.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.workflow.emit_status_transition"),
+            patch("specify_cli.cli.commands.agent.workflow._write_prompt_to_file", return_value=mock_repo / "prompt.md"),
+        ):
+            agent_implement(
+                wp_id="WP01",
+                feature=feature_slug,
+                agent="test-agent",
+                base=None,
+            )
+
+        captured = capsys.readouterr()
+        assert str(lane_workspace) in captured.out
+        assert f"{feature_slug}-WP01" not in captured.out
 
     def test_review_aborts_when_status_claim_commit_fails(self, mock_repo, capsys):
         """Workflow review must fail loudly when status commit fails."""

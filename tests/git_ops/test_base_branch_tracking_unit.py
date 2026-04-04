@@ -14,6 +14,8 @@ from pathlib import Path
 
 
 from specify_cli.frontmatter import read_frontmatter
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.workspace_context import (
     WorkspaceContext,
     cleanup_orphaned_contexts,
@@ -21,6 +23,7 @@ from specify_cli.workspace_context import (
     find_orphaned_contexts,
     list_contexts,
     load_context,
+    resolve_workspace_for_wp,
     save_context,
 )
 
@@ -208,6 +211,70 @@ class TestWorkspaceContextPersistence:
         """Test listing contexts when none exist."""
         loaded = list_contexts(tmp_path)
         assert loaded == []
+
+    def test_resolve_workspace_for_wp_uses_lane_context_membership(self, tmp_path: Path):
+        """Lane contexts should resolve every WP assigned to the lane."""
+        lane_path = tmp_path / ".worktrees" / "010-feature-lane-a"
+        lane_path.mkdir(parents=True, exist_ok=True)
+
+        context = WorkspaceContext(
+            wp_id="WP02",
+            feature_slug="010-feature",
+            worktree_path=".worktrees/010-feature-lane-a",
+            branch_name="kitty/mission-010-feature-lane-a",
+            base_branch="kitty/mission-010-feature",
+            base_commit="abc123",
+            dependencies=["WP01"],
+            created_at="2026-01-23T10:00:00Z",
+            created_by="implement-command-lane",
+            vcs_backend="git",
+            lane_id="lane-a",
+            lane_wp_ids=["WP01", "WP02"],
+            current_wp="WP02",
+        )
+
+        save_context(tmp_path, context)
+
+        resolved = resolve_workspace_for_wp(tmp_path, "010-feature", "WP01")
+
+        assert resolved.worktree_path == lane_path
+        assert resolved.branch_name == "kitty/mission-010-feature-lane-a"
+        assert resolved.lane_id == "lane-a"
+        assert resolved.context is not None
+
+    def test_resolve_workspace_for_wp_falls_back_to_lanes_manifest(self, tmp_path: Path):
+        """When no context exists yet, lanes.json should still predict the right workspace."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        feature_dir.mkdir(parents=True, exist_ok=True)
+
+        manifest = LanesManifest(
+            version=1,
+            feature_slug="010-feature",
+            mission_id="mission-010-feature",
+            mission_branch="kitty/mission-010-feature",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=("WP01", "WP02"),
+                    write_scope=("src/**",),
+                    predicted_surfaces=("core",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-04T10:00:00Z",
+            computed_from="test",
+        )
+        write_lanes_json(feature_dir, manifest)
+
+        resolved = resolve_workspace_for_wp(tmp_path, "010-feature", "WP02")
+
+        assert resolved.workspace_name == "010-feature-lane-a"
+        assert resolved.worktree_path == tmp_path / ".worktrees" / "010-feature-lane-a"
+        assert resolved.branch_name == "kitty/mission-010-feature-lane-a"
+        assert resolved.lane_id == "lane-a"
+        assert resolved.context is None
 
 
 class TestOrphanedContexts:

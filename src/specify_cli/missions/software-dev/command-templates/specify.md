@@ -142,7 +142,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: Use `spec-kitty implement WP##` to create a workspace for each work package. Worktrees are created later during implement (e.g., `.worktrees/###-feature-WP##`).
+**Worktrees created later**: Use `spec-kitty implement WP##` to create the execution workspace for that WP. Modern features with `lanes.json` create or reuse lane worktrees (for example, `.worktrees/###-feature-lane-a`); legacy features without lanes still use `.worktrees/###-feature-WP##`.
 
 ## Location
 

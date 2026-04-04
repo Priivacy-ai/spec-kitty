@@ -95,7 +95,7 @@ the orchestrator-api.
 
 ```bash
 # WRONG: Creating git worktrees without the API
-git worktree add .worktrees/017-feature-WP01 -b 017-feature-WP01
+git worktree add .worktrees/017-feature-lane-a -b 017-feature-lane-a
 ```
 
 **Why it breaks:** The orchestrator-api `start-implementation` command records

@@ -31,10 +31,10 @@ Get-Location
 git branch --show-current
 ```
 
-**Expected for feature worktrees:**
+**Expected for execution workspaces:**
 
-- Location: `C:\Users\...\project\.worktrees\001-feature-name`
-- Branch: `001-feature-name` (NOT `main`)
+- Location: `C:\Users\...\project\.worktrees\001-feature-name-lane-a` (or legacy `...\001-feature-name-WP01`)
+- Branch: `kitty/mission-001-feature-name-lane-a` or legacy `001-feature-name-WP01` (NOT `main`)
 
 ---
 

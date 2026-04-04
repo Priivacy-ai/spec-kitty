@@ -150,8 +150,8 @@ spec-kitty agent feature accept --lenient --json
 | `--push` | Push to origin after merging |
 | `--dry-run` | Show actions without executing |
 | `--keep-branch` | Keep feature branch after merge (default: delete) |
-| `--keep-worktree` | Keep worktree after merge (default: remove) |
-| `--auto-retry`, `--no-auto-retry` | Auto-navigate to a deterministic feature worktree if in wrong location (default: no-auto-retry) |
+| `--keep-worktree` | Keep resolved execution worktrees after merge (default: remove) |
+| `--auto-retry`, `--no-auto-retry` | Auto-navigate to a deterministic execution workspace if in wrong location (default: no-auto-retry) |
 | `--help` | Show this message and exit |
 
 **Examples**:
