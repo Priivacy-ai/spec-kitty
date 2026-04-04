@@ -216,10 +216,13 @@ def _evaluate_dependency_gate(
     """Check that all WP dependencies are in done lane."""
     try:
         from specify_cli.core.dependency_graph import build_dependency_graph
-        from specify_cli.status.reducer import materialize
+        from specify_cli.status.reducer import reduce
+        from specify_cli.status.store import read_events
 
         graph = build_dependency_graph(feature_dir)
-        snapshot = materialize(feature_dir)
+        # Merge gate evaluation must remain read-only. Writing status.json here
+        # dirties the repo and can block repeated merge attempts.
+        snapshot = reduce(read_events(feature_dir))
 
         wp_lanes: dict[str, str] = {}
         if snapshot and hasattr(snapshot, "work_packages"):
