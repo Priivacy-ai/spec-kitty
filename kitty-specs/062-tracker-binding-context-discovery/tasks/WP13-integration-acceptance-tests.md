@@ -13,8 +13,8 @@ base_branch: main
 base_commit: ffc97abccefebdf6499bfcc2940986c15e4b454d
 created_at: '2026-04-04T11:54:14.074849+00:00'
 subtasks: [T064, T065, T066, T067, T068, T069]
-shell_pid: "29361"
-agent: "coordinator"
+shell_pid: "30952"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -172,3 +172,4 @@ spec-kitty implement WP13 --base WP12
 - 2026-04-04T12:13:35Z – codex – shell_pid=17790 – Moved to planned
 - 2026-04-04T12:13:47Z – coordinator – shell_pid=29361 – Started implementation via workflow command
 - 2026-04-04T12:19:03Z – coordinator – shell_pid=29361 – Added missing scenarios 8/9/10 + CLI integration tests
+- 2026-04-04T12:19:40Z – codex – shell_pid=30952 – Started review via workflow command
