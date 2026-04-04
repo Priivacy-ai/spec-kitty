@@ -248,3 +248,4 @@ No dependencies — this WP can start immediately.
 ## Activity Log
 
 - 2026-04-04T09:34:48Z – coordinator – shell_pid=32788 – Started implementation via workflow command
+- 2026-04-04T09:37:48Z – coordinator – shell_pid=32788 – Ready for review: 5 dataclasses + find_candidate_by_position helper, 22 tests all passing, ruff clean
