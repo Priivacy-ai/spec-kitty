@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import filecmp
 import logging
 import os
 import shutil
@@ -14,7 +15,7 @@ from specify_cli.runtime.bootstrap import _get_cli_version, _lock_exclusive
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.shims.generator import generate_shims_for_agent_dir
-from specify_cli.shims.registry import PROMPT_DRIVEN_COMMANDS
+from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
 from specify_cli.template.asset_generator import (
     generate_agent_assets_to_dir,
     render_command_template,
@@ -176,6 +177,95 @@ def _project_global_file(
     except OSError:
         shutil.copy2(source_file, dest)
     return backup_root, True
+
+
+def _files_match(source_file: Path, dest: Path) -> bool:
+    """Return True when *dest* already mirrors *source_file*."""
+    if not dest.exists():
+        return False
+
+    if dest.is_symlink():
+        try:
+            return dest.resolve() == source_file.resolve()
+        except OSError:
+            return False
+
+    if not dest.is_file():
+        return False
+
+    try:
+        return filecmp.cmp(source_file, dest, shallow=False)
+    except OSError:
+        return False
+
+
+def _expected_managed_filenames(agent_key: str) -> set[str]:
+    config = AGENT_COMMAND_CONFIG[agent_key]
+    ext = config["ext"]
+    filenames: set[str] = set()
+
+    for command in sorted(PROMPT_DRIVEN_COMMANDS):
+        stem = command
+        if agent_key == "codex":
+            stem = stem.replace("-", "_")
+        filenames.add(f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}")
+
+    for command in sorted(CLI_DRIVEN_COMMANDS):
+        filenames.add(f"spec-kitty.{command}.md")
+
+    return filenames
+
+
+def project_command_install_needed(project_path: Path, agent_key: str) -> bool:
+    """Return True when an agent's managed command surface needs normalization."""
+    if agent_key in LEGACY_ONLY_COMMAND_AGENTS:
+        codex_config = AGENT_COMMAND_CONFIG.get(agent_key)
+        if codex_config is None:
+            return False
+        return (project_path / codex_config["dir"]).exists()
+
+    if not supports_managed_commands(agent_key):
+        return False
+
+    project_root = get_primary_project_command_root(agent_key)
+    if project_root is None:
+        return False
+
+    target_root = project_path / project_root
+    expected_names = _expected_managed_filenames(agent_key)
+
+    if _project_has_command_overrides(project_path):
+        if not target_root.is_dir():
+            return True
+        current_names = {
+            path.name
+            for path in target_root.glob("spec-kitty.*")
+            if path.is_file() or path.is_symlink()
+        }
+        return current_names != expected_names
+
+    global_root = get_primary_global_command_root(agent_key)
+    if global_root is None or not global_root.is_dir():
+        return True
+    if not target_root.is_dir():
+        return True
+
+    canonical_files = sorted(
+        path for path in global_root.glob("spec-kitty.*") if path.is_file() or path.is_symlink()
+    )
+    current_names = {
+        path.name
+        for path in target_root.glob("spec-kitty.*")
+        if path.is_file() or path.is_symlink()
+    }
+    if current_names != {path.name for path in canonical_files}:
+        return True
+
+    for source_file in canonical_files:
+        if not _files_match(source_file, target_root / source_file.name):
+            return True
+
+    return False
 
 
 def _project_global_commands(project_path: Path, agent_key: str) -> AgentCommandInstallResult:

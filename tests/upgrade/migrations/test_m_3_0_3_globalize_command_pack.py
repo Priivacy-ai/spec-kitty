@@ -53,6 +53,25 @@ def test_detects_configured_project(tmp_path: Path) -> None:
     assert GlobalizeCommandPackMigration().detect(project) is True
 
 
+def test_apply_dry_run_leaves_project_unchanged(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(_setup_command_templates(tmp_path)))
+
+    project = _setup_project(tmp_path, ["claude", "codex"])
+    legacy_codex = project / ".codex" / "prompts" / "spec-kitty.plan.md"
+    legacy_codex.parent.mkdir(parents=True, exist_ok=True)
+    legacy_codex.write_text("# stale codex prompt\n", encoding="utf-8")
+
+    result = GlobalizeCommandPackMigration().apply(project, dry_run=True)
+
+    assert result.success is True
+    assert result.changes_made == ["Would normalize managed command files for 2 configured agent(s)"]
+    assert legacy_codex.exists()
+    assert not (project / ".claude" / "commands").exists()
+
+
 def test_apply_projects_claude_commands_and_retires_codex_prompts(tmp_path: Path, monkeypatch) -> None:
     home = tmp_path / "home"
     monkeypatch.setenv("HOME", str(home))
@@ -77,3 +96,23 @@ def test_apply_projects_claude_commands_and_retires_codex_prompts(tmp_path: Path
     assert claude_global.exists()
     assert not legacy_codex.exists()
     assert not (project / ".codex" / "prompts").exists()
+
+
+def test_detect_false_after_apply_is_idempotent(tmp_path: Path, monkeypatch) -> None:
+    home = tmp_path / "home"
+    monkeypatch.setenv("HOME", str(home))
+    monkeypatch.setenv("SPEC_KITTY_HOME", str(home / ".kittify"))
+    monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(_setup_command_templates(tmp_path)))
+
+    project = _setup_project(tmp_path, ["claude", "codex"])
+    legacy_codex = project / ".codex" / "prompts" / "spec-kitty.plan.md"
+    legacy_codex.parent.mkdir(parents=True, exist_ok=True)
+    legacy_codex.write_text("# stale codex prompt\n", encoding="utf-8")
+
+    migration = GlobalizeCommandPackMigration()
+    assert migration.detect(project) is True
+
+    result = migration.apply(project)
+
+    assert result.success is True
+    assert migration.detect(project) is False

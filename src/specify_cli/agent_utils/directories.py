@@ -72,35 +72,24 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         >>> # Legacy project without config.yaml
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
         >>> len(dirs)
-        12  # All agents
+        13  # All agents
     """
-    try:
-        from specify_cli.core.agent_config import (
-            AgentConfigError,
-            get_configured_agents,
-        )
+    from specify_cli.core.agent_config import get_configured_agents
 
-        available = get_configured_agents(project_path)
+    available = get_configured_agents(project_path)
 
-        if not available:
-            # Empty config - fallback to all agents
-            return list(AGENT_DIRS)
-
-        # Filter AGENT_DIRS to only include configured agents
-        configured_dirs = []
-        for agent_root, subdir in AGENT_DIRS:
-            agent_key = AGENT_DIR_TO_KEY.get(agent_root)
-            if agent_key in available:
-                configured_dirs.append((agent_root, subdir))
-
-        return configured_dirs
-
-    except AgentConfigError:
-        raise
-    except Exception:
-        # Config missing or error reading - fallback to all agents
-        # This handles legacy projects gracefully
+    if not available:
+        # Empty or missing config - fallback to all agents for legacy projects
         return list(AGENT_DIRS)
+
+    # Filter AGENT_DIRS to only include configured agents
+    configured_dirs = []
+    for agent_root, subdir in AGENT_DIRS:
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key in available:
+            configured_dirs.append((agent_root, subdir))
+
+    return configured_dirs
 
 
 def get_command_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:

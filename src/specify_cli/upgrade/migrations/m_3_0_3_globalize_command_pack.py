@@ -28,7 +28,13 @@ class GlobalizeCommandPackMigration(BaseMigration):
     def detect(self, project_path: Path) -> bool:
         if not (project_path / ".kittify").is_dir():
             return False
-        return bool(_configured_agents(project_path))
+        from specify_cli.runtime.agent_commands import project_command_install_needed
+
+        agents = _configured_agents(project_path)
+        if not agents:
+            return False
+
+        return any(project_command_install_needed(project_path, agent_key) for agent_key in agents)
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         if not (project_path / ".kittify").is_dir():
