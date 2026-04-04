@@ -254,6 +254,9 @@ def bind_command(
 
 @app.command("status")
 def status_command(
+    all_installations: bool = typer.Option(
+        False, "--all", help="Show installation-wide status (SaaS providers only)"
+    ),
     as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
 ) -> None:
     """Show tracker binding and sync status.
@@ -262,13 +265,25 @@ def status_command(
     provider info from the SaaS control plane.
 
     For local providers: displays local cache statistics and configuration.
+
+    With --all: shows installation-wide summary across all bindings
+    (SaaS providers only).
     """
 
     def _run() -> None:
-        payload = _service().status()
+        try:
+            payload = _service().status(all=all_installations)
+        except TrackerServiceError as e:
+            typer.echo(f"Error: {e}", err=True)
+            raise typer.Exit(1) from None
 
         if as_json:
             _print_json(payload)
+            return
+
+        # Installation-wide output uses Rich for distinct formatting
+        if all_installations:
+            _print_installation_wide_status(payload)
             return
 
         if not payload.get("configured"):
@@ -293,6 +308,45 @@ def status_command(
             typer.echo(f"- credentials_present: {'yes' if payload.get('credentials_present') else 'no'}")
 
     _run_or_exit(_run)
+
+
+def _print_installation_wide_status(payload: dict) -> None:
+    """Render installation-wide tracker status using Rich for visual distinction."""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+
+    console = Console()
+
+    provider = payload.get("provider", "unknown")
+    connected = payload.get("connected", payload.get("status", "unknown"))
+
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+
+    table.add_row("Provider", str(provider))
+    table.add_row("Connected", str(connected))
+
+    # Show binding/resource counts if present
+    if "bindings" in payload:
+        bindings = payload["bindings"]
+        if isinstance(bindings, list):
+            table.add_row("Bindings", str(len(bindings)))
+        elif isinstance(bindings, int):
+            table.add_row("Bindings", str(bindings))
+
+    if "resource_count" in payload:
+        table.add_row("Resources", str(payload["resource_count"]))
+
+    # Include any additional top-level keys that aren't already covered
+    _skip = {"provider", "connected", "status", "bindings", "resource_count"}
+    for key, value in sorted(payload.items()):
+        if key not in _skip:
+            table.add_row(key, str(value))
+
+    panel = Panel(table, title="Installation-wide tracker status", border_style="green")
+    console.print(panel)
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +517,11 @@ def sync_push_command(
                 raw = _Path(items_json).read_text(encoding="utf-8")
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
-                typer.secho("Error: --items-json must contain a JSON array of PushItem objects.", fg=typer.colors.RED, err=True)
+                typer.secho(
+                    "Error: --items-json must contain a JSON array of PushItem objects.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
                 raise typer.Exit(code=1)
 
             payload = service.sync_push(items=parsed)
