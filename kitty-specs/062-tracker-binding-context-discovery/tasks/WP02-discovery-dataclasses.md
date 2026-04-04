@@ -2,7 +2,8 @@
 work_package_id: WP02
 title: Discovery Dataclasses
 dependencies: []
-requirement_refs: []
+requirement_refs:
+- C-006
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
