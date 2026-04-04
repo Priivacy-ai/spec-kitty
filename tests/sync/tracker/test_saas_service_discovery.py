@@ -370,25 +370,172 @@ class TestResolveAndBindNone:
 
 
 class TestCandidateTokenRetry:
-    def test_confirm_token_rejected_raises_clear_error(
+    def test_confirm_token_rejected_retries_resolution_once(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
-        """invalid_candidate_token from bind_confirm raises TrackerServiceError."""
+        """invalid_candidate_token retries bind-resolve once and then confirms."""
         cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
         svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
 
-        mock_client.bind_resolve.return_value = {
-            "match_type": "exact",
-            "binding_ref": None,
-            "candidate_token": "tok-expired",
-            "display_label": "Stale Project",
-            "candidates": [],
-        }
-        mock_client.bind_confirm.side_effect = SaaSTrackerClientError(
-            "Token expired",
-            error_code="invalid_candidate_token",
-            status_code=422,
+        mock_client.bind_resolve.side_effect = [
+            {
+                "match_type": "exact",
+                "binding_ref": None,
+                "candidate_token": "tok-expired",
+                "display_label": "Stale Project",
+                "candidates": [],
+            },
+            {
+                "match_type": "exact",
+                "binding_ref": None,
+                "candidate_token": "tok-fresh",
+                "display_label": "Fresh Project",
+                "candidates": [],
+            },
+        ]
+        mock_client.bind_confirm.side_effect = [
+            SaaSTrackerClientError(
+                "Token expired",
+                error_code="invalid_candidate_token",
+                status_code=422,
+            ),
+            {
+                "binding_ref": "ref-fresh",
+                "display_label": "Fresh Project",
+                "provider": "linear",
+                "provider_context": {"org": "acme"},
+                "bound_at": "2026-04-04T12:00:00Z",
+            },
+        ]
+
+        identity = {"repo_name": "my-repo"}
+        result = svc.resolve_and_bind(
+            provider="linear",
+            project_identity=identity,
         )
+
+        assert isinstance(result, BindResult)
+        assert result.binding_ref == "ref-fresh"
+        assert mock_client.bind_resolve.call_count == 2
+        assert mock_client.bind_confirm.call_count == 2
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref == "ref-fresh"
+        assert loaded.provider_context == {"org": "acme"}
+
+    def test_candidate_selection_retry_reuses_requested_position(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Retry after token expiry re-resolves and reuses the same select_n value."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.bind_resolve.side_effect = [
+            {
+                "match_type": "candidates",
+                "candidates": [
+                    {
+                        "candidate_token": "tok-a1",
+                        "display_label": "Alpha",
+                        "confidence": "high",
+                        "match_reason": "name match",
+                        "sort_position": 0,
+                    },
+                    {
+                        "candidate_token": "tok-b1",
+                        "display_label": "Beta",
+                        "confidence": "medium",
+                        "match_reason": "partial match",
+                        "sort_position": 1,
+                    },
+                ],
+            },
+            {
+                "match_type": "candidates",
+                "candidates": [
+                    {
+                        "candidate_token": "tok-a2",
+                        "display_label": "Alpha",
+                        "confidence": "high",
+                        "match_reason": "name match",
+                        "sort_position": 0,
+                    },
+                    {
+                        "candidate_token": "tok-b2",
+                        "display_label": "Beta",
+                        "confidence": "medium",
+                        "match_reason": "partial match",
+                        "sort_position": 1,
+                    },
+                ],
+            },
+        ]
+        mock_client.bind_confirm.side_effect = [
+            SaaSTrackerClientError(
+                "Token expired",
+                error_code="invalid_candidate_token",
+                status_code=422,
+            ),
+            {
+                "binding_ref": "ref-beta",
+                "display_label": "Beta (confirmed)",
+                "provider": "linear",
+                "provider_context": {},
+                "bound_at": "2026-04-04T12:00:00Z",
+            },
+        ]
+
+        identity = {"repo_name": "my-repo"}
+        result = svc.resolve_and_bind(
+            provider="linear",
+            project_identity=identity,
+            select_n=2,
+        )
+
+        assert isinstance(result, BindResult)
+        assert result.binding_ref == "ref-beta"
+        assert mock_client.bind_resolve.call_count == 2
+        assert mock_client.bind_confirm.call_args_list[0].args == (
+            "linear", "tok-b1", identity,
+        )
+        assert mock_client.bind_confirm.call_args_list[1].args == (
+            "linear", "tok-b2", identity,
+        )
+
+    def test_confirm_token_rejected_twice_raises_clear_error(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """A second invalid_candidate_token after retry surfaces a clear error."""
+        cfg = TrackerProjectConfig(provider="linear", project_slug="my-proj")
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.bind_resolve.side_effect = [
+            {
+                "match_type": "exact",
+                "binding_ref": None,
+                "candidate_token": "tok-expired",
+                "display_label": "Stale Project",
+                "candidates": [],
+            },
+            {
+                "match_type": "exact",
+                "binding_ref": None,
+                "candidate_token": "tok-expired-again",
+                "display_label": "Still Stale",
+                "candidates": [],
+            },
+        ]
+        mock_client.bind_confirm.side_effect = [
+            SaaSTrackerClientError(
+                "Token expired",
+                error_code="invalid_candidate_token",
+                status_code=422,
+            ),
+            SaaSTrackerClientError(
+                "Token expired again",
+                error_code="invalid_candidate_token",
+                status_code=422,
+            ),
+        ]
 
         identity = {"repo_name": "my-repo"}
         with pytest.raises(TrackerServiceError, match="Candidate token expired"):
@@ -396,6 +543,9 @@ class TestCandidateTokenRetry:
                 provider="linear",
                 project_identity=identity,
             )
+
+        assert mock_client.bind_resolve.call_count == 2
+        assert mock_client.bind_confirm.call_count == 2
 
     def test_confirm_other_error_propagates(
         self, repo_root: Path, mock_client: MagicMock
@@ -484,3 +634,30 @@ class TestPersistBinding:
         assert isinstance(result, BindResult)
         loaded = load_tracker_config(repo_root)
         assert loaded.provider_context == {"workspace_id": "ws-123", "org_slug": "acme"}
+
+    def test_persist_binding_preserves_extra_fields(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """_persist_binding preserves forward-compatible unknown tracker fields."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="legacy-slug",
+            _extra={"future_field": {"enabled": True}},
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.bind_resolve.return_value = {
+            "match_type": "exact",
+            "binding_ref": "ref-new",
+            "display_label": "New Binding",
+            "candidate_token": None,
+            "candidates": [],
+        }
+
+        identity = {"repo_name": "my-repo"}
+        svc.resolve_and_bind(provider="linear", project_identity=identity)
+
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref == "ref-new"
+        assert loaded.project_slug == "legacy-slug"
+        assert loaded.to_dict()["future_field"] == {"enabled": True}

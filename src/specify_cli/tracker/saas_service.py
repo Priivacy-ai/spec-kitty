@@ -202,20 +202,33 @@ class SaaSTrackerService:
         provider_context: dict[str, str] | None,
     ) -> None:
         """Write binding config to disk and update in-memory state."""
-        self._config = TrackerProjectConfig(
+        same_provider = self._config.provider == provider
+        updated = TrackerProjectConfig(
             provider=provider,
             binding_ref=binding_ref,
-            project_slug=self._config.project_slug,  # preserve legacy
-            display_label=display_label,
+            project_slug=self._config.project_slug if same_provider else None,
+            display_label=(
+                display_label
+                if display_label is not None
+                else self._config.display_label if same_provider else None
+            ),
             provider_context=provider_context,
+            workspace=self._config.workspace if same_provider else None,
+            doctrine_mode=self._config.doctrine_mode,
+            doctrine_field_owners=dict(self._config.doctrine_field_owners),
+            _extra=dict(self._config._extra),
         )
-        save_tracker_config(self._repo_root, self._config)
+        save_tracker_config(self._repo_root, updated)
+        self._config = updated
 
     def _confirm_and_persist(
         self,
         provider: str,
         candidate_token: str,
         project_identity: dict[str, Any],
+        *,
+        select_n: int | None = None,
+        allow_retry: bool = True,
     ) -> BindResult:
         """Confirm a candidate token and persist the binding."""
         try:
@@ -224,6 +237,12 @@ class SaaSTrackerService:
             )
         except SaaSTrackerClientError as e:
             if e.error_code == "invalid_candidate_token":
+                if allow_retry:
+                    return self._retry_after_candidate_expiry(
+                        provider,
+                        project_identity,
+                        select_n=select_n,
+                    )
                 raise TrackerServiceError(
                     "Candidate token expired. Please retry the bind operation."
                 ) from e
@@ -233,24 +252,62 @@ class SaaSTrackerService:
         )
         return result
 
-    def resolve_and_bind(
+    def _resolve_binding(
         self,
-        *,
         provider: str,
-        project_identity: dict[str, Any] | None = None,
-        select_n: int | None = None,
-    ) -> BindResult | ResolutionResult:
-        """Orchestrate the discovery-bind flow.
-
-        Returns ``BindResult`` on success (auto-bind or confirmed selection).
-        Returns ``ResolutionResult`` with candidates if user selection needed.
-        Raises ``TrackerServiceError`` on no-match or validation failure.
-        """
-        identity = project_identity or {}
-        resolution = ResolutionResult.from_api(
-            self._client.bind_resolve(provider, identity)
+        project_identity: dict[str, Any],
+    ) -> ResolutionResult:
+        """Resolve the local project identity to a host binding result."""
+        return ResolutionResult.from_api(
+            self._client.bind_resolve(provider, project_identity)
         )
 
+    def _retry_after_candidate_expiry(
+        self,
+        provider: str,
+        project_identity: dict[str, Any],
+        *,
+        select_n: int | None,
+    ) -> BindResult:
+        """Re-resolve once after token expiry and retry the bind flow."""
+        resolution = self._resolve_binding(provider, project_identity)
+
+        if resolution.match_type == "none":
+            raise TrackerServiceError(
+                "Candidate token expired and retry could not rediscover a bindable "
+                "resource. Please retry the bind operation."
+            )
+
+        if resolution.match_type == "candidates" and select_n is None:
+            raise TrackerServiceError(
+                "Candidate token expired and retry found multiple candidates. "
+                "Please retry the bind operation."
+            )
+
+        retried = self._bind_from_resolution(
+            provider,
+            project_identity,
+            resolution,
+            select_n=select_n,
+            allow_retry=False,
+        )
+        if isinstance(retried, ResolutionResult):
+            raise TrackerServiceError(
+                "Candidate token expired and retry still requires manual selection. "
+                "Please retry the bind operation."
+            )
+        return retried
+
+    def _bind_from_resolution(
+        self,
+        provider: str,
+        project_identity: dict[str, Any],
+        resolution: ResolutionResult,
+        *,
+        select_n: int | None,
+        allow_retry: bool,
+    ) -> BindResult | ResolutionResult:
+        """Complete the bind flow from a previously fetched resolution result."""
         if resolution.match_type == "exact":
             if resolution.binding_ref:
                 # Existing mapping -- persist directly
@@ -268,7 +325,11 @@ class SaaSTrackerService:
             # Need to confirm
             assert resolution.candidate_token is not None  # noqa: S101
             return self._confirm_and_persist(
-                provider, resolution.candidate_token, identity,
+                provider,
+                resolution.candidate_token,
+                project_identity,
+                select_n=select_n,
+                allow_retry=allow_retry,
             )
 
         if resolution.match_type == "candidates":
@@ -280,15 +341,41 @@ class SaaSTrackerService:
                         f"Valid range: 1-{len(resolution.candidates)}."
                     )
                 return self._confirm_and_persist(
-                    provider, candidate.candidate_token, identity,
+                    provider,
+                    candidate.candidate_token,
+                    project_identity,
+                    select_n=select_n,
+                    allow_retry=allow_retry,
                 )
             # Return resolution for CLI to handle interactive selection
             return resolution
 
-        # match_type == "none"
         raise TrackerServiceError(
             f"No bindable resources found for provider '{provider}'. "
             "Verify the tracker is connected in the SaaS dashboard."
+        )
+
+    def resolve_and_bind(
+        self,
+        *,
+        provider: str,
+        project_identity: dict[str, Any] | None = None,
+        select_n: int | None = None,
+    ) -> BindResult | ResolutionResult:
+        """Orchestrate the discovery-bind flow.
+
+        Returns ``BindResult`` on success (auto-bind or confirmed selection).
+        Returns ``ResolutionResult`` with candidates if user selection needed.
+        Raises ``TrackerServiceError`` on no-match or validation failure.
+        """
+        identity = project_identity or {}
+        resolution = self._resolve_binding(provider, identity)
+        return self._bind_from_resolution(
+            provider,
+            identity,
+            resolution,
+            select_n=select_n,
+            allow_retry=True,
         )
 
     def validate_and_bind(

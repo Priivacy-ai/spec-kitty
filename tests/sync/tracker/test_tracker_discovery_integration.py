@@ -567,8 +567,10 @@ def test_scenario_10_rebind_replaces_existing_binding_in_config(
         TrackerProjectConfig(
             provider="linear",
             binding_ref="bind-old-team",
+            project_slug="legacy-linear-slug",
             display_label="Old Team",
             provider_context={"team_name": "Old"},
+            _extra={"future_field": {"enabled": True}},
         ),
     )
     config_before = load_tracker_config(repo_root)
@@ -601,9 +603,11 @@ def test_scenario_10_rebind_replaces_existing_binding_in_config(
     config_after = load_tracker_config(repo_root)
     assert config_after.provider == "linear"
     assert config_after.binding_ref == "bind-new-team"
+    assert config_after.project_slug == "legacy-linear-slug"
     assert config_after.display_label == "New Team"
     # Exact-match shortcut doesn't populate provider_context (only bind-confirm does)
     assert config_after.provider_context is None
+    assert config_after.to_dict()["future_field"] == {"enabled": True}
     # Old binding is fully replaced
     assert config_after.binding_ref != "bind-old-team"
 

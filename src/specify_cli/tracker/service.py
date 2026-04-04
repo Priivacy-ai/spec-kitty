@@ -122,7 +122,10 @@ class TrackerService:
 
         provider: str = kwargs.get("provider", "")
         if provider in SAAS_PROVIDERS:
-            service = SaaSTrackerService(self._repo_root, TrackerProjectConfig())
+            service = SaaSTrackerService(
+                self._repo_root,
+                load_tracker_config(self._repo_root),
+            )
             bind_ref = kwargs.get("bind_ref")
             select_n = kwargs.get("select_n")
             project_identity = kwargs.get("project_identity")
