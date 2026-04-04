@@ -14,7 +14,8 @@ base_branch: main
 base_commit: ca158a9890c63a3770ada1a343e895a59f2125e3
 created_at: '2026-04-04T11:11:45.206630+00:00'
 subtasks: [T042, T043, T044, T045, T046]
-shell_pid: '271'
+shell_pid: "271"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -169,3 +170,7 @@ spec-kitty implement WP09 --base WP08
 - Verify local provider guards produce clear, actionable error messages
 - Verify the bind kwargs pattern passes through bind_ref, select_n, project_identity correctly
 - Check that existing unbind(), sync_pull(), etc. are unchanged
+
+## Activity Log
+
+- 2026-04-04T11:11:45Z – coordinator – shell_pid=271 – Started implementation via workflow command
