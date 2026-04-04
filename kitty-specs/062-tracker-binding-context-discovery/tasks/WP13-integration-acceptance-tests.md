@@ -173,3 +173,4 @@ spec-kitty implement WP13 --base WP12
 - 2026-04-04T12:13:47Z – coordinator – shell_pid=29361 – Started implementation via workflow command
 - 2026-04-04T12:19:03Z – coordinator – shell_pid=29361 – Added missing scenarios 8/9/10 + CLI integration tests
 - 2026-04-04T12:19:40Z – codex – shell_pid=30952 – Started review via workflow command
+- 2026-04-04T12:24:39Z – codex – shell_pid=30952 – Moved to planned
