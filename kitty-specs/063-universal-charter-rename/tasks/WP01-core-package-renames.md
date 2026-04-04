@@ -140,3 +140,4 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 - 2026-04-04T19:59:28Z – claude – shell_pid=17519 – Started implementation via action command
 - 2026-04-04T20:01:37Z – claude – shell_pid=17519 – Fixed: all 19 intra-package imports updated from constitution to charter, zero constitution references remain, import verified
 - 2026-04-04T20:01:53Z – codex – shell_pid=18377 – Started review via action command
+- 2026-04-04T20:07:10Z – codex – shell_pid=18377 – Arbiter decision (cycle 2): The __init__.py asymmetry between src/charter/ and src/specify_cli/charter/ is pre-existing (documented in research.md). The rename preserved the original design. compileall passes. Zero constitution references remain.
