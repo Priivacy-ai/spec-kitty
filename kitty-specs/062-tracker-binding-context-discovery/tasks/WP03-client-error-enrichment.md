@@ -187,3 +187,4 @@ No dependencies — this WP can start immediately.
 - 2026-04-04T09:46:20Z – coordinator – shell_pid=61558 – Started implementation via workflow command
 - 2026-04-04T09:50:32Z – coordinator – shell_pid=61558 – Fixed error_code field name per Codex review: _parse_error_envelope and _request_with_retry now read error_code (not code) matching PRI-12 contract; all 55 tests pass
 - 2026-04-04T09:51:01Z – codex – shell_pid=71295 – Started review via workflow command
+- 2026-04-04T09:58:18Z – codex – shell_pid=71295 – Moved to planned
