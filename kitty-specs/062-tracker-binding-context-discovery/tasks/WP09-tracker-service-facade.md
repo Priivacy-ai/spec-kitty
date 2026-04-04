@@ -14,8 +14,8 @@ base_branch: main
 base_commit: ca158a9890c63a3770ada1a343e895a59f2125e3
 created_at: '2026-04-04T11:11:45.206630+00:00'
 subtasks: [T042, T043, T044, T045, T046]
-shell_pid: "271"
-agent: "coordinator"
+shell_pid: "12471"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -175,3 +175,4 @@ spec-kitty implement WP09 --base WP08
 
 - 2026-04-04T11:11:45Z – coordinator – shell_pid=271 – Started implementation via workflow command
 - 2026-04-04T11:17:41Z – coordinator – shell_pid=271 – Ready for review: discover(), updated bind(), status(all=True) on facade with 35 passing tests
+- 2026-04-04T11:18:18Z – codex – shell_pid=12471 – Started review via workflow command
