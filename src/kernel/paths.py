@@ -5,7 +5,7 @@ Provides the canonical functions for locating:
 - The package-bundled mission assets (for ensure_runtime to copy from)
 
 These functions have no spec-kitty-specific dependencies and are consumed
-by multiple packages in the stack (specify_cli, constitution).  They live
+by multiple packages in the stack (specify_cli, charter).  They live
 in kernel so that neither package needs to import from the other.
 """
 

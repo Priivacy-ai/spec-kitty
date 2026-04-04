@@ -1,10 +1,10 @@
 """Kernel — zero-dependency shared utilities and primitive types.
 
-This package contains primitives shared by ``specify_cli``, ``constitution``,
+This package contains primitives shared by ``specify_cli``, ``charter``,
 and ``doctrine``.  It has **no imports from any of those packages**, keeping
 the dependency direction clean:
 
-    kernel  <-  constitution
+    kernel  <-  charter
     kernel  <-  doctrine
     kernel  <-  specify_cli
 

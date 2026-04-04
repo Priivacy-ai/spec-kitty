@@ -26,7 +26,7 @@ Each profile defines:
 Profiles are loaded from two sources with field-level merge:
 
 - **Shipped profiles** (`shipped/`) — 7 reference profiles included in the package
-- **Project profiles** (`.kittify/constitution/agents/`) — Custom overrides per project
+- **Project profiles** (`.kittify/charter/agents/`) — Custom overrides per project
 
 Project profiles override shipped profiles at field level when sharing the same
 `profile-id`.

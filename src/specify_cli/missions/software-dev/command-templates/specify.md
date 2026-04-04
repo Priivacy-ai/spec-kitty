@@ -60,12 +60,12 @@ Never talk generically about `main` or "the default branch". Name the actual bra
 - Do not write non-functional requirements without measurable thresholds.
 - Do not proceed to planning with unresolved requirement quality checklist failures.
 
-## Constitution Context Bootstrap (required)
+## Charter Context Bootstrap (required)
 
-Before discovery questions, load constitution context for this action:
+Before discovery questions, load charter context for this action:
 
 ```bash
-spec-kitty constitution context --action specify --json
+spec-kitty charter context --action specify --json
 ```
 
 - If JSON `mode` is `bootstrap`, treat JSON `text` as the initial governance context and consult referenced docs as needed.

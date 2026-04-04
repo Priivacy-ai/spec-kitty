@@ -1,12 +1,12 @@
-"""Constitution path resolution helpers for dashboard features/API."""
+"""Charter path resolution helpers for dashboard features/API."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
 
-def resolve_project_constitution_path(project_dir: Path) -> Path | None:
-    """Resolve the project-level constitution file path.
+def resolve_project_charter_path(project_dir: Path) -> Path | None:
+    """Resolve the project-level charter file path.
 
     Resolution order:
     1. .kittify/constitution/constitution.md (canonical)

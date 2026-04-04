@@ -45,7 +45,7 @@ from specify_cli.core.agent_config import (
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
     build_http_client,
-    copy_constitution_templates,
+    copy_charter_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
@@ -183,7 +183,7 @@ def _prepare_project_minimal(project_path: Path) -> None:
     Creates:
         - .kittify/                (project root)
         - .kittify/memory/         (project-local memory/context files)
-        - .kittify/constitution/   (for constitution.md and structured config)
+        - .kittify/constitution/   (for charter and structured config)
     """
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
@@ -378,9 +378,9 @@ def _get_structure_templates_dir() -> Path | None:
 
 
 def _load_doctrine_defaults() -> dict[str, object]:
-    """Load src/doctrine/constitution/defaults.yaml, returning {} on any failure."""
+    """Load src/doctrine/charter/defaults.yaml, returning {} on any failure."""
     try:
-        from constitution.catalog import resolve_doctrine_root  # noqa: PLC0415
+        from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
 
         defaults_path = resolve_doctrine_root() / "constitution" / "defaults.yaml"
         if not defaults_path.exists():
@@ -392,14 +392,14 @@ def _load_doctrine_defaults() -> dict[str, object]:
 
 
 def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
-    """Generate a constitution using the predefined doctrine defaults.
+    """Generate a charter using the predefined doctrine defaults.
 
-    Returns True on success, False on failure (non-fatal — user can run
-    ``spec-kitty constitution interview`` later).
+    Returns True on success, False on failure (non-fatal -- user can run
+    ``spec-kitty charter interview`` later).
     """
     try:
-        from constitution.interview import default_interview, apply_answer_overrides  # noqa: PLC0415
-        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+        from charter.interview import default_interview, apply_answer_overrides  # noqa: PLC0415
+        from charter.generator import build_charter_draft, write_charter  # noqa: PLC0415
 
         defaults = _load_doctrine_defaults()
         mission: str = str(defaults.get("mission", "software-dev"))
@@ -419,28 +419,28 @@ def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
                 available_tools=raw_tools if isinstance(raw_tools, list) else None,
             )
 
-        draft = build_constitution_draft(mission=mission, interview=interview_data)
+        draft = build_charter_draft(mission=mission, interview=interview_data)
 
-        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
-        constitution_path.parent.mkdir(parents=True, exist_ok=True)
-        write_constitution(constitution_path, draft.markdown)
-        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        charter_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        charter_path.parent.mkdir(parents=True, exist_ok=True)
+        write_charter(charter_path, draft.markdown)
+        console.print("[green]✓[/green] Charter generated at .kittify/constitution/constitution.md")
         return True
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not apply doctrine defaults: {exc}")
-        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        console.print("[dim]Run `spec-kitty charter interview` to configure governance later.[/dim]")
         return False
 
 
 def _run_inline_interview(project_path: Path, console: Console) -> bool:
-    """Run the constitution interview interactively during init.
+    """Run the charter interview interactively during init.
 
     Returns True on success or skip, False if interrupted without completing.
     Satisfies C-002: this function calls the existing interview machinery;
-    ``spec-kitty constitution interview`` continues to work independently.
+    ``spec-kitty charter interview`` continues to work independently.
     """
     try:
-        from constitution.interview import (  # noqa: PLC0415
+        from charter.interview import (  # noqa: PLC0415
             MINIMAL_QUESTION_ORDER,
             QUESTION_ORDER,
             QUESTION_PROMPTS,
@@ -448,17 +448,17 @@ def _run_inline_interview(project_path: Path, console: Console) -> bool:
             default_interview,
             write_interview_answers,
         )
-        from constitution.generator import build_constitution_draft, write_constitution  # noqa: PLC0415
+        from charter.generator import build_charter_draft, write_charter  # noqa: PLC0415
         from kernel.atomic import atomic_write  # noqa: PLC0415
 
         checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
 
         console.print()
         console.print(
-            "[cyan]This interview will configure your constitution[/cyan] — which paradigms, "
+            "[cyan]This interview will configure your charter[/cyan] — which paradigms, "
             "directives, and tool settings govern your project. "
             "You can customise further after init by running "
-            "[cyan]spec-kitty constitution interview[/cyan]."
+            "[cyan]spec-kitty charter interview[/cyan]."
         )
 
         depth_raw = typer.prompt(
@@ -497,25 +497,25 @@ def _run_inline_interview(project_path: Path, console: Console) -> bool:
             return False
 
         interview_data = apply_answer_overrides(interview_data, answers=answers_override)
-        draft = build_constitution_draft(mission="software-dev", interview=interview_data)
+        draft = build_charter_draft(mission="software-dev", interview=interview_data)
 
-        constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
-        constitution_path.parent.mkdir(parents=True, exist_ok=True)
-        write_constitution(constitution_path, draft.markdown)
+        charter_path = project_path / ".kittify" / "constitution" / "constitution.md"
+        charter_path.parent.mkdir(parents=True, exist_ok=True)
+        write_charter(charter_path, draft.markdown)
 
         # Persist answers for future re-generation.
         answers_path = project_path / ".kittify" / "constitution" / "interview" / "answers.yaml"
         write_interview_answers(answers_path, interview_data)
 
-        # Remove checkpoint — interview completed successfully.
+        # Remove checkpoint -- interview completed successfully.
         if checkpoint_path.exists():
             checkpoint_path.unlink()
 
-        console.print("[green]✓[/green] Constitution generated at .kittify/constitution/constitution.md")
+        console.print("[green]✓[/green] Charter generated at .kittify/constitution/constitution.md")
         return True
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not complete interview: {exc}")
-        console.print("[dim]Run `spec-kitty constitution interview` to configure governance later.[/dim]")
+        console.print("[dim]Run `spec-kitty charter interview` to configure governance later.[/dim]")
         return False
 
 
@@ -524,18 +524,18 @@ def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console:
 
     Decision tree
     -------------
-    1. Constitution already exists → skip (FR-004).
+    1. Charter already exists -- skip (FR-004).
     2. Checkpoint exists → offer resume / restart (FR-020).
     3. ``--non-interactive`` → apply defaults silently (FR-005, NFR-001).
     4. Interactive → prompt for defaults / manual / skip (FR-001–FR-003).
 
     Returns True if the step completed, was skipped, or was deferred.
     """
-    constitution_path = project_path / ".kittify" / "constitution" / "constitution.md"
+    charter_path = project_path / ".kittify" / "constitution" / "constitution.md"
 
-    # FR-004: skip if constitution already exists.
-    if constitution_path.exists():
-        console.print("[dim]Constitution already exists — skipping doctrine stack setup.[/dim]")
+    # FR-004: skip if charter already exists.
+    if charter_path.exists():
+        console.print("[dim]Charter already exists -- skipping doctrine stack setup.[/dim]")
         return True
 
     checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
@@ -571,7 +571,7 @@ def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console:
     elif choice == "manual":
         return _run_inline_interview(project_path, console)
     else:
-        console.print("[dim]Skipping doctrine stack setup. Run `spec-kitty constitution interview` later.[/dim]")
+        console.print("[dim]Skipping doctrine stack setup. Run `spec-kitty charter interview` later.[/dim]")
         return True
 
 
@@ -1147,7 +1147,7 @@ def init(  # noqa: C901
                             use_global = _has_global_runtime() and template_mode == "package"
                             if use_global:
                                 _prepare_project_minimal(project_path)
-                                copy_constitution_templates(project_path)
+                                copy_charter_templates(project_path)
                                 pkg_templates = _get_package_templates_root()
                                 if pkg_templates is not None:
                                     templates_root = pkg_templates
@@ -1384,7 +1384,7 @@ def init(  # noqa: C901
     step_num += 1
 
     steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
-    steps_lines.append("   - [cyan]/spec-kitty.constitution[/] - Establish project principles")
+    steps_lines.append("   - [cyan]/spec-kitty.charter[/] - Establish project principles")
     steps_lines.append("   - [cyan]/spec-kitty.specify[/] - Create baseline specification")
     steps_lines.append("   - [cyan]/spec-kitty.plan[/] - Create implementation plan")
     steps_lines.append("   - [cyan]/spec-kitty.research[/] - Run mission-specific Phase 0 research scaffolding")

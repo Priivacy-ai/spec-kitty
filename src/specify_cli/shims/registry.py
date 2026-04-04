@@ -38,7 +38,7 @@ CONSUMER_SKILLS: frozenset[str] = frozenset(
         "checklist",
         "analyze",
         "research",
-        "constitution",
+        "charter",
     }
 )
 
@@ -65,7 +65,7 @@ PROMPT_DRIVEN_COMMANDS: frozenset[str] = frozenset(
         "checklist",
         "analyze",
         "research",
-        "constitution",
+        "charter",
     }
 )
 

@@ -2,8 +2,8 @@
 # Applied by `spec-kitty init --non-interactive` or when the user selects
 # "Accept defaults" during interactive init.
 #
-# Format must match the ConstitutionInterview input expected by
-# `constitution.interview.apply_answer_overrides`.
+# Format must match the CharterInterview input expected by
+# `charter.interview.apply_answer_overrides`.
 
 mission: software-dev
 profile: minimal

@@ -24,7 +24,7 @@ What Gets Created:
 - Background dashboard (http://127.0.0.1:PORT)
 
 ⚠️  AFTER INIT, READ BELOW ⚠️
-Your next step is to establish project governance using `/spec-kitty.constitution`
+Your next step is to establish project governance using `/spec-kitty.charter`
 in the main repo root (NOT in any worktree). This creates project-wide principles
 that will guide all subsequent development.
 

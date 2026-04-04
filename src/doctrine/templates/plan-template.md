@@ -31,11 +31,11 @@ The planner will not begin until all planning questions have been answered—cap
 **Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
 **Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
 
-## Constitution Check
+## Charter Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 
 ## Project Structure
 
@@ -100,7 +100,7 @@ directories captured above]
 
 ## Complexity Tracking
 
-*Fill ONLY if Constitution Check has violations that must be justified*
+*Fill ONLY if Charter Check has violations that must be justified*
 
 | Violation | Why Needed | Simpler Alternative Rejected Because |
 |-----------|------------|-------------------------------------|
