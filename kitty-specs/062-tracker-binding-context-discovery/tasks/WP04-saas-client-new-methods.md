@@ -205,3 +205,4 @@ Depends on WP02 (discovery types) and WP03 (enriched errors). Use WP03 as base s
 - 2026-04-04T10:15:11Z – coordinator – shell_pid=37818 – Started implementation via workflow command
 - 2026-04-04T10:17:42Z – coordinator – shell_pid=37818 – Added test_saas_client_new_methods.py per Codex review
 - 2026-04-04T10:18:44Z – codex – shell_pid=55866 – Started review via workflow command
+- 2026-04-04T10:23:09Z – codex – shell_pid=55866 – Review passed: contract-aligned SaaS client methods and smoke tests added; scoped checks clean
