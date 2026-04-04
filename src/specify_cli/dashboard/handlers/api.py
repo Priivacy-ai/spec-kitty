@@ -78,7 +78,6 @@ class APIHandler(DashboardHandler):
         }
 
         try:
-            ensure_sync_daemon_running()
             status = get_sync_daemon_status(timeout=0.2)
             response_data['sync'] = {
                 'running': status.sync_running,

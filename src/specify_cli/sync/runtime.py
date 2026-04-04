@@ -283,27 +283,31 @@ class SyncRuntime:
 # ── Singleton accessor ────────────────────────────────────────────
 
 _runtime: SyncRuntime | None = None
+_runtime_lock = threading.Lock()
 
 
 def get_runtime() -> SyncRuntime:
     """Get or create the singleton SyncRuntime instance.
 
-    Thread-safe via module-level singleton pattern.
+    Thread-safe via double-checked locking pattern.
     Runtime starts on first access (lazy initialization).
     """
     global _runtime
     if _runtime is None:
-        _runtime = SyncRuntime()
-        _runtime.start()
+        with _runtime_lock:
+            if _runtime is None:
+                _runtime = SyncRuntime()
+                _runtime.start()
     return _runtime
 
 
 def reset_runtime() -> None:
     """Reset the singleton (for testing only)."""
     global _runtime
-    if _runtime is not None:
-        _runtime.stop()
-    _runtime = None
+    with _runtime_lock:
+        if _runtime is not None:
+            _runtime.stop()
+        _runtime = None
 
 
 def _shutdown_runtime() -> None:

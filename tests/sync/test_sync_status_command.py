@@ -49,8 +49,8 @@ def test_status_reads_dashboard_daemon_state_without_booting_local_runtime(monke
         "specify_cli.sync.daemon.get_sync_daemon_status",
         lambda: SyncDaemonStatus(
             healthy=True,
-            url="http://127.0.0.1:9248",
-            port=9248,
+            url="http://127.0.0.1:9400",
+            port=9400,
             sync_running=True,
             last_sync="2026-04-04T12:00:00+00:00",
             consecutive_failures=2,

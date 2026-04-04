@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import fcntl
 import json
 import logging
 import secrets
@@ -27,6 +28,28 @@ logger = logging.getLogger(__name__)
 
 SPEC_KITTY_DIR = Path.home() / ".spec-kitty"
 DAEMON_STATE_FILE = SPEC_KITTY_DIR / "sync-daemon"
+DAEMON_LOG_FILE = SPEC_KITTY_DIR / "sync-daemon.log"
+DAEMON_LOCK_FILE = SPEC_KITTY_DIR / "sync-daemon.lock"
+
+# Port range for the sync daemon — well above the dashboard range (9237-9337)
+# to prevent overlap.
+DAEMON_PORT_START = 9400
+DAEMON_PORT_MAX_ATTEMPTS = 50
+
+# Protocol version — bumped when the daemon's control-plane API or internal
+# behaviour changes in a backwards-incompatible way.  ensure_sync_daemon_running
+# compares this against the running daemon and restarts it on mismatch.
+DAEMON_PROTOCOL_VERSION = 1
+
+
+def _get_package_version() -> str:
+    """Return the installed specify_cli version string."""
+    try:
+        from importlib.metadata import version
+
+        return version("specify-cli")
+    except Exception:
+        return "unknown"
 
 
 @dataclass(frozen=True)
@@ -42,6 +65,8 @@ class SyncDaemonStatus:
     last_sync: Optional[str] = None
     consecutive_failures: int = 0
     websocket_status: str = "Offline"
+    protocol_version: Optional[int] = None
+    package_version: Optional[str] = None
 
 
 def _parse_daemon_file(path: Path) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
@@ -93,7 +118,14 @@ def _is_process_alive(pid: int) -> bool:
         return False
 
 
-def _find_free_port(start_port: int = 9248, max_attempts: int = 50) -> int:
+def _find_free_port(start_port: int = DAEMON_PORT_START, max_attempts: int = DAEMON_PORT_MAX_ATTEMPTS) -> int:
+    """Find an available port, returning the bound socket alongside the port.
+
+    Uses connect-check then bind-check.  The socket is closed before return
+    (the daemon will re-bind it), but the window is very small compared to
+    the previous implementation because we no longer do a separate test-bind
+    then release cycle.
+    """
     for port in range(start_port, start_port + max_attempts):
         try:
             test_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -147,6 +179,32 @@ def _check_sync_daemon_health(port: int, expected_token: Optional[str], timeout:
     return True
 
 
+def _daemon_version_matches(port: int, expected_token: Optional[str], timeout: float = 0.5) -> bool:
+    """Return True if the running daemon reports the current protocol + package version."""
+    data = _fetch_health_payload(f"http://127.0.0.1:{port}/api/health", timeout=timeout)
+    if not data:
+        return False
+    if data.get("status") != "ok":
+        return False
+    if expected_token:
+        if data.get("token") != expected_token:
+            return False
+    remote_proto = data.get("protocol_version")
+    remote_pkg = data.get("package_version")
+    if remote_proto != DAEMON_PROTOCOL_VERSION:
+        return False
+    if remote_pkg != _get_package_version():
+        return False
+    return True
+
+
+# ---------------------------------------------------------------------------
+# HTTP control plane
+# ---------------------------------------------------------------------------
+
+_SENTINEL_BAD_TOKEN = object()
+
+
 class SyncDaemonHandler(BaseHTTPRequestHandler):
     """Localhost-only HTTP control plane for the machine-global sync daemon."""
 
@@ -171,29 +229,40 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
             return {}
         return json.loads(body.decode("utf-8"))
 
-    def _extract_token(self) -> Optional[str]:
-        if self.command == "POST":
-            try:
-                payload = self._read_json_body()
-            except (UnicodeDecodeError, json.JSONDecodeError):
-                self._send_json(400, {"error": "invalid_payload"})
-                return None
-            self._cached_payload = payload
-            token = payload.get("token")
-            return str(token) if token else None
-
+    def _extract_token_from_query(self) -> Optional[str]:
+        """Extract token from query string (for GET requests)."""
         parsed_path = urllib.parse.urlparse(self.path)
         params = urllib.parse.parse_qs(parsed_path.query)
         values = params.get("token")
         return values[0] if values else None
 
     def _require_token(self) -> dict[str, Any] | None:
+        """Authenticate the request and return the parsed JSON body.
+
+        For POST requests the token is read from the JSON body.
+        For GET requests the token is read from the query string.
+        Returns None (and sends an error response) on auth failure or
+        malformed JSON.
+        """
         expected = getattr(self, "daemon_token", None)
-        token = self._extract_token()
+
+        if self.command == "POST":
+            try:
+                payload = self._read_json_body()
+            except (UnicodeDecodeError, json.JSONDecodeError):
+                self._send_json(400, {"error": "invalid_payload"})
+                return None
+            token = payload.get("token")
+            token = str(token) if token else None
+        else:
+            payload = {}
+            token = self._extract_token_from_query()
+
         if expected and token != expected:
             self._send_json(403, {"error": "invalid_token"})
             return None
-        return getattr(self, "_cached_payload", {})
+
+        return payload
 
     def do_GET(self) -> None:  # noqa: N802
         parsed_path = urllib.parse.urlparse(self.path)
@@ -230,6 +299,8 @@ class SyncDaemonHandler(BaseHTTPRequestHandler):
             {
                 "status": "ok",
                 "token": getattr(self, "daemon_token", None),
+                "protocol_version": DAEMON_PROTOCOL_VERSION,
+                "package_version": _get_package_version(),
                 "sync": {
                     "running": bool(sync and sync.is_running),
                     "last_sync": sync.last_sync.isoformat() if sync and sync.last_sync else None,
@@ -301,13 +372,13 @@ def run_sync_daemon(port: int, daemon_token: Optional[str]) -> None:
 
 
 def _background_script(port: int, daemon_token: Optional[str]) -> str:
-    repo_root = Path(__file__).resolve().parents[2]
+    """Generate the Python script executed by the daemon subprocess.
+
+    Uses ``-m`` style import so the installed package is found via normal
+    ``sys.path`` resolution rather than hard-coding a repo checkout path.
+    """
     return textwrap.dedent(
-        f"""
-        import sys
-        from pathlib import Path
-        repo_root = Path({repr(str(repo_root))})
-        sys.path.insert(0, str(repo_root))
+        f"""\
         from specify_cli.sync.daemon import run_sync_daemon
         run_sync_daemon({port}, {repr(daemon_token)})
         """
@@ -349,28 +420,55 @@ def get_sync_daemon_status(timeout: float = 0.5) -> SyncDaemonStatus:
         last_sync=str(sync_data.get("last_sync")) if sync_data.get("last_sync") else None,
         consecutive_failures=int(sync_data.get("consecutive_failures") or 0),
         websocket_status=websocket_status,
+        protocol_version=data.get("protocol_version"),
+        package_version=data.get("package_version"),
     )
 
 
-def ensure_sync_daemon_running(preferred_port: Optional[int] = None) -> Tuple[str, int, bool]:
-    """Ensure the machine-global sync daemon is running."""
-    existing_url = None
-    existing_port = None
-    existing_token = None
-    existing_pid = None
+def _kill_and_cleanup(pid: Optional[int]) -> None:
+    """Best-effort kill a daemon process and remove the state file."""
+    if pid is not None:
+        try:
+            psutil.Process(pid).kill()
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    DAEMON_STATE_FILE.unlink(missing_ok=True)
 
+
+def ensure_sync_daemon_running(preferred_port: Optional[int] = None) -> Tuple[str, int, bool]:
+    """Ensure the machine-global sync daemon is running.
+
+    Uses an advisory file lock (``DAEMON_LOCK_FILE``) to serialise
+    concurrent spawn attempts and prevent TOCTOU races.
+    """
+    SPEC_KITTY_DIR.mkdir(parents=True, exist_ok=True)
+
+    lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115
+    try:
+        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        return _ensure_sync_daemon_running_locked(preferred_port)
+    finally:
+        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        lock_fd.close()
+
+
+def _ensure_sync_daemon_running_locked(preferred_port: Optional[int] = None) -> Tuple[str, int, bool]:
+    """Inner implementation — caller must hold the daemon lock file."""
     if DAEMON_STATE_FILE.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_daemon_file(DAEMON_STATE_FILE)
         if existing_port is not None and _check_sync_daemon_health(existing_port, existing_token):
-            return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
-        if existing_pid is not None and not _is_process_alive(existing_pid):
+            # Daemon is healthy — check whether it's running the current version.
+            if _daemon_version_matches(existing_port, existing_token):
+                return existing_url or f"http://127.0.0.1:{existing_port}", existing_port, False
+
+            # Stale version — recycle the daemon.
+            logger.info("Recycling sync daemon (version mismatch)")
+            _stop_daemon_by_http(existing_url or f"http://127.0.0.1:{existing_port}", existing_token)
+            _kill_and_cleanup(existing_pid)
+        elif existing_pid is not None and not _is_process_alive(existing_pid):
             DAEMON_STATE_FILE.unlink(missing_ok=True)
         elif existing_pid is not None:
-            try:
-                psutil.Process(existing_pid).kill()
-            except (psutil.NoSuchProcess, psutil.AccessDenied):
-                pass
-            DAEMON_STATE_FILE.unlink(missing_ok=True)
+            _kill_and_cleanup(existing_pid)
         else:
             DAEMON_STATE_FILE.unlink(missing_ok=True)
 
@@ -379,16 +477,24 @@ def ensure_sync_daemon_running(preferred_port: Optional[int] = None) -> Tuple[st
     else:
         port = _find_free_port()
     token = secrets.token_hex(16)
+
+    # Redirect daemon output to a log file for diagnostics
+    DAEMON_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+    log_fh = open(DAEMON_LOG_FILE, "a")  # noqa: SIM115
+
     proc = subprocess.Popen(
         [sys.executable, "-c", _background_script(port, token)],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        stdout=log_fh,
+        stderr=log_fh,
         stdin=subprocess.DEVNULL,
         start_new_session=True,
     )
+    log_fh.close()
+
     url = f"http://127.0.0.1:{port}"
 
-    retry_delays = [0.1] * 10 + [0.25] * 20
+    # Wait up to ~20s for the daemon to become healthy (matching dashboard pattern)
+    retry_delays = [0.1] * 10 + [0.25] * 40 + [0.5] * 20
     for delay in retry_delays:
         if _check_sync_daemon_health(port, token):
             _write_daemon_file(DAEMON_STATE_FILE, url, port, token, proc.pid)
@@ -400,6 +506,21 @@ def ensure_sync_daemon_running(preferred_port: Optional[int] = None) -> Tuple[st
         return url, port, True
 
     raise RuntimeError(f"Sync daemon failed to start on port {port}")
+
+
+def _stop_daemon_by_http(url: str, token: Optional[str]) -> None:
+    """Best-effort HTTP shutdown request to a running daemon."""
+    request = urllib.request.Request(
+        f"{url}/api/shutdown",
+        data=json.dumps({"token": token}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=1.0):
+            pass
+    except Exception:
+        pass
 
 
 def stop_sync_daemon(timeout: float = 5.0) -> Tuple[bool, str]:
@@ -416,17 +537,7 @@ def stop_sync_daemon(timeout: float = 5.0) -> Tuple[bool, str]:
         DAEMON_STATE_FILE.unlink(missing_ok=True)
         return False, "Sync daemon was already stopped. Metadata has been cleared."
 
-    request = urllib.request.Request(
-        f"{url}/api/shutdown",
-        data=json.dumps({"token": token}).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    try:
-        with urllib.request.urlopen(request, timeout=1.0):
-            pass
-    except Exception:
-        pass
+    _stop_daemon_by_http(url or f"http://127.0.0.1:{port}", token)
 
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:

@@ -211,6 +211,28 @@ class TestGetRuntime:
         get_runtime()
         mock_start.assert_called_once()
 
+    @patch("specify_cli.sync.runtime.SyncRuntime.start")
+    def test_thread_safe_concurrent_access(self, mock_start):
+        """get_runtime creates exactly one instance under concurrent access (Fix #10)."""
+        import threading
+
+        results: list[SyncRuntime] = []
+        barrier = threading.Barrier(10)
+
+        def call():
+            barrier.wait()
+            results.append(get_runtime())
+
+        threads = [threading.Thread(target=call) for _ in range(10)]
+        for t in threads:
+            t.start()
+        for t in threads:
+            t.join(timeout=5)
+
+        assert len(results) == 10
+        assert all(r is results[0] for r in results)
+        assert mock_start.call_count == 1
+
 
 class TestResetRuntime:
     """Tests for reset_runtime() test helper."""
