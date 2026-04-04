@@ -170,15 +170,23 @@ def test_status_default_not_configured(mock_service_fn, monkeypatch) -> None:
 
 @patch("specify_cli.cli.commands.tracker._service")
 def test_status_all_shows_binding_list(mock_service_fn, monkeypatch) -> None:
-    """--all with bindings as a list renders the count."""
+    """--all with bindings as a list renders individual projects."""
     app = _make_app(monkeypatch)
     mock_svc = MagicMock()
     mock_svc.status.return_value = {
         "provider": "jira",
         "connected": True,
         "bindings": [
-            {"project": "PROJ-A"},
-            {"project": "PROJ-B"},
+            {
+                "project_name": "Project Alpha",
+                "project_slug": "proj-a",
+                "status": "active",
+                "bound_at": "2026-04-04T10:00:00Z",
+            },
+            {
+                "project_slug": "proj-b",
+                "status": "paused",
+            },
         ],
         "resource_count": 100,
     }
@@ -188,6 +196,12 @@ def test_status_all_shows_binding_list(mock_service_fn, monkeypatch) -> None:
     assert result.exit_code == 0
     assert "Installation-wide tracker status" in result.output
     assert "jira" in result.output
+    assert "Project Alpha" in result.output
+    assert "proj-b" in result.output
+    assert "active" in result.output
+    assert "paused" in result.output
+    assert "2026-04-04T10:00:00Z" in result.output
+    assert "Bindings  2" not in result.output
 
 
 # ---------------------------------------------------------------------------

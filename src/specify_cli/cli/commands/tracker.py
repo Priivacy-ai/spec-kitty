@@ -320,6 +320,37 @@ def _print_installation_wide_status(payload: dict) -> None:
 
     provider = payload.get("provider", "unknown")
     connected = payload.get("connected", payload.get("status", "unknown"))
+    bindings = payload.get("bindings")
+
+    if isinstance(bindings, list):
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Project", style="bold")
+        table.add_column("Provider")
+        table.add_column("Status")
+        table.add_column("Bound At")
+
+        if bindings:
+            for binding in bindings:
+                if isinstance(binding, dict):
+                    table.add_row(
+                        _binding_project_label(binding),
+                        str(binding.get("provider") or provider),
+                        _binding_status_label(binding),
+                        str(binding.get("bound_at") or "-"),
+                    )
+                else:
+                    table.add_row(str(binding), str(provider), "unknown", "-")
+        else:
+            table.add_row("No bindings", str(provider), str(connected), "-")
+
+        if "resource_count" in payload:
+            table.caption = (
+                f"Connected: {connected} | Resources: {payload['resource_count']}"
+            )
+
+        panel = Panel(table, title="Installation-wide tracker status", border_style="green")
+        console.print(panel)
+        return
 
     table = Table(show_header=True, header_style="bold cyan")
     table.add_column("Field", style="bold")
@@ -329,12 +360,8 @@ def _print_installation_wide_status(payload: dict) -> None:
     table.add_row("Connected", str(connected))
 
     # Show binding/resource counts if present
-    if "bindings" in payload:
-        bindings = payload["bindings"]
-        if isinstance(bindings, list):
-            table.add_row("Bindings", str(len(bindings)))
-        elif isinstance(bindings, int):
-            table.add_row("Bindings", str(bindings))
+    if "bindings" in payload and isinstance(bindings, int):
+        table.add_row("Bindings", str(bindings))
 
     if "resource_count" in payload:
         table.add_row("Resources", str(payload["resource_count"]))
@@ -347,6 +374,28 @@ def _print_installation_wide_status(payload: dict) -> None:
 
     panel = Panel(table, title="Installation-wide tracker status", border_style="green")
     console.print(panel)
+
+
+def _binding_project_label(binding: dict[str, Any]) -> str:
+    """Return the most useful project identifier from a binding payload."""
+    return str(
+        binding.get("project_name")
+        or binding.get("project_slug")
+        or binding.get("project")
+        or binding.get("slug")
+        or binding.get("name")
+        or binding.get("display_label")
+        or "unknown"
+    )
+
+
+def _binding_status_label(binding: dict[str, Any]) -> str:
+    """Return a normalized status label for installation-wide bindings."""
+    return str(
+        binding.get("status")
+        or binding.get("sync_state")
+        or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown")
+    )
 
 
 # ---------------------------------------------------------------------------
