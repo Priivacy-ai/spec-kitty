@@ -153,7 +153,7 @@ class SaaSTrackerService:
                 and self._config.binding_ref
             ):
                 raise StaleBindingError(
-                    f"Tracker binding is stale: {e}. "
+                    f"Tracker binding '{self._config.binding_ref}' is stale: {e}. "
                     f"Run `spec-kitty tracker bind --provider {self.provider}` to rebind.",
                     binding_ref=self._config.binding_ref,
                     error_code=e.error_code or "unknown",

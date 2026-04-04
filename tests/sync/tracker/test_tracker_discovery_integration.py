@@ -382,6 +382,7 @@ def test_scenario_11_stale_binding_raises_actionable_error_without_clearing_conf
     mock_client.status.assert_called_once_with("linear", binding_ref="bind-stale")
     message = str(exc_info.value)
     assert "stale" in message.lower()
+    assert "bind-stale" in message  # Spec requires naming the stale ref
     assert "spec-kitty tracker bind --provider linear" in message
     assert exc_info.value.binding_ref == "bind-stale"
 
@@ -537,8 +538,8 @@ def test_scenario_9_status_all_returns_installation_level_data(
     ):
         result = TrackerService(repo_root).status(all=True)
 
-    # status(all=True) calls client.status(provider) without routing keys
-    mock_client.status.assert_called_once_with("linear")
+    # status(all=True) calls client.status(provider, installation_wide=True)
+    mock_client.status.assert_called_once_with("linear", installation_wide=True)
     assert isinstance(result, dict)
     assert result["total_bindings"] == 4
     assert result["active_bindings"] == 3

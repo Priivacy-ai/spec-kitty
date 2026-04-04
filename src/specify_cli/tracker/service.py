@@ -167,7 +167,7 @@ class TrackerService:
             from specify_cli.tracker.saas_service import SaaSTrackerService
 
             service = SaaSTrackerService(self._repo_root, config)
-            return service._client.status(config.provider)
+            return service._client.status(config.provider, installation_wide=True)
         return self._resolve_backend().status()
 
     def sync_pull(self, **kwargs: Any) -> dict[str, Any]:

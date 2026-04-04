@@ -405,7 +405,7 @@ class TestStatusAll:
             return_value=mock_client,
         ):
             result = service.status(all=True)
-            mock_client.status.assert_called_once_with("linear")
+            mock_client.status.assert_called_once_with("linear", installation_wide=True)
             assert "bindings" in result
 
     def test_status_all_local_raises(self, tmp_path: Path) -> None:

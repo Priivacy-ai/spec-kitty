@@ -367,12 +367,22 @@ class SaaSTrackerClient:
         project_slug: str | None = None,
         *,
         binding_ref: str | None = None,
+        installation_wide: bool = False,
     ) -> dict[str, Any]:
-        """GET /api/v1/tracker/status -- connection/sync status."""
+        """GET /api/v1/tracker/status -- connection/sync status.
+
+        When *installation_wide* is True, sends only ``provider`` as a query
+        param (no project_slug or binding_ref). The SaaS host returns
+        installation-level status for that provider.
+        """
+        if installation_wide:
+            params: dict[str, str] = {"provider": provider}
+        else:
+            params = self._routing_params(provider, project_slug, binding_ref)
         response = self._request_with_retry(
             "GET",
             self._STATUS_PATH,
-            params=self._routing_params(provider, project_slug, binding_ref),
+            params=params,
         )
         result: dict[str, Any] = response.json()
         return result

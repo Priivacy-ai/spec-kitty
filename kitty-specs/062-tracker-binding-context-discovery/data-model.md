@@ -118,7 +118,9 @@ The current `from_dict()`/`to_dict()` only materializes known fields — any unr
 | `binding_ref` | `str` | The ref that was validated. |
 | `reason` | `str \| None` | Machine-readable reason if invalid (mapping_deleted, mapping_disabled, project_mismatch). |
 | `guidance` | `str \| None` | Human-readable message if invalid. |
-| `bind_result` | `BindResult \| None` | Populated if valid; contains display metadata for config caching. |
+| `display_label` | `str \| None` | Human-readable label (populated when valid). |
+| `provider` | `str \| None` | Normalized provider name (populated when valid). |
+| `provider_context` | `dict[str, str] \| None` | Provider-specific display metadata (populated when valid). |
 
 **Factory method**: `ValidationResult.from_api(data: dict[str, Any]) -> ValidationResult`
 
