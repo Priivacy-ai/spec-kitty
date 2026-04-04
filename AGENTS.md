@@ -35,8 +35,8 @@ kitty-specs/001-my-feature/tasks/
 
 **Use the workflow commands (lane transitions are automatic):**
 ```bash
-spec-kitty agent workflow implement WP01
-spec-kitty agent workflow review WP01
+spec-kitty agent action implement WP01
+spec-kitty agent action review WP01
 ```
 
 The workflow commands:
@@ -49,7 +49,7 @@ The workflow commands:
 
 **For implementation:**
 ```bash
-spec-kitty agent workflow implement [WP01]
+spec-kitty agent action implement [WP01]
 ```
 - Auto-detects first WP with `lane: "planned"` if no ID provided
 - Moves WP to `lane: "doing"` automatically
@@ -57,7 +57,7 @@ spec-kitty agent workflow implement [WP01]
 
 **For review:**
 ```bash
-spec-kitty agent workflow review [WP01]
+spec-kitty agent action review [WP01]
 ```
 - Auto-detects first WP with `lane: "for_review"` if no ID provided
 - Moves WP to `lane: "doing"` automatically

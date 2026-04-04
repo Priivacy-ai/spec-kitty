@@ -65,7 +65,7 @@ def _print_acceptance_summary(summary: AcceptanceSummary) -> None:
 def _print_acceptance_result(result: AcceptanceResult) -> None:
     console.print(
         "\n[bold]Acceptance metadata[/bold]\n"
-        f"• Feature: {result.summary.feature}\n"
+        f"• Mission: {result.summary.feature}\n"
         f"• Accepted at: {result.accepted_at}\n"
         f"• Accepted by: {result.accepted_by}"
     )
@@ -116,7 +116,11 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
 
 
 def accept(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to accept (auto-detected by default)"),
+    feature: Optional[str] = typer.Option(
+        None,
+        "--feature",
+        help="Mission slug to accept (legacy flag name; auto-detected by default)",
+    ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -125,7 +129,7 @@ def accept(
     no_commit: bool = typer.Option(False, "--no-commit", help="Skip auto-commit; report only"),
     allow_fail: bool = typer.Option(False, "--allow-fail", help="Return checklist even when issues remain"),
 ) -> None:
-    """Validate feature readiness before merging to main."""
+    """Validate mission readiness before merging to main."""
 
     if not json_output:
         show_banner()
@@ -142,9 +146,9 @@ def accept(
     if not json_output:
         check_version_compatibility(repo_root, "accept")
 
-    tracker = StepTracker("Feature Acceptance")
+    tracker = StepTracker("Mission Acceptance")
     if not json_output:
-        tracker.add("detect", "Identify feature slug")
+        tracker.add("detect", "Identify mission slug")
         tracker.add("verify", "Run readiness checks")
         console.print()
         tracker.start("detect")

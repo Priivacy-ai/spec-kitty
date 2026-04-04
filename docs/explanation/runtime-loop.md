@@ -2,6 +2,10 @@
 
 Spec Kitty offers two ways to advance work through a mission: slash commands and the runtime loop. This document explains the runtime loop -- what it is, when to use it, and how to interpret what it tells you.
 
+**Terminology note**
+- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
+- Current `spec-kitty next` examples still use `--feature` and `feature_slug` as legacy compatibility names for the tracked mission selector
+
 ## What Is `spec-kitty next`?
 
 In a typical workflow, a human decides what to do next. They look at the kanban board, pick a work package, and run the appropriate slash command (`/spec-kitty.implement`, `/spec-kitty.review`, and so on). The human is the decision-maker.
@@ -35,13 +39,13 @@ The runtime considers several factors when making its decision:
 
 **Use `spec-kitty next` when:**
 
-- You are running multi-agent orchestration (multiple agents working on the same feature in parallel)
-- You want autonomous feature development where agents run in a loop without human intervention
+- You are running multi-agent orchestration (multiple agents working on the same mission in parallel)
+- You want autonomous mission execution where agents run in a loop without human intervention
 - You want the runtime to determine ordering and priority rather than choosing manually
 
 **Use slash commands directly when:**
 
-- You are working manually on a single feature
+- You are working manually on a single mission
 - You are a single developer working through one work package at a time
 - You want explicit control over which action to take next
 
@@ -134,7 +138,7 @@ The loop continues until the runtime returns `terminal` or the agent hits a bloc
 
 During the implementation phase, multiple calls to `spec-kitty next` will return different `wp_id` values but the **same `step_id`** ("implement"). The runtime stays on the "implement" step while cycling through work packages. It only advances to the next mission step (such as "review") when all WPs have reached a terminal or handoff lane (done, approved, or for_review).
 
-This means that in a feature with WP01 through WP09, successive calls might return:
+This means that in a mission with WP01 through WP09, successive calls might return:
 
 - `step_id: "implement"`, `wp_id: "WP01"`
 - `step_id: "implement"`, `wp_id: "WP02"`
@@ -162,9 +166,9 @@ If `--result` is omitted, the runtime assumes `success`.
 
 ## Things to Be Aware Of
 
-### Completed features may not return `terminal` (#335)
+### Completed missions may not return `terminal` (#335)
 
-When `spec-kitty next` is called on a feature where all WPs are done but no prior runtime state exists, the runtime may create a new run starting from the beginning of the mission instead of recognizing that the mission is already complete. It will return `kind: "step"` even though there is nothing left to do.
+When `spec-kitty next` is called on a mission where all WPs are done but no prior runtime state exists, the runtime may create a new run starting from the beginning of the mission instead of recognizing that the mission is already complete. It will return `kind: "step"` even though there is nothing left to do.
 
 **Workaround:** Always check the `progress` field in the response. If `progress.done_wps` equals `progress.total_wps` and `total_wps` is greater than zero, treat the mission as complete regardless of the reported `kind`. Run `/spec-kitty.accept` to finalize.
 

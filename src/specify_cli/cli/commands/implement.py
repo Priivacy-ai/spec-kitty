@@ -102,7 +102,7 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     """Require an explicit feature slug and return (number, slug).
 
     Args:
-        feature_flag: Explicit feature slug from --feature flag (required)
+        feature_flag: Explicit mission slug from --feature flag (required legacy name)
 
     Returns:
         Tuple of (feature_number, feature_slug)
@@ -571,7 +571,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (e.g., WP01)"),
     base: str = typer.Option(None, "--base", help="Base WP to branch from (e.g., WP01)"),
-    feature: str = typer.Option(None, "--feature", help="Feature slug (e.g., 001-my-feature)"),
+    feature: str = typer.Option(None, "--feature", help="Mission slug (legacy flag name; e.g., 001-my-feature)"),
     force: bool = typer.Option(False, "--force", help="Force auto-merge even when dependencies are done"),
     auto_commit: Annotated[
         bool | None,
@@ -913,11 +913,11 @@ def implement(
                     console.print(f"   cd .worktrees/{feature_slug}-{wp_id}")
                     console.print(f"   git merge {feature_slug}-<WPy>")
                     console.print("   # Resolve conflicts, then commit")
-                    console.print("2. If you're using agent workflow:")
-                    console.print(f"   spec-kitty agent workflow implement {wp_id} --base <WPxx> --agent <name>")
+                    console.print("2. If you're using the canonical agent action command:")
+                    console.print(f"   spec-kitty agent action implement {wp_id} --base <WPxx> --agent <name>")
                     console.print("   # Then merge other dependency branches in the worktree")
-                    console.print("\n[dim]Note:[/dim] There is no `spec-kitty agent workflow merge` command.")
-                    console.print("      Feature merges use: spec-kitty agent feature merge")
+                    console.print("\n[dim]Note:[/dim] There is no `spec-kitty agent action merge` command.")
+                    console.print("      Mission merges use: spec-kitty agent mission merge")
 
                     raise typer.Exit(1)
 

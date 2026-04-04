@@ -28,7 +28,7 @@ spec-kitty dashboard
 - **PM:** Assigns owners via Slack/email based on dashboard view
 - **Agents:** Move prompts to "doing":
   ```bash
-  spec-kitty agent workflow implement WP01
+  spec-kitty agent action implement WP01
   ```
 
 ### 3. Midday Review (1:00 PM)
@@ -37,10 +37,10 @@ spec-kitty dashboard
 - **Designer:** Moves back to planned or forward to done:
   ```bash
   # If needs rework:
-  spec-kitty agent workflow review WP01
+  spec-kitty agent action review WP01
 
   # If approved:
-  spec-kitty agent workflow implement WP01
+  spec-kitty agent action implement WP01
   ```
 
 ### 4. Evening Recap (5:00 PM)

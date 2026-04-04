@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+
 from .models import StatusSnapshot
 from .reducer import materialize, reduce
 from .store import EVENTS_FILENAME, read_events
@@ -101,13 +103,13 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
             lanes[lane] = []
         lanes[lane].append(wp_id)
 
-    return {
+    return with_tracked_mission_slug_aliases({
         "feature_slug": snapshot.feature_slug,
         "total_wps": len(snapshot.work_packages),
         "summary": snapshot.summary,
         "lanes": lanes,
         "materialized_at": snapshot.materialized_at,
-    }
+    })
 
 
 def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:

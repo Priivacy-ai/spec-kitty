@@ -3,6 +3,11 @@
 Every event emitted by spec-kitty follows a fixed envelope schema with 15 fields.
 The canonical contract lives at `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md`.
 
+Terminology note:
+- `Mission` is the canonical tracked-item noun.
+- `Mission Run` is the runtime/session noun.
+- Event payloads may still carry `feature_slug` as a compatibility alias on software-delivery and legacy 2.x surfaces.
+
 ## Field Reference
 
 ### Core Envelope (9 fields)
@@ -11,15 +16,15 @@ The canonical contract lives at `kitty-specs/033-github-observability-event-meta
 |-------|------|----------|----------|-------------|
 | `event_id` | `string` | Yes | Per-event | 26-char ULID, unique per event |
 | `event_type` | `string` | Yes | Per-event | One of the 8 event types (e.g. `WPStatusChanged`) |
-| `aggregate_id` | `string` | Yes | Per-event | WP ID or feature slug |
-| `aggregate_type` | `string` | Yes | Per-event | `"WorkPackage"` or `"Feature"` |
+| `aggregate_id` | `string` | Yes | Per-event | WP ID or tracked mission slug |
+| `aggregate_type` | `string` | Yes | Per-event | `"WorkPackage"` or legacy `"Feature"` compatibility label |
 | `payload` | `object` | Yes | Per-event | Event-type-specific data |
 | `timestamp` | `string` | Yes | Per-event | ISO 8601 UTC wall-clock time |
 | `node_id` | `string` | Yes | Per-session | 12-char hex machine identifier from LamportClock |
 | `lamport_clock` | `integer` | Yes | Per-event | Monotonic logical clock, incremented each emit |
 | `causation_id` | `string\|null` | No | Per-event | ULID of parent event for batch correlation |
 
-### Identity Fields (3 fields -- Feature 032)
+### Identity Fields (3 fields -- Mission/Feature Compatibility Layer)
 
 | Field | Type | Required | Resolved | Description |
 |-------|------|----------|----------|-------------|

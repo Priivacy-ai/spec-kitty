@@ -138,6 +138,7 @@ class TestFeatureState:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+        assert data["data"]["mission_slug"] == feature_slug
         assert data["data"]["feature_slug"] == feature_slug
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
@@ -189,6 +190,7 @@ class TestListReady:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+        assert data["data"]["mission_slug"] == feature_slug
         ready = {wp["wp_id"] for wp in data["data"]["ready_work_packages"]}
         # Both WP01 and WP02 have no deps, so both should be ready
         assert "WP01" in ready
@@ -542,6 +544,8 @@ class TestAcceptFeature:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+        assert data["data"]["mission_slug"] == feature_slug
+        assert data["data"]["feature_slug"] == feature_slug
         assert data["data"]["accepted"] is True
 
         # Verify meta.json was written
@@ -640,6 +644,8 @@ class TestMergeFeature:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
+        assert data["data"]["mission_slug"] == feature_slug
+        assert data["data"]["feature_slug"] == feature_slug
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"

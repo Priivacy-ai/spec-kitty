@@ -51,18 +51,18 @@ class PythonOnlyMigration(BaseMigration):
     # Bash → Python command mappings for template updates
     COMMAND_REPLACEMENTS = {
         # Feature management
-        r"\.kittify/scripts/bash/create-new-feature\.sh": "spec-kitty agent create-feature",
-        r"scripts/bash/create-new-feature\.sh": "spec-kitty agent create-feature",
-        r"\.kittify/scripts/bash/check-prerequisites\.sh": "spec-kitty agent feature check-prerequisites",
-        r"scripts/bash/check-prerequisites\.sh": "spec-kitty agent feature check-prerequisites",
+        r"\.kittify/scripts/bash/create-new-feature\.sh": "spec-kitty agent mission create-feature",
+        r"scripts/bash/create-new-feature\.sh": "spec-kitty agent mission create-feature",
+        r"\.kittify/scripts/bash/check-prerequisites\.sh": "spec-kitty agent mission check-prerequisites",
+        r"scripts/bash/check-prerequisites\.sh": "spec-kitty agent mission check-prerequisites",
         r"\.kittify/scripts/bash/setup-plan\.sh": "spec-kitty agent setup-plan",
         r"scripts/bash/setup-plan\.sh": "spec-kitty agent setup-plan",
         r"\.kittify/scripts/bash/update-agent-context\.sh": "spec-kitty agent update-context",
         r"scripts/bash/update-agent-context\.sh": "spec-kitty agent update-context",
-        r"\.kittify/scripts/bash/accept-feature\.sh": "spec-kitty agent feature accept",
-        r"scripts/bash/accept-feature\.sh": "spec-kitty agent feature accept",
-        r"\.kittify/scripts/bash/merge-feature\.sh": "spec-kitty agent feature merge",
-        r"scripts/bash/merge-feature\.sh": "spec-kitty agent feature merge",
+        r"\.kittify/scripts/bash/accept-feature\.sh": "spec-kitty agent mission accept",
+        r"scripts/bash/accept-feature\.sh": "spec-kitty agent mission accept",
+        r"\.kittify/scripts/bash/merge-feature\.sh": "spec-kitty agent mission merge",
+        r"scripts/bash/merge-feature\.sh": "spec-kitty agent mission merge",
         # Task workflow
         r"\.kittify/scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",
         r"scripts/bash/tasks-move-to-lane\.sh": "spec-kitty agent move-task",

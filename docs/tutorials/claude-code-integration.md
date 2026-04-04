@@ -389,7 +389,7 @@ claude
 ```bash
 /spec-kitty.implement
 # After implementation:
-spec-kitty agent workflow review WP01
+spec-kitty agent action review WP01
 # Review workflow moves to done when there is no feedback
 ```
 

@@ -21,7 +21,11 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug to target (auto-detected when omitted)"),
+    feature: Optional[str] = typer.Option(
+        None,
+        "--feature",
+        help="Mission slug to target (legacy flag name; auto-detected when omitted)",
+    ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
     """Execute Phase 0 research workflow to scaffold artifacts."""
@@ -39,7 +43,7 @@ def research(
 
     tracker = StepTracker("Research Phase Setup")
     tracker.add("project", "Locate project root")
-    tracker.add("feature", "Resolve feature directory")
+    tracker.add("feature", "Resolve mission directory")
     tracker.add("research-md", "Ensure research.md")
     tracker.add("data-model", "Ensure data-model.md")
     tracker.add("research-csv", "Ensure research CSV stubs")

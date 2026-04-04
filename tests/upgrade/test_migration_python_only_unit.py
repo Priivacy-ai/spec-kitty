@@ -173,7 +173,7 @@ def test_update_command_templates(migration, mock_project_with_bash):
     specify_md = mock_project_with_bash / ".kittify" / "templates" / "command-templates" / "specify.md"
     content = specify_md.read_text()
 
-    assert "spec-kitty agent create-feature" in content
+    assert "spec-kitty agent mission create-feature" in content
     assert ".kittify/scripts/bash/create-new-feature.sh" not in content
     # Migration replaces tasks_cli.py move with spec-kitty agent move-task
     assert "spec-kitty agent move-task" in content
@@ -245,8 +245,8 @@ Use tasks_cli.py list to list tasks.
     assert result.success is True
 
     content = test_template.read_text()
-    assert "spec-kitty agent create-feature" in content
-    assert "spec-kitty agent feature check-prerequisites" in content
+    assert "spec-kitty agent mission create-feature" in content
+    assert "spec-kitty agent mission check-prerequisites" in content
     # Migration replaces tasks_cli.py move/list with spec-kitty agent commands
     assert "spec-kitty agent move-task" in content
     assert "spec-kitty agent list-tasks" in content

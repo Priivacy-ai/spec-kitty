@@ -15,6 +15,12 @@ description: >-
 This skill teaches agents how to advance a Spec Kitty mission through the
 canonical runtime control loop.
 
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = concrete tracked item
+- `Mission Run` = runtime/session instance
+- Current `--feature` examples are legacy software-dev compatibility surfaces for the tracked mission
+
 ## When to Use This Skill
 
 Use this skill when the user wants to:

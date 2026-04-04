@@ -90,11 +90,11 @@ def _resolve_feature_slug(
 def _tasks_commands(feature_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (
-            "spec-kitty agent feature check-prerequisites "
+            "spec-kitty agent mission check-prerequisites "
             f"--json --paths-only --include-tasks --feature {feature_slug}"
         ),
         "finalize_tasks": (
-            f"spec-kitty agent feature finalize-tasks --feature {feature_slug} --json"
+            f"spec-kitty agent mission finalize-tasks --feature {feature_slug} --json"
         ),
     }
 
@@ -242,7 +242,7 @@ def resolve_action_context(
         context.resolved_base = resolved_base
         context.auto_merge = auto_merge
 
-        command = f"spec-kitty agent workflow implement {normalized_wp_id}"
+        command = f"spec-kitty agent action implement {normalized_wp_id}"
         if resolved_base:
             command += f" --base {resolved_base}"
         if agent:
@@ -250,7 +250,7 @@ def resolve_action_context(
         context.commands["workflow"] = command
         return context
 
-    command = f"spec-kitty agent workflow review {normalized_wp_id}"
+    command = f"spec-kitty agent action review {normalized_wp_id}"
     if agent:
         command += f" --agent {agent}"
     context.commands["workflow"] = command

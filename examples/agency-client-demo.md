@@ -165,7 +165,7 @@ cat kitty-specs/003-admin-panel/tasks/for_review/WP01-user-list.md
 # Client adds feedback (via GitHub UI or shared doc)
 
 # PM moves based on feedback
-spec-kitty agent workflow implement WP01
+spec-kitty agent action implement WP01
 ```
 
 ## Metrics to Share

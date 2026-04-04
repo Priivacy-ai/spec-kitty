@@ -36,7 +36,7 @@ After reviewing the generated WPs, finalize the task set.
 In your terminal:
 
 ```bash
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 ```
 
 ## Example Output

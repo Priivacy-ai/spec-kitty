@@ -3,9 +3,13 @@
 **Feature**: 034-feature-status-state-model-remediation
 **Since**: 2.x (3.0 cleanup: feature 060)
 
+**Terminology note**
+- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
+- In this document, `--feature` and `feature_slug` remain legacy compatibility names for the tracked mission selector used by current status commands and event payloads
+
 ## Overview
 
-The status model uses a single canonical append-only event log per feature as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
+The status model uses a single canonical append-only event log per mission as the sole authority for work package status. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. A deterministic reducer produces `status.json` snapshots.
 
 **Key principles (3.0)**:
 - `status.events.jsonl` is the **sole source of truth** for WP lane state
@@ -62,7 +66,7 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 | `WP_ID` (argument) | Yes | Work package ID (e.g., `WP01`) |
 | `--to` | Yes | Target lane (canonical or alias) |
 | `--actor` | Yes | Who is making this transition |
-| `--feature` | No | Feature slug (auto-detected from worktree if omitted) |
+| `--feature` | No | Mission slug (legacy flag name; auto-detected from worktree if omitted) |
 | `--force` | No | Bypass guard conditions |
 | `--reason` | When `--force` | Reason for forced transition |
 | `--evidence-json` | When `--to done` | JSON string with DoneEvidence |
@@ -75,10 +79,10 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 Rebuild `status.json` from the canonical event log.
 
 ```bash
-# Rebuild snapshot (auto-detects feature)
+# Rebuild snapshot (auto-detects mission)
 spec-kitty agent status materialize
 
-# Specify feature explicitly
+# Specify mission explicitly
 spec-kitty agent status materialize --feature 034-feature-name
 
 # JSON output (full snapshot)
@@ -92,7 +96,7 @@ spec-kitty agent status materialize --feature 034-feature-name --json
 Check event log integrity, transition legality, done-evidence completeness, and drift detection.
 
 ```bash
-# Validate event log for a feature
+# Validate event log for a mission
 spec-kitty agent status validate --feature 034-feature-name
 
 # JSON output for CI integration
@@ -136,7 +140,7 @@ spec-kitty agent status reconcile --feature 034-feature-name --apply
 Run health checks detecting stale claims, orphan workspaces, and unresolved drift.
 
 ```bash
-# Run all health checks for a feature
+# Run all health checks for a mission
 spec-kitty agent status doctor --feature 034-feature-name
 ```
 

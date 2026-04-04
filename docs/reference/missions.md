@@ -1,10 +1,16 @@
-# Missions Reference
+# Mission Types Reference
 
-Spec Kitty supports three mission types, each tailored to a different kind of work. Missions determine the workflow phases, artifacts, and templates used during feature development.
+Spec Kitty supports three built-in mission types, each tailored to a different kind of work. A mission type is the reusable workflow blueprint. A mission is the concrete tracked item under `kitty-specs/<mission-slug>/`.
+
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = concrete tracked item
+- `Feature` = software-dev compatibility alias for a mission
+- Current legacy command names may still use `feature` wording even when they are acting on a mission
 
 ---
 
-## Mission Overview
+## Mission Type Overview
 
 | Mission | Domain | Best For |
 |---------|--------|----------|
@@ -14,9 +20,9 @@ Spec Kitty supports three mission types, each tailored to a different kind of wo
 
 ---
 
-## software-dev (Default)
+## software-dev (Default Mission Type)
 
-The default mission for building software features.
+The default mission type for building software missions such as features.
 
 ### Domain
 Software development: building new features, APIs, user interfaces, and system components.
@@ -40,7 +46,7 @@ Software development: building new features, APIs, user interfaces, and system c
 | `tasks/*.md` | `/spec-kitty.tasks` | Individual WP prompt files |
 
 ### When to Use
-- Adding new features to an application
+- Adding a new software mission to an application
 - Building APIs or services
 - Creating user interfaces
 - System integrations
@@ -130,9 +136,9 @@ The documentation mission uses the Divio 4-type system:
 
 ---
 
-## Selecting a Mission
+## Selecting a Mission Type
 
-Missions are selected **per-feature** during `/spec-kitty.specify`. The mission is stored in `meta.json`:
+Mission types are selected when `/spec-kitty.specify` creates a new mission. The selected mission type is currently stored in `meta.json` under the historical key `mission`:
 
 ```json
 {
@@ -140,12 +146,12 @@ Missions are selected **per-feature** during `/spec-kitty.specify`. The mission 
 }
 ```
 
-### During Feature Creation
+### During Mission Creation
 
-When you run `/spec-kitty.specify`, you'll be asked to choose a mission:
+When you run `/spec-kitty.specify`, you'll be asked to choose a mission type:
 
 ```
-? Which mission type for this feature?
+? Which mission type should this mission use?
   ○ software-dev — Building software features (default)
   ○ research — Research and analysis
   ○ documentation — Creating documentation
@@ -153,7 +159,7 @@ When you run `/spec-kitty.specify`, you'll be asked to choose a mission:
 
 ### Changing Mission
 
-The mission cannot be changed after feature creation. If you need a different mission, create a new feature.
+The mission type cannot be changed after mission creation. If you need a different mission type, create a new mission.
 
 ---
 

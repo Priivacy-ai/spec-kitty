@@ -41,7 +41,7 @@ Confirm two independent packages are `lane: "planned"`.
 ### Terminal 1: Agent A on WP01
 
 ```bash
-spec-kitty agent workflow implement WP01
+spec-kitty agent action implement WP01
 cd .worktrees/###-feature-WP01
 # Agent A works here
 ```
@@ -49,7 +49,7 @@ cd .worktrees/###-feature-WP01
 ### Terminal 2: Agent B on WP02
 
 ```bash
-spec-kitty agent workflow implement WP02
+spec-kitty agent action implement WP02
 cd .worktrees/###-feature-WP02
 # Agent B works here simultaneously
 ```

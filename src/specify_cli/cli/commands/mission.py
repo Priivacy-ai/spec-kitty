@@ -22,7 +22,7 @@ from specify_cli.mission import (
 
 app = typer.Typer(
     name="mission",
-    help="View available Spec Kitty missions. Missions are selected per-feature during /spec-kitty.specify.",
+    help="View available Spec Kitty mission types. A mission type is the reusable blueprint selected when a mission is created. Legacy create-feature surfaces may still use feature wording.",
     no_args_is_help=True,
 )
 
@@ -132,7 +132,7 @@ def _print_available_missions(project_root: Path) -> None:
 
     console.print(table)
     console.print()
-    console.print("[dim]Missions are selected per-feature during /spec-kitty.specify[/dim]")
+    console.print("[dim]Mission types are selected when /spec-kitty.specify creates a mission. Legacy compatibility surfaces may still say feature.[/dim]")
 
 
 @app.command("list")
@@ -175,10 +175,10 @@ def current_cmd(
         None,
         "--feature",
         "-f",
-        help="Feature slug (auto-detects from current directory if omitted)",
+        help="Mission slug (legacy flag name; auto-detects from current directory if omitted)",
     ),
 ) -> None:
-    """Show currently active mission for a feature (auto-detects feature from cwd)."""
+    """Show the active mission type for a mission (auto-detects mission from cwd)."""
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "mission")
 
@@ -187,11 +187,11 @@ def current_cmd(
 
     if not feature_slug:
         console.print(
-            "[yellow]No active feature detected.[/yellow]\n"
+            "[yellow]No active mission detected.[/yellow]\n"
             "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
-            "or run from within a feature worktree."
+            "or run from within a mission worktree."
         )
-        # Optionally list available features
+        # Optionally list available missions
         kitty_specs = project_root / "kitty-specs"
         if kitty_specs.is_dir():
             features = sorted(
@@ -199,7 +199,7 @@ def current_cmd(
                 if d.is_dir() and d.name[0:1].isdigit()
             )
             if features:
-                console.print("\n[cyan]Available features:[/cyan]")
+                console.print("\n[cyan]Available missions:[/cyan]")
                 for feat in features[:10]:
                     console.print(f"  - {feat}")
                 if len(features) > 10:
@@ -213,7 +213,7 @@ def current_cmd(
             raise typer.Exit(1)
 
         mission = get_mission_for_feature(feature_dir, project_root)
-        context = f"Feature: {feature_slug}"
+        context = f"Mission: {feature_slug}"
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")
@@ -277,15 +277,15 @@ def switch_cmd(
     """[REMOVED] Switch active mission - this command was removed in v0.8.0."""
     console.print("[bold red]Error:[/bold red] The 'mission switch' command was removed in v0.8.0.")
     console.print()
-    console.print("Missions are now selected [bold]per-feature[/bold] during [cyan]/spec-kitty.specify[/cyan].")
+    console.print("Mission types are now selected [bold]per mission[/bold] during [cyan]/spec-kitty.specify[/cyan].")
     console.print()
     console.print("[cyan]New workflow:[/cyan]")
-    console.print("  1. Run [bold]/spec-kitty.specify[/bold] to start a new feature")
-    console.print("  2. The system will infer and confirm the appropriate mission")
-    console.print("  3. Mission is stored in the feature's [dim]meta.json[/dim]")
+    console.print("  1. Run [bold]/spec-kitty.specify[/bold] to start a new mission")
+    console.print("  2. The system will infer and confirm the appropriate mission type")
+    console.print("  3. The selected mission type is stored in the mission's [dim]meta.json[/dim]")
     console.print()
     console.print("[cyan]To see available missions:[/cyan]")
     console.print("  spec-kitty mission list")
     console.print()
-    console.print("[dim]See: https://github.com/your-org/spec-kitty#per-feature-missions[/dim]")
+    console.print("[dim]See: architecture/2.x/adr/2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md[/dim]")
     raise typer.Exit(1)

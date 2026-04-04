@@ -97,7 +97,7 @@ description: Workflow Example
 scripts:
   sh: echo hi
 ---
-spec-kitty agent workflow implement WP01 --agent __AGENT__
+spec-kitty agent action implement WP01 --agent __AGENT__
 """,
         encoding="utf-8",
     )
@@ -110,7 +110,7 @@ spec-kitty agent workflow implement WP01 --agent __AGENT__
         extension="md",
     )
 
-    assert "spec-kitty agent workflow implement WP01 --agent codex" in output
+    assert "spec-kitty agent action implement WP01 --agent codex" in output
 
 
 def test_prepare_command_templates_overlays_mission(tmp_path: Path) -> None:
@@ -148,7 +148,7 @@ def test_prepare_command_templates_inherits_scripts_from_base(tmp_path: Path) ->
         """---
 description: Base
 scripts:
-  sh: spec-kitty agent feature check-prerequisites --json --include-tasks
+  sh: spec-kitty agent mission check-prerequisites --json --include-tasks
 ---
 Run {SCRIPT}
 """,
@@ -171,7 +171,7 @@ Mission body uses {SCRIPT}
         arg_format="$ARGUMENTS",
         extension="md",
     )
-    assert "spec-kitty agent feature check-prerequisites" in rendered
+    assert "spec-kitty agent mission check-prerequisites" in rendered
 
 
 def test_prepare_command_templates_inherits_agent_scripts_from_base(tmp_path: Path) -> None:

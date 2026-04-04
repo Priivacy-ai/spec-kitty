@@ -223,13 +223,13 @@ git stash
 ```
 Pre-flight failed. Fix these issues before merging:
 
-  1. Missing worktree for WP03. Expected at 017-feature-WP03. Run: spec-kitty agent workflow implement WP03
+  1. Missing worktree for WP03. Expected at 017-feature-WP03. Run: spec-kitty agent action implement WP03
 ```
 
 **Fix**: Create the missing worktree using the agent workflow command:
 
 ```bash
-spec-kitty agent workflow implement WP03
+spec-kitty agent action implement WP03
 ```
 
 ### Target Branch Behind Origin
@@ -268,13 +268,13 @@ spec-kitty implement WP02
 | Error Message | Cause | Solution |
 |--------------|-------|----------|
 | `Error: Already on <branch> branch.` | Running merge from target branch without --feature | Use `spec-kitty merge --feature <slug>` |
-| `Error: No WP worktrees found for feature '<slug>'.` | Feature has no worktrees or wrong slug | Check slug, run `spec-kitty agent workflow implement WP01` |
+| `Error: No WP worktrees found for feature '<slug>'.` | Feature has no worktrees or wrong slug | Check slug, run `spec-kitty agent action implement WP01` |
 | `Cannot merge: WP workspaces not ready` | One or more WP worktrees are not merge-ready | Fix the listed WP errors, then retry merge |
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
 | `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
 | `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
 | `Target repository at <path> has uncommitted changes.` | Main repo has uncommitted work | Commit or stash in main repo |
-| `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent workflow implement WP##` | Expected worktree doesn't exist | Run `spec-kitty agent workflow implement WP##` |
+| `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | Expected worktree doesn't exist | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Target branch diverged from origin | Run the suggested git checkout and pull commands |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |

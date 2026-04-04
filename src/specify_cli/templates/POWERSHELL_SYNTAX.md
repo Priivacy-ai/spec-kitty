@@ -30,7 +30,7 @@ Get-Location
 git branch --show-current
 ```
 
-**Expected for feature worktrees:**
+**Expected for mission worktrees:**
 - Location: `C:\Users\...\project\.worktrees\001-feature-name`
 - Branch: `001-feature-name` (NOT `main`)
 
@@ -43,10 +43,10 @@ git branch --show-current
 Spec-kitty uses a Python CLI that works across all platforms:
 
 **Common commands:**
-- `spec-kitty agent feature create-feature <slug>` - Create a new feature
+- `spec-kitty agent mission create-feature <slug>` - Create a new feature
 - `spec-kitty verify-setup` - Check environment and paths
-- `spec-kitty agent workflow implement <WPID> --agent <name>` - Start implementing a work package
-- `spec-kitty agent workflow review <WPID> --agent <name>` - Start reviewing a work package
+- `spec-kitty agent action implement <WPID> --agent <name>` - Start implementing a work package
+- `spec-kitty agent action review <WPID> --agent <name>` - Start reviewing a work package
 - `spec-kitty agent tasks move-task <WPID> --to for_review` - Complete implementation (move to review)
 - `spec-kitty merge` - Merge completed feature
 
@@ -193,7 +193,7 @@ New-Item -ItemType Directory -Path "tasks\planned" -Force
 **Using spec-kitty commands:**
 All spec-kitty commands work the same way on PowerShell and Bash:
 ```powershell
-spec-kitty agent workflow implement WP01 --agent claude  # Auto-moves to doing
+spec-kitty agent action implement WP01 --agent claude  # Auto-moves to doing
 spec-kitty agent tasks move-task WP01 --to for_review    # Completion step
 spec-kitty verify-setup
 spec-kitty dashboard

@@ -1,4 +1,4 @@
-"""Migration: Simplify implement and review templates to use workflow commands."""
+"""Migration: Simplify implement and review templates to use action commands."""
 
 from __future__ import annotations
 
@@ -12,23 +12,23 @@ from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 @MigrationRegistry.register
 class WorkflowSimplificationMigration(BaseMigration):
-    """Update implement and review slash commands to use new workflow commands.
+    """Update implement and review slash commands to use new action commands.
 
-    This migration simplifies the agent workflow by:
+    This migration simplifies the agent action flow by:
     1. Replacing complex implement.md template (78 lines) with minimal version (9 lines)
     2. Replacing complex review.md template (72 lines) with minimal version (9 lines)
-    3. Templates now call `spec-kitty agent workflow implement/review` which:
+    3. Templates now call `spec-kitty agent action implement/review` which:
        - Displays the full WP prompt directly to the agent
        - Shows clear "when done" instructions
        - No more file navigation or path confusion
     """
 
     migration_id = "0.10.6_workflow_simplification"
-    description = "Simplify implement and review templates to use workflow commands"
+    description = "Simplify implement and review templates to use action commands"
     target_version = "0.10.6"
 
     def detect(self, project_path: Path) -> bool:
-        """Check if slash commands need updating to workflow commands."""
+        """Check if slash commands need updating to action commands."""
         # Check configured agent directories for old complex templates
         agent_dirs = get_agent_dirs_for_project(project_path)
 
@@ -45,8 +45,11 @@ class WorkflowSimplificationMigration(BaseMigration):
                 # Old template has "Work Package Selection" or "Setup (Do This First)"
                 if "Work Package Selection" in content or "Setup (Do This First)" in content:
                     return True
-                # Or doesn't have the new workflow command
-                if "spec-kitty agent workflow implement" not in content:
+                # Or doesn't have the new action command
+                if (
+                    "spec-kitty agent action implement" not in content
+                    and "spec-kitty agent workflow implement" not in content
+                ):
                     return True
 
             # Check review.md for old structure
@@ -56,8 +59,11 @@ class WorkflowSimplificationMigration(BaseMigration):
                 # Old template has complex outline
                 if "Location Pre-flight Check" in content or "Conduct the review:" in content:
                     return True
-                # Or doesn't have the new workflow command
-                if "spec-kitty agent workflow review" not in content:
+                # Or doesn't have the new action command
+                if (
+                    "spec-kitty agent action review" not in content
+                    and "spec-kitty agent workflow review" not in content
+                ):
                     return True
 
         return False
@@ -71,7 +77,7 @@ class WorkflowSimplificationMigration(BaseMigration):
         return True, ""
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:  # noqa: C901
-        """Update implement and review slash commands with new workflow-based templates."""
+        """Update implement and review slash commands with new action-based templates."""
         changes: list[str] = []
         warnings: list[str] = []
         errors: list[str] = []
@@ -157,7 +163,7 @@ class WorkflowSimplificationMigration(BaseMigration):
 
         if total_updated > 0:
             changes.append(f"Total: Updated {total_updated} slash command templates")
-            changes.append("Templates now use 'spec-kitty agent workflow' commands")
+            changes.append("Templates now use 'spec-kitty agent action' commands")
             changes.append("Agents now see prompts directly, no file navigation needed")
         elif not changes:
             warnings.append("No templates were updated (already updated or mission templates missing)")

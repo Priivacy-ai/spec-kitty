@@ -54,7 +54,7 @@ spec-kitty constitution context --action plan --json
 This command runs in the **project root checkout**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
-  - Run `spec-kitty agent feature setup-plan --feature <feature-slug> --json`
+  - Run `spec-kitty agent mission setup-plan --feature <feature-slug> --json`
   - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
   - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
 - Planning artifacts live in `kitty-specs/###-feature/`
@@ -97,11 +97,11 @@ Planning requirements (scale to complexity):
 
 2. **Resolve feature context deterministically** (CRITICAL - prevents wrong feature selection):
    - Prefer an explicit feature slug from user direction or from the current directory path (`kitty-specs/<feature-slug>/...`)
-   - If you do not yet have an explicit feature slug, run `spec-kitty agent feature setup-plan --json` once without `--feature`
+   - If you do not yet have an explicit feature slug, run `spec-kitty agent mission setup-plan --json` once without `--feature`
    - If that call succeeds, treat its JSON as the canonical setup payload and skip step 3
    - If that call returns an ambiguity error with `available_features`, stop and resolve one explicit feature slug before continuing
 
-3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent feature setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
    - `feature_slug`: Resolved feature slug
    - `spec_file`: Absolute path to resolved spec.md
@@ -121,7 +121,7 @@ Planning requirements (scale to complexity):
    **Example**:
    ```bash
    # If detected feature is 020-my-feature:
-   spec-kitty agent feature setup-plan --feature 020-my-feature --json
+   spec-kitty agent mission setup-plan --feature 020-my-feature --json
    ```
 
    **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.

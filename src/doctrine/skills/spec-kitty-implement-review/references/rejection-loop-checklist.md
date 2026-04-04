@@ -10,7 +10,7 @@ Operational checklist for handling review rejections and re-implementation cycle
 
 ## Re-Implementation Dispatch
 
-- [ ] Ran `spec-kitty agent workflow implement WP## --agent <name>`
+- [ ] Ran `spec-kitty agent action implement WP## --agent <name>`
 - [ ] Captured workspace path and prompt file from output
 - [ ] Dispatched implementing agent with cycle info in prompt
 - [ ] Included note: "This is cycle X/3" so agent knows urgency

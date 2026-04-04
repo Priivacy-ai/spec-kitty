@@ -1,4 +1,4 @@
-"""Feature lifecycle commands for AI agents."""
+"""Mission lifecycle commands for AI agents."""
 
 from __future__ import annotations
 
@@ -45,8 +45,8 @@ from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 
 app = typer.Typer(
-    name="feature",
-    help="Feature lifecycle commands for AI agents",
+    name="mission",
+    help="Mission lifecycle commands for AI agents",
     no_args_is_help=True
 )
 
@@ -62,9 +62,31 @@ def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
     return enriched
 
 
+def _with_mission_aliases(payload: dict[str, object]) -> dict[str, object]:
+    """Expose canonical mission nouns while preserving legacy feature aliases."""
+    enriched = dict(payload)
+
+    if "feature_slug" in enriched and "mission_slug" not in enriched:
+        enriched["mission_slug"] = enriched["feature_slug"]
+    if "mission_slug" in enriched and "feature_slug" not in enriched:
+        enriched["feature_slug"] = enriched["mission_slug"]
+    if "feature" in enriched and "mission" not in enriched:
+        enriched["mission"] = enriched["feature"]
+    if "mission" in enriched and "feature" not in enriched:
+        enriched["feature"] = enriched["mission"]
+    if "feature_flag" in enriched and "mission_flag" not in enriched:
+        enriched["mission_flag"] = enriched["feature_flag"]
+    if "available_features" in enriched and "available_missions" not in enriched:
+        enriched["available_missions"] = enriched["available_features"]
+    if "available_missions" in enriched and "available_features" not in enriched:
+        enriched["available_features"] = enriched["available_missions"]
+
+    return enriched
+
+
 def _emit_json(payload: dict[str, object]) -> None:
     """Emit a deterministic single JSON object."""
-    print(json.dumps(_with_cli_version(payload)))
+    print(json.dumps(_with_cli_version(_with_mission_aliases(payload))))
 
 
 def _utc_now_iso() -> str:
@@ -204,12 +226,12 @@ def _show_branch_context(
         if not resolution.should_notify:
             console.print(
                 f"[bold cyan]Branch:[/bold cyan] {current_branch} "
-                f"(target for this feature)"
+                f"(target for this mission)"
             )
         else:
             console.print(
                 f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
-                f"feature targets '{resolution.target}'"
+                f"mission targets '{resolution.target}'"
             )
 
     return main_repo_root, resolution.current
@@ -351,7 +373,7 @@ def _find_feature_directory(
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
-    """List candidate features with absolute spec.md paths for remediation output."""
+    """List candidate missions with absolute spec.md paths for remediation output."""
     main_repo_root = get_main_repo_root(repo_root)
     kitty_specs_dir = main_repo_root / "kitty-specs"
     if not kitty_specs_dir.is_dir():
@@ -364,6 +386,7 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
         spec_file = feature_dir / "spec.md"
         candidates.append(
             {
+                "mission_slug": feature_dir.name,
                 "feature_slug": feature_dir.name,
                 "feature_dir": str(feature_dir.resolve()),
                 "spec_file": str(spec_file.resolve()),
@@ -382,7 +405,7 @@ def _build_setup_plan_detection_error(
     command_name: str = "setup-plan",
     command_args: list[str] | None = None,
 ) -> dict[str, object]:
-    """Build a concise feature-context detection error payload.
+    """Build a concise mission-context detection error payload.
 
     This payload is consumed by LLMs via ``--json`` output.  Keep it small:
     slugs only (no absolute paths), one example command, and a short
@@ -399,22 +422,23 @@ def _build_setup_plan_detection_error(
     }
 
     if not candidates:
-        payload["error"] = "No features found in kitty-specs/"
+        payload["error"] = "No missions found in kitty-specs/"
         payload["remediation"] = (
             "Run /spec-kitty.specify or: "
-            "spec-kitty agent feature create-feature <name> --json"
+            "spec-kitty agent mission create-feature <name> --json"
         )
         return payload
 
-    slugs = [c["feature_slug"] for c in candidates]
+    slugs = [str(c["mission_slug"]) for c in candidates]
     n = len(slugs)
-    payload["error"] = f"{n} features found, pass --feature <slug> to disambiguate"
+    payload["error"] = f"{n} missions found, pass --feature <slug> to disambiguate"
     payload["available_features"] = slugs
+    payload["available_missions"] = slugs
 
     # One example command so the LLM knows the exact syntax
     args_suffix = f" {' '.join(command_args)}" if command_args else ""
     payload["example_command"] = (
-        f"spec-kitty agent feature {command_name} --feature {slugs[0]}{args_suffix}"
+        f"spec-kitty agent mission {command_name} --feature {slugs[0]}{args_suffix}"
     )
     payload["remediation"] = f"Re-run with --feature <slug>"
     return payload
@@ -507,18 +531,18 @@ def branch_context(
 
 @app.command(name="create-feature")
 def create_feature(
-    feature_slug: Annotated[str, typer.Argument(help="Feature slug (e.g., 'user-auth')")],
+    feature_slug: Annotated[str, typer.Argument(help="Mission slug (legacy argument name; e.g., 'user-auth')")],
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
-    """Create new feature directory structure in the project root checkout.
+    """Create new mission directory structure in the project root checkout.
 
     This command is designed for AI agents to call programmatically.
-    Creates feature directory in kitty-specs/ and commits to the current branch.
+    Creates mission directory in kitty-specs/ and commits to the current branch.
 
     Examples:
-        spec-kitty agent create-feature "new-dashboard" --json
+        spec-kitty agent mission create-feature "new-dashboard" --json
     """
     from specify_cli.core.feature_creation import (
         FeatureCreationError,
@@ -553,7 +577,7 @@ def create_feature(
                 if main_repo is not None:
                     console.print("\n[cyan]Run from the main repository instead:[/cyan]")
                     console.print(f"  cd {main_repo}")
-                    console.print(f"  spec-kitty agent create-feature {feature_slug}")
+                    console.print(f"  spec-kitty agent mission create-feature {feature_slug}")
         raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:
@@ -566,7 +590,7 @@ def create_feature(
     if not json_output:
         console.print(
             f"[bold cyan]Branch:[/bold cyan] {result.target_branch} "
-            f"(target for this feature)"
+            f"(target for this mission)"
         )
         if mission == "documentation":
             console.print("[cyan]\u2192 Documentation state initialized in meta.json[/cyan]")
@@ -578,7 +602,8 @@ def create_feature(
         tasks_readme = feature_dir / "tasks" / "README.md"
         create_payload: dict[str, object] = {
             "result": "success",
-            "feature": result.feature_slug,
+            "mission": result.feature_slug,
+            "mission_slug": result.feature_slug,
             "feature_dir": str(feature_dir),
             "spec_file": str(spec_file),
             "meta_file": str(meta_file),
@@ -595,14 +620,14 @@ def create_feature(
             )
         )
     else:
-        console.print(f"[green]\u2713[/green] Feature created: {result.feature_slug}")
+        console.print(f"[green]\u2713[/green] Mission created: {result.feature_slug}")
         console.print(f"   Directory: {result.feature_dir}")
         console.print(f"   Spec committed to {result.target_branch}")
 
 
 @app.command(name="check-prerequisites")
 def check_prerequisites(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
@@ -611,13 +636,13 @@ def check_prerequisites(
         typer.Option("--require-tasks", hidden=True, help="Deprecated alias for --include-tasks"),
     ] = False,
 ) -> None:
-    """Validate feature structure and prerequisites.
+    """Validate mission structure and prerequisites.
 
     This command is designed for AI agents to call programmatically.
 
     Examples:
-        spec-kitty agent feature check-prerequisites --json
-        spec-kitty agent feature check-prerequisites --feature 020-my-feature --paths-only --json
+        spec-kitty agent mission check-prerequisites --json
+        spec-kitty agent mission check-prerequisites --feature 020-my-feature --paths-only --json
     """
     try:
         if require_tasks and not include_tasks:
@@ -637,7 +662,7 @@ def check_prerequisites(
         _enforce_git_preflight(
             repo_root,
             json_output=json_output,
-            command_name="spec-kitty agent feature check-prerequisites",
+            command_name="spec-kitty agent mission check-prerequisites",
         )
 
         # Determine feature directory (main repo or worktree)
@@ -713,7 +738,7 @@ def check_prerequisites(
         else:
             if validation_result["valid"]:
                 console.print("[green]✓[/green] Prerequisites check passed")
-                console.print(f"   Feature: {feature_dir.name}")
+                console.print(f"   Mission: {feature_dir.name}")
             else:
                 console.print("[red]✗[/red] Prerequisites check failed")
                 for error in validation_result["errors"]:
@@ -736,7 +761,7 @@ def check_prerequisites(
 
 @app.command(name="setup-plan")
 def setup_plan(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Scaffold implementation plan template in the project root checkout.
@@ -745,8 +770,8 @@ def setup_plan(
     Creates plan.md and commits to target branch.
 
     Examples:
-        spec-kitty agent feature setup-plan --json
-        spec-kitty agent feature setup-plan --feature 020-my-feature --json
+        spec-kitty agent mission setup-plan --json
+        spec-kitty agent mission setup-plan --feature 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -761,7 +786,7 @@ def setup_plan(
         _enforce_git_preflight(
             repo_root,
             json_output=json_output,
-            command_name="spec-kitty agent feature setup-plan",
+            command_name="spec-kitty agent mission setup-plan",
         )
 
         # Determine feature directory using centralized detection.
@@ -796,13 +821,13 @@ def setup_plan(
         if not spec_file.exists():
             payload = {
                 "error_code": "SPEC_FILE_MISSING",
-                "error": f"Required spec not found for feature '{feature_slug}': {spec_file.resolve()}",
+                "error": f"Required spec not found for mission '{feature_slug}': {spec_file.resolve()}",
                 "feature_slug": feature_slug,
                 "feature_dir": str(feature_dir.resolve()),
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    f"Or select another feature explicitly: spec-kitty agent feature setup-plan --feature <feature-slug> --json",
+                    f"Or select another mission explicitly: spec-kitty agent mission setup-plan --feature <mission-slug> --json",
                 ],
             }
             if json_output:
@@ -955,6 +980,7 @@ def setup_plan(
         if json_output:
             result = {
                 "result": "success",
+                "mission_slug": feature_slug,
                 "feature_slug": feature_slug,
                 "plan_file": str(plan_file),
                 "feature_dir": str(feature_dir),
@@ -1064,7 +1090,7 @@ def accept_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (required in multi-feature repos)"
+            help="Mission slug (legacy flag name; required in multi-feature repos)"
         )
     ] = None,
     mode: Annotated[
@@ -1096,25 +1122,25 @@ def accept_feature(
         )
     ] = False,
 ) -> None:
-    """Perform feature acceptance workflow.
+    """Perform mission acceptance workflow.
 
     This command:
     1. Validates all tasks are in 'done' lane
     2. Runs acceptance checks from checklist files
     3. Creates acceptance report
-    4. Marks feature as ready for merge
+    4. Marks mission as ready for merge
 
     Wrapper for top-level accept command with agent-specific defaults.
 
     Examples:
         # Run acceptance workflow
-        spec-kitty agent feature accept
+        spec-kitty agent mission accept
 
         # With JSON output for agents
-        spec-kitty agent feature accept --json
+        spec-kitty agent mission accept --json
 
         # Lenient mode (skip strict validation)
-        spec-kitty agent feature accept --lenient --json
+        spec-kitty agent mission accept --lenient --json
     """
     # Delegate to top-level accept command
     try:
@@ -1146,7 +1172,7 @@ def merge_feature(
         Optional[str],
         typer.Option(
             "--feature",
-            help="Feature directory slug (required in multi-feature repos)"
+            help="Mission slug (legacy flag name; required in multi-feature repos)"
         )
     ] = None,
     target: Annotated[
@@ -1181,7 +1207,7 @@ def merge_feature(
         bool,
         typer.Option(
             "--keep-branch",
-            help="Keep feature branch after merge (default: delete)"
+            help="Keep mission branch after merge (default: delete)"
         )
     ] = False,
     keep_worktree: Annotated[
@@ -1195,17 +1221,17 @@ def merge_feature(
         bool,
         typer.Option(
             "--auto-retry/--no-auto-retry",
-            help="Auto-navigate to a deterministic feature worktree if in wrong location"
+            help="Auto-navigate to a deterministic mission worktree if in the wrong location"
         )
     ] = False,
 ) -> None:
-    """Merge feature branch into target branch.
+    """Merge mission branch into target branch.
 
     This command:
-    1. Validates feature is accepted
-    2. Merges feature branch into target (usually 'main')
+    1. Validates the mission is accepted
+    2. Merges the mission branch into target (usually 'main')
     3. Cleans up worktree
-    4. Deletes feature branch
+    4. Deletes the mission branch
 
     Auto-retry logic:
     If current branch doesn't match feature pattern and auto-retry is enabled,
@@ -1215,16 +1241,16 @@ def merge_feature(
 
     Examples:
         # Merge into main branch
-        spec-kitty agent feature merge
+        spec-kitty agent mission merge
 
         # Merge into specific branch with push
-        spec-kitty agent feature merge --target develop --push
+        spec-kitty agent mission merge --target develop --push
 
         # Dry-run mode
-        spec-kitty agent feature merge --dry-run
+        spec-kitty agent mission merge --dry-run
 
         # Keep worktree and branch after merge
-        spec-kitty agent feature merge --keep-worktree --keep-branch
+        spec-kitty agent mission merge --keep-worktree --keep-branch
     """
     try:
         repo_root = locate_project_root()
@@ -1269,7 +1295,7 @@ def merge_feature(
                 env["SPEC_KITTY_AUTORETRY"] = "1"
 
                 # Re-run command in worktree
-                retry_cmd = ["spec-kitty", "agent", "feature", "merge"]
+                retry_cmd = ["spec-kitty", "agent", "mission", "merge"]
                 retry_cmd.extend(["--feature", feature])
                 retry_cmd.extend(["--target", target, "--strategy", strategy])
                 if push:
@@ -1319,7 +1345,7 @@ def merge_feature(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")] = False,
 ) -> None:
@@ -1332,8 +1358,8 @@ def finalize_tasks(
     dependency cycles) without making any changes or committing.
 
     Examples:
-        spec-kitty agent feature finalize-tasks --feature 020-my-feature --json
-        spec-kitty agent feature finalize-tasks --feature 020-my-feature --validate-only --json
+        spec-kitty agent mission finalize-tasks --feature 020-my-feature --json
+        spec-kitty agent mission finalize-tasks --feature 020-my-feature --validate-only --json
     """
     try:
         repo_root = locate_project_root()
@@ -1377,7 +1403,7 @@ def finalize_tasks(
         _ensure_branch_checked_out(repo_root, target_branch, json_output=json_output)
         if not json_output:
             console.print(
-                f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this feature)"
+                f"[bold cyan]Branch:[/bold cyan] {target_branch} (target for this mission)"
             )
 
         tasks_dir = feature_dir / "tasks"
@@ -1694,6 +1720,7 @@ def finalize_tasks(
             if json_output:
                 _emit_json({
                     "result": "validation_passed",
+                    "mission_slug": feature_slug,
                     "feature_slug": feature_slug,
                     "wp_count": len(work_packages),
                     "validate_only": True,
@@ -1703,7 +1730,7 @@ def finalize_tasks(
                 })
             else:
                 console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
-                console.print(f"  Feature: {feature_slug}")
+                console.print(f"  Mission: {feature_slug}")
                 console.print(f"  WPs validated: {len(work_packages)}")
                 console.print(
                     f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, "

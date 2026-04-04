@@ -177,7 +177,7 @@ Prompts do not rediscover feature context. Commands do.
    - No two WPs may have overlapping `owned_files`.
    - Use specific paths, not broad globs like `src/**`.
    - Agents working on a WP must not modify files outside their `owned_files` list.
-   - Run `spec-kitty agent feature finalize-tasks --validate-only --json` to check ownership before committing.
+   - Run `spec-kitty agent mission finalize-tasks --validate-only --json` to check ownership before committing.
 
 8. **Finalize tasks with dependency parsing and commit**:
    After generating all WP prompt files, run the finalization command to:
@@ -188,7 +188,7 @@ Prompts do not rediscover feature context. Commands do.
 
    **CRITICAL**: Run this command from repo root:
    ```bash
-   spec-kitty agent feature finalize-tasks --json --feature <feature-slug>
+   spec-kitty agent mission finalize-tasks --json --feature <feature-slug>
    ```
 
    This step is MANDATORY for workspace-per-WP features. Without it:
@@ -395,7 +395,7 @@ If ambiguous, run `check-prerequisites` once without `--feature`, parse the JSON
 
 ### Step 2: Setup
 
-Run `spec-kitty agent feature check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` and capture `feature_dir`.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` and capture `feature_dir`.
 
 ### Step 3: Load Design Documents
 

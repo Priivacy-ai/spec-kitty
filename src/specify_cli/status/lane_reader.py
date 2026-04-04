@@ -14,7 +14,7 @@ from .store import EVENTS_FILENAME
 class CanonicalStatusNotFoundError(RuntimeError):
     """Raised when the event log file does not exist for a feature.
 
-    This indicates that ``spec-kitty agent feature finalize-tasks`` has not
+    This indicates that ``spec-kitty agent mission finalize-tasks`` has not
     been run yet, so canonical status events have not been bootstrapped.
     """
 
@@ -30,7 +30,7 @@ def _require_event_log(feature_dir: Path) -> None:
         slug = feature_dir.name
         raise CanonicalStatusNotFoundError(
             f"Canonical status not found for feature '{slug}'. "
-            f"Run 'spec-kitty agent feature finalize-tasks --feature {slug}' "
+            f"Run 'spec-kitty agent mission finalize-tasks --feature {slug}' "
             f"to bootstrap the event log."
         )
 

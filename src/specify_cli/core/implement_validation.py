@@ -5,7 +5,7 @@ ensuring that workspaces are created with correct base branches.
 
 Used by both:
 - Top-level `spec-kitty implement` command
-- Agent `spec-kitty agent workflow implement` command
+- Agent `spec-kitty agent action implement` command
 """
 
 from __future__ import annotations
@@ -107,7 +107,7 @@ def validate_and_resolve_base(
                         f"  spec-kitty implement {wp_id} --base {declared_deps[0]}",
                         "\n[dim]Or for agent commands:[/dim]",
                         (
-                            f"  spec-kitty agent workflow implement {wp_id} "
+                            f"  spec-kitty agent action implement {wp_id} "
                             f"--base {declared_deps[0]} --agent <name>"
                         ),
                     ],

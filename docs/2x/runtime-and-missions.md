@@ -1,10 +1,16 @@
-# 2.x Runtime and Missions
+# 2.x Runtime, Mission Types, and Missions
 
-Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. Each mission defines the phases, required artifacts, validation guards, and agent context for a specific work type. You select a mission once per feature at creation time and it governs the entire lifecycle of that feature.
+Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. Each mission type defines the phases, required artifacts, validation guards, and agent context for a specific work type. You select a mission type when creating a mission, and it governs that mission for its entire lifecycle.
 
-The runtime is the engine that drives mission execution. It resolves which mission assets to load, determines what the next action should be, and enforces guard conditions before transitions.
+Terminology note:
+- `Mission Type` = reusable workflow blueprint
+- `Mission` = concrete tracked item in `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- `Feature` = compatibility alias for a software-dev mission
 
-## The 4 Built-In Missions
+The runtime is the engine that drives mission execution. It resolves which mission-type assets to load, determines what the next action should be, and enforces guard conditions before transitions.
+
+## The 4 Built-In Mission Types
 
 | Mission | Purpose | Key Phases | Default? |
 |---------|---------|------------|----------|
@@ -13,9 +19,9 @@ The runtime is the engine that drives mission execution. It resolves which missi
 | **plan** | Goal-oriented strategic planning | discovery, specify, plan, refine | No |
 | **documentation** | Divio-based documentation creation | specify, plan, audit, create, validate | No |
 
-Each mission defines its own step DAG (directed acyclic graph of phases), its own required artifacts, and its own guard conditions for phase transitions.
+Each mission type defines its own step DAG (directed acyclic graph of actions), its own required artifacts, and its own guard conditions for action transitions.
 
-## Mission Assets
+## Mission-Type Assets
 
 Packaged mission defaults for 2.x live under doctrine:
 
@@ -24,47 +30,48 @@ Packaged mission defaults for 2.x live under doctrine:
 3. `src/doctrine/missions/research/` -- research workflow
 4. `src/doctrine/missions/documentation/` -- documentation workflow
 
-Each mission directory contains a `mission-runtime.yaml` (step DAG, guards, artifacts) and a set of command templates that are deployed to agent directories.
+Each mission-type directory contains a `mission-runtime.yaml` (step DAG, guards, artifacts) and a set of command templates that are deployed to agent directories.
 
-## The Hierarchy: Mission, Feature, Work Package, Workspace
+## The Hierarchy: Mission Type, Mission, Work Package, Workspace
 
 Understanding how the pieces nest is key to understanding Spec Kitty:
 
 ```
-Mission (reusable workflow blueprint, e.g. software-dev)
+Mission Type (reusable workflow blueprint, e.g. software-dev)
   |
-  +-- Feature (concrete thing being built, in kitty-specs/###-name/)
+  +-- Mission (concrete tracked item, in kitty-specs/###-name/)
         |
         +-- Work Package (one parallelizable slice, tasks/WP01.md)
               |
               +-- Workspace (isolated git worktree, .worktrees/###-name-WP01/)
 ```
 
-- **Mission** -- selected per feature at creation time; determines phases, artifacts, and guards.
-- **Feature** -- stored in `kitty-specs/###-feature-name/`; linked to its mission via `meta.json`.
+- **Mission Type** -- selected when the mission is created; determines actions, artifacts, and guards.
+- **Mission** -- stored in `kitty-specs/###-name/`; linked to its mission type via `meta.json`.
+- **Feature** -- legacy software-dev alias for a mission.
 - **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
 - **Workspace** -- one git worktree per work package; agents work in isolation without merge conflicts.
 
-Different features in the same project can use different missions simultaneously.
+Different missions in the same project can use different mission types simultaneously.
 
 ## Canonical Agent Loop: `spec-kitty next`
 
-2.x treats `spec-kitty next --agent <name>` as the canonical loop entrypoint for agent execution. The command inspects the current feature's mission state and WP statuses, then returns exactly one actionable instruction: which phase to advance, which WP to implement, or what is blocking progress.
+2.x treats `spec-kitty next --agent <name>` as the canonical loop entrypoint for agent execution. The command inspects the current mission's action state and WP statuses, then returns exactly one actionable instruction: which mission action to advance, which WP to implement, or what is blocking progress.
 
 The loop works with two orthogonal state machines:
 
-- **Mission state** -- which phase of the workflow are we in? (specify, plan, implement, ...)
+- **Mission action state** -- which outer lifecycle action are we in? (`specify`, `plan`, `implement`, ...)
 - **WP status** -- where is each work package in its lifecycle? (planned, claimed, in_progress, for_review, done)
 
 Together they determine the next action. For example: "We are in the implement phase, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
 
-Agents call `spec-kitty next` in a loop, executing whatever it returns until the feature is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
+Agents call `spec-kitty next` in a loop, executing whatever it returns until the mission is complete. This keeps agent behavior deterministic and auditable -- the runtime decides what happens next, not the agent.
 
 ADR reference: `architecture/2.x/adr/2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 ## Mission Discovery and Loading
 
-Mission discovery and loading are runtime-owned and resolved through explicit precedence rather than duplicated ad-hoc loaders.
+Mission-type discovery and loading are runtime-owned and resolved through explicit precedence rather than duplicated ad-hoc loaders.
 
 The resolution order is:
 

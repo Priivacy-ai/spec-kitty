@@ -3,7 +3,7 @@
 Historical context:
 - Earlier spec-kitty versions or user templates may have added `kitty-specs/` to .gitignore
 - This prevents git from tracking feature specifications, causing failures in:
-  - `spec-kitty agent feature create-feature`
+  - `spec-kitty agent mission create-feature`
   - `/spec-kitty.specify` (commit step)
   - Other commands that commit to kitty-specs/
 

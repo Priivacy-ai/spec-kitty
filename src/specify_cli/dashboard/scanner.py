@@ -376,7 +376,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                         feature_dir.name,
                     )
                     kanban_stats["error"] = (
-                        f"Event log not found. Run: spec-kitty agent feature "
+                        f"Event log not found. Run: spec-kitty agent mission "
                         f"finalize-tasks --feature {feature_dir.name}"
                     )
 
@@ -469,7 +469,7 @@ def _process_wp_file(
             from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
             raise CanonicalStatusNotFoundError(
                 f"Canonical status not found for feature "
-                f"'{feature_candidate.name}'. Run 'spec-kitty agent feature "
+                f"'{feature_candidate.name}'. Run 'spec-kitty agent mission "
                 f"finalize-tasks --feature {feature_candidate.name}' to "
                 f"bootstrap the event log."
             )

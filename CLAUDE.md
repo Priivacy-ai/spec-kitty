@@ -297,7 +297,7 @@ Full docs: [CONTRIBUTING.md](CONTRIBUTING.md#release-process)
 - `/spec-kitty.specify` → Creates `kitty-specs/###-feature/` in main, commits to main
 - `/spec-kitty.plan` → Creates `plan.md` in main, commits to main
 - `/spec-kitty.tasks` → LLM creates `tasks.md` and `tasks/*.md` in main
-- `spec-kitty agent feature finalize-tasks` → Parses dependencies, validates, commits to main
+- `spec-kitty agent mission finalize-tasks` → Parses dependencies, validates, commits to main
 - All artifacts committed to main **before** implementation starts
 
 **NO worktrees created during planning.**

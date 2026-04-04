@@ -1,4 +1,4 @@
-"""Workflow commands for AI agents - display prompts and instructions."""
+"""Action commands for AI agents - display prompts and instructions."""
 
 from __future__ import annotations
 
@@ -122,8 +122,8 @@ def _render_constitution_context(repo_root: Path, action: str) -> str:
 
 
 app = typer.Typer(
-    name="workflow",
-    help="Workflow commands that display prompts and instructions for agents",
+    name="action",
+    help="Mission action commands that display prompts and instructions for agents",
     no_args_is_help=True
 )
 
@@ -139,7 +139,7 @@ def _missing_canonical_status_message(wp_id: str, feature_slug: str) -> str:
     """Return a consistent hard-fail message for missing canonical status."""
     return (
         f"WP {wp_id} has no canonical status. "
-        f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+        f"Run `spec-kitty agent mission finalize-tasks --feature {feature_slug}` to initialize."
     )
 
 
@@ -164,10 +164,10 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
 
     # Show consistent branch banner
     if not resolution.should_notify:
-        print(f"Branch: {current_branch} (target for this feature)")
+        print(f"Branch: {current_branch} (target for this mission)")
     else:
         print(
-            f"Branch: on '{resolution.current}', feature targets '{resolution.target}'"
+            f"Branch: on '{resolution.current}', mission targets '{resolution.target}'"
         )
 
     # Return current branch (no checkout performed)
@@ -286,7 +286,7 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
     base: Annotated[Optional[str], typer.Option("--base", help="Base WP to branch from (e.g., WP01) - creates worktree if provided")] = None,
 ) -> None:
@@ -300,10 +300,10 @@ def implement(
     If --base is provided, creates a worktree for this WP branching from the base WP's branch.
 
     Examples:
-        spec-kitty agent workflow implement WP01 --agent claude
-        spec-kitty agent workflow implement WP02 --agent claude --base WP01  # Create worktree from WP01
-        spec-kitty agent workflow implement wp01 --agent codex
-        spec-kitty agent workflow implement --agent gemini  # auto-detects first planned WP
+        spec-kitty agent action implement WP01 --agent claude
+        spec-kitty agent action implement WP02 --agent claude --base WP01  # Create worktree from WP01
+        spec-kitty agent action implement wp01 --agent codex
+        spec-kitty agent action implement --agent gemini  # auto-detects first planned WP
     """
     try:
         # Get repo root and feature slug
@@ -374,7 +374,7 @@ def implement(
             if is_worktree_context(cwd):
                 print("Error: Workspace does not exist and cannot be created from a worktree.")
                 print("Run this command from the main repository:")
-                print(f"  spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
+                print(f"  spec-kitty agent action implement {normalized_wp_id} --agent <your-name>")
                 raise typer.Exit(1)
 
             print(f"Creating workspace for {normalized_wp_id}...")
@@ -432,8 +432,8 @@ def implement(
                     pass
                 else:
                     print("Error: --agent parameter required when starting implementation.")
-                    print(f"  Usage: spec-kitty agent workflow implement {normalized_wp_id} --agent <your-name>")
-                    print("  Example: spec-kitty agent workflow implement WP01 --agent claude")
+                    print(f"  Usage: spec-kitty agent action implement {normalized_wp_id} --agent <your-name>")
+                    print("  Example: spec-kitty agent action implement WP01 --agent claude")
                     print()
                     print("If you're using a generated agent command file, --agent is already included.")
                     print("This tracks WHO is working on the WP (prevents abandoned tasks).")
@@ -499,9 +499,9 @@ def implement(
             # Build history entry (no lane= segment; event log is sole lane authority)
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             if current_lane != "doing":
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
             else:
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via action command"
 
             # Add history entry to body
             updated_body = append_activity_log(wp.body, history_entry)
@@ -543,7 +543,7 @@ def implement(
             # Reload to get updated content
             wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow implement will not move it to doing.")
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to doing.")
 
         # Check review feedback from canonical event log (review_ref stored in events)
         # Also check frontmatter review_feedback/review_status as fallback
@@ -922,7 +922,7 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -933,9 +933,9 @@ def review(
     Automatically moves WP from for_review to doing lane (requires --agent to track who is reviewing).
 
     Examples:
-        spec-kitty agent workflow review WP01 --agent claude
-        spec-kitty agent workflow review wp02 --agent codex
-        spec-kitty agent workflow review --agent gemini  # auto-detects first for_review WP
+        spec-kitty agent action review WP01 --agent claude
+        spec-kitty agent action review wp02 --agent codex
+        spec-kitty agent action review --agent gemini  # auto-detects first for_review WP
     """
     try:
         # Get repo root and feature slug
@@ -998,8 +998,8 @@ def review(
             # Require --agent parameter to track who is reviewing
             if not agent:
                 print("Error: --agent parameter required when starting review.")
-                print(f"  Usage: spec-kitty agent workflow review {normalized_wp_id} --agent <your-name>")
-                print("  Example: spec-kitty agent workflow review WP01 --agent claude")
+                print(f"  Usage: spec-kitty agent action review {normalized_wp_id} --agent <your-name>")
+                print("  Example: spec-kitty agent action review WP01 --agent claude")
                 print()
                 print("If you're using a generated agent command file, --agent is already included.")
                 print("This tracks WHO is reviewing the WP (prevents abandoned reviews).")
@@ -1020,9 +1020,9 @@ def review(
                     to_lane="in_progress",
                     actor=agent,
                     force=True,  # review claim is always allowed
-                    reason="Started review via workflow command",
-                    review_ref="workflow-review-claim",
-                    workspace_context=f"workflow-review:{main_repo_root}",
+                    reason="Started review via action command",
+                    review_ref="action-review-claim",
+                    workspace_context=f"action-review:{main_repo_root}",
                     repo_root=main_repo_root,
                 )
 
@@ -1034,7 +1034,7 @@ def review(
 
                 # Build history entry (no lane= segment; event log is sole lane authority)
                 timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via workflow command"
+                history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started review via action command"
 
                 # Add history entry to body
                 updated_body = append_activity_log(updated_body, history_entry)

@@ -68,7 +68,7 @@ Terms describing who performs work and who owns semantic decisions.
 
 | | |
 |---|---|
-| **Definition** | Human or tool-backed collaborator participating in a mission run. |
+| **Definition** | Human or tool-backed collaborator participating in a mission and, when execution is active, in one or more mission runs. |
 | **Context** | Identity |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |

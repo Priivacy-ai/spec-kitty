@@ -67,16 +67,29 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 ---
 
+### Procedure
+
+|                   |                                                                                                                                                                                                                                         |
+|-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Definition**    | A reusable doctrine subworkflow that a step contract may delegate to for part of a mission action. Procedures are structured playbooks, not tracked missions and not runtime sessions.                                               |
+| **Context**       | Doctrine                                                                                                                                                                                                                                |
+| **Status**        | canonical                                                                                                                                                                                                                               |
+| **Applicable to** | `1.x`, `2.x` |
+| **Location**      | `src/doctrine/procedures/` and related doctrine procedure models                                                                                                                                                                        |
+| **Related terms** | [Tactic](#tactic), [Directive](#directive), [Mission Action](./orchestration.md#mission-action), [Step Contract](./orchestration.md#step-contract)                                                                                  |
+
+---
+
 ### Template Set
 
 |                   |                                                                                                                                                                                                                                         |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A structured set of doctrine templates that shape output artifacts and interaction contracts for workflows. Template sets allow consistent behavior across missions while remaining configurable through constitution selections.         |
+| **Definition**    | A structured set of doctrine templates that shape output artifacts and interaction contracts for mission actions and procedures. Template sets allow consistent behavior across mission types while remaining configurable through constitution selections. |
 | **Context**       | Doctrine                                                                                                                                                                                                                                |
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/doctrine/templates/sets/`                                                                                                                                                                                                         |
-| **Related terms** | [Tactic](#tactic), [Constitution Selection](#constitution-selection)                                                                                                                                                                   |
+| **Related terms** | [Procedure](#procedure), [Tactic](#tactic), [Constitution Selection](#constitution-selection)                                                                                                                                         |
 
 ---
 

@@ -217,7 +217,7 @@ def run_preflight(
             error = (
                 f"Missing worktree for {wp_id}. "
                 f"Expected at {expected_path.name}. "
-                f"Run: spec-kitty agent workflow implement {wp_id}"
+                f"Run: spec-kitty agent action implement {wp_id}"
             )
             result.wp_statuses.append(
                 WPStatus(

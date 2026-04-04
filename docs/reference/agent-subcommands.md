@@ -1,6 +1,12 @@
 # Agent Subcommand Reference
 
-The `spec-kitty agent` commands are designed for AI agents and automation tooling. They generally emit JSON and update task metadata or feature artifacts directly.
+The `spec-kitty agent` commands are designed for AI agents and automation tooling. They generally emit JSON and update task metadata or mission artifacts directly.
+
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = tracked item under `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- The `agent feature` command group and `--feature` flags are legacy software-dev compatibility surfaces for the tracked mission
 
 ## spec-kitty agent
 
@@ -15,11 +21,11 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 
 ---
 
-## spec-kitty agent feature
+## spec-kitty agent mission
 
-**Synopsis**: `spec-kitty agent feature [OPTIONS] COMMAND [ARGS]...`
+**Synopsis**: `spec-kitty agent mission [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Feature lifecycle commands for AI agents.
+**Description**: Canonical mission lifecycle commands for AI agents. The legacy compatibility alias for this group is `spec-kitty agent feature`.
 
 **Subcommands**:
 - `branch-context`
@@ -30,9 +36,9 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 - `merge`
 - `finalize-tasks`
 
-### spec-kitty agent feature branch-context
+### spec-kitty agent mission branch-context
 
-**Synopsis**: `spec-kitty agent feature branch-context [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission branch-context [OPTIONS]`
 
 **Description**: Return deterministic branch contract for planning-stage prompts.
 
@@ -45,18 +51,18 @@ The `spec-kitty agent` commands are designed for AI agents and automation toolin
 
 **Example**:
 ```bash
-spec-kitty agent feature branch-context --json
-spec-kitty agent feature branch-context --target-branch develop --json
+spec-kitty agent mission branch-context --json
+spec-kitty agent mission branch-context --target-branch develop --json
 ```
 
-### spec-kitty agent feature create-feature
+### spec-kitty agent mission create-feature
 
-**Synopsis**: `spec-kitty agent feature create-feature [OPTIONS] FEATURE_SLUG`
+**Synopsis**: `spec-kitty agent mission create-feature [OPTIONS] FEATURE_SLUG`
 
-**Description**: Create new feature directory structure in the project root checkout.
+**Description**: Create new mission directory structure in the project root checkout.
 
 **Arguments**:
-- `FEATURE_SLUG`: Feature slug (e.g., `user-auth`) [required]
+- `FEATURE_SLUG`: Mission slug (legacy argument name; e.g., `user-auth`) [required]
 
 **Options**:
 | Flag | Description |
@@ -68,20 +74,20 @@ spec-kitty agent feature branch-context --target-branch develop --json
 
 **Example**:
 ```bash
-spec-kitty agent feature create-feature "new-dashboard" --json
-spec-kitty agent feature create-feature "new-dashboard" --mission documentation --target-branch develop
+spec-kitty agent mission create-feature "new-dashboard" --json
+spec-kitty agent mission create-feature "new-dashboard" --mission documentation --target-branch develop
 ```
 
-### spec-kitty agent feature check-prerequisites
+### spec-kitty agent mission check-prerequisites
 
-**Synopsis**: `spec-kitty agent feature check-prerequisites [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission check-prerequisites [OPTIONS]`
 
-**Description**: Validate feature structure and prerequisites.
+**Description**: Validate mission structure and prerequisites.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (e.g., `020-my-feature`) |
+| `--feature TEXT` | Mission slug (legacy flag name; e.g., `020-my-feature`) |
 | `--json` | Output JSON format |
 | `--paths-only` | Only output path variables |
 | `--include-tasks` | Include tasks.md in validation |
@@ -89,39 +95,39 @@ spec-kitty agent feature create-feature "new-dashboard" --mission documentation 
 
 **Examples**:
 ```bash
-spec-kitty agent feature check-prerequisites --json
-spec-kitty agent feature check-prerequisites --feature 020-my-feature --paths-only --json
+spec-kitty agent mission check-prerequisites --json
+spec-kitty agent mission check-prerequisites --feature 020-my-feature --paths-only --json
 ```
 
-### spec-kitty agent feature setup-plan
+### spec-kitty agent mission setup-plan
 
-**Synopsis**: `spec-kitty agent feature setup-plan [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission setup-plan [OPTIONS]`
 
-**Description**: Scaffold implementation plan template in the project root checkout.
+**Description**: Scaffold implementation plan template in the project root checkout for a mission.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (e.g., `020-my-feature`) |
+| `--feature TEXT` | Mission slug (legacy flag name; e.g., `020-my-feature`) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent feature setup-plan --json
-spec-kitty agent feature setup-plan --feature 020-my-feature --json
+spec-kitty agent mission setup-plan --json
+spec-kitty agent mission setup-plan --feature 020-my-feature --json
 ```
 
-### spec-kitty agent feature accept
+### spec-kitty agent mission accept
 
-**Synopsis**: `spec-kitty agent feature accept [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission accept [OPTIONS]`
 
-**Description**: Perform feature acceptance workflow.
+**Description**: Perform mission acceptance workflow.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature directory slug (auto-detected if not specified) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if not specified) |
 | `--mode TEXT` | Acceptance mode: `auto`, `pr`, `local`, `checklist` (default: `auto`) |
 | `--json` | Output results as JSON for agent parsing |
 | `--lenient` | Skip strict metadata validation |
@@ -130,41 +136,41 @@ spec-kitty agent feature setup-plan --feature 020-my-feature --json
 
 **Examples**:
 ```bash
-spec-kitty agent feature accept
-spec-kitty agent feature accept --json
-spec-kitty agent feature accept --lenient --json
+spec-kitty agent mission accept
+spec-kitty agent mission accept --json
+spec-kitty agent mission accept --lenient --json
 ```
 
-### spec-kitty agent feature merge
+### spec-kitty agent mission merge
 
-**Synopsis**: `spec-kitty agent feature merge [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission merge [OPTIONS]`
 
-**Description**: Merge feature branch into target branch.
+**Description**: Merge mission branch into target branch.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature directory slug (auto-detected if not specified) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if not specified) |
 | `--target TEXT` | Target branch to merge into (default: `main`) |
 | `--strategy TEXT` | Merge strategy: `merge`, `squash`, `rebase` (default: `merge`) |
 | `--push` | Push to origin after merging |
 | `--dry-run` | Show actions without executing |
-| `--keep-branch` | Keep feature branch after merge (default: delete) |
+| `--keep-branch` | Keep mission branch after merge (default: delete) |
 | `--keep-worktree` | Keep worktree after merge (default: remove) |
-| `--auto-retry`, `--no-auto-retry` | Auto-navigate to a deterministic feature worktree if in wrong location (default: no-auto-retry) |
+| `--auto-retry`, `--no-auto-retry` | Auto-navigate to a deterministic mission worktree if in wrong location (default: no-auto-retry) |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent feature merge
-spec-kitty agent feature merge --target develop --push
-spec-kitty agent feature merge --dry-run
-spec-kitty agent feature merge --keep-worktree --keep-branch
+spec-kitty agent mission merge
+spec-kitty agent mission merge --target develop --push
+spec-kitty agent mission merge --dry-run
+spec-kitty agent mission merge --keep-worktree --keep-branch
 ```
 
-### spec-kitty agent feature finalize-tasks
+### spec-kitty agent mission finalize-tasks
 
-**Synopsis**: `spec-kitty agent feature finalize-tasks [OPTIONS]`
+**Synopsis**: `spec-kitty agent mission finalize-tasks [OPTIONS]`
 
 **Description**: Parse dependencies from tasks.md and update WP frontmatter, then commit to main.
 
@@ -176,7 +182,7 @@ spec-kitty agent feature merge --keep-worktree --keep-branch
 
 **Example**:
 ```bash
-spec-kitty agent feature finalize-tasks --json
+spec-kitty agent mission finalize-tasks --json
 ```
 
 ---
@@ -211,7 +217,7 @@ spec-kitty agent feature finalize-tasks --json
 | Flag | Description |
 | --- | --- |
 | `--to TEXT` | Target lane (planned/doing/for_review/done) [required] |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--agent TEXT` | Agent name |
 | `--assignee TEXT` | Assignee name (sets assignee when moving to doing) |
 | `--shell-pid TEXT` | Shell PID |
@@ -246,7 +252,7 @@ spec-kitty agent tasks move-task WP03 --to planned --review-feedback-file /tmp/s
 | Flag | Description |
 | --- | --- |
 | `--status TEXT` | Status: `done` or `pending` [required] |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--auto-commit`, `--no-auto-commit` | Automatically commit tasks.md changes to main branch (default: auto-commit) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
@@ -267,7 +273,7 @@ spec-kitty agent tasks mark-status T001 T002 T003 --status done --json
 | Flag | Description |
 | --- | --- |
 | `--lane TEXT` | Filter by lane |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
@@ -290,7 +296,7 @@ spec-kitty agent tasks list-tasks --lane doing --json
 | Flag | Description |
 | --- | --- |
 | `--note TEXT` | History note [required] |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--agent TEXT` | Agent name |
 | `--shell-pid TEXT` | Shell PID |
 | `--json` | Output JSON format |
@@ -310,7 +316,7 @@ spec-kitty agent tasks add-history WP01 --note "Completed implementation" --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
@@ -333,7 +339,7 @@ spec-kitty agent tasks finalize-tasks --feature 001-my-feature
 | `--refs TEXT` | Comma-separated requirement refs (e.g., `FR-001,FR-002`) |
 | `--batch TEXT` | JSON batch mapping (e.g., `'{"WP01":["FR-001"],"WP02":["FR-003"]}'`) |
 | `--replace` | Replace existing refs instead of merging (default: merge/union) |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON format |
 | `--auto-commit`, `--no-auto-commit` | Automatically commit WP file changes (default: from project config) |
 | `--help` | Show this message and exit |
@@ -357,7 +363,7 @@ spec-kitty agent tasks map-requirements --wp WP01 --refs FR-005 --replace
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
@@ -375,7 +381,7 @@ spec-kitty agent tasks validate-workflow WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT`, `-f` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT`, `-f` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output as JSON |
 | `--stale-threshold INTEGER` | Minutes of inactivity before a WP is considered stale (default: `10`) |
 | `--help` | Show this message and exit |
@@ -400,7 +406,7 @@ spec-kitty agent tasks status --stale-threshold 15
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
@@ -478,7 +484,7 @@ spec-kitty agent config set auto_commit true
 | Flag | Description |
 | --- | --- |
 | `--action TEXT` | Action to resolve context for (`tasks`, `tasks_outline`, `tasks_packages`, `tasks_finalize`, `implement`, `review`) [required] |
-| `--feature TEXT` | Feature slug (e.g., `020-my-feature`) |
+| `--feature TEXT` | Mission slug (legacy flag name; e.g., `020-my-feature`) |
 | `--wp-id TEXT` | Work package ID (e.g., `WP01`) |
 | `--base TEXT` | Explicit base WP for implement |
 | `--agent TEXT` | Agent name for exact command rendering |
@@ -501,7 +507,7 @@ spec-kitty agent context resolve --action implement --wp-id WP02 --base WP01
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (e.g., `020-my-feature`) |
+| `--feature TEXT` | Mission slug (legacy flag name; e.g., `020-my-feature`) |
 | `--agent-type TEXT`, `-a` | Agent type to update. Supported: claude, gemini, copilot, cursor, qwen, opencode, codex, windsurf, kilocode, auggie, roo, q. (default: `claude`) |
 | `--json` | Output results as JSON for agent parsing |
 | `--help` | Show this message and exit |
@@ -514,19 +520,19 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 
 ---
 
-## spec-kitty agent workflow
+## spec-kitty agent action
 
-**Synopsis**: `spec-kitty agent workflow [OPTIONS] COMMAND [ARGS]...`
+**Synopsis**: `spec-kitty agent action [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Workflow commands that display prompts and instructions for agents.
+**Description**: Canonical mission action commands that display prompts and instructions for agents. The legacy compatibility alias for this group is `spec-kitty agent workflow`.
 
 **Subcommands**:
 - `implement`
 - `review`
 
-### spec-kitty agent workflow implement
+### spec-kitty agent action implement
 
-**Synopsis**: `spec-kitty agent workflow implement [OPTIONS] [WP_ID]`
+**Synopsis**: `spec-kitty agent action implement [OPTIONS] [WP_ID]`
 
 **Description**: Display work package prompt with implementation instructions. Automatically moves WP from planned to doing lane (requires `--agent` to track who is working). If `--base` is provided, creates a worktree for this WP branching from the base WP's branch.
 
@@ -536,21 +542,21 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--agent TEXT` | Agent name (required for auto-move to doing lane) |
 | `--base TEXT` | Base WP to branch from (e.g., `WP01`) - creates worktree if provided |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent workflow implement WP01 --agent claude
-spec-kitty agent workflow implement WP02 --agent claude --base WP01
-spec-kitty agent workflow implement --agent gemini
+spec-kitty agent action implement WP01 --agent claude
+spec-kitty agent action implement WP02 --agent claude --base WP01
+spec-kitty agent action implement --agent gemini
 ```
 
-### spec-kitty agent workflow review
+### spec-kitty agent action review
 
-**Synopsis**: `spec-kitty agent workflow review [OPTIONS] [WP_ID]`
+**Synopsis**: `spec-kitty agent action review [OPTIONS] [WP_ID]`
 
 **Description**: Display work package prompt with review instructions.
 
@@ -560,14 +566,14 @@ spec-kitty agent workflow implement --agent gemini
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--agent TEXT` | Agent name (required for auto-move to doing lane) |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent workflow review WP01 --agent claude
-spec-kitty agent workflow review --agent gemini
+spec-kitty agent action review WP01 --agent claude
+spec-kitty agent action review --agent gemini
 ```
 
 ---
@@ -600,7 +606,7 @@ spec-kitty agent workflow review --agent gemini
 | --- | --- |
 | `--to TEXT` | Target lane (e.g., `claimed`, `in_progress`, `for_review`, `approved`, `done`) [required] |
 | `--actor TEXT` | Who is making this transition [required] |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--force` | Force transition bypassing guards |
 | `--reason TEXT` | Reason for forced transition |
 | `--evidence-json TEXT` | JSON string with done evidence |
@@ -628,7 +634,7 @@ spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reas
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Machine-readable JSON output |
 | `--help` | Show this message and exit |
 
@@ -648,7 +654,7 @@ spec-kitty agent status materialize --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug |
+| `--feature TEXT` | Mission slug |
 | `--stale-claimed-days INTEGER` | Threshold for stale claims in days (default: `7`) |
 | `--stale-in-progress-days INTEGER` | Threshold for stale in-progress in days (default: `14`) |
 | `--json` | Machine-readable JSON output |
@@ -693,7 +699,7 @@ spec-kitty agent status migrate --all --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Machine-readable JSON output |
 | `--help` | Show this message and exit |
 
@@ -713,7 +719,7 @@ spec-kitty agent status validate --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT`, `-f` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT`, `-f` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--dry-run`, `--apply` | Preview vs persist reconciliation events (default: `dry-run`) |
 | `--target-repo PATH`, `-t` | Target repo path(s) to scan |
 | `--json` | Machine-readable JSON output |
