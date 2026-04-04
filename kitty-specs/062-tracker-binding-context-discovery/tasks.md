@@ -259,7 +259,7 @@ Add `--all` flag to `tracker status` for installation-wide summary. Different ou
 
 End-to-end acceptance tests covering all 12 spec scenarios. Mock at SaaSTrackerClient boundary. Verify full flow from CLI through service to config persistence.
 
-- [ ] T064: Scenario 1 (auto-bind)
+- [x] T064: Scenario 1 (auto-bind)
 - [ ] T065: Scenario 2 (ambiguous selection)
 - [ ] T066: Scenarios 3, 7b (no candidates, host unavailable)
 - [ ] T067: Scenarios 4, 5 (--bind-ref, --select N)
