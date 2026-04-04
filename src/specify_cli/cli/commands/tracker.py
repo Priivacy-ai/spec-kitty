@@ -271,11 +271,7 @@ def status_command(
     """
 
     def _run() -> None:
-        try:
-            payload = _service().status(all=all_installations)
-        except TrackerServiceError as e:
-            typer.echo(f"Error: {e}", err=True)
-            raise typer.Exit(1) from None
+        payload = _service().status(all=all_installations)
 
         if as_json:
             _print_json(payload)
