@@ -11,7 +11,8 @@ base_branch: main
 base_commit: c254e92603a20bad62b5a8cc80bedfec36caae9b
 created_at: '2026-04-04T19:48:38.211373+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: '15690'
+shell_pid: "15690"
+agent: "claude"
 history:
 - date: '2026-04-04'
   action: created
@@ -129,3 +130,7 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 - Verify every class name in data-model.md Symbol Renames is present in the renamed files
 - Check docstrings and comments — these are easy to miss
 - Verify __init__.py exports match the new names exactly
+
+## Activity Log
+
+- 2026-04-04T19:48:38Z – claude – shell_pid=15690 – Started implementation via action command
