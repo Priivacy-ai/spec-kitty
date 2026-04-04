@@ -134,3 +134,4 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 ## Activity Log
 
 - 2026-04-04T19:48:38Z – claude – shell_pid=15690 – Started implementation via action command
+- 2026-04-04T19:53:48Z – claude – shell_pid=15690 – Core packages renamed to charter: src/constitution/ -> src/charter/ (14 modules), src/specify_cli/constitution/ -> src/specify_cli/charter/ (12 modules). All class/function/docstring/string renames applied.
