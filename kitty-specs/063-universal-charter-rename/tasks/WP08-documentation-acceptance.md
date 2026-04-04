@@ -12,7 +12,8 @@ base_branch: main
 base_commit: e58612a5aa3b873d102bd8f6bcf1230d1e9521b4
 created_at: '2026-04-04T20:34:28.637012+00:00'
 subtasks: [T046, T047, T048, T049, T050, T051]
-shell_pid: '22741'
+shell_pid: "22741"
+agent: "claude"
 history:
 - date: '2026-04-04'
   action: created
@@ -251,3 +252,7 @@ Must report zero matches for all stubs.
 - Check that glossary term definitions are coherent after the rename (not just mechanically replaced)
 - Verify cross-references between docs still work after file renames
 - Check README.md workflow descriptions make sense with "charter" terminology
+
+## Activity Log
+
+- 2026-04-04T20:34:29Z – claude – shell_pid=22741 – Started implementation via action command
