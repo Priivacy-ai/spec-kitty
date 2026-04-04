@@ -12,7 +12,8 @@ base_branch: main
 base_commit: 1199890fde424c22b3922bc570e62906a9b45522
 created_at: '2026-04-04T10:06:50.376838+00:00'
 subtasks: [T020, T021, T022, T023]
-shell_pid: '14857'
+shell_pid: "14857"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -159,3 +160,7 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 - Verify that existing callers of `status()`, `pull()`, etc. in `saas_service.py` still compile
 - Check that the routing key helper (if extracted) is consistent across all 5 methods
 - Verify the error message is clear about which keys are expected
+
+## Activity Log
+
+- 2026-04-04T10:06:50Z – coordinator – shell_pid=14857 – Started implementation via workflow command
