@@ -11,8 +11,8 @@ base_branch: main
 base_commit: 68d56feb837dccbcf5f9765cfe765206367d1fb1
 created_at: '2026-04-04T09:34:50.561102+00:00'
 subtasks: [T011, T012, T013, T014]
-shell_pid: "71295"
-agent: "codex"
+shell_pid: "94060"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -188,3 +188,4 @@ No dependencies — this WP can start immediately.
 - 2026-04-04T09:50:32Z – coordinator – shell_pid=61558 – Fixed error_code field name per Codex review: _parse_error_envelope and _request_with_retry now read error_code (not code) matching PRI-12 contract; all 55 tests pass
 - 2026-04-04T09:51:01Z – codex – shell_pid=71295 – Started review via workflow command
 - 2026-04-04T09:58:18Z – codex – shell_pid=71295 – Moved to planned
+- 2026-04-04T09:58:35Z – coordinator – shell_pid=94060 – Started implementation via workflow command
