@@ -13,7 +13,8 @@ base_branch: main
 base_commit: 3d6a209f4fb8aa59c655a0c9cd0eab82b642d492
 created_at: '2026-04-04T19:48:42.716329+00:00'
 subtasks: [T018, T019, T020, T021, T022, T023, T024]
-shell_pid: '15797'
+shell_pid: "15797"
+agent: "claude"
 history:
 - date: '2026-04-04'
   action: created
@@ -161,3 +162,7 @@ spec-kitty implement WP04
 - Check SKILL.md triggers carefully — agents match on these strings
 - Verify all mission templates (software-dev, documentation, research) are covered
 - Check the plan-template.md "Charter Check" section — this drives the planning workflow
+
+## Activity Log
+
+- 2026-04-04T19:48:43Z – claude – shell_pid=15797 – Started implementation via action command
