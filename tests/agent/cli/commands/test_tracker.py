@@ -103,6 +103,19 @@ def _make_bind_result(
     )
 
 
+def _make_tracker_config(
+    *,
+    provider: str = "linear",
+    binding_ref: str = "br_abc123",
+    display_label: str = "My Linear Team",
+) -> TrackerProjectConfig:
+    return TrackerProjectConfig(
+        provider=provider,
+        binding_ref=binding_ref,
+        display_label=display_label,
+    )
+
+
 def _make_candidates_resolution() -> ResolutionResult:
     return ResolutionResult(
         match_type="candidates",
@@ -285,7 +298,7 @@ def test_bind_ref_valid(mock_ensure_id, mock_service_fn, monkeypatch) -> None:
     app = _make_app(monkeypatch)
     mock_ensure_id.return_value = _mock_identity()
     mock_svc = MagicMock()
-    mock_svc.bind.return_value = _make_bind_result(binding_ref="br_known_ref")
+    mock_svc.bind.return_value = _make_tracker_config(binding_ref="br_known_ref")
     mock_service_fn.return_value = mock_svc
 
     result = runner.invoke(

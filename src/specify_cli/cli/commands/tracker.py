@@ -18,6 +18,7 @@ from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
     SAAS_PROVIDERS,
+    TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
 )
@@ -292,8 +293,8 @@ def _bind_saas(
         select_n=select_n,
     )
 
-    # Handle BindResult (auto-bind, --bind-ref, or --select N)
-    if isinstance(result, BindResult):
+    # Handle bind success (auto-bind, --bind-ref, or --select N)
+    if isinstance(result, BindResult | TrackerProjectConfig):
         _display_bind_success(result, provider)
         return False
 
@@ -308,12 +309,19 @@ def _bind_saas(
     )
 
 
-def _display_bind_success(result: BindResult, provider: str) -> None:
+def _display_bind_success(
+    result: BindResult | TrackerProjectConfig,
+    provider: str,
+) -> None:
     """Display success output after binding."""
+    provider_name = result.provider or provider
+    binding_ref = result.binding_ref or result.project_slug or "unknown"
+    display_label = result.display_label or result.project_slug or binding_ref
+
     typer.echo("Tracker binding saved")
-    typer.echo(f"- provider: {provider}")
-    typer.echo(f"- binding_ref: {result.binding_ref}")
-    typer.echo(f"- display_label: {result.display_label}")
+    typer.echo(f"- provider: {provider_name}")
+    typer.echo(f"- binding_ref: {binding_ref}")
+    typer.echo(f"- display_label: {display_label}")
 
 
 def _handle_candidate_selection(
@@ -565,7 +573,12 @@ def sync_push_command(
                 raw = _Path(items_json).read_text(encoding="utf-8")
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
-                typer.secho("Error: --items-json must contain a JSON array of PushItem objects.", fg=typer.colors.RED, err=True)
+                typer.secho(
+                    "Error: --items-json must contain a JSON array of "
+                    "PushItem objects.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
                 raise typer.Exit(code=1)
 
             payload = service.sync_push(items=parsed)
