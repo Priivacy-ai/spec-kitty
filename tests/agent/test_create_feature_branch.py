@@ -37,7 +37,7 @@ def _setup_kittify(repo: Path) -> None:
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
     (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
-    (kittify / "constitution.md").write_text("# Constitution\n", encoding="utf-8")
+    (kittify / "charter.md").write_text("# Charter\n", encoding="utf-8")
     # Create kitty-specs dir
     (repo / "kitty-specs").mkdir(exist_ok=True)
 

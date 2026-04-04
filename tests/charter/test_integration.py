@@ -1,4 +1,4 @@
-"""Integration tests for the constitution workflow."""
+"""Integration tests for the charter workflow."""
 
 import logging
 import time
@@ -7,7 +7,7 @@ from unittest.mock import patch
 
 import pytest
 
-from constitution import (
+from charter import (
     DirectivesConfig,
     GovernanceConfig,
     load_directives_config,
@@ -20,11 +20,11 @@ pytestmark = pytest.mark.fast
 
 class TestEndToEndWorkflow:
     def test_write_sync_load_governance(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
 
-        constitution_path.write_text(
+        charter_path.write_text(
             """
 ## Testing Standards
 
@@ -39,7 +39,7 @@ Pre-commit hooks required.
 """
         )
 
-        result = sync(constitution_path)
+        result = sync(charter_path)
         assert result.synced
         assert "governance.yaml" in result.files_written
 
@@ -51,11 +51,11 @@ Pre-commit hooks required.
         assert config.quality.pr_approvals == 2
 
     def test_write_sync_load_directives(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
 
-        constitution_path.write_text(
+        charter_path.write_text(
             """
 ## Project Directives
 
@@ -64,7 +64,7 @@ Pre-commit hooks required.
 """
         )
 
-        result = sync(constitution_path)
+        result = sync(charter_path)
         assert result.synced
         assert "directives.yaml" in result.files_written
 
@@ -72,60 +72,60 @@ Pre-commit hooks required.
         assert len(config.directives) == 2
         assert config.directives[0].id == "DIR-001"
 
-    def test_modify_constitution_triggers_staleness_warning(
+    def test_modify_charter_triggers_staleness_warning(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
 
-        constitution_path.write_text("## Testing\n\nCoverage: 80%")
-        sync(constitution_path)
+        charter_path.write_text("## Testing\n\nCoverage: 80%")
+        sync(charter_path)
 
-        constitution_path.write_text("## Testing\n\nCoverage: 90%")
+        charter_path.write_text("## Testing\n\nCoverage: 90%")
 
         caplog.clear()
         load_governance_config(tmp_path)
-        assert any("Constitution changed since last sync" in record.message for record in caplog.records)
+        assert any("Charter changed since last sync" in record.message for record in caplog.records)
 
 
 class TestPostSaveHook:
     def test_post_save_hook_success(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
-        constitution_path.write_text("## Testing\n\nCoverage: 80%")
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
+        charter_path.write_text("## Testing\n\nCoverage: 80%")
 
-        post_save_hook(constitution_path)
+        post_save_hook(charter_path)
 
-        assert (constitution_dir / "governance.yaml").exists()
-        assert (constitution_dir / "directives.yaml").exists()
-        assert (constitution_dir / "metadata.yaml").exists()
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
 
     def test_post_save_hook_logs_success(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
-        constitution_path.write_text("## Testing\n\nWe require 80% coverage.")
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
+        charter_path.write_text("## Testing\n\nWe require 80% coverage.")
 
         caplog.clear()
-        with caplog.at_level(logging.INFO, logger="constitution.sync"):
-            post_save_hook(constitution_path)
+        with caplog.at_level(logging.INFO, logger="charter.sync"):
+            post_save_hook(charter_path)
 
-        assert any("Constitution synced: 3 YAML files updated" in record.message for record in caplog.records)
+        assert any("Charter synced: 3 YAML files updated" in record.message for record in caplog.records)
 
     def test_post_save_hook_extraction_failure_no_crash(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        constitution_path = constitution_dir / "constitution.md"
-        constitution_path.write_text("## Testing\n\nCoverage: 80%")
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        charter_path = charter_dir / "charter.md"
+        charter_path.write_text("## Testing\n\nCoverage: 80%")
 
-        with patch("constitution.sync.sync") as mock_sync:
+        with patch("charter.sync.sync") as mock_sync:
             mock_sync.side_effect = RuntimeError("Extraction failed")
 
             caplog.clear()
-            post_save_hook(constitution_path)
-            assert any("Constitution auto-sync failed" in record.message for record in caplog.records)
+            post_save_hook(charter_path)
+            assert any("Charter auto-sync failed" in record.message for record in caplog.records)
 
 
 class TestLoaderFunctions:
@@ -151,9 +151,9 @@ class TestLoaderFunctions:
         assert any("directives.yaml not found" in record.message for record in caplog.records)
 
     def test_load_governance_config_with_values(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        governance_path = constitution_dir / "governance.yaml"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        governance_path = charter_dir / "governance.yaml"
 
         governance_path.write_text(
             """
@@ -179,9 +179,9 @@ quality:
 
 class TestPerformance:
     def test_load_governance_config_performance(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        governance_path = constitution_dir / "governance.yaml"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        governance_path = charter_dir / "governance.yaml"
 
         governance_path.write_text(
             """
@@ -203,9 +203,9 @@ quality:
         assert elapsed < 0.1, f"Loading took {elapsed:.3f}s (>100ms)"
 
     def test_load_directives_config_performance(self, tmp_path: Path) -> None:
-        constitution_dir = tmp_path / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        directives_path = constitution_dir / "directives.yaml"
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        directives_path = charter_dir / "directives.yaml"
 
         directives_path.write_text(
             """

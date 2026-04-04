@@ -38,13 +38,13 @@ def test_migration_does_not_add_dashboard(tmp_path: Path, migration):
     assert ".kittify/.dashboard" not in content
 
 
-def test_migration_does_not_add_constitution_entries(tmp_path: Path, migration):
-    """Migration must NOT add constitution surfaces (C-001 constraint)."""
+def test_migration_does_not_add_charter_entries(tmp_path: Path, migration):
+    """Migration must NOT add charter surfaces (C-001 constraint)."""
     (tmp_path / ".gitignore").write_text("")
     migration.apply(tmp_path)
 
     content = (tmp_path / ".gitignore").read_text()
-    assert ".kittify/constitution/" not in content
+    assert ".kittify/charter/" not in content
     assert "context-state.json" not in content
     assert "directives.yaml" not in content
     assert "governance.yaml" not in content

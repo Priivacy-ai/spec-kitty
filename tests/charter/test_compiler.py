@@ -1,13 +1,13 @@
-"""Scope: mock-boundary tests for constitution compiler bundle generation — no real git."""
+"""Scope: mock-boundary tests for charter compiler bundle generation — no real git."""
 
 from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
 
-from constitution.compiler import compile_constitution, write_compiled_constitution
-from constitution.interview import (
-    ConstitutionInterview,
+from charter.compiler import compile_charter, write_compiled_charter
+from charter.interview import (
+    CharterInterview,
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
@@ -17,8 +17,8 @@ from constitution.interview import (
 pytestmark = pytest.mark.fast
 
 
-def test_compile_constitution_contains_governance_activation_block() -> None:
-    """Compiled constitution includes mission metadata and governance activation section."""
+def test_compile_charter_contains_governance_activation_block() -> None:
+    """Compiled charter includes mission metadata and governance activation section."""
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
 
@@ -26,7 +26,7 @@ def test_compile_constitution_contains_governance_activation_block() -> None:
     assert interview.mission == "software-dev", "interview must be for software-dev"
 
     # Act
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Assert
     assert compiled.mission == "software-dev"
@@ -36,58 +36,58 @@ def test_compile_constitution_contains_governance_activation_block() -> None:
     assert len(compiled.references) >= 2
 
 
-def test_compile_constitution_renders_agent_profile_metadata_when_present() -> None:
+def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = apply_answer_overrides(interview, agent_profile="reviewer", agent_role="reviewer")
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     assert "agent_profile: reviewer" in compiled.markdown
     assert "agent_role: reviewer" in compiled.markdown
 
 
-def test_write_compiled_constitution_writes_bundle(tmp_path: Path) -> None:
-    """write_compiled_constitution creates constitution.md, references.yaml, and library files."""
+def test_write_compiled_charter_writes_bundle(tmp_path: Path) -> None:
+    """write_compiled_charter creates charter.md, references.yaml, and library files."""
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Assumption check
-    assert not (tmp_path / "constitution.md").exists(), "target directory must be empty"
+    assert not (tmp_path / "charter.md").exists(), "target directory must be empty"
 
     # Act
-    result = write_compiled_constitution(tmp_path, compiled, force=True)
+    result = write_compiled_charter(tmp_path, compiled, force=True)
 
     # Assert
-    assert "constitution.md" in result.files_written
+    assert "charter.md" in result.files_written
     assert "references.yaml" in result.files_written
-    assert (tmp_path / "constitution.md").exists()
+    assert (tmp_path / "charter.md").exists()
     assert (tmp_path / "references.yaml").exists()
 
     # library/ materialization has been removed; no files should exist there.
     assert not (tmp_path / "library").exists()
 
 
-def test_write_compiled_constitution_requires_force_when_existing(tmp_path: Path) -> None:
+def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> None:
     """Writing to an existing bundle raises FileExistsError when force=False."""
     # Arrange
     interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_constitution(mission="software-dev", interview=interview)
-    write_compiled_constitution(tmp_path, compiled, force=True)
+    compiled = compile_charter(mission="software-dev", interview=interview)
+    write_compiled_charter(tmp_path, compiled, force=True)
 
     # Assumption check
-    assert (tmp_path / "constitution.md").exists(), "first write must have succeeded"
+    assert (tmp_path / "charter.md").exists(), "first write must have succeeded"
 
     # Act / Assert
     with pytest.raises(FileExistsError):
-        write_compiled_constitution(tmp_path, compiled, force=False)
+        write_compiled_charter(tmp_path, compiled, force=False)
 
 
 def test_compile_with_doctrine_service_none_emits_diagnostic() -> None:
-    """Calling compile_constitution without DoctrineService appends the fallback diagnostic."""
+    """Calling compile_charter without DoctrineService appends the fallback diagnostic."""
     interview = default_interview(mission="software-dev", profile="minimal")
 
-    compiled = compile_constitution(mission="software-dev", interview=interview, doctrine_service=None)
+    compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
     fallback_msg = (
         "DoctrineService unavailable; using YAML scanning fallback. "
@@ -113,7 +113,7 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
     mock_service.toolguides.get.return_value = None
     mock_service.procedures.get.return_value = None
 
-    compiled = compile_constitution(
+    compiled = compile_charter(
         mission="software-dev",
         interview=interview,
         doctrine_service=mock_service,
@@ -144,7 +144,7 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
     interview_with_directive = default_interview(mission="software-dev", profile="minimal")
     object.__setattr__(interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"])
 
-    compiled = compile_constitution(
+    compiled = compile_charter(
         mission="software-dev",
         interview=interview_with_directive,
         doctrine_service=mock_service,
@@ -157,17 +157,17 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T006: LocalSupportDeclaration + ConstitutionInterview.local_supporting_files
+# T006: LocalSupportDeclaration + CharterInterview.local_supporting_files
 # ---------------------------------------------------------------------------
 
 
-def test_constitution_interview_local_supporting_files_defaults_to_empty() -> None:
+def test_charter_interview_local_supporting_files_defaults_to_empty() -> None:
     """local_supporting_files defaults to empty list when not provided."""
     interview = default_interview(mission="software-dev", profile="minimal")
     assert interview.local_supporting_files == []
 
 
-def test_constitution_interview_from_dict_parses_local_supporting_files() -> None:
+def test_charter_interview_from_dict_parses_local_supporting_files() -> None:
     data = {
         "mission": "software-dev",
         "profile": "minimal",
@@ -184,7 +184,7 @@ def test_constitution_interview_from_dict_parses_local_supporting_files() -> Non
             }
         ],
     }
-    interview = ConstitutionInterview.from_dict(data)
+    interview = CharterInterview.from_dict(data)
     assert len(interview.local_supporting_files) == 1
     decl = interview.local_supporting_files[0]
     assert decl.path == "docs/governance/project-planning.md"
@@ -193,7 +193,7 @@ def test_constitution_interview_from_dict_parses_local_supporting_files() -> Non
     assert decl.target_id == "003-decision-documentation-requirement"
 
 
-def test_constitution_interview_from_dict_ignores_missing_local_supporting_files() -> None:
+def test_charter_interview_from_dict_ignores_missing_local_supporting_files() -> None:
     data: dict[str, object] = {
         "mission": "software-dev",
         "profile": "minimal",
@@ -202,17 +202,17 @@ def test_constitution_interview_from_dict_ignores_missing_local_supporting_files
         "selected_directives": [],
         "available_tools": [],
     }
-    interview = ConstitutionInterview.from_dict(data)
+    interview = CharterInterview.from_dict(data)
     assert interview.local_supporting_files == []
 
 
-def test_constitution_interview_to_dict_omits_local_supporting_files_when_empty() -> None:
+def test_charter_interview_to_dict_omits_local_supporting_files_when_empty() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     d = interview.to_dict()
     assert "local_supporting_files" not in d
 
 
-def test_constitution_interview_to_dict_includes_local_supporting_files_when_present() -> None:
+def test_charter_interview_to_dict_includes_local_supporting_files_when_present() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     decl = LocalSupportDeclaration(path="docs/my-guide.md", action="implement")
     interview = apply_answer_overrides(interview, local_supporting_files=[decl])
@@ -319,7 +319,7 @@ def test_compile_with_local_support_file_creates_local_reference() -> None:
     decl = LocalSupportDeclaration(path="docs/governance/project-planning.md")
     interview = apply_answer_overrides(interview, local_supporting_files=[decl])
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     local_refs = [r for r in compiled.references if r.kind == "local_support"]
     assert len(local_refs) == 1
@@ -339,7 +339,7 @@ def test_compile_local_support_reference_is_additive_not_replacement() -> None:
     )
     interview = apply_answer_overrides(interview, local_supporting_files=[decl])
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     local_refs = [r for r in compiled.references if r.kind == "local_support"]
     shipped_refs = [r for r in compiled.references if r.kind != "local_support"]
@@ -359,7 +359,7 @@ def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
     )
     interview = apply_answer_overrides(interview, local_supporting_files=[decl])
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     assert any("shipped content remains primary" in d for d in compiled.diagnostics), (
         f"Expected overlap warning; diagnostics: {compiled.diagnostics}"
@@ -372,7 +372,7 @@ def test_compile_local_support_no_warning_when_no_overlap() -> None:
     decl = LocalSupportDeclaration(path="docs/custom-note.md")
     interview = apply_answer_overrides(interview, local_supporting_files=[decl])
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     assert not any("shipped content remains primary" in d for d in compiled.diagnostics)
 
@@ -383,7 +383,7 @@ def test_compile_invalid_local_support_paths_emit_diagnostics() -> None:
     bad_decl = LocalSupportDeclaration(path="docs/**/*.md")
     interview = apply_answer_overrides(interview, local_supporting_files=[bad_decl])
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Invalid declaration must not produce a local_support reference
     local_refs = [r for r in compiled.references if r.kind == "local_support"]
@@ -393,7 +393,7 @@ def test_compile_invalid_local_support_paths_emit_diagnostics() -> None:
 
 
 # ---------------------------------------------------------------------------
-# T010: write_compiled_constitution does NOT produce library/ directory
+# T010: write_compiled_charter does NOT produce library/ directory
 # ---------------------------------------------------------------------------
 
 
@@ -408,7 +408,7 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
 
     # Exercise the YAML scanning fallback explicitly (no DoctrineService)
-    compiled = compile_constitution(mission="software-dev", interview=interview, doctrine_service=None)
+    compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
     directive_refs = [r for r in compiled.references if r.kind == "directive"]
     assert directive_refs, "Expected at least one directive reference in the compiled bundle"
@@ -420,13 +420,13 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     )
 
 
-def test_write_compiled_constitution_no_library_materialization(tmp_path: Path) -> None:
-    """write_compiled_constitution must not create library/ directory."""
+def test_write_compiled_charter_no_library_materialization(tmp_path: Path) -> None:
+    """write_compiled_charter must not create library/ directory."""
     interview = default_interview(mission="software-dev", profile="minimal")
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
-    result = write_compiled_constitution(tmp_path, compiled, force=True)
+    result = write_compiled_charter(tmp_path, compiled, force=True)
 
     assert not (tmp_path / "library").exists()
-    # Only constitution.md and references.yaml should be written
-    assert set(result.files_written) == {"constitution.md", "references.yaml"}
+    # Only charter.md and references.yaml should be written
+    assert set(result.files_written) == {"charter.md", "references.yaml"}

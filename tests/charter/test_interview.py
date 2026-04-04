@@ -1,9 +1,9 @@
-"""Scope: mock-boundary tests for constitution interview persistence — no real git."""
+"""Scope: mock-boundary tests for charter interview persistence — no real git."""
 
 import pytest
 from pathlib import Path
 
-from constitution.interview import (
+from charter.interview import (
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
     apply_answer_overrides,

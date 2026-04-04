@@ -1,4 +1,4 @@
-"""Tests for dashboard constitution API path resolution behavior."""
+"""Tests for dashboard charter API path resolution behavior."""
 
 from __future__ import annotations
 
@@ -27,36 +27,36 @@ class _DummyAPIHandler:
         return None
 
 
-def test_handle_constitution_prefers_new_path(tmp_path: Path) -> None:
-    new_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    legacy_path = tmp_path / ".kittify" / "memory" / "constitution.md"
+def test_handle_charter_prefers_new_path(tmp_path: Path) -> None:
+    new_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    legacy_path = tmp_path / ".kittify" / "memory" / "charter.md"
     new_path.parent.mkdir(parents=True)
     legacy_path.parent.mkdir(parents=True)
     new_path.write_text("new-path-content", encoding="utf-8")
     legacy_path.write_text("legacy-content", encoding="utf-8")
 
     handler = _DummyAPIHandler(tmp_path)
-    APIHandler.handle_constitution(handler)  # type: ignore[arg-type]
+    APIHandler.handle_charter(handler)  # type: ignore[arg-type]
 
     assert handler.status_code == 200
     assert handler.wfile.getvalue().decode("utf-8") == "new-path-content"
 
 
-def test_handle_constitution_uses_legacy_when_new_missing(tmp_path: Path) -> None:
-    legacy_path = tmp_path / ".kittify" / "memory" / "constitution.md"
+def test_handle_charter_uses_legacy_when_new_missing(tmp_path: Path) -> None:
+    legacy_path = tmp_path / ".kittify" / "memory" / "charter.md"
     legacy_path.parent.mkdir(parents=True)
     legacy_path.write_text("legacy-content", encoding="utf-8")
 
     handler = _DummyAPIHandler(tmp_path)
-    APIHandler.handle_constitution(handler)  # type: ignore[arg-type]
+    APIHandler.handle_charter(handler)  # type: ignore[arg-type]
 
     assert handler.status_code == 200
     assert handler.wfile.getvalue().decode("utf-8") == "legacy-content"
 
 
-def test_handle_constitution_returns_404_when_missing(tmp_path: Path) -> None:
+def test_handle_charter_returns_404_when_missing(tmp_path: Path) -> None:
     handler = _DummyAPIHandler(tmp_path)
-    APIHandler.handle_constitution(handler)  # type: ignore[arg-type]
+    APIHandler.handle_charter(handler)  # type: ignore[arg-type]
 
     assert handler.status_code == 404
-    assert handler.wfile.getvalue() == b"Constitution not found"
+    assert handler.wfile.getvalue() == b"Charter not found"

@@ -1,10 +1,10 @@
-"""Tests for constitution schemas module."""
+"""Tests for charter schemas module."""
 
 import pytest
 import tempfile
 from pathlib import Path
 
-from constitution.schemas import (
+from charter.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     Directive,
@@ -15,15 +15,15 @@ from constitution.schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    ConstitutionTestingConfig,
+    CharterTestingConfig,
     emit_yaml,
 )
 
 pytestmark = pytest.mark.fast
 
-class TestConstitutionTestingConfig:
+class TestCharterTestingConfig:
     def test_default_values(self) -> None:
-        config = ConstitutionTestingConfig()
+        config = CharterTestingConfig()
         assert config.min_coverage == 0
         assert config.tdd_required is False
         assert config.framework == ""
@@ -65,7 +65,7 @@ class TestDoctrineSelectionConfig:
 class TestGovernanceConfig:
     def test_default_values(self) -> None:
         config = GovernanceConfig()
-        assert isinstance(config.testing, ConstitutionTestingConfig)
+        assert isinstance(config.testing, CharterTestingConfig)
         assert isinstance(config.quality, QualityConfig)
         assert isinstance(config.performance, PerformanceConfig)
         assert isinstance(config.doctrine, DoctrineSelectionConfig)
@@ -73,7 +73,7 @@ class TestGovernanceConfig:
 
     def test_custom_nested_values(self) -> None:
         config = GovernanceConfig(
-            testing=ConstitutionTestingConfig(min_coverage=90, tdd_required=True),
+            testing=CharterTestingConfig(min_coverage=90, tdd_required=True),
             quality=QualityConfig(linting="ruff"),
             doctrine=DoctrineSelectionConfig(selected_paradigms=["test-first"]),
         )
@@ -101,7 +101,7 @@ class TestExtractionMetadata:
         meta = ExtractionMetadata()
         assert meta.schema_version == "1.0.0"
         assert meta.extraction_mode == "deterministic"
-        assert meta.source_path == ".kittify/constitution/constitution.md"
+        assert meta.source_path == ".kittify/charter/charter.md"
         assert isinstance(meta.sections_parsed, SectionsParsed)
 
 
@@ -109,24 +109,24 @@ class TestEmitYAML:
     def test_emit_yaml_creates_file(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "test.yaml"
-            config = ConstitutionTestingConfig(min_coverage=90, tdd_required=True)
+            config = CharterTestingConfig(min_coverage=90, tdd_required=True)
             emit_yaml(config, output_path)
             assert output_path.exists()
 
     def test_emit_yaml_includes_header(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "test.yaml"
-            config = ConstitutionTestingConfig(min_coverage=90)
+            config = CharterTestingConfig(min_coverage=90)
             emit_yaml(config, output_path)
             content = output_path.read_text()
-            assert "Auto-generated from constitution.md" in content
+            assert "Auto-generated from charter.md" in content
             assert "do not edit directly" in content
 
     def test_emit_yaml_nested_config(self) -> None:
         with tempfile.TemporaryDirectory() as tmpdir:
             output_path = Path(tmpdir) / "governance.yaml"
             config = GovernanceConfig(
-                testing=ConstitutionTestingConfig(min_coverage=90),
+                testing=CharterTestingConfig(min_coverage=90),
                 quality=QualityConfig(linting="ruff"),
                 commits=CommitConfig(convention="conventional"),
             )

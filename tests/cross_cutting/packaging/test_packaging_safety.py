@@ -1,4 +1,4 @@
-"""Validate packaging safety for template relocation and constitution isolation."""
+"""Validate packaging safety for template relocation and charter isolation."""
 
 from __future__ import annotations
 
@@ -59,19 +59,19 @@ def test_wheel_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> No
     assert not kittify_files, f"Wheel contains .kittify/ paths (packaging contamination): {kittify_files}"
 
 
-def test_wheel_contains_no_filled_constitution(build_artifacts: dict[str, Path]) -> None:
-    """Verify wheel doesn't contain a filled constitution under memory/."""
+def test_wheel_contains_no_filled_charter(build_artifacts: dict[str, Path]) -> None:
+    """Verify wheel doesn't contain a filled charter under memory/."""
     wheel_path = build_artifacts["wheel"]
 
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = zf.namelist()
 
-    constitution_files = [f for f in all_files if "constitution.md" in f.lower()]
+    charter_files = [f for f in all_files if "charter.md" in f.lower()]
 
-    for const_file in constitution_files:
-        assert "memory/constitution" not in const_file, f"Wheel contains filled constitution from memory/: {const_file}"
+    for const_file in charter_files:
+        assert "memory/charter" not in const_file, f"Wheel contains filled charter from memory/: {const_file}"
         assert "templates/" in const_file or "missions/" in const_file, (
-            f"Found non-template constitution in wheel: {const_file}"
+            f"Found non-template charter in wheel: {const_file}"
         )
 
 

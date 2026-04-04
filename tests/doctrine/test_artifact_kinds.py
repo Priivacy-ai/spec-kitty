@@ -118,17 +118,17 @@ class TestDerivedConstants:
         assert "templates" not in _GLOB_PATTERNS
 
     def test_ref_type_map_includes_paradigm(self) -> None:
-        from constitution.reference_resolver import _REF_TYPE_MAP
+        from charter.reference_resolver import _REF_TYPE_MAP
 
         assert _REF_TYPE_MAP["paradigm"] == "paradigms"
 
     def test_ref_type_map_includes_agent_profile(self) -> None:
-        from constitution.reference_resolver import _REF_TYPE_MAP
+        from charter.reference_resolver import _REF_TYPE_MAP
 
         assert _REF_TYPE_MAP["agent_profile"] == "agent_profiles"
 
     def test_ref_type_map_covers_all_kinds(self) -> None:
-        from constitution.reference_resolver import _REF_TYPE_MAP
+        from charter.reference_resolver import _REF_TYPE_MAP
 
         for kind in ArtifactKind:
             assert kind.value in _REF_TYPE_MAP

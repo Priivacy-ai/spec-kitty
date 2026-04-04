@@ -7,7 +7,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from doctrine.shared.exceptions import DoctrineResolutionCycleError
-from constitution.reference_resolver import (
+from charter.reference_resolver import (
     ResolvedReferenceGraph,
     resolve_references_transitively,
 )

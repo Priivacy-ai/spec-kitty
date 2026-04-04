@@ -216,10 +216,10 @@ class TestBuildPromptTemplate:
         mock_resolve.return_value = mock_result
 
         repo_root = feature_with_wp.parent.parent
-        constitution_dir = repo_root / ".kittify" / "constitution"
-        constitution_dir.mkdir(parents=True)
-        (constitution_dir / "constitution.md").write_text(
-            """# Project Constitution
+        charter_dir = repo_root / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            """# Project Charter
 
 ## Policy Summary
 
@@ -238,7 +238,7 @@ template_set: software-dev-default
 """,
             encoding="utf-8",
         )
-        (constitution_dir / "references.yaml").write_text(
+        (charter_dir / "references.yaml").write_text(
             """schema_version: "1.0.0"
 references:
   - id: USER:PROJECT_PROFILE
@@ -248,7 +248,7 @@ references:
 """,
             encoding="utf-8",
         )
-        (constitution_dir / "governance.yaml").write_text(
+        (charter_dir / "governance.yaml").write_text(
             """doctrine:
   selected_paradigms: [test-first]
   selected_directives: [TEST_FIRST]
@@ -257,7 +257,7 @@ references:
 """,
             encoding="utf-8",
         )
-        (constitution_dir / "directives.yaml").write_text(
+        (charter_dir / "directives.yaml").write_text(
             """directives:
   - id: TEST_FIRST
     title: Keep tests strict
@@ -274,7 +274,7 @@ references:
             repo_root=repo_root,
             mission_key="software-dev",
         )
-        assert "Constitution Context (Bootstrap):" in first_text
+        assert "Charter Context (Bootstrap):" in first_text
         first_path.unlink()
 
         second_text, second_path = build_prompt(
@@ -298,7 +298,7 @@ class TestGovernanceContext:
             paradigms=["test-first"],
             directives=["TEST_FIRST"],
             tools=["git", "pytest"],
-            diagnostics=["Template set from constitution."],
+            diagnostics=["Template set from charter."],
         )
         text = _governance_context(feature_dir.parent.parent)
         assert "Governance:" in text

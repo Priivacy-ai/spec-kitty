@@ -36,7 +36,7 @@ class TestConsumerSkills:
             "checklist",
             "analyze",
             "research",
-            "constitution",
+            "charter",
         ],
     )
     def test_known_consumer_skills_present(self, skill: str) -> None:
@@ -121,7 +121,7 @@ class TestPromptDrivenCommands:
             "checklist",
             "analyze",
             "research",
-            "constitution",
+            "charter",
         ],
     )
     def test_expected_commands_present(self, skill: str) -> None:
