@@ -227,3 +227,4 @@ spec-kitty implement WP07 --base WP05
 - 2026-04-04T10:26:57Z – coordinator – shell_pid=6535 – Started implementation via workflow command
 - 2026-04-04T10:32:16Z – coordinator – shell_pid=6535 – Ready for review: routing resolution, opportunistic upgrade, stale-binding detection - all 52 tests pass
 - 2026-04-04T10:32:54Z – codex – shell_pid=35148 – Started review via workflow command
+- 2026-04-04T10:38:06Z – codex – shell_pid=35148 – Moved to planned
