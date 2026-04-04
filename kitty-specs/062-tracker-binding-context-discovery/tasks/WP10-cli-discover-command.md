@@ -13,8 +13,8 @@ base_branch: main
 base_commit: f0dabe95b781b016fdd1edbc62012b26595c6016
 created_at: '2026-04-04T11:24:58.907052+00:00'
 subtasks: [T047, T048, T049, T050, T051, T052]
-shell_pid: "18365"
-agent: "coordinator"
+shell_pid: "21424"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -190,3 +190,4 @@ spec-kitty implement WP10 --base WP09
 
 - 2026-04-04T11:24:59Z – coordinator – shell_pid=18365 – Started implementation via workflow command
 - 2026-04-04T11:29:24Z – coordinator – shell_pid=18365 – Ready for review: discover command with rich table, JSON output, error handling, and 8 CLI tests
+- 2026-04-04T11:30:39Z – codex – shell_pid=21424 – Started review via workflow command
