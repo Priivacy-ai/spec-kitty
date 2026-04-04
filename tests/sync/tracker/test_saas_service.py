@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -11,8 +11,9 @@ from specify_cli.tracker.config import (
     TrackerProjectConfig,
     load_tracker_config,
 )
+from specify_cli.tracker.saas_client import SaaSTrackerClientError
 from specify_cli.tracker.saas_service import SaaSTrackerService
-from specify_cli.tracker.service import TrackerServiceError
+from specify_cli.tracker.service import StaleBindingError, TrackerServiceError
 
 
 # ---------------------------------------------------------------------------
@@ -95,11 +96,528 @@ class TestProperties:
         with pytest.raises(AssertionError):
             _ = svc.provider
 
-    def test_project_slug_asserts_when_none(self, repo_root: Path, mock_client: MagicMock) -> None:
-        empty_config = TrackerProjectConfig(provider="linear")
-        svc = SaaSTrackerService(repo_root, empty_config, client=mock_client)
-        with pytest.raises(AssertionError):
-            _ = svc.project_slug
+    def test_project_slug_none_for_binding_ref_only(self, repo_root: Path, mock_client: MagicMock) -> None:
+        config = TrackerProjectConfig(provider="linear", binding_ref="ref-1")
+        svc = SaaSTrackerService(repo_root, config, client=mock_client)
+        assert svc.project_slug is None
+
+
+# ---------------------------------------------------------------------------
+# Routing resolution (T030)
+# ---------------------------------------------------------------------------
+
+
+class TestResolveRoutingParams:
+    def test_resolve_routing_binding_ref_first(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Config with both binding_ref and project_slug returns binding_ref."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc-123",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        result = svc._resolve_routing_params()
+        assert result == {"binding_ref": "bind-abc-123"}
+        assert "project_slug" not in result
+
+    def test_resolve_routing_project_slug_fallback(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Config with only project_slug returns project_slug."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        result = svc._resolve_routing_params()
+        assert result == {"project_slug": "my-proj"}
+        assert "binding_ref" not in result
+
+    def test_resolve_routing_neither_raises(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Config with neither binding_ref nor project_slug raises."""
+        cfg = TrackerProjectConfig(provider="linear")
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        with pytest.raises(TrackerServiceError, match="No tracker binding configured"):
+            svc._resolve_routing_params()
+
+    def test_resolve_routing_binding_ref_only(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Config with only binding_ref (no project_slug) returns binding_ref."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-xyz-456",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        result = svc._resolve_routing_params()
+        assert result == {"binding_ref": "bind-xyz-456"}
+
+
+# ---------------------------------------------------------------------------
+# Delegated methods use routing (T031)
+# ---------------------------------------------------------------------------
+
+
+class TestDelegatedMethodsUseRouting:
+    """Verify that all 5 delegated methods pass routing params to the client."""
+
+    def test_status_uses_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        svc.status()
+        mock_client.status.assert_called_once_with(
+            "linear", binding_ref="bind-abc",
+        )
+
+    def test_status_uses_project_slug_fallback(
+        self, service: SaaSTrackerService, mock_client: MagicMock
+    ) -> None:
+        service.status()
+        mock_client.status.assert_called_once_with(
+            "linear", project_slug="my-proj",
+        )
+
+    def test_sync_pull_uses_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        svc.sync_pull(limit=50)
+        mock_client.pull.assert_called_once_with(
+            "linear", limit=50, binding_ref="bind-abc",
+        )
+
+    def test_sync_push_uses_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        svc.sync_push()
+        mock_client.push.assert_called_once_with(
+            "linear", items=[], binding_ref="bind-abc",
+        )
+
+    def test_sync_run_uses_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        svc.sync_run(limit=200)
+        mock_client.run.assert_called_once_with(
+            "linear", limit=200, binding_ref="bind-abc",
+        )
+
+    def test_map_list_uses_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+        svc.map_list()
+        mock_client.mappings.assert_called_once_with(
+            "linear", binding_ref="bind-abc",
+        )
+
+
+# ---------------------------------------------------------------------------
+# Opportunistic upgrade (T032, T033)
+# ---------------------------------------------------------------------------
+
+
+class TestMaybeUpgradeBindingRef:
+    def test_upgrade_writes_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Response with binding_ref persists to config."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-new-abc",
+            "display_label": "My Project (Linear)",
+            "provider_context": {"org": "acme"},
+        }
+        svc.status()
+
+        # Verify config updated in memory (atomic: svc._config is a NEW object)
+        assert svc._config.binding_ref == "bind-new-abc"
+        assert svc._config.display_label == "My Project (Linear)"
+        assert svc._config.provider_context == {"org": "acme"}
+
+        # Verify persisted to disk
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref == "bind-new-abc"
+        assert loaded.display_label == "My Project (Linear)"
+
+    def test_upgrade_no_binding_ref_noop(
+        self, service: SaaSTrackerService, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Response without binding_ref does not modify config."""
+        mock_client.status.return_value = {"connected": True}
+        service.status()
+
+        loaded = load_tracker_config(repo_root)
+        assert loaded.binding_ref is None
+
+    def test_upgrade_already_current_noop(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Same binding_ref in response does not trigger save."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-abc",  # Same as config
+        }
+
+        with patch(
+            "specify_cli.tracker.saas_service.save_tracker_config"
+        ) as mock_save:
+            svc.status()
+            mock_save.assert_not_called()
+
+    def test_upgrade_failure_silent(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Save failure does not propagate; call still returns normally."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-new",
+        }
+
+        with patch(
+            "specify_cli.tracker.saas_service.save_tracker_config",
+            side_effect=OSError("disk full"),
+        ):
+            # Should NOT raise
+            result = svc.status()
+            assert result["connected"] is True
+
+    def test_maybe_upgrade_save_failure_preserves_config(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """When save_tracker_config raises, self._config must NOT be mutated."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="old-bind-ref",
+            project_slug="my-proj",
+            display_label="Old Label",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "new-bind-ref",
+            "display_label": "New Label",
+            "provider_context": {"org": "acme"},
+        }
+
+        with patch(
+            "specify_cli.tracker.saas_service.save_tracker_config",
+            side_effect=OSError("disk full"),
+        ):
+            result = svc.status()
+            assert result["connected"] is True
+
+        # The critical assertion: in-memory config must still have the OLD values
+        assert svc._config.binding_ref == "old-bind-ref"
+        assert svc._config.display_label == "Old Label"
+        assert svc._config.provider_context is None
+
+    def test_upgrade_partial_response_display_label_only(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Response with binding_ref and display_label but no provider_context."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-new",
+            "display_label": "Label Only",
+        }
+        svc.status()
+
+        assert svc._config.binding_ref == "bind-new"
+        assert svc._config.display_label == "Label Only"
+        assert svc._config.provider_context is None
+
+    def test_upgrade_called_after_sync_pull(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """sync_pull also triggers opportunistic upgrade."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.pull.return_value = {
+            "items": [],
+            "binding_ref": "bind-from-pull",
+        }
+        svc.sync_pull()
+
+        assert svc._config.binding_ref == "bind-from-pull"
+
+    def test_upgrade_called_after_sync_push(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """sync_push also triggers opportunistic upgrade."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.push.return_value = {
+            "pushed": 0,
+            "binding_ref": "bind-from-push",
+        }
+        svc.sync_push()
+
+        assert svc._config.binding_ref == "bind-from-push"
+
+    def test_upgrade_called_after_sync_run(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """sync_run also triggers opportunistic upgrade."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.run.return_value = {
+            "pulled": 0,
+            "pushed": 0,
+            "binding_ref": "bind-from-run",
+        }
+        svc.sync_run()
+
+        assert svc._config.binding_ref == "bind-from-run"
+
+    def test_upgrade_called_after_map_list(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """map_list also triggers opportunistic upgrade."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.mappings.return_value = {
+            "mappings": [],
+            "binding_ref": "bind-from-mappings",
+        }
+        svc.map_list()
+
+        assert svc._config.binding_ref == "bind-from-mappings"
+
+    def test_maybe_upgrade_preserves_extra_fields(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Unknown config fields survive opportunistic upgrade (forward-compat)."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+            _extra={"future_flag": True, "beta_feature": "enabled"},
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-new-abc",
+        }
+        svc.status()
+
+        # Core assertion: _extra must survive the upgrade rebuild
+        assert svc._config._extra == {"future_flag": True, "beta_feature": "enabled"}
+        assert svc._config.binding_ref == "bind-new-abc"
+
+
+# ---------------------------------------------------------------------------
+# Stale binding detection (T034)
+# ---------------------------------------------------------------------------
+
+
+class TestStaleBindingDetection:
+    def test_stale_binding_detection_binding_not_found(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Client error with binding_not_found raises StaleBindingError."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-stale",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.side_effect = SaaSTrackerClientError(
+            "Binding not found",
+            error_code="binding_not_found",
+            status_code=404,
+        )
+
+        with pytest.raises(StaleBindingError) as exc_info:
+            svc.status()
+
+        assert exc_info.value.binding_ref == "bind-stale"
+        assert exc_info.value.error_code == "binding_not_found"
+        assert "stale" in str(exc_info.value).lower()
+        assert "rebind" in str(exc_info.value).lower()
+
+    def test_stale_binding_detection_mapping_disabled(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Client error with mapping_disabled raises StaleBindingError."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-disabled",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.pull.side_effect = SaaSTrackerClientError(
+            "Mapping disabled",
+            error_code="mapping_disabled",
+            status_code=403,
+        )
+
+        with pytest.raises(StaleBindingError) as exc_info:
+            svc.sync_pull()
+
+        assert exc_info.value.error_code == "mapping_disabled"
+
+    def test_stale_binding_detection_project_mismatch(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Client error with project_mismatch raises StaleBindingError."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-mismatched",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.run.side_effect = SaaSTrackerClientError(
+            "Project mismatch",
+            error_code="project_mismatch",
+            status_code=409,
+        )
+
+        with pytest.raises(StaleBindingError) as exc_info:
+            svc.sync_run()
+
+        assert exc_info.value.error_code == "project_mismatch"
+
+    def test_stale_binding_no_false_positive(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Client error with non-stale error_code propagates as-is."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+            project_slug="my-proj",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.side_effect = SaaSTrackerClientError(
+            "Rate limited",
+            error_code="rate_limited",
+            status_code=429,
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            svc.status()
+
+        # Should be the original error, NOT StaleBindingError
+        assert not isinstance(exc_info.value, StaleBindingError)
+        assert exc_info.value.error_code == "rate_limited"
+
+    def test_stale_binding_only_when_routing_by_binding_ref(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Stale error codes don't trigger StaleBindingError when routing by project_slug."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+            # binding_ref is None
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.side_effect = SaaSTrackerClientError(
+            "Binding not found",
+            error_code="binding_not_found",
+            status_code=404,
+        )
+
+        # Should raise the original error, NOT StaleBindingError
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            svc.status()
+
+        assert not isinstance(exc_info.value, StaleBindingError)
+
+    def test_stale_binding_no_error_code_passthrough(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Client error without error_code passes through unchanged."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-abc",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.side_effect = SaaSTrackerClientError(
+            "Generic error",
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            svc.status()
+
+        assert not isinstance(exc_info.value, StaleBindingError)
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +687,7 @@ class TestStatus:
     ) -> None:
         result = service.status()
 
-        mock_client.status.assert_called_once_with("linear", "my-proj")
+        mock_client.status.assert_called_once_with("linear", project_slug="my-proj")
         assert result["connected"] is True
         assert result["provider"] == "linear"
 
@@ -180,14 +698,14 @@ class TestSyncPull:
     ) -> None:
         result = service.sync_pull(limit=50)
 
-        mock_client.pull.assert_called_once_with("linear", "my-proj", limit=50)
+        mock_client.pull.assert_called_once_with("linear", limit=50, project_slug="my-proj")
         assert result["items"][0]["id"] == "LIN-1"
 
     def test_pull_default_limit(
         self, service: SaaSTrackerService, mock_client: MagicMock
     ) -> None:
         service.sync_pull()
-        mock_client.pull.assert_called_once_with("linear", "my-proj", limit=100)
+        mock_client.pull.assert_called_once_with("linear", limit=100, project_slug="my-proj")
 
 
 class TestSyncPush:
@@ -196,7 +714,7 @@ class TestSyncPush:
     ) -> None:
         result = service.sync_push()
 
-        mock_client.push.assert_called_once_with("linear", "my-proj", items=[])
+        mock_client.push.assert_called_once_with("linear", items=[], project_slug="my-proj")
         assert result["pushed"] == 0
 
     def test_push_forwards_items(
@@ -205,15 +723,14 @@ class TestSyncPush:
         """Verify caller-supplied items are forwarded to the SaaS client."""
         items = [{"ref": {"system": "linear", "id": "LIN-1", "workspace": "team"}, "action": "update"}]
         service.sync_push(items=items)
-        mock_client.push.assert_called_once_with("linear", "my-proj", items=items)
+        mock_client.push.assert_called_once_with("linear", items=items, project_slug="my-proj")
 
     def test_push_defaults_to_empty_items(
         self, service: SaaSTrackerService, mock_client: MagicMock
     ) -> None:
         """When no items provided, sends empty list."""
         service.sync_push()
-        _, _, kwargs = mock_client.push.mock_calls[0]
-        assert kwargs["items"] == []
+        mock_client.push.assert_called_once_with("linear", items=[], project_slug="my-proj")
 
 
 class TestSyncRun:
@@ -222,14 +739,14 @@ class TestSyncRun:
     ) -> None:
         result = service.sync_run(limit=200)
 
-        mock_client.run.assert_called_once_with("linear", "my-proj", limit=200)
+        mock_client.run.assert_called_once_with("linear", limit=200, project_slug="my-proj")
         assert result["pulled"] == 1
 
     def test_run_default_limit(
         self, service: SaaSTrackerService, mock_client: MagicMock
     ) -> None:
         service.sync_run()
-        mock_client.run.assert_called_once_with("linear", "my-proj", limit=100)
+        mock_client.run.assert_called_once_with("linear", limit=100, project_slug="my-proj")
 
 
 class TestMapList:
@@ -238,7 +755,7 @@ class TestMapList:
     ) -> None:
         result = service.map_list()
 
-        mock_client.mappings.assert_called_once_with("linear", "my-proj")
+        mock_client.mappings.assert_called_once_with("linear", project_slug="my-proj")
         assert len(result) == 2
         assert result[0]["wp_id"] == "WP01"
 
