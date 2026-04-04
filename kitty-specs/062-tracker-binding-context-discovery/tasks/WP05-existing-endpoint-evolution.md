@@ -169,3 +169,4 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 - 2026-04-04T10:16:38Z – codex – shell_pid=27944 – Moved to planned
 - 2026-04-04T10:17:36Z – codex – shell_pid=27944 – Moved to planned
 - 2026-04-04T10:18:02Z – coordinator – shell_pid=50728 – Started implementation via workflow command
+- 2026-04-04T10:20:32Z – coordinator – shell_pid=50728 – Added test_saas_client_routing.py per Codex review
