@@ -18,7 +18,28 @@ from specify_cli.sync.config import SyncConfig
 
 
 class SaaSTrackerClientError(RuntimeError):
-    """Raised when a SaaS tracker API call fails."""
+    """Raised when a SaaS tracker API call fails.
+
+    Attributes carry structured PRI-12 error envelope data for
+    programmatic inspection (e.g., stale-binding detection).
+    Backward compatible: ``SaaSTrackerClientError("msg")`` still works,
+    and ``str(e)`` returns the message.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str | None = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+        user_action_required: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.status_code = status_code
+        self.details = details or {}
+        self.user_action_required = user_action_required
 
 
 def _poll_jitter_multiplier() -> float:
@@ -177,7 +198,10 @@ class SaaSTrackerClient:
                 auth_client.refresh_tokens()
             except Exception as exc:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 ) from exc
 
             response = self._request(
@@ -185,7 +209,10 @@ class SaaSTrackerClient:
             )
             if response.status_code == 401:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 )
 
         # --- 429: respect retry_after_seconds ---
@@ -202,7 +229,9 @@ class SaaSTrackerClient:
             if response.status_code == 429:
                 envelope = _parse_error_envelope(response)
                 raise SaaSTrackerClientError(
-                    envelope.get("message") or "Rate limited by SaaS API."
+                    envelope.get("message") or "Rate limited by SaaS API.",
+                    error_code="rate_limited",
+                    status_code=429,
                 )
 
         # --- Other non-2xx ---
@@ -213,7 +242,13 @@ class SaaSTrackerClient:
             # When True, suffix the message with generic guidance.
             if envelope.get("user_action_required"):
                 msg += " (action required — check the Spec Kitty dashboard)"
-            raise SaaSTrackerClientError(msg)
+            raise SaaSTrackerClientError(
+                msg,
+                error_code=envelope.get("code"),
+                status_code=response.status_code,
+                details=envelope,
+                user_action_required=bool(envelope.get("user_action_required")),
+            )
 
         return response
 
