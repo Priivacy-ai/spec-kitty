@@ -6,7 +6,7 @@
 
 ## Content Quality
 
-- [x] No implementation details (languages, frameworks, APIs)
+- [x] No implementation details (languages, frameworks, APIs) — **exception**: SaaS API consumer contracts (endpoint paths, request/response shapes) are included deliberately as the CLI's contract boundary, not as implementation prescription
 - [x] Focused on user value and business needs
 - [x] Written for non-technical stakeholders
 - [x] All mandatory sections completed
@@ -35,5 +35,6 @@
 
 ## Notes
 
-- SaaS API Consumer Contract section includes request/response shapes — these are deliberately included as the CLI's consumer expectations, not implementation details. They define the contract boundary this spec is responsible for.
+- SaaS API Consumer Contract section includes request/response shapes — these are deliberately included as the CLI's consumer expectations, not implementation details. They define the contract boundary this spec is responsible for. The checklist item "No implementation details" is marked as passing with this noted exception.
 - All discovery questions resolved through structured interview. No deferred decisions.
+- P1/P2 review feedback addressed in revision: separated candidate_token from binding_ref, added stale-binding recovery (Scenarios 11-12, FR-018), host-validated --bind-ref (FR-019, Endpoint 4), deterministic candidate ordering (FR-020/021), split Scenario 7, removed --project-slug as user-facing bind flag.
