@@ -126,3 +126,4 @@ spec-kitty implement WP12 --base WP09
 ## Activity Log
 
 - 2026-04-04T11:25:29Z – coordinator – shell_pid=18365 – Started implementation via workflow command
+- 2026-04-04T11:29:19Z – coordinator – shell_pid=18365 – Ready for review: --all flag on tracker status with Rich panel output, SaaS-only guard, 8 CLI tests
