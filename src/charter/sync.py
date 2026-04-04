@@ -14,9 +14,9 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from constitution.extractor import Extractor, write_extraction_result
-from constitution.hasher import is_stale
-from constitution.schemas import (
+from charter.extractor import Extractor, write_extraction_result
+from charter.hasher import is_stale
+from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )

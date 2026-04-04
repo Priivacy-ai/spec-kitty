@@ -8,8 +8,8 @@ from collections.abc import Iterable
 
 from ruamel.yaml import YAML
 
-from constitution.catalog import DoctrineCatalog, load_doctrine_catalog
-from constitution.resolver import DEFAULT_TOOL_REGISTRY
+from charter.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 # Known action values for LocalSupportDeclaration normalization.
 _KNOWN_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})

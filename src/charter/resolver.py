@@ -10,16 +10,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from constitution.catalog import load_doctrine_catalog
-from constitution.reference_resolver import resolve_references_transitively
-from constitution.sync import (
+from charter.catalog import load_doctrine_catalog
+from charter.reference_resolver import resolve_references_transitively
+from charter.sync import (
     load_directives_config,
     load_governance_config,
 )
 
 if TYPE_CHECKING:
     from doctrine.service import DoctrineService
-    from constitution.interview import ConstitutionInterview
+    from charter.interview import CharterInterview
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
 DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git", "python", "pytest", "ruff", "mypy", "poetry"})

@@ -5,9 +5,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from constitution.catalog import DoctrineCatalog
-from constitution.compiler import compile_constitution
-from constitution.interview import ConstitutionInterview, default_interview
+from charter.catalog import DoctrineCatalog
+from charter.compiler import compile_charter
+from charter.interview import CharterInterview, default_interview
 
 
 @dataclass(frozen=True)

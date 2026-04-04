@@ -11,7 +11,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
-from constitution.resolver import GovernanceResolutionError, resolve_governance
+from charter.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
 
 
@@ -118,7 +118,7 @@ def build_charter_context(
 def _build_doctrine_service(repo_root: Path) -> object:
     """Build a DoctrineService for the given repo root."""
     from doctrine.service import DoctrineService
-    from constitution.catalog import resolve_doctrine_root
+    from charter.catalog import resolve_doctrine_root
 
     doctrine_root = resolve_doctrine_root()
     project_root_candidates = [repo_root / "src" / "doctrine", repo_root / "doctrine"]
@@ -219,7 +219,7 @@ def _append_action_doctrine_lines(
     """Append action doctrine content to lines list. Degrades gracefully on error."""
     from doctrine.missions import MissionTemplateRepository
     from doctrine.missions.action_index import load_action_index
-    from constitution.sync import load_governance_config
+    from charter.sync import load_governance_config
 
     try:
         repo = MissionTemplateRepository.default()

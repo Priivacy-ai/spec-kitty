@@ -11,13 +11,13 @@ from typing import TYPE_CHECKING
 
 from ruamel.yaml import YAML
 
-from constitution.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
-from constitution.interview import (
+from charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from charter.interview import (
     CharterInterview,
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
-from constitution.resolver import DEFAULT_TOOL_REGISTRY
+from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 if TYPE_CHECKING:
     from doctrine.service import DoctrineService
@@ -338,7 +338,7 @@ def _build_references_from_service(
     diagnostics: list[str],
 ) -> list[CharterReference]:
     """Load references via typed repository queries and transitive resolution."""
-    from constitution.reference_resolver import resolve_references_transitively
+    from charter.reference_resolver import resolve_references_transitively
 
     references: list[CharterReference] = []
 

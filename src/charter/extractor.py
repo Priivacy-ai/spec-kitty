@@ -12,9 +12,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from constitution.hasher import hash_content
-from constitution.parser import ConstitutionParser, ConstitutionSection
-from constitution.schemas import (
+from charter.hasher import hash_content
+from charter.parser import CharterParser, CharterSection
+from charter.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
