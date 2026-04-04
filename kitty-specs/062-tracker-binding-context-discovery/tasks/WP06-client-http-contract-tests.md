@@ -11,8 +11,8 @@ base_branch: main
 base_commit: bde753a571652244ab6f1a22b21dc2cf67181529
 created_at: '2026-04-04T10:26:38.922434+00:00'
 subtasks: [T024, T025, T026, T027, T028, T029]
-shell_pid: "4472"
-agent: "coordinator"
+shell_pid: "53301"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -151,3 +151,4 @@ Depends on WP04 (new methods) and WP05 (updated signatures).
 
 - 2026-04-04T10:26:39Z – coordinator – shell_pid=4472 – Started implementation via workflow command
 - 2026-04-04T10:34:47Z – coordinator – shell_pid=4472 – Ready for review: 31 contract tests covering all 4 new endpoints, binding_ref routing on existing endpoints, and stale-binding error codes
+- 2026-04-04T10:35:23Z – codex – shell_pid=53301 – Started review via workflow command
