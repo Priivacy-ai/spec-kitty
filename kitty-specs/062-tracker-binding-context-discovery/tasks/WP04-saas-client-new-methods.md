@@ -203,3 +203,4 @@ Depends on WP02 (discovery types) and WP03 (enriched errors). Use WP03 as base s
 - 2026-04-04T10:09:00Z – codex – shell_pid=22788 – Started review via workflow command
 - 2026-04-04T10:14:49Z – codex – shell_pid=22788 – Moved to planned
 - 2026-04-04T10:15:11Z – coordinator – shell_pid=37818 – Started implementation via workflow command
+- 2026-04-04T10:17:42Z – coordinator – shell_pid=37818 – Added test_saas_client_new_methods.py per Codex review
