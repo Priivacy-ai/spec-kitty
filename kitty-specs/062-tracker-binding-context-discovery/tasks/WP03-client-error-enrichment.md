@@ -183,3 +183,4 @@ No dependencies — this WP can start immediately.
 - 2026-04-04T09:34:50Z – coordinator – shell_pid=32846 – Started implementation via workflow command
 - 2026-04-04T09:38:50Z – coordinator – shell_pid=32846 – Ready for review: enriched SaaSTrackerClientError with error_code, status_code, details, user_action_required attrs; all 55 tests pass; ruff clean
 - 2026-04-04T09:39:40Z – codex – shell_pid=51022 – Started review via workflow command
+- 2026-04-04T09:44:39Z – codex – shell_pid=51022 – Moved to planned

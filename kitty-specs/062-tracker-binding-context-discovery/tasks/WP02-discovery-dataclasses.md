@@ -250,3 +250,4 @@ No dependencies — this WP can start immediately.
 - 2026-04-04T09:34:48Z – coordinator – shell_pid=32788 – Started implementation via workflow command
 - 2026-04-04T09:37:48Z – coordinator – shell_pid=32788 – Ready for review: 5 dataclasses + find_candidate_by_position helper, 22 tests all passing, ruff clean
 - 2026-04-04T09:38:28Z – codex – shell_pid=44612 – Started review via workflow command
+- 2026-04-04T09:44:22Z – codex – shell_pid=44612 – Review passed: discovery dataclasses/helper match contracts; 22 tests passed; ruff clean
