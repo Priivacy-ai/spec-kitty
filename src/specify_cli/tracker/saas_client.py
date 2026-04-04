@@ -18,7 +18,28 @@ from specify_cli.sync.config import SyncConfig
 
 
 class SaaSTrackerClientError(RuntimeError):
-    """Raised when a SaaS tracker API call fails."""
+    """Raised when a SaaS tracker API call fails.
+
+    Attributes carry structured PRI-12 error envelope data for
+    programmatic inspection (e.g., stale-binding detection).
+    Backward compatible: ``SaaSTrackerClientError("msg")`` still works,
+    and ``str(e)`` returns the message.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str | None = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+        user_action_required: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.status_code = status_code
+        self.details = details or {}
+        self.user_action_required = user_action_required
 
 
 def _poll_jitter_multiplier() -> float:
@@ -33,7 +54,7 @@ def _poll_jitter_multiplier() -> float:
 def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
     """Extract PRI-12 error envelope fields from a non-2xx response.
 
-    Returns a dict with keys: code, category, message, retryable,
+    Returns a dict with keys: error_code, category, message, retryable,
     user_action_required, source, retry_after_seconds.
     Missing keys default to ``None`` (or ``False`` for booleans).
     """
@@ -41,7 +62,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         body: dict[str, Any] = response.json()
     except Exception:
         return {
-            "code": None,
+            "error_code": None,
             "category": None,
             "message": f"HTTP {response.status_code}",
             "retryable": False,
@@ -51,7 +72,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         }
 
     return {
-        "code": body.get("code"),
+        "error_code": body.get("error_code"),
         "category": body.get("category"),
         "message": body.get("message", f"HTTP {response.status_code}"),
         "retryable": body.get("retryable", False),
@@ -87,8 +108,8 @@ class SaaSTrackerClient:
         *,
         timeout: float = 30.0,
     ) -> None:
-        self._credential_store = credential_store or CredentialStore()  # type: ignore[no-untyped-call]
-        self._sync_config = sync_config or SyncConfig()  # type: ignore[no-untyped-call]
+        self._credential_store = credential_store or CredentialStore()
+        self._sync_config = sync_config or SyncConfig()
         self._base_url: str = self._sync_config.get_server_url()
         self._timeout = timeout
 
@@ -171,13 +192,16 @@ class SaaSTrackerClient:
         # --- 401: one refresh + retry ---
         if response.status_code == 401:
             try:
-                auth_client = AuthClient()  # type: ignore[no-untyped-call]
+                auth_client = AuthClient()
                 auth_client.credential_store = self._credential_store
                 auth_client.config = self._sync_config
                 auth_client.refresh_tokens()
             except Exception as exc:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 ) from exc
 
             response = self._request(
@@ -185,7 +209,10 @@ class SaaSTrackerClient:
             )
             if response.status_code == 401:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 )
 
         # --- 429: respect retry_after_seconds ---
@@ -202,7 +229,9 @@ class SaaSTrackerClient:
             if response.status_code == 429:
                 envelope = _parse_error_envelope(response)
                 raise SaaSTrackerClientError(
-                    envelope.get("message") or "Rate limited by SaaS API."
+                    envelope.get("message") or "Rate limited by SaaS API.",
+                    error_code="rate_limited",
+                    status_code=429,
                 )
 
         # --- Other non-2xx ---
@@ -213,7 +242,13 @@ class SaaSTrackerClient:
             # When True, suffix the message with generic guidance.
             if envelope.get("user_action_required"):
                 msg += " (action required — check the Spec Kitty dashboard)"
-            raise SaaSTrackerClientError(msg)
+            raise SaaSTrackerClientError(
+                msg,
+                error_code=envelope.get("error_code"),
+                status_code=response.status_code,
+                details=envelope,
+                user_action_required=bool(envelope.get("user_action_required")),
+            )
 
         return response
 
