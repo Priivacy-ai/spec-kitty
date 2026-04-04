@@ -153,3 +153,4 @@ spec-kitty implement WP02
 ## Activity Log
 
 - 2026-04-04T19:48:40Z – claude – shell_pid=15743 – Started implementation via action command
+- 2026-04-04T19:59:06Z – claude – shell_pid=15743 – CLI and runtime modules renamed to charter
