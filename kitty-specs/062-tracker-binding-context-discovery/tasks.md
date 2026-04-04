@@ -201,11 +201,11 @@ New service methods: `discover()` for resource inventory, `resolve_and_bind()` f
 
 Add `discover()`, update `bind()`, add `status(all=)` to the `TrackerService` dispatch facade. Guard local providers against SaaS-only operations.
 
-- [ ] T042: Add discover() to facade
-- [ ] T043: Update bind() dispatch
-- [ ] T044: Add status(all=) parameter
-- [ ] T045: Guard local providers
-- [ ] T046: Write facade tests
+- [x] T042: Add discover() to facade
+- [x] T043: Update bind() dispatch
+- [x] T044: Add status(all=) parameter
+- [x] T045: Guard local providers
+- [x] T046: Write facade tests
 
 ### Wave 5 — CLI Commands (depends on Wave 4; parallel within wave)
 
