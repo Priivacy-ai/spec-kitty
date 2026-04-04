@@ -1,17 +1,17 @@
 {
-  "event_count": 35,
+  "event_count": 36,
   "feature_slug": "063-universal-charter-rename",
-  "last_event_id": "01KND22RFXMYZYQ8A9286A3EQT",
-  "materialized_at": "2026-04-04T20:13:50.462413+00:00",
+  "last_event_id": "01KND23ZAV1JN926ZRB2J3XKJ3",
+  "materialized_at": "2026-04-04T20:14:30.235576+00:00",
   "mission_slug": "063-universal-charter-rename",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 3,
+    "in_progress": 2,
     "planned": 2
   },
   "work_packages": {
@@ -37,11 +37,11 @@
       "last_transition_at": "2026-04-04T20:07:27.548916+00:00"
     },
     "WP04": {
-      "actor": "codex",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KND1RXVJBE52PA65HCBEKP4M",
-      "last_transition_at": "2026-04-04T20:08:28.274350+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KND23ZAV1JN926ZRB2J3XKJ3",
+      "last_transition_at": "2026-04-04T20:14:30.235066+00:00"
     },
     "WP05": {
       "actor": "user",
