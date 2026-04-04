@@ -1612,13 +1612,15 @@ def finalize_tasks(
 
         # Validate ownership manifests across all WPs (hard errors block finalization)
         wp_manifests: dict[str, object] = {}
+        wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
             wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
             if not wp_id_match:
                 continue
             wp_id = wp_id_match.group(1)
             try:
-                fm, _ = read_frontmatter(wp_file)
+                fm, wp_body = read_frontmatter(wp_file)
+                wp_bodies[wp_id] = wp_body
                 if fm.get("execution_mode") and fm.get("owned_files"):
                     from specify_cli.ownership.models import OwnershipManifest
                     wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm)
@@ -1669,6 +1671,26 @@ def finalize_tasks(
                 "newly_seeded": bootstrap_result.newly_seeded,
                 "already_initialized": bootstrap_result.already_initialized,
             }
+
+            # Validate lane computation (dry-run — compute but don't write)
+            lanes_stats: dict[str, object] = {"computed": False}
+            if wp_manifests and wp_dependencies:
+                from specify_cli.lanes.compute import compute_lanes as _compute_lanes_validate
+
+                lanes_manifest_dry = _compute_lanes_validate(
+                    dependency_graph=wp_dependencies,
+                    ownership_manifests=wp_manifests,  # type: ignore[arg-type]
+                    feature_slug=feature_slug,
+                    target_branch=target_branch,
+                    wp_bodies=wp_bodies,
+                    mission_id=meta.get("mission_id") if meta else None,
+                )
+                lanes_stats = {
+                    "computed": True,
+                    "count": len(lanes_manifest_dry.lanes),
+                    "lane_ids": [l.lane_id for l in lanes_manifest_dry.lanes],
+                }
+
             if json_output:
                 _emit_json({
                     "result": "validation_passed",
@@ -1676,6 +1698,7 @@ def finalize_tasks(
                     "wp_count": len(work_packages),
                     "validate_only": True,
                     "bootstrap": bootstrap_stats,
+                    "lanes": lanes_stats,
                     "message": "All validations passed. Run without --validate-only to commit.",
                 })
             else:
@@ -1686,6 +1709,8 @@ def finalize_tasks(
                     f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, "
                     f"{bootstrap_result.already_initialized} already initialized"
                 )
+                if lanes_stats.get("computed"):
+                    console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
             return
 
         # Bootstrap canonical status state for all WPs
@@ -1697,6 +1722,61 @@ def finalize_tasks(
                 f"[green]✓[/green] Bootstrapped canonical status: "
                 f"{bootstrap_result.newly_seeded} WPs seeded"
             )
+
+        # Compute execution lanes from dependency graph + ownership manifests
+        lanes_path = None
+        lanes_manifest = None
+        if wp_manifests and wp_dependencies:
+            from specify_cli.lanes.compute import compute_lanes
+            from specify_cli.lanes.persistence import write_lanes_json
+
+            lanes_manifest = compute_lanes(
+                dependency_graph=wp_dependencies,
+                ownership_manifests=wp_manifests,  # type: ignore[arg-type]
+                feature_slug=feature_slug,
+                target_branch=target_branch,
+                wp_bodies=wp_bodies,
+                mission_id=meta.get("mission_id") if meta else None,
+            )
+            lanes_path = write_lanes_json(feature_dir, lanes_manifest)
+            if not json_output:
+                console.print(
+                    f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)"
+                )
+
+            # Compute parallelization risk report
+            from specify_cli.policy.config import load_policy_config
+            from specify_cli.policy.risk_scorer import compute_risk_report
+
+            _policy = load_policy_config(repo_root)
+            risk_report = compute_risk_report(
+                lanes_manifest, wp_bodies=wp_bodies, policy=_policy.risk,
+            )
+            if risk_report.overall_score > 0 and not json_output:
+                console.print(
+                    f"[yellow]⚠[/yellow] Parallelization risk: {risk_report.overall_score:.2f} "
+                    f"(threshold: {risk_report.threshold:.2f})"
+                )
+                for pr in risk_report.lane_pair_risks:
+                    if pr.score > 0:
+                        console.print(f"  {pr.lane_a} ↔ {pr.lane_b}: {pr.score:.2f}")
+                        for d in pr.shared_parent_dirs[:3]:
+                            console.print(f"    shared dir: {d}")
+                        for c in pr.import_coupling[:3]:
+                            console.print(f"    coupling: {c}")
+            if risk_report.exceeds_threshold and _policy.risk.mode == "block":
+                error_msg = (
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds "
+                    f"threshold {risk_report.threshold:.2f}. Use --force to override."
+                )
+                if json_output:
+                    _emit_json({"error": error_msg, "risk_report": {
+                        "overall_score": risk_report.overall_score,
+                        "threshold": risk_report.threshold,
+                    }})
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                raise typer.Exit(1)
 
         try:
             # Build list of all files to commit via safe_commit
@@ -1717,6 +1797,13 @@ def finalize_tasks(
                     rel_path = str(f.relative_to(repo_root))
                     files_to_commit_rel.append(rel_path)
                     files_committed.append(rel_path)
+
+            # Include lanes.json if computed
+            if lanes_path and lanes_path.exists():
+                files_to_commit.append(lanes_path)
+                rel_path = str(lanes_path.relative_to(repo_root))
+                files_to_commit_rel.append(rel_path)
+                files_committed.append(rel_path)
 
             # Detect changes only within finalize-tasks outputs.
             # This avoids treating unrelated dirty files as commit failures.
@@ -1826,6 +1913,11 @@ def finalize_tasks(
                         "total_wps": bootstrap_result.total_wps,
                         "newly_seeded": bootstrap_result.newly_seeded,
                         "already_initialized": bootstrap_result.already_initialized,
+                    },
+                    "lanes": {
+                        "computed": lanes_manifest is not None,
+                        "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
+                        "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_manifest else [],
                     },
                 }
             )

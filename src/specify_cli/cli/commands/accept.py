@@ -93,13 +93,18 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
 
 
 def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
+    """Emit done transitions for accepted WPs.
+
+    Acceptance transitions WPs from approved → done (not for_review → done).
+    The reviewer moves WPs to approved; acceptance proves integration is complete.
+    """
     if not wp_ids:
         return
     for wp_id in wp_ids:
         try:
             emit_wp_status_changed(
                 wp_id=wp_id,
-                from_lane="for_review",
+                from_lane="approved",
                 to_lane="done",
                 actor="user",
                 feature_slug=feature_slug,
@@ -232,7 +237,8 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    _emit_acceptance_events(feature_slug, result.summary.lanes.get("for_review", []))
+    # Move approved WPs to done. Acceptance transitions approved → done.
+    _emit_acceptance_events(feature_slug, result.summary.lanes.get("approved", []))
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))

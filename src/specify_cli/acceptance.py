@@ -88,7 +88,14 @@ class AcceptanceSummary:
 
     @property
     def all_done(self) -> bool:
-        return not (self.lanes.get("planned") or self.lanes.get("doing") or self.lanes.get("for_review"))
+        """True when all WPs are approved or done (no WPs still in progress or review)."""
+        return not (
+            self.lanes.get("planned")
+            or self.lanes.get("claimed")
+            or self.lanes.get("doing")
+            or self.lanes.get("in_progress")
+            or self.lanes.get("for_review")
+        )
 
     @property
     def ok(self) -> bool:
@@ -107,7 +114,9 @@ class AcceptanceSummary:
         buckets = {
             "not_done": [
                 *self.lanes.get("planned", []),
+                *self.lanes.get("claimed", []),
                 *self.lanes.get("doing", []),
+                *self.lanes.get("in_progress", []),
                 *self.lanes.get("for_review", []),
             ],
             "metadata": self.metadata_issues,
@@ -511,13 +520,17 @@ def collect_feature_summary(
         )
 
     # Validate canonical state for all WPs (only if event log exists and has events)
+    # WPs must be in 'approved' or 'done' — acceptance transitions approved → done.
     if events_path.exists() and snapshot_wps:
         for wp_id in expected_wp_ids:
             wp_snapshot = snapshot_wps.get(wp_id)
             if wp_snapshot is None:
                 activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
-            elif wp_snapshot.get("lane") != "done":
-                activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'done'")
+            elif wp_snapshot.get("lane") not in {"approved", "done"}:
+                activity_issues.append(
+                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', "
+                    f"expected 'approved' or 'done'"
+                )
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
@@ -550,6 +563,60 @@ def collect_feature_summary(
         warnings.append("Optional artifacts missing: " + ", ".join(missing_optional))
     if path_violations:
         warnings.append("Path conventions not satisfied.")
+
+    # Lane-based acceptance gates
+    try:
+        from specify_cli.lanes.persistence import read_lanes_json
+        lanes_manifest = read_lanes_json(feature_dir)
+    except Exception:
+        lanes_manifest = None
+
+    if lanes_manifest is not None:
+        # Gate: must be on mission branch
+        if branch and branch != lanes_manifest.mission_branch:
+            activity_issues.append(
+                f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, "
+                f"not {branch}"
+            )
+
+        # Gate: acceptance matrix must exist when lanes.json exists
+        from specify_cli.acceptance_matrix import (
+            enforce_negative_invariants,
+            read_acceptance_matrix,
+            validate_matrix_evidence,
+            write_acceptance_matrix,
+        )
+        acc_matrix = read_acceptance_matrix(feature_dir)
+        if acc_matrix is None:
+            activity_issues.append(
+                "Acceptance matrix (acceptance-matrix.json) is required for "
+                "lane-based features but was not found"
+            )
+        else:
+            # Run negative invariant enforcement (not just read stored verdict)
+            if acc_matrix.negative_invariants:
+                acc_matrix.negative_invariants = enforce_negative_invariants(
+                    repo_root, acc_matrix.negative_invariants,
+                )
+                write_acceptance_matrix(feature_dir, acc_matrix)
+
+            # Validate evidence completeness
+            evidence_errors = validate_matrix_evidence(acc_matrix)
+            for err in evidence_errors:
+                activity_issues.append(f"Evidence: {err}")
+
+            # Block on fail or pending
+            verdict = acc_matrix.overall_verdict
+            if verdict == "fail":
+                activity_issues.append(
+                    "Acceptance matrix verdict is 'fail' — "
+                    "negative invariants or criteria not satisfied"
+                )
+            elif verdict == "pending":
+                activity_issues.append(
+                    "Acceptance matrix verdict is 'pending' — "
+                    "criteria or invariants have not been verified"
+                )
 
     return AcceptanceSummary(
         feature=feature,

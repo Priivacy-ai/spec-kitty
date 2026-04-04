@@ -50,14 +50,27 @@ class WorkspaceContext:
     created_by: str  # Command that created this (e.g., "implement-command")
     vcs_backend: str  # "git" or "jj"
 
+    # Lane-mode fields (None for legacy WP-per-worktree contexts)
+    lane_id: str | None = None  # e.g., "lane-a" — set when allocated via lane allocator
+    lane_wp_ids: list[str] | None = None  # All WPs assigned to this lane
+    current_wp: str | None = None  # Which WP is currently active in the lane
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return asdict(self)
 
     @classmethod
     def from_dict(cls, data: Dict[str, Any]) -> WorkspaceContext:
-        """Create from dictionary (JSON deserialization)."""
-        return cls(**data)
+        """Create from dictionary (JSON deserialization).
+
+        Tolerates missing lane-mode fields for backward compatibility
+        with pre-lane workspace context files.
+        """
+        # Filter to only known fields to avoid TypeError on unexpected keys.
+        import dataclasses
+        field_names = {f.name for f in dataclasses.fields(cls)}
+        filtered = {k: v for k, v in data.items() if k in field_names}
+        return cls(**filtered)
 
 
 def get_workspaces_dir(repo_root: Path) -> Path:
@@ -91,6 +104,9 @@ def get_context_path(repo_root: Path, workspace_name: str) -> Path:
 def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     """Save workspace context to JSON file.
 
+    Lane-mode contexts are keyed by lane_id (one file per lane).
+    Legacy contexts are keyed by wp_id (one file per WP).
+
     Args:
         repo_root: Repository root path
         context: Workspace context to save
@@ -98,7 +114,10 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     Returns:
         Path to saved context file
     """
-    workspace_name = f"{context.feature_slug}-{context.wp_id}"
+    if context.lane_id:
+        workspace_name = f"{context.feature_slug}-{context.lane_id}"
+    else:
+        workspace_name = f"{context.feature_slug}-{context.wp_id}"
     context_path = get_context_path(repo_root, workspace_name)
 
     # Write JSON with pretty formatting
@@ -188,7 +207,10 @@ def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]
     for context in list_contexts(repo_root):
         workspace_path = repo_root / context.worktree_path
         if not workspace_path.exists():
-            workspace_name = f"{context.feature_slug}-{context.wp_id}"
+            if context.lane_id:
+                workspace_name = f"{context.feature_slug}-{context.lane_id}"
+            else:
+                workspace_name = f"{context.feature_slug}-{context.wp_id}"
             orphaned.append((workspace_name, context))
 
     return orphaned

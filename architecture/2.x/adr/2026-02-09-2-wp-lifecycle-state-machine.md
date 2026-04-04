@@ -3,12 +3,17 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-02-09-2-wp-lifecycle-state-machine.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-02-09 |
 | Deciders | Robert Douglass, Planning Team (Feature 012) |
 | Technical Story | Feature 012 — Status State Model Remediation (PRD Sections 7, 8) |
 
 ---
+
+> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`.
+> This ADR encoded `for_review -> done` as reviewer approval. The current
+> lifecycle model separates reviewer approval (`approved`) from integrated
+> completion (`done`).
 
 ## Context and Problem Statement
 

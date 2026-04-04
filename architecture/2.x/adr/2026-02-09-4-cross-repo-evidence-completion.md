@@ -3,12 +3,17 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-02-09-4-cross-repo-evidence-completion.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-02-09 |
 | Deciders | Robert Douglass, Planning Team (Feature 012) |
 | Technical Story | Feature 012 — Status State Model Remediation (PRD Sections 8, 10) |
 
 ---
+
+> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`.
+> This ADR attached review approval evidence directly to `done`. The current
+> lifecycle splits review evidence (`for_review -> approved`) from integration
+> and acceptance evidence (`approved -> done`).
 
 ## Context and Problem Statement
 

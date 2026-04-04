@@ -755,8 +755,56 @@ def implement(
 
     # Step 3: Create workspace
     tracker.start("create")
-    try:
-        # Determine workspace path and branch name
+
+    # Check for lane-based execution (Phase 2+).
+    # No exception handling here — CorruptLanesError must propagate.
+    # If lanes.json exists but is broken, we fail loudly rather than
+    # silently falling back to legacy mode.
+    feature_dir = repo_root / "kitty-specs" / feature_slug
+    _lane_mode = False
+    from specify_cli.lanes.implement_support import try_lane_mode, create_lane_workspace
+
+    _lanes_manifest = try_lane_mode(feature_dir)
+    if _lanes_manifest is not None:
+        _lane_mode = True
+
+    if _lane_mode and _lanes_manifest is not None:
+        try:
+            vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+            result = create_lane_workspace(
+                repo_root=repo_root,
+                feature_slug=feature_slug,
+                wp_id=wp_id,
+                wp_file=wp_file,
+                lanes_manifest=_lanes_manifest,
+                declared_deps=declared_deps,
+                vcs_backend_value=vcs_backend.value,
+            )
+            workspace_path = result.workspace_path
+            workspace_name = result.workspace_name
+            branch_name = result.branch_name
+
+            if result.is_reuse:
+                tracker.complete("create", f"Reused lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
+                console.print(tracker.render())
+                check_for_dependents(repo_root, feature_slug, wp_id)
+            else:
+                tracker.complete("create", f"Lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
+                console.print(tracker.render())
+                console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
+                console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
+
+        except typer.Exit:
+            console.print(tracker.render())
+            raise
+        except Exception as e:
+            tracker.error("create", f"lane allocation failed: {e}")
+            console.print(tracker.render())
+            console.print(f"\n[red]Error:[/red] Lane worktree allocation failed: {e}")
+            raise typer.Exit(1)
+
+    if not _lane_mode:
+      try:
         workspace_name = f"{feature_slug}-{wp_id}"
         workspace_path = repo_root / ".worktrees" / workspace_name
         branch_name = workspace_name  # Same as workspace dir name
@@ -1022,7 +1070,7 @@ def implement(
 
         tracker.complete("create", f"Workspace: {workspace_path.relative_to(repo_root)}")
 
-    except typer.Exit:
+      except typer.Exit:
         console.print(tracker.render())
         raise
 
