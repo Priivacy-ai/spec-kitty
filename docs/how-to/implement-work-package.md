@@ -63,6 +63,8 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 > **Note**: Modern Spec Kitty creates one git worktree per execution lane. Sequential WPs in the same lane share that workspace and lane branch. Older features without `lanes.json` still use one worktree per WP.
 
+> **Fallback behavior**: If `lanes.json` exists but `lane_for_wp()` returns `None` for the WP you asked for, Spec Kitty does not guess a lane. It falls back to the legacy per-WP workspace contract (`.worktrees/<feature>-WP##`) until the lane metadata is corrected.
+
 ## Troubleshooting
 
 - **"Base workspace does not exist"**: Implement the dependency first.

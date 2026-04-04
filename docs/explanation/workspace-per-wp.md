@@ -10,6 +10,8 @@ Spec Kitty 2.x uses an execution workspace model to enable parallel multi-agent 
 
 **Legacy fallback**: one git worktree per work package if `lanes.json` is absent
 
+**Missing-lane fallback**: if `lanes.json` exists but `lane_for_wp()` cannot find the requested WP, Spec Kitty falls back to the legacy per-WP workspace name instead of inventing a lane assignment.
+
 For background on how git worktrees work, see [Git Worktrees Explained](git-worktrees.md).
 
 ## Benefits

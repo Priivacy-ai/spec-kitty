@@ -21,6 +21,14 @@ from typing import Any, Dict
 from specify_cli.core.atomic import atomic_write
 
 
+_FEATURE_CONTEXT_INDEX_CACHE: dict[tuple[str, str], dict[str, "WorkspaceContext"]] = {}
+
+
+def _clear_feature_context_index_cache() -> None:
+    """Invalidate the process-local feature context index cache."""
+    _FEATURE_CONTEXT_INDEX_CACHE.clear()
+
+
 @dataclass
 class WorkspaceContext:
     """
@@ -147,6 +155,7 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     # Write JSON with pretty formatting
     content = json.dumps(context.to_dict(), indent=2) + "\n"
     atomic_write(context_path, content)
+    _clear_feature_context_index_cache()
 
     return context_path
 
@@ -188,6 +197,7 @@ def delete_context(repo_root: Path, workspace_name: str) -> bool:
 
     if context_path.exists():
         context_path.unlink()
+        _clear_feature_context_index_cache()
         return True
 
     return False
@@ -227,6 +237,11 @@ def build_feature_context_index(
     caller asking for WP01 should still find the lane context even after the
     active WP in that lane has advanced to WP02.
     """
+    cache_key = (str(repo_root.resolve()), feature_slug)
+    cached = _FEATURE_CONTEXT_INDEX_CACHE.get(cache_key)
+    if cached is not None:
+        return dict(cached)
+
     index: dict[str, WorkspaceContext] = {}
 
     for context in list_contexts(repo_root):
@@ -242,6 +257,7 @@ def build_feature_context_index(
         if context.wp_id:
             index.setdefault(context.wp_id, context)
 
+    _FEATURE_CONTEXT_INDEX_CACHE[cache_key] = dict(index)
     return index
 
 
