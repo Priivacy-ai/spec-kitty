@@ -11,8 +11,8 @@ base_branch: main
 base_commit: c254e92603a20bad62b5a8cc80bedfec36caae9b
 created_at: '2026-04-04T19:48:38.211373+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "15690"
-agent: "claude"
+shell_pid: "16345"
+agent: "codex"
 history:
 - date: '2026-04-04'
   action: created
@@ -135,3 +135,4 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 
 - 2026-04-04T19:48:38Z – claude – shell_pid=15690 – Started implementation via action command
 - 2026-04-04T19:53:48Z – claude – shell_pid=15690 – Core packages renamed to charter: src/constitution/ -> src/charter/ (14 modules), src/specify_cli/constitution/ -> src/specify_cli/charter/ (12 modules). All class/function/docstring/string renames applied.
+- 2026-04-04T19:54:23Z – codex – shell_pid=16345 – Started review via action command
