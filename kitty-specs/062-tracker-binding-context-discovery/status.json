@@ -2,7 +2,7 @@
   "event_count": 127,
   "feature_slug": "062-tracker-binding-context-discovery",
   "last_event_id": "01KNC79CSC8SHDZQN7EVS9MNKS",
-  "materialized_at": "2026-04-04T12:29:06.027371+00:00",
+  "materialized_at": "2026-04-04T12:29:32.739109+00:00",
   "mission_slug": "062-tracker-binding-context-discovery",
   "summary": {
     "approved": 13,
