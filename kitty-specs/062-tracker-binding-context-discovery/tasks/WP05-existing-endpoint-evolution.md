@@ -164,3 +164,4 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 ## Activity Log
 
 - 2026-04-04T10:06:50Z – coordinator – shell_pid=14857 – Started implementation via workflow command
+- 2026-04-04T10:10:48Z – coordinator – shell_pid=14857 – Ready for review: all 5 endpoints updated with optional binding_ref kwarg, _routing_params helper extracted, missing_routing_key validation added
