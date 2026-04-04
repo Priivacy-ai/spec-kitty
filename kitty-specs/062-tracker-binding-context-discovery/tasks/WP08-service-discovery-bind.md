@@ -234,3 +234,4 @@ spec-kitty implement WP08 --base WP07
 ## Activity Log
 
 - 2026-04-04T11:11:33Z – coordinator – shell_pid=271 – Started implementation via workflow command
+- 2026-04-04T11:16:33Z – coordinator – shell_pid=271 – Ready for review: discover(), resolve_and_bind() with exact/candidates/none handling, token retry, 13 new tests all passing
