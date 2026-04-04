@@ -19,9 +19,12 @@ from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
     SAAS_PROVIDERS,
+    TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
 )
+from specify_cli.sync.project_identity import ensure_identity
+from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.tracker.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
@@ -201,10 +204,15 @@ def bind_command(
         "--provider",
         help="Provider name (linear, jira, github, gitlab, beads, fp)",
     ),
-    project_slug: str | None = typer.Option(
+    bind_ref: str | None = typer.Option(
         None,
-        "--project-slug",
-        help="SaaS project identifier for tracker routing (SaaS providers only)",
+        "--bind-ref",
+        help="Binding reference for CI/automation (validates against host)",
+    ),
+    select: int | None = typer.Option(
+        None,
+        "--select",
+        help="Auto-select candidate by number (non-interactive)",
     ),
     workspace: str | None = typer.Option(
         None,
@@ -230,7 +238,8 @@ def bind_command(
     """Bind the current project to an issue tracker.
 
     For SaaS-backed providers (linear, jira, github, gitlab):
-      Requires --provider and --project-slug.
+      Uses discovery to find bindable resources automatically.
+      Use --bind-ref for CI/automation, --select N for non-interactive.
       Authentication via ``spec-kitty auth login``.
 
     For local providers (beads, fp):
@@ -262,19 +271,9 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            if not project_slug:
-                typer.secho(
-                    "Error: --project-slug is required for SaaS-backed providers.",
-                    fg=typer.colors.RED,
-                    err=True,
-                )
-                raise typer.Exit(code=1)
-
-            # FR-001: SaaS bind
-            config = _service().bind(provider=provider_normalized, project_slug=project_slug)
-            typer.echo("Tracker binding saved")
-            typer.echo(f"- provider: {config.provider}")
-            typer.echo(f"- project_slug: {config.project_slug}")
+            cancelled = _bind_saas(provider_normalized, bind_ref=bind_ref, select_n=select)
+            if cancelled:
+                typer.echo("Bind cancelled.")
             return
 
         # Local providers
@@ -320,6 +319,116 @@ def bind_command(
         )
 
     _run_or_exit(_run)
+
+
+def _bind_saas(
+    provider: str,
+    *,
+    bind_ref: str | None,
+    select_n: int | None,
+) -> bool:
+    """Execute the SaaS discovery-bind flow.
+
+    Handles: re-bind confirmation, project identity derivation,
+    interactive candidate selection, --bind-ref validation, and
+    --select N auto-selection.
+
+    Returns ``True`` if the user cancelled re-bind, ``False`` otherwise.
+    Raises ``TrackerServiceError`` on failures (caught by ``_run_or_exit``).
+    Raises ``typer.Exit(1)`` for user input errors.
+    """
+    console = Console()
+    repo_root = require_repo_root()
+
+    # Re-bind confirmation (skip for non-interactive modes)
+    if bind_ref is None and select_n is None:
+        existing = load_tracker_config(repo_root)
+        if existing.is_configured and existing.provider in SAAS_PROVIDERS:
+            label = existing.display_label or existing.binding_ref or existing.project_slug
+            console.print(f"[yellow]Warning:[/yellow] Existing binding: {label}")
+            confirm = input("Replace existing binding? (y/N): ")
+            if confirm.strip().lower() != "y":
+                return True
+
+    # Derive project identity
+    identity = ensure_identity(repo_root)
+    project_identity = {
+        "uuid": str(identity.project_uuid),
+        "slug": identity.project_slug,
+        "node_id": identity.node_id,
+        "repo_slug": identity.repo_slug,
+    }
+
+    # Dispatch to facade (TrackerServiceError propagates to _run_or_exit)
+    result = _service().bind(
+        provider=provider,
+        project_identity=project_identity,
+        bind_ref=bind_ref,
+        select_n=select_n,
+    )
+
+    # Handle bind success (auto-bind, --bind-ref, or --select N)
+    if isinstance(result, BindResult | TrackerProjectConfig):
+        _display_bind_success(result, provider)
+        return False
+
+    # Handle ResolutionResult with candidates (interactive selection needed)
+    if isinstance(result, ResolutionResult) and result.candidates:
+        _handle_candidate_selection(console, result, provider, project_identity)
+        return False
+
+    # No candidates (should not reach here -- service raises on no-match)
+    raise TrackerServiceError(
+        f"No bindable resources found for provider '{provider}'."
+    )
+
+
+def _display_bind_success(
+    result: BindResult | TrackerProjectConfig,
+    provider: str,
+) -> None:
+    """Display success output after binding."""
+    provider_name = result.provider or provider
+    binding_ref = result.binding_ref or result.project_slug or "unknown"
+    display_label = result.display_label or result.project_slug or binding_ref
+
+    typer.echo("Tracker binding saved")
+    typer.echo(f"- provider: {provider_name}")
+    typer.echo(f"- binding_ref: {binding_ref}")
+    typer.echo(f"- display_label: {display_label}")
+
+
+def _handle_candidate_selection(
+    console: Console,
+    resolution: ResolutionResult,
+    provider: str,
+    project_identity: dict[str, Any],
+) -> None:
+    """Display candidates and get interactive user selection."""
+    console.print(f"\nMultiple resources found for provider '{provider}':\n")
+    for candidate in resolution.candidates:
+        num = candidate.sort_position + 1
+        console.print(f"  {num}. {candidate.display_label} ({candidate.confidence} confidence)")
+        console.print(f"     Reason: {candidate.match_reason}")
+
+    console.print()
+    choice = input(f"Select resource (1-{len(resolution.candidates)}): ")
+    try:
+        select_n = int(choice.strip())
+    except ValueError:
+        raise TrackerServiceError("Invalid selection.") from None
+
+    # Call bind again with the selected candidate
+    final = _service().bind(
+        provider=provider,
+        project_identity=project_identity,
+        select_n=select_n,
+    )
+
+    if isinstance(final, BindResult):
+        _display_bind_success(final, provider)
+    else:
+        raise TrackerServiceError("Unexpected result from bind operation.")
 
 
 # ---------------------------------------------------------------------------
@@ -538,7 +647,12 @@ def sync_push_command(
                 raw = _Path(items_json).read_text(encoding="utf-8")
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
-                typer.secho("Error: --items-json must contain a JSON array of PushItem objects.", fg=typer.colors.RED, err=True)
+                typer.secho(
+                    "Error: --items-json must contain a JSON array of "
+                    "PushItem objects.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
                 raise typer.Exit(code=1)
 
             payload = service.sync_push(items=parsed)
