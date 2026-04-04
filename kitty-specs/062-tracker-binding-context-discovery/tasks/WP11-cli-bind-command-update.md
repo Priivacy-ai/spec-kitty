@@ -236,3 +236,4 @@ spec-kitty implement WP11 --base WP09
 ## Activity Log
 
 - 2026-04-04T11:25:15Z – coordinator – shell_pid=18365 – Started implementation via workflow command
+- 2026-04-04T11:33:52Z – coordinator – shell_pid=18365 – Ready for review: SaaS bind rewritten with discovery flow, --bind-ref, --select flags, re-bind confirmation, and 10 new CLI tests
