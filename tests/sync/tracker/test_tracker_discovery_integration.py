@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 from uuid import UUID
 
 import pytest
+import typer
+from typer.testing import CliRunner
 
 from specify_cli.sync.project_identity import ProjectIdentity, atomic_write_config
 from specify_cli.tracker.config import (
@@ -14,10 +17,13 @@ from specify_cli.tracker.config import (
     load_tracker_config,
     save_tracker_config,
 )
+from specify_cli.tracker.discovery import BindableResource
 from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
 from specify_cli.tracker.service import StaleBindingError, TrackerService, TrackerServiceError
 
 pytestmark = pytest.mark.fast
+
+cli_runner = CliRunner()
 
 
 @pytest.fixture()
@@ -423,3 +429,261 @@ def _assert_tracker_binding_empty(repo_root: Path) -> None:
     assert config.project_slug is None
     assert config.display_label is None
     assert config.provider_context is None
+
+
+# ---------------------------------------------------------------------------
+# Scenario 8: Installation-Wide Discovery
+# ---------------------------------------------------------------------------
+
+
+def test_scenario_8_discover_returns_all_bindable_resources_with_bound_flag(
+    repo_root: Path,
+    mock_client: MagicMock,
+) -> None:
+    """``tracker discover --provider linear`` lists all bindable resources.
+
+    Verifies that 3 resources (2 unbound, 1 already bound) are returned
+    as ``BindableResource`` objects and that ``is_bound`` reflects the
+    presence of a ``binding_ref``.
+    """
+    mock_client.resources.return_value = {
+        "resources": [
+            {
+                "candidate_token": "ct-eng",
+                "display_label": "Engineering",
+                "provider": "linear",
+                "provider_context": {"team_name": "Engineering"},
+            },
+            {
+                "candidate_token": "ct-design",
+                "display_label": "Design",
+                "provider": "linear",
+                "provider_context": {"team_name": "Design"},
+            },
+            {
+                "candidate_token": "ct-ops",
+                "display_label": "Operations",
+                "provider": "linear",
+                "provider_context": {"team_name": "Operations"},
+                "binding_ref": "bind-ops-existing",
+                "bound_project_slug": "ops-project",
+                "bound_at": "2026-03-15T10:00:00Z",
+            },
+        ],
+    }
+
+    with patch(
+        "specify_cli.tracker.saas_service.SaaSTrackerClient",
+        return_value=mock_client,
+    ):
+        resources = TrackerService(repo_root).discover(provider="linear")
+
+    mock_client.resources.assert_called_once_with("linear")
+    assert len(resources) == 3
+
+    # All returned items are BindableResource instances
+    for r in resources:
+        assert isinstance(r, BindableResource)
+
+    # Unbound resources
+    eng, design, ops = resources
+    assert eng.display_label == "Engineering"
+    assert eng.is_bound is False
+    assert eng.binding_ref is None
+
+    assert design.display_label == "Design"
+    assert design.is_bound is False
+
+    # Bound resource
+    assert ops.display_label == "Operations"
+    assert ops.is_bound is True
+    assert ops.binding_ref == "bind-ops-existing"
+    assert ops.bound_project_slug == "ops-project"
+
+
+# ---------------------------------------------------------------------------
+# Scenario 9: Installation-Wide Status
+# ---------------------------------------------------------------------------
+
+
+def test_scenario_9_status_all_returns_installation_level_data(
+    repo_root: Path,
+    mock_client: MagicMock,
+) -> None:
+    """``tracker status --all`` shows multi-project summary (SaaS-only).
+
+    Calls ``client.status(provider)`` **without** project_slug or binding_ref,
+    and verifies the returned dict contains installation-level data.
+    """
+    # Pre-configure a SaaS binding so _resolve_backend works
+    save_tracker_config(
+        repo_root,
+        TrackerProjectConfig(provider="linear", binding_ref="bind-eng"),
+    )
+
+    mock_client.status.return_value = {
+        "provider": "linear",
+        "installation_id": "inst-12345",
+        "total_bindings": 4,
+        "active_bindings": 3,
+        "projects": [
+            {"project_slug": "alpha", "connected": True},
+            {"project_slug": "beta", "connected": True},
+            {"project_slug": "gamma", "connected": True},
+            {"project_slug": "delta", "connected": False},
+        ],
+    }
+
+    with patch(
+        "specify_cli.tracker.saas_service.SaaSTrackerClient",
+        return_value=mock_client,
+    ):
+        result = TrackerService(repo_root).status(all=True)
+
+    # status(all=True) calls client.status(provider) without routing keys
+    mock_client.status.assert_called_once_with("linear")
+    assert isinstance(result, dict)
+    assert result["total_bindings"] == 4
+    assert result["active_bindings"] == 3
+    assert len(result["projects"]) == 4
+
+
+# ---------------------------------------------------------------------------
+# Scenario 10: Re-Bind (replace existing binding)
+# ---------------------------------------------------------------------------
+
+
+def test_scenario_10_rebind_replaces_existing_binding_in_config(
+    repo_root: Path,
+    project_identity: dict[str, object],
+    mock_client: MagicMock,
+) -> None:
+    """Developer with existing binding runs ``tracker bind`` and new binding replaces old.
+
+    Pre-populates config with an old binding_ref, calls ``resolve_and_bind()``,
+    and verifies the new binding completely replaces the old one in config.
+    """
+    # Pre-existing binding
+    save_tracker_config(
+        repo_root,
+        TrackerProjectConfig(
+            provider="linear",
+            binding_ref="bind-old-team",
+            display_label="Old Team",
+            provider_context={"team_name": "Old"},
+        ),
+    )
+    config_before = load_tracker_config(repo_root)
+    assert config_before.binding_ref == "bind-old-team"
+
+    # New bind resolves to a different exact match
+    mock_client.bind_resolve.return_value = {
+        "match_type": "exact",
+        "binding_ref": "bind-new-team",
+        "display_label": "New Team",
+        "provider_context": {
+            "team_name": "New",
+            "workspace_name": "Acme Corp v2",
+        },
+        "candidates": [],
+    }
+
+    with patch(
+        "specify_cli.tracker.saas_service.SaaSTrackerClient",
+        return_value=mock_client,
+    ):
+        result = TrackerService(repo_root).bind(
+            provider="linear",
+            project_identity=project_identity,
+        )
+
+    assert result.binding_ref == "bind-new-team"
+
+    # Verify config on disk is updated
+    config_after = load_tracker_config(repo_root)
+    assert config_after.provider == "linear"
+    assert config_after.binding_ref == "bind-new-team"
+    assert config_after.display_label == "New Team"
+    assert config_after.provider_context == {
+        "team_name": "New",
+        "workspace_name": "Acme Corp v2",
+    }
+    # Old binding is fully replaced
+    assert config_after.binding_ref != "bind-old-team"
+
+
+# ===========================================================================
+# CLI-level integration tests
+# ===========================================================================
+
+
+def _make_tracker_app(monkeypatch) -> typer.Typer:
+    """Return the tracker app with the SaaS sync feature flag enabled."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    return tracker_module.app
+
+
+def test_cli_status_command_renders_output_and_exits_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``tracker status`` renders provider info and exits 0."""
+    app = _make_tracker_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.status.return_value = {
+        "configured": True,
+        "provider": "linear",
+        "identity_path": {"type": "saas", "provider": "linear"},
+        "sync_state": "idle",
+    }
+
+    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+        result = cli_runner.invoke(app, ["status"])
+
+    assert result.exit_code == 0
+    assert "linear" in result.output
+    assert "saas" in result.output
+
+
+def test_cli_status_json_returns_valid_json(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``tracker status --json`` returns parseable JSON with provider key."""
+    app = _make_tracker_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_svc.status.return_value = {
+        "configured": True,
+        "provider": "linear",
+        "binding_ref": "bind-eng",
+        "display_label": "Engineering",
+    }
+
+    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+        result = cli_runner.invoke(app, ["status", "--json"])
+
+    assert result.exit_code == 0
+    data = json.loads(result.output)
+    assert data["provider"] == "linear"
+    assert data["binding_ref"] == "bind-eng"
+
+
+def test_cli_bind_saas_with_project_slug_persists_and_renders(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """CLI ``tracker bind --provider linear --project-slug proj`` succeeds."""
+    app = _make_tracker_app(monkeypatch)
+    mock_svc = MagicMock()
+    mock_config = MagicMock()
+    mock_config.provider = "linear"
+    mock_config.project_slug = "my-proj"
+    mock_svc.bind.return_value = mock_config
+
+    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+        result = cli_runner.invoke(
+            app, ["bind", "--provider", "linear", "--project-slug", "my-proj"]
+        )
+
+    assert result.exit_code == 0
+    assert "Tracker binding saved" in result.output
+    mock_svc.bind.assert_called_once_with(provider="linear", project_slug="my-proj")
