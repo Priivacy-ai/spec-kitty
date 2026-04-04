@@ -245,10 +245,10 @@ Rewrite SaaS bind path: remove `--project-slug`, add `--bind-ref`/`--select`. Di
 
 Add `--all` flag to `tracker status` for installation-wide summary. Different output format from project-scoped status.
 
-- [ ] T060: Add --all flag
-- [ ] T061: Installation-wide formatting
-- [ ] T062: Error handling
-- [ ] T063: Write CLI tests
+- [x] T060: Add --all flag
+- [x] T061: Installation-wide formatting
+- [x] T062: Error handling
+- [x] T063: Write CLI tests
 
 ### Wave 6 — Integration (depends on all above)
 
