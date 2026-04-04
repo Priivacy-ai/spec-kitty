@@ -13,7 +13,8 @@ base_branch: main
 base_commit: ffc97abccefebdf6499bfcc2940986c15e4b454d
 created_at: '2026-04-04T11:54:14.074849+00:00'
 subtasks: [T064, T065, T066, T067, T068, T069]
-shell_pid: '79616'
+shell_pid: "79616"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -162,3 +163,7 @@ spec-kitty implement WP13 --base WP12
 - Verify Scenario 12 specifically tests that project_slug is NOT used as fallback when binding_ref is stale
 - Verify Scenario 7a vs 7b distinction: 7a is "no upgrade metadata" (success), 7b is "host down" (error)
 - Check that error messages never suggest typing raw tracker metadata
+
+## Activity Log
+
+- 2026-04-04T11:54:14Z – coordinator – shell_pid=79616 – Started implementation via workflow command
