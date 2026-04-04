@@ -233,3 +233,4 @@ spec-kitty implement WP07 --base WP05
 - 2026-04-04T10:52:16Z – codex – shell_pid=71688 – Started review via workflow command
 - 2026-04-04T10:59:36Z – codex – shell_pid=71688 – Moved to planned
 - 2026-04-04T11:01:19Z – coordinator – shell_pid=87377 – Started implementation via workflow command
+- 2026-04-04T11:03:05Z – coordinator – shell_pid=87377 – Fixed _extra preservation per Codex review (cycle 3/3)
