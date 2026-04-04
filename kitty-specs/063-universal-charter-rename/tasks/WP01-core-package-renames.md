@@ -11,8 +11,8 @@ base_branch: main
 base_commit: c254e92603a20bad62b5a8cc80bedfec36caae9b
 created_at: '2026-04-04T19:48:38.211373+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "17519"
-agent: "claude"
+shell_pid: "18377"
+agent: "codex"
 history:
 - date: '2026-04-04'
   action: created
@@ -139,3 +139,4 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 - 2026-04-04T19:59:08Z – codex – shell_pid=16345 – Moved to planned
 - 2026-04-04T19:59:28Z – claude – shell_pid=17519 – Started implementation via action command
 - 2026-04-04T20:01:37Z – claude – shell_pid=17519 – Fixed: all 19 intra-package imports updated from constitution to charter, zero constitution references remain, import verified
+- 2026-04-04T20:01:53Z – codex – shell_pid=18377 – Started review via action command
