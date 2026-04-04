@@ -261,7 +261,7 @@ End-to-end acceptance tests covering all 12 spec scenarios. Mock at SaaSTrackerC
 
 - [x] T064: Scenario 1 (auto-bind)
 - [x] T065: Scenario 2 (ambiguous selection)
-- [ ] T066: Scenarios 3, 7b (no candidates, host unavailable)
+- [x] T066: Scenarios 3, 7b (no candidates, host unavailable)
 - [ ] T067: Scenarios 4, 5 (--bind-ref, --select N)
 - [ ] T068: Scenarios 6, 7a (legacy compat, opportunistic upgrade)
 - [ ] T069: Scenarios 11, 12 (stale binding, no fallback)
