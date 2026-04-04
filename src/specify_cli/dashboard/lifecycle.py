@@ -15,6 +15,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
@@ -32,7 +33,24 @@ __all__ = [
     "_parse_dashboard_file",
     "_write_dashboard_file",
     "_check_dashboard_health",
+    "DashboardStatus",
+    "get_dashboard_status",
 ]
+
+
+@dataclass(frozen=True)
+class DashboardStatus:
+    """Observed state of the per-project dashboard daemon."""
+
+    healthy: bool
+    url: Optional[str] = None
+    port: Optional[int] = None
+    token: Optional[str] = None
+    pid: Optional[int] = None
+    sync_running: bool = False
+    last_sync: Optional[str] = None
+    consecutive_failures: int = 0
+    websocket_status: str = "Offline"
 
 
 def _parse_dashboard_file(dashboard_file: Path) -> Tuple[Optional[str], Optional[int], Optional[str], Optional[int]]:
@@ -142,21 +160,28 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
         True if confirmed to be a spec-kitty dashboard, False otherwise
     """
     health_url = f"http://127.0.0.1:{port}/api/health"
+    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    return bool(data and 'project_path' in data and 'status' in data)
+
+
+def _fetch_dashboard_health_payload(health_url: str, timeout: float = 0.5) -> dict | None:
+    """Fetch and decode dashboard health payload, returning None on failure."""
     try:
         with urllib.request.urlopen(health_url, timeout=timeout) as response:
             if response.status != 200:
-                return False
+                return None
             payload = response.read()
+    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError, socket.error):
+        return None
     except Exception:
-        # Can't reach or parse - not a spec-kitty dashboard (or dead)
-        return False
+        return None
 
     try:
         data = json.loads(payload.decode('utf-8'))
-        # Verify this is actually a spec-kitty dashboard by checking for expected fields
-        return 'project_path' in data and 'status' in data
-    except Exception:
-        return False
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return None
+
+    return data if isinstance(data, dict) else None
 
 
 def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: int = 100) -> int:
@@ -227,19 +252,8 @@ def _check_dashboard_health(
 ) -> bool:
     """Verify that the dashboard on the port belongs to the provided project."""
     health_url = f"http://127.0.0.1:{port}/api/health"
-    try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
-            if response.status != 200:
-                return False
-            payload = response.read()
-    except (urllib.error.URLError, urllib.error.HTTPError, TimeoutError, ConnectionError, socket.error):
-        return False
-    except Exception:
-        return False
-
-    try:
-        data = json.loads(payload.decode('utf-8'))
-    except (UnicodeDecodeError, json.JSONDecodeError):
+    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    if data is None:
         return False
 
     remote_path = data.get('project_path')
@@ -264,6 +278,66 @@ def _check_dashboard_health(
         return remote_token == expected_token
 
     return True
+
+
+def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardStatus:
+    """Return dashboard daemon health and sync metadata for a project."""
+    project_dir_resolved = project_dir.resolve()
+    dashboard_file = project_dir_resolved / '.kittify' / '.dashboard'
+    if not dashboard_file.exists():
+        return DashboardStatus(healthy=False)
+
+    url, port, token, pid = _parse_dashboard_file(dashboard_file)
+    if port is None:
+        return DashboardStatus(healthy=False, url=url, token=token, pid=pid)
+
+    health_url = f"http://127.0.0.1:{port}/api/health"
+    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    if data is None:
+        return DashboardStatus(
+            healthy=False,
+            url=url or f"http://127.0.0.1:{port}",
+            port=port,
+            token=token,
+            pid=pid,
+        )
+
+    remote_path = data.get('project_path')
+    remote_token = data.get('token')
+    try:
+        remote_resolved = str(Path(str(remote_path)).resolve())
+    except Exception:
+        remote_resolved = str(remote_path)
+
+    healthy = remote_resolved == str(project_dir_resolved)
+    if healthy and token:
+        healthy = remote_token == token
+
+    sync_data = data.get('sync')
+    sync_running = False
+    last_sync = None
+    consecutive_failures = 0
+    websocket_status = str(data.get('websocket_status') or "Offline")
+    if isinstance(sync_data, dict):
+        sync_running = bool(sync_data.get('running'))
+        raw_last_sync = sync_data.get('last_sync')
+        last_sync = str(raw_last_sync) if raw_last_sync else None
+        try:
+            consecutive_failures = int(sync_data.get('consecutive_failures') or 0)
+        except (TypeError, ValueError):
+            consecutive_failures = 0
+
+    return DashboardStatus(
+        healthy=healthy,
+        url=url or f"http://127.0.0.1:{port}",
+        port=port,
+        token=token,
+        pid=pid,
+        sync_running=sync_running,
+        last_sync=last_sync,
+        consecutive_failures=consecutive_failures,
+        websocket_status=websocket_status,
+    )
 
 
 def ensure_dashboard_running(

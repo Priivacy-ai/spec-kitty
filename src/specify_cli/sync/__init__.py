@@ -57,6 +57,10 @@ _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
     "SyncRuntime": (".runtime", "SyncRuntime"),
     "get_runtime": (".runtime", "get_runtime"),
     "reset_runtime": (".runtime", "reset_runtime"),
+    "SyncDaemonStatus": (".daemon", "SyncDaemonStatus"),
+    "ensure_sync_daemon_running": (".daemon", "ensure_sync_daemon_running"),
+    "get_sync_daemon_status": (".daemon", "get_sync_daemon_status"),
+    "stop_sync_daemon": (".daemon", "stop_sync_daemon"),
 }
 
 
@@ -103,6 +107,10 @@ __all__ = [
     "SyncRuntime",
     "get_runtime",
     "reset_runtime",
+    "SyncDaemonStatus",
+    "ensure_sync_daemon_running",
+    "get_sync_daemon_status",
+    "stop_sync_daemon",
     "SAAS_SYNC_ENV_VAR",
     "is_saas_sync_enabled",
     "saas_sync_disabled_message",

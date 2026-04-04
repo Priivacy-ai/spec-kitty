@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import urllib.parse
+import urllib.request
 from pathlib import Path
 
 from ..constitution_path import resolve_project_constitution_path
@@ -11,6 +13,7 @@ from ..scanner import format_path_for_display, resolve_active_feature, scan_all_
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
 from specify_cli.mission import MissionError, get_mission_by_name
+from specify_cli.sync.daemon import ensure_sync_daemon_running, get_sync_daemon_status
 
 __all__ = ["APIHandler"]
 
@@ -74,6 +77,21 @@ class APIHandler(DashboardHandler):
             'project_path': project_path,
         }
 
+        try:
+            status = get_sync_daemon_status(timeout=0.2)
+            response_data['sync'] = {
+                'running': status.sync_running,
+                'last_sync': status.last_sync,
+                'consecutive_failures': status.consecutive_failures,
+            }
+            response_data['websocket_status'] = status.websocket_status
+        except Exception as exc:  # pragma: no cover - diagnostic fallback
+            response_data['sync'] = {
+                'running': False,
+                'error': str(exc),
+            }
+            response_data['websocket_status'] = 'Offline'
+
         token = getattr(self, 'project_token', None)
         if token:
             response_data['token'] = token
@@ -83,6 +101,38 @@ class APIHandler(DashboardHandler):
     def handle_shutdown(self) -> None:
         """Delegate to the shared shutdown helper."""
         self._handle_shutdown()
+
+    def handle_sync_trigger(self) -> None:
+        """Ask the machine-global sync daemon to flush soon."""
+        expected_token = getattr(self, 'project_token', None)
+        parsed_path = urllib.parse.urlparse(self.path)
+        params = urllib.parse.parse_qs(parsed_path.query)
+        token_values = params.get('token')
+        token = token_values[0] if token_values else None
+
+        if expected_token and token != expected_token:
+            self._send_json(403, {'error': 'invalid_token'})
+            return
+
+        try:
+            ensure_sync_daemon_running()
+            status = get_sync_daemon_status(timeout=0.2)
+            if not status.healthy or not status.url or not status.token:
+                self._send_json(503, {'error': 'sync_daemon_unavailable'})
+                return
+            request = urllib.request.Request(
+                f"{status.url.rstrip('/')}/api/sync/trigger",
+                data=json.dumps({'token': status.token}).encode('utf-8'),
+                headers={'Content-Type': 'application/json'},
+                method='POST',
+            )
+            with urllib.request.urlopen(request, timeout=0.5) as response:
+                if response.status not in {200, 202}:
+                    self._send_json(500, {'error': 'sync_trigger_failed', 'status': response.status})
+                    return
+            self._send_json(202, {'status': 'scheduled'})
+        except Exception as exc:  # pragma: no cover - defensive fallback
+            self._send_json(500, {'error': 'sync_trigger_failed', 'detail': str(exc)})
 
     def handle_diagnostics(self) -> None:
         """Run diagnostics and report JSON payloads (or errors)."""

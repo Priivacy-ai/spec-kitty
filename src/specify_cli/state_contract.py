@@ -455,6 +455,16 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         creation_trigger="queue scope activation",
     ),
     StateSurface(
+        name="sync_daemon_control",
+        path_pattern="~/.spec-kitty/sync-daemon",
+        root=StateRoot.GLOBAL_SYNC,
+        format=StateFormat.TEXT,
+        authority=AuthorityClass.LOCAL_RUNTIME,
+        git_class=GitClass.OUTSIDE_REPO,
+        owner_module="sync/daemon",
+        creation_trigger="machine-global sync daemon bootstrap",
+    ),
+    StateSurface(
         name="legacy_queue",
         path_pattern="~/.spec-kitty/queue.db",
         root=StateRoot.GLOBAL_SYNC,

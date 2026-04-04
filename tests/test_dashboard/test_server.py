@@ -55,3 +55,26 @@ def test_start_dashboard_foreground_starts_thread(monkeypatch, tmp_path):
     assert port == 12346
     assert pid is None  # Changed from thread to pid (None for threaded mode)
     assert served.get("called")
+
+
+def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_path):
+    calls = {}
+
+    class FakeServer:
+        def __init__(self, *_args, **_kwargs):
+            calls["created"] = True
+
+        def serve_forever(self):
+            calls["served"] = True
+
+    def fake_ensure_sync_daemon_running():
+        calls["daemon"] = True
+        return ("http://127.0.0.1:9248", 9248, True)
+
+    monkeypatch.setattr(server, "HTTPServer", FakeServer)
+    monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
+
+    server.run_dashboard_server(tmp_path, 12347, None)
+
+    assert calls["daemon"] is True
+    assert calls["served"] is True

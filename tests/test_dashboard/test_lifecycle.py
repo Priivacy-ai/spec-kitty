@@ -1,4 +1,7 @@
 import json
+from unittest.mock import MagicMock, patch
+
+import pytest
 
 from specify_cli.dashboard import lifecycle
 
@@ -108,3 +111,46 @@ def test_stop_dashboard_sends_shutdown(monkeypatch, tmp_path):
     assert stopped
     assert "stopped" in message.lower()
     assert calls["shutdown"] >= 1
+
+
+def test_get_dashboard_status_reads_sync_metadata(monkeypatch, tmp_path):
+    project_dir = tmp_path
+    dashboard_file = project_dir / ".kittify" / ".dashboard"
+    dashboard_file.parent.mkdir(parents=True)
+    lifecycle._write_dashboard_file(dashboard_file, "http://127.0.0.1:12345", 12345, "secret", pid=99999)
+
+    def fake_urlopen(_request, timeout=0.5):  # noqa: ARG001
+        class Response:
+            status = 200
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *exc):
+                return False
+
+            def read(self):
+                payload = {
+                    "status": "ok",
+                    "project_path": str(project_dir.resolve()),
+                    "token": "secret",
+                    "websocket_status": "Connected",
+                    "sync": {
+                        "running": True,
+                        "last_sync": "2026-04-04T12:00:00+00:00",
+                        "consecutive_failures": 2,
+                    },
+                }
+                return json.dumps(payload).encode("utf-8")
+
+        return Response()
+
+    monkeypatch.setattr(lifecycle.urllib.request, "urlopen", fake_urlopen)
+
+    status = lifecycle.get_dashboard_status(project_dir)
+
+    assert status.healthy is True
+    assert status.sync_running is True
+    assert status.last_sync == "2026-04-04T12:00:00+00:00"
+    assert status.consecutive_failures == 2
+    assert status.websocket_status == "Connected"

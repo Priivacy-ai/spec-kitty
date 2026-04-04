@@ -12,6 +12,7 @@ Covers:
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+from pathlib import Path
 
 import pytest
 
@@ -522,8 +523,20 @@ class TestConvenienceFunctions:
     def test_emit_wp_status_changed_delegates(self, mock_get):
         """emit_wp_status_changed delegates to singleton."""
         mock_emitter = MagicMock()
+        mock_emitter.emit_wp_status_changed.return_value = {"event_id": "evt-1"}
         mock_get.return_value = mock_emitter
-        emit_wp_status_changed("WP01", "planned", "in_progress")
+        with (
+            patch(
+                "specify_cli.sync.events._ensure_dashboard_sync_daemon_for_active_project",
+                return_value=Path("/tmp/project"),
+            ) as mock_daemon,
+            patch("specify_cli.sync.events._publish_event_via_sync_daemon") as mock_publish,
+            patch("specify_cli.sync.events._request_dashboard_sync") as mock_trigger,
+        ):
+            emit_wp_status_changed("WP01", "planned", "in_progress")
+        mock_daemon.assert_called_once_with()
+        mock_publish.assert_called_once_with({"event_id": "evt-1"}, Path("/tmp/project"))
+        mock_trigger.assert_called_once_with(Path("/tmp/project"))
         mock_emitter.emit_wp_status_changed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")

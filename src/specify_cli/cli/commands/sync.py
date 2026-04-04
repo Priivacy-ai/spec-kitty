@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import re
 import subprocess
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlparse
@@ -660,9 +661,10 @@ def status(
         # Test connection to server
         spec-kitty sync status --check
     """
+    from specify_cli.sync.auth import AuthClient
     from specify_cli.sync.config import SyncConfig
-    from specify_cli.sync.events import get_emitter
-    from specify_cli.sync.background import get_sync_service
+    from specify_cli.sync.daemon import get_sync_daemon_status
+    from specify_cli.sync.queue import OfflineQueue
 
     console.print()
     console.print("[cyan]Spec Kitty Sync Status[/cyan]")
@@ -672,9 +674,9 @@ def status(
     config = SyncConfig()
     server_url = config.get_server_url()
     saas_enabled = is_saas_sync_enabled()
-
-    emitter = get_emitter()
-    service = get_sync_service()
+    queue = OfflineQueue()
+    auth = AuthClient()
+    daemon_status = get_sync_daemon_status()
 
     # Display status
     table = Table(show_header=False, box=None)
@@ -682,7 +684,7 @@ def status(
     table.add_column("Value")
 
     # Queue size
-    queue_size = service.queue.size()
+    queue_size = queue.size()
     queue_color = "green" if queue_size == 0 else "yellow"
     table.add_row("Queue", f"[{queue_color}]{queue_size} event(s)[/{queue_color}]")
 
@@ -692,27 +694,33 @@ def status(
     else:
         table.add_row("SaaS Sync", f"[yellow]Disabled[/yellow] ({SAAS_SYNC_ENV_VAR}=1)")
 
-    # Connection status
-    conn_status = emitter.get_connection_status()
-    conn_color = "green" if conn_status == "Connected" else "yellow"
-    table.add_row("Connection", f"[{conn_color}]{conn_status}[/{conn_color}]")
+    # Daemon / transport status
+    daemon_text = "[green]Running[/green]" if daemon_status.healthy else "[dim]Stopped[/dim]"
+    table.add_row("Daemon", daemon_text)
+    if daemon_status.url:
+        table.add_row("Daemon URL", daemon_status.url)
+
+    sync_mode = "[green]Global daemon[/green]" if daemon_status.sync_running else "[yellow]Queue only[/yellow]"
+    table.add_row("Sync Mode", sync_mode)
+    websocket_color = "green" if daemon_status.websocket_status == "Connected" else "yellow"
+    table.add_row("WebSocket", f"[{websocket_color}]{daemon_status.websocket_status}[/{websocket_color}]")
 
     # Last sync
-    if service.last_sync:
-        table.add_row("Last Sync", service.last_sync.strftime("%Y-%m-%d %H:%M:%S UTC"))
+    if daemon_status.last_sync:
+        try:
+            parsed_sync_time = datetime.fromisoformat(daemon_status.last_sync)
+            table.add_row("Last Sync", parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"))
+        except ValueError:
+            table.add_row("Last Sync", daemon_status.last_sync)
     else:
         table.add_row("Last Sync", "[dim]Never[/dim]")
 
-    # Background service
-    bg_status = "[green]Running[/green]" if service.is_running else "[dim]Stopped[/dim]"
-    table.add_row("Background", bg_status)
-
-    if service.consecutive_failures > 0:
-        table.add_row("Failures", f"[yellow]{service.consecutive_failures} consecutive[/yellow]")
+    if daemon_status.consecutive_failures > 0:
+        table.add_row("Failures", f"[yellow]{daemon_status.consecutive_failures} consecutive[/yellow]")
 
     # Auth status
     if saas_enabled:
-        auth_ok = emitter.auth.is_authenticated()
+        auth_ok = auth.is_authenticated()
         auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
     else:
         auth_text = "[dim]Disabled by feature flag[/dim]"
@@ -733,7 +741,7 @@ def status(
     console.print()
 
     # --- Queue health section (T022/T023) ---
-    queue_stats = service.queue.get_queue_stats()
+    queue_stats = queue.get_queue_stats()
     if queue_stats.total_queued > 0:
         format_queue_health(queue_stats, console)
         console.print()

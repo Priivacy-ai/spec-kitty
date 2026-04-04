@@ -56,6 +56,21 @@ class BackgroundSyncService:
         self._schedule_next_sync()
         logger.debug("Background sync service started (interval=%ss)", self.sync_interval_seconds)
 
+    def wake(self, delay_seconds: float = 0.1) -> None:
+        """Bring the next sync tick forward without blocking the caller.
+
+        Used by the dashboard daemon control plane when new queue work arrives
+        and we want near-live replay rather than waiting for the steady-state
+        timer interval.
+        """
+        with self._lock:
+            if not self._running:
+                return
+            if self._timer is not None:
+                self._timer.cancel()
+                self._timer = None
+            self._schedule_next_sync(delay_seconds=delay_seconds)
+
     def stop(self) -> None:
         """Stop the background sync service gracefully.
 
@@ -102,12 +117,14 @@ class BackgroundSyncService:
 
     # ── Internal ──────────────────────────────────────────────────
 
-    def _schedule_next_sync(self) -> None:
+    def _schedule_next_sync(self, delay_seconds: float | None = None) -> None:
         """Schedule the next sync tick based on interval or backoff."""
         if not self._running:
             return
 
-        if self._consecutive_failures > 0:
+        if delay_seconds is not None:
+            interval = delay_seconds
+        elif self._consecutive_failures > 0:
             interval = min(self._backoff_seconds, 30.0)
         else:
             interval = self.sync_interval_seconds
