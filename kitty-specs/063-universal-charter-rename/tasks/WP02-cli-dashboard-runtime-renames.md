@@ -155,3 +155,5 @@ spec-kitty implement WP02
 - 2026-04-04T19:48:40Z – claude – shell_pid=15743 – Started implementation via action command
 - 2026-04-04T19:59:06Z – claude – shell_pid=15743 – CLI and runtime modules renamed to charter
 - 2026-04-04T20:00:07Z – codex – shell_pid=17599 – Started review via action command
+- 2026-04-04T20:04:28Z – codex – shell_pid=17599 – Moved to planned
+- 2026-04-04T20:05:27Z – codex – shell_pid=17599 – Arbiter decision: Both reviewer issues are out-of-scope for WP02. Issue 1 (charter imports fail) is expected for parallel WPs — charter package exists in WP01's branch. Issue 2 (dashboard callers not updated) belongs to WP03 cross-reference updates. All 7 owned files verified clean.
