@@ -166,3 +166,4 @@ spec-kitty implement WP04
 ## Activity Log
 
 - 2026-04-04T19:48:43Z – claude – shell_pid=15797 – Started implementation via action command
+- 2026-04-04T20:07:39Z – claude – shell_pid=15797 – Doctrine, skills, and mission artifacts renamed to charter
