@@ -174,3 +174,4 @@ spec-kitty implement WP09 --base WP08
 ## Activity Log
 
 - 2026-04-04T11:11:45Z – coordinator – shell_pid=271 – Started implementation via workflow command
+- 2026-04-04T11:17:41Z – coordinator – shell_pid=271 – Ready for review: discover(), updated bind(), status(all=True) on facade with 35 passing tests
