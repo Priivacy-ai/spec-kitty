@@ -300,6 +300,142 @@ class SaaSTrackerService:
         self._config = TrackerProjectConfig()
 
     # ------------------------------------------------------------------
+    # Discovery & binding
+    # ------------------------------------------------------------------
+
+    def discover(self, provider: str) -> list[BindableResource]:
+        """List all bindable resources for the given provider."""
+        result = self._client.resources(provider)
+        return [BindableResource.from_api(r) for r in result.get("resources", [])]
+
+    def _persist_binding(
+        self,
+        provider: str,
+        binding_ref: str,
+        display_label: str | None,
+        provider_context: dict[str, str] | None,
+    ) -> None:
+        """Write binding config to disk and update in-memory state."""
+        self._config = TrackerProjectConfig(
+            provider=provider,
+            binding_ref=binding_ref,
+            project_slug=self._config.project_slug,  # preserve legacy
+            display_label=display_label,
+            provider_context=provider_context,
+        )
+        save_tracker_config(self._repo_root, self._config)
+
+    def _confirm_and_persist(
+        self,
+        provider: str,
+        candidate_token: str,
+        project_identity: dict[str, Any],
+    ) -> BindResult:
+        """Confirm a candidate token and persist the binding."""
+        try:
+            result = BindResult.from_api(
+                self._client.bind_confirm(provider, candidate_token, project_identity)
+            )
+        except SaaSTrackerClientError as e:
+            if e.error_code == "invalid_candidate_token":
+                raise TrackerServiceError(
+                    "Candidate token expired. Please retry the bind operation."
+                ) from e
+            raise
+        self._persist_binding(
+            provider, result.binding_ref, result.display_label, result.provider_context,
+        )
+        return result
+
+    def resolve_and_bind(
+        self,
+        *,
+        provider: str,
+        project_identity: dict[str, Any] | None = None,
+        select_n: int | None = None,
+    ) -> BindResult | ResolutionResult:
+        """Orchestrate the discovery-bind flow.
+
+        Returns ``BindResult`` on success (auto-bind or confirmed selection).
+        Returns ``ResolutionResult`` with candidates if user selection needed.
+        Raises ``TrackerServiceError`` on no-match or validation failure.
+        """
+        identity = project_identity or {}
+        resolution = ResolutionResult.from_api(
+            self._client.bind_resolve(provider, identity)
+        )
+
+        if resolution.match_type == "exact":
+            if resolution.binding_ref:
+                # Existing mapping -- persist directly
+                self._persist_binding(
+                    provider, resolution.binding_ref,
+                    resolution.display_label, None,
+                )
+                return BindResult(
+                    binding_ref=resolution.binding_ref,
+                    display_label=resolution.display_label or "",
+                    provider=provider,
+                    provider_context={},
+                    bound_at="",
+                )
+            # Need to confirm
+            assert resolution.candidate_token is not None  # noqa: S101
+            return self._confirm_and_persist(
+                provider, resolution.candidate_token, identity,
+            )
+
+        if resolution.match_type == "candidates":
+            if select_n is not None:
+                candidate = find_candidate_by_position(resolution.candidates, select_n)
+                if candidate is None:
+                    raise TrackerServiceError(
+                        f"Selection {select_n} is out of range. "
+                        f"Valid range: 1-{len(resolution.candidates)}."
+                    )
+                return self._confirm_and_persist(
+                    provider, candidate.candidate_token, identity,
+                )
+            # Return resolution for CLI to handle interactive selection
+            return resolution
+
+        # match_type == "none"
+        raise TrackerServiceError(
+            f"No bindable resources found for provider '{provider}'. "
+            "Verify the tracker is connected in the SaaS dashboard."
+        )
+
+    def validate_and_bind(
+        self,
+        *,
+        provider: str,
+        bind_ref: str,
+        project_identity: dict[str, Any] | None = None,
+    ) -> TrackerProjectConfig:
+        """Validate a known binding_ref and persist if valid.
+
+        Used when the caller already has a binding_ref (e.g., from
+        a previous session or from ``--bind-ref`` CLI flag).
+        """
+        from specify_cli.tracker.discovery import ValidationResult
+
+        identity = project_identity or {}
+        validation = ValidationResult.from_api(
+            self._client.bind_validate(provider, bind_ref, identity)
+        )
+        if not validation.valid:
+            raise TrackerServiceError(
+                f"Binding ref '{bind_ref}' is not valid: "
+                f"{validation.reason or 'unknown reason'}. "
+                f"{validation.guidance or ''}"
+            )
+        self._persist_binding(
+            provider, bind_ref,
+            validation.display_label, validation.provider_context,
+        )
+        return self._config
+
+    # ------------------------------------------------------------------
     # Operations delegated to SaaSTrackerClient
     # ------------------------------------------------------------------
 
