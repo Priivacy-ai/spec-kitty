@@ -171,3 +171,4 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 - 2026-04-04T10:18:02Z – coordinator – shell_pid=50728 – Started implementation via workflow command
 - 2026-04-04T10:20:32Z – coordinator – shell_pid=50728 – Added test_saas_client_routing.py per Codex review
 - 2026-04-04T10:20:56Z – codex – shell_pid=67212 – Started review via workflow command
+- 2026-04-04T10:25:51Z – codex – shell_pid=67212 – Review passed: existing SaaS endpoints now accept binding_ref with precedence over project_slug, missing routing key raises missing_routing_key, and tracker client routing tests pass.
