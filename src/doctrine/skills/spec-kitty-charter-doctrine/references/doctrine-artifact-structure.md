@@ -1,14 +1,14 @@
 # Doctrine Artifact Structure
 
-File layout, authority classes, and data flow for the constitution subsystem.
+File layout, authority classes, and data flow for the charter subsystem.
 
 ---
 
 ## Directory Layout
 
 ```
-.kittify/constitution/
-  constitution.md             # Authoritative governance document
+.kittify/charter/
+  charter.md                  # Authoritative governance document
   governance.yaml             # Derived: testing, quality, commits, performance, branching
   directives.yaml             # Derived: numbered rules with severity and scope
   references.yaml             # Derived: manifest of reference docs
@@ -28,11 +28,11 @@ Each file has an authority class that determines how it should be treated.
 
 | File | Authority | Meaning |
 |------|-----------|---------|
-| `constitution.md` | **Authoritative** | Single source of truth for governance. Edit this file to change policy. |
+| `charter.md` | **Authoritative** | Single source of truth for governance. Edit this file to change policy. |
 | `interview/answers.yaml` | **Authoritative** | Captured interview input. Re-run interview or edit directly to change. |
-| `governance.yaml` | **Derived** | Auto-generated from constitution.md by sync. Do not edit directly. |
-| `directives.yaml` | **Derived** | Auto-generated from constitution.md by sync. Do not edit directly. |
-| `references.yaml` | **Derived** | Auto-generated during constitution generation. Do not edit directly. |
+| `governance.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
+| `directives.yaml` | **Derived** | Auto-generated from charter.md by sync. Do not edit directly. |
+| `references.yaml` | **Derived** | Auto-generated during charter generation. Do not edit directly. |
 | `metadata.yaml` | **Derived** | Extraction provenance. Written by sync. Do not edit directly. |
 | `context-state.json` | **Runtime** | Tracks which actions have loaded context. Safe to delete (resets first-load state). |
 | `library/*.md` | **Derived** | Copied from doctrine templates during generation. Do not edit directly. |
@@ -51,7 +51,7 @@ Interview Answers (answers.yaml)
     [generate]  <-- doctrine templates + mission config
         |
         v
-Constitution (constitution.md)  <-- authoritative source
+Charter (charter.md)  <-- authoritative source
         |
         v
       [sync]  <-- deterministic extraction
@@ -61,7 +61,7 @@ Constitution (constitution.md)  <-- authoritative source
         +---> metadata.yaml
 
 
-Constitution (constitution.md)
+Charter (charter.md)
         |
         v
     [context]  <-- reads governance.yaml + references.yaml
@@ -72,13 +72,13 @@ Agent Prompt Context  <-- injected into specify/plan/implement/review
 
 **Key points:**
 
-1. `generate` reads interview answers and produces `constitution.md` plus
+1. `generate` reads interview answers and produces `charter.md` plus
    all derived files (it triggers sync automatically).
-2. `sync` reads `constitution.md` and writes `governance.yaml`,
+2. `sync` reads `charter.md` and writes `governance.yaml`,
    `directives.yaml`, and `metadata.yaml`.
 3. `context` reads the derived YAML files and renders governance text
    for injection into agent prompts.
-4. Manual edits to `constitution.md` require a `sync` to update derived files.
+4. Manual edits to `charter.md` require a `sync` to update derived files.
 
 ---
 
@@ -142,8 +142,8 @@ Extraction provenance written by sync:
 |-------|------|-------------|
 | `schema_version` | string | Schema version (currently "1.0.0") |
 | `extracted_at` | string | ISO 8601 timestamp of last extraction |
-| `constitution_hash` | string | SHA-256 hash of constitution.md at extraction time |
-| `source_path` | string | Relative path to constitution.md |
+| `charter_hash` | string | SHA-256 hash of charter.md at extraction time |
+| `source_path` | string | Relative path to charter.md |
 | `extraction_mode` | string | `deterministic` or `hybrid` |
 | `sections_parsed.structured` | int | Sections parsed deterministically |
 | `sections_parsed.ai_assisted` | int | Sections that required AI assistance |
@@ -155,14 +155,14 @@ Extraction provenance written by sync:
 
 | Path | Git status | Reason |
 |------|------------|--------|
-| `.kittify/constitution/constitution.md` | Tracked | Authoritative governance document, shared across team |
-| `.kittify/constitution/interview/answers.yaml` | Tracked | Authoritative interview input, shared across team |
-| `.kittify/constitution/governance.yaml` | Tracked | Derived but committed for CI/tool access without running sync |
-| `.kittify/constitution/directives.yaml` | Tracked | Derived but committed for CI/tool access |
-| `.kittify/constitution/references.yaml` | Tracked | Derived but committed for reference resolution |
-| `.kittify/constitution/metadata.yaml` | Tracked | Derived but committed for staleness detection |
-| `.kittify/constitution/context-state.json` | Ignored | Local runtime state, not shared |
-| `.kittify/constitution/library/*.md` | Tracked | Derived but committed for offline reference access |
+| `.kittify/charter/charter.md` | Tracked | Authoritative governance document, shared across team |
+| `.kittify/charter/interview/answers.yaml` | Tracked | Authoritative interview input, shared across team |
+| `.kittify/charter/governance.yaml` | Tracked | Derived but committed for CI/tool access without running sync |
+| `.kittify/charter/directives.yaml` | Tracked | Derived but committed for CI/tool access |
+| `.kittify/charter/references.yaml` | Tracked | Derived but committed for reference resolution |
+| `.kittify/charter/metadata.yaml` | Tracked | Derived but committed for staleness detection |
+| `.kittify/charter/context-state.json` | Ignored | Local runtime state, not shared |
+| `.kittify/charter/library/*.md` | Tracked | Derived but committed for offline reference access |
 
 ---
 
@@ -170,9 +170,9 @@ Extraction provenance written by sync:
 
 | Anti-Pattern | Why It Fails | Correct Approach |
 |-------------|-------------|-----------------|
-| Editing `governance.yaml` directly | Overwritten on next sync | Edit `constitution.md`, then run `sync` |
-| Editing `directives.yaml` directly | Overwritten on next sync | Edit `constitution.md`, then run `sync` |
+| Editing `governance.yaml` directly | Overwritten on next sync | Edit `charter.md`, then run `sync` |
+| Editing `directives.yaml` directly | Overwritten on next sync | Edit `charter.md`, then run `sync` |
 | Deleting `metadata.yaml` | Breaks staleness detection; next sync always runs | Let sync manage this file |
 | Editing `library/*.md` files | Overwritten on next `generate` | Edit doctrine source templates upstream |
-| Skipping `sync` after manual edits | Runtime reads stale governance config | Always run `sync` after editing `constitution.md` |
-| Assuming `.kittify/memory/` is current | Legacy path; only used as compatibility fallback | Use `.kittify/constitution/` for all new projects |
+| Skipping `sync` after manual edits | Runtime reads stale governance config | Always run `sync` after editing `charter.md` |
+| Assuming `.kittify/memory/` is current | Legacy path; only used as compatibility fallback | Use `.kittify/charter/` for all new projects |

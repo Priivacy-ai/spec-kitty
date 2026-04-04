@@ -243,7 +243,7 @@ Validating against spec.md success criteria:
 - **SC-004** (task completion): Tutorials and how-tos enable users to succeed independently
 - **SC-005** (build quality): Documentation builds without errors or warnings
 
-## Constitution Check
+## Charter Check
 
 *GATE: Documentation mission requires adherence to Write the Docs best practices and Divio principles.*
 

@@ -54,7 +54,7 @@ steps:
       container organised internally?"
     examples:
       - "Component: Next Loop Coordinator -- canonical per-agent loop orchestration."
-      - "Component: Constitution Compiler -- produces constitution bundle artifacts."
+      - "Component: Charter Compiler -- produces charter bundle artifacts."
       - "Avoid creating Level 3 for a container that is a single CRUD adapter with no internal branching."
     references:
       - name: C4 Component Mermaid Template

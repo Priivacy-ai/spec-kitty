@@ -13,14 +13,14 @@ classification:
 adaptation:
   summary: "Enforce committing generated architecture/bootstrap artifacts to current branch with structured commit messages."
   notes:
-    - "Bootstrap should commit vision/constitution outputs to current branch."
+    - "Bootstrap should commit vision/charter outputs to current branch."
     - "Design workflow should commit generated artifacts using structured commit messages."
     - "Architecture documentation is expected to stay in version control."
 source_references:
   - kind: "local"
     path: "architecture/journeys/001-project-onboarding-bootstrap.md"
     lines: "56-57"
-    note: "Bootstrap completion includes committing vision and constitution artifacts."
+    note: "Bootstrap completion includes committing vision and charter artifacts."
   - kind: "local"
     path: "architecture/journeys/001-project-onboarding-bootstrap.md"
     lines: "82-83"

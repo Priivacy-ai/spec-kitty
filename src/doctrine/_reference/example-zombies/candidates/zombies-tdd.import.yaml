@@ -14,7 +14,7 @@ adaptation:
   summary: "Adopt ZOMBIES as a tactic set for implementation agents."
   notes:
     - "Map to Spec Kitty doctrine naming."
-    - "Keep constitution as activation authority."
+    - "Keep charter as activation authority."
 source_references:
   - kind: "external"
     path: "https://blog.wingman-sw.com/tdd-guided-by-zombies"
