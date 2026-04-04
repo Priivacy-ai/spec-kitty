@@ -15,8 +15,8 @@ base_branch: main
 base_commit: 61417a958f7ca801be5944c4f7dcb7cf4a7a52df
 created_at: '2026-04-04T10:26:57.221664+00:00'
 subtasks: [T030, T031, T032, T033, T034, T035]
-shell_pid: "6535"
-agent: "coordinator"
+shell_pid: "35148"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -226,3 +226,4 @@ spec-kitty implement WP07 --base WP05
 
 - 2026-04-04T10:26:57Z – coordinator – shell_pid=6535 – Started implementation via workflow command
 - 2026-04-04T10:32:16Z – coordinator – shell_pid=6535 – Ready for review: routing resolution, opportunistic upgrade, stale-binding detection - all 52 tests pass
+- 2026-04-04T10:32:54Z – codex – shell_pid=35148 – Started review via workflow command
