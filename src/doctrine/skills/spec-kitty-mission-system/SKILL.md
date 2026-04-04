@@ -38,7 +38,7 @@ provides domain-appropriate:
 - **Validation** — checks that verify the output quality
 - **Agent context** — personality and instructions for the AI agent
 
-### The Hierarchy: Mission → Feature → Work Package → Workspace
+### The Hierarchy: Mission → Feature → Work Package → Execution Workspace
 
 ```
 Mission (e.g., software-dev)
@@ -51,13 +51,13 @@ Mission (e.g., software-dev)
               ├── WP01.md       ← work package prompt
               ├── WP02.md
               └── WP03.md
-                    └── Workspace (.worktrees/042-auth-system-WP03/)
+                    └── Execution Workspace (.worktrees/042-auth-system-lane-a/)
 ```
 
 - **Mission** = the workflow blueprint (reusable across features)
 - **Feature** = a concrete thing you're building, linked to a mission via `meta.json`
 - **Work Package (WP)** = one parallelizable slice of work within a feature
-- **Workspace** = an isolated git worktree for implementing a single WP
+- **Execution Workspace** = the isolated git worktree resolved for implementing a WP; modern features share one per lane, legacy features may still use one per WP
 
 ### meta.json (Feature → Mission Link)
 

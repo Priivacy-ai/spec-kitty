@@ -120,7 +120,7 @@ This location is SEPARATE from `kitty-specs/` planning artifacts.
 *(Update this path during planning - e.g., `docs/research/001-cancer-cure/`, `research-outputs/market-analysis/`)*
 
 This path will:
-- Be created in each WP worktree
+- Be created in the execution workspace that implements the WP (lane-based features may share one lane worktree across multiple sequential WPs)
 - Contain the actual research findings (markdown, data, diagrams)
 - Be merged to main when WPs complete (like code)
 

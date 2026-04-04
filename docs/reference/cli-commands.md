@@ -169,14 +169,14 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty merge [OPTIONS]`
 
-**Description**: Merge a completed feature branch into the target branch and clean up resources. For workspace-per-WP features (0.11.0+), computes an effective branch tip set using ancestry pruning, then merges only non-redundant tips. For legacy features (0.10.x), merges a single feature branch. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
+**Description**: Merge a completed feature branch into the target branch and clean up resources. For modern multi-workspace features, computes an effective branch tip set using ancestry pruning, then merges only non-redundant tips. For legacy features, merges the feature branch or legacy WP branches as needed. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
 | `--strategy TEXT` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
-| `--remove-worktree`, `--keep-worktree` | Remove or keep feature worktree after merge (default: remove) |
+| `--remove-worktree`, `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target TEXT` | Target branch to merge into (auto-detected) |
 | `--dry-run` | Show what would be done without executing |

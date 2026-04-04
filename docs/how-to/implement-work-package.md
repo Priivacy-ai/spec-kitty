@@ -1,6 +1,6 @@
 # How to Implement a Work Package
 
-Use this guide to implement a single work package (WP) in its own workspace.
+Use this guide to implement a single work package (WP) in its execution workspace.
 
 ## Prerequisites
 
@@ -23,7 +23,7 @@ spec-kitty agent workflow implement WP01 --agent <agent>
 
 This moves the WP to `lane: "doing"` and prints the full prompt plus the completion command.
 
-## Step 2: Create the Workspace
+## Step 2: Create or Resolve the Workspace
 
 In your terminal:
 
@@ -37,15 +37,15 @@ If the WP depends on another WP, branch from the base work package:
 spec-kitty implement WP02 --base WP01
 ```
 
-## Step 3: Work in the Worktree
+## Step 3: Work in the Resolved Worktree
 
 In your terminal:
 
 ```bash
-cd .worktrees/###-feature-WP01
+cd <path printed by spec-kitty agent workflow implement>
 ```
 
-Implement the prompt, run required tests, and commit your changes in the WP worktree.
+Implement the prompt, run required tests, and commit your changes in that workspace. Modern features may place multiple sequential WPs in a shared lane worktree such as `.worktrees/###-feature-lane-a`; legacy features without lanes still use `.worktrees/###-feature-WP##`.
 
 ## Step 4: Mark the WP Ready for Review
 
@@ -57,11 +57,13 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## What Happens
 
-- A dedicated workspace is created for the WP (`.worktrees/###-feature-WP01/`)
+- An execution workspace is created or reused for the WP (`.worktrees/###-feature-lane-a/` for lane-based features, `.worktrees/###-feature-WP01/` for legacy features)
 - The WP lane is updated to `doing`
 - Dependencies are enforced via `--base`
 
-> **Note**: Spec Kitty creates git worktrees for each work package. Each worktree has its own isolated workspace and branch.
+> **Note**: Modern Spec Kitty creates one git worktree per execution lane. Sequential WPs in the same lane share that workspace and lane branch. Older features without `lanes.json` still use one worktree per WP.
+
+> **Fallback behavior**: If `lanes.json` exists but `lane_for_wp()` returns `None` for the WP you asked for, Spec Kitty does not guess a lane. It falls back to the legacy per-WP workspace contract (`.worktrees/<feature>-WP##`) until the lane metadata is corrected.
 
 ## Troubleshooting
 
@@ -85,7 +87,7 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 ## Background
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Why one workspace per WP
+- [Execution Workspace Model](../explanation/workspace-per-wp.md) - How lane worktrees and legacy WP worktrees coexist
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
 

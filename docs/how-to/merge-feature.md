@@ -1,16 +1,16 @@
 # How to Merge a Feature
 
-Use this guide to merge completed work packages from a workspace-per-WP feature into main.
+Use this guide to merge completed work packages from a Spec Kitty feature into main.
 
 ## Prerequisites
 
 - All WPs have been reviewed and marked `lane: "done"` in their prompt files
-- All worktrees have no uncommitted changes
+- All resolved execution worktrees have no uncommitted changes
 - You have run `/spec-kitty.accept` to validate the feature is ready
 
 ## Quick Start
 
-From any WP worktree or from main with the `--feature` flag:
+From any execution workspace or from main with the `--feature` flag:
 
 In your agent:
 
@@ -34,8 +34,8 @@ spec-kitty merge --feature 015-user-authentication
 
 Before merging, spec-kitty runs automatic pre-flight checks:
 
-1. **Worktree cleanliness**: All WP worktrees must have no uncommitted changes
-2. **Missing worktrees**: All WPs defined in tasks must have worktrees created
+1. **Workspace cleanliness**: All resolved execution workspaces must have no uncommitted changes
+2. **Missing workspaces**: All WPs defined in tasks must have execution workspaces created if they are expected to merge
 3. **Target divergence**: Target branch (main) should not be behind origin
 
 Example pre-flight output when validation passes:
@@ -66,24 +66,24 @@ Pre-flight Check
 │ WP01   │ ✓      │                                                            │
 │ WP02   │ ✓      │                                                            │
 │ WP03   │ ✗      │ Uncommitted changes in                                     │
-│        │        │ 018-merge-preflight-documentation-WP03                     │
+│        │        │ 018-merge-preflight-documentation-lane-b                   │
 │ WP04   │ ✗      │ Uncommitted changes in                                     │
-│        │        │ 018-merge-preflight-documentation-WP04                     │
+│        │        │ 018-merge-preflight-documentation-lane-c                   │
 │ Target │ ✓      │ Up to date                                                 │
 └────────┴────────┴────────────────────────────────────────────────────────────┘
 
 Pre-flight failed. Fix these issues before merging:
 
-  1. Uncommitted changes in 018-merge-preflight-documentation-WP03
-  2. Uncommitted changes in 018-merge-preflight-documentation-WP04
+  1. Uncommitted changes in 018-merge-preflight-documentation-lane-b
+  2. Uncommitted changes in 018-merge-preflight-documentation-lane-c
 ```
 
 ### Fixing Pre-flight Failures
 
 | Issue | Fix |
 |-------|-----|
-| Uncommitted changes in WP## | `cd .worktrees/###-feature-WP##` then commit or stash |
-| Missing worktree for WP## | `spec-kitty implement WP##` |
+| Uncommitted changes in a workspace | `cd <workspace path printed by spec-kitty implement>` then commit or stash |
+| Missing workspace for WP## | `spec-kitty implement WP##` |
 | Target is behind origin | `git checkout main && git pull` |
 
 ## Preview with Dry-Run
@@ -97,31 +97,27 @@ spec-kitty merge --dry-run
 Example output:
 
 ```
-Workspace-per-WP feature detected: 4 work packages
-  - WP01: 018-merge-preflight-documentation-WP01
-  - WP02: 018-merge-preflight-documentation-WP02
-  - WP03: 018-merge-preflight-documentation-WP03
-  - WP04: 018-merge-preflight-documentation-WP04
+Lane-based feature detected: 4 work packages across 3 execution workspaces
+  - WP01: 018-merge-preflight-documentation-lane-a
+  - WP02: 018-merge-preflight-documentation-lane-a
+  - WP03: 018-merge-preflight-documentation-lane-b
+  - WP04: 018-merge-preflight-documentation-lane-c
 
-Validating all WP workspaces...
-✓ All WP workspaces validated
+Validating all execution workspaces...
+✓ All execution workspaces validated
 Feature Merge
 
 Dry run - would execute:
   1. git checkout main
   2. git pull --ff-only
-  3. git merge --no-ff 018-merge-preflight-documentation-WP01 -m 'Merge WP01 from 018-merge-preflight-documentation'
-  4. git merge --no-ff 018-merge-preflight-documentation-WP02 -m 'Merge WP02 from 018-merge-preflight-documentation'
-  5. git merge --no-ff 018-merge-preflight-documentation-WP03 -m 'Merge WP03 from 018-merge-preflight-documentation'
-  6. git merge --no-ff 018-merge-preflight-documentation-WP04 -m 'Merge WP04 from 018-merge-preflight-documentation'
-  7. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP01
-  8. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP02
-  9. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP03
-  10. git worktree remove /var/folders/gj/bxx0438j003b20kn5b6s7bsh0000gn/T/tmp.pgyxU5GMSp/spec-kitty-dry-run/.worktrees/018-merge-preflight-documentation-WP04
-  11. git branch -d 018-merge-preflight-documentation-WP01
-  12. git branch -d 018-merge-preflight-documentation-WP02
-  13. git branch -d 018-merge-preflight-documentation-WP03
-  14. git branch -d 018-merge-preflight-documentation-WP04
+  3. git merge --no-ff kitty/mission-018-merge-preflight-documentation
+  4. git worktree remove /.../.worktrees/018-merge-preflight-documentation-lane-a
+  5. git worktree remove /.../.worktrees/018-merge-preflight-documentation-lane-b
+  6. git worktree remove /.../.worktrees/018-merge-preflight-documentation-lane-c
+  7. git branch -d kitty/mission-018-merge-preflight-documentation-lane-a
+  8. git branch -d kitty/mission-018-merge-preflight-documentation-lane-b
+  9. git branch -d kitty/mission-018-merge-preflight-documentation-lane-c
+  10. git branch -d kitty/mission-018-merge-preflight-documentation
 ```
 
 ### Conflict Forecasting
@@ -174,11 +170,11 @@ spec-kitty merge --strategy squash
 
 ### Rebase
 
-Not supported for workspace-per-WP features due to the complexity of rebasing multiple dependent branches. Use `merge` or `squash` instead.
+Not supported for multi-workspace features due to the complexity of rebasing multiple dependent branches. Use `merge` or `squash` instead.
 
 ## Cleanup Options
 
-By default, merge removes all WP worktrees and deletes their branches after successful merge.
+By default, merge removes all resolved execution worktrees and deletes their branches after successful merge.
 
 ### Keep Worktrees
 
@@ -280,9 +276,9 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for workspace-per-WP) | `merge` |
+| `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace features) | `merge` |
 | `--delete-branch` / `--keep-branch` | Delete WP branches after merge | Delete |
-| `--remove-worktree` / `--keep-worktree` | Remove WP worktrees after merge | Remove |
+| `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
 | `--push` | Push to origin after merge | No push |
 | `--target` | Target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | - |

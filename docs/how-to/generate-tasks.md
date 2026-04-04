@@ -71,7 +71,7 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 ## Background
 
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions explained
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Why one workspace per WP
+- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Why modern features use lane worktrees
 
 ## Getting Started
 

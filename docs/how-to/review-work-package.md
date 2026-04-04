@@ -5,7 +5,7 @@ Use this guide to review a completed work package and update its lane.
 ## Prerequisites
 
 - The WP is in `lane: "for_review"`
-- You are in the WP worktree (or the feature worktree containing the implementation)
+- You are in a checkout where the feature can be resolved; `spec-kitty agent workflow review` will attach to the canonical execution workspace if needed
 - In multi-feature repos, you know the feature slug (required for the `--feature` flag)
 
 ## Step 1: Discover Reviewable Work Packages

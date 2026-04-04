@@ -5,7 +5,7 @@ description: Run multiple Spec Kitty agents in parallel while keeping work packa
 
 # How to Develop in Parallel with Multiple Agents
 
-Parallel development lets you move independent work packages (WPs) at the same time while keeping each workspace isolated. Spec Kitty's worktree-per-WP model makes this safe and predictable.
+Parallel development lets you move independent work packages (WPs) at the same time while keeping each execution workspace isolated. Spec Kitty's lane-based worktree model makes this safe and predictable.
 
 ## Why Parallel Development?
 
@@ -32,7 +32,7 @@ Parallel development lets you move independent work packages (WPs) at the same t
 
 ```bash
 spec-kitty agent workflow implement WP01
-cd .worktrees/###-feature-WP01
+cd <workspace path printed by the command>
 # Agent A implements WP01
 ```
 
@@ -40,7 +40,7 @@ cd .worktrees/###-feature-WP01
 
 ```bash
 spec-kitty agent workflow implement WP02
-cd .worktrees/###-feature-WP02
+cd <workspace path printed by the command>
 # Agent B implements WP02
 ```
 
@@ -63,14 +63,14 @@ spec-kitty agent workflow implement WP01
 
 # Agent B starts WP02 after WP01 exists
 spec-kitty implement WP02 --base WP01
-cd .worktrees/###-feature-WP02
+cd <workspace path printed by the command>
 ```
 
 ## Best Practices
 
 - Start with dependency-free WPs, then fan out.
 - Communicate when base WPs complete so dependents can start.
-- Keep each agent in its own worktree path.
+- Keep each agent in its own resolved execution workspace path.
 - Use workflow commands to keep lane history and dashboard accurate.
 
 ## Monitoring Parallel Work
@@ -106,7 +106,7 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 ## Background
 
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Isolation strategy
+- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Isolation strategy
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
 
 ## Getting Started

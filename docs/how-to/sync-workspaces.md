@@ -23,7 +23,7 @@ You're working on WP02, and WP01 (which WP02 depends on) has changed. You need t
 ### 1. Navigate to Your Workspace
 
 ```bash
-cd .worktrees/001-my-feature-WP02/
+cd <workspace path printed by spec-kitty implement>
 ```
 
 ### 2. Run Sync

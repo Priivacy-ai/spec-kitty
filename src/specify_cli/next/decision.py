@@ -22,6 +22,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from specify_cli.mission_v1.events import read_events
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 # ---------------------------------------------------------------------------
@@ -338,21 +339,24 @@ def _state_to_action(
             # Check for for_review WPs -- switch to review sub-action
             review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
             if review_wp:
-                workspace_name = f"{feature_slug}-{review_wp}"
-                workspace_path = str(repo_root / ".worktrees" / workspace_name)
+                workspace_path = str(
+                    resolve_workspace_for_wp(repo_root, feature_slug, review_wp).worktree_path
+                )
                 return "review", review_wp, workspace_path
             return None, None, None
 
-        workspace_name = f"{feature_slug}-{wp_id}"
-        workspace_path = str(repo_root / ".worktrees" / workspace_name)
+        workspace_path = str(
+            resolve_workspace_for_wp(repo_root, feature_slug, wp_id).worktree_path
+        )
         return "implement", wp_id, workspace_path
 
     # "review" state: WP-level if for_review WP exists, else template-level
     if state == "review":
         wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
         if wp_id is not None:
-            workspace_name = f"{feature_slug}-{wp_id}"
-            workspace_path = str(repo_root / ".worktrees" / workspace_name)
+            workspace_path = str(
+                resolve_workspace_for_wp(repo_root, feature_slug, wp_id).worktree_path
+            )
             return "review", wp_id, workspace_path
         # Fall through to generic template resolution below
 

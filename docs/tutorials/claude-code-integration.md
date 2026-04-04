@@ -183,17 +183,17 @@ Claude: [implements exactly what's in spec]
 
 ---
 
-### Opinion 2: Git Worktrees For Every Feature
+### Opinion 2: Git Worktrees For Execution Lanes
 
 **Rationale**: Feature branches in place = context confusion. Worktrees = physical isolation.
 
 **How It Works:**
 ```bash
 # Spec Kitty automatically creates:
-.worktrees/001-auth-system-WP01/   # One worktree per work package
-├── src/                         # Your code (on 001-auth-system branch)
-├── kitty-specs/001-auth-system/ # Specs for THIS feature
-└── .claude/commands/            # Slash commands work here
+.worktrees/001-auth-system-lane-a/  # Shared execution workspace for lane A
+├── src/                            # Your code (on the lane branch)
+├── kitty-specs/001-auth-system/    # Specs for THIS feature
+└── .claude/commands/               # Slash commands work here
 ```
 
 **Why This Matters for Claude:**
@@ -547,7 +547,7 @@ Encode your team's quality standards once:
    - Spec takes 5 minutes, saves hours
 
 2. **Work directly on main**
-   - Use feature worktrees
+   - Use execution workspaces
    - Keeps main clean and deployable
 
 3. **Manually edit lane metadata**

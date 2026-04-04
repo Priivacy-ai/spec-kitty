@@ -5,7 +5,7 @@ Use this guide to validate feature readiness and merge to `main`.
 ## Prerequisites
 
 - All WPs are in `lane: "done"`
-- You are in the feature worktree
+- You are in a checkout where the feature can be resolved (main checkout or execution workspace)
 
 ## Accept the Feature
 
@@ -54,11 +54,11 @@ For detailed merge options including dry-run, strategies, and cleanup flags, see
 - **Default (merge commit)**: `spec-kitty merge`
 - **Squash**: `spec-kitty merge --strategy squash`
 
-Note: Rebase is not supported for workspace-per-WP features. Use `merge` or `squash` instead.
+Note: Rebase is not supported for multi-workspace features. Use `merge` or `squash` instead.
 
 ## Cleanup
 
-By default, merge removes the feature worktree and deletes the feature branch. Use these flags to keep them (in your terminal):
+By default, merge removes resolved execution worktrees and deletes the feature branch. Use these flags to keep them (in your terminal):
 
 ```bash
 spec-kitty merge --keep-worktree --keep-branch
@@ -66,7 +66,7 @@ spec-kitty merge --keep-worktree --keep-branch
 
 ## Abandon a Feature (Manual Cleanup)
 
-If you decide to drop a feature without merging, remove its worktrees and branches manually.
+If you decide to drop a feature without merging, remove its execution worktrees and branches manually.
 These steps are safe and reversible until you delete the branch and commit the cleanup.
 
 1. List worktrees to find all workspaces for the feature:
@@ -74,21 +74,21 @@ These steps are safe and reversible until you delete the branch and commit the c
 git worktree list
 ```
 
-2. Remove each feature worktree:
+2. Remove each execution worktree for the feature:
 ```bash
-git worktree remove .worktrees/<feature>-WP01
-git worktree remove .worktrees/<feature>-WP02
+git worktree remove .worktrees/<feature>-lane-a
+git worktree remove .worktrees/<feature>-lane-b
 ```
 
 If a worktree has uncommitted changes you want to discard, use `--force`:
 ```bash
-git worktree remove --force .worktrees/<feature>-WP01
+git worktree remove --force .worktrees/<feature>-lane-a
 ```
 
 3. Delete the feature branches:
 ```bash
-git branch -D <feature>-WP01
-git branch -D <feature>-WP02
+git branch -D <feature>-lane-a
+git branch -D <feature>-lane-b
 ```
 
 4. Remove the planning artifacts from main (spec/plan/tasks), then commit:
@@ -101,7 +101,7 @@ git commit -m "Remove abandoned feature <feature>"
 ## Troubleshooting
 
 - **Accept reports blockers**: Resolve the listed issues, then rerun `/spec-kitty.accept`.
-- **Merge fails**: Ensure your worktree is clean and you are on the feature branch.
+- **Merge fails**: Ensure your current checkout is clean and the feature resolves correctly.
 
 For detailed troubleshooting including pre-flight failures, conflict resolution, and merge recovery, see [Troubleshoot Merge Issues](troubleshoot-merge.md).
 
