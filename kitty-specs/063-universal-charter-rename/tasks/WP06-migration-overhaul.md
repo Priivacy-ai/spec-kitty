@@ -307,3 +307,4 @@ Phase 1 method `_normalize_layouts()`:
 
 - 2026-04-04T20:07:29Z – claude – shell_pid=19741 – Started implementation via action command
 - 2026-04-04T20:14:56Z – claude – shell_pid=19741 – Migration overhaul complete: 5 stubs, metadata normalization, m_3_1_1_charter_rename with 4 phases
+- 2026-04-04T20:15:26Z – claude – shell_pid=19741 – Approved: 5 stubs (zero constitution), metadata normalization, comprehensive charter-rename migration with 4 phases. 310 upgrade tests pass. Note: m_2_0_9 and m_0_10_8 have residual constitution refs — WP03 or WP08 scope.
