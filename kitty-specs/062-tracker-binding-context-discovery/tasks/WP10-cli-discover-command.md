@@ -13,7 +13,8 @@ base_branch: main
 base_commit: f0dabe95b781b016fdd1edbc62012b26595c6016
 created_at: '2026-04-04T11:24:58.907052+00:00'
 subtasks: [T047, T048, T049, T050, T051, T052]
-shell_pid: '18365'
+shell_pid: "18365"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -184,3 +185,7 @@ spec-kitty implement WP10 --base WP09
 - Verify numbering alignment with --select N (1-based display, maps to 0-based sort_position)
 - Check that --json output includes all fields (no truncation)
 - Verify bound/unbound visual distinction in rich table
+
+## Activity Log
+
+- 2026-04-04T11:24:59Z – coordinator – shell_pid=18365 – Started implementation via workflow command
