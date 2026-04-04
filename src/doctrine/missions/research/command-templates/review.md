@@ -141,9 +141,9 @@ if source_register.exists():
   - Save feedback to a file and run `spec-kitty agent tasks move-task <TASK_ID> --to planned --review-feedback-file <feedback-file>` (use the PowerShell equivalent on Windows) so rollback validation captures the feedback source deterministically.
 - **Approved**:
   - Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script).
-  - Update frontmatter: set `lane=done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
+  - Update frontmatter: transition the task to `done`, set reviewer metadata (`agent`, `shell_pid`), optional `assignee` for approver.
   - Use helper script to mark the task complete in `tasks.md` (see Step 6).
-  - Run `spec-kitty agent tasks move-task <FEATURE> <TASK_ID> done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
+  - Run `spec-kitty agent tasks move-task <TASK_ID> --to done --note "Approved for release"` (PowerShell variant available) to transition the prompt into `tasks/`.
 
 6. Update `tasks.md` automatically:
    - Run `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (POSIX) or `spec-kitty agent tasks mark-status --task-id <TASK_ID> --status done` (PowerShell) from repo root.
@@ -160,40 +160,3 @@ if source_register.exists():
 Context for review: {ARGS}
 
 All review feedback must live inside the prompt file, ensuring future implementers understand historical decisions before revisiting the task.
-
-## Citation Validation (Research Mission Specific)
-
-Before reviewing research tasks, validate all citations and sources:
-
-```python
-from pathlib import Path
-from specify_cli.validators.research import validate_citations, validate_source_register
-
-# Validate evidence log
-evidence_log = MISSION_DIR / "research" / "evidence-log.csv"
-if evidence_log.exists():
-    result = validate_citations(evidence_log)
-    if result.has_errors:
-        print(result.format_report())
-        print("\nERROR: Citation validation failed. Fix errors before proceeding.")
-        exit(1)
-    elif result.warning_count > 0:
-        print(result.format_report())
-        print("\nWarnings found - consider addressing for better citation quality.")
-
-# Validate source register
-source_register = MISSION_DIR / "research" / "source-register.csv"
-if source_register.exists():
-    result = validate_source_register(source_register)
-    if result.has_errors:
-        print(result.format_report())
-        print("\nERROR: Source register validation failed.")
-        exit(1)
-```
-
-**Validation Requirements**:
-
-- All sources must be documented with unique `source_id` entries.
-- Citations must be present in both CSVs (format warnings are advisory).
-- Confidence levels should be filled for evidence entries.
-- Research review cannot proceed if validation reports blocking errors.

@@ -187,9 +187,9 @@ def current_cmd(
 
     if not feature_slug:
         console.print(
-            "[yellow]No active mission detected.[/yellow]\n"
+            "[yellow]No active feature detected.[/yellow]\n"
             "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
-            "or run from within a mission worktree."
+            "or run from within a feature worktree."
         )
         # Optionally list available missions
         kitty_specs = project_root / "kitty-specs"

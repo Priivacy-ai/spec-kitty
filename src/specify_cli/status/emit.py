@@ -4,8 +4,11 @@ Single entry point for ALL state changes in the canonical status model.
 Validates a transition, appends an event to the JSONL log, materializes
 a status snapshot, and emits SaaS telemetry.
 
-The event log is the sole authority for mutable WP state. No frontmatter
-writes occur in this pipeline.
+The event log is the sole authority for mutable WP state. In explicit
+phase-1 compatibility mode (``meta.json`` with ``status_phase: 1``),
+this pipeline may mirror the canonical lane into an existing WP
+frontmatter ``lane`` field. That mirror is transitional and never
+authoritative.
 
 Pipeline order (critical -- do not reorder):
     1. resolve_lane_alias(to_lane)
@@ -28,6 +31,9 @@ from typing import Any
 
 import ulid as _ulid_mod
 
+from specify_cli.feature_metadata import load_meta
+from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
+
 from .models import (
     DoneEvidence,
     Lane,
@@ -41,6 +47,8 @@ from . import store as _store
 from . import reducer as _reducer
 
 logger = logging.getLogger(__name__)
+
+_LEGACY_LANE_FIELD = "lane"
 
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
@@ -160,13 +168,98 @@ def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     return False
 
 
+def _phase1_dual_write_enabled(feature_dir: Path) -> bool:
+    """Return True when this feature explicitly requests phase-1 mirroring."""
+    try:
+        meta = load_meta(feature_dir)
+    except ValueError:
+        logger.warning("Invalid meta.json in %s; skipping phase-1 lane mirror", feature_dir)
+        return False
+    if not isinstance(meta, dict):
+        return False
+    status_phase = meta.get("status_phase")
+    return str(status_phase).strip() == "1"
+
+
+def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
+    """Locate the canonical WP markdown file for *wp_id* under tasks/."""
+    tasks_dir = feature_dir / "tasks"
+    if not tasks_dir.exists():
+        return None
+
+    wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
+    matches = [
+        path
+        for path in tasks_dir.glob("*.md")
+        if path.name.lower() != "readme.md" and wp_pattern.match(path.name)
+    ]
+    if len(matches) != 1:
+        if len(matches) > 1:
+            logger.warning(
+                "Multiple work package files matched %s in %s; skipping phase-1 lane mirror",
+                wp_id,
+                feature_dir,
+            )
+        return None
+    return matches[0]
+
+
+def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
+    """Mirror the canonical lane into legacy frontmatter only in phase-1 mode.
+
+    This is a compatibility bridge for repos still marked ``status_phase: 1``.
+    It never creates a new ``lane`` field; it only updates an already-present
+    field so stale consumers can observe the canonical state during cutover.
+    """
+    if not _phase1_dual_write_enabled(feature_dir):
+        return
+
+    wp_file = _find_wp_file(feature_dir, wp_id)
+    if wp_file is None:
+        return
+
+    try:
+        frontmatter, body = read_frontmatter(wp_file)
+    except FrontmatterError as exc:
+        logger.warning("Failed to read %s for phase-1 lane mirror: %s", wp_file, exc)
+        return
+
+    if _LEGACY_LANE_FIELD not in frontmatter:
+        return
+    if str(frontmatter.get(_LEGACY_LANE_FIELD)).strip() == lane:
+        return
+
+    frontmatter[_LEGACY_LANE_FIELD] = lane
+    try:
+        write_frontmatter(wp_file, frontmatter, body)
+    except FrontmatterError as exc:
+        logger.warning("Failed to write %s for phase-1 lane mirror: %s", wp_file, exc)
+
+
+def _legacy_alias_collapses_to_current_lane(
+    raw_lane: str,
+    resolved_lane: str,
+    from_lane: str,
+) -> bool:
+    """Return True when a legacy alias resolves to the WP's current lane.
+
+    ``in_review`` used to exist as a separate waypoint before the canonical
+    model collapsed review work into ``for_review``. Treating this as a no-op
+    preserves compatibility without writing illegal self-transitions.
+    """
+    normalized = raw_lane.strip().lower()
+    return normalized != resolved_lane and resolved_lane == from_lane
+
+
 def emit_status_transition(
-    feature_dir: Path,
-    feature_slug: str,
-    wp_id: str,
-    to_lane: str,
-    actor: str,
+    feature_dir: Path | None = None,
+    feature_slug: str | None = None,
+    wp_id: str | None = None,
+    to_lane: str | None = None,
+    actor: str | None = None,
     *,
+    mission_dir: Path | None = None,
+    mission_slug: str | None = None,
     force: bool = False,
     reason: str | None = None,
     evidence: dict | None = None,
@@ -210,6 +303,16 @@ def emit_status_transition(
         TransitionError: If the transition is invalid.
         specify_cli.status.store.StoreError: If the event log is corrupted.
     """
+    feature_dir = feature_dir or mission_dir
+    feature_slug = feature_slug or mission_slug
+    if feature_dir is None or feature_slug is None or wp_id is None or to_lane is None or actor is None:
+        raise TypeError(
+            "emit_status_transition requires feature_dir/mission_dir, "
+            "feature_slug/mission_slug, wp_id, to_lane, and actor"
+        )
+
+    raw_to_lane = to_lane.strip().lower()
+
     # Step 1: Resolve alias
     resolved_lane = resolve_lane_alias(to_lane)
 
@@ -232,6 +335,31 @@ def emit_status_transition(
     ):
         implementation_evidence_present = _infer_implementation_evidence(
             feature_dir, wp_id
+        )
+
+    if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
+        logger.info(
+            "Collapsing legacy alias %s to existing lane %s for %s/%s",
+            to_lane,
+            resolved_lane,
+            feature_slug,
+            wp_id,
+        )
+        _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
+        return StatusEvent(
+            event_id=_generate_ulid(),
+            feature_slug=feature_slug,
+            wp_id=wp_id,
+            from_lane=Lane(from_lane),
+            to_lane=Lane(resolved_lane),
+            at=_now_utc(),
+            actor=actor,
+            force=force,
+            execution_mode=execution_mode,
+            reason=reason,
+            review_ref=review_ref,
+            evidence=None,
+            policy_metadata=policy_metadata,
         )
 
     # Step 3: Validate the transition
@@ -284,6 +412,8 @@ def emit_status_transition(
             "run 'status materialize' to recover",
             event.event_id,
         )
+
+    _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
 
     # Step 7: SaaS fan-out (never blocks canonical persistence)
     _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)

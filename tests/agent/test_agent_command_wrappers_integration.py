@@ -484,7 +484,7 @@ class TestAgentFeatureAccept:
 
         # Verify top-level accept was called with correct parameters
         mock_accept.assert_called_once_with(
-            feature="001-test",
+            mission="001-test",
             mode="auto",
             actor=None,  # Agent doesn't use actor
             test=[],  # Agent doesn't use test
@@ -547,7 +547,7 @@ class TestAgentFeatureMerge:
                 push=True,
                 target_branch="main",  # Parameter name differs
                 dry_run=False,
-                feature="001-test",
+                mission="001-test",
                 resume=False,
                 abort=False,
             )

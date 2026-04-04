@@ -122,7 +122,7 @@ def safe_commit(
         else:
             # Commit the staged files
             commit_result = subprocess.run(
-                ["git", "commit", "-m", commit_message],
+                ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_message],
                 cwd=repo_path,
                 capture_output=True,
                 text=True,

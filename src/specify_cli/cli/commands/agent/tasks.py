@@ -89,6 +89,33 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     return [p for p in candidates if p.exists()]
 
 
+def _get_hic_marker(
+    agent_profile: str | None,
+    repo_root: Path,
+    *,
+    repo: object | None = None,
+) -> str:
+    """Return a marker when the work package profile is a human-run sentinel."""
+    if not agent_profile:
+        return ""
+
+    try:
+        from doctrine.agent_profiles.repository import AgentProfileRepository
+
+        profile_repo = repo
+        if profile_repo is None:
+            shipped_dir = repo_root / "src" / "doctrine" / "agent_profiles" / "shipped"
+            profile_repo = AgentProfileRepository(shipped_dir=shipped_dir)
+
+        profile = profile_repo.get(agent_profile)
+        if profile and profile.sentinel:
+            return "👤 "
+    except Exception:
+        return ""
+
+    return ""
+
+
 app = typer.Typer(
     name="tasks",
     help="Task workflow commands for AI agents",
@@ -2245,6 +2272,7 @@ def status(
             lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, "planned"))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
+            agent_profile = extract_scalar(front, "agent_profile") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""
 
             work_packages.append({
@@ -2254,6 +2282,7 @@ def status(
                 "phase": phase,
                 "file": wp_file.name,
                 "agent": agent,
+                "agent_profile": agent_profile,
                 "shell_pid": shell_pid,
             })
 
@@ -2317,6 +2346,15 @@ def status(
             threshold_minutes=stale_threshold,
         )
 
+        try:
+            from doctrine.agent_profiles.repository import AgentProfileRepository
+
+            profile_repo = AgentProfileRepository(
+                shipped_dir=main_repo_root / "src" / "doctrine" / "agent_profiles" / "shipped"
+            )
+        except Exception:
+            profile_repo = None
+
         # Add staleness info to WPs
         for wp in by_lane["in_progress"]:
             wp_id = wp["id"]
@@ -2377,12 +2415,14 @@ def status(
                 if i < len(by_lane[lane]):
                     wp = by_lane[lane][i]
                     title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
+                    marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                    display_id = f"{marker}{wp['id']}"
 
                     # Add stale indicator for in_progress WPs
                     if lane == "in_progress" and wp.get("is_stale"):
-                        cell = f"[red]⚠️ {wp['id']}[/red]\n{title_truncated}"
+                        cell = f"[red]⚠️ {display_id}[/red]\n{title_truncated}"
                     else:
-                        cell = f"{wp['id']}\n{title_truncated}"
+                        cell = f"{display_id}\n{title_truncated}"
                     row.append(cell)
                 else:
                     row.append("")
@@ -2405,13 +2445,15 @@ def status(
         if by_lane["for_review"]:
             console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
             for wp in by_lane["for_review"]:
-                console.print(f"  • {wp['id']} - {wp['title']}")
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print()
 
         if by_lane["approved"]:
             console.print("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
             for wp in by_lane["approved"]:
-                console.print(f"  • {wp['id']} - {wp['title']}")
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print("[dim]   Approved WPs stay here until feature merge. Dependents can start immediately.[/dim]")
             console.print()
 
@@ -2419,13 +2461,17 @@ def status(
             console.print("[bold blue]🔄 In Progress:[/bold blue]")
             stale_wps = []
             for wp in by_lane["in_progress"]:
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 if wp.get("is_stale"):
                     mins = wp.get("minutes_since_commit", "?")
                     agent = wp.get("agent", "unknown")
-                    console.print(f"  • [red]⚠️ {wp['id']}[/red] - {wp['title']} [dim](stale: {mins}m, agent: {agent})[/dim]")
+                    console.print(
+                        f"  • [red]⚠️ {marker}{wp['id']}[/red] - {wp['title']} "
+                        f"[dim](stale: {mins}m, agent: {agent})[/dim]"
+                    )
                     stale_wps.append(wp)
                 else:
-                    console.print(f"  • {wp['id']} - {wp['title']}")
+                    console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print()
 
             # Show stale warning if any
@@ -2438,7 +2484,8 @@ def status(
             console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
             # Show first 3 planned items
             for wp in by_lane["planned"][:3]:
-                console.print(f"  • {wp['id']} - {wp['title']}")
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             if len(by_lane["planned"]) > 3:
                 console.print(f"  [dim]... and {len(by_lane['planned']) - 3} more[/dim]")
             console.print()

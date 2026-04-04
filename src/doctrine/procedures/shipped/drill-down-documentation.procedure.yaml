@@ -75,8 +75,6 @@ notes: >
   relocated or re-tagged to the correct level.
 references:
   - type: directive
-    id: DIRECTIVE_035
+    id: DIRECTIVE_001
   - type: directive
     id: DIRECTIVE_003
-  - type: directive
-    id: DIRECTIVE_001

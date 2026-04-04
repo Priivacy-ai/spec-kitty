@@ -1132,7 +1132,7 @@ def accept_feature(
     try:
         # Call top-level accept with mapped parameters
         top_level_accept(
-            feature=feature,
+            mission=feature,
             mode=mode,
             actor=None,  # Agent commands don't use --actor
             test=[],  # Agent commands don't use --test
@@ -1313,7 +1313,7 @@ def merge_feature(
                 push=push,
                 target_branch=target,  # Note: parameter name differs
                 dry_run=dry_run,
-                feature=feature,
+                mission=(feature or ""),
                 resume=False,  # Agent commands don't support resume
                 abort=False,  # Agent commands don't support abort
             )

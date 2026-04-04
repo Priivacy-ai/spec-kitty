@@ -116,10 +116,16 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
 
 
 def accept(
+    mission: Optional[str] = typer.Option(
+        None,
+        "--mission",
+        help="Mission slug to accept",
+    ),
     feature: Optional[str] = typer.Option(
         None,
         "--feature",
-        help="Mission slug to accept (legacy flag name; auto-detected by default)",
+        help="Legacy alias for --mission; auto-detected by default",
+        hidden=True,
     ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
@@ -153,7 +159,11 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        requested_mission = mission or feature
+        feature_slug = require_explicit_feature(
+            requested_mission,
+            command_hint="--mission <slug>",
+        )
     except ValueError as exc:
         _safe_emit_error_logged(str(exc))
         if json_output:

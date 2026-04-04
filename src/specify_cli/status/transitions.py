@@ -21,7 +21,10 @@ CANONICAL_LANES: tuple[str, ...] = (
     "canceled",
 )
 
-LANE_ALIASES: dict[str, str] = {"doing": "in_progress"}
+LANE_ALIASES: dict[str, str] = {
+    "doing": "in_progress",
+    "in_review": "for_review",
+}
 
 TERMINAL_LANES: frozenset[str] = frozenset({"done", "canceled"})
 

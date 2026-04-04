@@ -27,18 +27,9 @@ steps:
     escalate. The agent must have a clear pass/fail result before taking
     the next action.
 failure_modes:
-- name: Duplicate launch
-  description: >
-    Launching a second test process while the first is still running,
-    creating ambiguous output and wasted resources.
-- name: Stale process ignored
-  description: >
-    Starting a new run without checking for or killing stale processes
-    from a previous session.
-- name: Background fire-and-forget
-  description: >
-    Sending a test run to the background and launching another instead
-    of polling the existing process for results.
+- "Duplicate launch: launching a second test process while the first is still running, creating ambiguous output and wasted resources."
+- "Stale process ignored: starting a new run without checking for or killing stale processes from a previous session."
+- "Background fire-and-forget: sending a test run to the background and launching another instead of polling the existing process for results."
 notes: >
   An agent that has more than one concurrent test process running for the
   same suite has violated this tactic. At any point in time, at most one

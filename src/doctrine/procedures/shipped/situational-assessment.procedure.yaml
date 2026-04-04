@@ -18,7 +18,7 @@ exit_condition: >
   have assigned owners and validation approaches. A completed Lightweight
   Prestudy documents the problem decomposition, considered approaches, accepted
   trade-offs, and recommended path forward. The output is ready to feed into
-  a trade-off assessment (DIRECTIVE_007) or full architecture design process.
+  a trade-off assessment or full architecture design process.
 steps:
   - title: Draft the System Context Canvas
     description: >
@@ -92,8 +92,6 @@ steps:
       The situational assessment is complete. The accepted prestudy and canvas
       are linked from any subsequent ADRs, design documents, or work packages.
 references:
-  - type: directive
-    id: DIRECTIVE_007
   - type: directive
     id: DIRECTIVE_003
   - type: directive

@@ -454,7 +454,10 @@ def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.M
         ],
     )
     assert result.exit_code == 0, result.output
-    assert any(call[:4] == ["git", "commit", "--amend", "--no-edit"] for call in git_calls)
+    assert any(
+        call[:6] == ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit"]
+        for call in git_calls
+    )
 
 
 def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
