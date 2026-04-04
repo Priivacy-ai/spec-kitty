@@ -17,7 +17,8 @@ base_branch: main
 base_commit: 30f1ff022d873a60c54903313878094bb01ce2a7
 created_at: '2026-04-04T11:11:32.676135+00:00'
 subtasks: [T036, T037, T038, T039, T040, T041]
-shell_pid: '271'
+shell_pid: "271"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -229,3 +230,7 @@ spec-kitty implement WP08 --base WP07
 - Verify `_persist_binding` preserves existing `project_slug` (backward compat)
 - Verify `select_n` maps 1-based to sort_position correctly
 - Check that none match error message does NOT suggest typing raw metadata
+
+## Activity Log
+
+- 2026-04-04T11:11:33Z – coordinator – shell_pid=271 – Started implementation via workflow command
