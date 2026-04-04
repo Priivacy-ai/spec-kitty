@@ -54,7 +54,7 @@ def _poll_jitter_multiplier() -> float:
 def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
     """Extract PRI-12 error envelope fields from a non-2xx response.
 
-    Returns a dict with keys: code, category, message, retryable,
+    Returns a dict with keys: error_code, category, message, retryable,
     user_action_required, source, retry_after_seconds.
     Missing keys default to ``None`` (or ``False`` for booleans).
     """
@@ -62,7 +62,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         body: dict[str, Any] = response.json()
     except Exception:
         return {
-            "code": None,
+            "error_code": None,
             "category": None,
             "message": f"HTTP {response.status_code}",
             "retryable": False,
@@ -72,7 +72,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         }
 
     return {
-        "code": body.get("code"),
+        "error_code": body.get("error_code"),
         "category": body.get("category"),
         "message": body.get("message", f"HTTP {response.status_code}"),
         "retryable": body.get("retryable", False),
@@ -244,7 +244,7 @@ class SaaSTrackerClient:
                 msg += " (action required — check the Spec Kitty dashboard)"
             raise SaaSTrackerClientError(
                 msg,
-                error_code=envelope.get("code"),
+                error_code=envelope.get("error_code"),
                 status_code=response.status_code,
                 details=envelope,
                 user_action_required=bool(envelope.get("user_action_required")),

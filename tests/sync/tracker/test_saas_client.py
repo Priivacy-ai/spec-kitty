@@ -86,7 +86,7 @@ class TestParseErrorEnvelope:
         resp = _make_response(
             422,
             {
-                "code": "missing_installation",
+                "error_code": "missing_installation",
                 "category": "identity_resolution",
                 "message": "No installation found",
                 "retryable": False,
@@ -96,7 +96,7 @@ class TestParseErrorEnvelope:
             },
         )
         envelope = _parse_error_envelope(resp)
-        assert envelope["code"] == "missing_installation"
+        assert envelope["error_code"] == "missing_installation"
         assert envelope["category"] == "identity_resolution"
         assert envelope["message"] == "No installation found"
         assert envelope["retryable"] is False
@@ -106,7 +106,7 @@ class TestParseErrorEnvelope:
     def test_handles_malformed_json(self) -> None:
         resp = _make_response(500, text="Internal Server Error")
         envelope = _parse_error_envelope(resp)
-        assert envelope["code"] is None
+        assert envelope["error_code"] is None
         assert envelope["category"] is None
         assert envelope["message"] == "HTTP 500"
 
@@ -114,7 +114,7 @@ class TestParseErrorEnvelope:
         resp = _make_response(400, {"message": "Bad request"})
         envelope = _parse_error_envelope(resp)
         assert envelope["message"] == "Bad request"
-        assert envelope["code"] is None
+        assert envelope["error_code"] is None
         assert envelope["category"] is None
         assert envelope["retryable"] is False
 
@@ -679,7 +679,7 @@ class TestRetryBehaviors:
         mock_http.request.return_value = _make_response(
             422,
             {
-                "code": "missing_installation",
+                "error_code": "missing_installation",
                 "category": "identity_resolution",
                 "message": "Jira app not installed",
                 "user_action_required": True,
@@ -701,7 +701,7 @@ class TestRetryBehaviors:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         mock_http.request.return_value = _make_response(
-            500, {"code": "internal_error", "message": "Something broke"}
+            500, {"error_code": "internal_error", "message": "Something broke"}
         )
 
         with pytest.raises(SaaSTrackerClientError, match="Something broke"):
@@ -805,7 +805,7 @@ class TestAsyncErrorEnvelopeParsing:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         error_envelope = {
-            "code": "provider_auth_expired",
+            "error_code": "provider_auth_expired",
             "category": "auth",
             "message": "Jira OAuth token has expired",
             "user_action_required": True,
@@ -825,7 +825,7 @@ class TestAsyncErrorEnvelopeParsing:
         # user_action_required is boolean True → generic guidance appended
         assert "action required" in error_text
         # Must NOT contain raw dict syntax
-        assert "{'code'" not in error_text
+        assert "{'error_code'" not in error_text
         assert "provider_auth_expired" not in error_text
 
     @patch("specify_cli.tracker.saas_client.time.sleep")
@@ -923,7 +923,7 @@ class TestErrorEnrichmentAttributes:
     def test_error_enrichment_preserves_error_code(
         self, mock_cls: MagicMock, client: SaaSTrackerClient
     ) -> None:
-        """error_code is extracted from the envelope 'code' field."""
+        """error_code is extracted from the envelope 'error_code' field."""
         mock_http = MagicMock()
         mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
@@ -931,7 +931,7 @@ class TestErrorEnrichmentAttributes:
         mock_http.request.return_value = _make_response(
             400,
             {
-                "code": "binding_not_found",
+                "error_code": "binding_not_found",
                 "message": "No binding exists for this mission",
             },
         )
@@ -952,7 +952,7 @@ class TestErrorEnrichmentAttributes:
 
         mock_http.request.return_value = _make_response(
             400,
-            {"code": "binding_not_found", "message": "Not found"},
+            {"error_code": "binding_not_found", "message": "Not found"},
         )
 
         with pytest.raises(SaaSTrackerClientError) as exc_info:
@@ -972,7 +972,7 @@ class TestErrorEnrichmentAttributes:
         mock_http.request.return_value = _make_response(
             422,
             {
-                "code": "mapping_disabled",
+                "error_code": "mapping_disabled",
                 "category": "configuration",
                 "message": "Mapping is disabled",
                 "retryable": False,
@@ -987,7 +987,7 @@ class TestErrorEnrichmentAttributes:
 
         details = exc_info.value.details
         assert isinstance(details, dict)
-        assert details["code"] == "mapping_disabled"
+        assert details["error_code"] == "mapping_disabled"
         assert details["category"] == "configuration"
         assert details["source"] == "jira"
 
@@ -1003,7 +1003,7 @@ class TestErrorEnrichmentAttributes:
         mock_http.request.return_value = _make_response(
             422,
             {
-                "code": "missing_installation",
+                "error_code": "missing_installation",
                 "message": "App not installed",
                 "user_action_required": True,
             },
@@ -1025,7 +1025,7 @@ class TestErrorEnrichmentAttributes:
 
         mock_http.request.return_value = _make_response(
             400,
-            {"code": "binding_not_found", "message": "No binding found"},
+            {"error_code": "binding_not_found", "message": "No binding found"},
         )
 
         with pytest.raises(SaaSTrackerClientError) as exc_info:
@@ -1128,13 +1128,13 @@ class TestErrorEnrichmentRegression:
             "Binding not found",
             error_code="binding_not_found",
             status_code=404,
-            details={"code": "binding_not_found", "source": "jira"},
+            details={"error_code": "binding_not_found", "source": "jira"},
             user_action_required=True,
         )
         assert str(err) == "Binding not found"
         assert err.error_code == "binding_not_found"
         assert err.status_code == 404
-        assert err.details == {"code": "binding_not_found", "source": "jira"}
+        assert err.details == {"error_code": "binding_not_found", "source": "jira"}
         assert err.user_action_required is True
 
     def test_catch_as_exception(self) -> None:
