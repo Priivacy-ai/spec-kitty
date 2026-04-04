@@ -139,7 +139,7 @@ class TestCreateFeatureCommand:
 
         # Verify
         assert result.exit_code == 0, f"Command failed: {result.output}"
-        assert "Feature created: 001-test-feature" in result.stdout
+        assert "Mission created: 001-test-feature" in result.stdout
         assert "Directory:" in result.stdout
 
     @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
@@ -204,7 +204,7 @@ class TestCreateFeatureCommand:
         assert "Run from the main repository instead:" in result.stdout
         assert "cd " in result.stdout
         assert "/main-repo" in result.stdout
-        assert "spec-kitty agent create-feature test-feature" in result.stdout
+        assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
     @patch("specify_cli.core.feature_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
@@ -227,7 +227,7 @@ class TestCreateFeatureCommand:
         assert "Run from the main repository instead:" in result.stdout
         assert "cd " in result.stdout
         assert "/main-repo" in result.stdout
-        assert "spec-kitty agent create-feature test-feature" in result.stdout
+        assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
     @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
@@ -376,7 +376,7 @@ class TestCheckPrerequisitesCommand:
         # Verify
         assert result.exit_code == 0
         assert "Prerequisites check passed" in result.stdout
-        assert "Feature: 001-test" in result.stdout
+        assert "Mission: 001-test" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
