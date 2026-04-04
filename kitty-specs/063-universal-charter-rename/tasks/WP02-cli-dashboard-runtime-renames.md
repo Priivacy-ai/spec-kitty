@@ -13,7 +13,8 @@ base_branch: main
 base_commit: 666905f1d5d393a3b9f7318fa10c643bee90e78b
 created_at: '2026-04-04T19:48:40.413256+00:00'
 subtasks: [T006, T007, T008, T009, T010, T011, T012]
-shell_pid: '15743'
+shell_pid: "15743"
+agent: "claude"
 history:
 - date: '2026-04-04'
   action: created
@@ -148,3 +149,7 @@ spec-kitty implement WP02
 - Check that the typer app `name=` parameter is "charter" (not "constitution")
 - Verify all output messages to the user say "charter" not "constitution"
 - Check worktree.py symlink logic carefully — constitution sharing is critical for multi-agent workflows
+
+## Activity Log
+
+- 2026-04-04T19:48:40Z – claude – shell_pid=15743 – Started implementation via action command
