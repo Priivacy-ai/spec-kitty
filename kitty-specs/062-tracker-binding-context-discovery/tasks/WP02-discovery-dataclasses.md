@@ -11,7 +11,8 @@ base_branch: main
 base_commit: 96092bf02f4651a8040ec14db7f743ef1f92912b
 created_at: '2026-04-04T09:34:48.330445+00:00'
 subtasks: [T006, T007, T008, T009, T010]
-shell_pid: '32788'
+shell_pid: "32788"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -243,3 +244,7 @@ No dependencies — this WP can start immediately.
 - Verify no I/O imports in discovery.py (grep for `rich`, `typer`, `print`, `input`)
 - Check that `from_api()` factories match the contract shapes in `contracts/` directory
 - Verify `find_candidate_by_position` is 1-based (user types 1, maps to sort_position=0)
+
+## Activity Log
+
+- 2026-04-04T09:34:48Z – coordinator – shell_pid=32788 – Started implementation via workflow command
