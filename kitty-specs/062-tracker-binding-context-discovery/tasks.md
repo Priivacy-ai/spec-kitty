@@ -90,11 +90,11 @@
 
 Evolve `TrackerProjectConfig` with `binding_ref`, `display_label`, `provider_context` fields. Update `is_configured` for dual-read. Add `_extra` dict for unknown field passthrough. Full backward compatibility with pre-062 configs.
 
-- [ ] T001: Add new fields to dataclass
-- [ ] T002: Update is_configured property
-- [ ] T003: Update to_dict()/from_dict() with _extra passthrough
-- [ ] T004: Write roundtrip tests
-- [ ] T005: Write is_configured tests
+- [x] T001: Add new fields to dataclass
+- [x] T002: Update is_configured property
+- [x] T003: Update to_dict()/from_dict() with _extra passthrough
+- [x] T004: Write roundtrip tests
+- [x] T005: Write is_configured tests
 
 #### WP02: Discovery Dataclasses
 **Priority**: High | **Subtasks**: T006-T010 (5) | **~350 lines**
