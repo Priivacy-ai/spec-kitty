@@ -15,7 +15,8 @@ base_branch: main
 base_commit: 61417a958f7ca801be5944c4f7dcb7cf4a7a52df
 created_at: '2026-04-04T10:26:57.221664+00:00'
 subtasks: [T030, T031, T032, T033, T034, T035]
-shell_pid: '6535'
+shell_pid: "6535"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -220,3 +221,7 @@ spec-kitty implement WP07 --base WP05
 - Verify `_maybe_upgrade_binding_ref` is called at EVERY call site (status, sync_pull, sync_push, sync_run, map_list)
 - Verify stale detection only fires when routing by binding_ref (not project_slug)
 - Check that upgrade helper handles partial responses (e.g., display_label present but provider_context missing)
+
+## Activity Log
+
+- 2026-04-04T10:26:57Z – coordinator – shell_pid=6535 – Started implementation via workflow command
