@@ -122,6 +122,34 @@ class SaaSTrackerClient:
     _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
     _BIND_ORIGIN_PATH = "/api/v1/tracker/mission-origin/bind/"
 
+    # ----- routing helpers -----
+
+    def _routing_params(
+        self,
+        provider: str,
+        project_slug: str | None,
+        binding_ref: str | None,
+    ) -> dict[str, str]:
+        """Build the routing-key dict for an API call.
+
+        When *binding_ref* is provided it takes precedence over
+        *project_slug*.  If neither is supplied a
+        ``SaaSTrackerClientError`` with ``error_code="missing_routing_key"``
+        is raised.
+        """
+        params: dict[str, str] = {"provider": provider}
+        if binding_ref:
+            params["binding_ref"] = binding_ref
+        elif project_slug:
+            params["project_slug"] = project_slug
+        else:
+            raise SaaSTrackerClientError(
+                "Either project_slug or binding_ref must be provided.",
+                error_code="missing_routing_key",
+                status_code=None,
+            )
+        return params
+
     # ----- low-level request helpers -----
 
     def _request(
@@ -308,16 +336,16 @@ class SaaSTrackerClient:
     def pull(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
+        binding_ref: str | None = None,
         limit: int = 100,
         cursor: str | None = None,
         filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/pull -- pull items from external tracker."""
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
+            **self._routing_params(provider, project_slug, binding_ref),
             "limit": limit,
         }
         if cursor is not None:
@@ -329,22 +357,34 @@ class SaaSTrackerClient:
         result: dict[str, Any] = response.json()
         return result
 
-    def status(self, provider: str, project_slug: str) -> dict[str, Any]:
+    def status(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        *,
+        binding_ref: str | None = None,
+    ) -> dict[str, Any]:
         """GET /api/v1/tracker/status -- connection/sync status."""
         response = self._request_with_retry(
             "GET",
             self._STATUS_PATH,
-            params={"provider": provider, "project_slug": project_slug},
+            params=self._routing_params(provider, project_slug, binding_ref),
         )
         result: dict[str, Any] = response.json()
         return result
 
-    def mappings(self, provider: str, project_slug: str) -> dict[str, Any]:
+    def mappings(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        *,
+        binding_ref: str | None = None,
+    ) -> dict[str, Any]:
         """GET /api/v1/tracker/mappings -- field mappings."""
         response = self._request_with_retry(
             "GET",
             self._MAPPINGS_PATH,
-            params={"provider": provider, "project_slug": project_slug},
+            params=self._routing_params(provider, project_slug, binding_ref),
         )
         result: dict[str, Any] = response.json()
         return result
@@ -423,9 +463,10 @@ class SaaSTrackerClient:
     def push(
         self,
         provider: str,
-        project_slug: str,
-        items: list[dict[str, Any]],
+        project_slug: str | None = None,
+        items: list[dict[str, Any]] | None = None,
         *,
+        binding_ref: str | None = None,
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/push -- push items to external tracker.
@@ -434,9 +475,8 @@ class SaaSTrackerClient:
         """
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
-            "items": items,
+            **self._routing_params(provider, project_slug, binding_ref),
+            "items": items or [],
         }
         response = self._request_with_retry(
             "POST",
@@ -456,8 +496,9 @@ class SaaSTrackerClient:
     def run(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
+        binding_ref: str | None = None,
         pull_first: bool = True,
         limit: int = 100,
         idempotency_key: str | None = None,
@@ -468,8 +509,7 @@ class SaaSTrackerClient:
         """
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
+            **self._routing_params(provider, project_slug, binding_ref),
             "pull_first": pull_first,
             "limit": limit,
         }
