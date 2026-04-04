@@ -18,7 +18,7 @@ fresh per-repo snapshots of `spec-kitty-*` skills.
 | Qwen Code | `qwen` | native-root-required | `~/.qwen/skills/` | `.qwen/skills/` | `.qwen/commands/` |
 | opencode | `opencode` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.opencode/skills/` | `.opencode/command/` |
 | Windsurf | `windsurf` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.windsurf/skills/` | `.windsurf/workflows/` |
-| Codex CLI | `codex` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | `.codex/prompts/` |
+| Codex CLI | `codex` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | _(none; skills-only surface)_ |
 | Kilo Code | `kilocode` | native-root-required | `~/.kilocode/skills/` | `.kilocode/skills/` | `.kilocode/workflows/` |
 | Auggie CLI | `auggie` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.augment/skills/` | `.augment/commands/` |
 | Roo Code | `roo` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.roo/skills/` | `.roo/commands/` |
@@ -58,7 +58,9 @@ exclusively through wrapper slash commands in the wrapper root.
 - Managed canonical files under the user home are read-only. If a project replaces
   one of its projected files locally, that is treated as drift and can be repaired.
 - Wrapper roots contain slash-command files (e.g., `spec-kitty.implement.md`)
-  that agents use for `/spec-kitty.implement` style invocation.
+  that agents use for `/spec-kitty.implement` style invocation. Codex is the
+  exception: current Codex CLI uses built-in slash commands plus skills, so
+  Spec Kitty should not manage a `.codex/prompts/` surface.
 - When verifying an installation, check the skill root(s) first, then the
   wrapper root. A missing wrapper root means slash commands are unavailable
   even if skills are correctly installed.

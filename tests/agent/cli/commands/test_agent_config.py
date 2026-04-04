@@ -2,17 +2,55 @@
 
 from __future__ import annotations
 
+from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 from typer.testing import CliRunner
 
+from specify_cli.cli.commands.agent import config as config_module
 from specify_cli.cli.commands.agent.config import app
 from specify_cli.core.agent_config import save_agent_config
+from specify_cli.runtime.agent_commands import AgentCommandInstallResult
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+
+class _DummyRegistry:
+    def discover_skills(self):
+        return []
+
+
+@pytest.fixture(autouse=True)
+def stub_managed_asset_install(monkeypatch: pytest.MonkeyPatch):
+    def fake_install_commands(repo_root: Path, agent_key: str) -> AgentCommandInstallResult:
+        if agent_key == "codex":
+            return AgentCommandInstallResult(agent_key=agent_key, mode="legacy-retired")
+
+        surface = config_module._primary_surface_path(repo_root, agent_key)
+        assert surface is not None
+        surface.mkdir(parents=True, exist_ok=True)
+        (surface / "spec-kitty.implement.md").write_text("# managed command\n", encoding="utf-8")
+        (surface / "spec-kitty.review.md").write_text("# managed review\n", encoding="utf-8")
+        return AgentCommandInstallResult(
+            agent_key=agent_key,
+            mode="projected",
+            files_written=[surface / "spec-kitty.implement.md", surface / "spec-kitty.review.md"],
+        )
+
+    def fake_install_skills_for_agent(project_path: Path, agent_key: str, skills, *, shared_root_installed=None):
+        surface = config_module._primary_surface_path(project_path, agent_key)
+        if agent_key == "codex":
+            surface = project_path / ".agents" / "skills"
+        if surface is not None:
+            surface.mkdir(parents=True, exist_ok=True)
+        return []
+
+    monkeypatch.setattr(config_module, "install_project_commands_for_agent", fake_install_commands)
+    monkeypatch.setattr(config_module, "install_skills_for_agent", fake_install_skills_for_agent)
+    monkeypatch.setattr(config_module.SkillRegistry, "from_package", lambda: _DummyRegistry())
 
 
 @pytest.fixture
@@ -102,11 +140,11 @@ class TestAddCommand:
 
             assert result.exit_code == 0
             assert "Added .claude/commands/" in result.stdout
-            assert "Added .codex/prompts/" in result.stdout
+            assert "Added .agents/skills/ (skills only)" in result.stdout
 
             # Verify both directories were created
             assert (mock_project / ".claude" / "commands").exists()
-            assert (mock_project / ".codex" / "prompts").exists()
+            assert (mock_project / ".agents" / "skills").exists()
 
     def test_add_already_configured_agent(self, mock_project):
         """Test adding an agent that's already configured."""

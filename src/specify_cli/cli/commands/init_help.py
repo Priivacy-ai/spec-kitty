@@ -18,7 +18,7 @@ Non-Interactive Mode:
 
 What Gets Created:
 - .kittify/ - Scripts, templates, memory
-- Agent commands (.claude/commands/, .codex/prompts/, etc.)
+- Managed agent surfaces (.claude/commands/, .agents/skills/, etc.)
 - Context files (CLAUDE.md, .cursorrules, AGENTS.md, etc.)
 - Git repository (unless --no-git)
 - Background dashboard (http://127.0.0.1:PORT)

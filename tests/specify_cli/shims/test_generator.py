@@ -121,6 +121,7 @@ class TestGenerateAllShims:
         written_names = {p.name for p in written}
         for skill in CLI_DRIVEN_COMMANDS:
             assert f"spec-kitty.{skill}.md" in written_names
+        assert all(".codex/" not in str(path) for path in written)
 
     def test_prompt_driven_skills_not_written(self, tmp_path: Path) -> None:
         """Prompt-driven commands must NOT receive shim files."""
@@ -161,10 +162,9 @@ class TestGenerateAllShims:
         generate_all_shims(tmp_path)
 
         claude_file = tmp_path / ".claude" / "commands" / "spec-kitty.implement.md"
-        codex_file = tmp_path / ".codex" / "prompts" / "spec-kitty.implement.md"
 
         assert "$ARGUMENTS" in claude_file.read_text()
-        assert "$PROMPT" in codex_file.read_text()
+        assert not (tmp_path / ".codex" / "prompts" / "spec-kitty.implement.md").exists()
 
     def test_result_is_sorted(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])
@@ -184,6 +184,15 @@ class TestGenerateAllShims:
         # codex dir was pre-existing but NOT configured — no spec-kitty shims
         codex_impl = tmp_path / ".codex" / "prompts" / "spec-kitty.implement.md"
         assert not codex_impl.exists()
+
+    def test_configured_codex_is_skipped(self, tmp_path: Path) -> None:
+        _setup_kittify_config(tmp_path, ["codex"])
+        (tmp_path / ".codex" / "prompts").mkdir(parents=True)
+
+        written = generate_all_shims(tmp_path)
+
+        assert written == []
+        assert not any((tmp_path / ".codex" / "prompts").glob("spec-kitty.*"))
 
     def test_existing_files_overwritten(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])

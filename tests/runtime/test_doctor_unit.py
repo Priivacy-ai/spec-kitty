@@ -16,6 +16,7 @@ import pytest
 
 from specify_cli.runtime.doctor import (
     DoctorCheck,
+    check_command_file_health,
     check_global_runtime_exists,
     check_mission_integrity,
     check_stale_legacy_assets,
@@ -241,6 +242,32 @@ class TestCheckStaleLegacyAssets:
         assert check.passed
         assert check.severity == "info"
         assert "No .kittify/ directory" in check.message
+
+
+class TestCheckCommandFileHealth:
+    def test_skips_codex_as_required_command_surface(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        kittify = project / ".kittify"
+        kittify.mkdir(parents=True)
+        (kittify / "config.yaml").write_text("agents:\n  available:\n    - codex\n", encoding="utf-8")
+
+        issues = check_command_file_health(project)
+        assert issues == []
+
+    def test_reports_legacy_codex_prompts_for_retirement(self, tmp_path: Path) -> None:
+        project = tmp_path / "project"
+        kittify = project / ".kittify"
+        kittify.mkdir(parents=True)
+        (kittify / "config.yaml").write_text("agents:\n  available:\n    - codex\n", encoding="utf-8")
+
+        legacy_file = project / ".codex" / "prompts" / "spec-kitty.plan.md"
+        legacy_file.parent.mkdir(parents=True, exist_ok=True)
+        legacy_file.write_text("# stale\n", encoding="utf-8")
+
+        issues = check_command_file_health(project)
+        assert len(issues) == 1
+        assert issues[0]["agent"] == "codex"
+        assert issues[0]["command"] == "legacy-prompts"
 
     def test_no_stale_assets(self, tmp_path: Path) -> None:
         """Empty .kittify/ with no shared dirs/files passes."""

@@ -58,6 +58,11 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
 }
 
+# Codex no longer has a documented custom prompt-file surface. Keep its legacy
+# directory mapping for cleanup/migration purposes, but exclude it from managed
+# command generation and validation. Codex integration is skill-first.
+LEGACY_ONLY_COMMAND_AGENTS = {"codex"}
+
 # Skill installation classes (PRD section 6)
 SKILL_CLASS_SHARED: str = "shared-root-capable"
 SKILL_CLASS_NATIVE: str = "native-root-required"
@@ -114,6 +119,7 @@ __all__ = [
     "SCRIPT_TYPE_CHOICES",
     "DEFAULT_TEMPLATE_REPO",
     "AGENT_COMMAND_CONFIG",
+    "LEGACY_ONLY_COMMAND_AGENTS",
     "IDE_AGENTS",
     "SKILL_CLASS_SHARED",
     "SKILL_CLASS_NATIVE",

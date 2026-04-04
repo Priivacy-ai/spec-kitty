@@ -17,6 +17,7 @@ from pathlib import Path
 
 from specify_cli.agent_utils.directories import (
     AGENT_DIR_TO_KEY,
+    get_command_agent_dirs_for_project,
     get_agent_dirs_for_project,
 )
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
@@ -95,21 +96,33 @@ def generate_all_shims(repo_root: Path) -> list[Path]:
         Sorted list of paths written.
     """
     cli_skills = sorted(CLI_DRIVEN_COMMANDS)
-    agent_dirs = get_agent_dirs_for_project(repo_root)
+    agent_dirs = get_command_agent_dirs_for_project(repo_root)
     written: list[Path] = []
 
     for agent_root, command_subdir in agent_dirs:
         agent_key = AGENT_DIR_TO_KEY.get(agent_root, agent_root.lstrip("."))
-        arg_placeholder = _get_arg_placeholder(agent_key)
-
         target_dir = repo_root / agent_root / command_subdir
         target_dir.mkdir(parents=True, exist_ok=True)
-
-        for skill in cli_skills:
-            filename = f"spec-kitty.{skill}.md"
-            content = generate_shim_content(skill, agent_key, arg_placeholder)
-            out_path = target_dir / filename
-            out_path.write_text(content, encoding="utf-8")
-            written.append(out_path)
+        written.extend(generate_shims_for_agent_dir(target_dir, agent_key, cli_skills))
 
     return sorted(written)
+
+
+def generate_shims_for_agent_dir(
+    target_dir: Path,
+    agent_key: str,
+    cli_skills: list[str] | None = None,
+) -> list[Path]:
+    """Generate CLI-driven shim files for one agent directory."""
+    skills = sorted(cli_skills or CLI_DRIVEN_COMMANDS)
+    arg_placeholder = _get_arg_placeholder(agent_key)
+    written: list[Path] = []
+
+    for skill in skills:
+        filename = f"spec-kitty.{skill}.md"
+        content = generate_shim_content(skill, agent_key, arg_placeholder)
+        out_path = target_dir / filename
+        out_path.write_text(content, encoding="utf-8")
+        written.append(out_path)
+
+    return written

@@ -78,13 +78,43 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
     """Render every command template for the selected agent."""
     config = AGENT_COMMAND_CONFIG[agent_key]
     output_dir = project_path / config["dir"]
-    if output_dir.exists():
+    generate_agent_assets_to_dir(
+        command_templates_dir,
+        output_dir,
+        agent_key,
+        script_type,
+        clear_existing=True,
+    )
+
+    if agent_key == "copilot":
+        vscode_settings = command_templates_dir.parent / "vscode-settings.json"
+        if vscode_settings.exists():
+            vscode_dest = project_path / ".vscode"
+            vscode_dest.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(vscode_settings, vscode_dest / "settings.json")
+
+
+def generate_agent_assets_to_dir(
+    command_templates_dir: Path,
+    output_dir: Path,
+    agent_key: str,
+    script_type: str,
+    *,
+    clear_existing: bool,
+) -> list[Path]:
+    """Render every command template into an already-resolved output directory."""
+    config = AGENT_COMMAND_CONFIG[agent_key]
+    if clear_existing and output_dir.exists():
         shutil.rmtree(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
+    if not clear_existing:
+        for existing in output_dir.glob("spec-kitty.*"):
+            existing.unlink()
 
     if not command_templates_dir.exists():
         _raise_template_discovery_error(command_templates_dir)
 
+    written: list[Path] = []
     for template_path in sorted(command_templates_dir.glob("*.md")):
         rendered = render_command_template(
             template_path,
@@ -98,14 +128,11 @@ def generate_agent_assets(command_templates_dir: Path, project_path: Path, agent
         if agent_key == "codex":
             stem = stem.replace("-", "_")
         filename = f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
-        (output_dir / filename).write_text(rendered, encoding="utf-8")
+        out_path = output_dir / filename
+        out_path.write_text(rendered, encoding="utf-8")
+        written.append(out_path)
 
-    if agent_key == "copilot":
-        vscode_settings = command_templates_dir.parent / "vscode-settings.json"
-        if vscode_settings.exists():
-            vscode_dest = project_path / ".vscode"
-            vscode_dest.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(vscode_settings, vscode_dest / "settings.json")
+    return written
 
 
 def render_command_template(

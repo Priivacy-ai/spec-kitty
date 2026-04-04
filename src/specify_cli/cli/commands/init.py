@@ -50,12 +50,14 @@ from specify_cli.template import (
     get_local_repo_root,
     parse_repo_slug,
 )
-from specify_cli.shims.generator import generate_all_shims
-from specify_cli.template.asset_generator import generate_agent_assets
 from specify_cli.template.github_client import (
     download_and_extract_template as download_and_extract_template_github,
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
+from specify_cli.runtime.agent_commands import (
+    AgentCommandInstallResult,
+    install_project_commands_for_agent,
+)
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.installer import install_skills_for_agent
@@ -207,6 +209,21 @@ def _get_package_templates_root() -> Path | None:
     except FileNotFoundError:
         pass
     return None
+
+
+def _summarize_command_install(result: AgentCommandInstallResult) -> str:
+    """Return a short tracker message for a managed command install pass."""
+    if result.mode == "projected":
+        if result.files_written:
+            return f"{len(result.files_written)} managed command files linked"
+        return "managed command files already current"
+    if result.mode == "override-local":
+        return f"{len(result.files_written)} project override command files rendered"
+    if result.mode == "legacy-retired":
+        if result.files_removed:
+            return f"retired {len(result.files_removed)} legacy Codex prompt files"
+        return "Codex uses global skills only"
+    return "no managed command files for this agent"
 
 
 # =============================================================================
@@ -684,9 +701,6 @@ def init(  # noqa: C901
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
-    # Resolved command-templates directory (set once during base preparation,
-    # consumed per-agent to generate full prompt files for prompt-driven commands).
-    _resolved_cmd_templates_dir: Path | None = None
     if template_mode == "remote" and (repo_owner is None or repo_name is None):
         repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
 
@@ -753,36 +767,17 @@ def init(  # noqa: C901
                                 pkg_templates = _get_package_templates_root()
                                 if pkg_templates is not None:
                                     templates_root = pkg_templates
-                            # Resolve the 4-tier command-templates directory once.
-                            # This scratch dir is used by generate_agent_assets() to
-                            # render full prompt files for prompt-driven commands.
-                            # Tier order: project override > legacy > global (~/.kittify/) > package source.
-                            _scratch_parent = project_path / ".kittify" / ".scratch"
-                            _scratch_parent.mkdir(parents=True, exist_ok=True)
-                            _resolved_cmd_templates_dir = _resolve_mission_command_templates_dir(
-                                project_path, selected_mission, _scratch_parent
-                            )
                             base_prepared = True
-                        # Hybrid install: render full prompt files for prompt-driven commands
-                        # (specify, plan, tasks, etc.) using the 4-tier resolved templates.
-                        # generate_agent_assets() clears and recreates the agent commands dir,
-                        # so it must run BEFORE generate_all_shims() adds the CLI-driven shims.
-                        if _resolved_cmd_templates_dir is not None and _resolved_cmd_templates_dir.exists():
-                            generate_agent_assets(
-                                command_templates_dir=_resolved_cmd_templates_dir,
-                                project_path=project_path,
-                                agent_key=agent_key,
-                                script_type=selected_script,
-                            )
                     except Exception as exc:
                         tracker.error(f"{agent_key}-extract", str(exc))
                         raise
                     else:
-                        tracker.complete(f"{agent_key}-extract", "commands generated")
+                        command_result = install_project_commands_for_agent(project_path, agent_key)
+                        tracker.complete(f"{agent_key}-extract", _summarize_command_install(command_result))
                         tracker.start(f"{agent_key}-zip-list")
                         tracker.complete(f"{agent_key}-zip-list", "templates ready")
                         tracker.start(f"{agent_key}-extracted-summary")
-                        tracker.complete(f"{agent_key}-extracted-summary", "commands ready")
+                        tracker.complete(f"{agent_key}-extracted-summary", command_result.mode)
                         tracker.start(f"{agent_key}-cleanup")
                         tracker.complete(f"{agent_key}-cleanup", "done")
                 else:
@@ -805,6 +800,14 @@ def init(  # noqa: C901
                         repo_owner=repo_owner,
                         repo_name=repo_name,
                     )
+                    tracker.start(f"{agent_key}-extract")
+                    try:
+                        command_result = install_project_commands_for_agent(project_path, agent_key)
+                    except Exception as exc:
+                        tracker.error(f"{agent_key}-extract", str(exc))
+                        raise
+                    else:
+                        tracker.complete(f"{agent_key}-extract", _summarize_command_install(command_result))
 
                 # Install skill pack for this agent (non-fatal)
                 tracker.start(f"{agent_key}-skills")
@@ -833,16 +836,6 @@ def init(  # noqa: C901
                     tracker.error(f"{agent_key}-skills", str(exc))
                     _logger.warning("Skill installation failed for %s: %s", agent_key, exc)
                     # Non-fatal: wrappers are already installed
-
-            # Hybrid install: after all agents have received full prompt files via
-            # generate_agent_assets(), write thin 3-line shim files for the 7
-            # CLI-driven commands (implement, review, accept, merge, status,
-            # dashboard, tasks-finalize).  generate_all_shims() does NOT clear
-            # agent directories — it overwrites individual shim files on top of
-            # the full prompts already written.  This produces the desired hybrid
-            # layout: 9 full prompts + 7 thin shims = 16 files per agent.
-            if template_mode in ("local", "package"):
-                generate_all_shims(project_path)
 
             # Save managed skill manifest
             if skill_manifest.entries:

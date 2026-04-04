@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import shutil
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import List
 
@@ -16,6 +17,20 @@ from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
 )
+from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_SHARED
+from specify_cli.runtime.agent_commands import (
+    get_primary_project_command_root,
+    install_project_commands_for_agent,
+    supports_managed_commands,
+)
+from specify_cli.skills.installer import install_skills_for_agent
+from specify_cli.skills.manifest import (
+    ManagedSkillManifest,
+    load_manifest,
+    save_manifest,
+)
+from specify_cli.skills.paths import get_primary_project_skill_root
+from specify_cli.skills.registry import SkillRegistry
 from specify_cli.upgrade.migrations.m_0_9_1_complete_lane_migration import (
     AGENT_DIR_TO_KEY,
     CompleteLaneMigration,
@@ -45,6 +60,80 @@ def _load_config_or_exit(repo_root: Path) -> AgentConfig:
         raise typer.Exit(1)
 
 
+def _format_surface_label(agent_key: str) -> str:
+    command_root = get_primary_project_command_root(agent_key)
+    if command_root is not None:
+        return f"{command_root.rstrip('/')}/"
+
+    skill_root = get_primary_project_skill_root(agent_key)
+    if skill_root is not None:
+        return f"{skill_root.rstrip('/')}/ (skills only)"
+
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if agent_dir_info is None:
+        return agent_key
+    agent_root, subdir = agent_dir_info
+    return f"{agent_root}/{subdir}/"
+
+
+def _primary_surface_path(repo_root: Path, agent_key: str) -> Path | None:
+    command_root = get_primary_project_command_root(agent_key)
+    if command_root is not None:
+        return repo_root / command_root
+
+    skill_root = get_primary_project_skill_root(agent_key)
+    if skill_root is not None:
+        return repo_root / skill_root
+
+    agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+    if agent_dir_info is None:
+        return None
+    agent_root, subdir = agent_dir_info
+    return repo_root / agent_root / subdir
+
+
+def _is_shared_skill_only_agent(agent_key: str) -> bool:
+    config = AGENT_SKILL_CONFIG.get(agent_key)
+    return (
+        config is not None
+        and config["class"] == SKILL_CLASS_SHARED
+        and not supports_managed_commands(agent_key)
+    )
+
+
+def _surface_exists(repo_root: Path, agent_key: str, *, configured: bool) -> bool:
+    """Return whether an agent's primary visible surface exists in this project."""
+    surface_path = _primary_surface_path(repo_root, agent_key)
+    if surface_path is None:
+        return False
+
+    if _is_shared_skill_only_agent(agent_key):
+        if configured:
+            return surface_path.exists()
+        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
+        if agent_dir_info is None:
+            return False
+        agent_root, _ = agent_dir_info
+        return (repo_root / agent_root).exists()
+
+    return surface_path.exists()
+
+
+def _load_or_create_manifest(repo_root: Path) -> ManagedSkillManifest:
+    manifest = load_manifest(repo_root)
+    if manifest is not None:
+        return manifest
+
+    from specify_cli import __version__
+
+    now = datetime.now(timezone.utc).isoformat()
+    return ManagedSkillManifest(
+        created_at=now,
+        updated_at=now,
+        spec_kitty_version=__version__,
+    )
+
+
 @app.command(name="list")
 def list_agents():
     """List configured agents and their status."""
@@ -65,12 +154,10 @@ def list_agents():
     # Display configured agents
     console.print("[cyan]Configured agents:[/cyan]")
     for agent_key in config.available:
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if agent_dir_info:
-            agent_dir, subdir = agent_dir_info
-            agent_path = repo_root / agent_dir / subdir
-            status = "✓" if agent_path.exists() else "⚠"
-            console.print(f"  {status} {agent_key} ({agent_dir}/{subdir}/)")
+        surface_path = _primary_surface_path(repo_root, agent_key)
+        if surface_path is not None:
+            status = "✓" if _surface_exists(repo_root, agent_key, configured=True) else "⚠"
+            console.print(f"  {status} {agent_key} ({_format_surface_label(agent_key)})")
         else:
             console.print(f"  ✗ {agent_key} (unknown agent)")
 
@@ -121,6 +208,11 @@ def add_agents(
     added = []
     already_configured = []
     errors = []
+    skill_registry = SkillRegistry.from_package()
+    skills = skill_registry.discover_skills()
+    manifest = _load_or_create_manifest(repo_root)
+    manifest_dirty = False
+    shared_root_installed: set[str] = set()
 
     for agent_key in agents:
         # Check if already configured
@@ -134,33 +226,33 @@ def add_agents(
             errors.append(f"Unknown agent: {agent_key}")
             continue
 
-        agent_root, subdir = agent_dir_info
-        agent_dir = repo_root / agent_root / subdir
-
-        # Create directory structure
         try:
-            agent_dir.mkdir(parents=True, exist_ok=True)
-
-            # Generate templates for this agent
-            # Copy from mission templates
-            missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
-
-            if missions_dir.exists():
-                for template_file in missions_dir.glob("*.md"):
-                    dest_file = agent_dir / f"spec-kitty.{template_file.name}"
-                    shutil.copy2(template_file, dest_file)
-
+            install_project_commands_for_agent(repo_root, agent_key)
+            entries = install_skills_for_agent(
+                repo_root,
+                agent_key,
+                skills,
+                shared_root_installed=shared_root_installed,
+            )
+            for entry in entries:
+                manifest.add_entry(entry)
+            if entries:
+                manifest_dirty = True
             added.append(agent_key)
             config.available.append(agent_key)
-            console.print(f"[green]✓[/green] Added {agent_root}/{subdir}/")
+            console.print(f"[green]✓[/green] Added {_format_surface_label(agent_key)}")
 
         except OSError as e:
-            errors.append(f"Failed to create {agent_root}/{subdir}/: {e}")
+            errors.append(f"Failed to provision {_format_surface_label(agent_key)}: {e}")
+        except Exception as e:  # noqa: BLE001
+            errors.append(f"Failed to provision {agent_key}: {e}")
 
     # Save updated config
     if added:
         save_agent_config(repo_root, config)
         console.print(f"\n[cyan]Updated config.yaml:[/cyan] added {', '.join(added)}")
+    if manifest_dirty:
+        save_manifest(manifest, repo_root)
 
     if already_configured:
         console.print(f"\n[dim]Already configured:[/dim] {', '.join(already_configured)}")
@@ -272,26 +364,24 @@ def agent_status():
     all_agent_keys = sorted(AGENT_DIR_TO_KEY.values())
 
     for agent_key in all_agent_keys:
-        agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-        if not agent_dir_info:
+        surface_path = _primary_surface_path(repo_root, agent_key)
+        if surface_path is None:
             continue
 
-        agent_root, subdir = agent_dir_info
-        agent_path = repo_root / agent_root / subdir
-
+        path_exists = _surface_exists(repo_root, agent_key, configured=agent_key in config.available)
         configured = "✓" if agent_key in config.available else "✗"
-        exists = "✓" if agent_path.exists() else "✗"
+        exists = "✓" if path_exists else "✗"
 
-        if agent_key in config.available and agent_path.exists():
+        if agent_key in config.available and path_exists:
             status = "[green]OK[/green]"
-        elif agent_key in config.available and not agent_path.exists():
+        elif agent_key in config.available and not path_exists:
             status = "[yellow]Missing[/yellow]"
-        elif agent_key not in config.available and agent_path.exists():
+        elif agent_key not in config.available and path_exists:
             status = "[red]Orphaned[/red]"
         else:
             status = "[dim]Not used[/dim]"
 
-        table.add_row(agent_key, f"{agent_root}/{subdir}", configured, exists, status)
+        table.add_row(agent_key, _format_surface_label(agent_key), configured, exists, status)
 
     console.print(table)
 
@@ -346,7 +436,8 @@ def sync_agents(
         orphaned = [
             key
             for key in all_agent_keys
-            if key not in config.available and (repo_root / KEY_TO_AGENT_DIR[key][0]).exists()
+            if key not in config.available
+            and _surface_exists(repo_root, key, configured=False)
         ]
 
         for agent_key in orphaned:
@@ -363,31 +454,40 @@ def sync_agents(
     # Create missing directories
     if create_missing:
         console.print("\n[cyan]Checking for missing directories...[/cyan]")
-        missions_dir = repo_root / ".kittify" / "missions" / "software-dev" / "command-templates"
+        skill_registry = SkillRegistry.from_package()
+        skills = skill_registry.discover_skills()
+        manifest = _load_or_create_manifest(repo_root)
+        manifest_dirty = False
+        shared_root_installed: set[str] = set()
 
         for agent_key in config.available:
-            agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
-            if not agent_dir_info:
+            surface_path = _primary_surface_path(repo_root, agent_key)
+            if surface_path is None:
                 console.print(f"  [yellow]⚠[/yellow] Unknown agent: {agent_key}")
                 continue
 
-            agent_root, subdir = agent_dir_info
-            agent_dir = repo_root / agent_root / subdir
-
-            if not agent_dir.exists():
+            if not _surface_exists(repo_root, agent_key, configured=True):
                 try:
-                    agent_dir.mkdir(parents=True, exist_ok=True)
-
-                    # Copy templates if available
-                    if missions_dir.exists():
-                        for template_file in missions_dir.glob("*.md"):
-                            dest_file = agent_dir / f"spec-kitty.{template_file.name}"
-                            shutil.copy2(template_file, dest_file)
-
-                    console.print(f"  [green]✓[/green] Created {agent_root}/{subdir}/")
+                    install_project_commands_for_agent(repo_root, agent_key)
+                    entries = install_skills_for_agent(
+                        repo_root,
+                        agent_key,
+                        skills,
+                        shared_root_installed=shared_root_installed,
+                    )
+                    for entry in entries:
+                        manifest.add_entry(entry)
+                    if entries:
+                        manifest_dirty = True
+                    console.print(f"  [green]✓[/green] Created {_format_surface_label(agent_key)}")
                     changes_made = True
                 except OSError as e:
-                    console.print(f"  [red]✗[/red] Failed to create {agent_root}/{subdir}/: {e}")
+                    console.print(f"  [red]✗[/red] Failed to create {_format_surface_label(agent_key)}: {e}")
+                except Exception as e:  # noqa: BLE001
+                    console.print(f"  [red]✗[/red] Failed to provision {agent_key}: {e}")
+
+        if manifest_dirty:
+            save_manifest(manifest, repo_root)
 
     if not changes_made:
         console.print("[dim]No changes needed - filesystem matches config[/dim]")

@@ -10,6 +10,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import List, Tuple
 
+from specify_cli.core.config import LEGACY_ONLY_COMMAND_AGENTS
+
 
 # Canonical list of all supported agent directories and their subdirectories
 # This is the single source of truth for agent directory configuration
@@ -99,3 +101,17 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         # Config missing or error reading - fallback to all agents
         # This handles legacy projects gracefully
         return list(AGENT_DIRS)
+
+
+def get_command_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
+    """Return configured agent directories that still consume managed commands."""
+    configured_dirs = get_agent_dirs_for_project(project_path)
+    command_dirs: List[Tuple[str, str]] = []
+
+    for agent_root, subdir in configured_dirs:
+        agent_key = AGENT_DIR_TO_KEY.get(agent_root)
+        if agent_key in LEGACY_ONLY_COMMAND_AGENTS:
+            continue
+        command_dirs.append((agent_root, subdir))
+
+    return command_dirs

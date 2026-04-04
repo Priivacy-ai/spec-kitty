@@ -191,7 +191,10 @@ def check_command_file_health(project_path: Path) -> list[dict]:
     """
     try:
         from specify_cli import __version__
-        from specify_cli.agent_utils.directories import AGENT_DIR_TO_KEY, get_agent_dirs_for_project
+        from specify_cli.agent_utils.directories import (
+            AGENT_DIR_TO_KEY,
+            get_command_agent_dirs_for_project,
+        )
         from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, PROMPT_DRIVEN_COMMANDS
         from specify_cli.core.config import AGENT_COMMAND_CONFIG
     except ImportError:
@@ -216,7 +219,7 @@ def check_command_file_health(project_path: Path) -> list[dict]:
         return f"spec-kitty.{stem}.{ext}" if ext else f"spec-kitty.{stem}"
 
     issues: list[dict] = []
-    agent_dirs = get_agent_dirs_for_project(project_path)
+    agent_dirs = get_command_agent_dirs_for_project(project_path)
 
     for agent_root, subdir in agent_dirs:
         agent_dir = project_path / agent_root / subdir
@@ -285,6 +288,17 @@ def check_command_file_health(project_path: Path) -> list[dict]:
                     "issue": f"CLI-driven command has {line_count} non-empty lines (expected <10 for thin shim)",
                     "severity": "warning",
                 })
+
+    codex_root = project_path / ".codex" / "prompts"
+    if codex_root.is_dir():
+        for legacy_file in sorted(codex_root.glob("spec-kitty.*")):
+            issues.append({
+                "agent": "codex",
+                "command": "legacy-prompts",
+                "file": str(legacy_file.relative_to(project_path)),
+                "issue": "legacy Codex prompt file should be retired; Codex now loads Spec Kitty via skills",
+                "severity": "warning",
+            })
 
     return issues
 
