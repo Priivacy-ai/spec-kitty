@@ -6,6 +6,7 @@ operations that are not supported for SaaS-backed providers.
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -14,16 +15,23 @@ from specify_cli.tracker.config import (
     clear_tracker_config,
     save_tracker_config,
 )
-from specify_cli.tracker.saas_client import SaaSTrackerClient
-from specify_cli.tracker.service import TrackerServiceError
+from specify_cli.tracker.saas_client import SaaSTrackerClient, SaaSTrackerClientError
+from specify_cli.tracker.service import StaleBindingError, TrackerServiceError
+
+logger = logging.getLogger(__name__)
+
+_STALE_BINDING_CODES: frozenset[str] = frozenset(
+    {"binding_not_found", "mapping_disabled", "project_mismatch"}
+)
 
 
 class SaaSTrackerService:
     """Service wrapper for SaaS-backed tracker providers.
 
     This class never holds provider-native credentials.  It reads
-    ``project_slug`` from config and derives ``team_slug`` from the auth
-    credential store at call time (via the SaaS client).
+    ``binding_ref`` (preferred) or ``project_slug`` from config and
+    derives ``team_slug`` from the auth credential store at call time
+    (via the SaaS client).
     """
 
     def __init__(
@@ -50,6 +58,85 @@ class SaaSTrackerService:
     def project_slug(self) -> str:
         assert self._config.project_slug is not None  # noqa: S101
         return self._config.project_slug
+
+    # ------------------------------------------------------------------
+    # Routing resolution
+    # ------------------------------------------------------------------
+
+    def _resolve_routing_params(self) -> dict[str, str]:
+        """Resolve which routing key to send to the client.
+
+        Returns dict with either ``binding_ref`` or ``project_slug`` key.
+        ``binding_ref`` takes precedence when both are present.
+        Raises ``TrackerServiceError`` if neither is available.
+        """
+        if self._config.binding_ref:
+            return {"binding_ref": self._config.binding_ref}
+        if self._config.project_slug:
+            return {"project_slug": self._config.project_slug}
+        raise TrackerServiceError(
+            "No tracker binding configured. Run `spec-kitty tracker bind` first."
+        )
+
+    # ------------------------------------------------------------------
+    # Opportunistic upgrade
+    # ------------------------------------------------------------------
+
+    def _maybe_upgrade_binding_ref(self, response: dict[str, Any]) -> None:
+        """Opportunistically persist binding_ref from response if available.
+
+        Silent on failure (debug log only).  Never modifies config if
+        response doesn't contain binding_ref.
+        """
+        binding_ref = response.get("binding_ref")
+        if not binding_ref:
+            return
+        if self._config.binding_ref == binding_ref:
+            return  # Already up to date
+
+        try:
+            self._config.binding_ref = binding_ref
+            display_label = response.get("display_label")
+            if display_label:
+                self._config.display_label = display_label
+            provider_context = response.get("provider_context")
+            if isinstance(provider_context, dict):
+                self._config.provider_context = provider_context
+            save_tracker_config(self._repo_root, self._config)
+            logger.debug("Opportunistically upgraded binding_ref to %s", binding_ref)
+        except Exception:
+            logger.debug("Failed to upgrade binding_ref", exc_info=True)
+
+    # ------------------------------------------------------------------
+    # Stale-binding detection
+    # ------------------------------------------------------------------
+
+    def _call_with_stale_detection(
+        self,
+        method: Any,
+        *args: Any,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Invoke a client method, translating stale-binding errors.
+
+        When routing by ``binding_ref`` and the server responds with a
+        known stale-binding error code, raises ``StaleBindingError``
+        instead of the raw client error.
+        """
+        try:
+            return method(*args, **kwargs)
+        except SaaSTrackerClientError as e:
+            if (
+                e.error_code in _STALE_BINDING_CODES
+                and self._config.binding_ref
+            ):
+                raise StaleBindingError(
+                    f"Tracker binding is stale: {e}. "
+                    f"Run `spec-kitty tracker bind --provider {self.provider}` to rebind.",
+                    binding_ref=self._config.binding_ref,
+                    error_code=e.error_code or "unknown",
+                ) from e
+            raise
 
     # ------------------------------------------------------------------
     # bind / unbind
@@ -85,11 +172,21 @@ class SaaSTrackerService:
 
     def status(self) -> dict[str, Any]:
         """Retrieve connection / sync status from the SaaS control plane."""
-        return self._client.status(self.provider, self.project_slug)
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.status, self.provider, **routing,
+        )
+        self._maybe_upgrade_binding_ref(result)
+        return result
 
     def sync_pull(self, *, limit: int = 100) -> dict[str, Any]:
         """Pull items from the external tracker via the SaaS control plane."""
-        return self._client.pull(self.provider, self.project_slug, limit=limit)
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.pull, self.provider, limit=limit, **routing,
+        )
+        self._maybe_upgrade_binding_ref(result)
+        return result
 
     def sync_push(self, *, items: list[dict[str, Any]] | None = None) -> dict[str, Any]:
         """Push items to the external tracker via the SaaS control plane.
@@ -98,17 +195,29 @@ class SaaSTrackerService:
         ``TrackerPushRequest`` contract.  Each item carries a ``ref``,
         ``action``, and optional ``patch`` / ``target_status``.
         """
-        return self._client.push(
-            self.provider, self.project_slug, items=items or [],
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.push, self.provider, items=items or [], **routing,
         )
+        self._maybe_upgrade_binding_ref(result)
+        return result
 
     def sync_run(self, *, limit: int = 100) -> dict[str, Any]:
         """Run a full sync cycle via the SaaS control plane."""
-        return self._client.run(self.provider, self.project_slug, limit=limit)
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.run, self.provider, limit=limit, **routing,
+        )
+        self._maybe_upgrade_binding_ref(result)
+        return result
 
     def map_list(self) -> list[dict[str, Any]]:
         """List field mappings from the SaaS control plane."""
-        result = self._client.mappings(self.provider, self.project_slug)
+        routing = self._resolve_routing_params()
+        result = self._call_with_stale_detection(
+            self._client.mappings, self.provider, **routing,
+        )
+        self._maybe_upgrade_binding_ref(result)
         mappings: list[dict[str, Any]] = result.get("mappings", [])
         return mappings
 
