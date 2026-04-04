@@ -15,8 +15,8 @@ base_branch: main
 base_commit: 61417a958f7ca801be5944c4f7dcb7cf4a7a52df
 created_at: '2026-04-04T10:26:57.221664+00:00'
 subtasks: [T030, T031, T032, T033, T034, T035]
-shell_pid: "87377"
-agent: "coordinator"
+shell_pid: "90330"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -234,3 +234,4 @@ spec-kitty implement WP07 --base WP05
 - 2026-04-04T10:59:36Z – codex – shell_pid=71688 – Moved to planned
 - 2026-04-04T11:01:19Z – coordinator – shell_pid=87377 – Started implementation via workflow command
 - 2026-04-04T11:03:05Z – coordinator – shell_pid=87377 – Fixed _extra preservation per Codex review (cycle 3/3)
+- 2026-04-04T11:03:37Z – codex – shell_pid=90330 – Started review via workflow command
