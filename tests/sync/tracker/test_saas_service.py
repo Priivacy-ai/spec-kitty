@@ -459,6 +459,27 @@ class TestMaybeUpgradeBindingRef:
 
         assert svc._config.binding_ref == "bind-from-mappings"
 
+    def test_maybe_upgrade_preserves_extra_fields(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """Unknown config fields survive opportunistic upgrade (forward-compat)."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            project_slug="my-proj",
+            _extra={"future_flag": True, "beta_feature": "enabled"},
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "bind-new-abc",
+        }
+        svc.status()
+
+        # Core assertion: _extra must survive the upgrade rebuild
+        assert svc._config._extra == {"future_flag": True, "beta_feature": "enabled"}
+        assert svc._config.binding_ref == "bind-new-abc"
+
 
 # ---------------------------------------------------------------------------
 # Stale binding detection (T034)

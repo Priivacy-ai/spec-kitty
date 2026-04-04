@@ -114,6 +114,7 @@ class SaaSTrackerService:
                 workspace=self._config.workspace,
                 doctrine_mode=self._config.doctrine_mode,
                 doctrine_field_owners=self._config.doctrine_field_owners,
+                _extra=self._config._extra,
             )
             save_tracker_config(self._repo_root, updated)
             # Only update in-memory state AFTER successful save
