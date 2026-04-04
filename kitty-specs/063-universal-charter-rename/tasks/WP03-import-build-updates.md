@@ -137,3 +137,4 @@ spec-kitty implement WP03 --base WP01
 ## Activity Log
 
 - 2026-04-04T20:07:27Z – claude – shell_pid=19679 – Started implementation via action command
+- 2026-04-04T20:33:36Z – claude – shell_pid=19679 – All imports and build config updated from constitution to charter: 66 files changed across src/specify_cli, src/kernel, src/doctrine, and pyproject.toml
