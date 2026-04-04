@@ -130,11 +130,11 @@ Enrich `SaaSTrackerClientError` with `error_code`, `status_code`, `details`, `us
 
 Add 4 new methods to `SaaSTrackerClient`: `resources()`, `bind_resolve()`, `bind_confirm()`, `bind_validate()`. Each follows the existing `_request_with_retry` pattern.
 
-- [ ] T015: Add path constants
-- [ ] T016: Implement resources()
-- [ ] T017: Implement bind_resolve()
-- [ ] T018: Implement bind_confirm()
-- [ ] T019: Implement bind_validate()
+- [x] T015: Add path constants
+- [x] T016: Implement resources()
+- [x] T017: Implement bind_resolve()
+- [x] T018: Implement bind_confirm()
+- [x] T019: Implement bind_validate()
 
 #### WP05: Existing Endpoint Evolution
 **Priority**: High | **Subtasks**: T020-T023 (4) | **~300 lines**
