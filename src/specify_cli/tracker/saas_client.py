@@ -18,7 +18,28 @@ from specify_cli.sync.config import SyncConfig
 
 
 class SaaSTrackerClientError(RuntimeError):
-    """Raised when a SaaS tracker API call fails."""
+    """Raised when a SaaS tracker API call fails.
+
+    Attributes carry structured PRI-12 error envelope data for
+    programmatic inspection (e.g., stale-binding detection).
+    Backward compatible: ``SaaSTrackerClientError("msg")`` still works,
+    and ``str(e)`` returns the message.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str | None = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+        user_action_required: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.status_code = status_code
+        self.details = details or {}
+        self.user_action_required = user_action_required
 
 
 def _poll_jitter_multiplier() -> float:
@@ -33,7 +54,7 @@ def _poll_jitter_multiplier() -> float:
 def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
     """Extract PRI-12 error envelope fields from a non-2xx response.
 
-    Returns a dict with keys: code, category, message, retryable,
+    Returns a dict with keys: error_code, category, message, retryable,
     user_action_required, source, retry_after_seconds.
     Missing keys default to ``None`` (or ``False`` for booleans).
     """
@@ -41,7 +62,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         body: dict[str, Any] = response.json()
     except Exception:
         return {
-            "code": None,
+            "error_code": None,
             "category": None,
             "message": f"HTTP {response.status_code}",
             "retryable": False,
@@ -51,7 +72,7 @@ def _parse_error_envelope(response: httpx.Response) -> dict[str, Any]:
         }
 
     return {
-        "code": body.get("code"),
+        "error_code": body.get("error_code"),
         "category": body.get("category"),
         "message": body.get("message", f"HTTP {response.status_code}"),
         "retryable": body.get("retryable", False),
@@ -87,8 +108,8 @@ class SaaSTrackerClient:
         *,
         timeout: float = 30.0,
     ) -> None:
-        self._credential_store = credential_store or CredentialStore()  # type: ignore[no-untyped-call]
-        self._sync_config = sync_config or SyncConfig()  # type: ignore[no-untyped-call]
+        self._credential_store = credential_store or CredentialStore()
+        self._sync_config = sync_config or SyncConfig()
         self._base_url: str = self._sync_config.get_server_url()
         self._timeout = timeout
 
@@ -100,6 +121,38 @@ class SaaSTrackerClient:
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
     _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
     _BIND_ORIGIN_PATH = "/api/v1/tracker/mission-origin/bind/"
+    _RESOURCES_PATH = "/api/v1/tracker/resources/"
+    _BIND_RESOLVE_PATH = "/api/v1/tracker/bind-resolve/"
+    _BIND_CONFIRM_PATH = "/api/v1/tracker/bind-confirm/"
+    _BIND_VALIDATE_PATH = "/api/v1/tracker/bind-validate/"
+
+    # ----- routing helpers -----
+
+    def _routing_params(
+        self,
+        provider: str,
+        project_slug: str | None,
+        binding_ref: str | None,
+    ) -> dict[str, str]:
+        """Build the routing-key dict for an API call.
+
+        When *binding_ref* is provided it takes precedence over
+        *project_slug*.  If neither is supplied a
+        ``SaaSTrackerClientError`` with ``error_code="missing_routing_key"``
+        is raised.
+        """
+        params: dict[str, str] = {"provider": provider}
+        if binding_ref:
+            params["binding_ref"] = binding_ref
+        elif project_slug:
+            params["project_slug"] = project_slug
+        else:
+            raise SaaSTrackerClientError(
+                "Either project_slug or binding_ref must be provided.",
+                error_code="missing_routing_key",
+                status_code=None,
+            )
+        return params
 
     # ----- low-level request helpers -----
 
@@ -171,13 +224,16 @@ class SaaSTrackerClient:
         # --- 401: one refresh + retry ---
         if response.status_code == 401:
             try:
-                auth_client = AuthClient()  # type: ignore[no-untyped-call]
+                auth_client = AuthClient()
                 auth_client.credential_store = self._credential_store
                 auth_client.config = self._sync_config
                 auth_client.refresh_tokens()
             except Exception as exc:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 ) from exc
 
             response = self._request(
@@ -185,7 +241,10 @@ class SaaSTrackerClient:
             )
             if response.status_code == 401:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
                 )
 
         # --- 429: respect retry_after_seconds ---
@@ -202,7 +261,9 @@ class SaaSTrackerClient:
             if response.status_code == 429:
                 envelope = _parse_error_envelope(response)
                 raise SaaSTrackerClientError(
-                    envelope.get("message") or "Rate limited by SaaS API."
+                    envelope.get("message") or "Rate limited by SaaS API.",
+                    error_code="rate_limited",
+                    status_code=429,
                 )
 
         # --- Other non-2xx ---
@@ -213,7 +274,13 @@ class SaaSTrackerClient:
             # When True, suffix the message with generic guidance.
             if envelope.get("user_action_required"):
                 msg += " (action required — check the Spec Kitty dashboard)"
-            raise SaaSTrackerClientError(msg)
+            raise SaaSTrackerClientError(
+                msg,
+                error_code=envelope.get("error_code"),
+                status_code=response.status_code,
+                details=envelope,
+                user_action_required=bool(envelope.get("user_action_required")),
+            )
 
         return response
 
@@ -273,16 +340,16 @@ class SaaSTrackerClient:
     def pull(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
+        binding_ref: str | None = None,
         limit: int = 100,
         cursor: str | None = None,
         filters: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/pull -- pull items from external tracker."""
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
+            **self._routing_params(provider, project_slug, binding_ref),
             "limit": limit,
         }
         if cursor is not None:
@@ -294,22 +361,44 @@ class SaaSTrackerClient:
         result: dict[str, Any] = response.json()
         return result
 
-    def status(self, provider: str, project_slug: str) -> dict[str, Any]:
-        """GET /api/v1/tracker/status -- connection/sync status."""
+    def status(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        *,
+        binding_ref: str | None = None,
+        installation_wide: bool = False,
+    ) -> dict[str, Any]:
+        """GET /api/v1/tracker/status -- connection/sync status.
+
+        When *installation_wide* is True, sends only ``provider`` as a query
+        param (no project_slug or binding_ref). The SaaS host returns
+        installation-level status for that provider.
+        """
+        if installation_wide:
+            params: dict[str, str] = {"provider": provider}
+        else:
+            params = self._routing_params(provider, project_slug, binding_ref)
         response = self._request_with_retry(
             "GET",
             self._STATUS_PATH,
-            params={"provider": provider, "project_slug": project_slug},
+            params=params,
         )
         result: dict[str, Any] = response.json()
         return result
 
-    def mappings(self, provider: str, project_slug: str) -> dict[str, Any]:
+    def mappings(
+        self,
+        provider: str,
+        project_slug: str | None = None,
+        *,
+        binding_ref: str | None = None,
+    ) -> dict[str, Any]:
         """GET /api/v1/tracker/mappings -- field mappings."""
         response = self._request_with_retry(
             "GET",
             self._MAPPINGS_PATH,
-            params={"provider": provider, "project_slug": project_slug},
+            params=self._routing_params(provider, project_slug, binding_ref),
         )
         result: dict[str, Any] = response.json()
         return result
@@ -383,14 +472,89 @@ class SaaSTrackerClient:
         result: dict[str, Any] = response.json()
         return result
 
+    # ----- discovery and binding endpoints -----
+
+    def resources(self, provider: str) -> dict[str, Any]:
+        """GET /api/v1/tracker/resources/ -- enumerate bindable resources."""
+        response = self._request_with_retry(
+            "GET",
+            self._RESOURCES_PATH,
+            params={"provider": provider},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_resolve(
+        self,
+        provider: str,
+        project_identity: dict[str, Any],
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-resolve/ -- resolve identity to bind candidates."""
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_RESOLVE_PATH,
+            json=payload,
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_confirm(
+        self,
+        provider: str,
+        candidate_token: str,
+        project_identity: dict[str, Any],
+        *,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-confirm/ -- confirm bind selection."""
+        key = idempotency_key or str(uuid.uuid4())
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "candidate_token": candidate_token,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_CONFIRM_PATH,
+            json=payload,
+            headers={"Idempotency-Key": key},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_validate(
+        self,
+        provider: str,
+        binding_ref: str,
+        project_identity: dict[str, Any],
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-validate/ -- validate binding ref."""
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "binding_ref": binding_ref,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_VALIDATE_PATH,
+            json=payload,
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
     # ----- async-capable endpoints -----
 
     def push(
         self,
         provider: str,
-        project_slug: str,
-        items: list[dict[str, Any]],
+        project_slug: str | None = None,
+        items: list[dict[str, Any]] | None = None,
         *,
+        binding_ref: str | None = None,
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/push -- push items to external tracker.
@@ -399,9 +563,8 @@ class SaaSTrackerClient:
         """
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
-            "items": items,
+            **self._routing_params(provider, project_slug, binding_ref),
+            "items": items or [],
         }
         response = self._request_with_retry(
             "POST",
@@ -421,8 +584,9 @@ class SaaSTrackerClient:
     def run(
         self,
         provider: str,
-        project_slug: str,
+        project_slug: str | None = None,
         *,
+        binding_ref: str | None = None,
         pull_first: bool = True,
         limit: int = 100,
         idempotency_key: str | None = None,
@@ -433,8 +597,7 @@ class SaaSTrackerClient:
         """
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
-            "provider": provider,
-            "project_slug": project_slug,
+            **self._routing_params(provider, project_slug, binding_ref),
             "pull_first": pull_first,
             "limit": limit,
         }

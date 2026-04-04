@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-04-04T08:32:36.721955+00:00",
+  "feature_number": "062",
+  "feature_slug": "062-tracker-binding-context-discovery",
+  "friendly_name": "Tracker Binding Context Discovery",
+  "mission": "software-dev",
+  "slug": "tracker-binding-context-discovery",
+  "source_description": "Implement CLI-side of ADR 2026-04-04-1: replace manual --project-slug bind with host-resolved discovery and selection workflow",
+  "target_branch": "main",
+  "vcs": "git"
+}

@@ -12,14 +12,19 @@ import json
 from typing import Any
 
 import typer
+from rich.console import Console
+from rich.table import Table
 
 from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
     REMOVED_PROVIDERS,
     SAAS_PROVIDERS,
+    TrackerProjectConfig,
     load_tracker_config,
     require_repo_root,
 )
+from specify_cli.sync.project_identity import ensure_identity
+from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.factory import normalize_provider
 from specify_cli.tracker.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
@@ -115,6 +120,79 @@ def providers_command(
 
 
 # ---------------------------------------------------------------------------
+# discover
+# ---------------------------------------------------------------------------
+
+
+@app.command("discover")
+def discover_command(
+    provider: str = typer.Option(..., "--provider", help="Provider name"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Discover bindable tracker resources under your installation.
+
+    Lists all resources (projects, teams, boards) available for binding
+    with the specified provider.  Each row is numbered 1-indexed to align
+    with ``tracker bind --select N``.
+    """
+    normalized = normalize_provider(provider)
+
+    try:
+        resources = _service().discover(provider=normalized)
+    except TrackerServiceError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    if not resources:
+        typer.echo(f"No bindable resources found for provider '{normalized}'.")
+        typer.echo("Verify the tracker is connected in the SaaS dashboard.")
+        raise typer.Exit(0)
+
+    if json_output:
+        # Full payload, no truncation — all BindableResource fields included
+        output = [
+            {
+                "number": idx + 1,
+                "candidate_token": r.candidate_token,
+                "display_label": r.display_label,
+                "provider": r.provider,
+                "provider_context": r.provider_context,
+                "binding_ref": r.binding_ref,
+                "bound_project_slug": r.bound_project_slug,
+                "bound_at": r.bound_at,
+                "is_bound": r.is_bound,
+            }
+            for idx, r in enumerate(resources)
+        ]
+        typer.echo(json.dumps(output, indent=2, default=str))
+        return
+
+    # Rich table output — numbered rows for alignment with --select N.
+    # Numbering is 1-indexed: discover row N corresponds to --select N
+    # because discover lists resources in host-returned order and
+    # --select N maps to the Nth item (1-based).
+    console = Console()
+    table = Table(title="Bindable Resources")
+    table.add_column("#", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Resource", style="bold")
+    table.add_column("Provider")
+    table.add_column("Workspace")
+    table.add_column("Status")
+
+    for idx, r in enumerate(resources):
+        status = "bound" if r.is_bound else "available"
+        table.add_row(
+            str(idx + 1),
+            r.display_label,
+            r.provider,
+            r.provider_context.get("workspace_name", ""),
+            status,
+        )
+
+    console.print(table)
+
+
+# ---------------------------------------------------------------------------
 # bind
 # ---------------------------------------------------------------------------
 
@@ -126,10 +204,15 @@ def bind_command(
         "--provider",
         help="Provider name (linear, jira, github, gitlab, beads, fp)",
     ),
-    project_slug: str | None = typer.Option(
+    bind_ref: str | None = typer.Option(
         None,
-        "--project-slug",
-        help="SaaS project identifier for tracker routing (SaaS providers only)",
+        "--bind-ref",
+        help="Binding reference for CI/automation (validates against host)",
+    ),
+    select: int | None = typer.Option(
+        None,
+        "--select",
+        help="Auto-select candidate by number (non-interactive)",
     ),
     workspace: str | None = typer.Option(
         None,
@@ -155,7 +238,8 @@ def bind_command(
     """Bind the current project to an issue tracker.
 
     For SaaS-backed providers (linear, jira, github, gitlab):
-      Requires --provider and --project-slug.
+      Uses discovery to find bindable resources automatically.
+      Use --bind-ref for CI/automation, --select N for non-interactive.
       Authentication via ``spec-kitty auth login``.
 
     For local providers (beads, fp):
@@ -187,19 +271,9 @@ def bind_command(
                 )
                 raise typer.Exit(code=1)
 
-            if not project_slug:
-                typer.secho(
-                    "Error: --project-slug is required for SaaS-backed providers.",
-                    fg=typer.colors.RED,
-                    err=True,
-                )
-                raise typer.Exit(code=1)
-
-            # FR-001: SaaS bind
-            config = _service().bind(provider=provider_normalized, project_slug=project_slug)
-            typer.echo("Tracker binding saved")
-            typer.echo(f"- provider: {config.provider}")
-            typer.echo(f"- project_slug: {config.project_slug}")
+            cancelled = _bind_saas(provider_normalized, bind_ref=bind_ref, select_n=select)
+            if cancelled:
+                typer.echo("Bind cancelled.")
             return
 
         # Local providers
@@ -247,6 +321,116 @@ def bind_command(
     _run_or_exit(_run)
 
 
+def _bind_saas(
+    provider: str,
+    *,
+    bind_ref: str | None,
+    select_n: int | None,
+) -> bool:
+    """Execute the SaaS discovery-bind flow.
+
+    Handles: re-bind confirmation, project identity derivation,
+    interactive candidate selection, --bind-ref validation, and
+    --select N auto-selection.
+
+    Returns ``True`` if the user cancelled re-bind, ``False`` otherwise.
+    Raises ``TrackerServiceError`` on failures (caught by ``_run_or_exit``).
+    Raises ``typer.Exit(1)`` for user input errors.
+    """
+    console = Console()
+    repo_root = require_repo_root()
+
+    # Re-bind confirmation (skip for non-interactive modes)
+    if bind_ref is None and select_n is None:
+        existing = load_tracker_config(repo_root)
+        if existing.is_configured and existing.provider in SAAS_PROVIDERS:
+            label = existing.display_label or existing.binding_ref or existing.project_slug
+            console.print(f"[yellow]Warning:[/yellow] Existing binding: {label}")
+            confirm = input("Replace existing binding? (y/N): ")
+            if confirm.strip().lower() != "y":
+                return True
+
+    # Derive project identity
+    identity = ensure_identity(repo_root)
+    project_identity = {
+        "uuid": str(identity.project_uuid),
+        "slug": identity.project_slug,
+        "node_id": identity.node_id,
+        "repo_slug": identity.repo_slug,
+    }
+
+    # Dispatch to facade (TrackerServiceError propagates to _run_or_exit)
+    result = _service().bind(
+        provider=provider,
+        project_identity=project_identity,
+        bind_ref=bind_ref,
+        select_n=select_n,
+    )
+
+    # Handle bind success (auto-bind, --bind-ref, or --select N)
+    if isinstance(result, BindResult | TrackerProjectConfig):
+        _display_bind_success(result, provider)
+        return False
+
+    # Handle ResolutionResult with candidates (interactive selection needed)
+    if isinstance(result, ResolutionResult) and result.candidates:
+        _handle_candidate_selection(console, result, provider, project_identity)
+        return False
+
+    # No candidates (should not reach here -- service raises on no-match)
+    raise TrackerServiceError(
+        f"No bindable resources found for provider '{provider}'."
+    )
+
+
+def _display_bind_success(
+    result: BindResult | TrackerProjectConfig,
+    provider: str,
+) -> None:
+    """Display success output after binding."""
+    provider_name = result.provider or provider
+    binding_ref = result.binding_ref or result.project_slug or "unknown"
+    display_label = result.display_label or result.project_slug or binding_ref
+
+    typer.echo("Tracker binding saved")
+    typer.echo(f"- provider: {provider_name}")
+    typer.echo(f"- binding_ref: {binding_ref}")
+    typer.echo(f"- display_label: {display_label}")
+
+
+def _handle_candidate_selection(
+    console: Console,
+    resolution: ResolutionResult,
+    provider: str,
+    project_identity: dict[str, Any],
+) -> None:
+    """Display candidates and get interactive user selection."""
+    console.print(f"\nMultiple resources found for provider '{provider}':\n")
+    for candidate in resolution.candidates:
+        num = candidate.sort_position + 1
+        console.print(f"  {num}. {candidate.display_label} ({candidate.confidence} confidence)")
+        console.print(f"     Reason: {candidate.match_reason}")
+
+    console.print()
+    choice = input(f"Select resource (1-{len(resolution.candidates)}): ")
+    try:
+        select_n = int(choice.strip())
+    except ValueError:
+        raise TrackerServiceError("Invalid selection.") from None
+
+    # Call bind again with the selected candidate
+    final = _service().bind(
+        provider=provider,
+        project_identity=project_identity,
+        select_n=select_n,
+    )
+
+    if isinstance(final, BindResult):
+        _display_bind_success(final, provider)
+    else:
+        raise TrackerServiceError("Unexpected result from bind operation.")
+
+
 # ---------------------------------------------------------------------------
 # status
 # ---------------------------------------------------------------------------
@@ -254,6 +438,9 @@ def bind_command(
 
 @app.command("status")
 def status_command(
+    all_installations: bool = typer.Option(
+        False, "--all", help="Show installation-wide status (SaaS providers only)"
+    ),
     as_json: bool = typer.Option(False, "--json", help="Render status as JSON"),
 ) -> None:
     """Show tracker binding and sync status.
@@ -262,13 +449,21 @@ def status_command(
     provider info from the SaaS control plane.
 
     For local providers: displays local cache statistics and configuration.
+
+    With --all: shows installation-wide summary across all bindings
+    (SaaS providers only).
     """
 
     def _run() -> None:
-        payload = _service().status()
+        payload = _service().status(all=all_installations)
 
         if as_json:
             _print_json(payload)
+            return
+
+        # Installation-wide output uses Rich for distinct formatting
+        if all_installations:
+            _print_installation_wide_status(payload)
             return
 
         if not payload.get("configured"):
@@ -293,6 +488,94 @@ def status_command(
             typer.echo(f"- credentials_present: {'yes' if payload.get('credentials_present') else 'no'}")
 
     _run_or_exit(_run)
+
+
+def _print_installation_wide_status(payload: dict) -> None:
+    """Render installation-wide tracker status using Rich for visual distinction."""
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+
+    console = Console()
+
+    provider = payload.get("provider", "unknown")
+    connected = payload.get("connected", payload.get("status", "unknown"))
+    bindings = payload.get("bindings")
+
+    if isinstance(bindings, list):
+        table = Table(show_header=True, header_style="bold cyan")
+        table.add_column("Project", style="bold")
+        table.add_column("Provider")
+        table.add_column("Status")
+        table.add_column("Bound At")
+
+        if bindings:
+            for binding in bindings:
+                if isinstance(binding, dict):
+                    table.add_row(
+                        _binding_project_label(binding),
+                        str(binding.get("provider") or provider),
+                        _binding_status_label(binding),
+                        str(binding.get("bound_at") or "-"),
+                    )
+                else:
+                    table.add_row(str(binding), str(provider), "unknown", "-")
+        else:
+            table.add_row("No bindings", str(provider), str(connected), "-")
+
+        if "resource_count" in payload:
+            table.caption = (
+                f"Connected: {connected} | Resources: {payload['resource_count']}"
+            )
+
+        panel = Panel(table, title="Installation-wide tracker status", border_style="green")
+        console.print(panel)
+        return
+
+    table = Table(show_header=True, header_style="bold cyan")
+    table.add_column("Field", style="bold")
+    table.add_column("Value")
+
+    table.add_row("Provider", str(provider))
+    table.add_row("Connected", str(connected))
+
+    # Show binding/resource counts if present
+    if "bindings" in payload and isinstance(bindings, int):
+        table.add_row("Bindings", str(bindings))
+
+    if "resource_count" in payload:
+        table.add_row("Resources", str(payload["resource_count"]))
+
+    # Include any additional top-level keys that aren't already covered
+    _skip = {"provider", "connected", "status", "bindings", "resource_count"}
+    for key, value in sorted(payload.items()):
+        if key not in _skip:
+            table.add_row(key, str(value))
+
+    panel = Panel(table, title="Installation-wide tracker status", border_style="green")
+    console.print(panel)
+
+
+def _binding_project_label(binding: dict[str, Any]) -> str:
+    """Return the most useful project identifier from a binding payload."""
+    return str(
+        binding.get("project_name")
+        or binding.get("project_slug")
+        or binding.get("project")
+        or binding.get("slug")
+        or binding.get("name")
+        or binding.get("display_label")
+        or "unknown"
+    )
+
+
+def _binding_status_label(binding: dict[str, Any]) -> str:
+    """Return a normalized status label for installation-wide bindings."""
+    return str(
+        binding.get("status")
+        or binding.get("sync_state")
+        or ("bound" if binding.get("binding_ref") or binding.get("bound_at") else "unknown")
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -463,7 +746,12 @@ def sync_push_command(
                 raw = _Path(items_json).read_text(encoding="utf-8")
             parsed = json.loads(raw)
             if not isinstance(parsed, list):
-                typer.secho("Error: --items-json must contain a JSON array of PushItem objects.", fg=typer.colors.RED, err=True)
+                typer.secho(
+                    "Error: --items-json must contain a JSON array of "
+                    "PushItem objects.",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
                 raise typer.Exit(code=1)
 
             payload = service.sync_push(items=parsed)
