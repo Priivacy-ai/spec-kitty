@@ -617,7 +617,7 @@ def merge_workspace_per_wp(
                 if strategy == "squash":
                     run_command(["git", "merge", "--squash", branch], cwd=merge_root)
                     run_command(
-                        ["git", "commit", "-m", f"Merge {wp_id} from {feature_slug}"],
+                        ["git", "-c", "commit.gpgsign=false", "commit", "-m", f"Merge {wp_id} from {feature_slug}"],
                         cwd=merge_root,
                     )
                 elif strategy == "rebase":
@@ -848,6 +848,7 @@ def merge(
     target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
+    mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
     feature: str = typer.Option(None, "--feature", help="Mission slug when merging from main branch (legacy flag name)"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
@@ -867,6 +868,8 @@ def merge(
     """
     if not json_output:
         show_banner()
+
+    mission_slug = (mission or feature or "").strip() or None
 
     # Handle --abort flag early (before any other processing)
     if abort:
@@ -950,7 +953,7 @@ def merge(
         raise typer.Exit(0)
 
         # Set feature from state and override options (kept for legacy paths below)
-        feature = resume_state.feature_slug
+        mission_slug = resume_state.feature_slug
         target_branch = resume_state.target_branch
         strategy = resume_state.strategy
 
@@ -962,7 +965,7 @@ def merge(
 
     _enforce_git_preflight(repo_root, json_output=json_output)
 
-    resolved_feature = feature
+    resolved_feature = mission_slug
 
     # Track where the target branch value came from for error messages.
     # Possible values: "flag" (--target), "meta.json", "primary_branch"
@@ -1040,7 +1043,7 @@ def merge(
 
     if json_output and dry_run:
         _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
-        if current_branch == target_branch and not feature:
+        if current_branch == target_branch and not mission_slug:
             print(json.dumps({
                 "spec_kitty_version": SPEC_KITTY_VERSION,
                 "error": f"Already on {target_branch}; pass --feature <slug> for workspace-per-WP planning.",
@@ -1172,33 +1175,33 @@ def merge(
         _, current_branch, _ = run_command(["git", "rev-parse", "--abbrev-ref", "HEAD"], capture=True)
         if current_branch == target_branch:
             # Check if --feature flag was provided
-            if feature:
+            if mission_slug:
                 main_repo = get_main_repo_root(repo_root)
 
                 # Check for lane-based structure first
-                structure = detect_worktree_structure(main_repo, feature)
+                structure = detect_worktree_structure(main_repo, mission_slug)
                 if structure == "lane-based":
                     # Dispatch to lane merge flow (handled below after detect block)
-                    resolved_feature = feature
-                    feature_slug = feature
+                    resolved_feature = mission_slug
+                    feature_slug = mission_slug
                     in_worktree = False
                     merge_root = main_repo
-                    tracker.complete("detect", f"lane-based feature {feature}")
+                    tracker.complete("detect", f"lane-based feature {mission_slug}")
                     # Fall through to the lane-based dispatch below
                 else:
                     # Validate feature exists by checking for WP worktrees
                     worktrees_dir = main_repo / ".worktrees"
-                    wp_pattern = list(worktrees_dir.glob(f"{feature}-WP*")) if worktrees_dir.exists() else []
+                    wp_pattern = list(worktrees_dir.glob(f"{mission_slug}-WP*")) if worktrees_dir.exists() else []
 
                     if not wp_pattern:
-                        tracker.error("detect", f"no WP worktrees found for {feature}")
+                        tracker.error("detect", f"no WP worktrees found for {mission_slug}")
                         console.print(tracker.render())
-                        console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{feature}'.")
+                        console.print(f"\n[red]Error:[/red] No WP worktrees found for feature '{mission_slug}'.")
                         console.print("Check the feature slug or create workspaces first.")
                         raise typer.Exit(1)
 
                     # Use the provided feature slug and continue
-                    feature_slug = feature
+                    feature_slug = mission_slug
                     tracker.complete("detect", f"using --feature {feature_slug}")
 
                 if structure != "lane-based":
@@ -1401,7 +1404,7 @@ def merge(
         if strategy == "squash":
             run_command(["git", "merge", "--squash", current_branch], cwd=merge_root)
             run_command(
-                ["git", "commit", "-m", f"Merge feature {current_branch}"],
+                ["git", "-c", "commit.gpgsign=false", "commit", "-m", f"Merge feature {current_branch}"],
                 cwd=merge_root,
             )
             tracker.complete("merge", "squashed")

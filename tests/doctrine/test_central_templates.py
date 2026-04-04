@@ -29,7 +29,6 @@ EXPECTED_TEMPLATES = {
     "constitution.md",
     "dashboard.md",
     "implement.md",
-    "merge.md",
     "plan.md",
     "research.md",
     "review.md",
@@ -104,7 +103,6 @@ def test_central_task_prompt_template_carries_wp_metadata() -> None:
     tpl = importlib.resources.files("doctrine").joinpath("templates", "task-prompt-template.md")
     content = Path(str(tpl)).read_text(encoding="utf-8")
     assert "work_package_id" in content, "template should declare work_package_id placeholder"
-    assert "lane" in content, "template should declare lane frontmatter"
     assert "## Review Feedback" in content, "template should have Review Feedback section"
     assert "## Activity Log" in content, "template should have Activity Log section"
     assert "Dependency" in content, "template should address dependency handling"

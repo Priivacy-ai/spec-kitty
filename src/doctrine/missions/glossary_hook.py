@@ -42,7 +42,7 @@ from typing import Any
 from collections.abc import Callable
 
 from kernel.glossary_types import Strictness
-from kernel.glossary_runner import get_runner
+from kernel.glossary_runner import get_runner, register
 
 logger = logging.getLogger(__name__)
 
@@ -124,6 +124,18 @@ def execute_with_glossary(
         return primitive_fn(context, *args, **kwargs)
 
     runner_cls = get_runner()
+    if runner_cls is None:
+        # Compatibility bootstrap: some callers import the doctrine hook
+        # directly before specify_cli.glossary has had a chance to register
+        # the concrete runner into the kernel registry.
+        try:
+            from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
+
+            register(GlossaryAwarePrimitiveRunner)
+            runner_cls = get_runner()
+        except Exception:
+            runner_cls = None
+
     if runner_cls is None:
         logger.debug(
             "No glossary runner registered; executing primitive directly for step=%s",

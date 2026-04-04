@@ -92,11 +92,6 @@ steps:
       directional relationships. Acronyms must be expanded or defined in
       the legend. The diagram should be understandable by its target
       audience without verbal explanation.
-    references:
-      - name: Architecture Diagram Review Checklist
-        type: checklist
-        id: architecture-diagram-review-checklist
-        when: Reviewing any C4 diagram before sharing or committing.
 failure_modes:
   - "Audience mismatch: showing container-level technology choices to business sponsors who need system context, or showing context-level abstractions to developers who need component boundaries."
   - "Level skip: jumping from Level 1 to Level 3 without establishing the container landscape, leaving reviewers unable to place components in context."

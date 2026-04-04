@@ -88,7 +88,7 @@ steps:
       questions to follow-up tasks. The output feeds directly into bounded
       context identification, context mapping, and aggregate boundary design.
     actor: agent
-failure_modes:
+anti_patterns:
   - name: No domain expert validation
     description: >
       Completing the entire discovery without human validation, producing a
@@ -121,8 +121,3 @@ references:
     reason: >
       Events discovered during this procedure become the basis for domain
       event modelling.
-  - type: tactic
-    id: domain-message-flow-mapping
-    reason: >
-      Discovery outputs feed directly into message flow mapping for specific
-      scenarios.

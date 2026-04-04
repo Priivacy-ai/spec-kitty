@@ -487,7 +487,7 @@ This is intentional - worktrees provide isolation for parallel mission developme
   - Append a new entry in the prompt's **Activity Log** with timestamp, reviewer agent, shell PID, and summary of feedback.
   - Save feedback to a file and run `spec-kitty agent tasks move-task <TASK_ID> --to planned --review-feedback-file <feedback-file>` (use the PowerShell equivalent on Windows) so rollback validation captures the feedback source deterministically.
 - **Approved**:
-  - Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – lane=done – Approved without changes`).
+  - Append Activity Log entry capturing approval details (capture shell PID via `echo $$` or helper script, e.g., `2025-11-11T13:45:00Z – claude – shell_pid=1234 – Approved without changes`).
   - Update frontmatter:
     - Sets `lane: "done"`
     - Sets `review_status: "approved without changes"` (or your custom status)

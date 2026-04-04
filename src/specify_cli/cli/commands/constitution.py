@@ -9,10 +9,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from specify_cli.constitution.compiler import compile_constitution, write_compiled_constitution
-from specify_cli.constitution.context import BOOTSTRAP_ACTIONS, build_constitution_context
-from specify_cli.constitution.hasher import is_stale
-from specify_cli.constitution.interview import (
+from constitution.compiler import compile_constitution, write_compiled_constitution
+from constitution.context import BOOTSTRAP_ACTIONS, build_constitution_context
+from constitution.hasher import is_stale
+from constitution.interview import (
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
     QUESTION_PROMPTS,
@@ -21,7 +21,7 @@ from specify_cli.constitution.interview import (
     read_interview_answers,
     write_interview_answers,
 )
-from specify_cli.constitution.sync import sync as sync_constitution
+from constitution.sync import sync as sync_constitution
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 app = typer.Typer(
@@ -136,6 +136,7 @@ def interview(
             print(
                 json.dumps(
                     {
+                        "result": "success",
                         "success": True,
                         "interview_path": str(answers_path.relative_to(repo_root)),
                         "mission": interview_data.mission,
@@ -202,6 +203,11 @@ def generate(
             template_set=template_set,
         )
         bundle_result = write_compiled_constitution(constitution_dir, compiled, force=force)
+        if interview_source == "defaults":
+            # Legacy CLI contract: default generation materializes an empty
+            # library/ directory for older consumers. Interview-driven flows
+            # keep the newer no-materialization behavior.
+            (constitution_dir / "library").mkdir(exist_ok=True)
 
         constitution_path = constitution_dir / "constitution.md"
         sync_result = sync_constitution(constitution_path, constitution_dir, force=True)
@@ -215,9 +221,15 @@ def generate(
                 files_written.append(file_name)
 
         if json_output:
+            local_support_files = [
+                reference.source_path
+                for reference in compiled.references
+                if reference.kind == "local_support"
+            ]
             print(
                 json.dumps(
                     {
+                        "result": "success",
                         "success": True,
                         "constitution_path": str(constitution_path.relative_to(repo_root)),
                         "interview_source": interview_source,
@@ -227,6 +239,7 @@ def generate(
                         "selected_directives": compiled.selected_directives,
                         "available_tools": compiled.available_tools,
                         "references_count": len(compiled.references),
+                        "library_files": local_support_files,
                         "files_written": files_written,
                         "diagnostics": compiled.diagnostics,
                     },
@@ -270,11 +283,13 @@ def context(
             print(
                 json.dumps(
                     {
+                        "result": "success",
                         "success": True,
                         "action": result.action,
                         "mode": result.mode,
                         "first_load": result.first_load,
                         "references_count": result.references_count,
+                        "context": result.text,
                         "text": result.text,
                     },
                     indent=2,
@@ -309,6 +324,7 @@ def sync(
 
         if json_output:
             data = {
+                "result": "success" if result.synced else "noop",
                 "success": result.synced,
                 "stale_before": result.stale_before,
                 "files_written": result.files_written,

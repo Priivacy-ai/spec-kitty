@@ -112,7 +112,7 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
         subprocess.run(["git", "init"], check=True, capture_output=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True)
         subprocess.run(
-            ["git", "commit", "-m", "Initial commit from Specify template"],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Initial commit from Specify template"],
             check=True,
             capture_output=True,
         )

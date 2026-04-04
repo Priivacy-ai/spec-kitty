@@ -360,7 +360,7 @@ def _git_commit(repo_root: Path, message: str) -> bool:
     # First attempt: normal commit (honours hooks)
     try:
         result = subprocess.run(
-            ["git", "commit", "-m", message],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", message],
             cwd=repo_root,
             capture_output=True,
             text=True,
@@ -376,7 +376,7 @@ def _git_commit(repo_root: Path, message: str) -> bool:
     # Second attempt: skip hooks (migration commits must succeed)
     try:
         result = subprocess.run(
-            ["git", "commit", "--no-verify", "-m", message],
+            ["git", "-c", "commit.gpgsign=false", "commit", "--no-verify", "-m", message],
             cwd=repo_root,
             capture_output=True,
             text=True,

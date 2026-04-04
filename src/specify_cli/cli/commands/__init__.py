@@ -19,6 +19,7 @@ from . import lifecycle as lifecycle_module
 from . import materialize as materialize_module
 from . import merge as merge_module
 from . import migrate_cmd as migrate_module
+from . import mission as mission_module
 from . import next_cmd as next_cmd_module
 from . import mission_type as mission_type_module
 from . import ops as ops_module
@@ -57,6 +58,7 @@ def register_commands(app: typer.Typer) -> None:
     app.command(name="materialize")(materialize_module.materialize)
     app.command()(merge_module.merge)
     app.command()(migrate_module.migrate)
+    app.add_typer(mission_module.app, name="mission")
     app.command(name="next")(next_cmd_module.next_step)
     app.add_typer(mission_type_module.app, name="mission-type")
     app.add_typer(ops_module.app, name="ops")

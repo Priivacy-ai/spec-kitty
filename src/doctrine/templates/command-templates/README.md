@@ -19,7 +19,6 @@ guides the agent through the workflow step.
 | `dashboard.md` | `/spec-kitty.dashboard` |
 | `doctrine.md` | `/spec-kitty.doctrine` (curation workflow) |
 | `implement.md` | `/spec-kitty.implement` |
-| `merge.md` | `/spec-kitty.merge` |
 | `plan.md` | `/spec-kitty.plan` |
 | `profile-context.md` | `/spec-kitty.profile-context` (ad-hoc specialist session) |
 | `research.md` | `/spec-kitty.research` |

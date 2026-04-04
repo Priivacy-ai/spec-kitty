@@ -28,12 +28,18 @@ class TestConstants:
         assert frozenset({"done", "canceled"}) == TERMINAL_LANES
 
     def test_doing_alias(self) -> None:
-        assert LANE_ALIASES == {"doing": "in_progress"}
+        assert LANE_ALIASES == {
+            "doing": "in_progress",
+            "in_review": "for_review",
+        }
 
 
 class TestResolveAlias:
     def test_doing_resolves_to_in_progress(self) -> None:
         assert resolve_lane_alias("doing") == "in_progress"
+
+    def test_in_review_resolves_to_for_review(self) -> None:
+        assert resolve_lane_alias("in_review") == "for_review"
 
     def test_passthrough_canonical_lane(self) -> None:
         assert resolve_lane_alias("planned") == "planned"

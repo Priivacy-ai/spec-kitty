@@ -69,10 +69,6 @@ failure_modes:
   - "Over-promotion: promoting to Entity because of technical concerns (ORM requires an ID) rather than domain needs."
   - "Missing equality: not implementing proper equality semantics, causing duplicates in sets and incorrect cache hits."
 references:
-  - name: Aggregate Boundary Design
-    type: related
-    id: aggregate-boundary-design
-    when: Entities and Value Objects are the building blocks inside aggregates.
   - name: Language-Driven Design
     type: tactic
     id: language-driven-design

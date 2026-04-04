@@ -1552,7 +1552,7 @@ def init(  # noqa: C901
                 errors="replace",
             )
             subprocess.run(
-                ["git", "commit", "--amend", "--no-edit"],
+                ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit"],
                 cwd=project_path,
                 check=True,
                 capture_output=True,

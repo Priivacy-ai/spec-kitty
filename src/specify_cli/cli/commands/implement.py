@@ -510,13 +510,14 @@ def _ensure_planning_artifacts_committed_git(
             # Commit with descriptive message
             commit_msg = f"chore: Planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating workspace for {wp_id}"
             result = subprocess.run(
-                ["git", "commit", "-m", commit_msg],
+                ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
                 cwd=repo_root,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
                 errors="replace",
-                check=False
+                check=False,
+                timeout=60,
             )
             if result.returncode != 0:
                 console.print(f"[red]Error:[/red] Failed to commit")

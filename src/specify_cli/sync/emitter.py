@@ -260,7 +260,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature", "MissionDossier"})
+VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature", "Mission", "MissionDossier"})
 
 
 class ConnectionStatus:
