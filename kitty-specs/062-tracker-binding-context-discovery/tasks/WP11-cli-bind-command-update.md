@@ -1,7 +1,7 @@
 ---
 work_package_id: WP11
 title: CLI Bind Command Update
-dependencies: [WP09]
+dependencies: []
 requirement_refs:
 - FR-003
 - FR-004
@@ -15,7 +15,7 @@ requirement_refs:
 - NFR-004
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T053, T054, T055, T056, T057, T058, T059]
 history:
 - date: '2026-04-04T09:10:15Z'

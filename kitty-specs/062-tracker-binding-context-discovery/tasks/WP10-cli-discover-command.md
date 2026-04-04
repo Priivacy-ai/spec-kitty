@@ -1,22 +1,22 @@
 ---
 work_package_id: WP10
 title: CLI Discover Command
-dependencies: [WP09]
+dependencies: []
 requirement_refs:
 - FR-001
 - FR-002
 - NFR-004
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T047, T048, T049, T050, T051, T052]
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
   by: spec-kitty.tasks
-authoritative_surface: src/specify_cli/cli/commands/
+authoritative_surface: tests/agent/cli/commands/
 execution_mode: code_change
-owned_files: [src/specify_cli/cli/commands/tracker.py, tests/agent/cli/commands/test_tracker.py]
+owned_files: [tests/agent/cli/commands/test_tracker_discover.py]
 ---
 
 # WP10: CLI Discover Command
