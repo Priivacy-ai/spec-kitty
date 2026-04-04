@@ -12,8 +12,8 @@ base_branch: main
 base_commit: 1199890fde424c22b3922bc570e62906a9b45522
 created_at: '2026-04-04T10:06:50.376838+00:00'
 subtasks: [T020, T021, T022, T023]
-shell_pid: "14857"
-agent: "coordinator"
+shell_pid: "27944"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -165,3 +165,4 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 
 - 2026-04-04T10:06:50Z – coordinator – shell_pid=14857 – Started implementation via workflow command
 - 2026-04-04T10:10:48Z – coordinator – shell_pid=14857 – Ready for review: all 5 endpoints updated with optional binding_ref kwarg, _routing_params helper extracted, missing_routing_key validation added
+- 2026-04-04T10:11:24Z – codex – shell_pid=27944 – Started review via workflow command
