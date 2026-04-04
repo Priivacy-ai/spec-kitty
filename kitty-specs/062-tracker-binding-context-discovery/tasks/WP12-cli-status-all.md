@@ -12,8 +12,8 @@ base_branch: main
 base_commit: 67b13f1213ef228677dd06baba7239d4310aa95b
 created_at: '2026-04-04T11:25:29.363157+00:00'
 subtasks: [T060, T061, T062, T063]
-shell_pid: "41985"
-agent: "coordinator"
+shell_pid: "60809"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -131,3 +131,4 @@ spec-kitty implement WP12 --base WP09
 - 2026-04-04T11:38:42Z – codex – shell_pid=20726 – Moved to planned
 - 2026-04-04T11:40:54Z – coordinator – shell_pid=41985 – Started implementation via workflow command
 - 2026-04-04T11:46:22Z – coordinator – shell_pid=41985 – Fixed cycle 2/3
+- 2026-04-04T11:46:46Z – codex – shell_pid=60809 – Started review via workflow command
