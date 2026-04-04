@@ -12,8 +12,8 @@ base_branch: main
 base_commit: 1199890fde424c22b3922bc570e62906a9b45522
 created_at: '2026-04-04T10:06:50.376838+00:00'
 subtasks: [T020, T021, T022, T023]
-shell_pid: "27944"
-agent: "codex"
+shell_pid: "50728"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -168,3 +168,4 @@ Depends on WP03 (enriched errors, same file). Cannot run in parallel with WP04 (
 - 2026-04-04T10:11:24Z – codex – shell_pid=27944 – Started review via workflow command
 - 2026-04-04T10:16:38Z – codex – shell_pid=27944 – Moved to planned
 - 2026-04-04T10:17:36Z – codex – shell_pid=27944 – Moved to planned
+- 2026-04-04T10:18:02Z – coordinator – shell_pid=50728 – Started implementation via workflow command
