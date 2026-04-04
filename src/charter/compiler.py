@@ -1,4 +1,4 @@
-"""Constitution compiler: interview answers + doctrine assets -> constitution bundle."""
+"""Charter compiler: interview answers + doctrine assets -> charter bundle."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from ruamel.yaml import YAML
 
 from constitution.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
 from constitution.interview import (
-    ConstitutionInterview,
+    CharterInterview,
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
@@ -24,8 +24,8 @@ if TYPE_CHECKING:
 
 
 @dataclass(frozen=True)
-class ConstitutionReference:
-    """One reference item used by constitution context."""
+class CharterReference:
+    """One reference item used by charter context."""
 
     id: str
     kind: str
@@ -37,8 +37,8 @@ class ConstitutionReference:
 
 
 @dataclass(frozen=True)
-class CompiledConstitution:
-    """Compiled constitution bundle."""
+class CompiledCharter:
+    """Compiled charter bundle."""
 
     mission: str
     template_set: str
@@ -46,26 +46,26 @@ class CompiledConstitution:
     selected_directives: list[str]
     available_tools: list[str]
     markdown: str
-    references: list[ConstitutionReference]
+    references: list[CharterReference]
     diagnostics: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class WriteBundleResult:
-    """Filesystem write result for compiled constitution bundle."""
+    """Filesystem write result for compiled charter bundle."""
 
     files_written: list[str]
 
 
-def compile_constitution(
+def compile_charter(
     *,
     mission: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     template_set: str | None = None,
     doctrine_catalog: DoctrineCatalog | None = None,
     doctrine_service: DoctrineService | None = None,
-) -> CompiledConstitution:
-    """Compile constitution markdown, references manifest, and library docs.
+) -> CompiledCharter:
+    """Compile charter markdown, references manifest, and library docs.
 
     When *doctrine_service* is provided, artifact loading and transitive reference
     resolution use the typed repository API (profile-aware path). When it is None
@@ -128,7 +128,7 @@ def compile_constitution(
     )
     references = references + local_references
 
-    markdown = _render_constitution_markdown(
+    markdown = _render_charter_markdown(
         mission=mission,
         template_set=template,
         interview=interview,
@@ -138,7 +138,7 @@ def compile_constitution(
         references=references,
     )
 
-    return CompiledConstitution(
+    return CompiledCharter(
         mission=mission,
         template_set=template,
         selected_paradigms=selected_paradigms,
@@ -150,28 +150,28 @@ def compile_constitution(
     )
 
 
-def write_compiled_constitution(
+def write_compiled_charter(
     output_dir: Path,
-    compiled: CompiledConstitution,
+    compiled: CompiledCharter,
     *,
     force: bool = False,
 ) -> WriteBundleResult:
-    """Write constitution bundle artifacts to output_dir.
+    """Write charter bundle artifacts to output_dir.
 
-    Only constitution.md and references.yaml are written; _LIBRARY/ materialization
+    Only charter.md and references.yaml are written; _LIBRARY/ materialization
     has been removed — doctrine content is fetched at context-retrieval time via
     references.yaml.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
-    constitution_path = output_dir / "constitution.md"
+    charter_path = output_dir / "charter.md"
 
-    if constitution_path.exists() and not force:
-        raise FileExistsError(f"Constitution already exists at {constitution_path}. Use --force to overwrite.")
+    if charter_path.exists() and not force:
+        raise FileExistsError(f"Charter already exists at {charter_path}. Use --force to overwrite.")
 
     files_written: list[str] = []
 
-    constitution_path.write_text(compiled.markdown, encoding="utf-8")
-    files_written.append("constitution.md")
+    charter_path.write_text(compiled.markdown, encoding="utf-8")
+    files_written.append("charter.md")
 
     references_path = output_dir / "references.yaml"
     _write_references_yaml(references_path, compiled)
@@ -239,15 +239,15 @@ def _build_references(
     *,
     mission: str,
     template_set: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     paradigms: list[str],
     directives: list[str],
     doctrine_service: DoctrineService | None = None,
     diagnostics: list[str] | None = None,
-) -> list[ConstitutionReference]:
+) -> list[CharterReference]:
     doctrine_root = resolve_doctrine_root()
 
-    references: list[ConstitutionReference] = []
+    references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
 
     if doctrine_service is not None:
@@ -281,13 +281,13 @@ def _build_references_from_yaml(
     *,
     mission: str,
     template_set: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     paradigms: list[str],
     directives: list[str],
     doctrine_root: Path,
-) -> list[ConstitutionReference]:
+) -> list[CharterReference]:
     """Load references by scanning YAML files directly (fallback path)."""
-    references: list[ConstitutionReference] = []
+    references: list[CharterReference] = []
 
     paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
     directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
@@ -336,11 +336,11 @@ def _build_references_from_service(
     doctrine_root: Path,
     doctrine_service: DoctrineService,
     diagnostics: list[str],
-) -> list[ConstitutionReference]:
+) -> list[CharterReference]:
     """Load references via typed repository queries and transitive resolution."""
     from constitution.reference_resolver import resolve_references_transitively
 
-    references: list[ConstitutionReference] = []
+    references: list[CharterReference] = []
 
     # Paradigms: still loaded via YAML scanning (no typed paradigm references in graph)
     paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
@@ -435,7 +435,7 @@ def _build_references_from_service(
     return references
 
 
-def _build_shipped_concept_ids(references: list[ConstitutionReference]) -> frozenset[str]:
+def _build_shipped_concept_ids(references: list[CharterReference]) -> frozenset[str]:
     """Return a set of '<kind>:<id>' keys for shipped (non-local) references."""
     result: set[str] = set()
     for ref in references:
@@ -449,9 +449,9 @@ def _build_local_support_references(
     *,
     shipped_ids: frozenset[str],
     diagnostics: list[str],
-) -> list[ConstitutionReference]:
-    """Build ConstitutionReference entries for local support file declarations."""
-    refs: list[ConstitutionReference] = []
+) -> list[CharterReference]:
+    """Build CharterReference entries for local support file declarations."""
+    refs: list[CharterReference] = []
     for decl in declarations:
         warning: str | None = None
         if decl.target_kind and decl.target_id:
@@ -489,7 +489,7 @@ def _build_local_support_references(
         lines.append("")
 
         refs.append(
-            ConstitutionReference(
+            CharterReference(
                 id=ref_id,
                 kind="local_support",
                 title=title,
@@ -543,12 +543,12 @@ def _doctrine_model_reference(
     raw_id: str,
     title: str,
     summary: str,
-) -> ConstitutionReference:
-    """Build a ConstitutionReference from typed repository model data."""
+) -> CharterReference:
+    """Build a CharterReference from typed repository model data."""
     local_slug = _slugify(raw_id)
     local_path = f"_LIBRARY/{kind}-{local_slug}.md"
     content = f"# {kind.title()}: {title}\n\n- ID: `{raw_id}`\n- Summary: {summary}\n"
-    return ConstitutionReference(
+    return CharterReference(
         id=f"{kind.upper()}:{raw_id}",
         kind=kind,
         title=title,
@@ -564,7 +564,7 @@ def _doctrine_yaml_reference(
     kind: str,
     raw_id: str,
     source: dict[str, object] | None,
-) -> ConstitutionReference:
+) -> CharterReference:
     source = source or {"id": raw_id, "title": raw_id, "summary": "Definition unavailable in bundled doctrine."}
 
     source_path = str(source.get("_source_path", ""))
@@ -586,7 +586,7 @@ def _doctrine_yaml_reference(
         f"{source_yaml}```\n"
     )
 
-    return ConstitutionReference(
+    return CharterReference(
         id=f"{kind.upper()}:{raw_id}",
         kind=kind,
         title=title,
@@ -597,7 +597,7 @@ def _doctrine_yaml_reference(
     )
 
 
-def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> ConstitutionReference:
+def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> CharterReference:
     from doctrine.missions import MissionTemplateRepository
 
     repo = MissionTemplateRepository.default()
@@ -616,7 +616,7 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
         f"{_dump_yaml(source)}```\n"
     )
 
-    return ConstitutionReference(
+    return CharterReference(
         id=f"TEMPLATE_SET:{template_set}",
         kind="template_set",
         title=template_set,
@@ -627,7 +627,7 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
     )
 
 
-def _user_profile_reference(interview: ConstitutionInterview) -> ConstitutionReference:
+def _user_profile_reference(interview: CharterInterview) -> CharterReference:
     lines: list[str] = ["# User Project Profile", ""]
     lines.append(f"- Mission: `{interview.mission}`")
     lines.append(f"- Interview profile: `{interview.profile}`")
@@ -651,26 +651,26 @@ def _user_profile_reference(interview: ConstitutionInterview) -> ConstitutionRef
     lines.append(f"- Tools: {', '.join(interview.available_tools) or '(none)'}")
     lines.append("")
 
-    return ConstitutionReference(
+    return CharterReference(
         id="USER:PROJECT_PROFILE",
         kind="user_profile",
         title="User Project Profile",
-        summary="Project-specific interview answers captured for constitution compilation.",
-        source_path=".kittify/constitution/interview/answers.yaml",
+        summary="Project-specific interview answers captured for charter compilation.",
+        source_path=".kittify/charter/interview/answers.yaml",
         local_path="_LIBRARY/user-project-profile.md",
         content="\n".join(lines) + "\n",
     )
 
 
-def _render_constitution_markdown(
+def _render_charter_markdown(
     *,
     mission: str,
     template_set: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     selected_paradigms: list[str],
     selected_directives: list[str],
     available_tools: list[str],
-    references: list[ConstitutionReference],
+    references: list[CharterReference],
 ) -> str:
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -719,8 +719,8 @@ def _render_constitution_markdown(
         "exception_policy", "Exceptions must include rationale and expiration criteria."
     )
     return (
-        "# Project Constitution\n\n"
-        "<!-- Generated by `spec-kitty constitution generate` -->\n\n"
+        "# Project Charter\n\n"
+        "<!-- Generated by `spec-kitty charter generate` -->\n\n"
         f"Generated: {now}\n\n"
         "## Testing Standards\n\n"
         f"- {testing}\n\n"
@@ -744,7 +744,7 @@ def _render_constitution_markdown(
     )
 
 
-def _render_directives(interview: ConstitutionInterview, selected_directives: list[str]) -> str:
+def _render_directives(interview: CharterInterview, selected_directives: list[str]) -> str:
     lines: list[str] = []
     index = 1
 
@@ -768,7 +768,7 @@ def _render_directives(interview: ConstitutionInterview, selected_directives: li
     return "\n".join(lines)
 
 
-def _write_references_yaml(path: Path, compiled: CompiledConstitution) -> None:
+def _write_references_yaml(path: Path, compiled: CompiledCharter) -> None:
     ref_entries: list[dict[str, object]] = []
     for reference in compiled.references:
         entry: dict[str, object] = {

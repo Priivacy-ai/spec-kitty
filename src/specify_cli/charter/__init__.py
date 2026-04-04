@@ -1,29 +1,29 @@
-"""Constitution parsing and configuration extraction.
+"""Charter parsing and configuration extraction.
 
 This subpackage provides tools for:
-- Parsing constitution markdown into structured sections
+- Parsing charter markdown into structured sections
 - Extracting configuration from markdown tables, YAML blocks, and prose
 - Validating extracted config against Pydantic schemas
 - Emitting YAML config files for consumption by other modules
 
 Provides:
-- sync(): Parse constitution.md → structured YAML files
+- sync(): Parse charter.md → structured YAML files
 - load_governance_config(): Load governance rules for hook evaluation
 - post_save_hook(): Auto-trigger sync after CLI writes
 """
 
 from .catalog import DoctrineCatalog, load_doctrine_catalog
 from .compiler import (
-    CompiledConstitution,
-    ConstitutionReference,
+    CompiledCharter,
+    CharterReference,
     WriteBundleResult,
-    compile_constitution,
-    write_compiled_constitution,
+    compile_charter,
+    write_compiled_charter,
 )
-from .context import ConstitutionContextResult, build_constitution_context
-from .generator import ConstitutionDraft, build_constitution_draft, write_constitution
+from .context import CharterContextResult, build_charter_context
+from .generator import CharterDraft, build_charter_draft, write_charter
 from .interview import (
-    ConstitutionInterview,
+    CharterInterview,
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
     QUESTION_PROMPTS,
@@ -32,7 +32,7 @@ from .interview import (
     read_interview_answers,
     write_interview_answers,
 )
-from .parser import ConstitutionParser, ConstitutionSection
+from .parser import CharterParser, CharterSection
 from .schemas import (
     BranchStrategyConfig,
     CommitConfig,
@@ -44,7 +44,7 @@ from .schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    ConstitutionTestingConfig,
+    CharterTestingConfig,
     emit_yaml,
 )
 from .sync import (
@@ -64,17 +64,17 @@ from .resolver import (
 __all__ = [
     "DoctrineCatalog",
     "load_doctrine_catalog",
-    "CompiledConstitution",
-    "ConstitutionReference",
+    "CompiledCharter",
+    "CharterReference",
     "WriteBundleResult",
-    "compile_constitution",
-    "write_compiled_constitution",
-    "ConstitutionContextResult",
-    "build_constitution_context",
-    "ConstitutionDraft",
-    "build_constitution_draft",
-    "write_constitution",
-    "ConstitutionInterview",
+    "compile_charter",
+    "write_compiled_charter",
+    "CharterContextResult",
+    "build_charter_context",
+    "CharterDraft",
+    "build_charter_draft",
+    "write_charter",
+    "CharterInterview",
     "QUESTION_ORDER",
     "MINIMAL_QUESTION_ORDER",
     "QUESTION_PROMPTS",
@@ -82,8 +82,8 @@ __all__ = [
     "read_interview_answers",
     "write_interview_answers",
     "apply_answer_overrides",
-    "ConstitutionParser",
-    "ConstitutionSection",
+    "CharterParser",
+    "CharterSection",
     "BranchStrategyConfig",
     "CommitConfig",
     "DoctrineSelectionConfig",
@@ -94,7 +94,7 @@ __all__ = [
     "PerformanceConfig",
     "QualityConfig",
     "SectionsParsed",
-    "ConstitutionTestingConfig",
+    "CharterTestingConfig",
     "emit_yaml",
     "SyncResult",
     "load_directives_config",

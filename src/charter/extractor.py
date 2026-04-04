@@ -1,6 +1,6 @@
-"""Constitution extraction pipeline.
+"""Charter extraction pipeline.
 
-Maps parsed constitution sections to validated Pydantic models:
+Maps parsed charter sections to validated Pydantic models:
 - governance.yaml (testing, quality, performance, branch strategy)
 - directives.yaml (numbered rules and enforcement)
 - metadata.yaml (extraction provenance and statistics)
@@ -8,13 +8,13 @@ Maps parsed constitution sections to validated Pydantic models:
 
 import logging
 from dataclasses import dataclass
-from datetime import datetime, UTC
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from specify_cli.constitution.hasher import hash_content
-from specify_cli.constitution.parser import ConstitutionParser, ConstitutionSection
-from specify_cli.constitution.schemas import (
+from constitution.hasher import hash_content
+from constitution.parser import ConstitutionParser, ConstitutionSection
+from constitution.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
@@ -25,7 +25,7 @@ from specify_cli.constitution.schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    ConstitutionTestingConfig,
+    CharterTestingConfig,
     emit_yaml,
 )
 
@@ -60,21 +60,21 @@ class ExtractionResult:
 
 
 class Extractor:
-    """Extract structured configuration from parsed constitution sections."""
+    """Extract structured configuration from parsed charter sections."""
 
-    def __init__(self, parser: ConstitutionParser | None = None):
+    def __init__(self, parser: CharterParser | None = None):
         """Initialize extractor with optional parser.
 
         Args:
-            parser: ConstitutionParser instance (creates default if None)
+            parser: CharterParser instance (creates default if None)
         """
-        self.parser = parser or ConstitutionParser()
+        self.parser = parser or CharterParser()
 
     def extract(self, content: str) -> ExtractionResult:
         """Full extraction pipeline: parse → map → validate → return.
 
         Args:
-            content: Raw constitution markdown text
+            content: Raw charter markdown text
 
         Returns:
             ExtractionResult with all validated Pydantic models
@@ -92,94 +92,44 @@ class Extractor:
             metadata=metadata,
         )
 
-    def _extract_governance(self, sections: list[ConstitutionSection]) -> GovernanceConfig:  # noqa: C901
+    def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:  # noqa: C901
         """Extract governance configuration from classified sections.
 
         Args:
-            sections: Parsed constitution sections
+            sections: Parsed charter sections
 
         Returns:
             Merged GovernanceConfig with testing/quality/performance/branch/commits data
         """
-        # Initialize with defaults
-        testing = ConstitutionTestingConfig()
+        testing = CharterTestingConfig()
         quality = QualityConfig()
         commits = CommitConfig()
         performance = PerformanceConfig()
         branch_strategy = BranchStrategyConfig()
         doctrine = DoctrineSelectionConfig()
 
-        # Iterate sections in document order for deterministic merging
+        _FIELD_HANDLERS: dict[str, Any] = {
+            "testing": lambda s: self._apply_testing_keywords(testing, s.structured_data.get("keywords", {})),
+            "quality": lambda s: self._apply_quality_keywords(quality, s.structured_data.get("keywords", {})),
+            "commits": lambda s: self._apply_commits_keywords(commits, s.structured_data.get("keywords", {})),
+            "performance": lambda s: self._apply_performance_section(performance, s.structured_data),
+            "branch_strategy": lambda s: self._apply_branch_strategy_section(branch_strategy, s.structured_data),
+            "doctrine": lambda s: self._merge_doctrine_selection(s, doctrine),
+        }
+
         for section in sections:
             classification = self._classify_section(section.heading)
             if not classification:
                 continue
-
             schema_name, field_name = classification
-
-            # Only process governance sections
             if schema_name != "governance":
                 continue
-
-            # Extract keywords from structured_data
-            keywords = section.structured_data.get("keywords", {})
-
-            # Map to appropriate sub-config based on field_name
-            if field_name == "testing":
-                if "min_coverage" in keywords:
-                    testing.min_coverage = keywords["min_coverage"]
-                if "tdd_required" in keywords:
-                    testing.tdd_required = keywords["tdd_required"]
-                if "framework" in keywords:
-                    testing.framework = keywords["framework"]
-                if "type_checking" in keywords:
-                    testing.type_checking = keywords["type_checking"]
-
-            elif field_name == "quality":
-                if "linting" in keywords:
-                    quality.linting = keywords["linting"]
-                if "pr_approvals" in keywords:
-                    quality.pr_approvals = keywords["pr_approvals"]
-                if "pre_commit_hooks" in keywords:
-                    quality.pre_commit_hooks = keywords["pre_commit_hooks"]
-
-            elif field_name == "commits":
-                if "convention" in keywords:
-                    commits.convention = keywords["convention"]
-
-            elif field_name == "performance":
-                if "timeout_seconds" in keywords:
-                    performance.cli_timeout_seconds = keywords["timeout_seconds"]
-                # Look for dashboard limits in tables or keywords
-                tables = section.structured_data.get("tables", [])
-                for table_row in tables:
-                    # Check specific key for max_wps value
-                    for key, val in table_row.items():
-                        if "max_wps" in key.lower() and val.isdigit():
-                            performance.dashboard_max_wps = int(val)
-                            break
-
-            elif field_name == "branch_strategy":
-                # Extract branch names from keywords or tables
-                tables = section.structured_data.get("tables", [])
-                for table_row in tables:
-                    # Check specific branch column values
-                    branch_val = table_row.get("branch", table_row.get("name", ""))
-                    if branch_val.lower() == "main":
-                        branch_strategy.main_branch = "main"
-                    if branch_val.lower() in ("develop", "dev"):
-                        branch_strategy.dev_branch = "develop"
-
-                # Extract rules from numbered lists
-                numbered_items = section.structured_data.get("numbered_items", [])
-                if numbered_items:
-                    branch_strategy.rules = numbered_items
-
-            elif field_name == "doctrine":
-                self._merge_doctrine_selection(section, doctrine)
+            handler = _FIELD_HANDLERS.get(field_name)
+            if handler:
+                handler(section)
 
         # Also scan all sections for explicit doctrine selection keys
-        # so constitution headings remain flexible.
+        # so charter headings remain flexible.
         for section in sections:
             self._merge_doctrine_selection(section, doctrine)
 
@@ -192,7 +142,59 @@ class Extractor:
             doctrine=doctrine,
         )
 
-    def _merge_doctrine_selection(self, section: ConstitutionSection, doctrine: DoctrineSelectionConfig) -> None:
+    def _apply_testing_keywords(self, testing: CharterTestingConfig, keywords: dict[str, Any]) -> None:
+        """Apply testing section keyword values to the testing config."""
+        if "min_coverage" in keywords:
+            testing.min_coverage = keywords["min_coverage"]
+        if "tdd_required" in keywords:
+            testing.tdd_required = keywords["tdd_required"]
+        if "framework" in keywords:
+            testing.framework = keywords["framework"]
+        if "type_checking" in keywords:
+            testing.type_checking = keywords["type_checking"]
+
+    def _apply_quality_keywords(self, quality: QualityConfig, keywords: dict[str, Any]) -> None:
+        """Apply quality section keyword values to the quality config."""
+        if "linting" in keywords:
+            quality.linting = keywords["linting"]
+        if "pr_approvals" in keywords:
+            quality.pr_approvals = keywords["pr_approvals"]
+        if "pre_commit_hooks" in keywords:
+            quality.pre_commit_hooks = keywords["pre_commit_hooks"]
+
+    def _apply_commits_keywords(self, commits: CommitConfig, keywords: dict[str, Any]) -> None:
+        """Apply commits section keyword values to the commits config."""
+        if "convention" in keywords:
+            commits.convention = keywords["convention"]
+
+    def _apply_performance_section(
+        self, performance: PerformanceConfig, structured_data: dict[str, Any]
+    ) -> None:
+        """Apply performance section data (keywords + tables) to the performance config."""
+        keywords = structured_data.get("keywords", {})
+        if "timeout_seconds" in keywords:
+            performance.cli_timeout_seconds = keywords["timeout_seconds"]
+        for table_row in structured_data.get("tables", []):
+            for key, val in table_row.items():
+                if "max_wps" in key.lower() and str(val).isdigit():
+                    performance.dashboard_max_wps = int(val)
+                    break
+
+    def _apply_branch_strategy_section(
+        self, branch_strategy: BranchStrategyConfig, structured_data: dict[str, Any]
+    ) -> None:
+        """Apply branch strategy section data (tables + numbered items) to the branch config."""
+        for table_row in structured_data.get("tables", []):
+            branch_val = table_row.get("branch", table_row.get("name", ""))
+            if branch_val.lower() == "main":
+                branch_strategy.main_branch = "main"
+            if branch_val.lower() in ("develop", "dev"):
+                branch_strategy.dev_branch = "develop"
+        numbered_items = structured_data.get("numbered_items", [])
+        if numbered_items:
+            branch_strategy.rules = numbered_items
+
+    def _merge_doctrine_selection(self, section: CharterSection, doctrine: DoctrineSelectionConfig) -> None:
         """Merge doctrine selection hints from a section into doctrine config."""
         tables = section.structured_data.get("tables", [])
         yaml_blocks = section.structured_data.get("yaml_blocks", [])
@@ -253,11 +255,11 @@ class Extractor:
                     return value
         return None
 
-    def _extract_directives(self, sections: list[ConstitutionSection]) -> DirectivesConfig:
+    def _extract_directives(self, sections: list[CharterSection]) -> DirectivesConfig:
         """Extract numbered directives from classified sections.
 
         Args:
-            sections: Parsed constitution sections
+            sections: Parsed charter sections
 
         Returns:
             DirectivesConfig with auto-generated DIR-XXX IDs
@@ -291,11 +293,11 @@ class Extractor:
 
         return DirectivesConfig(directives=directives_list)
 
-    def _build_metadata(self, content: str, sections: list[ConstitutionSection]) -> ExtractionMetadata:
+    def _build_metadata(self, content: str, sections: list[CharterSection]) -> ExtractionMetadata:
         """Build extraction metadata with provenance info.
 
         Args:
-            content: Raw constitution markdown text
+            content: Raw charter markdown text
             sections: Parsed sections
 
         Returns:
@@ -315,7 +317,7 @@ class Extractor:
         extraction_mode = "deterministic" if ai_assisted_count == 0 else "hybrid"
 
         # Generate hash
-        constitution_hash = hash_content(content)
+        charter_hash = hash_content(content)
 
         # ISO timestamp
         extracted_at = datetime.now(UTC).isoformat()
@@ -323,8 +325,8 @@ class Extractor:
         return ExtractionMetadata(
             schema_version="1.0.0",
             extracted_at=extracted_at,
-            constitution_hash=constitution_hash,
-            source_path=".kittify/constitution/constitution.md",
+            charter_hash=charter_hash,
+            source_path=".kittify/charter/charter.md",
             extraction_mode=extraction_mode,
             sections_parsed=sections_parsed,
         )
@@ -353,8 +355,8 @@ class Extractor:
 
 
 def extract_with_ai(
-    prose_sections: list[ConstitutionSection],
-    _schema_hint: dict[str, Any],
+    prose_sections: list[CharterSection],
+    schema_hint: dict[str, Any],  # noqa: ARG001
 ) -> dict[str, Any]:
     """Send prose sections to configured AI agent for structured extraction.
 
@@ -374,15 +376,15 @@ def extract_with_ai(
     return {}
 
 
-def write_extraction_result(result: ExtractionResult, constitution_dir: Path) -> None:
+def write_extraction_result(result: ExtractionResult, charter_dir: Path) -> None:
     """Write all YAML files from an extraction result.
 
     Args:
         result: Complete extraction result
-        constitution_dir: Target directory (e.g., .kittify/constitution/)
+        charter_dir: Target directory (e.g., .kittify/charter/)
     """
-    constitution_dir.mkdir(parents=True, exist_ok=True)
+    charter_dir.mkdir(parents=True, exist_ok=True)
 
-    emit_yaml(result.governance, constitution_dir / "governance.yaml")
-    emit_yaml(result.directives, constitution_dir / "directives.yaml")
-    emit_yaml(result.metadata, constitution_dir / "metadata.yaml")
+    emit_yaml(result.governance, charter_dir / "governance.yaml")
+    emit_yaml(result.directives, charter_dir / "directives.yaml")
+    emit_yaml(result.metadata, charter_dir / "metadata.yaml")

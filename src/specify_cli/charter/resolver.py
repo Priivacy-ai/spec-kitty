@@ -1,6 +1,6 @@
-"""Constitution-centric governance resolver.
+"""Charter-centric governance resolver.
 
-Resolves active governance from constitution selections and validates
+Resolves active governance from charter selections and validates
 selected references against available profile/tool catalogs.
 """
 
@@ -9,8 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.constitution.catalog import load_doctrine_catalog
-from specify_cli.constitution.sync import (
+from specify_cli.charter.catalog import load_doctrine_catalog
+from specify_cli.charter.sync import (
     load_directives_config,
     load_governance_config,
 )
@@ -20,7 +20,7 @@ DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git", "python"
 
 
 class GovernanceResolutionError(ValueError):
-    """Raised when constitution selections reference unavailable entities."""
+    """Raised when charter selections reference unavailable entities."""
 
     def __init__(self, issues: list[str]) -> None:
         self.issues = issues
@@ -46,7 +46,7 @@ def resolve_governance(
     tool_registry: set[str] | None = None,
     fallback_template_set: str = DEFAULT_TEMPLATE_SET,
 ) -> GovernanceResolution:
-    """Resolve active governance from constitution-first selection data."""
+    """Resolve active governance from charter-first selection data."""
     governance = load_governance_config(repo_root)
     directives_cfg = load_directives_config(repo_root)
     doctrine_catalog = load_doctrine_catalog()
@@ -59,8 +59,8 @@ def resolve_governance(
         if missing_paradigms:
             raise GovernanceResolutionError(
                 [
-                    "Constitution selected unavailable paradigms: " + ", ".join(missing_paradigms),
-                    "Update constitution selected_paradigms to values present in doctrine/paradigms.",
+                    "Charter selected unavailable paradigms: " + ", ".join(missing_paradigms),
+                    "Update charter selected_paradigms to values present in doctrine/paradigms.",
                 ]
             )
 
@@ -71,12 +71,12 @@ def resolve_governance(
         if missing_tools:
             raise GovernanceResolutionError(
                 [
-                    "Constitution selected unavailable tools: " + ", ".join(missing_tools),
-                    "Update constitution available_tools or register those tools in the runtime tool registry.",
+                    "Charter selected unavailable tools: " + ", ".join(missing_tools),
+                    "Update charter available_tools or register those tools in the runtime tool registry.",
                 ]
             )
         resolved_tools = list(selected_tools)
-        tools_source = "constitution"
+        tools_source = "charter"
     else:
         resolved_tools = sorted(available_tools)
         tools_source = "registry_fallback"
@@ -93,12 +93,12 @@ def resolve_governance(
         if missing_directives:
             raise GovernanceResolutionError(
                 [
-                    "Constitution selected unavailable directives: " + ", ".join(missing_directives),
-                    "Update constitution selected_directives to values present in directives.yaml or doctrine/directives.",  # noqa: E501
+                    "Charter selected unavailable directives: " + ", ".join(missing_directives),
+                    "Update charter selected_directives to values present in directives.yaml or doctrine/directives.",  # noqa: E501
                 ]
             )
         resolved_directives = list(doctrine.selected_directives)
-        directives_source = "constitution"
+        directives_source = "charter"
     else:
         if directives_cfg.directives:
             resolved_directives = [directive.id for directive in directives_cfg.directives]
@@ -110,16 +110,16 @@ def resolve_governance(
         if doctrine_catalog.template_sets and doctrine.template_set not in doctrine_catalog.template_sets:
             raise GovernanceResolutionError(
                 [
-                    f"Constitution selected unavailable template_set: {doctrine.template_set}",
-                    "Update constitution template_set to values available in doctrine missions.",
+                    f"Charter selected unavailable template_set: {doctrine.template_set}",
+                    "Update charter template_set to values available in doctrine missions.",
                 ]
             )
         template_set = doctrine.template_set
-        template_set_source = "constitution"
+        template_set_source = "charter"
     else:
         template_set = fallback_template_set
         template_set_source = "fallback"
-        diagnostics.append(f"Template set not selected in constitution; fallback '{template_set}' applied.")
+        diagnostics.append(f"Template set not selected in charter; fallback '{template_set}' applied.")
 
     return GovernanceResolution(
         paradigms=selected_paradigms,
