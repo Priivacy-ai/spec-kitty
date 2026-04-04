@@ -6,9 +6,18 @@ automated release pipeline for stable releases from `main`.
 ## Stable Release Scope
 
 - Branch: `main`
-- Versioning: semantic versions (`X.Y.Z`) in `pyproject.toml`
+- Versioning: stable releases use `X.Y.Z` in `pyproject.toml`
 - Tags: `vX.Y.Z`
 - Publication targets: GitHub Releases and PyPI
+
+## Testing Prereleases
+
+Branch-mode readiness checks also accept testing prerelease versions such as
+`3.1.0a0`, `3.1.0b1`, or `3.1.0rc1` in `pyproject.toml`. This is for
+pre-release validation on PRs and `main` before the final stable cut.
+
+Tagged releases remain stable-only. To publish, convert the prerelease to the
+final `X.Y.Z` version and tag that exact commit as `vX.Y.Z`.
 
 ## Scripts
 
@@ -29,10 +38,10 @@ python scripts/release/validate_release.py --mode tag --tag v3.0.1 --tag-pattern
 
 #### What it validates
 
-- `pyproject.toml` version is valid semantic version (`X.Y.Z`)
+- `pyproject.toml` version is valid stable or testing release version
 - `CHANGELOG.md` contains populated section for that version
 - Version advances beyond latest existing release tag
-- In tag mode: tag matches version (for example `v3.0.1` <-> `3.0.1`)
+- In tag mode: version must be stable and tag matches version (for example `v3.0.1` <-> `3.0.1`)
 
 ### `extract_changelog.py`
 
@@ -59,8 +68,8 @@ Release workflow sequence:
 
 ```bash
 # 1) prepare version + changelog
-vim pyproject.toml   # version = "3.0.1"
-vim CHANGELOG.md     # add ## [3.0.1] - YYYY-MM-DD
+vim pyproject.toml   # version = "3.1.0a0" for testing, "3.1.0" for release
+vim CHANGELOG.md     # add ## [3.1.0a0] - YYYY-MM-DD (or final ## [3.1.0])
 
 # 2) validate
 python scripts/release/validate_release.py --mode branch --tag-pattern "v*.*.*"
@@ -71,9 +80,10 @@ twine check dist/*
 # 3) clean build artifacts
 rm -rf dist/ build/
 
-# 4) merge to main, then tag
-git tag v3.0.1 -m "Release 3.0.1"
-git push origin v3.0.1
+# 4) merge to main, then convert to final and tag
+#    Edit pyproject.toml to "3.1.0" and rename the changelog heading to [3.1.0]
+git tag v3.1.0 -m "Release 3.1.0"
+git push origin v3.1.0
 ```
 
 ## Troubleshooting
@@ -84,7 +94,7 @@ git push origin v3.0.1
 git tag --list 'v*.*.*' --sort=-version:refname | head -1
 ```
 
-Then bump `pyproject.toml` to a higher semantic version.
+Then bump `pyproject.toml` to a higher stable or prerelease version.
 
 ### Missing changelog entry
 

@@ -1,12 +1,17 @@
 #!/usr/bin/env python3
 """Release readiness validator for Spec Kitty automation.
 
-The script validates three core conditions before allowing a release:
+The script validates three core conditions before allowing a release or
+testing cut:
 
-1. The semantic version declared in pyproject.toml is well-formed.
+1. The version declared in pyproject.toml is well-formed.
 2. CHANGELOG.md contains a populated section for the target version.
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
+
+Branch mode accepts stable versions (``X.Y.Z``) and testing prereleases such as
+``X.Y.ZaN``. Tag mode remains stable-only because GitHub Releases and PyPI
+publishing are reserved for final ``vX.Y.Z`` tags.
 
 It is intentionally dependency-light so it can run both locally and in CI
 without additional bootstrapping beyond Python 3.11.
@@ -29,9 +34,17 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreter
     import tomli as tomllib  # type: ignore
 
 
-SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+FINAL_SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
+RELEASE_VERSION_RE = re.compile(
+    r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
+    r"(?:(?P<stage>a|b|rc|alpha|beta)(?P<stage_num>\d*))?$",
+    re.IGNORECASE,
+)
 CHANGELOG_HEADING_RE = re.compile(
-    r"^##\s*(?:\[\s*)?(?P<version>\d+\.\d+\.\d+)(?:\s*\]|)(?:\s*-.*)?$"
+    r"^##\s*(?:\[\s*)?"
+    r"(?P<version>\d+\.\d+\.\d+(?:(?:a|b|rc)\d+|(?:alpha|beta)\d*)?)"
+    r"(?:\s*\]|)(?:\s*-.*)?$",
+    re.IGNORECASE,
 )
 
 
@@ -117,6 +130,22 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
+def _normalize_stage(stage: str | None) -> str | None:
+    if stage is None:
+        return None
+    lowered = stage.lower()
+    if lowered == "alpha":
+        return "a"
+    if lowered == "beta":
+        return "b"
+    return lowered
+
+
+def is_prerelease_version(value: str) -> bool:
+    match = RELEASE_VERSION_RE.match(value)
+    return bool(match and _normalize_stage(match.group("stage")) is not None)
+
+
 def load_pyproject_version(path: Path) -> str:
     if not path.exists():
         raise ReleaseValidatorError(
@@ -132,9 +161,10 @@ def load_pyproject_version(path: Path) -> str:
         ) from exc
     if not isinstance(version, str):
         raise ReleaseValidatorError("pyproject version must be a string.")
-    if not SEMVER_RE.match(version):
+    if not RELEASE_VERSION_RE.match(version):
         raise ReleaseValidatorError(
-            f"Version '{version}' is not a semantic version (expected X.Y.Z)."
+            f"Version '{version}' is not a supported release version "
+            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
         )
     return version
 
@@ -198,14 +228,14 @@ def discover_semver_tags(
     filtered = [
         tag
         for tag in tags
-        if tag != exclude and SEMVER_RE.match(tag.lstrip("v"))
+        if tag != exclude and FINAL_SEMVER_RE.match(tag.lstrip("v"))
     ]
     filtered.sort(key=lambda tag: parse_semver(tag.lstrip("v")), reverse=True)
     return filtered
 
 
 def parse_semver(value: str) -> tuple[int, int, int]:
-    match = SEMVER_RE.match(value)
+    match = FINAL_SEMVER_RE.match(value)
     if not match:
         raise ReleaseValidatorError(
             f"Value '{value}' is not a valid semantic version (expected X.Y.Z)."
@@ -213,14 +243,39 @@ def parse_semver(value: str) -> tuple[int, int, int]:
     return tuple(int(part) for part in match.groups())
 
 
+def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
+    match = RELEASE_VERSION_RE.match(value)
+    if not match:
+        raise ReleaseValidatorError(
+            f"Value '{value}' is not a valid release version "
+            "(expected X.Y.Z or X.Y.ZaN/X.Y.ZbN/X.Y.ZrcN)."
+        )
+
+    stage = _normalize_stage(match.group("stage"))
+    stage_number = int(match.group("stage_num") or "0")
+    stage_rank = {
+        "a": 0,
+        "b": 1,
+        "rc": 2,
+        None: 3,
+    }[stage]
+    return (
+        int(match.group("major")),
+        int(match.group("minor")),
+        int(match.group("patch")),
+        stage_rank,
+        stage_number,
+    )
+
+
 def detect_tag_from_env() -> str | None:
     ref_name = os.getenv("GITHUB_REF_NAME")
-    if ref_name and ref_name.startswith("v") and SEMVER_RE.match(ref_name[1:]):
+    if ref_name and ref_name.startswith("v") and RELEASE_VERSION_RE.match(ref_name[1:]):
         return ref_name
     ref = os.getenv("GITHUB_REF")
     if ref and ref.startswith("refs/tags/"):
         candidate = ref.rsplit("/", maxsplit=1)[-1]
-        if candidate.startswith("v") and SEMVER_RE.match(candidate[1:]):
+        if candidate.startswith("v") and RELEASE_VERSION_RE.match(candidate[1:]):
             return candidate
     return None
 
@@ -230,12 +285,12 @@ def validate_version_progression(
 ) -> ValidationIssue | None:
     if not existing_tags:
         return None
-    current_tuple = parse_semver(current_version)
+    current_tuple = parse_release_version(current_version)
     latest_tuple = parse_semver(existing_tags[0].lstrip("v"))
     if current_tuple <= latest_tuple:
         return ValidationIssue(
             message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
-            hint="Select a semantic version greater than previously published releases.",
+            hint="Select a stable or prerelease version greater than previously published releases.",
         )
     return None
 
@@ -288,6 +343,13 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         )
 
     if args.mode == "tag":
+        if is_prerelease_version(version):
+            issues.append(
+                ValidationIssue(
+                    message=f"Tag mode does not allow prerelease version {version}.",
+                    hint="Use a stable X.Y.Z version for tagged releases, or validate prereleases in branch mode.",
+                )
+            )
         tag = args.tag or detect_tag_from_env()
         if not tag:
             issues.append(

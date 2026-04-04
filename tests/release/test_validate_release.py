@@ -106,6 +106,32 @@ def test_branch_mode_succeeds_with_version_bump(tmp_path: Path) -> None:
     assert "All required checks passed." in result.stdout
 
 
+def test_branch_mode_accepts_prerelease_version_bump(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "3.0.3",
+        changelog_for_versions(("3.0.3", "- Stable release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 3.0.3")
+    tag(tmp_path, "v3.0.3")
+
+    write_release_files(
+        tmp_path,
+        "3.1.0a0",
+        changelog_for_versions(
+            ("3.1.0a0", "- Testing prerelease"),
+            ("3.0.3", "- Stable release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 3.1.0a0")
+
+    result = run_validator(tmp_path, "--mode", "branch")
+
+    assert result.returncode == 0, result.stderr
+    assert "All required checks passed." in result.stdout
+
+
 def test_branch_mode_fails_without_changelog_entry(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
@@ -201,6 +227,32 @@ def test_tag_mode_fails_on_regression(tmp_path: Path) -> None:
 
     assert result.returncode == 1
     assert "does not advance beyond latest tag v0.2.3" in result.stderr
+
+
+def test_tag_mode_rejects_prerelease_versions(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "0.2.3",
+        changelog_for_versions(("0.2.3", "- Initial release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap project")
+    tag(tmp_path, "v0.2.3")
+
+    write_release_files(
+        tmp_path,
+        "0.3.0a0",
+        changelog_for_versions(
+            ("0.3.0a0", "- Testing prerelease"),
+            ("0.2.3", "- Initial release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 0.3.0a0")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v0.3.0a0")
+
+    assert result.returncode == 1
+    assert "Tag mode does not allow prerelease version 0.3.0a0" in result.stderr
 
 
 def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
