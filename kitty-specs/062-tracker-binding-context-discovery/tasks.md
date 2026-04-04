@@ -157,12 +157,12 @@ Update all 5 existing client methods (`status`, `mappings`, `pull`, `push`, `run
 
 HTTP-level contract tests for all 4 new endpoints + binding_ref routing variants on existing endpoints. Uses `_make_response()` pattern from existing test_saas_client.py.
 
-- [ ] T024: Tests for resources()
-- [ ] T025: Tests for bind_resolve()
-- [ ] T026: Tests for bind_confirm()
-- [ ] T027: Tests for bind_validate()
-- [ ] T028: Tests for existing endpoints with binding_ref
-- [ ] T029: Tests for stale-binding error codes
+- [x] T024: Tests for resources()
+- [x] T025: Tests for bind_resolve()
+- [x] T026: Tests for bind_confirm()
+- [x] T027: Tests for bind_validate()
+- [x] T028: Tests for existing endpoints with binding_ref
+- [x] T029: Tests for stale-binding error codes
 
 #### WP07: Service Layer – Routing & Upgrade
 **Priority**: High | **Subtasks**: T030-T035 (6) | **~450 lines**
