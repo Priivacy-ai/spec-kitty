@@ -1,17 +1,17 @@
 {
-  "event_count": 25,
+  "event_count": 27,
   "feature_slug": "062-tracker-binding-context-discovery",
-  "last_event_id": "01KNBXSJ80TXWWFQ2VQ5ZK37XF",
-  "materialized_at": "2026-04-04T09:39:40.416389+00:00",
+  "last_event_id": "01KNBY2PE25J04QPRNJ0WGM949",
+  "materialized_at": "2026-04-04T09:44:39.618583+00:00",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 3,
-    "planned": 10
+    "in_progress": 1,
+    "planned": 11
   },
   "work_packages": {
     "WP01": {
@@ -22,18 +22,18 @@
       "last_transition_at": "2026-04-04T09:39:07.875837+00:00"
     },
     "WP02": {
-      "actor": "codex",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KNBXQBWNCBD37X3QG43YKNJZ",
-      "last_transition_at": "2026-04-04T09:38:28.373914+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNBY25D4BD65SZT4BRT6Q92E",
+      "last_transition_at": "2026-04-04T09:44:22.180663+00:00"
     },
     "WP03": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNBXSJ80TXWWFQ2VQ5ZK37XF",
-      "last_transition_at": "2026-04-04T09:39:40.416080+00:00"
+      "lane": "planned",
+      "last_event_id": "01KNBY2PE25J04QPRNJ0WGM949",
+      "last_transition_at": "2026-04-04T09:44:39.618293+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
