@@ -14,7 +14,8 @@ base_branch: main
 base_commit: f35079bfa725abcac7cfe966c94f83d780374a37
 created_at: '2026-04-04T09:34:46.177609+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: '32339'
+shell_pid: "32339"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -212,3 +213,7 @@ No dependencies — this WP can start immediately.
 - Verify `_extra` passthrough: add an unknown key to a YAML file, load, save, check key preserved
 - Verify backward compat: a config with only `provider` + `project_slug` must load cleanly
 - Check that `to_dict()` puts `_extra` first so known fields override on conflict
+
+## Activity Log
+
+- 2026-04-04T09:34:46Z – coordinator – shell_pid=32339 – Started implementation via workflow command
