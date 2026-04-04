@@ -1,6 +1,7 @@
 """Tests for merge gate evaluation engine."""
 
 import json
+import subprocess
 
 import pytest
 
@@ -130,3 +131,63 @@ class TestOverallEvaluation:
         assert "overall_pass" in d
         assert "gates" in d
         assert "warnings" in d
+
+
+class TestDependencyGateReadOnly:
+    def test_evaluate_merge_gates_does_not_create_status_json(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+
+        dependency_gate = next(g for g in result.gates if g.gate_name == "dependency")
+        assert dependency_gate.verdict == GateVerdict.PASS
+        assert not (feature_dir / "status.json").exists()
+
+    def test_evaluate_merge_gates_does_not_dirty_tracked_status_json(self, tmp_path):
+        feature_dir = _setup_feature(
+            tmp_path, ["WP01"], wp_lanes={"WP01": "approved"},
+        )
+        repo_root = tmp_path
+
+        subprocess.run(["git", "init", str(repo_root)], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(repo_root), "config", "user.email", "test@test.com"],
+            check=True,
+            capture_output=True,
+        )
+        subprocess.run(
+            ["git", "-C", str(repo_root), "config", "user.name", "Test"],
+            check=True,
+            capture_output=True,
+        )
+
+        from specify_cli.status.reducer import materialize
+
+        materialize(feature_dir)
+        subprocess.run(["git", "-C", str(repo_root), "add", "-A"], check=True, capture_output=True)
+        subprocess.run(
+            ["git", "-C", str(repo_root), "commit", "-m", "init"],
+            check=True,
+            capture_output=True,
+        )
+
+        result = evaluate_merge_gates(
+            feature_dir, "010-feat", ["WP01"],
+            MergeGateConfig(mode="block"), tmp_path,
+        )
+
+        dependency_gate = next(g for g in result.gates if g.gate_name == "dependency")
+        assert dependency_gate.verdict == GateVerdict.PASS
+
+        git_status = subprocess.run(
+            ["git", "-C", str(repo_root), "status", "--porcelain"],
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout.strip()
+        assert git_status == ""
