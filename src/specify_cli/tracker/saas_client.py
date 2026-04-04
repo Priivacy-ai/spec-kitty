@@ -108,8 +108,8 @@ class SaaSTrackerClient:
         *,
         timeout: float = 30.0,
     ) -> None:
-        self._credential_store = credential_store or CredentialStore()  # type: ignore[no-untyped-call]
-        self._sync_config = sync_config or SyncConfig()  # type: ignore[no-untyped-call]
+        self._credential_store = credential_store or CredentialStore()
+        self._sync_config = sync_config or SyncConfig()
         self._base_url: str = self._sync_config.get_server_url()
         self._timeout = timeout
 
@@ -192,7 +192,7 @@ class SaaSTrackerClient:
         # --- 401: one refresh + retry ---
         if response.status_code == 401:
             try:
-                auth_client = AuthClient()  # type: ignore[no-untyped-call]
+                auth_client = AuthClient()
                 auth_client.credential_store = self._credential_store
                 auth_client.config = self._sync_config
                 auth_client.refresh_tokens()
