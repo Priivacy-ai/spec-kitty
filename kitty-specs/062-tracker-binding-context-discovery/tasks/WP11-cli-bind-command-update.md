@@ -20,8 +20,8 @@ base_branch: main
 base_commit: b4df2c4bc1b5748223a5f3d42215b1f6e7f07d33
 created_at: '2026-04-04T11:25:14.932938+00:00'
 subtasks: [T053, T054, T055, T056, T057, T058, T059]
-shell_pid: "18365"
-agent: "coordinator"
+shell_pid: "28219"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -237,3 +237,4 @@ spec-kitty implement WP11 --base WP09
 
 - 2026-04-04T11:25:15Z – coordinator – shell_pid=18365 – Started implementation via workflow command
 - 2026-04-04T11:33:52Z – coordinator – shell_pid=18365 – Ready for review: SaaS bind rewritten with discovery flow, --bind-ref, --select flags, re-bind confirmation, and 10 new CLI tests
+- 2026-04-04T11:34:26Z – codex – shell_pid=28219 – Started review via workflow command
