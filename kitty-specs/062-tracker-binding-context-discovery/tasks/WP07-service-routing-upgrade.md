@@ -15,8 +15,8 @@ base_branch: main
 base_commit: 61417a958f7ca801be5944c4f7dcb7cf4a7a52df
 created_at: '2026-04-04T10:26:57.221664+00:00'
 subtasks: [T030, T031, T032, T033, T034, T035]
-shell_pid: "71688"
-agent: "codex"
+shell_pid: "87377"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -232,3 +232,4 @@ spec-kitty implement WP07 --base WP05
 - 2026-04-04T10:51:42Z – coordinator – shell_pid=89919 – Fixed atomicity bug and mypy error per Codex review
 - 2026-04-04T10:52:16Z – codex – shell_pid=71688 – Started review via workflow command
 - 2026-04-04T10:59:36Z – codex – shell_pid=71688 – Moved to planned
+- 2026-04-04T11:01:19Z – coordinator – shell_pid=87377 – Started implementation via workflow command
