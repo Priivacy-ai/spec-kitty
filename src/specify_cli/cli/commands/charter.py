@@ -1,4 +1,4 @@
-"""Constitution management commands."""
+"""Charter management commands."""
 
 from __future__ import annotations
 
@@ -9,10 +9,10 @@ import typer
 from rich.console import Console
 from rich.table import Table
 
-from constitution.compiler import compile_constitution, write_compiled_constitution
-from constitution.context import BOOTSTRAP_ACTIONS, build_constitution_context
-from constitution.hasher import is_stale
-from constitution.interview import (
+from charter.compiler import compile_charter, write_compiled_charter
+from charter.context import BOOTSTRAP_ACTIONS, build_charter_context
+from charter.hasher import is_stale
+from charter.interview import (
     MINIMAL_QUESTION_ORDER,
     QUESTION_ORDER,
     QUESTION_PROMPTS,
@@ -21,29 +21,29 @@ from constitution.interview import (
     read_interview_answers,
     write_interview_answers,
 )
-from constitution.sync import sync as sync_constitution
+from charter.sync import sync as sync_charter
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 app = typer.Typer(
-    name="constitution",
-    help="Constitution management commands",
+    name="charter",
+    help="Charter management commands",
     no_args_is_help=True,
 )
 
 console = Console()
 
 
-def _resolve_constitution_path(repo_root: Path) -> Path:
-    """Find constitution.md in project, trying new and legacy locations."""
-    new_path = repo_root / ".kittify" / "constitution" / "constitution.md"
+def _resolve_charter_path(repo_root: Path) -> Path:
+    """Find charter.md in project, trying new and legacy locations."""
+    new_path = repo_root / ".kittify" / "charter" / "charter.md"
     if new_path.exists():
         return new_path
 
-    legacy_path = repo_root / ".kittify" / "memory" / "constitution.md"
+    legacy_path = repo_root / ".kittify" / "memory" / "charter.md"
     if legacy_path.exists():
         return legacy_path
 
-    raise TaskCliError(f"Constitution not found. Expected:\n  - {new_path}\n  - {legacy_path} (legacy)")
+    raise TaskCliError(f"Charter not found. Expected:\n  - {new_path}\n  - {legacy_path} (legacy)")
 
 
 def _parse_csv_option(raw: str | None) -> list[str] | None:
@@ -55,12 +55,12 @@ def _parse_csv_option(raw: str | None) -> list[str] | None:
 
 
 def _interview_path(repo_root: Path) -> Path:
-    return repo_root / ".kittify" / "constitution" / "interview" / "answers.yaml"
+    return repo_root / ".kittify" / "charter" / "interview" / "answers.yaml"
 
 
 @app.command()
 def interview(
-    mission: str = typer.Option("software-dev", "--mission", help="Mission key for constitution defaults"),
+    mission: str = typer.Option("software-dev", "--mission", help="Mission key for charter defaults"),
     profile: str = typer.Option("minimal", "--profile", help="Interview profile: minimal or comprehensive"),
     use_defaults: bool = typer.Option(False, "--defaults", help="Use deterministic defaults without prompts"),
     selected_paradigms: str | None = typer.Option(
@@ -80,7 +80,7 @@ def interview(
     ),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Capture constitution interview answers for later generation."""
+    """Capture charter interview answers for later generation."""
     try:
         repo_root = find_repo_root()
         normalized_profile = profile.strip().lower()
@@ -150,7 +150,7 @@ def interview(
             )
             return
 
-        console.print("[green]✅ Constitution interview answers saved[/green]")
+        console.print("[green]✅ Charter interview answers saved[/green]")
         console.print(f"Interview file: {answers_path.relative_to(repo_root)}")
         console.print(f"Mission: {interview_data.mission}")
         console.print(f"Profile: {interview_data.profile}")
@@ -175,13 +175,13 @@ def generate(
         True, "--from-interview/--no-from-interview", help="Load interview answers if present"
     ),
     profile: str = typer.Option("minimal", "--profile", help="Default profile when no interview is available"),
-    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing constitution bundle"),
+    force: bool = typer.Option(False, "--force", "-f", help="Overwrite existing charter bundle"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Generate constitution bundle from interview answers + doctrine references."""
+    """Generate charter bundle from interview answers + doctrine references."""
     try:
         repo_root = find_repo_root()
-        constitution_dir = repo_root / ".kittify" / "constitution"
+        charter_dir = repo_root / ".kittify" / "charter"
         answers_path = _interview_path(repo_root)
 
         interview_data = read_interview_answers(answers_path) if from_interview else None
@@ -197,20 +197,20 @@ def generate(
 
         resolved_mission = mission or interview_data.mission
 
-        compiled = compile_constitution(
+        compiled = compile_charter(
             mission=resolved_mission,
             interview=interview_data,
             template_set=template_set,
         )
-        bundle_result = write_compiled_constitution(constitution_dir, compiled, force=force)
+        bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
         if interview_source == "defaults":
             # Legacy CLI contract: default generation materializes an empty
             # library/ directory for older consumers. Interview-driven flows
             # keep the newer no-materialization behavior.
-            (constitution_dir / "library").mkdir(exist_ok=True)
+            (charter_dir / "library").mkdir(exist_ok=True)
 
-        constitution_path = constitution_dir / "constitution.md"
-        sync_result = sync_constitution(constitution_path, constitution_dir, force=True)
+        charter_path = charter_dir / "charter.md"
+        sync_result = sync_charter(charter_path, charter_dir, force=True)
 
         if sync_result.error:
             raise RuntimeError(sync_result.error)
@@ -231,7 +231,7 @@ def generate(
                     {
                         "result": "success",
                         "success": True,
-                        "constitution_path": str(constitution_path.relative_to(repo_root)),
+                        "charter_path": str(charter_path.relative_to(repo_root)),
                         "interview_source": interview_source,
                         "mission": compiled.mission,
                         "template_set": compiled.template_set,
@@ -248,8 +248,8 @@ def generate(
             )
             return
 
-        console.print("[green]✅ Constitution generated and synced[/green]")
-        console.print(f"Constitution: {constitution_path.relative_to(repo_root)}")
+        console.print("[green]✅ Charter generated and synced[/green]")
+        console.print(f"Charter: {charter_path.relative_to(repo_root)}")
         console.print(f"Mission: {compiled.mission}")
         console.print(f"Template set: {compiled.template_set}")
         if compiled.diagnostics:
@@ -274,10 +274,10 @@ def context(
     mark_loaded: bool = typer.Option(True, "--mark-loaded/--no-mark-loaded", help="Persist first-load state"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Render constitution context for a specific workflow action."""
+    """Render charter context for a specific workflow action."""
     try:
         repo_root = find_repo_root()
-        result = build_constitution_context(repo_root, action=action, mark_loaded=mark_loaded)
+        result = build_charter_context(repo_root, action=action, mark_loaded=mark_loaded)
 
         if json_output:
             print(
@@ -314,13 +314,13 @@ def sync(
     force: bool = typer.Option(False, "--force", "-f", help="Force sync even if not stale"),
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Sync constitution.md to structured YAML config files."""
+    """Sync charter.md to structured YAML config files."""
     try:
         repo_root = find_repo_root()
-        constitution_path = _resolve_constitution_path(repo_root)
-        output_dir = constitution_path.parent
+        charter_path = _resolve_charter_path(repo_root)
+        output_dir = charter_path.parent
 
-        result = sync_constitution(constitution_path, output_dir, force=force)
+        result = sync_charter(charter_path, output_dir, force=force)
 
         if json_output:
             data = {
@@ -339,13 +339,13 @@ def sync(
             raise typer.Exit(code=1)
 
         if result.synced:
-            console.print("[green]✅ Constitution synced successfully[/green]")
+            console.print("[green]✅ Charter synced successfully[/green]")
             console.print(f"Mode: {result.extraction_mode}")
             console.print("\nFiles written:")
             for filename in result.files_written:
                 console.print(f"  ✓ {filename}")
         else:
-            console.print("[blue]ℹ️  Constitution already in sync[/blue] (use --force to re-extract)")
+            console.print("[blue]ℹ️  Charter already in sync[/blue] (use --force to re-extract)")
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -359,14 +359,14 @@ def sync(
 def status(
     json_output: bool = typer.Option(False, "--json", help="Output JSON"),
 ) -> None:
-    """Display constitution sync status."""
+    """Display charter sync status."""
     try:
         repo_root = find_repo_root()
-        constitution_path = _resolve_constitution_path(repo_root)
-        output_dir = constitution_path.parent
+        charter_path = _resolve_charter_path(repo_root)
+        output_dir = charter_path.parent
         metadata_path = output_dir / "metadata.yaml"
 
-        stale, current_hash, stored_hash = is_stale(constitution_path, metadata_path)
+        stale, current_hash, stored_hash = is_stale(charter_path, metadata_path)
 
         files_info: list[dict[str, str | bool | float]] = []
         for filename in ["governance.yaml", "directives.yaml", "metadata.yaml", "references.yaml"]:
@@ -391,7 +391,7 @@ def status(
 
         if json_output:
             data = {
-                "constitution_path": str(constitution_path.relative_to(repo_root)),
+                "charter_path": str(charter_path.relative_to(repo_root)),
                 "status": "stale" if stale else "synced",
                 "current_hash": current_hash,
                 "stored_hash": stored_hash,
@@ -402,14 +402,14 @@ def status(
             print(json.dumps(data, indent=2))
             return
 
-        console.print(f"Constitution: {constitution_path.relative_to(repo_root)}")
+        console.print(f"Charter: {charter_path.relative_to(repo_root)}")
 
         if stale:
             console.print("Status: [yellow]⚠️  STALE[/yellow] (modified since last sync)")
             if stored_hash:
                 console.print(f"Expected hash: {stored_hash}")
             console.print(f"Current hash:  {current_hash}")
-            console.print("\n[dim]Run: spec-kitty constitution sync[/dim]")
+            console.print("\n[dim]Run: spec-kitty charter sync[/dim]")
         else:
             console.print("Status: [green]✅ SYNCED[/green]")
             if last_sync:
