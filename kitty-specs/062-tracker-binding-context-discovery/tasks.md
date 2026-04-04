@@ -116,10 +116,10 @@ Create pure data module `tracker/discovery.py` with dataclasses for API response
 
 Enrich `SaaSTrackerClientError` with `error_code`, `status_code`, `details`, `user_action_required` attributes. Update `_request_with_retry` to populate from PRI-12 envelope. Backward-compatible with existing callers.
 
-- [ ] T011: Enrich exception class
-- [ ] T012: Update _request_with_retry
-- [ ] T013: Write enriched error tests
-- [ ] T014: Write regression tests
+- [x] T011: Enrich exception class
+- [x] T012: Update _request_with_retry
+- [x] T013: Write enriched error tests
+- [x] T014: Write regression tests
 
 ### Wave 2 — Client Layer (depends on Wave 1)
 
