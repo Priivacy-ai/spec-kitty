@@ -22,7 +22,8 @@ base_branch: main
 base_commit: 40d26cfeac60ba677c60c7ec32b7fe282afd8aad
 created_at: '2026-04-04T20:07:29.715006+00:00'
 subtasks: [T032, T033, T034, T035, T036, T037, T038]
-shell_pid: '19741'
+shell_pid: "19741"
+agent: "claude"
 history:
 - date: '2026-04-04'
   action: created
@@ -301,3 +302,7 @@ Phase 1 method `_normalize_layouts()`:
 - Verify content rewriting is case-insensitive but case-preserving
 - Verify metadata normalization runs on load (before migration loop)
 - Count "constitution" strings in charter-rename migration — should be ~10-15 path literals only
+
+## Activity Log
+
+- 2026-04-04T20:07:29Z – claude – shell_pid=19741 – Started implementation via action command
