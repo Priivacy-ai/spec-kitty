@@ -249,7 +249,7 @@ load governance context scoped to the current action — not the full doctrine:
 
 ```bash
 # Load only what's relevant to this action (compact after first load)
-spec-kitty constitution context --action implement --json
+spec-kitty charter context --action implement --json
 ```
 
 The context system uses two depth levels:
@@ -260,7 +260,7 @@ The context system uses two depth levels:
 | `compact` (depth-1) | Subsequent loads | Resolved paradigms, directives, tools only |
 
 First-load state is tracked per action in
-`.kittify/constitution/context-state.json`. This means `implement` and
+`.kittify/charter/context-state.json`. This means `implement` and
 `review` each get their own first-load bootstrap independently.
 
 ### Pull Specific Doctrine On Demand
@@ -300,7 +300,7 @@ Do NOT load all doctrine into context at session start. This wastes tokens
 and dilutes relevance. Instead:
 
 1. **At init**: Load agent profile + initialization declaration.
-2. **At each step boundary**: Call `constitution context --action <action>`.
+2. **At each step boundary**: Call `charter context --action <action>`.
 3. **When stuck or need guidance**: Pull specific tactic/directive by ID.
 4. **When reviewing**: Pull review-scoped doctrine, not implement-scoped.
 

@@ -358,16 +358,16 @@ Type `/spec-kitty` and you should see autocomplete with all 13 commands.
 **Still in main repo** - Start with your project's governing principles:
 
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Create principles focused on code quality, testing standards,
 user experience consistency, and performance requirements.
 ```
 
 **What this creates:**
-- `.kittify/memory/constitution.md` - Your project's architectural DNA
+- `.kittify/memory/charter.md` - Your project's architectural DNA
 - These principles will guide all subsequent development
-- Missions do not have separate constitutions; the project constitution is the single source of truth
+- Missions do not have separate charters; the project charter is the single source of truth
 
 ### Phase 4: Create Your First Feature (In Agent)
 
@@ -495,7 +495,7 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 
 ### Required Workflow (Once per project)
 ```
-1️⃣  /spec-kitty.constitution     → In main repo (sets project principles)
+1️⃣  /spec-kitty.charter     → In main repo (sets project principles)
 ```
 
 ### Required Workflow (Each feature)
@@ -539,8 +539,8 @@ Spec Kitty automatically protects you with multiple layers:
 - ✅ Adds all 12 agent directories to `.gitignore`
 - ✅ Creates `.claudeignore` to optimize AI scanning (excludes `.kittify/` templates)
 
-**Worktree Constitution Sharing:**
-When creating execution workspaces, Spec Kitty uses symlinks to share the constitution:
+**Worktree Charter Sharing:**
+When creating execution workspaces, Spec Kitty uses symlinks to share the charter:
 ```
 .worktrees/001-feature-lane-a/.kittify/memory -> ../../../../.kittify/memory
 ```
@@ -551,7 +551,7 @@ This ensures all work packages follow the same project principles.
 ✅ **DO commit:**
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission workflows
-- `.kittify/memory/constitution.md` - Project principles
+- `.kittify/memory/charter.md` - Project principles
 - `.gitignore` - Protection rules
 
 ❌ **NEVER commit:**
@@ -993,7 +993,7 @@ After running `spec-kitty init`, your AI coding agent will have access to these 
 
 | # | Command                  | Description                                                           |
 |---|--------------------------|-----------------------------------------------------------------------|
-| 1 | `/spec-kitty.constitution`  | (**First in main repo**) Create or update project governing principles and development guidelines |
+| 1 | `/spec-kitty.charter`  | (**First in main repo**) Create or update project governing principles and development guidelines |
 | 2 | `/spec-kitty.specify`       | Define what you want to build (requirements and user stories; creates worktree) |
 | 3 | `/spec-kitty.plan`          | Create technical implementation plans with your chosen tech stack     |
 | 4 | `/spec-kitty.research`      | Run Phase 0 research scaffolding to populate research.md, data-model.md, and evidence logs |
@@ -1074,7 +1074,7 @@ my-project/                    # Main repo (main branch)
 
 ```bash
 # ========== IN MAIN REPO ==========
-/spec-kitty.constitution     # Step 1: Establish project governance (one time per project)
+/spec-kitty.charter     # Step 1: Establish project governance (one time per project)
 
 # ========== PLAN IN MAIN REPO ==========
 /spec-kitty.specify          # Step 2: Create the feature artifacts
@@ -1108,7 +1108,7 @@ Each mission lives under `.kittify/missions/<mission-key>/` and provides:
 
 - Mission-specific templates (`spec-template.md`, `plan-template.md`, `tasks-template.md`, etc.)
 - Command guidance tuned to the domain (`specify`, `plan`, `tasks`, `implement`, `review`, `accept`)
-- Optional constitutions to bias the agent toward best practices
+- Optional charters to bias the agent toward best practices
 
 ### Selecting a Mission
 

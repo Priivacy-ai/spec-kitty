@@ -1,11 +1,11 @@
 ---
 title: How to Set Up Project Governance
-description: Configure your project constitution, generate structured governance config, and keep it in sync.
+description: Configure your project charter, generate structured governance config, and keep it in sync.
 ---
 
 # How to Set Up Project Governance
 
-Spec Kitty uses a constitution to govern how agents behave during workflow actions. This guide walks you through creating a constitution, generating structured config from it, and keeping everything in sync as your project evolves.
+Spec Kitty uses a charter to govern how agents behave during workflow actions. This guide walks you through creating a charter, generating structured config from it, and keeping everything in sync as your project evolves.
 
 ## Prerequisites
 
@@ -16,17 +16,17 @@ Spec Kitty uses a constitution to govern how agents behave during workflow actio
 
 Governance is built on three layers. Only the first layer is human-edited; the other two are derived automatically.
 
-### Layer 1: Constitution (`constitution.md`)
+### Layer 1: Charter (`charter.md`)
 
-The single authoritative policy document. It lives at `.kittify/constitution/constitution.md` and is written in markdown. You create it through the interview process or write it by hand. This is the only governance file you should ever edit directly.
+The single authoritative policy document. It lives at `.kittify/charter/charter.md` and is written in markdown. You create it through the interview process or write it by hand. This is the only governance file you should ever edit directly.
 
 ### Layer 2: Extracted Config (YAML files)
 
-Machine-readable config derived deterministically from your constitution. These files are overwritten every time you run sync or generate:
+Machine-readable config derived deterministically from your charter. These files are overwritten every time you run sync or generate:
 
 - `governance.yaml` -- Testing standards, quality gates, performance targets, branching rules, and doctrine selections
 - `directives.yaml` -- Numbered project rules with severity levels and action scopes
-- `metadata.yaml` -- Hash of the constitution, timestamp of last sync
+- `metadata.yaml` -- Hash of the charter, timestamp of last sync
 
 ### Layer 3: Doctrine References (`library/*.md`)
 
@@ -35,7 +35,7 @@ Detailed guidance documents for the paradigms, directives, and tools you selecte
 ### How the Layers Connect
 
 ```
-constitution.md    (you edit this)
+charter.md    (you edit this)
        |
    [sync / generate]
        |
@@ -58,7 +58,7 @@ The interview captures your project's policy decisions and saves them as structu
 Use `--defaults` to accept deterministic defaults without prompts. Good for bootstrapping or CI:
 
 ```bash
-spec-kitty constitution interview \
+spec-kitty charter interview \
   --profile minimal \
   --defaults \
   --json
@@ -69,7 +69,7 @@ spec-kitty constitution interview \
 For a thorough setup, use the comprehensive profile which asks 11 questions:
 
 ```bash
-spec-kitty constitution interview \
+spec-kitty charter interview \
   --profile comprehensive
 ```
 
@@ -79,7 +79,7 @@ spec-kitty constitution interview \
 
 | Question | What it controls |
 |----------|-----------------|
-| Project intent | Policy summary in the constitution preamble |
+| Project intent | Policy summary in the charter preamble |
 | Languages and frameworks | Styleguide selection (e.g., Python) |
 | Testing requirements | Test framework, minimum coverage |
 | Quality gates | Linting, type checking, pre-commit hooks |
@@ -93,7 +93,7 @@ spec-kitty constitution interview \
 |----------|-----------------|
 | Documentation policy | Added as a project directive |
 | Risk boundaries | Added as a project directive |
-| Amendment process | How the constitution itself can be changed |
+| Amendment process | How the charter itself can be changed |
 | Exception policy | How to handle one-off policy exceptions |
 
 ### Override Selections
@@ -101,7 +101,7 @@ spec-kitty constitution interview \
 You can override doctrine selections on the command line:
 
 ```bash
-spec-kitty constitution interview \
+spec-kitty charter interview \
   --profile minimal \
   --defaults \
   --selected-paradigms "test-first" \
@@ -110,31 +110,31 @@ spec-kitty constitution interview \
   --json
 ```
 
-The interview saves its answers to `.kittify/constitution/interview/answers.yaml`.
+The interview saves its answers to `.kittify/charter/interview/answers.yaml`.
 
 ---
 
-## Step 2: Generate the Constitution
+## Step 2: Generate the Charter
 
-Generate the constitution markdown and all derived files from your interview answers:
+Generate the charter markdown and all derived files from your interview answers:
 
 ```bash
-spec-kitty constitution generate --from-interview --json
+spec-kitty charter generate --from-interview --json
 ```
 
 This does two things in sequence:
 
-1. Renders `constitution.md` from your answers and doctrine templates
+1. Renders `charter.md` from your answers and doctrine templates
 2. Automatically runs sync to extract structured YAML
 
-After generation, your `.kittify/constitution/` directory contains the full governance bundle.
+After generation, your `.kittify/charter/` directory contains the full governance bundle.
 
-### Overwrite an Existing Constitution
+### Overwrite an Existing Charter
 
-If you already have a constitution and want to regenerate from scratch:
+If you already have a charter and want to regenerate from scratch:
 
 ```bash
-spec-kitty constitution generate --from-interview --force --json
+spec-kitty charter generate --from-interview --force --json
 ```
 
 ### Choose a Template Set
@@ -142,7 +142,7 @@ spec-kitty constitution generate --from-interview --force --json
 Override the doctrine template set if your project needs a different workflow shape:
 
 ```bash
-spec-kitty constitution generate \
+spec-kitty charter generate \
   --from-interview \
   --template-set plan-default \
   --json
@@ -157,13 +157,13 @@ Available template sets: `software-dev-default`, `plan-default`, `documentation-
 After generation (or at any time), check whether your governance config is current:
 
 ```bash
-spec-kitty constitution status --json
+spec-kitty charter status --json
 ```
 
 This reports:
 
-- **synced** -- The extracted config matches the current constitution
-- **stale** -- The constitution has been edited since the last sync
+- **synced** -- The extracted config matches the current charter
+- **stale** -- The charter has been edited since the last sync
 
 When status shows "stale", agents may be working with outdated policy. Run sync to fix it.
 
@@ -171,16 +171,16 @@ When status shows "stale", agents may be working with outdated policy. Run sync 
 
 ## Step 4: Sync After Manual Edits
 
-When you edit `constitution.md` by hand, sync the changes to extracted config:
+When you edit `charter.md` by hand, sync the changes to extracted config:
 
 ```bash
-spec-kitty constitution sync --json
+spec-kitty charter sync --json
 ```
 
-Sync is idempotent. If the constitution hash has not changed since the last sync, extraction is skipped. To force re-extraction regardless:
+Sync is idempotent. If the charter hash has not changed since the last sync, extraction is skipped. To force re-extraction regardless:
 
 ```bash
-spec-kitty constitution sync --force --json
+spec-kitty charter sync --force --json
 ```
 
 ---
@@ -194,7 +194,7 @@ During workflow actions, the runtime automatically loads governance context into
 When you run `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.implement`, or `/spec-kitty.review`, the runtime calls:
 
 ```bash
-spec-kitty constitution context --action <action> --json
+spec-kitty charter context --action <action> --json
 ```
 
 This returns governance text tailored to the current action.
@@ -205,16 +205,16 @@ This returns governance text tailored to the current action.
 |------|--------------|---------------------|
 | Bootstrap | First time an action loads context | Full policy summary (up to 8 bullets) plus a list of reference docs |
 | Compact | Subsequent loads for the same action | Resolved paradigms, directives, tools, and template set only |
-| Missing | No constitution exists | Instructions telling the agent to create one |
+| Missing | No charter exists | Instructions telling the agent to create one |
 
-First-load state is tracked per action in `.kittify/constitution/context-state.json`. Each action (specify, plan, implement, review) has an independent first-load timestamp.
+First-load state is tracked per action in `.kittify/charter/context-state.json`. Each action (specify, plan, implement, review) has an independent first-load timestamp.
 
 ### Manual Invocation for Debugging
 
 If you want to see exactly what governance context an action receives:
 
 ```bash
-spec-kitty constitution context --action implement --json
+spec-kitty charter context --action implement --json
 ```
 
 This is useful when diagnosing unexpected agent behavior during a workflow step.
@@ -225,15 +225,15 @@ This is useful when diagnosing unexpected agent behavior during a workflow step.
 
 ### Editing Derived Files Directly
 
-`governance.yaml`, `directives.yaml`, and `library/*.md` are overwritten on every sync or generate. Any manual changes to these files will be lost. Always edit `constitution.md` instead, then run sync.
+`governance.yaml`, `directives.yaml`, and `library/*.md` are overwritten on every sync or generate. Any manual changes to these files will be lost. Always edit `charter.md` instead, then run sync.
 
 ### Skipping the Interview
 
-Running generate without an interview produces generic defaults. The constitution is most valuable when it contains your project's actual policy decisions -- testing thresholds, review requirements, branching rules. Take the time to answer the questions.
+Running generate without an interview produces generic defaults. The charter is most valuable when it contains your project's actual policy decisions -- testing thresholds, review requirements, branching rules. Take the time to answer the questions.
 
-### Working with a Stale Constitution
+### Working with a Stale Charter
 
-If you edit `constitution.md` but forget to sync, agents will work with outdated policy from the previous extraction. Run `spec-kitty constitution status --json` to check, and `spec-kitty constitution sync --json` to fix.
+If you edit `charter.md` but forget to sync, agents will work with outdated policy from the previous extraction. Run `spec-kitty charter status --json` to check, and `spec-kitty charter sync --json` to fix.
 
 ---
 
@@ -243,43 +243,43 @@ Set up governance for a new project from scratch:
 
 ```bash
 # 1. Run the interview
-spec-kitty constitution interview \
+spec-kitty charter interview \
   --profile comprehensive
 
-# 2. Generate constitution and extracted config
-spec-kitty constitution generate --from-interview --json
+# 2. Generate charter and extracted config
+spec-kitty charter generate --from-interview --json
 
 # 3. Verify everything is in sync
-spec-kitty constitution status --json
+spec-kitty charter status --json
 
 # 4. Start working -- governance context loads automatically
 /spec-kitty.specify "Build user authentication module"
 ```
 
-Later, after updating your constitution:
+Later, after updating your charter:
 
 ```bash
-# Edit the constitution
-$EDITOR .kittify/constitution/constitution.md
+# Edit the charter
+$EDITOR .kittify/charter/charter.md
 
 # Sync changes
-spec-kitty constitution sync --json
+spec-kitty charter sync --json
 
 # Verify
-spec-kitty constitution status --json
+spec-kitty charter status --json
 ```
 
 ---
 
 ## Command Reference
 
-- [CLI Commands](../reference/cli-commands.md) -- Full CLI reference including constitution subcommands
+- [CLI Commands](../reference/cli-commands.md) -- Full CLI reference including charter subcommands
 
 ## See Also
 
 - [Create a Specification](create-specification.md) -- Start a feature with governance active
 - [Switch Missions](switch-missions.md) -- How missions interact with governance
-- [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including constitution
+- [Non-Interactive Init](non-interactive-init.md) -- Automated project setup including charter
 
 ## Background
 

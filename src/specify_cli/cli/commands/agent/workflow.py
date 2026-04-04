@@ -16,7 +16,7 @@ import typer
 from typing_extensions import Annotated
 
 from specify_cli.cli.commands.implement import implement as top_level_implement
-from specify_cli.constitution.context import build_constitution_context
+from specify_cli.charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.implement_validation import (
     validate_and_resolve_base,
@@ -113,10 +113,10 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
     return None
 
 
-def _render_constitution_context(repo_root: Path, action: str) -> str:
-    """Render constitution context for workflow prompts."""
+def _render_charter_context(repo_root: Path, action: str) -> str:
+    """Render charter context for workflow prompts."""
     try:
-        context = build_constitution_context(repo_root, action=action, mark_loaded=True)
+        context = build_charter_context(repo_root, action=action, mark_loaded=True)
         return context.text
     except Exception as exc:
         return f"Governance: unavailable ({exc})"
@@ -608,7 +608,7 @@ def implement(
             shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
             lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
         lines.append("")
-        lines.append(_render_constitution_context(repo_root, "implement"))
+        lines.append(_render_charter_context(repo_root, "implement"))
         lines.append("")
 
         # CRITICAL: WP isolation rules
@@ -1175,7 +1175,7 @@ def review(
             shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
             lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
         lines.append("")
-        lines.append(_render_constitution_context(repo_root, "review"))
+        lines.append(_render_charter_context(repo_root, "review"))
         lines.append("")
 
         # Add dependency warning to file

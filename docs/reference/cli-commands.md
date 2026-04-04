@@ -40,7 +40,7 @@ Terminology note:
 - `verify-setup` - Verify that the current environment matches Spec Kitty expectations
 - `agent` - Commands for AI agents to execute spec-kitty workflows programmatically
 - `auth` - Authentication commands
-- `constitution` - Constitution management commands
+- `charter` - Charter management commands
 - `context` - Query workspace context information
 - `doctor` - Project health diagnostics
 - `glossary` - Glossary management commands
@@ -1181,11 +1181,11 @@ spec-kitty migrate --verbose
 
 ---
 
-## spec-kitty constitution
+## spec-kitty charter
 
-**Synopsis**: `spec-kitty constitution [OPTIONS] COMMAND [ARGS]...`
+**Synopsis**: `spec-kitty charter [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Constitution management commands.
+**Description**: Charter management commands.
 
 **Options**:
 | Flag | Description |
@@ -1193,22 +1193,22 @@ spec-kitty migrate --verbose
 | `--help` | Show this message and exit |
 
 **Commands**:
-- `interview` - Capture constitution interview answers for later generation
-- `generate` - Generate constitution bundle from interview answers + doctrine references
-- `context` - Render constitution context for a specific workflow action
-- `sync` - Sync constitution.md to structured YAML config files
-- `status` - Display constitution sync status
+- `interview` - Capture charter interview answers for later generation
+- `generate` - Generate charter bundle from interview answers + doctrine references
+- `context` - Render charter context for a specific workflow action
+- `sync` - Sync charter.md to structured YAML config files
+- `status` - Display charter sync status
 
-### spec-kitty constitution interview
+### spec-kitty charter interview
 
-**Synopsis**: `spec-kitty constitution interview [OPTIONS]`
+**Synopsis**: `spec-kitty charter interview [OPTIONS]`
 
-**Description**: Capture constitution interview answers for later generation.
+**Description**: Capture charter interview answers for later generation.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--mission TEXT` | Mission key for constitution defaults (default: `software-dev`) |
+| `--mission TEXT` | Mission key for charter defaults (default: `software-dev`) |
 | `--profile TEXT` | Interview profile: `minimal` or `comprehensive` (default: `minimal`) |
 | `--defaults` | Use deterministic defaults without prompts |
 | `--selected-paradigms TEXT` | Comma-separated paradigm IDs override |
@@ -1217,11 +1217,11 @@ spec-kitty migrate --verbose
 | `--json` | Output JSON |
 | `--help` | Show this message and exit |
 
-### spec-kitty constitution generate
+### spec-kitty charter generate
 
-**Synopsis**: `spec-kitty constitution generate [OPTIONS]`
+**Synopsis**: `spec-kitty charter generate [OPTIONS]`
 
-**Description**: Generate constitution bundle from interview answers + doctrine references.
+**Description**: Generate charter bundle from interview answers + doctrine references.
 
 **Options**:
 | Flag | Description |
@@ -1230,15 +1230,15 @@ spec-kitty migrate --verbose
 | `--template-set TEXT` | Override doctrine template set (must exist in packaged doctrine missions) |
 | `--from-interview`, `--no-from-interview` | Load interview answers if present (default: `--from-interview`) |
 | `--profile TEXT` | Default profile when no interview is available (default: `minimal`) |
-| `--force`, `-f` | Overwrite existing constitution bundle |
+| `--force`, `-f` | Overwrite existing charter bundle |
 | `--json` | Output JSON |
 | `--help` | Show this message and exit |
 
-### spec-kitty constitution context
+### spec-kitty charter context
 
-**Synopsis**: `spec-kitty constitution context [OPTIONS]`
+**Synopsis**: `spec-kitty charter context [OPTIONS]`
 
-**Description**: Render constitution context for a specific workflow action.
+**Description**: Render charter context for a specific workflow action.
 
 **Options**:
 | Flag | Description |
@@ -1248,11 +1248,11 @@ spec-kitty migrate --verbose
 | `--json` | Output JSON |
 | `--help` | Show this message and exit |
 
-### spec-kitty constitution sync
+### spec-kitty charter sync
 
-**Synopsis**: `spec-kitty constitution sync [OPTIONS]`
+**Synopsis**: `spec-kitty charter sync [OPTIONS]`
 
-**Description**: Sync constitution.md to structured YAML config files.
+**Description**: Sync charter.md to structured YAML config files.
 
 **Options**:
 | Flag | Description |
@@ -1261,11 +1261,11 @@ spec-kitty migrate --verbose
 | `--json` | Output JSON |
 | `--help` | Show this message and exit |
 
-### spec-kitty constitution status
+### spec-kitty charter status
 
-**Synopsis**: `spec-kitty constitution status [OPTIONS]`
+**Synopsis**: `spec-kitty charter status [OPTIONS]`
 
-**Description**: Display constitution sync status.
+**Description**: Display charter sync status.
 
 **Options**:
 | Flag | Description |

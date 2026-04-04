@@ -17,7 +17,7 @@ def evaluable():
     are ``src.kernel``, ``src.doctrine``, etc.
 
     ``exclude_external_libraries`` is **False** so that cross-package
-    imports (e.g. ``from specify_cli import X`` inside constitution) are
+    imports (e.g. ``from specify_cli import X`` inside charter) are
     visible in the dependency graph.  The mypy_cache directory is excluded
     to avoid polluting the graph with cached stubs.
     """
@@ -31,7 +31,7 @@ def evaluable():
 
 @pytest.fixture(scope="session")
 def landscape():
-    """2.x C4 landscape: kernel <- doctrine <- constitution <- specify_cli.
+    """2.x C4 landscape: kernel <- doctrine <- charter <- specify_cli.
 
     Each layer includes both the ``src.``-prefixed module path (local source)
     and the bare module name (as seen when the package is installed), so that
@@ -43,8 +43,8 @@ def landscape():
         .containing_modules(["src.kernel", "kernel"])
         .layer("doctrine")
         .containing_modules(["src.doctrine", "doctrine"])
-        .layer("constitution")
-        .containing_modules(["src.constitution", "constitution"])
+        .layer("charter")
+        .containing_modules(["src.charter", "charter"])
         .layer("specify_cli")
         .containing_modules(["src.specify_cli", "specify_cli"])
     )

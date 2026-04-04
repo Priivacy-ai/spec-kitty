@@ -1,9 +1,9 @@
-# Post-Implementation Review: Feature 054 — Constitution Interview Compiler and Bootstrap
+# Post-Implementation Review: Feature 054 — Charter Interview Compiler and Bootstrap
 
 | Field | Value |
 |---|---|
 | Date | 2026-03-10 |
-| Feature | 054-constitution-interview-compiler-and-bootstrap |
+| Feature | 054-charter-interview-compiler-and-bootstrap |
 | Branch | `feature/agent-profile-implementation` |
 | Work Packages | WP01–WP12 (all done) |
 | Scope | Phase 1 of Doctrine-to-Execution Integration |
@@ -25,7 +25,7 @@
    the project selected" and keeps the intersection logic in one place
    (`context.py`).
 
-3. **Constitution-as-configuration**: The decision to not materialise a
+3. **Charter-as-configuration**: The decision to not materialise a
    `library/` directory and instead fetch live from `DoctrineService` on every
    `context` call is correct. It avoids stale-cache bugs and keeps the doctrine
    package as the single source of truth for shipped content.
@@ -54,7 +54,7 @@
    JSON Schema. This makes them opaque to tooling — you cannot programmatically
    query "which guidelines mention worktrees" without text search.
 
-2. **Context output is a string blob**: `ConstitutionContextResult.text` is
+2. **Context output is a string blob**: `CharterContextResult.text` is
    rendered markdown. Consumers (agents, connectors) cannot selectively parse
    out directive content vs. tactic steps vs. guidelines without regex. A
    structured alternative (list of typed sections) would enable smarter
@@ -65,7 +65,7 @@
    no structured way to request "give me tactic X at full depth" without
    re-requesting the entire context at depth 3.
 
-4. **Test coverage disparity**: The constitution compiler and context modules
+4. **Test coverage disparity**: The charter compiler and context modules
    have good coverage, but the integration between `context.py` and the actual
    command templates (the bootstrap injection point) is tested through snapshot
    fixtures rather than behavioural assertions. This makes the test suite
@@ -74,8 +74,8 @@
 5. **Local support file declarations are additive-only**: The design is correct
    (local supplements shipped, never overrides), but there is no mechanism for
    a project to *suppress* a shipped directive it disagrees with. The only option
-   is to not select it — which is fine if you control the constitution, but
-   becomes a friction point if a team inherits a pre-built constitution.
+   is to not select it — which is fine if you control the charter, but
+   becomes a friction point if a team inherits a pre-built charter.
 
 ---
 
@@ -87,17 +87,17 @@
 |---|---|---|
 | `initiatives/2026-03-doctrine-execution-integration/README.md` | Phase 1 status is "In Progress" but feature 054 is complete | Update Phase 1 to "Complete" with completion date. Note remaining deployment item (m_2_0_2 migration for slimmed templates). |
 | `04_implementation_mapping/README.md` | Table row for Agent Tool Connectors still says `src/specify_cli/missions/*/command-templates/` | Update to reflect `src/doctrine/missions/*/command-templates/` as new source (WP11/WP12). |
-| `04_implementation_mapping/README.md` | "What is emerging or aspirational" table lists "Constitution compiler consumes Doctrine" as emerging | Move to "What exists and works today" — this is now fully implemented. |
-| `04_implementation_mapping/README.md` | Constitution components table is incomplete | Add Action Context Resolver `constitution/context.py` as distinct component with depth semantics and action index intersection. |
-| `03_components/README.md` | Component diagram does not show ActionIndex or ContextBootstrap | Add ActionIndex as a component within Doctrine, and ContextBootstrap as a component within Constitution. |
+| `04_implementation_mapping/README.md` | "What is emerging or aspirational" table lists "Charter compiler consumes Doctrine" as emerging | Move to "What exists and works today" — this is now fully implemented. |
+| `04_implementation_mapping/README.md` | Charter components table is incomplete | Add Action Context Resolver `charter/context.py` as distinct component with depth semantics and action index intersection. |
+| `03_components/README.md` | Component diagram does not show ActionIndex or ContextBootstrap | Add ActionIndex as a component within Doctrine, and ContextBootstrap as a component within Charter. |
 
 ### Should update (alignment)
 
 | Document | Gap | Action |
 |---|---|---|
-| `02_containers/README.md` | Loop C (Governance) does not describe action-scoped context | Extend Loop C to show the `constitution context --action <X>` path as a sub-loop of execution, not just a setup step. |
+| `02_containers/README.md` | Loop C (Governance) does not describe action-scoped context | Extend Loop C to show the `charter context --action <X>` path as a sub-loop of execution, not just a setup step. |
 | `00_landscape/README.md` | Doctrine container description says "knowledge store" without mentioning mission-scoped action indexes | Add a note that Doctrine now includes action-scoped governance indexes per mission type. |
-| `02_containers/runtime-execution-domain.md` | No mention of governance injection at execution boundary | Add a note that every WP execution begins with a constitution context bootstrap call. |
+| `02_containers/runtime-execution-domain.md` | No mention of governance injection at execution boundary | Add a note that every WP execution begins with a charter context bootstrap call. |
 
 ### No update needed
 
@@ -121,7 +121,7 @@ scorecard:
 |---|---|---|
 | **Directive content available at runtime** | Production | `DoctrineService` + transitive resolution operational |
 | **Action-scoped governance injection** | Production | Action indexes + context bootstrap working for all 4 software-dev actions |
-| **Constitution as typed configuration** | Production | Interview → compile → context pipeline end-to-end |
+| **Charter as typed configuration** | Production | Interview → compile → context pipeline end-to-end |
 | **Agent profile shaping governance** | Partial | Models + repository exist (048). Profile-aware resolution in resolver.py. Not yet auto-selected during `implement`. |
 | **Governance prose extracted from templates** | Partial | `guidelines.md` per action exists. Templates still contain narrative prose that *should* be doctrine but isn't yet schema-governed. |
 | **All missions doctrine-governed** | Partial | `software-dev` fully wired. `documentation`, `plan`, `research` missions have action directories but thinner indexes. |
@@ -132,8 +132,8 @@ scorecard:
 
 1. Every command template contains *only* structural workflow instructions
    (create worktree, run tests, commit). All governance content is retrieved
-   at runtime via `constitution context`.
-2. The constitution interview is itself governed by doctrine (a "meta-interview
+   at runtime via `charter context`.
+2. The charter interview is itself governed by doctrine (a "meta-interview
    directive" that defines what questions must be asked).
 3. Agent profile selection is automatic based on the action being performed
    (implement → implementer profile, review → reviewer profile).
@@ -174,7 +174,7 @@ scorecard:
 
 4. **Deploy slimmed templates** (m_2_0_2): Strip inline governance prose from
    all 48 agent template copies. Templates should contain only:
-   - Constitution context bootstrap call
+   - Charter context bootstrap call
    - Structural workflow steps (create worktree, run tests, commit)
    - Feature-specific interpolation variables
 
@@ -188,7 +188,7 @@ scorecard:
    `implement` / `review` / `specify` entry points so the correct profile
    is selected automatically, not manually during interview.
 
-7. **Structured context output**: Replace `ConstitutionContextResult.text`
+7. **Structured context output**: Replace `CharterContextResult.text`
    (string blob) with a structured payload that consumers can selectively
    query. This unblocks smarter connectors (Phase 2).
 
@@ -200,7 +200,7 @@ scorecard:
 
 Currently, each command template (`specify.md`, `plan.md`, `implement.md`,
 `review.md`) contains:
-1. A constitution context bootstrap section (standardised)
+1. A charter context bootstrap section (standardised)
 2. Structural workflow instructions (action-specific)
 3. Residual governance prose (should be doctrine, isn't yet)
 
@@ -225,7 +225,7 @@ Shipped contracts exist for all 4 software-dev actions:
 - `delegates_to.kind` links a step to a doctrine artifact type (paradigm,
   tactic, directive) for concretization at runtime
 - `delegates_to.candidates` lists which artifacts *could* concretize the step;
-  the constitution's selections determine which one applies
+  the charter's selections determine which one applies
 - `guidance` is a freeform field for additional step-specific instructions
 - `command` is an optional CLI command for purely structural steps
 
@@ -254,7 +254,7 @@ rules.
 
 ---
 
-## 6. Constitution-Driven Git Branching Strategy
+## 6. Charter-Driven Git Branching Strategy
 
 ### Problem
 
@@ -263,7 +263,7 @@ This is baked into:
 - `implement.md` templates (all 48 copies)
 - `src/specify_cli/orchestrator/` (worktree creation logic)
 - `src/specify_cli/merge/` (worktree-based merge assumptions)
-- Constitution context guidelines (worktree discipline prose)
+- Charter context guidelines (worktree discipline prose)
 
 Users wanting git-flow branches, CI to a shared branch, or trunk-based
 development cannot configure this without forking templates.
@@ -339,9 +339,9 @@ Each paradigm references tactics that describe the concrete steps. The
 `worktree-isolation` tactic has steps for `git worktree add`, the
 `feature-branch-workflow` tactic has steps for `git checkout -b`, etc.
 
-**Layer 3: Constitution interview captures the choice**
+**Layer 3: Charter interview captures the choice**
 
-The constitution interview already captures `selected_paradigms`. Adding
+The charter interview already captures `selected_paradigms`. Adding
 branching paradigms to the selection:
 
 ```yaml
@@ -373,20 +373,20 @@ tactics:
 The `$paradigm:` prefix is a conditional inclusion syntax: include this tactic
 only if the named paradigm is in the project's `selected_paradigms`.
 
-**Layer 5: Orchestration reads constitution, not hardcoded strategy**
+**Layer 5: Orchestration reads charter, not hardcoded strategy**
 
 ```python
 # Pseudocode for implement entry point
 def implement_wp(wp_id, repo_root):
-    constitution = load_constitution(repo_root)
+    charter = load_charter(repo_root)
 
-    if "workspace-per-wp" in constitution.selected_paradigms:
+    if "workspace-per-wp" in charter.selected_paradigms:
         create_worktree(wp_id)
-    elif "shared-branch-ci" in constitution.selected_paradigms:
+    elif "shared-branch-ci" in charter.selected_paradigms:
         checkout_feature_branch(wp_id)
-    elif "git-flow" in constitution.selected_paradigms:
+    elif "git-flow" in charter.selected_paradigms:
         checkout_from_develop(wp_id)
-    elif "trunk-based" in constitution.selected_paradigms:
+    elif "trunk-based" in charter.selected_paradigms:
         checkout_short_lived_branch(wp_id)
 ```
 
@@ -403,7 +403,7 @@ etc.).
 | 1. Create branching paradigm artifacts | Doctrine only — no code changes | Small |
 | 2. Create branching tactic artifacts | Doctrine only — step definitions | Small |
 | 3. Add conditional inclusion to action index loader | `action_index.py` change | Medium |
-| 4. Constitution interview: add branching paradigm question | `interview.py` change | Small |
+| 4. Charter interview: add branching paradigm question | `interview.py` change | Small |
 | 5. Refactor orchestrator to read paradigm | `orchestrator/` refactor | Large |
 | 6. Refactor merge to read paradigm | `merge/` refactor | Large |
 | 7. Update templates to remove hardcoded worktree instructions | Migration | Medium |
@@ -412,9 +412,9 @@ Steps 1-4 are low-risk doctrine additions. Steps 5-6 are the heavy lift —
 they require the orchestration and merge subsystems to become
 strategy-polymorphic rather than worktree-hardcoded.
 
-### Key insight: The constitution is already the right indirection point
+### Key insight: The charter is already the right indirection point
 
-The constitution already sits between "what the project wants" (interview
+The charter already sits between "what the project wants" (interview
 answers) and "what the agent does" (context bootstrap). Making branching
 strategy a paradigm selection flows naturally through the existing pipeline:
 
@@ -435,7 +435,7 @@ orchestrator decoupled from the worktree assumption.
 
 ## Related Documents
 
-- Feature 054 spec: `kitty-specs/054-constitution-interview-compiler-and-bootstrap/spec.md`
+- Feature 054 spec: `kitty-specs/054-charter-interview-compiler-and-bootstrap/spec.md`
 - Doctrine execution integration: `architecture/2.x/initiatives/2026-03-doctrine-execution-integration/`
 - Implementation mapping: `architecture/2.x/04_implementation_mapping/README.md`
 - System landscape: `architecture/2.x/00_landscape/README.md`

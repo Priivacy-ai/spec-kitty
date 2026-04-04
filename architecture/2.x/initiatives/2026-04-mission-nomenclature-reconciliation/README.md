@@ -194,7 +194,7 @@ Tasks:
 Representative files:
 - `src/doctrine/skills/spec-kitty-mission-system/SKILL.md`
 - `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`
-- `src/doctrine/skills/spec-kitty-constitution-doctrine/SKILL.md`
+- `src/doctrine/skills/spec-kitty-charter-doctrine/SKILL.md`
 - `docs/reference/missions.md`
 - `docs/explanation/runtime-loop.md`
 - `docs/tutorials/*`

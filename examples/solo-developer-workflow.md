@@ -30,7 +30,7 @@ claude
 
 Create project principles:
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Create principles focused on:
 - Code quality: Clean, well-documented code
@@ -147,7 +147,7 @@ Even working alone, the dashboard provides:
 
 | Phase | Time (Simple Feature) | Time (Complex Feature) |
 |-------|----------------------|------------------------|
-| Constitution | 10 min (one-time) | 10 min (one-time) |
+| Charter | 10 min (one-time) | 10 min (one-time) |
 | Specify | 5-10 min | 15-30 min |
 | Plan | 5-10 min | 15-30 min |
 | Tasks | 2 min | 2 min |
@@ -162,7 +162,7 @@ Even working alone, the dashboard provides:
 - **One feature at a time** - Resist urge to skip worktree workflow
 - **Pressure-test the spec before planning** - Resolve open questions in the spec itself before `/spec-kitty.plan`
 - **Self-review seriously** - `/spec-kitty.review` catches bugs early
-- **Constitution matters** - Even solo, it keeps you consistent
+- **Charter matters** - Even solo, it keeps you consistent
 - **Don't skip acceptance** - `/spec-kitty.accept` ensures quality gates
 
 ## Common Solo Developer Questions

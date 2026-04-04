@@ -21,7 +21,7 @@ import pytest
 
 from doctrine.service import DoctrineService
 from doctrine.shared.exceptions import DoctrineResolutionCycleError
-from constitution.reference_resolver import resolve_references_transitively
+from charter.reference_resolver import resolve_references_transitively
 
 
 @pytest.fixture(scope="module")
@@ -78,7 +78,7 @@ def test_shipped_tactics_individually_cycle_free(shipped_service: DoctrineServic
         # directive that only references this tactic.
         #
         # Simpler: just walk from this tactic via the real service.
-        from constitution.reference_resolver import _Walker  # noqa: PLC0415
+        from charter.reference_resolver import _Walker  # noqa: PLC0415
 
         walker = _Walker(shipped_service)
         try:

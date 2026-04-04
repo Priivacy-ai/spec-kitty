@@ -27,10 +27,10 @@ flowchart TB
       render[Template Resolution]
     end
 
-    subgraph Governance["Constitution and Governance Engine"]
+    subgraph Governance["Charter and Governance Engine"]
       interview[Interview Flow]
-      compiler[Constitution Compiler]
-      context[Constitution Context Resolver]
+      compiler[Charter Compiler]
+      context[Charter Context Resolver]
     end
 
     cmd --> loop
@@ -51,9 +51,9 @@ flowchart TB
 | Next Loop Coordinator | Canonical per-agent loop orchestration |
 | Mission Discovery and Resolution | Mission/runtime lookup and precedence |
 | Template Resolution | Prompt/template retrieval for resolved action |
-| Interview Flow | Captures governance/constitution intent |
-| Constitution Compiler | Produces constitution bundle artifacts |
-| Constitution Context Resolver | Provides action-scoped constitution context |
+| Interview Flow | Captures governance/charter intent |
+| Charter Compiler | Produces charter bundle artifacts |
+| Charter Context Resolver | Provides action-scoped charter context |
 
 ## Boundary and Coupling Notes
 

@@ -10,7 +10,7 @@
 
 1. Work packages should move through lane states in order.
 2. Planning artifacts are the contract for implementation and review.
-3. Constitution principles are applied before final acceptance.
+3. Charter principles are applied before final acceptance.
 
 ## Typical 1.x Paths
 

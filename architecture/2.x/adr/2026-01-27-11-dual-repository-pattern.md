@@ -225,7 +225,7 @@ Copy events code into `src/specify_cli/_vendored/events/`.
 - When: Not until 2.x approaches beta/stable release
 
 **Documentation:**
-- Constitution: `.kittify/memory/constitution.md` (Architecture: Private Dependency Pattern, lines 46-132)
+- Charter: `.kittify/memory/charter.md` (Architecture: Private Dependency Pattern, lines 46-132)
 - ADR-12: `architecture/2.x/adr/2026-01-27-12-two-branch-strategy-for-saas-transformation.md`
 - Setup guide: `docs/development/ssh-deploy-keys.md` (created in Feature 025 WP01 T002)
 - Dependency updates: `CONTRIBUTING.md` (documented in Feature 025 WP08 T044)

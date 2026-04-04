@@ -16,7 +16,7 @@ Result:
 |---|---|
 | `src/specify_cli/runtime/*` and canonical `next` loop | `2026-02-17-1`, `2026-02-17-2`, `2026-02-17-3` |
 | Status/event-lifecycle model | `2026-02-09-1` through `2026-02-09-4` |
-| Doctrine artifact model (`src/doctrine/**`, constitution compiler/commands) | `2026-02-23-1` |
+| Doctrine artifact model (`src/doctrine/**`, charter compiler/commands) | `2026-02-23-1` |
 | Living glossary model (`glossary/**`, glossary hook integration) | `2026-02-23-2` |
 | Versioned docs strategy (`docs/1x`, `docs/2x`, docs workflow) | `2026-02-23-3` |
 

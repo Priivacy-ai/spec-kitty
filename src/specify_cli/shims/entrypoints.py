@@ -78,7 +78,7 @@ _KNOWN_COMMANDS: frozenset[str] = frozenset(
         "checklist",
         "analyze",
         "research",
-        "constitution",
+        "charter",
     }
 )
 

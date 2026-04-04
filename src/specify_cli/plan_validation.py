@@ -19,7 +19,7 @@ TEMPLATE_MARKERS = [
     "[e.g., Python 3.11",
     "or NEEDS CLARIFICATION",
     "# [REMOVE IF UNUSED]",
-    "[Gates determined based on constitution file]",
+    "[Gates determined based on charter file]",
     "[Document the selected structure",
 ]
 

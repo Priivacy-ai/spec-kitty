@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 
-from specify_cli.constitution.resolver import (
+from specify_cli.charter.resolver import (
     GovernanceResolutionError,
     resolve_governance,
 )
@@ -128,7 +128,7 @@ def check_stale_legacy_assets(project_dir: Path) -> DoctorCheck:
 
 
 def check_governance_resolution(project_dir: Path) -> DoctorCheck:
-    """Validate constitution-centric governance resolution for this project."""
+    """Validate charter-centric governance resolution for this project."""
     try:
         resolution = resolve_governance(project_dir)
     except GovernanceResolutionError as exc:
@@ -152,7 +152,7 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
             True,
             (
                 f"Resolved governance with template fallback '{resolution.template_set}'. "
-                "Set doctrine.template_set in constitution to make this explicit."
+                "Set doctrine.template_set in charter to make this explicit."
             ),
             "warning",
         )

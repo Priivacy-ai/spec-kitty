@@ -15,7 +15,7 @@ def minimal_step_contract_data() -> dict:
         "action": "implement",
         "mission": "software-dev",
         "steps": [
-            {"id": "bootstrap", "description": "Load constitution context"},
+            {"id": "bootstrap", "description": "Load charter context"},
         ],
     }
 
@@ -31,8 +31,8 @@ def full_step_contract_data() -> dict:
         "steps": [
             {
                 "id": "bootstrap",
-                "description": "Load constitution context for this action",
-                "command": "spec-kitty constitution context --action implement --json",
+                "description": "Load charter context for this action",
+                "command": "spec-kitty charter context --action implement --json",
             },
             {
                 "id": "workspace",

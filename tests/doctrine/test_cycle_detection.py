@@ -19,7 +19,7 @@ from __future__ import annotations
 import pytest
 
 from doctrine.shared.exceptions import DoctrineResolutionCycleError
-from constitution.reference_resolver import resolve_references_transitively
+from charter.reference_resolver import resolve_references_transitively
 
 
 # ---------------------------------------------------------------------------

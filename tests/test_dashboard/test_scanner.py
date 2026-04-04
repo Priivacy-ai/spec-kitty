@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.dashboard import scanner
-from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
+from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
@@ -111,50 +111,50 @@ def test_resolve_active_feature_requires_explicit_selection(tmp_path):
     )
 
 
-def test_project_constitution_propagates_to_all_features(tmp_path):
+def test_project_charter_propagates_to_all_features(tmp_path):
     _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
-    constitution = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    constitution.parent.mkdir(parents=True)
-    constitution.write_text("# Project Constitution\n", encoding="utf-8")
+    charter = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter.parent.mkdir(parents=True)
+    charter.write_text("# Project Charter\n", encoding="utf-8")
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2
-    assert all(feature["artifacts"]["constitution"]["exists"] for feature in features)
+    assert all(feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
-def test_feature_local_constitution_is_ignored_without_project_constitution(tmp_path):
+def test_feature_local_charter_is_ignored_without_project_charter(tmp_path):
     first = _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
-    (first / "constitution.md").write_text("# Legacy Feature Constitution\n", encoding="utf-8")
+    (first / "charter.md").write_text("# Legacy Feature Charter\n", encoding="utf-8")
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2
-    assert all(not feature["artifacts"]["constitution"]["exists"] for feature in features)
+    assert all(not feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
-def test_legacy_constitution_path_supported(tmp_path):
+def test_legacy_charter_path_supported(tmp_path):
     _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
-    legacy = tmp_path / ".kittify" / "memory" / "constitution.md"
+    legacy = tmp_path / ".kittify" / "memory" / "charter.md"
     legacy.parent.mkdir(parents=True)
-    legacy.write_text("# Legacy Project Constitution\n", encoding="utf-8")
+    legacy.write_text("# Legacy Project Charter\n", encoding="utf-8")
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2
-    assert all(feature["artifacts"]["constitution"]["exists"] for feature in features)
+    assert all(feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
 def test_new_path_preferred_when_both_exist(tmp_path):
     _create_feature(tmp_path)
-    new_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    legacy_path = tmp_path / ".kittify" / "memory" / "constitution.md"
+    new_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    legacy_path = tmp_path / ".kittify" / "memory" / "charter.md"
     new_path.parent.mkdir(parents=True)
     legacy_path.parent.mkdir(parents=True)
     new_path.write_text("new", encoding="utf-8")
     legacy_path.write_text("legacy", encoding="utf-8")
 
-    resolved = resolve_project_constitution_path(tmp_path)
+    resolved = resolve_project_charter_path(tmp_path)
     assert resolved == new_path
 
 

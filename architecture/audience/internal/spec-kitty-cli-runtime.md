@@ -35,7 +35,7 @@
 | Information | Structured artifacts | Expects schema-compatible inputs and explicit command arguments. |
 | Interaction | Predictable interfaces | Commands should have stable semantics and clear failure states. |
 | Support | Testable contracts | Needs coverage for boundary rules and migration behavior. |
-| Governance | Policy-backed execution | Runtime behavior must honor constitution and doctrine constraints. |
+| Governance | Policy-backed execution | Runtime behavior must honor charter and doctrine constraints. |
 | Decision Authority | State transition authority | Owns canonical transition rules for command and task state changes. |
 
 ---

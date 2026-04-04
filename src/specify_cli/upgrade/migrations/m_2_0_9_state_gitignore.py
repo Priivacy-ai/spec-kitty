@@ -1,11 +1,11 @@
 """Migration: add NEW runtime state surfaces to .gitignore.
 
 Adds the 5 runtime gitignore entries introduced by this sprint to existing
-projects.  Existing entries (.dashboard, workspaces/, constitution/*,
+projects.  Existing entries (.dashboard, workspaces/, charter/*,
 missions/__pycache__/) are already present in projects that were initialized
 before this migration -- they are NOT re-added here.
 
-Per constraint C-001, constitution surfaces are explicitly excluded from
+Per constraint C-001, charter surfaces are explicitly excluded from
 this migration's scope.
 """
 
@@ -19,10 +19,10 @@ from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 
 # Only the entries introduced by this sprint.  Existing projects already
-# have .dashboard, workspaces/, constitution/*, and missions/__pycache__/
+# have .dashboard, workspaces/, charter/*, and missions/__pycache__/
 # in their .gitignore.  We intentionally do NOT use the full
 # get_runtime_gitignore_entries() helper here to avoid backfilling
-# constitution surfaces or other pre-existing entries.
+# charter surfaces or other pre-existing entries.
 # The kitty-specs/**/.kittify/dossiers/ entry covers feature-local dossier
 # snapshots saved by src/specify_cli/dossier/snapshot.py.
 _NEW_RUNTIME_ENTRIES = [

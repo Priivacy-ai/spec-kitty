@@ -35,9 +35,9 @@ the concrete implementation plan for both tracks.
 - Mypy invocation (line ~268): add `src/doctrine`
   ```bash
   # Before
-  python -m mypy --strict src/specify_cli src/constitution
+  python -m mypy --strict src/specify_cli src/charter
   # After
-  python -m mypy --strict src/specify_cli src/constitution src/doctrine
+  python -m mypy --strict src/specify_cli src/charter src/doctrine
   ```
 - Integration, slow, and e2e test steps: add `--cov=src/doctrine`
 - Fast tests already include `--cov=src/doctrine` — no change needed
@@ -92,7 +92,7 @@ class ArtifactKind(StrEnum):
 
 ### Commit 4 — M3: add `logging.debug()` to `resolve_doctrine_root()` fallback chain
 
-**Files**: `src/specify_cli/constitution/catalog.py` and `src/constitution/catalog.py`
+**Files**: `src/specify_cli/charter/catalog.py` and `src/charter/catalog.py`
 
 Add `import logging` and `log = logging.getLogger(__name__)`. Insert debug calls at each
 fallback step:
@@ -104,7 +104,7 @@ log.debug("doctrine: importlib.resources lookup failed, trying dev layout")
 # After dev layout succeeds:
 log.debug("doctrine: resolved via dev layout at %s", dev_root)
 
-# After package asset fallback (constitution/catalog.py only):
+# After package asset fallback (charter/catalog.py only):
 log.debug("doctrine: resolved via package asset root fallback")
 ```
 
@@ -112,7 +112,7 @@ log.debug("doctrine: resolved via package asset root fallback")
 
 ### Commit 5 — M4: narrow `except Exception:` in `context.py` YAML/JSON parsers
 
-**Files**: `src/specify_cli/constitution/context.py` and `src/constitution/context.py`
+**Files**: `src/specify_cli/charter/context.py` and `src/charter/context.py`
 
 Two locations in each file:
 
@@ -354,5 +354,5 @@ Neither blocks the other. Both must land before PR #305 moves out of draft.
 
 - **#327 — Doctrine-mission compiler**: Separate feature, backlog after PR #305 merges.
 - **Skills/doctrine mission boundary**: Part of #327 planning.
-- **`constitution/compiler.py` and `interview.py` test coverage gap**: Flagged for a
+- **`charter/compiler.py` and `interview.py` test coverage gap**: Flagged for a
   follow-on spec; not a PR #305 blocker.

@@ -112,7 +112,7 @@ build-backend = "hatchling.build"
 allow-direct-references = true
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/constitution"]
+packages = ["src/kernel", "src/specify_cli", "src/doctrine", "src/charter"]
 exclude = [
     "src/specify_cli/**/tests/**",
 ]
@@ -215,7 +215,7 @@ module = [
     "specify_cli.cli.commands.tracker",
     "specify_cli.cli.commands.upgrade",
     "specify_cli.cli.ui",
-    "specify_cli.constitution.context",
+    "specify_cli.charter.context",
     "specify_cli.core.context_validation",
     "specify_cli.core.mission_detection",
     "specify_cli.dashboard.diagnostics",
@@ -309,7 +309,7 @@ also_copy = [
     "src/specify_cli/*.py",  # Copy all top-level modules (frontmatter, etc.)
     "src/kernel/",           # Copy kernel package for shared utilities
     "src/doctrine/",         # Copy doctrine package for imports
-    "src/constitution/",     # Copy constitution package
+    "src/charter/",     # Copy charter package
     "src/specify_cli/status/",  # Copy status module for status transitions
     "src/specify_cli/glossary/",  # Copy glossary module
     "src/specify_cli/cli/",   # Copy CLI commands
@@ -319,7 +319,7 @@ also_copy = [
     "src/specify_cli/next/",  # Copy next module
     "src/specify_cli/validators/",  # Copy validators
     "src/specify_cli/template/",  # Copy template utilities
-    "src/specify_cli/constitution/",  # Copy constitution
+    "src/specify_cli/charter/",  # Copy charter
     "src/specify_cli/missions/",  # Copy missions
     "src/specify_cli/upgrade/",  # Copy upgrade system
     "src/specify_cli/runtime/",  # Copy runtime

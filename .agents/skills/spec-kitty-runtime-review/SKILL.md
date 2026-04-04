@@ -24,7 +24,7 @@ transition.
 ## Step 1: Load Review Context
 
 ```bash
-spec-kitty constitution context --action review --json
+spec-kitty charter context --action review --json
 ```
 
 The returned `text` contains governance context. The review prompt (generated

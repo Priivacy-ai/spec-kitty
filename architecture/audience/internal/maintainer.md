@@ -33,7 +33,7 @@
 | Category | Expectation / Need | Description |
 |---|---|---|
 | Information | Audit-ready change trail | Needs clear rationale and links for every governance update. |
-| Interaction | Safe mutation workflow | Requires review-before-change behavior for constitution and doctrine updates. |
+| Interaction | Safe mutation workflow | Requires review-before-change behavior for charter and doctrine updates. |
 | Support | Repeatable validation gates | Expects deterministic checks in CI and local execution. |
 | Governance | Explicit escalation paths | Needs clear stop conditions when ambiguity remains unresolved. |
 | Decision Authority | Final governance approval | Decides whether proposed governance changes become project policy. |
@@ -68,7 +68,7 @@
 
 ## Design Impact
 
-- **Affected By**: Constitution command flow, governance mission artifacts, and CI consistency gates.
+- **Affected By**: Charter command flow, governance mission artifacts, and CI consistency gates.
 - **Needs From Design**: Predictable governance lifecycle from proposal to validated adoption.
 - **Risk If Ignored**: Inconsistent project rules and contributor confusion.
 - **Acceptance Signal**: Governance changes can be traced, validated, and explained after merge.

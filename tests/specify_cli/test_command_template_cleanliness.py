@@ -35,12 +35,12 @@ PROMPT_DRIVEN: list[str] = [
     "checklist",
     "analyze",
     "research",
-    "constitution",
+    "charter",
 ]
 
 # Planning-workflow templates that MUST use "project root checkout" terminology.
 # These are commands that explicitly direct agents on where to perform work.
-# The utility/analysis commands (analyze, checklist, constitution) don't
+# The utility/analysis commands (analyze, checklist, charter) don't
 # describe a checkout location, so they are excluded from this assertion.
 PLANNING_WORKFLOW_TEMPLATES: list[str] = [
     "specify",

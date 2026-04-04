@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-27
 **Status**: Accepted
-**Scope**: CI enforcement of package boundary invariants; graph infrastructure consolidation across `kernel`, `doctrine`, `constitution`, and `specify_cli`
+**Scope**: CI enforcement of package boundary invariants; graph infrastructure consolidation across `kernel`, `doctrine`, `charter`, and `specify_cli`
 
 ---
 
@@ -15,7 +15,7 @@ kernel          (zero outgoing dependencies — the true root)
   ^
 doctrine        (depends on kernel only)
   ^
-constitution    (depends on doctrine + kernel, may import specify_cli.runtime)
+charter    (depends on doctrine + kernel, may import specify_cli.runtime)
   ^
 specify_cli     (depends on all three)
 ```
@@ -38,7 +38,7 @@ Adopt **PyTestArch** (v4.0.1, Apache 2.0, [github.com/zyskarch/pytestarch](https
 |-----------|-----------|
 | **API fit** | `LayeredArchitecture` + `LayerRule` maps 1:1 to our C4 containers |
 | **Detection method** | AST parsing — sees ALL import statements including lazy/conditional imports inside method bodies |
-| **Granularity** | Sub-module rules express "constitution may import `specify_cli.runtime` but not `specify_cli.cli`" |
+| **Granularity** | Sub-module rules express "charter may import `specify_cli.runtime` but not `specify_cli.cli`" |
 | **pytest native** | Session-scoped fixture, `assert_applies()`, standard pytest assertions |
 | **Performance** | One-time AST parse per session; graph traversal per rule. ~500 source files is well within bounds |
 | **Maintenance** | Active (255 commits, 27 releases, 153 stars). Python 3.9-3.13 supported |
@@ -78,10 +78,10 @@ tests/
 
 ### Core invariants encoded
 
-1. **kernel imports nothing** from doctrine, constitution, or specify_cli
-2. **doctrine imports only kernel** — never specify_cli or constitution
-3. **constitution does not import specify_cli** (except `specify_cli.runtime`, which is permitted)
-4. **No reverse dependencies** — specify_cli does not import from itself through doctrine or constitution
+1. **kernel imports nothing** from doctrine, charter, or specify_cli
+2. **doctrine imports only kernel** — never specify_cli or charter
+3. **charter does not import specify_cli** (except `specify_cli.runtime`, which is permitted)
+4. **No reverse dependencies** — specify_cli does not import from itself through doctrine or charter
 
 ### CI placement
 
@@ -96,7 +96,7 @@ The codebase contains **4 independent graph implementations**, each hand-rolling
 | Domain | Location | Algorithms | Lines |
 |--------|----------|------------|-------|
 | WP dependencies | `specify_cli/core/dependency_graph.py` | DFS 3-color cycle detection, Kahn's topo sort | ~170 |
-| Doctrine references | `constitution/reference_resolver.py` | DFS path-tracking cycle detection | ~90 |
+| Doctrine references | `charter/reference_resolver.py` | DFS path-tracking cycle detection | ~90 |
 | Event causation | `specify_cli/spec_kitty_events/topology.py` | Kahn's topo sort + cycle detection | ~60 |
 | Worktree stacking | `specify_cli/core/worktree_topology.py` | Delegates to WP dependency graph | ~80 |
 

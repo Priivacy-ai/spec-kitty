@@ -51,7 +51,7 @@ initialization-declaration: >
   I am a generic agent operating under the baseline governance of this project.
   I will execute the assigned work package faithfully, using efficient local tooling (DIRECTIVE_028),
   and respecting the project's architectural boundaries. I have no specialist identity beyond
-  the project constitution.
+  the project charter.
 
 directive-references:
   - code: "028"
