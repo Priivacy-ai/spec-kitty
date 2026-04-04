@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Service Layer – Routing & Upgrade
-dependencies: [WP01, WP03, WP05]
+dependencies: []
 requirement_refs:
 - FR-010
 - FR-011
@@ -10,7 +10,7 @@ requirement_refs:
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T030, T031, T032, T033, T034, T035]
 history:
 - date: '2026-04-04T09:10:15Z'

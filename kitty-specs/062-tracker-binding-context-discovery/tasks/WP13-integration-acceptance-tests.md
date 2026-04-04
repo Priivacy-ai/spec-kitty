@@ -1,14 +1,14 @@
 ---
 work_package_id: WP13
 title: Integration & Acceptance Tests
-dependencies: [WP10, WP11, WP12]
+dependencies: []
 requirement_refs:
 - FR-018
 - NFR-002
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T064, T065, T066, T067, T068, T069]
 history:
 - date: '2026-04-04T09:10:15Z'

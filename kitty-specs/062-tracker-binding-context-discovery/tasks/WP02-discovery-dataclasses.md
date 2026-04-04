@@ -6,7 +6,7 @@ requirement_refs:
 - C-006
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning branch is main. Merge target is main. Actual base_branch may differ for stacked WPs during /spec-kitty.implement.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T006, T007, T008, T009, T010]
 history:
 - date: '2026-04-04T09:10:15Z'
