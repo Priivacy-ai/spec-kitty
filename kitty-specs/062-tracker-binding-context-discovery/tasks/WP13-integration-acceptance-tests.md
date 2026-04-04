@@ -167,3 +167,4 @@ spec-kitty implement WP13 --base WP12
 ## Activity Log
 
 - 2026-04-04T11:54:14Z – coordinator – shell_pid=79616 – Started implementation via workflow command
+- 2026-04-04T12:06:51Z – coordinator – shell_pid=79616 – 11 integration tests covering all 12 spec scenarios
