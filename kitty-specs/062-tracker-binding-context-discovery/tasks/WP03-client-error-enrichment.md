@@ -11,8 +11,8 @@ base_branch: main
 base_commit: 68d56feb837dccbcf5f9765cfe765206367d1fb1
 created_at: '2026-04-04T09:34:50.561102+00:00'
 subtasks: [T011, T012, T013, T014]
-shell_pid: "94060"
-agent: "coordinator"
+shell_pid: "95732"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -190,3 +190,4 @@ No dependencies — this WP can start immediately.
 - 2026-04-04T09:58:18Z – codex – shell_pid=71295 – Moved to planned
 - 2026-04-04T09:58:35Z – coordinator – shell_pid=94060 – Started implementation via workflow command
 - 2026-04-04T09:59:43Z – coordinator – shell_pid=94060 – Fixed mypy unused-ignore per Codex review (cycle 3/3)
+- 2026-04-04T10:00:05Z – codex – shell_pid=95732 – Started review via workflow command
