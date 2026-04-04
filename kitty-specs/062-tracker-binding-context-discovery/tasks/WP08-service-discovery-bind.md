@@ -17,8 +17,8 @@ base_branch: main
 base_commit: 30f1ff022d873a60c54903313878094bb01ce2a7
 created_at: '2026-04-04T11:11:32.676135+00:00'
 subtasks: [T036, T037, T038, T039, T040, T041]
-shell_pid: "271"
-agent: "coordinator"
+shell_pid: "10022"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -235,3 +235,4 @@ spec-kitty implement WP08 --base WP07
 
 - 2026-04-04T11:11:33Z – coordinator – shell_pid=271 – Started implementation via workflow command
 - 2026-04-04T11:16:33Z – coordinator – shell_pid=271 – Ready for review: discover(), resolve_and_bind() with exact/candidates/none handling, token retry, 13 new tests all passing
+- 2026-04-04T11:17:07Z – codex – shell_pid=10022 – Started review via workflow command
