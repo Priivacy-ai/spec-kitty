@@ -230,13 +230,13 @@ New `tracker discover --provider <provider>` command with rich table default + `
 
 Rewrite SaaS bind path: remove `--project-slug`, add `--bind-ref`/`--select`. Discovery flow with candidate selection, re-bind confirmation, non-interactive modes.
 
-- [ ] T053: Update bind_command() flags
-- [ ] T054: Discovery flow
-- [ ] T055: Candidate selection UI
-- [ ] T056: --bind-ref path
-- [ ] T057: --select N path
-- [ ] T058: Re-bind confirmation
-- [ ] T059: Write CLI tests
+- [x] T053: Update bind_command() flags
+- [x] T054: Discovery flow
+- [x] T055: Candidate selection UI
+- [x] T056: --bind-ref path
+- [x] T057: --select N path
+- [x] T058: Re-bind confirmation
+- [x] T059: Write CLI tests
 
 #### WP12: CLI Status --all
 **Priority**: Medium | **Subtasks**: T060-T063 (4) | **~250 lines**
