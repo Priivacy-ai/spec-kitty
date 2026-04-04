@@ -189,3 +189,4 @@ spec-kitty implement WP10 --base WP09
 ## Activity Log
 
 - 2026-04-04T11:24:59Z – coordinator – shell_pid=18365 – Started implementation via workflow command
+- 2026-04-04T11:29:24Z – coordinator – shell_pid=18365 – Ready for review: discover command with rich table, JSON output, error handling, and 8 CLI tests
