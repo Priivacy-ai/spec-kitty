@@ -132,3 +132,4 @@ spec-kitty implement WP12 --base WP09
 - 2026-04-04T11:40:54Z – coordinator – shell_pid=41985 – Started implementation via workflow command
 - 2026-04-04T11:46:22Z – coordinator – shell_pid=41985 – Fixed cycle 2/3
 - 2026-04-04T11:46:46Z – codex – shell_pid=60809 – Started review via workflow command
+- 2026-04-04T11:53:50Z – codex – shell_pid=60809 – Arbiter: removed redundant try/except, 8 tests pass. Error handling delegated to _run_or_exit per existing pattern.
