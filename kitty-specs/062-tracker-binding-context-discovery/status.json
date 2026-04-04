@@ -1,17 +1,17 @@
 {
-  "event_count": 70,
+  "event_count": 73,
   "feature_slug": "062-tracker-binding-context-discovery",
-  "last_event_id": "01KNC14H4XGXC664WPB6Z2TDHN",
-  "materialized_at": "2026-04-04T10:38:05.470818+00:00",
+  "last_event_id": "01KNC18Z06K01VKSSM1DKMPW9D",
+  "materialized_at": "2026-04-04T10:40:30.727453+00:00",
   "summary": {
-    "approved": 5,
+    "approved": 6,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
     "in_progress": 1,
-    "planned": 7
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -50,18 +50,18 @@
       "last_transition_at": "2026-04-04T10:25:51.091954+00:00"
     },
     "WP06": {
-      "actor": "codex",
-      "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNC0ZJ5SF1H4YRWWW8BGE1S7",
-      "last_transition_at": "2026-04-04T10:35:22.681953+00:00"
-    },
-    "WP07": {
       "actor": "user",
       "force_count": 4,
-      "lane": "planned",
-      "last_event_id": "01KNC14H4XGXC664WPB6Z2TDHN",
-      "last_transition_at": "2026-04-04T10:38:05.469545+00:00"
+      "lane": "approved",
+      "last_event_id": "01KNC18Z06K01VKSSM1DKMPW9D",
+      "last_transition_at": "2026-04-04T10:40:30.726649+00:00"
+    },
+    "WP07": {
+      "actor": "coordinator",
+      "force_count": 4,
+      "lane": "in_progress",
+      "last_event_id": "01KNC15G2E6SBV0JK7ZFC82RPB",
+      "last_transition_at": "2026-04-04T10:38:37.134408+00:00"
     },
     "WP08": {
       "actor": "finalize-tasks",

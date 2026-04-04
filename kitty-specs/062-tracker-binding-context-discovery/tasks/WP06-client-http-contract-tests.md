@@ -152,3 +152,4 @@ Depends on WP04 (new methods) and WP05 (updated signatures).
 - 2026-04-04T10:26:39Z – coordinator – shell_pid=4472 – Started implementation via workflow command
 - 2026-04-04T10:34:47Z – coordinator – shell_pid=4472 – Ready for review: 31 contract tests covering all 4 new endpoints, binding_ref routing on existing endpoints, and stale-binding error codes
 - 2026-04-04T10:35:23Z – codex – shell_pid=53301 – Started review via workflow command
+- 2026-04-04T10:40:31Z – codex – shell_pid=53301 – Review passed: 31 contract tests cover discovery endpoints, binding_ref routing, and stale-binding error codes
