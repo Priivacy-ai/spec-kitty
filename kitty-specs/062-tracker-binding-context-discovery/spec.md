@@ -247,7 +247,7 @@ POST /api/v1/tracker/bind-confirm/
       repo_slug: str | null
     }
   Headers:
-    X-Idempotency-Key: str (required)
+    Idempotency-Key: str (required)
 ```
 
 **Response** (200):

@@ -78,3 +78,50 @@
 **Alternatives considered**:
 - Deprecated `--project-slug` flag: Rejected — deprecation warnings signal "this still works," which undermines the architectural direction.
 - Hidden `--project-slug` flag: Rejected for now — adds dead code and test surface for a path we're actively moving away from.
+
+## Decision 8: Client Error Enrichment
+
+**Decision**: Enrich `SaaSTrackerClientError` with `error_code`, `status_code`, and `details` attributes extracted from the PRI-12 error envelope. The `_request_with_retry` method populates these on non-2xx responses.
+
+**Rationale**: The current client collapses all non-2xx responses into string-only `SaaSTrackerClientError(message)` at `saas_client.py:209`. The service layer needs to inspect error codes like `binding_not_found` and `mapping_disabled` for reactive stale-binding detection (FR-018). Without structured error data crossing the client boundary, the service would have to parse error strings or call a separate validation endpoint on every failure — both are fragile. The enriched exception is backward-compatible: existing `except SaaSTrackerClientError as e: str(e)` patterns still work because `__init__` still calls `super().__init__(message)`.
+
+**Alternatives considered**:
+- Parse error strings in the service layer: Rejected — brittle, breaks when message wording changes.
+- Call `bind-validate` on every client error: Rejected — adds latency and couples read paths to a validation endpoint.
+- Return structured error dicts instead of raising: Rejected — would require changing the entire client error-handling contract.
+
+## Decision 9: TrackerService Facade Evolution
+
+**Decision**: Add `discover()`, update `bind()`, and add `status(all=)` to the `TrackerService` facade in `service.py`.
+
+**Rationale**: Every CLI command goes through `TrackerService._resolve_backend()` for provider dispatch. The plan initially omitted this file, but the facade is the integration seam between CLI commands and backend services. `discover()` is SaaS-only and raises `TrackerServiceError` for local providers. The updated `bind()` routes SaaS providers to `SaaSTrackerService.resolve_and_bind()`. Without explicit facade methods, implementers would have to bypass the facade or invent the integration mid-stream.
+
+**Alternatives considered**:
+- Bypass the facade for new commands: Rejected — breaks the dispatch pattern and couples CLI directly to SaaSTrackerService.
+- Merge facade into SaaSTrackerService: Rejected — the facade exists specifically to dispatch between SaaS and local backends.
+
+## Decision 10: Existing Endpoint Wire Evolution
+
+**Decision**: All 5 existing `SaaSTrackerClient` methods (`status`, `pull`, `push`, `run`, `mappings`) gain an optional `binding_ref` keyword parameter alongside the existing `project_slug`. When provided, `binding_ref` is sent instead of `project_slug` in query params (GET) or body (POST).
+
+**Rationale**: The plan specifies `binding_ref` as the primary routing key and `_resolve_routing_params()` in the service, but the client methods currently take `project_slug` as a required positional. Without updating the client signatures, the service layer cannot pass `binding_ref` through to the wire. This is a coordinated SaaS contract change: the host must accept `binding_ref` on existing endpoints alongside `project_slug`.
+
+**Alternatives considered**:
+- New endpoint variants (e.g., `status_v2`): Rejected — creates unnecessary API surface duplication.
+- Generic routing dict parameter: Rejected — loses type safety and makes the API harder to use.
+
+## Decision 11: Config Unknown Field Passthrough
+
+**Decision**: `TrackerProjectConfig.from_dict()` captures unrecognized keys into a private `_extra` dict. `to_dict()` merges them back, with known fields taking precedence.
+
+**Rationale**: The current serializer only materializes known fields (`config.py:48-57`). The deserializer only reads known fields (`config.py:59-88`). Any YAML keys not in the dataclass are silently dropped on round-trip. This is a data-loss risk when a newer CLI version writes fields (e.g., a future `binding_metadata`) that an older version doesn't recognize. The `save_tracker_config()` function already preserves non-`tracker` YAML sections; this extends the guarantee within the `tracker` section.
+
+**Alternatives considered**:
+- Full YAML preservation (don't use dataclass, use raw dict): Rejected — loses type safety and validation.
+- Accept data loss: Rejected — the spec explicitly promises forward-compatible config evolution.
+
+## Decision 12: Idempotency Header Convention
+
+**Decision**: Use `Idempotency-Key` (no `X-` prefix) for the bind-confirm endpoint, matching the existing convention.
+
+**Rationale**: The existing `saas_client.py` uses `Idempotency-Key` in `push()` (line 410), `run()` (line 443), and `bind_mission_origin()` (line 381). The initial contract specified `X-Idempotency-Key`, which is a needless divergence. The `X-` prefix convention was deprecated by IETF RFC 6648 in 2012 and the existing codebase already follows the non-prefixed convention.
