@@ -96,11 +96,10 @@ class TestProperties:
         with pytest.raises(AssertionError):
             _ = svc.provider
 
-    def test_project_slug_asserts_when_none(self, repo_root: Path, mock_client: MagicMock) -> None:
-        empty_config = TrackerProjectConfig(provider="linear")
-        svc = SaaSTrackerService(repo_root, empty_config, client=mock_client)
-        with pytest.raises(AssertionError):
-            _ = svc.project_slug
+    def test_project_slug_none_for_binding_ref_only(self, repo_root: Path, mock_client: MagicMock) -> None:
+        config = TrackerProjectConfig(provider="linear", binding_ref="ref-1")
+        svc = SaaSTrackerService(repo_root, config, client=mock_client)
+        assert svc.project_slug is None
 
 
 # ---------------------------------------------------------------------------

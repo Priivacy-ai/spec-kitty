@@ -56,8 +56,8 @@ class SaaSTrackerService:
         return self._config.provider
 
     @property
-    def project_slug(self) -> str:
-        assert self._config.project_slug is not None  # noqa: S101
+    def project_slug(self) -> str | None:
+        """Legacy project_slug — may be None for binding_ref-only configs."""
         return self._config.project_slug
 
     # ------------------------------------------------------------------
