@@ -143,10 +143,10 @@ Add 4 new methods to `SaaSTrackerClient`: `resources()`, `bind_resolve()`, `bind
 
 Update all 5 existing client methods (`status`, `mappings`, `pull`, `push`, `run`) to accept optional `binding_ref` alongside `project_slug`. Coordinated SaaS contract change.
 
-- [ ] T020: Update GET method signatures
-- [ ] T021: Update POST method signatures
-- [ ] T022: Update wire format logic
-- [ ] T023: Add routing key validation
+- [x] T020: Update GET method signatures
+- [x] T021: Update POST method signatures
+- [x] T022: Update wire format logic
+- [x] T023: Add routing key validation
 
 ### Wave 3 — Tests + Service Core (depends on Waves 1-2)
 
