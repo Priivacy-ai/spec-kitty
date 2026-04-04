@@ -5,7 +5,7 @@ command directories, enabling agents to load specialist profiles for advisory
 sessions.
 
 Scope:
-- Copies src/doctrine/templates/command-templates/profile-context.md to each
+- Copies src/doctrine/templates/profile-context.md to each
   configured agent's command directory as spec-kitty.profile-context.md.
 - Respects .kittify/config.yaml — only processes configured agents.
 - Skips agent directories that do not exist on disk (respects user deletions).
@@ -28,11 +28,11 @@ _DEST_FILENAME = "spec-kitty.profile-context.md"
 def _load_template() -> str | None:
     """Load profile-context.md from the doctrine package."""
     try:
-        return files("doctrine").joinpath("templates", "command-templates", "profile-context.md").read_text(encoding="utf-8")
+        return files("doctrine").joinpath("templates", "profile-context.md").read_text(encoding="utf-8")
     except Exception:  # noqa: BLE001, S110
         pass
     # Local repo fallback (development installs)
-    fallback = Path(__file__).resolve().parents[3] / "doctrine" / "templates" / "command-templates" / "profile-context.md"
+    fallback = Path(__file__).resolve().parents[3] / "doctrine" / "templates" / "profile-context.md"
     if fallback.is_file():
         return fallback.read_text(encoding="utf-8")
     return None

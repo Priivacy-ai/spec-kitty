@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+import pytest
+
 from specify_cli.dashboard import scanner
 from specify_cli.dashboard.constitution_path import resolve_project_constitution_path
 from specify_cli.status.models import Lane, StatusEvent
@@ -178,3 +180,27 @@ def test_scan_feature_kanban_lane_mapping(tmp_path):
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["planned"]) == 1  # claimed -> planned
     assert len(lanes["doing"]) == 1  # in_progress -> doing
+
+
+@pytest.mark.fast
+def test_scan_feature_kanban_structured_agent_metadata(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-demo"
+    (feature_dir / "tasks").mkdir(parents=True)
+    (feature_dir / "tasks" / "WP01-agent.md").write_text(
+        """---
+work_package_id: WP01
+agent:
+  tool: codex
+  model: gpt-5.4
+---
+# Work Package Prompt: Agent Metadata
+""",
+        encoding="utf-8",
+    )
+    _set_wp_lane(feature_dir, "WP01", "planned")
+
+    lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
+
+    task = lanes["planned"][0]
+    assert task["agent"] == "codex"
+    assert task["model"] == "gpt-5.4"

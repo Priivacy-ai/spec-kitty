@@ -2,7 +2,7 @@
 
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
@@ -182,6 +182,58 @@ doctrine:
     assert any("NOT_A_DIRECTIVE" in line for line in diagnostics)
 
 
+def test_resolve_governance_uses_registry_local_directives_and_template_fallback(
+    tmp_path: Path,
+) -> None:
+    _write_constitution_files(
+        tmp_path,
+        governance="doctrine: {}\n",
+        directives="""
+directives:
+  - id: LOCAL_ONLY
+    title: Local rule
+""",
+    )
+
+    result = resolve_governance(
+        tmp_path,
+        tool_registry={"python", "git"},
+        fallback_template_set="fallback-pack",
+    )
+
+    assert result.tools == ["git", "python"]
+    assert result.directives == ["LOCAL_ONLY"]
+    assert result.template_set == "fallback-pack"
+    assert result.metadata == {
+        "tools_source": "registry_fallback",
+        "directives_source": "catalog_fallback",
+        "template_set_source": "fallback",
+    }
+    assert any("runtime tool registry fallback" in line for line in result.diagnostics)
+    assert any("fallback-pack" in line for line in result.diagnostics)
+
+
+def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _write_constitution_files(tmp_path, governance="doctrine: {}\n")
+    monkeypatch.setattr(
+        "constitution.resolver.load_doctrine_catalog",
+        lambda: SimpleNamespace(
+            paradigms=frozenset(),
+            directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
+            template_sets=frozenset({"software-dev-default"}),
+            domains_present=frozenset(),
+        ),
+    )
+
+    result = resolve_governance(tmp_path, tool_registry={"git"})
+
+    assert result.directives == ["DIRECTIVE_003", "DIRECTIVE_010"]
+    assert result.metadata["directives_source"] == "catalog_fallback"
+
+
 def test_resolve_governance_for_profile_merges_profile_directives_first() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = default_interview(mission="software-dev", profile="minimal")
@@ -215,6 +267,42 @@ def test_resolve_governance_for_profile_merges_profile_directives_first() -> Non
     assert resolution.metadata["directives_source"] == "profile+interview"
 
 
+def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes_role() -> None:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    object.__setattr__(interview, "selected_directives", ["INTERVIEW_DIRECTIVE", "PROFILE_DIRECTIVE"])
+
+    profile = SimpleNamespace(
+        profile_id="reviewer",
+        directive_references=[
+            SimpleNamespace(code=" PROFILE_DIRECTIVE "),
+            SimpleNamespace(code=""),
+            SimpleNamespace(code="PROFILE_SECOND"),
+        ],
+    )
+    doctrine_service = MagicMock()
+    doctrine_service.agent_profiles.resolve_profile.return_value = profile
+
+    monkeypatch_graph = SimpleNamespace(
+        tactics=["TACTIC_001"],
+        styleguides=["STYLE_001"],
+        toolguides=["TOOL_001"],
+        procedures=["PROC_001"],
+        unresolved=[("directives", "MISSING_DIRECTIVE")],
+    )
+
+    with patch("constitution.resolver.resolve_references_transitively", return_value=monkeypatch_graph):
+        resolution = resolve_governance_for_profile(" reviewer ", "   ", doctrine_service, interview)
+
+    assert resolution.directives == ["PROFILE_DIRECTIVE", "PROFILE_SECOND", "INTERVIEW_DIRECTIVE"]
+    assert resolution.tactics == ["TACTIC_001"]
+    assert resolution.styleguides == ["STYLE_001"]
+    assert resolution.toolguides == ["TOOL_001"]
+    assert resolution.procedures == ["PROC_001"]
+    assert resolution.role is None
+    assert resolution.metadata["profile_directives_count"] == "2"
+    assert any("MISSING_DIRECTIVE" in line for line in resolution.diagnostics)
+
+
 def test_resolve_governance_for_profile_missing_profile_raises_value_error() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     doctrine_service = MagicMock()
@@ -224,6 +312,14 @@ def test_resolve_governance_for_profile_missing_profile_raises_value_error() -> 
         resolve_governance_for_profile("missing", None, doctrine_service, interview)
 
     assert "missing" in str(exc.value)
+
+
+def test_resolve_governance_for_profile_rejects_blank_profile_id() -> None:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    doctrine_service = MagicMock()
+
+    with pytest.raises(ValueError, match="Profile ID is required"):
+        resolve_governance_for_profile("   ", None, doctrine_service, interview)
 
 
 def test_resolve_governance_for_profile_records_unresolved_references_in_diagnostics() -> None:
@@ -246,6 +342,21 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
 
     assert resolution.directives == ["MISSING_DIRECTIVE"]
     assert any("MISSING_DIRECTIVE" in line for line in resolution.diagnostics)
+
+
+def test_collect_governance_diagnostics_returns_success_diagnostics(
+    tmp_path: Path,
+) -> None:
+    _write_constitution_files(tmp_path, governance="doctrine: {}\n")
+
+    diagnostics = collect_governance_diagnostics(
+        tmp_path,
+        tool_registry={"git"},
+        fallback_template_set="fallback-pack",
+    )
+
+    assert any("runtime tool registry fallback" in line for line in diagnostics)
+    assert any("fallback-pack" in line for line in diagnostics)
 
 
 # ---------------------------------------------------------------------------
