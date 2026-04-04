@@ -86,7 +86,7 @@ class TestParseErrorEnvelope:
         resp = _make_response(
             422,
             {
-                "code": "missing_installation",
+                "error_code": "missing_installation",
                 "category": "identity_resolution",
                 "message": "No installation found",
                 "retryable": False,
@@ -96,7 +96,7 @@ class TestParseErrorEnvelope:
             },
         )
         envelope = _parse_error_envelope(resp)
-        assert envelope["code"] == "missing_installation"
+        assert envelope["error_code"] == "missing_installation"
         assert envelope["category"] == "identity_resolution"
         assert envelope["message"] == "No installation found"
         assert envelope["retryable"] is False
@@ -106,7 +106,7 @@ class TestParseErrorEnvelope:
     def test_handles_malformed_json(self) -> None:
         resp = _make_response(500, text="Internal Server Error")
         envelope = _parse_error_envelope(resp)
-        assert envelope["code"] is None
+        assert envelope["error_code"] is None
         assert envelope["category"] is None
         assert envelope["message"] == "HTTP 500"
 
@@ -114,7 +114,7 @@ class TestParseErrorEnvelope:
         resp = _make_response(400, {"message": "Bad request"})
         envelope = _parse_error_envelope(resp)
         assert envelope["message"] == "Bad request"
-        assert envelope["code"] is None
+        assert envelope["error_code"] is None
         assert envelope["category"] is None
         assert envelope["retryable"] is False
 
@@ -679,7 +679,7 @@ class TestRetryBehaviors:
         mock_http.request.return_value = _make_response(
             422,
             {
-                "code": "missing_installation",
+                "error_code": "missing_installation",
                 "category": "identity_resolution",
                 "message": "Jira app not installed",
                 "user_action_required": True,
@@ -701,7 +701,7 @@ class TestRetryBehaviors:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         mock_http.request.return_value = _make_response(
-            500, {"code": "internal_error", "message": "Something broke"}
+            500, {"error_code": "internal_error", "message": "Something broke"}
         )
 
         with pytest.raises(SaaSTrackerClientError, match="Something broke"):
@@ -805,7 +805,7 @@ class TestAsyncErrorEnvelopeParsing:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         error_envelope = {
-            "code": "provider_auth_expired",
+            "error_code": "provider_auth_expired",
             "category": "auth",
             "message": "Jira OAuth token has expired",
             "user_action_required": True,
@@ -825,7 +825,7 @@ class TestAsyncErrorEnvelopeParsing:
         # user_action_required is boolean True → generic guidance appended
         assert "action required" in error_text
         # Must NOT contain raw dict syntax
-        assert "{'code'" not in error_text
+        assert "{'error_code'" not in error_text
         assert "provider_auth_expired" not in error_text
 
     @patch("specify_cli.tracker.saas_client.time.sleep")
@@ -909,3 +909,240 @@ class TestAuthClientUsesCorrectConfig:
         assert mock_auth_instance.config is mock_sync_config
         # And the correct credential_store
         assert mock_auth_instance.credential_store is client._credential_store
+
+
+# ---------------------------------------------------------------------------
+# WP03: Enriched error attributes (T013 + T014)
+# ---------------------------------------------------------------------------
+
+
+class TestErrorEnrichmentAttributes:
+    """T013: Verify enriched SaaSTrackerClientError attributes from PRI-12 envelope."""
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_preserves_error_code(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """error_code is extracted from the envelope 'error_code' field."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            400,
+            {
+                "error_code": "binding_not_found",
+                "message": "No binding exists for this mission",
+            },
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.error_code == "binding_not_found"
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_preserves_status_code(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """status_code is the HTTP status from the response."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            400,
+            {"error_code": "binding_not_found", "message": "Not found"},
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.status_code == 400
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_preserves_details(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """details dict is the full parsed envelope."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            422,
+            {
+                "error_code": "mapping_disabled",
+                "category": "configuration",
+                "message": "Mapping is disabled",
+                "retryable": False,
+                "user_action_required": False,
+                "source": "jira",
+                "retry_after_seconds": None,
+            },
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        details = exc_info.value.details
+        assert isinstance(details, dict)
+        assert details["error_code"] == "mapping_disabled"
+        assert details["category"] == "configuration"
+        assert details["source"] == "jira"
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_user_action_required(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """user_action_required is True when envelope says so."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            422,
+            {
+                "error_code": "missing_installation",
+                "message": "App not installed",
+                "user_action_required": True,
+            },
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.user_action_required is True
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_backward_compat_str(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """str(e) still returns the human-readable message."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            400,
+            {"error_code": "binding_not_found", "message": "No binding found"},
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert str(exc_info.value) == "No binding found"
+
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_error_enrichment_missing_envelope(
+        self, mock_cls: MagicMock, client: SaaSTrackerClient
+    ) -> None:
+        """Empty/malformed body: error_code=None, status_code preserved."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.return_value = _make_response(
+            400, text="Bad Request"
+        )
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.error_code is None
+        assert exc_info.value.status_code == 400
+        assert str(exc_info.value) == "HTTP 400"
+
+    @patch("specify_cli.tracker.saas_client.time.sleep")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_429_enrichment_has_error_code_and_status(
+        self,
+        mock_cls: MagicMock,
+        mock_sleep: MagicMock,
+        client: SaaSTrackerClient,
+    ) -> None:
+        """Double 429 raises with error_code='rate_limited' and status_code=429."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.side_effect = [
+            _make_response(429, {"message": "Rate limited", "retry_after_seconds": 1}),
+            _make_response(429, {"message": "Still rate limited"}),
+        ]
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.error_code == "rate_limited"
+        assert exc_info.value.status_code == 429
+
+    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client.httpx.Client")
+    def test_401_enrichment_has_error_code_and_status(
+        self,
+        mock_cls: MagicMock,
+        mock_auth_cls: MagicMock,
+        client: SaaSTrackerClient,
+    ) -> None:
+        """Double 401 raises with error_code='session_expired' and status_code=401."""
+        mock_http = MagicMock()
+        mock_cls.return_value.__enter__ = MagicMock(return_value=mock_http)
+        mock_cls.return_value.__exit__ = MagicMock(return_value=False)
+
+        mock_http.request.side_effect = [
+            _make_response(401, {"message": "Unauthorized"}),
+            _make_response(401, {"message": "Unauthorized"}),
+        ]
+        mock_auth_instance = MagicMock()
+        mock_auth_cls.return_value = mock_auth_instance
+
+        with pytest.raises(SaaSTrackerClientError) as exc_info:
+            client._request_with_retry("GET", "/api/v1/tracker/status")
+
+        assert exc_info.value.error_code == "session_expired"
+        assert exc_info.value.status_code == 401
+        assert exc_info.value.user_action_required is True
+
+
+class TestErrorEnrichmentRegression:
+    """T014: Regression — existing callers constructing SaaSTrackerClientError('msg') still work."""
+
+    def test_existing_str_pattern(self) -> None:
+        """Plain string construction with no kwargs must still work."""
+        err = SaaSTrackerClientError("Something failed")
+        assert str(err) == "Something failed"
+        assert err.error_code is None
+        assert err.status_code is None
+        assert err.details == {}
+        assert err.user_action_required is False
+
+    def test_isinstance_runtime_error(self) -> None:
+        """SaaSTrackerClientError is still a RuntimeError subclass."""
+        err = SaaSTrackerClientError("boom")
+        assert isinstance(err, RuntimeError)
+
+    def test_enriched_construction(self) -> None:
+        """Full kwarg construction exposes all attributes."""
+        err = SaaSTrackerClientError(
+            "Binding not found",
+            error_code="binding_not_found",
+            status_code=404,
+            details={"error_code": "binding_not_found", "source": "jira"},
+            user_action_required=True,
+        )
+        assert str(err) == "Binding not found"
+        assert err.error_code == "binding_not_found"
+        assert err.status_code == 404
+        assert err.details == {"error_code": "binding_not_found", "source": "jira"}
+        assert err.user_action_required is True
+
+    def test_catch_as_exception(self) -> None:
+        """Can be caught as generic Exception (callers that do except Exception)."""
+        with pytest.raises(Exception):
+            raise SaaSTrackerClientError("test")
+
+    def test_catch_as_runtime_error(self) -> None:
+        """Can be caught as RuntimeError (existing callers)."""
+        with pytest.raises(RuntimeError):
+            raise SaaSTrackerClientError("test")
