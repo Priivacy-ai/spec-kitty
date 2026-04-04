@@ -65,6 +65,39 @@ def run_dashboard_cli(
     )
 
 
+def port_has_listener(port: int) -> bool:
+    """Return whether a process is listening on the given port."""
+    result = subprocess.run(["lsof", "-ti", f":{port}"], capture_output=True, text=True, check=False)
+    return bool(result.stdout.strip())
+
+
+def wait_for_port_state(port: int, *, occupied: bool, timeout: float = 2.0, interval: float = 0.1) -> bool:
+    """Poll until a port becomes occupied or free."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if port_has_listener(port) is occupied:
+            return True
+        time.sleep(interval)
+    return port_has_listener(port) is occupied
+
+
+def wait_for_dashboard_state(
+    port: int,
+    *,
+    accessible: bool,
+    timeout: float = 3.0,
+    interval: float = 0.1,
+) -> bool:
+    """Poll until the dashboard becomes accessible or inaccessible."""
+    deadline = time.monotonic() + timeout
+    probe_timeout = max(interval, 0.1)
+    while time.monotonic() < deadline:
+        if is_dashboard_accessible(port, timeout=probe_timeout) is accessible:
+            return True
+        time.sleep(interval)
+    return is_dashboard_accessible(port, timeout=probe_timeout) is accessible
+
+
 def kill_dashboard_process(port: int):
     """Kill any dashboard process running on the given port."""
     try:
@@ -75,9 +108,9 @@ def kill_dashboard_process(port: int):
             for pid in pids:
                 try:
                     os.kill(int(pid), signal.SIGTERM)
-                    time.sleep(0.5)  # Give it time to shut down
                 except Exception:
                     pass
+            wait_for_port_state(port, occupied=False, timeout=1.5)
     except Exception:
         pass
 
@@ -130,7 +163,6 @@ class TestDashboardCLIStatusReporting:
 
             # Clean up any existing dashboard on this port
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Run dashboard command
             result = run_dashboard_cli(
@@ -140,11 +172,8 @@ class TestDashboardCLIStatusReporting:
                 cwd=tmpdir,
             )
 
-            # Give dashboard time to start
-            time.sleep(2)
-
             # Check if dashboard is actually accessible
-            dashboard_running = is_dashboard_accessible(test_port, timeout=3.0)
+            dashboard_running = wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             try:
                 if dashboard_running:
@@ -218,7 +247,6 @@ class TestDashboardCLIStatusReporting:
 
             test_port = 9998
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Run dashboard
             result = run_dashboard_cli(
@@ -228,10 +256,8 @@ class TestDashboardCLIStatusReporting:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
-
             # Check actual state
-            is_accessible = is_dashboard_accessible(test_port, timeout=3.0)
+            is_accessible = wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
             cli_reported_success = result.returncode == 0
 
             try:
@@ -264,7 +290,6 @@ class TestDashboardProcessLifecycle:
 
             test_port = 9997
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Start dashboard
             run_dashboard_cli(
@@ -274,7 +299,7 @@ class TestDashboardProcessLifecycle:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
+            wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             # Check if process exists
             ps_result = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
@@ -303,7 +328,6 @@ class TestDashboardProcessLifecycle:
 
             test_port = 9996
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Start dashboard
             run_dashboard_cli(
@@ -313,7 +337,7 @@ class TestDashboardProcessLifecycle:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
+            wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             # Verify it's running
             if is_dashboard_accessible(test_port):
@@ -324,11 +348,9 @@ class TestDashboardProcessLifecycle:
                     cwd=tmpdir,
                 )
 
-                time.sleep(1)
-
                 # Should not be accessible anymore
-                still_accessible = is_dashboard_accessible(test_port, timeout=1.0)
-                assert not still_accessible, (
+                stopped = wait_for_dashboard_state(test_port, accessible=False, timeout=2.0)
+                assert stopped, (
                     f"Dashboard should be stopped after --kill, but still accessible on {test_port}"
                 )
 
@@ -393,7 +415,6 @@ class TestDashboardAPIVerification:
 
             test_port = 9995
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Start dashboard
             run_dashboard_cli(
@@ -403,7 +424,7 @@ class TestDashboardAPIVerification:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
+            wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             try:
                 # Test API endpoint
@@ -433,7 +454,6 @@ class TestDashboardAPIVerification:
 
             test_port = 9994
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             run_dashboard_cli(
                 "dashboard",
@@ -442,7 +462,7 @@ class TestDashboardAPIVerification:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
+            wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             try:
                 if is_dashboard_accessible(test_port):
@@ -482,7 +502,6 @@ class TestDashboardRaceConditions:
 
             test_port = 9993
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Run dashboard
             result = run_dashboard_cli(
@@ -493,12 +512,9 @@ class TestDashboardRaceConditions:
                 timeout=10,
             )
 
-            # Wait for dashboard
-            time.sleep(3)
-
             try:
                 # Check if actually accessible
-                is_accessible = is_dashboard_accessible(test_port, timeout=5.0)
+                is_accessible = wait_for_dashboard_state(test_port, accessible=True, timeout=5.0)
 
                 if is_accessible:
                     # Dashboard started - CLI should not have reported error
@@ -533,7 +549,6 @@ class TestDashboardCleanup:
 
             test_port = 9992
             kill_dashboard_process(test_port)
-            time.sleep(1)
 
             # Start dashboard
             run_dashboard_cli(
@@ -543,7 +558,7 @@ class TestDashboardCleanup:
                 cwd=tmpdir,
             )
 
-            time.sleep(2)
+            wait_for_dashboard_state(test_port, accessible=True, timeout=3.0)
 
             # Get process ID
             ps_before = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
@@ -556,7 +571,7 @@ class TestDashboardCleanup:
                     cwd=tmpdir,
                 )
 
-                time.sleep(2)
+                wait_for_port_state(test_port, occupied=False, timeout=2.0)
 
                 # Check process is gone
                 ps_after = subprocess.run(["lsof", "-ti", f":{test_port}"], capture_output=True, text=True)
@@ -653,11 +668,8 @@ def test_dashboard_with_symlinked_kitty_specs():
                 timeout=30,
             )
 
-            # Wait a bit for dashboard to fully start
-            time.sleep(2)
-
             # Dashboard should start successfully
-            if is_dashboard_accessible(test_port):
+            if wait_for_dashboard_state(test_port, accessible=True, timeout=3.0):
                 assert result.returncode == 0, (
                     f"CLI should report success when dashboard accessible.\n"
                     f"Exit code: {result.returncode}\n"
