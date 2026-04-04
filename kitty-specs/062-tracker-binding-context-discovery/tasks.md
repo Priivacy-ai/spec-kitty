@@ -171,12 +171,12 @@ HTTP-level contract tests for all 4 new endpoints + binding_ref routing variants
 
 Core service infrastructure: routing key resolution, opportunistic binding_ref upgrade, stale-binding detection. Touches all existing service methods.
 
-- [ ] T030: Add _resolve_routing_params()
-- [ ] T031: Update existing methods to use it
-- [ ] T032: Add _maybe_upgrade_binding_ref()
-- [ ] T033: Wire upgrade into call sites
-- [ ] T034: Create StaleBindingError + detection
-- [ ] T035: Write service tests
+- [x] T030: Add _resolve_routing_params()
+- [x] T031: Update existing methods to use it
+- [x] T032: Add _maybe_upgrade_binding_ref()
+- [x] T033: Wire upgrade into call sites
+- [x] T034: Create StaleBindingError + detection
+- [x] T035: Write service tests
 
 ### Wave 4 — Service Orchestration + Facade (depends on Wave 3)
 
