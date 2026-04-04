@@ -149,7 +149,10 @@ def validate_base_workspace_exists(
     """
     import subprocess
 
-    base_workspace = repo_root / ".worktrees" / f"{feature_slug}-{base}"
+    from specify_cli.workspace_context import resolve_workspace_for_wp
+
+    resolved_workspace = resolve_workspace_for_wp(repo_root, feature_slug, base)
+    base_workspace = resolved_workspace.worktree_path
 
     if not base_workspace.exists():
         console.print(f"\n[red]Error:[/red] Base workspace {base} does not exist")

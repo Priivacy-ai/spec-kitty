@@ -34,7 +34,7 @@ Anthropic’s **Claude Code** pairs naturally with Spec Kitty’s guardrails. Th
 
 2. **Refresh Claude’s long-term context after planning**
    ```bash
-   cd <mission worktree>
+   cd <main checkout or execution workspace>
    spec-kitty agent context update-context --agent-type claude
    ```
    This injects new architecture decisions, tech stacks, and vocabulary into Claude’s context files. Re-run it whenever `plan.md` or `tasks.md` changes.
@@ -50,7 +50,7 @@ Prompt files live under `kitty-specs/<feature>/tasks/WPxx-slug.md` (flat directo
 Launch Claude against a prompt:
 
 ```bash
-cd .worktrees/001-systematic-recognizer-enhancement
+cd .worktrees/001-systematic-recognizer-enhancement-lane-a
 claude prompt kitty-specs/001-systematic-recognizer-enhancement/tasks/WP02-synthetic-benchmark.md
 ```
 
@@ -90,8 +90,8 @@ Once Claude (and any partner agents) finish the feature:
  ```bash
   spec-kitty merge --remove-worktree
   ```
-   Run it from the mission worktree; the CLI automatically performs the Git steps from the main checkout so worktrees stay in sync.
-   The command documents merge steps, updates activity logs, and optionally removes the mission worktree to keep the repository tidy.
+   Run it from any checkout where the mission can be resolved; the CLI automatically performs the Git steps from the main checkout so execution workspaces stay in sync.
+   The command documents merge steps, updates activity logs, and optionally removes the execution worktrees to keep the repository tidy.
 
 ## Beyond Claude
 

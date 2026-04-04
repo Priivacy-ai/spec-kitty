@@ -9,7 +9,7 @@ Use this guide to review a completed work package and update its lane.
 ## Prerequisites
 
 - The WP is in `lane: "for_review"`
-- You are in the WP worktree (or the mission worktree containing the implementation)
+- You are in a checkout where the mission can be resolved; `spec-kitty agent action review` will attach to the canonical execution workspace if needed
 - In multi-mission repos, you know the mission slug (required through the legacy `--feature` flag)
 
 ## Step 1: Discover Reviewable Work Packages

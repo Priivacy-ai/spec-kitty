@@ -86,20 +86,20 @@ Syntax format in this reference:
 
 **Syntax**: `/spec-kitty.implement [WP_ID] [--base WP_ID]`
 
-**Purpose**: Create a worktree and start implementation for a specific work package.
+**Purpose**: Resolve the execution workspace and start implementation for a specific work package.
 
 **Prerequisites**:
 - Work packages exist in `kitty-specs/<feature>/tasks/`.
-- Run from main repository for the action prompt; worktree is created by CLI.
+- Run from the main repository for the action prompt; the execution workspace is created or reused by the CLI.
 
 **What it does**:
 - If explicit slash-command args are provided, forwards the WP/base selection into the resolver-first action flow.
 - Step 1: `spec-kitty agent action implement WP## --agent <agent>` to show the prompt and move the WP to `doing`.
-- Step 2: `spec-kitty implement WP## [--base WP##]` to create the worktree.
-- Implementation happens inside the created worktree.
+- Step 2: `spec-kitty implement WP## [--base WP##]` to create or reuse the execution workspace.
+- Implementation happens inside the resolved workspace path printed by the command.
 
 **Creates/updates**:
-- `.worktrees/<feature>-WP##/` worktree directory
+- `.worktrees/<feature>-lane-<id>/` for lane-based features, or `.worktrees/<feature>-WP##/` for legacy fallback
 - `kitty-specs/<feature>/tasks/WP##-*.md` lane status updates
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.review`
@@ -113,7 +113,7 @@ Syntax format in this reference:
 **Purpose**: Review a completed work package and update its lane status.
 
 **Prerequisites**:
-- Run from the mission worktree.
+- Run from any checkout where the mission can be resolved; review will attach to the canonical execution workspace if needed.
 - WP must be in `lane: "for_review"`.
 
 **What it does**:
@@ -139,7 +139,7 @@ Syntax format in this reference:
 **Purpose**: Validate mission readiness and generate acceptance results.
 
 **Prerequisites**:
-- Run from a mission worktree or branch where mission auto-detection works.
+- Run from any checkout or branch where mission auto-detection works.
 - All WPs should be in `done` or intentionally waived.
 
 **What it does**:
@@ -161,7 +161,7 @@ Syntax format in this reference:
 **Purpose**: Merge an accepted mission into the target branch and clean up worktrees.
 
 **Prerequisites**:
-- Run from the mission worktree (not main).
+- Run from any checkout where the mission can be resolved (main checkout or execution workspace).
 - Mission must pass `/spec-kitty.accept`.
 
 **What it does**:
@@ -240,7 +240,7 @@ Syntax format in this reference:
 **Purpose**: Scaffold research artifacts for Phase 0 research.
 
 **Prerequisites**:
-- Run from the mission worktree.
+- Run from any checkout where the mission can be resolved.
 
 **What it does**:
 - Runs `spec-kitty research` to create research templates.
@@ -262,7 +262,7 @@ Syntax format in this reference:
 **Purpose**: Generate a requirements-quality checklist for the current feature.
 
 **Prerequisites**:
-- Run from the mission worktree.
+- Run from any checkout where the mission can be resolved.
 
 **What it does**:
 - Uses `spec-kitty agent check-prerequisites` for paths.
@@ -282,7 +282,7 @@ Syntax format in this reference:
 **Purpose**: Cross-artifact consistency analysis after tasks generation.
 
 **Prerequisites**:
-- Run from the mission worktree.
+- Run from any checkout where the mission can be resolved.
 - `spec.md`, `plan.md`, and `tasks.md` must exist.
 
 **What it does**:

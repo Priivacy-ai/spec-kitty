@@ -1,19 +1,23 @@
-# Workspace-per-Work-Package Explained
+# Execution Workspace Model
 
-*This document explains the "why" behind the workspace-per-work-package model. For step-by-step instructions, see the [how-to guides](../how-to/use-dashboard.md). For an introduction, see the [tutorials](../tutorials/claude-code-workflow.md).*
+*This document explains the "why" behind Spec Kitty's execution workspace model. For step-by-step instructions, see the [how-to guides](../how-to/use-dashboard.md). For an introduction, see the [tutorials](../tutorials/claude-code-workflow.md).*
 
 ## Overview
 
-Spec Kitty 0.11.0 introduces the workspace-per-work-package model to enable parallel multi-agent development. Instead of creating one worktree per feature where all work packages share the same workspace, each work package now gets its own isolated worktree.
+Spec Kitty 2.x uses an execution workspace model to enable parallel multi-agent development. Planning happens in the main checkout. Implementation happens in the worktree resolved for a work package.
 
-**Key Change**: One git worktree per work package (instead of one per feature)
+**Current default**: one git worktree per execution lane
+
+**Legacy fallback**: one git worktree per work package if `lanes.json` is absent
+
+**Missing-lane fallback**: if `lanes.json` exists but `lane_for_wp()` cannot find the requested WP, Spec Kitty falls back to the legacy per-WP workspace name instead of inventing a lane assignment.
 
 For background on how git worktrees work, see [Git Worktrees Explained](git-worktrees.md).
 
 ## Benefits
 
-- **Parallel development**: Multiple agents work on different WPs simultaneously without conflicts
-- **Isolation**: Each WP has its own workspace with separate git branch
+- **Parallel development**: Multiple agents work on different execution lanes simultaneously without conflicts
+- **Isolation**: Each execution workspace has its own branch and working directory
 - **Scalability**: Features with 10+ WPs can have multiple agents working in parallel
 
 ## Workflow Comparison
@@ -37,7 +41,7 @@ cd .worktrees/010-my-feature/
 - All WPs on same branch (no isolation)
 - Cannot parallelize work across WPs
 
-### New Model (0.11.0+)
+### Current Model (2.x)
 
 ```bash
 # Planning happens in main repository (NO worktree created)
@@ -59,26 +63,25 @@ spec-kitty agent mission finalize-tasks
 → Validates dependencies (cycle detection)
 → Commits all to main
 
-# Implementation creates worktrees on-demand (one per WP)
+# Implementation creates worktrees on-demand
 spec-kitty implement WP01
-→ Creates .worktrees/010-my-feature-WP01/
-→ Branches from main
+→ Creates or reuses .worktrees/010-my-feature-lane-a/
+→ Branches from mission/main base
 → Agent A implements WP01
 
 spec-kitty implement WP02 --base WP01
-→ Creates .worktrees/010-my-feature-WP02/
-→ Branches from WP01's branch
-→ Agent B implements WP02 (in parallel!)
+→ May reuse .worktrees/010-my-feature-lane-a/ if WP02 shares the lane
+→ Or create .worktrees/010-my-feature-lane-b/ if it is parallel work
+→ Agent B implements WP02
 
 spec-kitty implement WP03
-→ Creates .worktrees/010-my-feature-WP03/
-→ Branches from main (independent WP)
-→ Agent C implements WP03 (also in parallel!)
+→ Resolves the correct workspace for WP03
+→ Agent C implements WP03 in parallel if it lands on another lane
 ```
 
 **Benefits**:
 - Three agents working simultaneously on WP01, WP02, WP03
-- Each WP isolated in its own worktree with dedicated branch
+- Each execution lane isolated in its own worktree with dedicated branch
 - Dependencies explicitly declared in frontmatter
 - Planning artifacts live in main (visible to all agents)
 
@@ -131,38 +134,38 @@ lane: "planned"
 ---
 ```
 
-### Phase 2: Implementation (in separate worktrees)
+### Phase 2: Implementation (in resolved execution workspaces)
 
-Now agents create worktrees on-demand for each WP they implement.
+Now agents create or reuse worktrees on-demand for each WP they implement.
 
 **1. Implement WP01 (foundation)**
 ```bash
 spec-kitty implement WP01
 ```
 Creates:
-- `.worktrees/011-user-authentication-system-WP01/`
-- Branch: `011-user-authentication-system-WP01` (from main)
+- `.worktrees/011-user-authentication-system-lane-a/` (typical lane-based case)
+- Branch: `011-user-authentication-system-lane-a` (or legacy `...-WP01`)
 
-Agent A works in this worktree, commits to the WP01 branch.
+Agent A works in this worktree and commits to the resolved branch.
 
 **2. Implement WP02 (depends on WP01)**
 ```bash
 spec-kitty implement WP02 --base WP01
 ```
 Creates:
-- `.worktrees/011-user-authentication-system-WP02/`
-- Branch: `011-user-authentication-system-WP02` (from WP01's branch)
-- Workspace includes WP01's code changes
+- the workspace resolved for WP02
+- a branch based on the selected base branch
+- workspace includes the selected base branch's code changes
 
-Agent B works here in parallel with Agent A (different worktrees).
+Agent B works here in parallel with Agent A when WP02 is assigned to another lane. If WP02 shares WP01's lane, the same worktree is reused sequentially.
 
 **3. Implement WP03 (independent)**
 ```bash
 spec-kitty implement WP03
 ```
 Creates:
-- `.worktrees/011-user-authentication-system-WP03/`
-- Branch: `011-user-authentication-system-WP03` (from main)
+- the workspace resolved for WP03
+- a branch based on the target branch or explicit base
 
 Agent C works here in parallel with A and B.
 
@@ -180,11 +183,11 @@ If review feedback requires changes, WP02 will need rebase
 
 **2. Merge completed WPs**
 ```bash
-# Run from any WP worktree for the feature
-cd .worktrees/011-user-authentication-system-WP01/
+# Run from any checkout where feature detection works
+cd .worktrees/011-user-authentication-system-lane-a/
 spec-kitty merge
 ```
-Merges all completed WP branches to main, removes worktrees.
+Merges all completed lane branches into the mission branch, then the mission branch into the target branch, and removes execution worktrees.
 
 ## Dependency Syntax
 
@@ -210,7 +213,7 @@ dependencies: ["WP01", "WP03"]  # Depends on both WP01 and WP03
 
 ```bash
 spec-kitty implement WP04 --base WP02  # Branches from WP02
-cd .worktrees/011-feature-WP04/
+cd <workspace path printed by spec-kitty implement>
 git merge 011-feature-WP03  # Manually merge WP03
 ```
 
@@ -223,9 +226,9 @@ dependencies: []  # Independent WP, branches from main
 ### How Dependencies Work
 
 **At implementation time**:
-- `spec-kitty implement WP02 --base WP01` creates workspace branching from WP01's branch
-- WP02 workspace contains all of WP01's code changes
-- WP02 builds on WP01's foundation
+- `spec-kitty implement WP02 --base WP01` resolves a workspace branching from WP01's branch
+- WP02's workspace contains all of WP01's code changes
+- WP02 builds on WP01's foundation whether that happens in a shared lane or a separate lane
 
 **During review cycles**:
 - If WP01 changes after WP02 starts, WP02 needs manual rebase
@@ -329,7 +332,7 @@ spec-kitty implement WP03 --base WP01
 
 # After both WP02 and WP03 complete:
 spec-kitty implement WP04 --base WP03
-cd .worktrees/###-feature-WP04/
+cd <workspace path printed by spec-kitty implement>
 git merge ###-feature-WP02  # Manually merge second dependency
 ```
 
@@ -368,7 +371,7 @@ spec-kitty implement WP04  # Agent D
 
 ## Example Scenario: Building a Feature
 
-Let's walk through a real example using this workspace-per-WP model.
+Let's walk through a real example using the execution workspace model.
 
 ### Scenario: Add OAuth Integration
 
@@ -414,7 +417,7 @@ spec-kitty implement WP02  # Agent B: Config
 # Wave 2: Backend (waits for Wave 1)
 # After WP01 and WP02 complete:
 spec-kitty implement WP03 --base WP02
-cd .worktrees/012-oauth-integration-WP03/
+cd <workspace path printed by spec-kitty implement>
 git merge 012-oauth-integration-WP01  # Merge second dependency
 # Agent C implements backend flow
 
@@ -429,7 +432,7 @@ spec-kitty implement WP05 --base WP04
 
 **Timeline**:
 - Traditional (sequential): ~5 time units (one WP per unit)
-- Workspace-per-WP: ~3 time units (Wave 1 parallel, then Wave 2, 3, 4)
+- Execution-workspace model: ~3 time units (Wave 1 parallel, then Wave 2, 3, 4)
 
 ## Troubleshooting
 
@@ -459,7 +462,7 @@ Legacy worktrees detected:
 2. Verify clean state:
    ```bash
    ls .worktrees/
-   # Should be empty or only show ###-feature-WP## patterns
+   # Should be empty or only show modern lane worktrees / intentional legacy worktrees
    ```
 
 3. Retry upgrade:
@@ -530,12 +533,12 @@ If review feedback requires changes, they'll need rebase
 2. If WP01 has changes after review:
    ```bash
    # Update WP02 to include WP01 changes
-   cd .worktrees/###-feature-WP02/
-   git rebase ###-feature-WP01
+   cd <workspace path printed by spec-kitty implement>
+   git rebase <base branch printed by spec-kitty>
 
    # Update WP03 to include WP01 changes
-   cd .worktrees/###-feature-WP03/
-   git rebase ###-feature-WP01
+   cd <workspace path printed by spec-kitty implement>
+   git rebase <base branch printed by spec-kitty>
    ```
 
 ### Issue: Multiple dependencies, git limitation
@@ -550,7 +553,7 @@ If review feedback requires changes, they'll need rebase
 spec-kitty implement WP04 --base WP03
 
 # Manually merge secondary dependency
-cd .worktrees/###-feature-WP04/
+cd <workspace path printed by spec-kitty implement>
 git merge ###-feature-WP02
 ```
 
@@ -573,7 +576,7 @@ git merge ###-feature-WP02
 **Solution**:
 1. Check for uncommitted changes in dependency worktree:
    ```bash
-   cd .worktrees/017-feature-WP01/
+   cd <workspace path printed by spec-kitty implement>
    git status
    ```
 

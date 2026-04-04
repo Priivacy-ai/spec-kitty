@@ -46,7 +46,7 @@ provides domain-appropriate:
 - **Validation** — checks that verify the output quality
 - **Agent context** — personality and instructions for the AI agent
 
-### The Hierarchy: Mission Type → Mission → Work Package → Workspace
+### The Hierarchy: Mission Type → Mission → Work Package → Execution Workspace
 
 ```
 Mission Type (e.g., software-dev)
@@ -59,14 +59,14 @@ Mission Type (e.g., software-dev)
               ├── WP01.md       ← work package prompt
               ├── WP02.md
               └── WP03.md
-                    └── Workspace (.worktrees/042-auth-system-WP03/)
+                    └── Execution Workspace (.worktrees/042-auth-system-lane-a/)
 ```
 
 - **Mission Type** = the workflow blueprint (reusable across missions)
 - **Mission** = a concrete tracked item, linked to a mission type via `meta.json`
 - **Feature** = software-dev compatibility alias for a mission
 - **Work Package (WP)** = one parallelizable slice of work within a mission
-- **Workspace** = an isolated git worktree for implementing a single WP
+- **Execution Workspace** = the isolated git worktree resolved for implementing a WP; modern missions share one per lane, legacy features may still use one per WP
 
 ### meta.json (Mission → Mission-Type Link)
 

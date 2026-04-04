@@ -43,6 +43,7 @@ from specify_cli.mission import get_feature_mission_key
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
+from specify_cli.workspace_context import resolve_feature_worktree
 
 app = typer.Typer(
     name="mission",
@@ -1044,22 +1045,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
 
 def _find_feature_worktree(repo_root: Path, feature_slug: str) -> Optional[Path]:
     """Find a deterministic worktree for a feature slug."""
-    worktrees_dir = repo_root / ".worktrees"
-    if not worktrees_dir.exists():
-        return None
-
-    exact = worktrees_dir / feature_slug
-    if exact.is_dir():
-        return exact
-
-    candidates = sorted(
-        p for p in worktrees_dir.glob(f"{feature_slug}-WP*")
-        if p.is_dir()
-    )
-    if candidates:
-        return candidates[0]
-
-    return None
+    return resolve_feature_worktree(repo_root, feature_slug)
 
 
 def _get_current_branch(repo_root: Path) -> str:

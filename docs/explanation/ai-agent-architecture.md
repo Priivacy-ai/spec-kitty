@@ -135,18 +135,18 @@ This ensures all agents stay synchronized when the workflow changes.
 
 ### Different Agents on Different WPs
 
-The workspace-per-WP model enables multi-agent collaboration:
+The execution workspace model enables multi-agent collaboration:
 
 ```
 Feature: 012-user-auth
-├── WP01 → Agent A (Claude Code) in .worktrees/012-user-auth-WP01/
-├── WP02 → Agent B (Gemini) in .worktrees/012-user-auth-WP02/
-└── WP03 → Agent C (Copilot) in .worktrees/012-user-auth-WP03/
+├── Lane A (WP01, WP02 sequential) → Agent A (Claude Code) in .worktrees/012-user-auth-lane-a/
+├── Lane B (parallel API work)     → Agent B (Gemini) in .worktrees/012-user-auth-lane-b/
+└── Lane C (parallel UI work)      → Agent C (Copilot) in .worktrees/012-user-auth-lane-c/
 ```
 
 Each agent:
-- Works in its own worktree
-- Has its own branch
+- Works in its resolved execution workspace
+- Has its own resolved branch
 - Uses the same command templates
 - Follows the same workflow
 
@@ -166,15 +166,15 @@ You can run multiple agents simultaneously:
 
 ```bash
 # Terminal 1 (Claude Code)
-cd .worktrees/012-user-auth-WP01
+cd .worktrees/012-user-auth-lane-a
 claude "/spec-kitty.implement WP01"
 
 # Terminal 2 (Gemini)
-cd .worktrees/012-user-auth-WP02
+cd .worktrees/012-user-auth-lane-b
 gemini "/spec-kitty.implement WP02"
 
 # Terminal 3 (opencode)
-cd .worktrees/012-user-auth-WP03
+cd .worktrees/012-user-auth-lane-c
 opencode "/spec-kitty.implement WP03"
 ```
 
@@ -233,8 +233,8 @@ Agent reads .claude/commands/spec-kitty.implement.md
 
 Agent executes workflow:
 1. Read WP01 prompt from tasks/WP01.md
-2. Create worktree (if needed)
-3. Navigate to workspace
+2. Resolve or create the execution workspace
+3. Navigate to the printed workspace
 4. Implement according to WP requirements
 5. Run tests
 6. Commit changes
@@ -242,14 +242,14 @@ Agent executes workflow:
 
     ↓
 
-Result: WP01 implemented in isolated workspace
+Result: WP01 implemented in the canonical execution workspace
 ```
 
 The command file provides all instructions; the agent executes them.
 
 ## See Also
 
-- [Workspace-per-WP](workspace-per-wp.md) - How parallel development enables multi-agent collaboration
+- [Execution Workspace Model](workspace-per-wp.md) - How parallel development enables multi-agent collaboration
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes regardless of agent
 - [Mission System](mission-system.md) - How missions customize commands for different work types
 

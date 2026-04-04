@@ -177,14 +177,14 @@ spec-kitty orchestrator-api list-ready --feature <slug>
 ```
 
 Returns only WPs whose dependencies are satisfied (in `planned` lane with all
-deps in `done`). Each entry includes `recommended_base` — the branch to use
-with `--base` when creating the worktree.
+deps in `done`). Each entry includes `recommended_base` — the WP ID to pass
+to `--base` when creating the workspace.
 
 ```json
 {
   "feature_slug": "042-test-feature",
   "ready_work_packages": [
-    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "042-test-feature-WP01"}
+    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "WP01"}
   ]
 }
 ```

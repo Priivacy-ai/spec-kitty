@@ -134,7 +134,7 @@ Every call to `spec-kitty next` returns exactly one decision kind:
   "mission_state": "implementing",
   "action": "implement",
   "wp_id": "WP02",
-  "workspace_path": ".worktrees/042-test-feature-WP02",
+  "workspace_path": ".worktrees/042-test-feature-lane-b",
   "prompt_file": "/tmp/spec-kitty-next-claude-042-test-feature-implement-WP02.md",
   "reason": null,
   "guard_failures": [],

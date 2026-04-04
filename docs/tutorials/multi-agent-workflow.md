@@ -10,7 +10,7 @@ Learn how to coordinate multiple AI agents working on different work packages si
 ## Why Parallel Development?
 
 - Shorter delivery time by splitting work packages
-- Clear isolation with dedicated worktrees
+- Clear isolation with dedicated execution worktrees
 - Reduced merge conflicts
 
 
@@ -42,7 +42,7 @@ Confirm two independent packages are `lane: "planned"`.
 
 ```bash
 spec-kitty agent action implement WP01
-cd .worktrees/###-feature-WP01
+cd <workspace path printed by the command>
 # Agent A works here
 ```
 
@@ -50,7 +50,7 @@ cd .worktrees/###-feature-WP01
 
 ```bash
 spec-kitty agent action implement WP02
-cd .worktrees/###-feature-WP02
+cd <workspace path printed by the command>
 # Agent B works here simultaneously
 ```
 
@@ -67,12 +67,12 @@ spec-kitty implement WP02 --base WP01
 Expected output (abridged):
 
 ```
-OK Created workspace: .worktrees/###-feature-WP02
+OK Created workspace: .worktrees/###-feature-lane-b
 ```
 
 ## Git Worktrees, Briefly
 
-Each work package is a Git worktree on its own branch. This keeps changes isolated and lets agents work in parallel without merge conflicts. For details, see [Workspace-per-WP](../explanation/workspace-per-wp.md) and [Git Worktrees](../explanation/git-worktrees.md).
+Each execution lane is a Git worktree on its own branch. Sequential WPs may reuse the same lane workspace, while independent WPs run in parallel in separate lane worktrees. For details, see [Execution Workspace Model](../explanation/workspace-per-wp.md) and [Git Worktrees](../explanation/git-worktrees.md).
 
 ## Tips for Coordinating Agents
 
@@ -84,7 +84,7 @@ Each work package is a Git worktree on its own branch. This keeps changes isolat
 
 - **"WP has dependencies"**: Re-run with `spec-kitty implement WP## --base WPXX`.
 - **Worktree already exists**: Run `git worktree list` and reuse the existing folder.
-- **Agent edits the wrong WP**: Stop and switch to the correct worktree before continuing.
+- **Agent edits the wrong WP**: Stop and switch to the workspace path printed for the correct WP before continuing.
 
 ## What's Next?
 
@@ -107,5 +107,5 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
 - [Run External Orchestrator](../how-to/run-external-orchestrator.md) - Automate WP execution with the external provider
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Isolation strategy
+- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Isolation strategy
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work

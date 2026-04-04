@@ -86,13 +86,13 @@ spec-kitty implement WP01
 Expected output (abridged):
 
 ```
-OK Created workspace: .worktrees/###-task-list-WP01
+OK Created workspace: .worktrees/###-task-list-lane-a
 ```
 
 Move into the new worktree and implement the required changes:
 
 ```bash
-cd .worktrees/###-task-list-WP01
+cd .worktrees/###-task-list-lane-a
 ```
 
 When finished, return to the main repo and run the review step.
@@ -149,8 +149,8 @@ You should see the feature merged into `main` and the worktrees cleaned up.
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see a feature worktree, upgrade with `spec-kitty upgrade`.
-- **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02 --base WP01` as suggested.
+- **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02 --base WP01` as suggested. The returned workspace may be a shared lane worktree instead of `...-WP02`.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 
 ## What's Next?
@@ -173,6 +173,6 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 
 ### Learn More
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Why one workspace per WP
+- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Why modern features use lane worktrees
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
 - [Spec-Driven Development](../explanation/spec-driven-development.md) - The philosophy

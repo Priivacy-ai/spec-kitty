@@ -10,7 +10,7 @@ This document describes the complete directory structure of a Spec Kitty project
 my-project/
 ├── .kittify/              # Spec Kitty configuration and templates
 ├── kitty-specs/           # Feature specifications
-├── .worktrees/            # Git worktrees for WP implementation (0.11.0+)
+├── .worktrees/            # Git worktrees for execution workspaces (lane-based in 2.x)
 ├── .claude/               # Claude Code slash commands
 ├── .cursor/               # Cursor slash commands
 ├── .gemini/               # Gemini CLI slash commands
@@ -96,24 +96,25 @@ kitty-specs/
 
 ## .worktrees/ Directory (0.11.0+)
 
-Contains Git worktrees for work package implementation. Each WP gets its own isolated workspace.
+Contains Git worktrees for implementation. Modern features typically create one shared workspace per execution lane; legacy features still create one workspace per work package.
 
 ```
 .worktrees/
-├── 014-documentation-WP01/       # WP01 workspace
-│   ├── src/                      # Code (on WP01 branch)
+├── 014-documentation-lane-a/     # Lane A workspace (shared by sequential WPs)
+│   ├── src/                      # Code (on lane branch)
 │   ├── docs/                     # Documentation
 │   └── .git                      # Pointer to main .git
-├── 014-documentation-WP02/       # WP02 workspace
+├── 014-documentation-lane-b/     # Parallel lane workspace
 │   └── ...
-└── 014-documentation-WP03/       # WP03 workspace
+└── 014-documentation-WP03/       # Legacy fallback workspace
     └── ...
 ```
 
 ### Key Points
 
-- **One worktree per WP** (not per feature)
-- Each worktree has its own branch: `<feature-slug>-WP##`
+- Modern features usually create **one worktree per execution lane**
+- Each lane worktree has its own branch: `<feature-slug>-lane-<id>`
+- Legacy features without `lanes.json` still use `<feature-slug>-WP##`
 - Worktrees share the `.git` database with the main repository
 - Created by `spec-kitty implement WP##`
 - Removed after merge with `git worktree remove`
@@ -123,7 +124,7 @@ Contains Git worktrees for work package implementation. Each WP gets its own iso
 | Location | When to Use |
 |----------|-------------|
 | Main repo (`my-project/`) | Planning: `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.tasks` |
-| Worktree (`.worktrees/...`) | Implementation: `/spec-kitty.implement`, coding, testing |
+| Worktree (`.worktrees/...`) | Implementation: `/spec-kitty.implement`, coding, testing in the resolved execution workspace |
 
 ---
 

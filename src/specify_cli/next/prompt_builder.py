@@ -12,6 +12,7 @@ from pathlib import Path
 from specify_cli.constitution.context import build_constitution_context
 from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 def build_prompt(
@@ -110,8 +111,8 @@ def _build_wp_prompt(
     mission_key: str,
 ) -> str:
     """Build prompt for implement or review actions with WP context."""
-    workspace_name = f"{feature_slug}-{wp_id}"
-    workspace_path = repo_root / ".worktrees" / workspace_name
+    workspace = resolve_workspace_for_wp(repo_root, feature_slug, wp_id)
+    workspace_path = workspace.worktree_path
 
     # Read WP file content
     wp_content = _read_wp_content(feature_dir, wp_id)
@@ -125,6 +126,9 @@ def _build_wp_prompt(
     lines.append(f"Feature: {feature_slug}")
     lines.append(f"Mission: {mission_key}")
     lines.append(f"Workspace: {workspace_path}")
+    if workspace.lane_id:
+        shared = ", ".join(workspace.lane_wp_ids or [wp_id])
+        lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
     lines.append("")
     lines.append(_governance_context(repo_root, action=action))
     lines.append("")

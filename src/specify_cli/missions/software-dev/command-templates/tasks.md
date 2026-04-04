@@ -37,7 +37,7 @@
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create workspace for each WP.
+**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create or reuse the execution workspace for that WP. Modern features with `lanes.json` use shared lane worktrees; legacy features without lanes still use per-WP worktrees.
 
 **In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
@@ -191,11 +191,12 @@ Prompts do not rediscover feature context. Commands do.
    spec-kitty agent mission finalize-tasks --json --feature <feature-slug>
    ```
 
-   This step is MANDATORY for workspace-per-WP features. Without it:
+   This step is MANDATORY for modern execution-lane features (and still required for legacy worktree-per-WP compatibility). Without it:
    - Dependencies won't be in frontmatter
    - Branching-strategy metadata won't be normalized into every WP prompt
+   - `lanes.json` won't be available to resolve the real workspace path/branch for each WP
    - Requirement refs won't be validated/normalized
-   - Agents won't know which --base flag to use
+   - Agents won't know which `--base` flag to use or whether the runtime will place them in a shared lane worktree
    - Tasks won't be committed to target branch
 
    **IMPORTANT - DO NOT COMMIT AGAIN AFTER THIS COMMAND**:

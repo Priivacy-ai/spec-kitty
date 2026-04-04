@@ -1,6 +1,6 @@
 # Git Worktrees Explained
 
-Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work.
+Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work in the modern lane-based execution model.
 
 ## What is a Git Worktree?
 
@@ -32,21 +32,21 @@ You can now have three terminal windows open, each in a different directory, eac
 
 Without worktrees, only one developer (or agent) can work at a time because git only allows one branch checked out per repository. With worktrees:
 
-- Agent A works in `.worktrees/feature-WP01/` on WP01
-- Agent B works in `.worktrees/feature-WP02/` on WP02
-- Agent C works in `.worktrees/feature-WP03/` on WP03
+- Agent A works in `.worktrees/feature-lane-a/` on the WPs assigned to lane A
+- Agent B works in `.worktrees/feature-lane-b/` on the WPs assigned to lane B
+- Agent C works in `.worktrees/feature-lane-c/` on the WPs assigned to lane C
 
 All three agents work simultaneously, each with their own files, their own uncommitted changes, and their own branch.
 
-### Each Work Package Gets Isolated Workspace
+### Each Execution Lane Gets an Isolated Workspace
 
 Problems with shared workspaces:
 - Agent A edits `config.py`, breaks it
 - Agent B (working on unrelated task) tries to run tests—they fail
 - Both agents are now debugging each other's problems
 
-With workspace-per-WP:
-- Agent A's broken `config.py` only exists in WP01's workspace
+With lane-based execution workspaces:
+- Agent A's broken `config.py` only exists in lane A's workspace
 - Agent B's workspace has clean files
 - Isolation prevents cross-contamination
 
@@ -76,10 +76,10 @@ my-repo/
 ├── .git/                     # The real git database
 ├── src/                      # Your source files
 ├── .worktrees/
-│   ├── feature-WP01/
+│   ├── feature-lane-a/
 │   │   ├── .git              # Just a pointer file
 │   │   └── src/              # Separate copy of source files
-│   └── feature-WP02/
+│   └── feature-lane-b/
 │       ├── .git              # Just a pointer file
 │       └── src/              # Another separate copy
 ```
@@ -134,31 +134,31 @@ git worktree list
 Example output:
 ```
 /path/to/my-repo               abc1234 [main]
-/path/to/my-repo/.worktrees/feature-WP01  def5678 [feature-WP01]
-/path/to/my-repo/.worktrees/feature-WP02  ghi9012 [feature-WP02]
+/path/to/my-repo/.worktrees/feature-lane-a  def5678 [feature-lane-a]
+/path/to/my-repo/.worktrees/feature-lane-b  ghi9012 [feature-lane-b]
 ```
 
 ### Create a New Worktree
 
 ```bash
 # Create worktree with existing branch
-git worktree add .worktrees/feature-WP01 feature-WP01
+git worktree add .worktrees/feature-lane-a feature-lane-a
 
 # Create worktree and create new branch
-git worktree add -b feature-WP01 .worktrees/feature-WP01
+git worktree add -b feature-lane-a .worktrees/feature-lane-a
 
 # Create worktree from specific commit/branch
-git worktree add -b feature-WP02 .worktrees/feature-WP02 feature-WP01
+git worktree add -b feature-lane-b .worktrees/feature-lane-b feature-lane-a
 ```
 
 ### Remove a Worktree
 
 ```bash
 # Clean removal (worktree must be clean)
-git worktree remove .worktrees/feature-WP01
+git worktree remove .worktrees/feature-lane-a
 
 # Force removal (discards uncommitted changes)
-git worktree remove --force .worktrees/feature-WP01
+git worktree remove --force .worktrees/feature-lane-a
 ```
 
 ### Clean Up Stale Worktrees
@@ -170,11 +170,11 @@ git worktree prune
 
 ## Sparse Checkouts
 
-A sparse checkout limits which files appear in your working directory. Combined with worktrees, this allows each WP workspace to have only the files it needs.
+A sparse checkout limits which files appear in your working directory. Combined with worktrees, this allows each execution workspace to have only the files it needs.
 
 **Without sparse checkout**:
 ```
-.worktrees/feature-WP01/
+.worktrees/feature-lane-a/
 ├── docs/           # Agent doesn't need docs
 ├── tests/          # Agent doesn't need tests
 ├── src/
@@ -184,14 +184,14 @@ A sparse checkout limits which files appear in your working directory. Combined 
 
 **With sparse checkout**:
 ```
-.worktrees/feature-WP01/
+.worktrees/feature-lane-a/
 └── src/
     └── module.py   # Only what the agent needs
 ```
 
 Spec Kitty uses sparse checkouts to:
 - Keep the `kitty-specs/` directory only in the main repo
-- Reduce noise in WP workspaces
+- Reduce noise in execution workspaces
 - Ensure status tracking stays centralized
 
 ### Configure Sparse Checkout
@@ -210,7 +210,7 @@ git sparse-checkout set src/ tests/
 
 **Error**:
 ```
-fatal: 'feature-WP01' already has a worktree at '.worktrees/feature-WP01'
+fatal: 'feature-lane-a' already has a worktree at '.worktrees/feature-lane-a'
 ```
 
 **Cause**: You're trying to create a worktree for a branch that's already checked out somewhere.
@@ -221,17 +221,17 @@ fatal: 'feature-WP01' already has a worktree at '.worktrees/feature-WP01'
 git worktree list
 
 # Either remove the existing worktree
-git worktree remove .worktrees/feature-WP01
+git worktree remove .worktrees/feature-lane-a
 
 # Or use that existing worktree instead
-cd .worktrees/feature-WP01
+cd .worktrees/feature-lane-a
 ```
 
 ### "Branch is already checked out"
 
 **Error**:
 ```
-fatal: 'feature-WP01' is already checked out at '/path/to/other/worktree'
+fatal: 'feature-lane-a' is already checked out at '/path/to/other/worktree'
 ```
 
 **Cause**: Git won't let two worktrees have the same branch checked out.
@@ -277,8 +277,8 @@ git worktree list
 
 **Solution**:
 ```bash
-cd .worktrees/feature-WP01
-git checkout -b feature-WP01  # Create and switch to branch
+cd .worktrees/feature-lane-a
+git checkout -b feature-lane-a  # Create and switch to branch
 ```
 
 ## Further Reading

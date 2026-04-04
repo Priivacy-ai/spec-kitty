@@ -32,7 +32,7 @@ Packaged mission defaults for 2.x live under doctrine:
 
 Each mission-type directory contains a `mission-runtime.yaml` (step DAG, guards, artifacts) and a set of command templates that are deployed to agent directories.
 
-## The Hierarchy: Mission Type, Mission, Work Package, Workspace
+## The Hierarchy: Mission Type, Mission, Work Package, Execution Workspace
 
 Understanding how the pieces nest is key to understanding Spec Kitty:
 
@@ -43,14 +43,14 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
         |
         +-- Work Package (one parallelizable slice, tasks/WP01.md)
               |
-              +-- Workspace (isolated git worktree, .worktrees/###-name-WP01/)
+              +-- Execution Workspace (isolated git worktree, usually .worktrees/###-name-lane-a/)
 ```
 
 - **Mission Type** -- selected when the mission is created; determines actions, artifacts, and guards.
 - **Mission** -- stored in `kitty-specs/###-name/`; linked to its mission type via `meta.json`.
 - **Feature** -- legacy software-dev alias for a mission.
 - **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
-- **Workspace** -- one git worktree per work package; agents work in isolation without merge conflicts.
+- **Execution Workspace** -- the git worktree resolved for implementation. Modern features share one worktree per execution lane; legacy features may still use one worktree per work package.
 
 Different missions in the same project can use different mission types simultaneously.
 
@@ -123,5 +123,5 @@ See [Orchestration and API Boundary](orchestration-and-api.md) for operator and 
 
 - **Deep dive on missions**: [The Mission System Explained](../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
 - **Kanban workflow**: [Kanban Workflow Explained](../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
-- **Workspace model**: [Workspace-per-Work-Package Explained](../explanation/workspace-per-wp.md) -- the isolation model for parallel development
+- **Workspace model**: [Execution Workspace Model](../explanation/workspace-per-wp.md) -- lane-based worktrees with legacy per-WP fallback
 - **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details

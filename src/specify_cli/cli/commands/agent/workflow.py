@@ -40,6 +40,7 @@ from specify_cli.tasks_support import (
     set_scalar,
     split_frontmatter,
 )
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 def _write_prompt_to_file(
@@ -362,14 +363,13 @@ def implement(
 
         # If validation resolved a base (or auto-merge mode), validate base workspace exists
         if resolved_base:
-            validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+            validate_base_workspace_exists(resolved_base, feature_slug, main_repo_root)
 
-        # Calculate workspace path
-        workspace_name = f"{feature_slug}-{normalized_wp_id}"
-        workspace_path = repo_root / ".worktrees" / workspace_name
+        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+        workspace_path = workspace.worktree_path
 
         # Ensure workspace exists (delegate to top-level implement for creation)
-        if not workspace_path.exists():
+        if not workspace.exists:
             cwd = Path.cwd().resolve()
             if is_worktree_context(cwd):
                 print("Error: Workspace does not exist and cannot be created from a worktree.")
@@ -390,6 +390,15 @@ def implement(
                 raise
             except Exception as e:
                 print(f"Error creating worktree: {e}")
+                raise typer.Exit(1)
+
+            workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+            workspace_path = workspace.worktree_path
+            if not workspace.exists:
+                print(
+                    "Error: implement completed but no workspace could be resolved for "
+                    f"{normalized_wp_id}."
+                )
                 raise typer.Exit(1)
 
         # Load work package
@@ -595,6 +604,9 @@ def implement(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
+        if workspace.lane_id:
+            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
+            lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
         lines.append("")
         lines.append(_render_constitution_context(repo_root, "implement"))
         lines.append("")
@@ -742,6 +754,9 @@ def implement(
         # Output concise summary with directive to read the prompt
         print()
         print(f"📍 Workspace: cd {workspace_path}")
+        if workspace.lane_id:
+            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
+            print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
         if has_feedback:
             if review_feedback_ref:
                 print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
@@ -769,6 +784,7 @@ def _resolve_review_context(
     workspace_path: Path,
     repo_root: Path,
     feature_slug: str,
+    wp_id: str,
     wp_frontmatter: str,
 ) -> dict:
     """Resolve git branch and base context for review prompts.
@@ -805,6 +821,10 @@ def _resolve_review_context(
     # Build candidate base branches
     candidates: list[str] = []
 
+    workspace = resolve_workspace_for_wp(repo_root, feature_slug, wp_id)
+    if workspace.context and workspace.context.base_branch:
+        candidates.append(workspace.context.base_branch)
+
     # From WP dependencies (e.g., dependencies: ["WP01"])
     dep_match = re.search(r'dependencies:\s*\[([^\]]*)\]', wp_frontmatter)
     if dep_match:
@@ -812,7 +832,9 @@ def _resolve_review_context(
         if dep_content:
             dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
             for dep_id in dep_ids:
-                candidates.append(f"{feature_slug}-{dep_id}")
+                dep_workspace = resolve_workspace_for_wp(repo_root, feature_slug, dep_id)
+                if dep_workspace.branch_name != branch:
+                    candidates.append(dep_workspace.branch_name)
 
     # Common base branches
     candidates.extend(["main", "2.x", "master", "develop"])
@@ -1066,20 +1088,32 @@ def review(
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
 
-        # Calculate workspace path
-        workspace_name = f"{feature_slug}-{normalized_wp_id}"
-        workspace_path = repo_root / ".worktrees" / workspace_name
+        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+        workspace_path = workspace.worktree_path
 
-        # Ensure workspace exists (create if needed using full checkout, no sparse exclusions)
-        if not workspace_path.exists():
+        # Ensure workspace exists (attach to the real branch if needed).
+        if not workspace.exists:
             # Ensure .worktrees directory exists
-            worktrees_dir = repo_root / ".worktrees"
+            worktrees_dir = main_repo_root / ".worktrees"
             worktrees_dir.mkdir(parents=True, exist_ok=True)
 
-            branch_name = workspace_name
+            branch_name = workspace.branch_name
+            branch_exists = subprocess.run(
+                ["git", "rev-parse", "--verify", branch_name],
+                cwd=main_repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            if branch_exists.returncode == 0:
+                worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
+            else:
+                worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
             result = subprocess.run(
-                ["git", "worktree", "add", str(workspace_path), "-b", branch_name],
-                cwd=repo_root,
+                worktree_cmd,
+                cwd=main_repo_root,
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
@@ -1091,10 +1125,11 @@ def review(
                 print(f"Warning: Could not create workspace: {result.stderr}")
             else:
                 print(f"✓ Created workspace: {workspace_path}")
+                workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
 
         # Resolve git context (branch name, base branch, commit count)
         review_ctx = _resolve_review_context(
-            workspace_path, repo_root, feature_slug, wp.frontmatter
+            workspace_path, main_repo_root, feature_slug, normalized_wp_id, wp.frontmatter
         )
 
         # Capture dependency warning for both file and summary
@@ -1136,6 +1171,9 @@ def review(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
+        if workspace.lane_id:
+            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
+            lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
         lines.append("")
         lines.append(_render_constitution_context(repo_root, "review"))
         lines.append("")
@@ -1275,6 +1313,9 @@ def review(
                 print(line)
             print()
         print(f"📍 Workspace: cd {workspace_path}")
+        if workspace.lane_id:
+            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
+            print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
         if review_ctx["base_branch"] != "unknown":
             base = review_ctx["base_branch"]
             print(f"🔀 Branch: {review_ctx['branch_name']} (based on {base}, {review_ctx['commit_count']} commits)")

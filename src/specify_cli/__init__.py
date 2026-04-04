@@ -98,9 +98,11 @@ def main_callback(
 
     # FR-002: Ensure global runtime (~/.kittify/) is populated and current.
     # Must run BEFORE check_version_pin() so global assets are available.
+    from specify_cli.runtime.agent_skills import ensure_global_agent_skills
     from specify_cli.runtime.bootstrap import check_version_pin, ensure_runtime
 
     ensure_runtime()
+    ensure_global_agent_skills()
 
     # F-Pin-001 / 1A-16: Warn on runtime.pin_version for all project invocations.
     project_root = locate_project_root()

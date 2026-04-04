@@ -203,10 +203,10 @@ Pre-flight failed. Fix these issues before merging:
   1. Uncommitted changes in 017-feature-WP02
 ```
 
-**Fix**: Commit or stash changes in that worktree:
+**Fix**: Commit or stash changes in that execution workspace:
 
 ```bash
-cd .worktrees/017-feature-WP02
+cd <workspace path printed by spec-kitty implement>
 git add -A
 git commit -m "Complete WP02 implementation"
 ```
@@ -214,7 +214,7 @@ git commit -m "Complete WP02 implementation"
 Or stash if you're not ready to commit:
 
 ```bash
-cd .worktrees/017-feature-WP02
+cd <workspace path printed by spec-kitty implement>
 git stash
 ```
 
@@ -246,7 +246,7 @@ git checkout main
 git pull
 ```
 
-Then retry the merge from your WP worktree.
+Then retry the merge from any checkout where the feature resolves correctly.
 
 ### Branch Does Not Exist
 
@@ -268,25 +268,25 @@ spec-kitty implement WP02
 | Error Message | Cause | Solution |
 |--------------|-------|----------|
 | `Error: Already on <branch> branch.` | Running merge from target branch without --feature | Use `spec-kitty merge --feature <slug>` |
-| `Error: No WP worktrees found for feature '<slug>'.` | Feature has no worktrees or wrong slug | Check slug, run `spec-kitty agent action implement WP01` |
-| `Cannot merge: WP workspaces not ready` | One or more WP worktrees are not merge-ready | Fix the listed WP errors, then retry merge |
+| `Error: No worktrees found for feature '<slug>'.` | Mission has no execution workspaces or wrong slug | Check slug, run `spec-kitty agent action implement WP01` |
+| `Cannot merge: WP workspaces not ready` | One or more execution workspaces are not merge-ready | Fix the listed workspace errors, then retry merge |
 | `Worktree <name> has uncommitted changes` | Specific worktree has unstaged/uncommitted work | `cd .worktrees/<name>` then commit or stash |
 | `Uncommitted changes in <worktree-name>` | Worktree has uncommitted changes (pre-flight) | Commit or stash changes in that worktree |
 | `Error: Working directory has uncommitted changes.` | Legacy merge run from a dirty worktree | Commit or stash changes, then retry merge |
 | `Target repository at <path> has uncommitted changes.` | Main repo has uncommitted work | Commit or stash in main repo |
-| `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | Expected worktree doesn't exist | Run `spec-kitty agent action implement WP##` |
+| `Missing worktree for WP##. Expected at <path>. Run: spec-kitty agent action implement WP##` | The resolved execution workspace for that WP does not exist yet | Run `spec-kitty agent action implement WP##` |
 | `Branch <branch> does not exist` | Git branch was deleted manually | Recreate worktree with `spec-kitty implement WP##` |
 | `<branch> is N commit(s) behind origin. Run: git checkout <branch> && git pull` | Target branch diverged from origin | Run the suggested git checkout and pull commands |
 | `Warning: Could not fast-forward <branch>.` | Fast-forward failed, conflicts likely | Resolve conflicts manually |
-| `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred (workspace-per-WP) | Resolve conflicts, then `spec-kitty merge --resume` |
+| `Merge failed. Resolve conflicts and try again.` | Git merge conflict occurred in a multi-workspace feature | Resolve conflicts, then `spec-kitty merge --resume` |
 | `Merge failed. You may need to resolve conflicts.` | Git merge conflict occurred (legacy merge) | Resolve conflicts, then re-run merge |
 | `Error: No merge state to resume` | No `.kittify/merge-state.json` exists | Run `spec-kitty merge --feature <slug>` to start a new merge |
 | `⚠ Invalid merge state file cleared` | State file was corrupted | Start fresh with `spec-kitty merge` |
 | `⚠ Git merge in progress - resolve conflicts first` | Unresolved conflict from previous attempt | Resolve conflicts, then `spec-kitty merge --resume` |
 | `No merge state to abort` | No active merge to abort | Nothing to do, merge was already complete or never started |
-| `Note: Rebase strategy not supported for workspace-per-WP.` | Used --strategy rebase with workspace-per-WP | Use `merge` or `squash` strategy instead |
+| `Note: Rebase strategy not supported for workspace-per-WP.` | Used --strategy rebase with a multi-workspace feature | Use `merge` or `squash` strategy instead |
 | `Pre-flight failed. Fix these issues before merging:` | One or more pre-flight checks failed | See numbered list below message, fix each issue |
-| `Warning: No WP worktrees found for feature <slug>` | Feature may be merged or not implemented | Check feature slug, ensure worktrees exist |
+| `Warning: No WP worktrees found for feature <slug>` | Feature may be merged already, not implemented yet, or still using only lane manifests without created worktrees | Check feature slug, then create or inspect the expected execution workspaces |
 
 ---
 

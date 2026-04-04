@@ -38,6 +38,7 @@ from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 def resolve_primary_branch(repo_root: Path) -> str:
@@ -360,13 +361,23 @@ def _check_dependent_warnings(
             continue
 
     if incomplete:
+        current_workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
         console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
         console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
         console.print("\nIf changes are requested during review:")
         console.print("  1. Notify dependent WP agents")
-        console.print("  2. Dependent WPs will need manual rebase after changes")
+        console.print("  2. Dependent workspaces may need to incorporate your changes")
         for dep in incomplete:
-            console.print(f"     cd .worktrees/{feature_slug}-{dep} && git rebase {feature_slug}-{wp_id}")
+            dep_workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, dep)
+            if dep_workspace.branch_name == current_workspace.branch_name:
+                console.print(
+                    f"     {dep}: shares {current_workspace.branch_name} "
+                    "(same lane, no separate rebase command)"
+                )
+            else:
+                console.print(
+                    f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}"
+                )
         console.print()
 
 
@@ -516,7 +527,8 @@ def _validate_ready_for_review(
 
     # Check 2: For software-dev missions, check worktree for implementation commits
     if mission_key == "software-dev":
-        worktree_path = main_repo_root / ".worktrees" / f"{feature_slug}-{wp_id}"
+        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+        worktree_path = workspace.worktree_path
 
         if worktree_path.exists():
             # Check for detached HEAD before other git status checks
@@ -569,13 +581,14 @@ def _validate_ready_for_review(
 
             # Check if worktree branch is behind its base branch
             # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
-            from specify_cli.workspace_context import load_context
             target_branch = get_feature_target_branch(repo_root, feature_slug)
 
             # Resolve actual base: workspace context tracks the real base branch
-            workspace_name = f"{feature_slug}-{wp_id}"
-            ws_context = load_context(main_repo_root, workspace_name)
-            check_branch = ws_context.base_branch if ws_context else target_branch
+            check_branch = (
+                workspace.context.base_branch
+                if workspace.context and workspace.context.base_branch
+                else target_branch
+            )
 
             result = subprocess.run(
                 ["git", "rev-list", "--count", f"HEAD..{check_branch}"],
@@ -723,7 +736,8 @@ def _wp_branch_merged_into_target(
     Returns:
         (is_merged, message)
     """
-    wp_branch = f"{feature_slug}-{wp_id}"
+    workspace = resolve_workspace_for_wp(repo_root, feature_slug, wp_id)
+    wp_branch = workspace.branch_name
 
     branch_exists = subprocess.run(
         ["git", "rev-parse", "--verify", wp_branch],

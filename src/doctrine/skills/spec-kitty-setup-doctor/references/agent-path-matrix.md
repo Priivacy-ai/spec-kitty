@@ -4,21 +4,26 @@ Reference: Framework capability matrix for Spec Kitty 2.0.11+
 
 ## Skill Roots and Wrapper Roots by Agent
 
-| Agent | Key | Installation Class | Skill Root(s) | Wrapper Root |
-|-------|-----|-------------------|---------------|--------------|
-| Claude Code | `claude` | native-root-required | `.claude/skills/` | `.claude/commands/` |
-| GitHub Copilot | `copilot` | shared-root-capable | `.agents/skills/`, `.github/skills/` | `.github/prompts/` |
-| Gemini CLI | `gemini` | shared-root-capable | `.agents/skills/`, `.gemini/skills/` | `.gemini/commands/` |
-| Cursor | `cursor` | shared-root-capable | `.agents/skills/`, `.cursor/skills/` | `.cursor/commands/` |
-| Qwen Code | `qwen` | native-root-required | `.qwen/skills/` | `.qwen/commands/` |
-| opencode | `opencode` | shared-root-capable | `.agents/skills/`, `.opencode/skills/` | `.opencode/command/` |
-| Windsurf | `windsurf` | shared-root-capable | `.agents/skills/`, `.windsurf/skills/` | `.windsurf/workflows/` |
-| Codex CLI | `codex` | shared-root-capable | `.agents/skills/` | `.codex/prompts/` |
-| Kilo Code | `kilocode` | native-root-required | `.kilocode/skills/` | `.kilocode/workflows/` |
-| Auggie CLI | `auggie` | shared-root-capable | `.agents/skills/`, `.augment/skills/` | `.augment/commands/` |
-| Roo Code | `roo` | shared-root-capable | `.agents/skills/`, `.roo/skills/` | `.roo/commands/` |
-| Amazon Q Developer CLI | `q` | wrapper-only | _(none)_ | `.amazonq/prompts/` |
-| Google Antigravity | `antigravity` | shared-root-capable | `.agents/skills/`, `.agent/skills/` | `.agent/workflows/` |
+Canonical Spec Kitty doctrine skills are now managed in the user's home
+directory and projected into project roots as needed. That means a CLI upgrade
+refreshes the canonical pack once under the user home; projects should not need
+fresh per-repo snapshots of `spec-kitty-*` skills.
+
+| Agent | Key | Installation Class | Canonical User Root | Project Skill Root(s) | Wrapper Root |
+|-------|-----|-------------------|---------------------|-----------------------|--------------|
+| Claude Code | `claude` | native-root-required | `~/.claude/skills/` | `.claude/skills/` | `.claude/commands/` |
+| GitHub Copilot | `copilot` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.github/skills/` | `.github/prompts/` |
+| Gemini CLI | `gemini` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.gemini/skills/` | `.gemini/commands/` |
+| Cursor | `cursor` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.cursor/skills/` | `.cursor/commands/` |
+| Qwen Code | `qwen` | native-root-required | `~/.qwen/skills/` | `.qwen/skills/` | `.qwen/commands/` |
+| opencode | `opencode` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.opencode/skills/` | `.opencode/command/` |
+| Windsurf | `windsurf` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.windsurf/skills/` | `.windsurf/workflows/` |
+| Codex CLI | `codex` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/` | `.codex/prompts/` |
+| Kilo Code | `kilocode` | native-root-required | `~/.kilocode/skills/` | `.kilocode/skills/` | `.kilocode/workflows/` |
+| Auggie CLI | `auggie` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.augment/skills/` | `.augment/commands/` |
+| Roo Code | `roo` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.roo/skills/` | `.roo/commands/` |
+| Amazon Q Developer CLI | `q` | wrapper-only | _(none)_ | _(none)_ | `.amazonq/prompts/` |
+| Google Antigravity | `antigravity` | shared-root-capable | `~/.agents/skills/` | `.agents/skills/`, `.agent/skills/` | `.agent/workflows/` |
 
 ## Installation Classes
 
@@ -48,7 +53,10 @@ exclusively through wrapper slash commands in the wrapper root.
 ## Notes
 
 - The shared root `.agents/skills/` is created once and symlinked or referenced
-  by all shared-root-capable agents. This avoids duplicating skill content.
+  by all shared-root-capable agents. The canonical managed copy lives in
+  `~/.agents/skills/`; project roots should project to it rather than snapshot it.
+- Managed canonical files under the user home are read-only. If a project replaces
+  one of its projected files locally, that is treated as drift and can be repaired.
 - Wrapper roots contain slash-command files (e.g., `spec-kitty.implement.md`)
   that agents use for `/spec-kitty.implement` style invocation.
 - When verifying an installation, check the skill root(s) first, then the
