@@ -14,8 +14,8 @@ base_branch: main
 base_commit: f35079bfa725abcac7cfe966c94f83d780374a37
 created_at: '2026-04-04T09:34:46.177609+00:00'
 subtasks: [T001, T002, T003, T004, T005]
-shell_pid: "32339"
-agent: "coordinator"
+shell_pid: "48243"
+agent: "codex"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -218,3 +218,4 @@ No dependencies — this WP can start immediately.
 
 - 2026-04-04T09:34:46Z – coordinator – shell_pid=32339 – Started implementation via workflow command
 - 2026-04-04T09:38:22Z – coordinator – shell_pid=32339 – Ready for review: TrackerProjectConfig evolved with binding_ref, display_label, provider_context, _extra fields. Dual-read is_configured, backward compat, unknown field passthrough. 57 tests pass, ruff clean.
+- 2026-04-04T09:39:08Z – codex – shell_pid=48243 – Started review via workflow command
