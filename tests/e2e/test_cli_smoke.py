@@ -250,9 +250,16 @@ Create a hello module.
             "--json",
         )
 
-        # The implement command may or may not use --json for output.
-        # We check for success by looking at the worktree existing.
-        worktree_dir = repo / ".worktrees" / f"{feature_slug}-WP01"
+        # Parse workspace path from JSON output (supports both lane-based
+        # and legacy WP-per-worktree paths).
+        worktree_dir = repo / ".worktrees" / f"{feature_slug}-WP01"  # fallback
+        if result.returncode == 0 and result.stdout.strip():
+            try:
+                impl_data = json.loads(result.stdout.strip().splitlines()[-1])
+                if "workspace_path" in impl_data:
+                    worktree_dir = repo / impl_data["workspace_path"]
+            except (json.JSONDecodeError, IndexError):
+                pass
 
         if result.returncode != 0:
             # Try without --json (implement might not support it cleanly)

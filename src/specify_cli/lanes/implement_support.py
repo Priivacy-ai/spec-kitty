@@ -118,7 +118,7 @@ def create_lane_workspace(
 
         context = WorkspaceContext(
             wp_id=wp_id,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             worktree_path=str(workspace_path.relative_to(repo_root)),
             branch_name=branch_name,
             base_branch=base_branch,
