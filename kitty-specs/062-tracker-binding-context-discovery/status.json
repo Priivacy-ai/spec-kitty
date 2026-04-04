@@ -1,8 +1,8 @@
 {
-  "event_count": 75,
+  "event_count": 76,
   "feature_slug": "062-tracker-binding-context-discovery",
-  "last_event_id": "01KNC1YFWEGH591TF1GD1TZFTG",
-  "materialized_at": "2026-04-04T10:52:16.143037+00:00",
+  "last_event_id": "01KNC2BXT3H1BM3BQC0CTHK0S1",
+  "materialized_at": "2026-04-04T10:59:36.388098+00:00",
   "summary": {
     "approved": 6,
     "blocked": 0,
@@ -10,8 +10,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "planned": 6
+    "in_progress": 0,
+    "planned": 7
   },
   "work_packages": {
     "WP01": {
@@ -57,11 +57,11 @@
       "last_transition_at": "2026-04-04T10:40:30.726649+00:00"
     },
     "WP07": {
-      "actor": "codex",
+      "actor": "user",
       "force_count": 5,
-      "lane": "in_progress",
-      "last_event_id": "01KNC1YFWEGH591TF1GD1TZFTG",
-      "last_transition_at": "2026-04-04T10:52:16.142479+00:00"
+      "lane": "planned",
+      "last_event_id": "01KNC2BXT3H1BM3BQC0CTHK0S1",
+      "last_transition_at": "2026-04-04T10:59:36.387560+00:00"
     },
     "WP08": {
       "actor": "finalize-tasks",
