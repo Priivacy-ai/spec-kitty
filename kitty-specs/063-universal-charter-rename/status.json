@@ -1,8 +1,8 @@
 {
-  "event_count": 10,
+  "event_count": 12,
   "feature_slug": "063-universal-charter-rename",
-  "last_event_id": "01KND0MKZCTTSKGX46TMZSZB5K",
-  "materialized_at": "2026-04-04T19:48:38.508817+00:00",
+  "last_event_id": "01KND0MP2W3A64EA5Z7R3AXXGK",
+  "materialized_at": "2026-04-04T19:48:40.668565+00:00",
   "mission_slug": "063-universal-charter-rename",
   "summary": {
     "approved": 0,
@@ -11,8 +11,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
-    "planned": 7
+    "in_progress": 2,
+    "planned": 6
   },
   "work_packages": {
     "WP01": {
@@ -23,11 +23,11 @@
       "last_transition_at": "2026-04-04T19:48:38.508633+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KND0KF388BAAWGGA9ATHZ0T9",
-      "last_transition_at": "2026-04-04T19:48:00.744617+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KND0MP2W3A64EA5Z7R3AXXGK",
+      "last_transition_at": "2026-04-04T19:48:40.668247+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
