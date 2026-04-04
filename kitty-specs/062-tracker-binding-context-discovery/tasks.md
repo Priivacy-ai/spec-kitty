@@ -216,12 +216,12 @@ Add `discover()`, update `bind()`, add `status(all=)` to the `TrackerService` di
 
 New `tracker discover --provider <provider>` command with rich table default + `--json`. Numbered rows align with `--select N`.
 
-- [ ] T047: Add discover_command()
-- [ ] T048: Rich table output
-- [ ] T049: --json output
-- [ ] T050: Error handling
-- [ ] T051: Number alignment
-- [ ] T052: Write CLI tests
+- [x] T047: Add discover_command()
+- [x] T048: Rich table output
+- [x] T049: --json output
+- [x] T050: Error handling
+- [x] T051: Number alignment
+- [x] T052: Write CLI tests
 
 #### WP11: CLI Bind Command Update
 **Priority**: High | **Subtasks**: T053-T059 (7) | **~500 lines**
