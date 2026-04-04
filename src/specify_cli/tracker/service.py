@@ -24,6 +24,19 @@ class TrackerServiceError(RuntimeError):
     """Raised when tracker service operations fail."""
 
 
+class StaleBindingError(TrackerServiceError):
+    """Raised when binding_ref is stale (deleted/disabled on host).
+
+    The caller should prompt the user to rebind via
+    ``spec-kitty tracker bind --provider <provider>``.
+    """
+
+    def __init__(self, message: str, *, binding_ref: str, error_code: str) -> None:
+        super().__init__(message)
+        self.binding_ref = binding_ref
+        self.error_code = error_code
+
+
 def parse_kv_pairs(entries: list[str]) -> dict[str, str]:
     """Parse repeated key=value CLI arguments into a dictionary."""
     parsed: dict[str, str] = {}
