@@ -12,7 +12,8 @@ base_branch: main
 base_commit: 67b13f1213ef228677dd06baba7239d4310aa95b
 created_at: '2026-04-04T11:25:29.363157+00:00'
 subtasks: [T060, T061, T062, T063]
-shell_pid: '18365'
+shell_pid: "18365"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -121,3 +122,7 @@ spec-kitty implement WP12 --base WP09
 - Verify --all output is clearly labeled as installation-wide (not confused with project status)
 - Check that default status behavior is completely unchanged
 - Note: File ownership overlaps with WP10 and WP11 (all modify tracker.py). Coordinate merge order.
+
+## Activity Log
+
+- 2026-04-04T11:25:29Z – coordinator – shell_pid=18365 – Started implementation via workflow command
