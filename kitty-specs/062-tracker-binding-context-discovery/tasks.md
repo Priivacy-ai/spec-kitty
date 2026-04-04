@@ -103,11 +103,11 @@ Evolve `TrackerProjectConfig` with `binding_ref`, `display_label`, `provider_con
 
 Create pure data module `tracker/discovery.py` with dataclasses for API response parsing: `BindableResource`, `BindCandidate`, `BindResult`, `ValidationResult`, `ResolutionResult`. No I/O, no terminal interaction.
 
-- [ ] T006: Create BindableResource + BindCandidate
-- [ ] T007: Create BindResult + ValidationResult + ResolutionResult
-- [ ] T008: Add find_candidate_by_position() helper
-- [ ] T009: Write from_api() tests
-- [ ] T010: Write find_candidate tests
+- [x] T006: Create BindableResource + BindCandidate
+- [x] T007: Create BindResult + ValidationResult + ResolutionResult
+- [x] T008: Add find_candidate_by_position() helper
+- [x] T009: Write from_api() tests
+- [x] T010: Write find_candidate tests
 
 #### WP03: Client Error Enrichment
 **Priority**: High | **Subtasks**: T011-T014 (4) | **~300 lines**
