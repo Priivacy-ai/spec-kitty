@@ -11,7 +11,8 @@ base_branch: main
 base_commit: bde753a571652244ab6f1a22b21dc2cf67181529
 created_at: '2026-04-04T10:26:38.922434+00:00'
 subtasks: [T024, T025, T026, T027, T028, T029]
-shell_pid: '4472'
+shell_pid: "4472"
+agent: "coordinator"
 history:
 - date: '2026-04-04T09:10:15Z'
   action: created
@@ -145,3 +146,7 @@ Depends on WP04 (new methods) and WP05 (updated signatures).
 - Verify each test asserts the HTTP method, path, and params/body shape (not just response parsing)
 - Verify `Idempotency-Key` header name (not `X-Idempotency-Key`)
 - Check that binding_ref precedence test verifies project_slug is NOT in the params when binding_ref is provided
+
+## Activity Log
+
+- 2026-04-04T10:26:39Z – coordinator – shell_pid=4472 – Started implementation via workflow command
