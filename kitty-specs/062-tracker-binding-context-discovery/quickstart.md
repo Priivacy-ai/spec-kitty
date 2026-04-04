@@ -101,8 +101,9 @@ python -m pytest tests/sync/tracker/test_discovery.py tests/sync/tracker/test_sa
 
 | File | What |
 |------|------|
-| `src/specify_cli/tracker/config.py` | +binding_ref, +display_label, +provider_context |
-| `src/specify_cli/tracker/discovery.py` | NEW: dataclasses + selection logic |
-| `src/specify_cli/tracker/saas_client.py` | +resources(), +bind_resolve(), +bind_confirm(), +bind_validate() |
-| `src/specify_cli/tracker/saas_service.py` | +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref() |
+| `src/specify_cli/tracker/config.py` | +binding_ref, +display_label, +provider_context, +unknown field passthrough |
+| `src/specify_cli/tracker/discovery.py` | NEW: dataclasses (BindableResource, BindCandidate, etc.) + pure data helpers |
+| `src/specify_cli/tracker/saas_client.py` | +resources(), +bind_resolve(), +bind_confirm(), +bind_validate(); enriched SaaSTrackerClientError; existing methods gain binding_ref param |
+| `src/specify_cli/tracker/saas_service.py` | +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref(), +_resolve_routing_params(), stale-binding detection |
+| `src/specify_cli/tracker/service.py` | TrackerService facade: +discover(), updated bind(), +status(all=) |
 | `src/specify_cli/cli/commands/tracker.py` | +discover command, updated bind, +status --all |

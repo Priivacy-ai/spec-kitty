@@ -45,8 +45,14 @@ tracker:
 
 **Deserialization** (`from_dict()`):
 - Gracefully handles missing `binding_ref`, `display_label`, `provider_context` (pre-062 configs)
-- Unknown fields preserved (forward compatibility)
 - `provider_context` parsed as `dict[str, str]` or `None`
+
+**Unknown field passthrough** (new behavior):
+The current `from_dict()`/`to_dict()` only materializes known fields — any unrecognized keys in the `tracker` YAML section are silently dropped on round-trip. This feature adds passthrough for unknown fields:
+- `from_dict()` captures unrecognized keys into a private `_extra: dict[str, Any]` attribute
+- `to_dict()` merges `_extra` back into the output dict (known fields take precedence on conflict)
+- This prevents data loss when a newer CLI version writes fields that an older version doesn't recognize
+- `save_tracker_config()` already preserves non-`tracker` YAML sections; this extends that guarantee to within the `tracker` section itself
 
 ### BindableResource (new)
 

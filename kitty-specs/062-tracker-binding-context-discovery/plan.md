@@ -44,7 +44,8 @@ kitty-specs/062-tracker-binding-context-discovery/
 │   ├── resources.md
 │   ├── bind-resolve.md
 │   ├── bind-confirm.md
-│   └── bind-validate.md
+│   ├── bind-validate.md
+│   └── existing-endpoint-evolution.md  # binding_ref routing on status/pull/push/run/mappings
 ├── checklists/
 │   └── requirements.md  # Spec quality checklist (complete)
 └── tasks.md             # Phase 2 (/spec-kitty.tasks — NOT created here)
@@ -55,27 +56,36 @@ kitty-specs/062-tracker-binding-context-discovery/
 ```
 src/specify_cli/
 ├── tracker/
-│   ├── config.py              # TrackerProjectConfig: +binding_ref, +display_label, +provider_context
-│   ├── saas_client.py         # SaaSTrackerClient: +resources(), +bind_resolve(), +bind_confirm(), +bind_validate()
-│   ├── saas_service.py        # SaaSTrackerService: +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref()
-│   └── discovery.py           # NEW: BindableResource, BindCandidate dataclasses; selection logic
+│   ├── config.py              # TrackerProjectConfig: +binding_ref, +display_label, +provider_context, +unknown field passthrough
+│   ├── saas_client.py         # SaaSTrackerClient: +resources(), +bind_resolve(), +bind_confirm(), +bind_validate();
+│   │                          #   enriched SaaSTrackerClientError with error_code/details;
+│   │                          #   existing methods gain optional binding_ref param alongside project_slug
+│   ├── saas_service.py        # SaaSTrackerService: +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref(),
+│   │                          #   +_resolve_routing_params(), stale-binding detection from enriched errors
+│   ├── service.py             # TrackerService facade: +discover(), updated bind() for discovery flow, +status(all=)
+│   └── discovery.py           # NEW: dataclasses (BindableResource, BindCandidate, BindResult, etc.);
+│                              #   pure data helpers only (from_api parsing, candidate lookup by sort_position)
 ├── cli/commands/
-│   └── tracker.py             # discover_command(), updated bind_command(), updated status_command(--all)
+│   └── tracker.py             # discover_command(), updated bind_command(), updated status_command(--all);
+│                              #   terminal interaction (numbered display, input prompts, --json rendering)
 └── sync/
     └── project_identity.py    # No changes (consumed as-is)
 
 tests/
 ├── sync/tracker/
-│   ├── test_config.py                 # +binding_ref roundtrip, +legacy compat, +is_configured evolution
-│   ├── test_saas_client.py            # +contract tests for resources(), bind_resolve(), bind_confirm(), bind_validate()
-│   ├── test_saas_service.py           # +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref()
-│   ├── test_discovery.py              # NEW: BindableResource/BindCandidate dataclass tests, selection logic
-│   └── test_saas_client_discovery.py  # NEW: HTTP-level contract tests for 4 new endpoints
+│   ├── test_config.py                 # +binding_ref roundtrip, +legacy compat, +is_configured evolution, +unknown field passthrough
+│   ├── test_saas_client.py            # +enriched error tests (error_code preserved in SaaSTrackerClientError)
+│   ├── test_saas_service.py           # +discover(), +resolve_and_bind(), +_maybe_upgrade_binding_ref(), +stale-binding detection
+│   ├── test_service.py                # +facade discover(), +updated bind(), +status(all=)
+│   ├── test_discovery.py              # NEW: dataclass parsing, candidate lookup, from_api tests
+│   └── test_saas_client_discovery.py  # NEW: HTTP-level contract tests for 4 new endpoints + binding_ref routing on existing endpoints
 └── agent/cli/commands/
     └── test_tracker.py                # +discover command, +updated bind scenarios, +status --all
 ```
 
-**Structure Decision**: All new code lives within the existing `src/specify_cli/tracker/` package. One new module (`discovery.py`) for discovery-specific dataclasses and selection logic, keeping it separate from config persistence and SaaS transport. Tests follow the existing two-directory pattern (`tests/sync/tracker/` for service/client, `tests/agent/cli/commands/` for CLI).
+**Structure Decision**: All new code lives within the existing `src/specify_cli/tracker/` package. One new module (`discovery.py`) for discovery-specific dataclasses and pure data helpers (API response parsing, candidate lookup by `sort_position`). Terminal interaction (numbered display, input prompts, `--json` rendering) stays in the CLI layer (`tracker.py`). The `TrackerService` facade in `service.py` gains new dispatch methods. Tests follow the existing two-directory pattern (`tests/sync/tracker/` for service/client, `tests/agent/cli/commands/` for CLI).
+
+**Module boundary rule for `discovery.py`**: This module contains only dataclasses and pure functions that operate on API response data (parsing, lookup, filtering). It does not import `rich`, `typer`, or any terminal I/O. All interactive behavior (numbered list rendering, user input, `--json` formatting) belongs in `cli/commands/tracker.py`.
 
 ## Architecture
 
@@ -83,30 +93,40 @@ tests/
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  CLI Layer (tracker.py)                                         │
+│  CLI Layer (cli/commands/tracker.py)                             │
 │  discover_command() · bind_command() · status_command()          │
-│  Owns: user prompts, numbered selection, --json output,         │
-│        --bind-ref/--select flags, re-bind confirmation          │
+│  Owns: user prompts, numbered list rendering, --json output,    │
+│        --bind-ref/--select flags, re-bind confirmation,         │
+│        terminal I/O (rich tables, input())                      │
 ├─────────────────────────────────────────────────────────────────┤
-│  Service Layer (saas_service.py)                                │
+│  Facade Layer (tracker/service.py — TrackerService)             │
+│  discover() · bind() · status(all=) · unbind() · sync_*()      │
+│  Owns: SaaS vs local dispatch, provider validation              │
+│  (All CLI commands go through this facade)                      │
+├─────────────────────────────────────────────────────────────────┤
+│  SaaS Service Layer (tracker/saas_service.py)                   │
 │  discover() · resolve_and_bind() · status() · sync_*()         │
 │  Owns: orchestration, config read/write, identity derivation,   │
-│        _maybe_upgrade_binding_ref(), stale-binding detection    │
+│        _maybe_upgrade_binding_ref(), _resolve_routing_params(), │
+│        stale-binding detection (from enriched client errors)    │
 ├─────────────────────────────────────────────────────────────────┤
-│  Discovery Module (discovery.py)                                │
-│  BindableResource · BindCandidate · select_candidate()          │
-│  Owns: dataclasses, candidate parsing, selection-by-position    │
+│  Discovery Module (tracker/discovery.py)                        │
+│  BindableResource · BindCandidate · BindResult · etc.           │
+│  Owns: dataclasses, from_api() parsing, candidate lookup        │
+│  (Pure data helpers only — no terminal I/O, no rich/typer)      │
 ├─────────────────────────────────────────────────────────────────┤
-│  Client Layer (saas_client.py)                                  │
+│  Client Layer (tracker/saas_client.py)                          │
 │  resources() · bind_resolve() · bind_confirm() · bind_validate()│
+│  + existing: status/pull/push/run/mappings (gain binding_ref)   │
 │  Owns: HTTP transport, auth injection, retry, error envelopes   │
+│  SaaSTrackerClientError carries error_code + details (enriched) │
 ├─────────────────────────────────────────────────────────────────┤
-│  Config Layer (config.py)                                       │
+│  Config Layer (tracker/config.py)                               │
 │  TrackerProjectConfig + save/load/clear                         │
-│  Owns: YAML persistence, binding_ref read precedence,           │
-│        backward-compatible from_dict()/to_dict()                │
+│  Owns: YAML persistence, backward-compatible from_dict()/       │
+│        to_dict(), unknown field passthrough                     │
 ├─────────────────────────────────────────────────────────────────┤
-│  Identity Layer (project_identity.py)                           │
+│  Identity Layer (sync/project_identity.py)                      │
 │  ProjectIdentity + ensure_identity()                            │
 │  Owns: local project UUID/slug/node_id derivation               │
 │  (NO CHANGES — consumed as-is)                                  │
@@ -174,6 +194,88 @@ User: tracker status (with stale binding_ref)
      (does NOT fall back to project_slug)
 ```
 
+### Client Error Enrichment (prerequisite for FR-018)
+
+The current `SaaSTrackerClientError` is string-only (`saas_client.py:209`). The service layer needs structured error data to detect stale-binding codes reactively. This is a prerequisite change:
+
+**Current** (string-only):
+```python
+class SaaSTrackerClientError(Exception):
+    pass  # message is the only payload
+```
+
+**Required** (enriched):
+```python
+class SaaSTrackerClientError(Exception):
+    def __init__(
+        self,
+        message: str,
+        *,
+        error_code: str | None = None,
+        status_code: int | None = None,
+        details: dict[str, Any] | None = None,
+        user_action_required: bool = False,
+    ) -> None:
+        super().__init__(message)
+        self.error_code = error_code
+        self.status_code = status_code
+        self.details = details or {}
+        self.user_action_required = user_action_required
+```
+
+The `_request_with_retry` method at line 208-216 is updated to populate these fields from the PRI-12 envelope instead of collapsing to a string. The service layer inspects `error.error_code` for stale-binding classification. This is backward-compatible: existing `except SaaSTrackerClientError as e: str(e)` patterns still work.
+
+### TrackerService Facade Evolution
+
+All CLI commands go through `TrackerService` (`service.py`), which dispatches to `SaaSTrackerService` or `LocalTrackerService`. New methods needed on the facade:
+
+```python
+class TrackerService:
+    def discover(self, *, provider: str) -> list[BindableResource]:
+        """Installation-wide resource discovery (SaaS only)."""
+        # Validates provider is SaaS, instantiates SaaSTrackerService, delegates
+
+    def bind(self, **kwargs) -> TrackerProjectConfig:
+        """Updated: for SaaS, uses discovery flow (resolve_and_bind).
+        --bind-ref and --select are passed through as kwargs."""
+
+    def status(self, *, all: bool = False) -> dict[str, Any]:
+        """Updated: --all delegates to installation-wide status."""
+```
+
+`discover()` is SaaS-only — it raises `TrackerServiceError` for local providers. The updated `bind()` routes SaaS providers to `SaaSTrackerService.resolve_and_bind()` instead of the old `bind(project_slug=...)`. The facade's dispatch logic in `_resolve_backend()` is unchanged for existing operations.
+
+### Existing Endpoint Wire Evolution
+
+The 5 existing client methods (`status`, `pull`, `push`, `run`, `mappings`) currently take `project_slug` as a required positional parameter. They need to support `binding_ref` as an alternative routing key:
+
+**Current signature** (e.g., `status`):
+```python
+def status(self, provider: str, project_slug: str) -> dict[str, Any]:
+```
+
+**Updated signature**:
+```python
+def status(
+    self,
+    provider: str,
+    project_slug: str | None = None,
+    *,
+    binding_ref: str | None = None,
+) -> dict[str, Any]:
+```
+
+**Wire change**: When `binding_ref` is provided, the request sends `binding_ref` instead of `project_slug` in the query params (GET) or body (POST). The SaaS host accepts either key for routing. This is a coordinated contract change: the SaaS team must accept `binding_ref` on existing endpoints alongside `project_slug`.
+
+**Affected methods** (all in `saas_client.py`):
+- `status(provider, project_slug, *, binding_ref)` — GET query param
+- `mappings(provider, project_slug, *, binding_ref)` — GET query param
+- `pull(provider, project_slug, *, binding_ref, limit, cursor, filters)` — POST body
+- `push(provider, project_slug, items, *, binding_ref, idempotency_key)` — POST body
+- `run(provider, project_slug, *, binding_ref, pull_first, limit, idempotency_key)` — POST body
+
+**Contract test requirement**: HTTP-level tests must verify both `project_slug` and `binding_ref` routing variants for each existing endpoint.
+
 ### Routing Key Resolution
 
 The service layer needs a consistent way to resolve which routing key to send to the client. This is a method on the service, not the config:
@@ -188,11 +290,11 @@ _resolve_routing_params() -> dict[str, str]:
         raise TrackerServiceError("No tracker binding configured")
 ```
 
-All existing delegated methods (`status`, `sync_pull`, `sync_push`, `sync_run`, `map_list`) are updated to use `_resolve_routing_params()` instead of directly accessing `self.project_slug`. The client methods gain an optional `binding_ref` parameter alongside the existing `project_slug`.
+All existing delegated methods (`status`, `sync_pull`, `sync_push`, `sync_run`, `map_list`) are updated to use `_resolve_routing_params()` instead of directly accessing `self.project_slug`. The result is spread into each client call as keyword arguments.
 
 ### Error Classification
 
-Stale-binding errors are detected reactively from PRI-12 error envelopes:
+Stale-binding errors are detected reactively from PRI-12 error envelopes (using the enriched `SaaSTrackerClientError`):
 
 | Error code | Meaning | CLI behavior |
 |-----------|---------|-------------|
@@ -212,43 +314,65 @@ These are detected in the service layer after each client call that uses `bindin
 | `tracker discover` output | Rich table default + `--json` flag | Matches CLI patterns; both human and automation audiences |
 | Stale-binding detection | Reactive from endpoint error responses | No extra round-trip; `bind-validate` reserved for `--bind-ref` |
 | `--project-slug` on bind | Removed as user-facing flag | Legacy read compat only; no user-facing fallback per ADR |
-| New discovery module | `tracker/discovery.py` for dataclasses + selection | Keeps config.py focused on persistence; keeps service.py focused on orchestration |
+| New discovery module | `tracker/discovery.py` for dataclasses + selection | Keeps config.py focused on persistence; keeps service.py focused on orchestration; pure data only (no I/O) |
+| Client error enrichment | `SaaSTrackerClientError` gains `error_code`, `status_code`, `details` attrs | Prerequisite for reactive stale-binding detection; backward-compatible with existing `str(e)` callers |
+| Facade evolution | `TrackerService` gains `discover()`, updated `bind()`, `status(all=)` | All CLI commands go through this facade; omitting it would leave the integration seam undefined |
+| Existing endpoint evolution | All 5 client methods gain optional `binding_ref` param | Required for `binding_ref`-primary routing; coordinated SaaS contract change |
+| Config unknown field passthrough | `from_dict()`/`to_dict()` preserve unrecognized keys | Prevents data loss when future config fields are added by newer CLI versions |
+| Idempotency header | `Idempotency-Key` (not `X-Idempotency-Key`) | Matches existing convention in `saas_client.py` push/run/bind_mission_origin |
 
 ## Dependency Graph (Implementation Order)
 
 ```
-WP01: Config model evolution (TrackerProjectConfig)
+Wave 1 (parallel, no inter-dependencies):
+  WP01: Config model evolution (TrackerProjectConfig + unknown field passthrough)
+  WP02: Discovery dataclasses (discovery.py — pure data helpers)
+  WP03: Client error enrichment (SaaSTrackerClientError + _request_with_retry update)
+
+Wave 2 (depends on Wave 1):
+  WP04: SaaS client new methods (resources, bind_resolve, bind_confirm, bind_validate)
+  │     depends on WP02 (discovery types), WP03 (enriched errors)
   │
-  ├── WP02: Discovery dataclasses (discovery.py)
-  │
-  ├── WP03: SaaS client new methods (saas_client.py)
-  │     │
-  │     └── WP04: Client HTTP contract tests
-  │
-  ├── WP05: Service layer (saas_service.py)
-  │     ├── depends on WP01, WP02, WP03
-  │     │
-  │     └── WP06: Service workflow tests
-  │
-  ├── WP07: CLI discover command
-  │     ├── depends on WP05
-  │     │
-  │     └── WP08: CLI bind command update
-  │           ├── depends on WP05
-  │           │
-  │           └── WP09: CLI status --all
-  │                 └── depends on WP05
-  │
-  └── WP10: Integration / acceptance tests
-        └── depends on all above
+  WP05: Existing endpoint evolution (status/pull/push/run/mappings gain binding_ref param)
+        depends on WP03 (enriched errors for stale-binding detection)
+
+Wave 3 (depends on Waves 1-2):
+  WP06: Client HTTP contract tests (new endpoints + binding_ref variants on existing endpoints)
+        depends on WP04, WP05
+
+  WP07: SaaS service layer (saas_service.py — discover, resolve_and_bind,
+        _maybe_upgrade_binding_ref, _resolve_routing_params, stale-binding detection)
+        depends on WP01, WP02, WP04, WP05
+
+Wave 4 (depends on Wave 3):
+  WP08: TrackerService facade (service.py — discover, updated bind, status(all=))
+        depends on WP07
+
+  WP09: Service workflow tests (mock client boundary)
+        depends on WP07
+
+Wave 5 (depends on Wave 4; parallel within wave):
+  WP10: CLI discover command (tracker.py — rich table, --json, numbered display)
+        depends on WP08
+
+  WP11: CLI bind command update (discovery flow, --bind-ref, --select, re-bind confirm)
+        depends on WP08
+
+  WP12: CLI status --all (installation-wide summary)
+        depends on WP08
+
+Wave 6:
+  WP13: Integration / acceptance tests (end-to-end scenarios 1-12)
+        depends on all above
 ```
 
 ### Parallelization Opportunities
 
-- WP01, WP02 can run in parallel (no dependencies between config model and discovery dataclasses)
-- WP03 depends on WP02 (client methods return discovery types) but not WP01
-- WP04 depends only on WP03
-- WP07, WP08, WP09 can run in parallel (all depend on WP05, independent of each other)
+- Wave 1: WP01, WP02, WP03 are fully independent (config model, discovery types, error enrichment)
+- Wave 2: WP04, WP05 can run in parallel (different files, both depend on Wave 1)
+- Wave 3: WP06, WP07 can run in parallel (tests vs service implementation)
+- Wave 5: WP10, WP11, WP12 are fully independent (three CLI commands, all depend on facade)
+- Maximum parallelization: 6 waves instead of 13 sequential steps
 
 ## Complexity Tracking
 

@@ -12,7 +12,7 @@ Headers:
   Authorization: Bearer <access_token>
   X-Team-Slug: <team_slug>
   Content-Type: application/json
-  X-Idempotency-Key: <uuid>
+  Idempotency-Key: <uuid>
 Body:
 {
   "provider": "linear",
@@ -34,7 +34,7 @@ Body:
 | `project_identity.slug` | string | Yes | From ProjectIdentity |
 | `project_identity.node_id` | string | Yes | From ProjectIdentity |
 | `project_identity.repo_slug` | string | No | User override from ProjectIdentity |
-| `X-Idempotency-Key` | header (UUID) | Yes | Prevents duplicate bindings on retry |
+| `Idempotency-Key` | header (UUID) | Yes | Prevents duplicate bindings on retry |
 
 ## Response (200)
 
@@ -88,7 +88,7 @@ def bind_confirm(
 
 - Verify POST method + path `/api/v1/tracker/bind-confirm/`
 - Verify request body includes `provider`, `candidate_token`, `project_identity`
-- Verify `X-Idempotency-Key` header is sent
+- Verify `Idempotency-Key` header is sent
 - Verify idempotency key is auto-generated (UUID4) if not provided
 - Verify response parsed with `binding_ref`, `display_label`, `provider_context`
 - Verify 400 `invalid_candidate_token` raises appropriate error
