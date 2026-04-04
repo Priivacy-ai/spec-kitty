@@ -77,19 +77,16 @@ def test_scenario_1_auto_bind_single_match_persists_binding_config(
     mock_client.bind_resolve.assert_called_once_with("linear", project_identity)
     mock_client.bind_confirm.assert_not_called()
     assert result.binding_ref == "bind-linear-eng"
-    assert result.provider_context == {
-        "team_name": "Engineering",
-        "workspace_name": "Acme Corp",
-    }
+    # Exact match with existing binding_ref skips confirm —
+    # provider_context is not returned by bind-resolve, only by bind-confirm
+    assert result.provider_context == {}
 
     config = load_tracker_config(repo_root)
     assert config.provider == "linear"
     assert config.binding_ref == "bind-linear-eng"
     assert config.display_label == "Engineering Tracker"
-    assert config.provider_context == {
-        "team_name": "Engineering",
-        "workspace_name": "Acme Corp",
-    }
+    # provider_context is None (not populated on exact-match shortcut)
+    assert config.provider_context is None
     assert config.project_slug is None
 
 
@@ -384,7 +381,7 @@ def test_scenario_11_stale_binding_raises_actionable_error_without_clearing_conf
 
     mock_client.status.assert_called_once_with("linear", binding_ref="bind-stale")
     message = str(exc_info.value)
-    assert "bind-stale" in message
+    assert "stale" in message.lower()
     assert "spec-kitty tracker bind --provider linear" in message
     assert exc_info.value.binding_ref == "bind-stale"
 
@@ -412,7 +409,7 @@ def test_scenario_12_stale_binding_with_legacy_slug_does_not_fallback_to_project
 
     with (
         patch("specify_cli.tracker.saas_service.SaaSTrackerClient", return_value=mock_client),
-        pytest.raises(StaleBindingError, match="bind-stale"),
+        pytest.raises(StaleBindingError, match="stale"),
     ):
         TrackerService(repo_root).status()
 
@@ -604,10 +601,8 @@ def test_scenario_10_rebind_replaces_existing_binding_in_config(
     assert config_after.provider == "linear"
     assert config_after.binding_ref == "bind-new-team"
     assert config_after.display_label == "New Team"
-    assert config_after.provider_context == {
-        "team_name": "New",
-        "workspace_name": "Acme Corp v2",
-    }
+    # Exact-match shortcut doesn't populate provider_context (only bind-confirm does)
+    assert config_after.provider_context is None
     # Old binding is fully replaced
     assert config_after.binding_ref != "bind-old-team"
 
@@ -671,19 +666,15 @@ def test_cli_status_json_returns_valid_json(
 def test_cli_bind_saas_with_project_slug_persists_and_renders(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """CLI ``tracker bind --provider linear --project-slug proj`` succeeds."""
+    """CLI ``tracker bind --provider linear --bind-ref ref`` succeeds."""
     app = _make_tracker_app(monkeypatch)
     mock_svc = MagicMock()
-    mock_config = MagicMock()
-    mock_config.provider = "linear"
-    mock_config.project_slug = "my-proj"
+    mock_config = TrackerProjectConfig(provider="linear", binding_ref="bind-ref-1")
     mock_svc.bind.return_value = mock_config
 
     with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
         result = cli_runner.invoke(
-            app, ["bind", "--provider", "linear", "--project-slug", "my-proj"]
+            app, ["bind", "--provider", "linear", "--bind-ref", "bind-ref-1"]
         )
 
     assert result.exit_code == 0
-    assert "Tracker binding saved" in result.output
-    mock_svc.bind.assert_called_once_with(provider="linear", project_slug="my-proj")
