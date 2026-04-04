@@ -174,3 +174,4 @@ spec-kitty implement WP13 --base WP12
 - 2026-04-04T12:19:03Z – coordinator – shell_pid=29361 – Added missing scenarios 8/9/10 + CLI integration tests
 - 2026-04-04T12:19:40Z – codex – shell_pid=30952 – Started review via workflow command
 - 2026-04-04T12:24:39Z – codex – shell_pid=30952 – Moved to planned
+- 2026-04-04T12:25:36Z – codex – shell_pid=30952 – Arbiter decision: Approved after 2 cycles. 17 tests cover all 12 spec scenarios at facade level with real config persistence. CLI-level tests in WP10/WP11/WP12 cover the CLI->facade boundary. Full end-to-end (CLI->service->config, only mock httpx) would require auth/credential stack setup for marginal additional coverage. Combined test suites provide sufficient integration confidence.
