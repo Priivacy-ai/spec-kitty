@@ -916,6 +916,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: "[ENFORCED] Materialize effective Sonar config"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          tmp_file="$(mktemp)"
+
+          if [ -f sonar-project.properties ]; then
+            grep -v '^sonar\.organization=' sonar-project.properties \
+              | grep -v '^sonar\.projectKey=' \
+              > "$tmp_file"
+          fi
+
+          {
+            echo "sonar.organization=${{ steps.sonar_settings.outputs.organization }}"
+            echo "sonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}"
+            echo "sonar.branch.name=${{ github.head_ref || github.ref_name }}"
+          } >> "$tmp_file"
+
+          mv "$tmp_file" sonar-project.properties
       - name: "[ENFORCED] Download fast-tests coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests.result == 'success' || needs.fast-tests.result == 'failure')
         uses: actions/download-artifact@v4
