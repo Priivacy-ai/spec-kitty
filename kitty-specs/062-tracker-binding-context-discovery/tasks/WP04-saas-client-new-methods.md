@@ -201,3 +201,4 @@ Depends on WP02 (discovery types) and WP03 (enriched errors). Use WP03 as base s
 - 2026-04-04T10:06:35Z – coordinator – shell_pid=13966 – Started implementation via workflow command
 - 2026-04-04T10:08:34Z – coordinator – shell_pid=13966 – Ready for review: 4 new methods (resources, bind_resolve, bind_confirm, bind_validate) and 4 path constants added to SaaSTrackerClient
 - 2026-04-04T10:09:00Z – codex – shell_pid=22788 – Started review via workflow command
+- 2026-04-04T10:14:49Z – codex – shell_pid=22788 – Moved to planned
