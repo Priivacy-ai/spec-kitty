@@ -12,6 +12,8 @@ import json
 from typing import Any
 
 import typer
+from rich.console import Console
+from rich.table import Table
 
 from specify_cli.tracker.config import (
     LOCAL_PROVIDERS,
@@ -112,6 +114,79 @@ def providers_command(
             typer.echo(f"    - {p}")
 
     _run_or_exit(_run)
+
+
+# ---------------------------------------------------------------------------
+# discover
+# ---------------------------------------------------------------------------
+
+
+@app.command("discover")
+def discover_command(
+    provider: str = typer.Option(..., "--provider", help="Provider name"),
+    json_output: bool = typer.Option(False, "--json", help="Output as JSON"),
+) -> None:
+    """Discover bindable tracker resources under your installation.
+
+    Lists all resources (projects, teams, boards) available for binding
+    with the specified provider.  Each row is numbered 1-indexed to align
+    with ``tracker bind --select N``.
+    """
+    normalized = normalize_provider(provider)
+
+    try:
+        resources = _service().discover(provider=normalized)
+    except TrackerServiceError as exc:
+        typer.echo(f"Error: {exc}", err=True)
+        raise typer.Exit(1) from exc
+
+    if not resources:
+        typer.echo(f"No bindable resources found for provider '{normalized}'.")
+        typer.echo("Verify the tracker is connected in the SaaS dashboard.")
+        raise typer.Exit(0)
+
+    if json_output:
+        # Full payload, no truncation — all BindableResource fields included
+        output = [
+            {
+                "number": idx + 1,
+                "candidate_token": r.candidate_token,
+                "display_label": r.display_label,
+                "provider": r.provider,
+                "provider_context": r.provider_context,
+                "binding_ref": r.binding_ref,
+                "bound_project_slug": r.bound_project_slug,
+                "bound_at": r.bound_at,
+                "is_bound": r.is_bound,
+            }
+            for idx, r in enumerate(resources)
+        ]
+        typer.echo(json.dumps(output, indent=2, default=str))
+        return
+
+    # Rich table output — numbered rows for alignment with --select N.
+    # Numbering is 1-indexed: discover row N corresponds to --select N
+    # because discover lists resources in host-returned order and
+    # --select N maps to the Nth item (1-based).
+    console = Console()
+    table = Table(title="Bindable Resources")
+    table.add_column("#", justify="right", style="cyan", no_wrap=True)
+    table.add_column("Resource", style="bold")
+    table.add_column("Provider")
+    table.add_column("Workspace")
+    table.add_column("Status")
+
+    for idx, r in enumerate(resources):
+        status = "bound" if r.is_bound else "available"
+        table.add_row(
+            str(idx + 1),
+            r.display_label,
+            r.provider,
+            r.provider_context.get("workspace_name", ""),
+            status,
+        )
+
+    console.print(table)
 
 
 # ---------------------------------------------------------------------------
