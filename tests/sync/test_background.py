@@ -101,6 +101,32 @@ class TestStartStop:
         assert service._timer.daemon is True
         service.stop()
 
+    def test_wake_reschedules_timer(self, service: BackgroundSyncService, monkeypatch):
+        """wake() cancels the existing timer and schedules an earlier tick."""
+        intervals: list[float] = []
+
+        class FakeTimer:
+            def __init__(self, interval, callback):
+                del callback
+                intervals.append(interval)
+                self.daemon = False
+
+            def start(self):
+                return None
+
+            def cancel(self):
+                intervals.append(-1.0)
+
+        monkeypatch.setattr("specify_cli.sync.background.threading.Timer", FakeTimer)
+
+        service.start()
+        service.wake(delay_seconds=0.25)
+
+        assert intervals[0] == service.sync_interval_seconds
+        assert -1.0 in intervals
+        assert intervals[-1] == 0.25
+        service.stop()
+
 
 class TestExponentialBackoff:
     """Test backoff on sync failure."""

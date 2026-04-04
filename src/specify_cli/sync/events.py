@@ -11,14 +11,113 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 import threading
+import json
+import urllib.parse
+import urllib.request
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
+
+from .feature_flags import is_saas_sync_enabled
 
 if TYPE_CHECKING:
     from .emitter import EventEmitter
 
 _emitter: EventEmitter | None = None
 _lock = threading.Lock()
+logger = logging.getLogger(__name__)
+
+
+def _resolve_repo_root() -> Path | None:
+    """Resolve the current repo root, or None outside project context."""
+    try:
+        from specify_cli.tasks_support import TaskCliError, find_repo_root
+
+        return find_repo_root()
+    except TaskCliError:
+        logger.debug("Non-project context; repo root unavailable for sync daemon")
+        return None
+
+
+def _ensure_dashboard_sync_daemon(repo_root: Path | None) -> None:
+    """Keep the machine-global sync daemon alive for authenticated sync sessions."""
+    if repo_root is None or not is_saas_sync_enabled():
+        return
+
+    if not (repo_root / ".kittify").is_dir():
+        return
+
+    try:
+        from .auth import AuthClient
+
+        if not AuthClient().is_authenticated():
+            return
+    except Exception as exc:
+        logger.debug("Skipping dashboard daemon health check: %s", exc)
+        return
+
+    try:
+        from .daemon import ensure_sync_daemon_running
+
+        ensure_sync_daemon_running()
+    except Exception as exc:
+        logger.warning("Could not ensure global sync daemon: %s", exc)
+
+
+def _ensure_dashboard_sync_daemon_for_active_project() -> Path | None:
+    """Resolve the active project and keep its dashboard daemon healthy."""
+    repo_root = _resolve_repo_root()
+    _ensure_dashboard_sync_daemon(repo_root)
+    return repo_root
+
+
+def _request_dashboard_sync(repo_root: Path | None) -> None:
+    """Ask the machine-global sync daemon to flush queued work soon."""
+    if repo_root is None or not is_saas_sync_enabled():
+        return
+
+    try:
+        from .daemon import get_sync_daemon_status
+
+        status = get_sync_daemon_status(timeout=0.2)
+        if not status.healthy or not status.url:
+            return
+
+        trigger_url = f"{status.url.rstrip('/')}/api/sync/trigger"
+        if status.token:
+            trigger_url = f"{trigger_url}?token={urllib.parse.quote(status.token)}"
+
+        with urllib.request.urlopen(trigger_url, timeout=0.2) as response:
+            if response.status not in {200, 202}:
+                logger.debug("Dashboard sync trigger returned HTTP %s", response.status)
+    except Exception as exc:
+        logger.debug("Dashboard sync trigger skipped: %s", exc)
+
+
+def _publish_event_via_sync_daemon(event: dict[str, Any], repo_root: Path | None) -> None:
+    """Best-effort real-time publish through the machine-global sync daemon."""
+    if repo_root is None or not is_saas_sync_enabled():
+        return
+
+    try:
+        from .daemon import get_sync_daemon_status
+
+        status = get_sync_daemon_status(timeout=0.2)
+        if not status.healthy or not status.url or not status.token:
+            return
+
+        request = urllib.request.Request(
+            f"{status.url.rstrip('/')}/api/sync/publish",
+            data=json.dumps({"token": status.token, "event": event}).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=0.5) as response:
+            if response.status not in {200, 202}:
+                logger.debug("Sync daemon publish returned HTTP %s", response.status)
+    except Exception as exc:
+        logger.debug("Sync daemon publish skipped: %s", exc)
 
 
 def get_emitter() -> EventEmitter:
@@ -29,31 +128,20 @@ def get_emitter() -> EventEmitter:
 
     Also ensures project identity exists before creating the emitter,
     logging a warning (but not failing) if identity can't be resolved.
-
-    Starting with WP04: Triggers SyncRuntime startup on first access,
-    which starts BackgroundSyncService and optionally WebSocket connection.
     """
     global _emitter
     if _emitter is None:
         with _lock:
             if _emitter is None:
-                # Start runtime before creating emitter (lazy singleton)
-                from .runtime import get_runtime
-
-                runtime = get_runtime()  # Auto-starts BackgroundSyncService + optional WS
+                repo_root = _resolve_repo_root()
 
                 # Ensure identity exists before creating emitter
-                import logging
-
-                logger = logging.getLogger(__name__)
                 try:
                     from .project_identity import ensure_identity
-                    from specify_cli.tasks_support import find_repo_root, TaskCliError
 
-                    try:
-                        repo_root = find_repo_root()
+                    if repo_root is not None:
                         ensure_identity(repo_root)
-                    except TaskCliError:
+                    else:
                         logger.debug("Non-project context; identity will be empty")
                 except Exception as e:
                     logger.warning(f"Could not ensure identity: {e}")
@@ -61,9 +149,6 @@ def get_emitter() -> EventEmitter:
                 from .emitter import EventEmitter
 
                 _emitter = EventEmitter()
-
-                # Wire emitter to runtime for WebSocket injection
-                runtime.attach_emitter(_emitter)
     return _emitter
 
 
@@ -87,7 +172,8 @@ def emit_wp_status_changed(
     policy_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPStatusChanged event via singleton."""
-    return get_emitter().emit_wp_status_changed(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_wp_status_changed(
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -96,6 +182,10 @@ def emit_wp_status_changed(
         causation_id=causation_id,
         policy_metadata=policy_metadata,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_wp_created(
@@ -106,13 +196,18 @@ def emit_wp_created(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPCreated event via singleton."""
-    return get_emitter().emit_wp_created(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_wp_created(
         wp_id=wp_id,
         title=title,
         feature_slug=feature_slug,
         dependencies=dependencies,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_wp_assigned(
@@ -123,13 +218,18 @@ def emit_wp_assigned(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit WPAssigned event via singleton."""
-    return get_emitter().emit_wp_assigned(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_wp_assigned(
         wp_id=wp_id,
         agent_id=agent_id,
         phase=phase,
         retry_count=retry_count,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_feature_created(
@@ -141,7 +241,8 @@ def emit_feature_created(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit FeatureCreated event via singleton."""
-    return get_emitter().emit_feature_created(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_feature_created(
         feature_slug=feature_slug,
         feature_number=feature_number,
         target_branch=target_branch,
@@ -149,6 +250,10 @@ def emit_feature_created(
         created_at=created_at,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_feature_completed(
@@ -159,13 +264,18 @@ def emit_feature_completed(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit FeatureCompleted event via singleton."""
-    return get_emitter().emit_feature_completed(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_feature_completed(
         feature_slug=feature_slug,
         total_wps=total_wps,
         completed_at=completed_at,
         total_duration=total_duration,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_history_added(
@@ -176,13 +286,18 @@ def emit_history_added(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit HistoryAdded event via singleton."""
-    return get_emitter().emit_history_added(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_history_added(
         wp_id=wp_id,
         entry_type=entry_type,
         entry_content=entry_content,
         author=author,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_error_logged(
@@ -194,7 +309,8 @@ def emit_error_logged(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit ErrorLogged event via singleton."""
-    return get_emitter().emit_error_logged(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_error_logged(
         error_type=error_type,
         error_message=error_message,
         wp_id=wp_id,
@@ -202,6 +318,10 @@ def emit_error_logged(
         agent_id=agent_id,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event
 
 
 def emit_dependency_resolved(
@@ -211,9 +331,14 @@ def emit_dependency_resolved(
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit DependencyResolved event via singleton."""
-    return get_emitter().emit_dependency_resolved(
+    repo_root = _ensure_dashboard_sync_daemon_for_active_project()
+    event = get_emitter().emit_dependency_resolved(
         wp_id=wp_id,
         dependency_wp_id=dependency_wp_id,
         resolution_type=resolution_type,
         causation_id=causation_id,
     )
+    if event is not None:
+        _publish_event_via_sync_daemon(event, repo_root)
+        _request_dashboard_sync(repo_root)
+    return event

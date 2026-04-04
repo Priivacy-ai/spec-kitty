@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 import socket
 import subprocess
 import sys
@@ -14,6 +15,8 @@ from typing import Optional, Tuple
 from .handlers.router import DashboardRouter
 
 __all__ = ["find_free_port", "start_dashboard", "run_dashboard_server"]
+
+logger = logging.getLogger(__name__)
 
 
 def find_free_port(start_port: int = 9237, max_attempts: int = 100) -> int:
@@ -57,6 +60,13 @@ def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> typ
 
 def run_dashboard_server(project_dir: Path, port: int, project_token: Optional[str]) -> None:
     """Run the dashboard server forever (used by detached child processes)."""
+    try:
+        from specify_cli.sync.daemon import ensure_sync_daemon_running
+
+        ensure_sync_daemon_running()
+    except Exception as exc:  # pragma: no cover - defensive fallback
+        logger.warning("Global sync daemon failed to start: %s", exc)
+
     handler_class = _build_handler_class(project_dir, project_token)
     server = HTTPServer(('127.0.0.1', port), handler_class)
     server.serve_forever()

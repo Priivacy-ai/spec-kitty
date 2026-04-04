@@ -22,6 +22,10 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
             self.handle_shutdown()
             return
 
+        if path == '/api/sync/trigger':
+            self.handle_sync_trigger()
+            return
+
         self.send_response(404)
         self.end_headers()
 
@@ -39,6 +43,10 @@ class DashboardRouter(APIHandler, FeatureHandler, StaticHandler):
 
         if path == '/api/shutdown':
             self.handle_shutdown()
+            return
+
+        if path == '/api/sync/trigger':
+            self.handle_sync_trigger()
             return
 
         if path == '/api/features':

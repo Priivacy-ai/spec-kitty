@@ -1,7 +1,7 @@
 """Dashboard package public API."""
 
 from .diagnostics import run_diagnostics
-from .lifecycle import ensure_dashboard_running, stop_dashboard
+from .lifecycle import DashboardStatus, ensure_dashboard_running, get_dashboard_status, stop_dashboard
 from .scanner import (
     format_path_for_display,
     get_feature_artifacts,
@@ -14,6 +14,8 @@ from .server import find_free_port, run_dashboard_server, start_dashboard
 
 __all__ = [
     "ensure_dashboard_running",
+    "get_dashboard_status",
+    "DashboardStatus",
     "stop_dashboard",
     "find_free_port",
     "start_dashboard",

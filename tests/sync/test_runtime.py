@@ -259,6 +259,8 @@ class TestUnauthenticatedBehavior:
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
         mock_ws = MagicMock()
+        mock_connect_coro = MagicMock()
+        mock_ws.connect.return_value = mock_connect_coro
 
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
@@ -275,20 +277,24 @@ class TestUnauthenticatedBehavior:
                         mock_config.get_server_url.return_value = "https://example.com"
                         mock_config_class.return_value = mock_config
 
-                        # Synchronous context: no running loop, no auto-connect.
+                        # Daemon runtime creates its own async loop and schedules connect.
                         with (
-                            patch("asyncio.get_running_loop", side_effect=RuntimeError),
-                            patch("asyncio.ensure_future") as mock_ensure_future,
+                            patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
+                            patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                         ):
+                            def fake_ensure_loop():
+                                runtime._async_loop = MagicMock()
+
                             runtime = SyncRuntime()
+                            mock_ensure_loop.side_effect = fake_ensure_loop
                             runtime.start()
 
                             mock_ws_class.assert_called_once()
                             assert runtime.ws_client is mock_ws
-                            mock_ensure_future.assert_not_called()
+                            mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
 
-    def test_websocket_connect_scheduled_with_running_loop(self, tmp_path, monkeypatch):
-        """When an event loop is running, runtime schedules async connect."""
+    def test_websocket_connect_scheduled_on_daemon_loop(self, tmp_path, monkeypatch):
+        """Runtime should schedule async connect on its dedicated daemon loop."""
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
         mock_ws = MagicMock()
@@ -309,11 +315,15 @@ class TestUnauthenticatedBehavior:
                         mock_config_class.return_value = mock_config
 
                         with (
-                            patch("asyncio.get_running_loop", return_value=MagicMock()),
-                            patch("asyncio.ensure_future") as mock_ensure_future,
+                            patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
+                            patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
                         ):
+                            def fake_ensure_loop():
+                                runtime._async_loop = MagicMock()
+
                             runtime = SyncRuntime()
+                            mock_ensure_loop.side_effect = fake_ensure_loop
                             runtime.start()
 
                             mock_ws_class.assert_called_once()
-                            mock_ensure_future.assert_called_once_with(mock_connect_coro)
+                            mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
