@@ -27,6 +27,7 @@ class ManagedFileEntry:
     agent_key: str  # "claude", "codex", etc.
     content_hash: str  # "sha256:<hex>"
     installed_at: str  # ISO 8601 UTC
+    delivery_mode: str = "copy"  # "copy" or "symlink"
 
 
 @dataclass
@@ -90,7 +91,12 @@ def load_manifest(project_path: Path) -> ManagedSkillManifest | None:
     try:
         raw = target.read_text(encoding="utf-8")
         data = json.loads(raw)
-        entries = [ManagedFileEntry(**e) for e in data.get("entries", [])]
+        entries = []
+        for entry_data in data.get("entries", []):
+            if "delivery_mode" not in entry_data:
+                entry_data = dict(entry_data)
+                entry_data["delivery_mode"] = "copy"
+            entries.append(ManagedFileEntry(**entry_data))
         return ManagedSkillManifest(
             version=data.get("version", 1),
             created_at=data.get("created_at", ""),

@@ -231,7 +231,8 @@ def test_drift_detection_and_repair(tmp_path: Path) -> None:
     original_hash = compute_content_hash(installed_file)
     assert entries[0].content_hash == original_hash
 
-    # Modify the installed file (simulate user edit / drift)
+    # Replace the project projection (simulate a local override / drift)
+    installed_file.unlink()
     installed_file.write_text("User modified this content!", encoding="utf-8")
     modified_hash = compute_content_hash(installed_file)
     assert modified_hash != original_hash
