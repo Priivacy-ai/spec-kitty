@@ -1,6 +1,0 @@
-version: 1
-source_id: command-templates
-source_name: "Doctrine Command Templates"
-source_type: "repository-doc"
-owner: "governance"
-notes: "Git/commit workflow practices extracted from doctrine command templates."

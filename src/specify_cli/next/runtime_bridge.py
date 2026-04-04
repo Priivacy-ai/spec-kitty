@@ -525,11 +525,17 @@ def answer_decision_via_runtime(
     answer: str,
     agent: str,
     repo_root: Path,
+    *,
+    actor_type: str = "human",
 ) -> None:
-    """Answer a pending decision."""
+    """Answer a pending decision.
+
+    CLI answers are human-authored by default even though the command still
+    carries an ``--agent`` identity for the surrounding mission loop.
+    """
     mission_key = get_feature_mission_key(repo_root / "kitty-specs" / feature_slug)
     run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
-    actor = ActorIdentity(actor_id=agent, actor_type="llm")
+    actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
         run_ref, decision_id, answer, actor,
         emitter=NullEmitter(),

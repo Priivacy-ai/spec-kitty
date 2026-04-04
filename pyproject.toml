@@ -135,6 +135,7 @@ artifacts = [
 [tool.hatch.build.targets.sdist]
 include = [
     "src/**/*",
+    "src/doctrine/curation/imports/**/*",
     "README.md",
     "LICENSE",
     "CHANGELOG.md",

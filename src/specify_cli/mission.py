@@ -38,6 +38,7 @@ MISSION_ROOT_FIELDS: tuple[str, ...] = (
     "agent_context",
     "task_metadata",
     "commands",
+    "task_types",
 )
 
 # Hybrid mission configs produced by older generators may include v1 state-machine
@@ -107,6 +108,15 @@ class CommandConfig(BaseModel):
     prompt: str = Field(..., description="Command-specific prompt/description")
 
 
+class TaskTypeConfig(BaseModel):
+    """Task type metadata used for agent-profile suggestion and task routing."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    agent_role: Optional[str] = Field(default=None, description="Suggested agent role/profile")
+    description: Optional[str] = Field(default=None, description="Human-readable task type description")
+
+
 class TaskMetadataConfig(BaseModel):
     """Task metadata definitions."""
 
@@ -138,6 +148,10 @@ class MissionConfig(BaseModel):
     agent_context: Optional[str] = Field(default=None, description="Agent instructions/personality")
     task_metadata: Optional[TaskMetadataConfig] = Field(default=None, description="Task metadata definitions")
     commands: Optional[Dict[str, CommandConfig]] = Field(default=None, description="Command-specific prompts")
+    task_types: Optional[Dict[str, TaskTypeConfig]] = Field(
+        default=None,
+        description="Task type metadata for routing/profile suggestion",
+    )
 
     def model_post_init(self, __context: Any) -> None:  # pragma: no cover - simple warning logic
         """Warn on unknown path convention keys while permitting customization."""

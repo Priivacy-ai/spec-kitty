@@ -22,11 +22,15 @@ from typing import Optional
 
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
+from specify_cli.frontmatter import read_frontmatter as _read_frontmatter_compat
+from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
 from specify_cli.workspace_context import (
-    build_feature_context_index,
+    list_contexts as _list_workspace_contexts,
     resolve_workspace_for_wp,
 )
-from specify_cli.frontmatter import read_frontmatter
+
+# Legacy patch seam kept for tests that monkeypatch this module attribute directly.
+read_frontmatter = _read_frontmatter_compat
 
 
 @dataclass
@@ -69,6 +73,55 @@ class FeatureTopology:
         if entry and entry.base_branch:
             return entry.base_branch
         return self.target_branch
+
+
+def list_contexts(repo_root: Path, feature_slug: str) -> list[object]:
+    """Return workspace contexts for a feature.
+
+    This compatibility shim preserves the older ``worktree_topology.list_contexts``
+    seam used by tests and callers while the canonical storage lives in
+    ``specify_cli.workspace_context``.
+    """
+    return [
+        context
+        for context in _list_workspace_contexts(repo_root)
+        if getattr(context, "feature_slug", None) == feature_slug
+    ]
+
+
+def _build_feature_context_index_from_contexts(contexts: list[object]) -> dict[str, object]:
+    """Index feature contexts by WP ID, expanding lane contexts when present."""
+    index: dict[str, object] = {}
+    for context in contexts:
+        lane_wp_ids = getattr(context, "lane_wp_ids", None)
+        if not isinstance(lane_wp_ids, list):
+            lane_wp_ids = []
+        for lane_wp_id in lane_wp_ids:
+            if isinstance(lane_wp_id, str) and lane_wp_id:
+                index.setdefault(lane_wp_id, context)
+
+        current_wp = getattr(context, "current_wp", None)
+        if isinstance(current_wp, str) and current_wp:
+            index[current_wp] = context
+
+        wp_id = getattr(context, "wp_id", None)
+        if isinstance(wp_id, str) and wp_id:
+            index.setdefault(wp_id, context)
+
+    return index
+
+
+def _read_canonical_lane_or_default(feature_dir: Path, wp_id: str) -> str:
+    """Read the canonical lane, falling back only when status is unbootstrapped."""
+    try:
+        lane = get_wp_lane(feature_dir, wp_id)
+    except CanonicalStatusNotFoundError:
+        return "planned"
+    except Exception:
+        return "planned"
+    if lane == "uninitialized":
+        return "planned"
+    return lane
 
 
 def _resolve_base_wp(
@@ -147,7 +200,9 @@ def materialize_worktree_topology(
         topo_order = sorted(graph.keys())
 
     # Build WP branch map from workspace contexts, expanding lane contexts.
-    feature_contexts = build_feature_context_index(main_repo_root, feature_slug)
+    feature_contexts = _build_feature_context_index_from_contexts(
+        list_contexts(main_repo_root, feature_slug)
+    )
 
     # Map WP ID -> branch name for base resolution
     wp_branches: dict[str, str] = {}
@@ -177,7 +232,7 @@ def materialize_worktree_topology(
         branch_name = ctx.branch_name if ctx else None
         base_branch = ctx.base_branch if ctx else None
         dependencies = graph.get(wp_id, [])
-        lane = wp_lanes.get(wp_id, "planned")
+        lane = wp_lanes.get(wp_id, _read_canonical_lane_or_default(feature_dir, wp_id))
 
         # Determine if base is another WP
         base_wp = None

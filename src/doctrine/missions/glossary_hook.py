@@ -37,6 +37,7 @@ is present.
 from __future__ import annotations
 
 import logging
+from importlib import import_module
 from pathlib import Path
 from typing import Any
 from collections.abc import Callable
@@ -129,8 +130,8 @@ def execute_with_glossary(
         # directly before specify_cli.glossary has had a chance to register
         # the concrete runner into the kernel registry.
         try:
-            from specify_cli.glossary.attachment import GlossaryAwarePrimitiveRunner
-
+            module = import_module("specify_cli.glossary.attachment")
+            GlossaryAwarePrimitiveRunner = getattr(module, "GlossaryAwarePrimitiveRunner")
             register(GlossaryAwarePrimitiveRunner)
             runner_cls = get_runner()
         except Exception:

@@ -13,10 +13,16 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+import specify_cli.status.emit as emit_module
+from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.emit import (
     TransitionError,
     _build_done_evidence,
     _derive_from_lane,
+    _find_wp_file,
+    _legacy_alias_collapses_to_current_lane,
+    _mirror_phase1_frontmatter_lane,
+    _phase1_dual_write_enabled,
     _saas_fan_out,
     emit_status_transition,
 )
@@ -669,6 +675,159 @@ class TestDoneEvidence:
         # Verify no done event was persisted (only 3 prior events)
         events = read_events(feature_dir)
         assert len(events) == 3
+
+
+class TestPhase1CompatibilityBridge:
+    def test_phase1_dual_write_disabled_on_invalid_meta(
+        self,
+        feature_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.setattr(
+            emit_module,
+            "load_meta",
+            lambda feature_dir: (_ for _ in ()).throw(ValueError("bad meta")),
+        )
+
+        with caplog.at_level("WARNING"):
+            assert _phase1_dual_write_enabled(feature_dir) is False
+
+        assert "Invalid meta.json" in caplog.text
+
+    def test_find_wp_file_handles_missing_tasks_and_multiple_matches(
+        self,
+        feature_dir: Path,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        assert _find_wp_file(feature_dir, "WP01") is None
+
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-alpha.md").write_text("# WP01\n", encoding="utf-8")
+        (tasks_dir / "WP01-beta.md").write_text("# WP01\n", encoding="utf-8")
+
+        with caplog.at_level("WARNING"):
+            assert _find_wp_file(feature_dir, "WP01") is None
+
+        assert "Multiple work package files matched" in caplog.text
+
+    def test_mirror_phase1_frontmatter_lane_skips_missing_lane_field(
+        self,
+        feature_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        wp_file = feature_dir / "tasks" / "WP01.md"
+        wp_file.parent.mkdir()
+        wp_file.write_text("---\nowner: test\n---\n", encoding="utf-8")
+
+        write_mock = MagicMock()
+        monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
+        monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"owner": "test"}, "body"))
+        monkeypatch.setattr(emit_module, "write_frontmatter", write_mock)
+
+        _mirror_phase1_frontmatter_lane(feature_dir, "WP01", "for_review")
+
+        write_mock.assert_not_called()
+
+    def test_mirror_phase1_frontmatter_lane_handles_frontmatter_read_and_write_errors(
+        self,
+        feature_dir: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        wp_file = feature_dir / "tasks" / "WP01.md"
+        wp_file.parent.mkdir()
+        wp_file.write_text("---\nlane: planned\n---\n", encoding="utf-8")
+
+        monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
+        monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
+
+        monkeypatch.setattr(
+            emit_module,
+            "read_frontmatter",
+            lambda path: (_ for _ in ()).throw(FrontmatterError("read failed")),
+        )
+        with caplog.at_level("WARNING"):
+            _mirror_phase1_frontmatter_lane(feature_dir, "WP01", "for_review")
+        assert "Failed to read" in caplog.text
+
+        caplog.clear()
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"lane": "planned"}, "body"))
+        monkeypatch.setattr(
+            emit_module,
+            "write_frontmatter",
+            lambda path, frontmatter, body: (_ for _ in ()).throw(FrontmatterError("write failed")),
+        )
+        with caplog.at_level("WARNING"):
+            _mirror_phase1_frontmatter_lane(feature_dir, "WP01", "for_review")
+        assert "Failed to write" in caplog.text
+
+    def test_legacy_alias_collapses_only_when_alias_resolves_to_current_lane(self) -> None:
+        assert _legacy_alias_collapses_to_current_lane("in_review", "for_review", "for_review") is True
+        assert _legacy_alias_collapses_to_current_lane("for_review", "for_review", "for_review") is False
+        assert _legacy_alias_collapses_to_current_lane("in_review", "for_review", "in_progress") is False
+
+    def test_emit_status_transition_accepts_mission_alias_and_collapses_legacy_in_review(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        (feature_dir / "meta.json").write_text('{"status_phase": 1}', encoding="utf-8")
+        wp_file = feature_dir / "tasks" / "WP01.md"
+        wp_file.parent.mkdir()
+        wp_file.write_text(
+            "---\nlane: in_progress\n---\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="agent-1",
+        )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            feature_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="for_review",
+            actor="agent-1",
+        )
+        before = len(read_events(feature_dir))
+
+        event = emit_status_transition(
+            mission_dir=feature_dir,
+            mission_slug="034-test-feature",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer-1",
+        )
+
+        assert event.to_lane == Lane.FOR_REVIEW
+        assert event.from_lane == Lane.FOR_REVIEW
+        assert len(read_events(feature_dir)) == before
+        assert "lane: for_review" in wp_file.read_text(encoding="utf-8")
+
+    def test_emit_status_transition_requires_all_identity_fields(
+        self,
+        feature_dir: Path,
+    ) -> None:
+        with pytest.raises(TypeError, match="feature_dir/mission_dir"):
+            emit_status_transition(
+                feature_dir=feature_dir,
+                feature_slug="034-test-feature",
+                wp_id="WP01",
+                to_lane="claimed",
+            )
 
 
 # ── SaaS Fan-Out Tests ───────────────────────────────────────
