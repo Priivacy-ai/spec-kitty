@@ -217,3 +217,4 @@ No dependencies — this WP can start immediately.
 ## Activity Log
 
 - 2026-04-04T09:34:46Z – coordinator – shell_pid=32339 – Started implementation via workflow command
+- 2026-04-04T09:38:22Z – coordinator – shell_pid=32339 – Ready for review: TrackerProjectConfig evolved with binding_ref, display_label, provider_context, _extra fields. Dual-read is_configured, backward compat, unknown field passthrough. 57 tests pass, ruff clean.
