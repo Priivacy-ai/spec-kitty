@@ -138,3 +138,4 @@ For each .py file in `src/charter/`, perform case-preserving replacements:
 - 2026-04-04T19:54:23Z – codex – shell_pid=16345 – Started review via action command
 - 2026-04-04T19:59:08Z – codex – shell_pid=16345 – Moved to planned
 - 2026-04-04T19:59:28Z – claude – shell_pid=17519 – Started implementation via action command
+- 2026-04-04T20:01:37Z – claude – shell_pid=17519 – Fixed: all 19 intra-package imports updated from constitution to charter, zero constitution references remain, import verified
