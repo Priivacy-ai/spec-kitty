@@ -1,22 +1,22 @@
-# Constitution Command Map
+# Charter Command Map
 
-Complete CLI reference for `spec-kitty constitution` subcommands.
+Complete CLI reference for `spec-kitty charter` subcommands.
 
 ---
 
 ## interview
 
-Capture constitution interview answers for later generation.
+Capture charter interview answers for later generation.
 
 ```bash
-spec-kitty constitution interview --mission software-dev [--profile minimal|comprehensive] [--defaults] [--json]
+spec-kitty charter interview --mission software-dev [--profile minimal|comprehensive] [--defaults] [--json]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--mission` | TEXT | `software-dev` | Mission key for constitution defaults |
+| `--mission` | TEXT | `software-dev` | Mission key for charter defaults |
 | `--profile` | TEXT | `minimal` | Interview profile: `minimal` or `comprehensive` |
 | `--defaults` | FLAG | off | Use deterministic defaults without prompts |
 | `--selected-paradigms` | TEXT | none | Comma-separated paradigm ID overrides |
@@ -24,7 +24,7 @@ spec-kitty constitution interview --mission software-dev [--profile minimal|comp
 | `--available-tools` | TEXT | none | Comma-separated tool ID overrides |
 | `--json` | FLAG | off | Output JSON |
 
-**Output file:** `.kittify/constitution/interview/answers.yaml`
+**Output file:** `.kittify/charter/interview/answers.yaml`
 
 **JSON output fields:**
 
@@ -47,10 +47,10 @@ spec-kitty constitution interview --mission software-dev [--profile minimal|comp
 
 ## generate
 
-Generate the constitution bundle from interview answers and doctrine references.
+Generate the charter bundle from interview answers and doctrine references.
 
 ```bash
-spec-kitty constitution generate [--mission TEXT] [--force] [--from-interview] [--json]
+spec-kitty charter generate [--mission TEXT] [--force] [--from-interview] [--json]
 ```
 
 **Flags:**
@@ -58,26 +58,26 @@ spec-kitty constitution generate [--mission TEXT] [--force] [--from-interview] [
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
 | `--mission` | TEXT | from interview | Override mission key |
-| `--force` | FLAG | off | Overwrite existing constitution |
+| `--force` | FLAG | off | Overwrite existing charter |
 | `--from-interview / --no-from-interview` | FLAG | on | Load interview answers if present |
 | `--profile` | TEXT | `minimal` | Default profile when no interview is available |
 | `--json` | FLAG | off | Output JSON |
 
 **Output files:**
 
-- `.kittify/constitution/constitution.md` -- The constitution document
-- `.kittify/constitution/governance.yaml` -- Extracted governance config
-- `.kittify/constitution/directives.yaml` -- Extracted directives
-- `.kittify/constitution/metadata.yaml` -- Extraction provenance
-- `.kittify/constitution/references.yaml` -- Reference doc manifest
-- `.kittify/constitution/library/*.md` -- Referenced doctrine documents
+- `.kittify/charter/charter.md` -- The charter document
+- `.kittify/charter/governance.yaml` -- Extracted governance config
+- `.kittify/charter/directives.yaml` -- Extracted directives
+- `.kittify/charter/metadata.yaml` -- Extraction provenance
+- `.kittify/charter/references.yaml` -- Reference doc manifest
+- `.kittify/charter/library/*.md` -- Referenced doctrine documents
 
 **JSON output fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | bool | True if generation completed |
-| `constitution_path` | string | Relative path to constitution.md |
+| `charter_path` | string | Relative path to charter.md |
 | `interview_source` | string | `interview` or `defaults` |
 | `mission` | string | Mission key used |
 | `template_set` | string | Doctrine template set applied |
@@ -92,16 +92,16 @@ spec-kitty constitution generate [--mission TEXT] [--force] [--from-interview] [
 
 - Generation automatically triggers sync, so extracted YAML is always current.
 - If `--from-interview` is true (default) but no interview file exists, generation falls back to defaults for the specified mission and profile.
-- Use `--force` when re-generating over an existing constitution.
+- Use `--force` when re-generating over an existing charter.
 
 ---
 
 ## context
 
-Render constitution context for a specific workflow action.
+Render charter context for a specific workflow action.
 
 ```bash
-spec-kitty constitution context --action specify|plan|implement|review [--json]
+spec-kitty charter context --action specify|plan|implement|review [--json]
 ```
 
 **Flags:**
@@ -127,28 +127,28 @@ spec-kitty constitution context --action specify|plan|implement|review [--json]
 
 - `bootstrap` -- First load for a bootstrap action. Returns full policy summary and reference doc list.
 - `compact` -- Subsequent load. Returns resolved paradigms, directives, and tools only.
-- `missing` -- No constitution file exists. Returns instructions to create one.
+- `missing` -- No charter file exists. Returns instructions to create one.
 
-**State tracking:** First-load state is persisted in `.kittify/constitution/context-state.json`. Pass `--no-mark-loaded` to query context without updating state.
+**State tracking:** First-load state is persisted in `.kittify/charter/context-state.json`. Pass `--no-mark-loaded` to query context without updating state.
 
 ---
 
 ## sync
 
-Sync constitution.md to structured YAML config files.
+Sync charter.md to structured YAML config files.
 
 ```bash
-spec-kitty constitution sync [--force] [--json]
+spec-kitty charter sync [--force] [--json]
 ```
 
 **Flags:**
 
 | Flag | Type | Default | Description |
 |------|------|---------|-------------|
-| `--force` | FLAG | off | Force sync even if constitution is not stale |
+| `--force` | FLAG | off | Force sync even if charter is not stale |
 | `--json` | FLAG | off | Output JSON |
 
-**Output files (written to `.kittify/constitution/`):**
+**Output files (written to `.kittify/charter/`):**
 
 | File | Content |
 |------|---------|
@@ -161,21 +161,21 @@ spec-kitty constitution sync [--force] [--json]
 | Field | Type | Description |
 |-------|------|-------------|
 | `success` | bool | True if sync ran (false if skipped or errored) |
-| `stale_before` | bool | True if constitution was stale before sync |
+| `stale_before` | bool | True if charter was stale before sync |
 | `files_written` | list | YAML file names written |
 | `extraction_mode` | string | `deterministic` or `hybrid` |
 | `error` | string or null | Error message if sync failed |
 
-**Staleness detection:** Sync compares the SHA-256 hash of `constitution.md` against the hash stored in `metadata.yaml`. If they match and `--force` is not set, sync is skipped.
+**Staleness detection:** Sync compares the SHA-256 hash of `charter.md` against the hash stored in `metadata.yaml`. If they match and `--force` is not set, sync is skipped.
 
 ---
 
 ## status
 
-Display constitution sync status.
+Display charter sync status.
 
 ```bash
-spec-kitty constitution status [--json]
+spec-kitty charter status [--json]
 ```
 
 **Flags:**
@@ -188,9 +188,9 @@ spec-kitty constitution status [--json]
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `constitution_path` | string | Relative path to constitution.md |
+| `charter_path` | string | Relative path to charter.md |
 | `status` | string | `synced` or `stale` |
-| `current_hash` | string | SHA-256 hash of current constitution.md |
+| `current_hash` | string | SHA-256 hash of current charter.md |
 | `stored_hash` | string | Hash from last sync (from metadata.yaml) |
 | `last_sync` | string or null | ISO timestamp of last successful sync |
 | `library_docs` | int | Number of library documents |
@@ -203,32 +203,32 @@ spec-kitty constitution status [--json]
 **Bootstrap a new project:**
 
 ```bash
-spec-kitty constitution interview --mission software-dev --profile minimal --defaults --json
-spec-kitty constitution generate --from-interview --json
+spec-kitty charter interview --mission software-dev --profile minimal --defaults --json
+spec-kitty charter generate --from-interview --json
 ```
 
 **Full interactive setup:**
 
 ```bash
-spec-kitty constitution interview --mission software-dev --profile comprehensive
-spec-kitty constitution generate --from-interview
+spec-kitty charter interview --mission software-dev --profile comprehensive
+spec-kitty charter generate --from-interview
 ```
 
-**Update after manual constitution edits:**
+**Update after manual charter edits:**
 
 ```bash
-spec-kitty constitution sync --json
-spec-kitty constitution status --json
+spec-kitty charter sync --json
+spec-kitty charter status --json
 ```
 
 **Verify governance before a workflow action:**
 
 ```bash
-spec-kitty constitution context --action implement --json
+spec-kitty charter context --action implement --json
 ```
 
 **Force regeneration:**
 
 ```bash
-spec-kitty constitution generate --from-interview --force --json
+spec-kitty charter generate --from-interview --force --json
 ```

@@ -5,27 +5,27 @@
   "spec_kitty_version": "3.0.0",
   "entries": [
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "SKILL.md",
-      "installed_path": ".claude/skills/spec-kitty-constitution-doctrine/SKILL.md",
+      "installed_path": ".claude/skills/spec-kitty-charter-doctrine/SKILL.md",
       "installation_class": "native-root-required",
       "agent_key": "claude",
       "content_hash": "sha256:e255b9bfe4e59f8c4788e3aac8812b468b6f6ed65a8dce07c17596ecee3bac51",
       "installed_at": "2026-03-30T18:42:29.370863+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
-      "source_file": "references/constitution-command-map.md",
-      "installed_path": ".claude/skills/spec-kitty-constitution-doctrine/references/constitution-command-map.md",
+      "skill_name": "spec-kitty-charter-doctrine",
+      "source_file": "references/charter-command-map.md",
+      "installed_path": ".claude/skills/spec-kitty-charter-doctrine/references/charter-command-map.md",
       "installation_class": "native-root-required",
       "agent_key": "claude",
       "content_hash": "sha256:3f9c710ca338edd170d7da99dc47fed7a6f170ca7f15cc84470b8b0aafd40e3a",
       "installed_at": "2026-03-30T18:42:29.370863+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "references/doctrine-artifact-structure.md",
-      "installed_path": ".claude/skills/spec-kitty-constitution-doctrine/references/doctrine-artifact-structure.md",
+      "installed_path": ".claude/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md",
       "installation_class": "native-root-required",
       "agent_key": "claude",
       "content_hash": "sha256:8a9c8b20b8d9c72fd03d6e2e92ccd9e4321f2e62a5bae35e11d889de185ffddf",
@@ -194,27 +194,27 @@
       "installed_at": "2026-03-30T18:42:29.377625+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "SKILL.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/SKILL.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/SKILL.md",
       "installation_class": "shared-root-capable",
       "agent_key": "opencode",
       "content_hash": "sha256:e255b9bfe4e59f8c4788e3aac8812b468b6f6ed65a8dce07c17596ecee3bac51",
       "installed_at": "2026-03-30T18:42:29.392307+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
-      "source_file": "references/constitution-command-map.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/references/constitution-command-map.md",
+      "skill_name": "spec-kitty-charter-doctrine",
+      "source_file": "references/charter-command-map.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/references/charter-command-map.md",
       "installation_class": "shared-root-capable",
       "agent_key": "opencode",
       "content_hash": "sha256:3f9c710ca338edd170d7da99dc47fed7a6f170ca7f15cc84470b8b0aafd40e3a",
       "installed_at": "2026-03-30T18:42:29.392307+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "references/doctrine-artifact-structure.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/references/doctrine-artifact-structure.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md",
       "installation_class": "shared-root-capable",
       "agent_key": "opencode",
       "content_hash": "sha256:8a9c8b20b8d9c72fd03d6e2e92ccd9e4321f2e62a5bae35e11d889de185ffddf",
@@ -383,27 +383,27 @@
       "installed_at": "2026-03-30T18:42:29.396828+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "SKILL.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/SKILL.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/SKILL.md",
       "installation_class": "shared-root-capable",
       "agent_key": "codex",
       "content_hash": "sha256:e255b9bfe4e59f8c4788e3aac8812b468b6f6ed65a8dce07c17596ecee3bac51",
       "installed_at": "2026-03-30T18:42:29.411811+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
-      "source_file": "references/constitution-command-map.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/references/constitution-command-map.md",
+      "skill_name": "spec-kitty-charter-doctrine",
+      "source_file": "references/charter-command-map.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/references/charter-command-map.md",
       "installation_class": "shared-root-capable",
       "agent_key": "codex",
       "content_hash": "sha256:3f9c710ca338edd170d7da99dc47fed7a6f170ca7f15cc84470b8b0aafd40e3a",
       "installed_at": "2026-03-30T18:42:29.411811+00:00"
     },
     {
-      "skill_name": "spec-kitty-constitution-doctrine",
+      "skill_name": "spec-kitty-charter-doctrine",
       "source_file": "references/doctrine-artifact-structure.md",
-      "installed_path": ".agents/skills/spec-kitty-constitution-doctrine/references/doctrine-artifact-structure.md",
+      "installed_path": ".agents/skills/spec-kitty-charter-doctrine/references/doctrine-artifact-structure.md",
       "installation_class": "shared-root-capable",
       "agent_key": "codex",
       "content_hash": "sha256:8a9c8b20b8d9c72fd03d6e2e92ccd9e4321f2e62a5bae35e11d889de185ffddf",

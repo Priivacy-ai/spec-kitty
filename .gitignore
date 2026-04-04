@@ -60,11 +60,11 @@ env/
 .kittify/merge-state.json
 .kittify/.migration-backup/
 kitty-specs/**/.kittify/dossiers/
-.kittify/constitution/context-state.json
-.kittify/constitution/directives.yaml
-.kittify/constitution/governance.yaml
-.kittify/constitution/metadata.yaml
-.kittify/constitution/references.yaml
+.kittify/charter/context-state.json
+.kittify/charter/directives.yaml
+.kittify/charter/governance.yaml
+.kittify/charter/metadata.yaml
+.kittify/charter/references.yaml
 node_modules/
 
 # Spec Kit-specific files

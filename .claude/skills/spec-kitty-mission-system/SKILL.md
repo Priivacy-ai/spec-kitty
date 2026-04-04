@@ -8,7 +8,7 @@ description: >-
   "which mission should I use", "explain the mission system",
   "what is a mission", "change the mission", "mission templates".
   Does NOT handle: runtime loop advancement (use runtime-next),
-  setup or repair (use setup-doctor), governance (use constitution-doctrine),
+  setup or repair (use setup-doctor), governance (use charter-doctrine),
   or glossary curation (use glossary-context).
 ---
 

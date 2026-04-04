@@ -1,33 +1,33 @@
 ---
-name: spec-kitty-constitution-doctrine
+name: spec-kitty-charter-doctrine
 description: >-
-  Run constitution interview, generation, context, and sync workflows for
+  Run charter interview, generation, context, and sync workflows for
   project governance in Spec Kitty 2.x.
-  Triggers: "interview for constitution", "generate constitution",
-  "sync constitution", "use doctrine", "set up governance",
-  "constitution status", "extract governance config".
+  Triggers: "interview for charter", "generate charter",
+  "charter sync", "use doctrine", "set up governance",
+  "charter status", "extract governance config".
   Does NOT handle: generic spec writing not tied to governance, direct runtime
   loop advancement, setup/repair diagnostics, or editorial glossary maintenance.
 ---
 
-# spec-kitty-constitution-doctrine
+# spec-kitty-charter-doctrine
 
-Manage the constitution lifecycle: interview, generate, context-load, sync,
-and status. The constitution is the single authoritative governance document
+Manage the charter lifecycle: interview, generate, context-load, sync,
+and status. The charter is the single authoritative governance document
 for a Spec Kitty project. All structured config (governance.yaml,
 directives.yaml, references.yaml) is derived from it.
 
 ---
 
-## How the Constitution System Works
+## How the Charter System Works
 
-The constitution is a **governance-as-code** framework. A human-written markdown
+The charter is a **governance-as-code** framework. A human-written markdown
 document captures project policy, and the runtime extracts structured YAML from
 it to constrain what agents see and do during workflow actions.
 
 ### The 3-Layer Model
 
-1. **Constitution** (`constitution.md`) — Human-editable markdown. The single
+1. **Charter** (`charter.md`) — Human-editable markdown. The single
    authoritative source. Created via interview or written by hand.
 
 2. **Extracted config** — Machine-readable YAML derived deterministically by
@@ -47,7 +47,7 @@ Interview Answers (answers.yaml)
         ↓
   [generate command]  ← doctrine templates, mission config
         ↓
-Constitution (constitution.md)  ← authoritative source
+Charter (charter.md)  ← authoritative source
         ↓
   [auto-sync triggered]
         ↓
@@ -63,7 +63,7 @@ Constitution (constitution.md)  ← authoritative source
 
 ### How Sync Extraction Works
 
-The sync command parses `constitution.md` by classifying section headings
+The sync command parses `charter.md` by classifying section headings
 against a keyword map:
 
 | Heading keyword | Target schema |
@@ -135,7 +135,7 @@ directives:
 
 ### Hash-Based Staleness Detection
 
-Sync uses SHA-256 to detect changes. The hash of `constitution.md` content
+Sync uses SHA-256 to detect changes. The hash of `charter.md` content
 (whitespace-normalized) is stored in `metadata.yaml`. On sync:
 - If hashes match and `--force` not set → skip (idempotent)
 - If hashes differ → re-extract
@@ -145,7 +145,7 @@ Sync uses SHA-256 to detect changes. The hash of `constitution.md` content
 
 When you run `/spec-kitty.specify`, `/spec-kitty.plan`, `/spec-kitty.implement`,
 or `/spec-kitty.review`, the runtime automatically calls
-`spec-kitty constitution context --action <action>`. The returned text is
+`spec-kitty charter context --action <action>`. The returned text is
 injected into the agent prompt.
 
 **Three context modes:**
@@ -154,9 +154,9 @@ injected into the agent prompt.
 |---|---|---|
 | `bootstrap` | First load for an action | Full policy summary (up to 8 bullets) + reference doc list (up to 10) |
 | `compact` | Subsequent loads | Resolved paradigms, directives, tools, template_set only |
-| `missing` | No constitution exists | Instructions to create one |
+| `missing` | No charter exists | Instructions to create one |
 
-First-load state is tracked in `.kittify/constitution/context-state.json`.
+First-load state is tracked in `.kittify/charter/context-state.json`.
 Each action (specify, plan, implement, review) has an independent first-load
 timestamp.
 
@@ -242,7 +242,7 @@ available_tools:
 ## Step 1: Check Current State
 
 ```bash
-spec-kitty constitution status --json
+spec-kitty charter status --json
 ```
 
 Reports `synced` or `stale`, current and stored hashes, library doc count,
@@ -250,32 +250,32 @@ and per-file sizes. If `stale`, run sync before relying on governance config.
 
 ---
 
-## Step 2: Run the Constitution Interview
+## Step 2: Run the Charter Interview
 
 **Fast path (deterministic defaults):**
 
 ```bash
-spec-kitty constitution interview --mission software-dev --profile minimal --defaults --json
+spec-kitty charter interview --mission software-dev --profile minimal --defaults --json
 ```
 
 **Full interactive interview:**
 
 ```bash
-spec-kitty constitution interview --mission software-dev --profile comprehensive
+spec-kitty charter interview --mission software-dev --profile comprehensive
 ```
 
 Key flags: `--profile minimal|comprehensive`, `--defaults`, `--json`,
 `--selected-paradigms`, `--selected-directives`, `--available-tools`.
-See `references/constitution-command-map.md` for all flags.
+See `references/charter-command-map.md` for all flags.
 
-**Output:** `.kittify/constitution/interview/answers.yaml`
+**Output:** `.kittify/charter/interview/answers.yaml`
 
 ---
 
-## Step 3: Generate the Constitution
+## Step 3: Generate the Charter
 
 ```bash
-spec-kitty constitution generate --from-interview --json
+spec-kitty charter generate --from-interview --json
 ```
 
 Key flags: `--mission`, `--template-set`, `--force`, `--from-interview`, `--json`.
@@ -283,7 +283,7 @@ Key flags: `--mission`, `--template-set`, `--force`, `--from-interview`, `--json
 Generation triggers an automatic sync, so governance.yaml and directives.yaml
 are written immediately.
 
-**Output:** `.kittify/constitution/constitution.md` plus extracted YAML files
+**Output:** `.kittify/charter/charter.md` plus extracted YAML files
 and `library/*.md` reference documents.
 
 ---
@@ -293,10 +293,10 @@ and `library/*.md` reference documents.
 Load governance context before each workflow action:
 
 ```bash
-spec-kitty constitution context --action specify --json
-spec-kitty constitution context --action plan --json
-spec-kitty constitution context --action implement --json
-spec-kitty constitution context --action review --json
+spec-kitty charter context --action specify --json
+spec-kitty charter context --action plan --json
+spec-kitty charter context --action implement --json
+spec-kitty charter context --action review --json
 ```
 
 The runtime calls context automatically during slash commands. Manual
@@ -307,27 +307,27 @@ invocation is useful for debugging what governance policy an action receives.
 ## Step 5: Sync After Manual Edits
 
 ```bash
-spec-kitty constitution sync --json
-spec-kitty constitution sync --force --json   # re-extract even if unchanged
+spec-kitty charter sync --json
+spec-kitty charter sync --force --json   # re-extract even if unchanged
 ```
 
-Sync is idempotent — skips extraction when the constitution hash is unchanged
+Sync is idempotent — skips extraction when the charter hash is unchanged
 unless `--force` is passed.
 
 ---
 
 ## When Doctrine Constrains Runtime
 
-Doctrine constrains runtime behavior when the constitution has been generated
+Doctrine constrains runtime behavior when the charter has been generated
 and the agent is executing a workflow action (specify, plan, implement, review).
-The specific constraints come from the project's own constitution — load them
-with `spec-kitty constitution context --action <action> --json` rather than
+The specific constraints come from the project's own charter — load them
+with `spec-kitty charter context --action <action> --json` rather than
 assuming fixed policy values.
 
 Doctrine does NOT constrain when:
 
 - The user works outside a mission.
-- No constitution has been generated.
+- No charter has been generated.
 - The action is not a workflow action (specify, plan, implement, review).
 
 ---
@@ -335,13 +335,13 @@ Doctrine does NOT constrain when:
 ## Governance Anti-Patterns
 
 1. **Editing derived files** — `governance.yaml`, `directives.yaml`, and
-   `library/*.md` are overwritten by sync/generate. Edit `constitution.md`.
-2. **Skipping the interview** — produces generic defaults; the constitution
+   `library/*.md` are overwritten by sync/generate. Edit `charter.md`.
+2. **Skipping the interview** — produces generic defaults; the charter
    is most valuable with project-specific decisions.
-3. **Stale constitution** — an outdated constitution silently injects wrong
+3. **Stale charter** — an outdated charter silently injects wrong
    policy. Run `status` to check, `sync` to fix.
 4. **Legacy path assumptions** — canonical path is
-   `.kittify/constitution/constitution.md`, not `.kittify/memory/`.
+   `.kittify/charter/charter.md`, not `.kittify/memory/`.
 
 See `references/doctrine-artifact-structure.md` for the full anti-pattern table.
 
@@ -349,5 +349,5 @@ See `references/doctrine-artifact-structure.md` for the full anti-pattern table.
 
 ## References
 
-- `references/constitution-command-map.md` -- Full CLI command reference with all flags and output fields
+- `references/charter-command-map.md` -- Full CLI command reference with all flags and output fields
 - `references/doctrine-artifact-structure.md` -- File layout, authority classes, and data flow
