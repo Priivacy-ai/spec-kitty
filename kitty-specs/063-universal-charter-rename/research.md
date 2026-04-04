@@ -1,0 +1,164 @@
+# Research: Universal Charter Rename
+
+**Feature**: 063-universal-charter-rename
+**Date**: 2026-04-04 (revised)
+
+## Research Question 1: Can migration files be safely renamed?
+
+### Decision
+Yes. Migration files can be renamed without breaking the migration system.
+
+### Rationale
+The migration system discovers files by `m_*.py` glob pattern via `pkgutil.iter_modules()`. Registration uses the `@MigrationRegistry.register` decorator which stores migrations by their `migration_id` class attribute, not filename. Applied-migration tracking in `.kittify/metadata.yaml` also uses `migration_id` strings.
+
+### Evidence
+- `src/specify_cli/upgrade/migrations/__init__.py`: `auto_discover_migrations()` scans for `m_*.py` files
+- `src/specify_cli/upgrade/registry.py` line 42: `migration_id = migration_class.migration_id`
+- `src/specify_cli/upgrade/runner.py` line 178: `metadata.has_migration(migration.migration_id)`
+- `src/specify_cli/upgrade/metadata.py` line 152: checks `m.id == migration_id`
+
+## Research Question 2: Can old migrations be safely converted to stubs?
+
+### Decision
+Yes. Old constitution-related migrations can be converted to no-op stubs if a comprehensive charter-rename migration subsumes all their functionality.
+
+### Rationale
+The migration runner checks migrations in this order:
+1. `metadata.has_migration(id)` → already applied? Skip.
+2. `migration.detect(project_path)` → old state present? If False, record "skipped".
+3. `migration.can_apply(project_path)` → safe to apply?
+4. `migration.apply(project_path)` → transform state.
+
+For **previously-upgraded users**: Step 1 catches old migrations (metadata says "success") → skip. Charter-rename detects Layout A → migrates.
+
+For **new users upgrading from old versions**: Stubs return `detect() → False` → recorded as "skipped". Charter-rename runs and handles ALL layouts (A, B, C) comprehensively.
+
+For **fresh installs**: All migrations return `detect() → False` → all skipped. No old state exists.
+
+### Critical prerequisite
+The charter-rename migration must handle every layout that the old migrations handled:
+- Layout C (pre-0.10.12): `.kittify/missions/*/constitution/` — what m_0_10_12 handled
+- Layout B (pre-2.0): `.kittify/memory/constitution.md` — what m_2_0_0 handled
+- Layout A (post-2.0): `.kittify/constitution/` — the normalized form
+- Bootstrap blocks in agent prompts — what m_2_0_2 inserted
+- Skill file updates — what m_2_1_2 handled
+- m_0_13_0 was already a permanent no-op (superseded by canonical context architecture)
+
+### Evidence
+- `m_0_13_0` `detect()` already returns `False` with message "Command templates were removed in WP10"
+- Runner records "skipped" for migrations where `detect()` returns False (runner.py line 188-202)
+- Old users with metadata records are caught at step 1 before detect/apply ever runs
+
+## Research Question 3: How to bridge old migration IDs to new ones?
+
+### Decision
+Add a `_LEGACY_MIGRATION_ID_MAP` dict in `metadata.py` that normalizes old constitution-era IDs to charter-era IDs at metadata load time.
+
+### Rationale
+When `ProjectMetadata.load()` reads `.kittify/metadata.yaml`, it checks each applied migration record against the map. Old IDs are silently rewritten to new IDs and persisted. This runs BEFORE the migration loop, so by the time the runner checks `has_migration("0.10.12_charter_cleanup")`, the metadata already contains the new ID.
+
+### Design
+```python
+_LEGACY_MIGRATION_ID_MAP = {
+    "0.10.12_constitution_cleanup": "0.10.12_charter_cleanup",
+    "0.13.0_update_constitution_templates": "0.13.0_update_charter_templates",
+    "2.0.0_constitution_directory": "2.0.0_charter_directory",
+    "2.0.2_constitution_context_bootstrap": "2.0.2_charter_context_bootstrap",
+    "2.1.2_fix_constitution_doctrine_skill": "2.1.2_fix_charter_doctrine_skill",
+}
+```
+
+On load: iterate `applied_migrations`, replace any `record.id` found in map keys with the map value, persist if changed.
+
+### Implication
+The 5 dictionary keys contain "constitution" strings. These are the ONLY occurrence of "constitution" in `metadata.py` — they exist solely as backward-compatibility lookup keys. This is one of the 2 precisely bounded exceptions defined in the spec (NFR-001).
+
+### Alternatives Considered
+- **Keep old migration_ids unchanged**: Leaves "constitution" in all 5 migration files' class attributes AND in user metadata forever — rejected
+- **Change IDs without normalization**: Runner can't match old metadata → re-runs old migrations — rejected
+- **Pre-migration hook**: Extra complexity for the same result — rejected
+
+## Research Question 4: What generated content embeds "constitution"?
+
+### Decision
+Generated files under `.kittify/constitution/` embed "constitution" in multiple ways. The migration must rewrite all of them.
+
+### Evidence from compiler.py, sync.py, context.py:
+
+**charter.md** (written by `_render_constitution_markdown()`):
+- Header: `# Project Constitution`
+- Comment: `<!-- Generated by 'spec-kitty constitution generate' -->`
+
+**references.yaml** (written by `_write_references_yaml()`):
+- `source_path: ".kittify/constitution/interview/answers.yaml"`
+- `source_path: ".kittify/constitution/..."` in reference entries
+
+**context-state.json** (written by `build_constitution_context()`):
+- Schema tracks first-load timestamps per action, may embed path context
+
+**Agent prompt files** (written by m_2_0_2 bootstrap):
+- `spec-kitty constitution context --action {action} --json` command strings
+- `## Governance Context` blocks containing the old command
+
+### Migration action
+After path moves, perform case-insensitive find-and-replace of "constitution" → "charter" in all text files under `.kittify/charter/`. Also find-and-replace the bootstrap command in all deployed agent prompt files.
+
+## Research Question 5: What worktree/runtime code references constitution?
+
+### Decision
+Three source files manage worktree constitution state and must be updated.
+
+### Evidence
+
+**`src/specify_cli/core/worktree.py`** `setup_feature_directory()` (lines 440-494):
+- Creates symlinks from worktree `.kittify/memory` → main repo `.kittify/memory`
+- Comment: "Setup shared constitution and AGENTS.md via symlink"
+- After the rename, symlink targets change from `memory` (which contained `constitution.md`) to include `charter/`
+
+**`src/specify_cli/template/manager.py`** `copy_constitution_templates()` (lines 42-68):
+- Copies toolguide templates into `.kittify/memory/templates/`
+- Function name and any internal references must be renamed
+
+**`src/specify_cli/cli/commands/init.py`**:
+- Constitution setup during project initialization
+- Must scaffold `.kittify/charter/` instead of `.kittify/constitution/`
+
+**`tests/git_ops/test_worktree.py`** (3 matches):
+- Lines 339, 349, 875: Create and assert `constitution.md` in worktree memory
+- Must be updated to `charter.md` in charter paths
+
+## Research Question 6: What doctrine mission artifacts embed "constitution"?
+
+### Decision
+9 files across 3 mission types contain "constitution" references. These are shipped prompt/template text, not code.
+
+### Evidence
+- `src/doctrine/missions/software-dev/mission.yaml`: 1 match
+- `src/doctrine/missions/software-dev/templates/plan-template.md`: 2 matches ("Constitution Check" section)
+- `src/doctrine/missions/software-dev/templates/task-prompt-template.md`: 1 match (`.kittify/constitution/constitution.md` path)
+- `src/doctrine/missions/software-dev/actions/specify/guidelines.md`: 1 match
+- `src/doctrine/missions/software-dev/actions/plan/guidelines.md`: 5 matches ("Constitution Compliance" section)
+- `src/doctrine/missions/software-dev/actions/implement/guidelines.md`: 1 match
+- `src/doctrine/missions/software-dev/actions/review/guidelines.md`: 1 match
+- `src/doctrine/missions/documentation/templates/plan-template.md`: 1 match
+- `src/doctrine/missions/research/templates/task-prompt-template.md`: 1 match
+
+All are text content replacements (no structural changes needed).
+
+## Research Question 7: What is the full documentation surface?
+
+### Decision
+The documentation surface is significantly larger than initially inventoried: 100+ matches across 30+ files.
+
+### Key areas missed in original inventory:
+- `README.md`: 9 matches (slash command references, path descriptions, workflow examples)
+- `docs/reference/cli-commands.md`: 27 matches (full constitution command group documentation)
+- `docs/reference/slash-commands.md`: 18 matches (slash command docs)
+- `docs/reference/file-structure.md`: 3 matches
+- `docs/reference/configuration.md`: 8 matches
+- `glossary/contexts/governance.md`: 16 matches (term definitions)
+- `glossary/contexts/configuration-project-structure.md`: 6 matches
+- `glossary/contexts/doctrine.md`: 13 matches
+- `src/kernel/README.md`: 5 matches
+- `.kittify/AGENTS.md` + `overrides/AGENTS.md`: 6 matches total
+- `.kittify/memory/058-architectural-review.md`: 7 matches

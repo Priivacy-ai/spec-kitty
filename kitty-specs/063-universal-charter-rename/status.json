@@ -1,0 +1,75 @@
+{
+  "event_count": 8,
+  "feature_slug": "063-universal-charter-rename",
+  "last_event_id": "01KND0KF47PTPP7X8P9FGBB5T2",
+  "materialized_at": "2026-04-04T19:48:00.779490+00:00",
+  "mission_slug": "063-universal-charter-rename",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 8
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF02PF5FSWMWDGGG9EH6",
+      "last_transition_at": "2026-04-04T19:48:00.642740+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF388BAAWGGA9ATHZ0T9",
+      "last_transition_at": "2026-04-04T19:48:00.744617+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF3DSPS276G9GVP7P5W2",
+      "last_transition_at": "2026-04-04T19:48:00.749994+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF3KCQ3V7R7X5JX51J6M",
+      "last_transition_at": "2026-04-04T19:48:00.755824+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF3SRTSTADX0EETBFF49",
+      "last_transition_at": "2026-04-04T19:48:00.761765+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF3YKQX7B18064SF97XD",
+      "last_transition_at": "2026-04-04T19:48:00.766503+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF422EJR2S2E30EFYYV6",
+      "last_transition_at": "2026-04-04T19:48:00.770986+00:00"
+    },
+    "WP08": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KND0KF47PTPP7X8P9FGBB5T2",
+      "last_transition_at": "2026-04-04T19:48:00.775285+00:00"
+    }
+  }
+}
