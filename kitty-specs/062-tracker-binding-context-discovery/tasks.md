@@ -187,12 +187,12 @@ Core service infrastructure: routing key resolution, opportunistic binding_ref u
 
 New service methods: `discover()` for resource inventory, `resolve_and_bind()` for the full discovery-selection-confirmation flow. Handles exact match, candidates, none, and token retry.
 
-- [ ] T036: Add discover()
-- [ ] T037: Add resolve_and_bind()
-- [ ] T038: Exact match handling
-- [ ] T039: Candidates handling
-- [ ] T040: Token retry
-- [ ] T041: Write service tests
+- [x] T036: Add discover()
+- [x] T037: Add resolve_and_bind()
+- [x] T038: Exact match handling
+- [x] T039: Candidates handling
+- [x] T040: Token retry
+- [x] T041: Write service tests
 
 #### WP09: TrackerService Facade
 **Priority**: High | **Subtasks**: T042-T046 (5) | **~350 lines**
