@@ -1,13 +1,13 @@
 ---
 work_package_id: WP08
 title: Documentation & Acceptance
-dependencies: [WP01, WP02, WP03, WP04, WP05, WP06, WP07]
+dependencies: []
 requirement_refs:
 - NFR-001
 - NFR-002
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main. Depends on all prior WPs — use spec-kitty implement WP08 --base WP07.'
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T046, T047, T048, T049, T050, T051]
 history:
 - date: '2026-04-04'

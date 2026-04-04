@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Migration Overhaul
-dependencies: [WP01]
+dependencies: []
 requirement_refs:
 - FR-002
 - FR-003
@@ -17,7 +17,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main. Depends on WP01 — use spec-kitty implement WP06 --base WP01.'
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T032, T033, T034, T035, T036, T037, T038]
 history:
 - date: '2026-04-04'

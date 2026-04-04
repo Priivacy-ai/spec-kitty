@@ -1,12 +1,12 @@
 ---
 work_package_id: WP07
 title: Test Overhaul
-dependencies: [WP01, WP02, WP03, WP06]
+dependencies: []
 requirement_refs:
 - NFR-004
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main. Depends on WP01, WP02, WP03, WP06 — use spec-kitty implement WP07 --base WP03 (or whichever completes last).'
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T039, T040, T041, T042, T043, T044, T045]
 history:
 - date: '2026-04-04'

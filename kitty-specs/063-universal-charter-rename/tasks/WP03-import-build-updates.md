@@ -1,14 +1,14 @@
 ---
 work_package_id: WP03
 title: Import, Build & Cross-Reference Updates
-dependencies: [WP01, WP02]
+dependencies: []
 requirement_refs:
 - FR-010
 - FR-011
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: 'Planning branch: main. Merge target: main. Depends on WP01 and WP02 — use spec-kitty implement WP03 --base WP01 (or whichever completes last).'
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T013, T014, T015, T016, T017]
 history:
 - date: '2026-04-04'
