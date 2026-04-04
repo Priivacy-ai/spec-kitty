@@ -306,3 +306,4 @@ Phase 1 method `_normalize_layouts()`:
 ## Activity Log
 
 - 2026-04-04T20:07:29Z – claude – shell_pid=19741 – Started implementation via action command
+- 2026-04-04T20:14:56Z – claude – shell_pid=19741 – Migration overhaul complete: 5 stubs, metadata normalization, m_3_1_1_charter_rename with 4 phases
