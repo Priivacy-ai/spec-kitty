@@ -100,6 +100,10 @@ class SaaSTrackerClient:
     _OPERATIONS_PATH = "/api/v1/tracker/operations/{operation_id}/"
     _SEARCH_ISSUES_PATH = "/api/v1/tracker/issue-search/"
     _BIND_ORIGIN_PATH = "/api/v1/tracker/mission-origin/bind/"
+    _RESOURCES_PATH = "/api/v1/tracker/resources/"
+    _BIND_RESOLVE_PATH = "/api/v1/tracker/bind-resolve/"
+    _BIND_CONFIRM_PATH = "/api/v1/tracker/bind-confirm/"
+    _BIND_VALIDATE_PATH = "/api/v1/tracker/bind-validate/"
 
     # ----- low-level request helpers -----
 
@@ -379,6 +383,80 @@ class SaaSTrackerClient:
             self._BIND_ORIGIN_PATH,
             json=payload,
             headers={"Idempotency-Key": key},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    # ----- discovery and binding endpoints -----
+
+    def resources(self, provider: str) -> dict[str, Any]:
+        """GET /api/v1/tracker/resources/ -- enumerate bindable resources."""
+        response = self._request_with_retry(
+            "GET",
+            self._RESOURCES_PATH,
+            params={"provider": provider},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_resolve(
+        self,
+        provider: str,
+        project_identity: dict[str, Any],
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-resolve/ -- resolve identity to bind candidates."""
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_RESOLVE_PATH,
+            json=payload,
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_confirm(
+        self,
+        provider: str,
+        candidate_token: str,
+        project_identity: dict[str, Any],
+        *,
+        idempotency_key: str | None = None,
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-confirm/ -- confirm bind selection."""
+        key = idempotency_key or str(uuid.uuid4())
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "candidate_token": candidate_token,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_CONFIRM_PATH,
+            json=payload,
+            headers={"Idempotency-Key": key},
+        )
+        result: dict[str, Any] = response.json()
+        return result
+
+    def bind_validate(
+        self,
+        provider: str,
+        binding_ref: str,
+        project_identity: dict[str, Any],
+    ) -> dict[str, Any]:
+        """POST /api/v1/tracker/bind-validate/ -- validate binding ref."""
+        payload: dict[str, Any] = {
+            "provider": provider,
+            "binding_ref": binding_ref,
+            "project_identity": project_identity,
+        }
+        response = self._request_with_retry(
+            "POST",
+            self._BIND_VALIDATE_PATH,
+            json=payload,
         )
         result: dict[str, Any] = response.json()
         return result
