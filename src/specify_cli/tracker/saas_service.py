@@ -7,6 +7,7 @@ operations that are not supported for SaaS-backed providers.
 from __future__ import annotations
 
 import logging
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -87,6 +88,10 @@ class SaaSTrackerService:
 
         Silent on failure (debug log only).  Never modifies config if
         response doesn't contain binding_ref.
+
+        Atomicity: builds a *new* config object and persists it before
+        updating ``self._config``.  If the save fails, the in-memory
+        state remains unchanged.
         """
         binding_ref = response.get("binding_ref")
         if not binding_ref:
@@ -95,14 +100,24 @@ class SaaSTrackerService:
             return  # Already up to date
 
         try:
-            self._config.binding_ref = binding_ref
-            display_label = response.get("display_label")
-            if display_label:
-                self._config.display_label = display_label
-            provider_context = response.get("provider_context")
-            if isinstance(provider_context, dict):
-                self._config.provider_context = provider_context
-            save_tracker_config(self._repo_root, self._config)
+            # Build updated config WITHOUT mutating self._config yet
+            updated = TrackerProjectConfig(
+                provider=self._config.provider,
+                binding_ref=binding_ref,
+                project_slug=self._config.project_slug,
+                display_label=response.get("display_label") or self._config.display_label,
+                provider_context=(
+                    response.get("provider_context")
+                    if isinstance(response.get("provider_context"), dict)
+                    else self._config.provider_context
+                ),
+                workspace=self._config.workspace,
+                doctrine_mode=self._config.doctrine_mode,
+                doctrine_field_owners=self._config.doctrine_field_owners,
+            )
+            save_tracker_config(self._repo_root, updated)
+            # Only update in-memory state AFTER successful save
+            self._config = updated
             logger.debug("Opportunistically upgraded binding_ref to %s", binding_ref)
         except Exception:
             logger.debug("Failed to upgrade binding_ref", exc_info=True)
@@ -113,7 +128,7 @@ class SaaSTrackerService:
 
     def _call_with_stale_detection(
         self,
-        method: Any,
+        method: Callable[..., dict[str, Any]],
         *args: Any,
         **kwargs: Any,
     ) -> dict[str, Any]:

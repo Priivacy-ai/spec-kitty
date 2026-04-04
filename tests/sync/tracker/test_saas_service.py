@@ -269,10 +269,10 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.status()
 
-        # Verify config updated in memory
-        assert cfg.binding_ref == "bind-new-abc"
-        assert cfg.display_label == "My Project (Linear)"
-        assert cfg.provider_context == {"org": "acme"}
+        # Verify config updated in memory (atomic: svc._config is a NEW object)
+        assert svc._config.binding_ref == "bind-new-abc"
+        assert svc._config.display_label == "My Project (Linear)"
+        assert svc._config.provider_context == {"org": "acme"}
 
         # Verify persisted to disk
         loaded = load_tracker_config(repo_root)
@@ -334,6 +334,37 @@ class TestMaybeUpgradeBindingRef:
             result = svc.status()
             assert result["connected"] is True
 
+    def test_maybe_upgrade_save_failure_preserves_config(
+        self, repo_root: Path, mock_client: MagicMock
+    ) -> None:
+        """When save_tracker_config raises, self._config must NOT be mutated."""
+        cfg = TrackerProjectConfig(
+            provider="linear",
+            binding_ref="old-bind-ref",
+            project_slug="my-proj",
+            display_label="Old Label",
+        )
+        svc = SaaSTrackerService(repo_root, cfg, client=mock_client)
+
+        mock_client.status.return_value = {
+            "connected": True,
+            "binding_ref": "new-bind-ref",
+            "display_label": "New Label",
+            "provider_context": {"org": "acme"},
+        }
+
+        with patch(
+            "specify_cli.tracker.saas_service.save_tracker_config",
+            side_effect=OSError("disk full"),
+        ):
+            result = svc.status()
+            assert result["connected"] is True
+
+        # The critical assertion: in-memory config must still have the OLD values
+        assert svc._config.binding_ref == "old-bind-ref"
+        assert svc._config.display_label == "Old Label"
+        assert svc._config.provider_context is None
+
     def test_upgrade_partial_response_display_label_only(
         self, repo_root: Path, mock_client: MagicMock
     ) -> None:
@@ -351,9 +382,9 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.status()
 
-        assert cfg.binding_ref == "bind-new"
-        assert cfg.display_label == "Label Only"
-        assert cfg.provider_context is None
+        assert svc._config.binding_ref == "bind-new"
+        assert svc._config.display_label == "Label Only"
+        assert svc._config.provider_context is None
 
     def test_upgrade_called_after_sync_pull(
         self, repo_root: Path, mock_client: MagicMock
@@ -371,7 +402,7 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.sync_pull()
 
-        assert cfg.binding_ref == "bind-from-pull"
+        assert svc._config.binding_ref == "bind-from-pull"
 
     def test_upgrade_called_after_sync_push(
         self, repo_root: Path, mock_client: MagicMock
@@ -389,7 +420,7 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.sync_push()
 
-        assert cfg.binding_ref == "bind-from-push"
+        assert svc._config.binding_ref == "bind-from-push"
 
     def test_upgrade_called_after_sync_run(
         self, repo_root: Path, mock_client: MagicMock
@@ -408,7 +439,7 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.sync_run()
 
-        assert cfg.binding_ref == "bind-from-run"
+        assert svc._config.binding_ref == "bind-from-run"
 
     def test_upgrade_called_after_map_list(
         self, repo_root: Path, mock_client: MagicMock
@@ -426,7 +457,7 @@ class TestMaybeUpgradeBindingRef:
         }
         svc.map_list()
 
-        assert cfg.binding_ref == "bind-from-mappings"
+        assert svc._config.binding_ref == "bind-from-mappings"
 
 
 # ---------------------------------------------------------------------------
