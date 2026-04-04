@@ -1161,6 +1161,7 @@ If you encounter issues with an agent, please open an issue so we can refine the
 <summary><h2>🚀 Releasing Stable Versions on GitHub and PyPI (Maintainers)</h2></summary>
 
 The stable `3.x` line now lives on `main` and publishes from semantic tags in the form `vX.Y.Z`.
+Prerelease testing builds can also publish from `main` using tags such as `vX.Y.ZaN`.
 The release workflow publishes both GitHub release artifacts and the PyPI package.
 
 ### 0. One-Time Setup
@@ -1175,8 +1176,8 @@ git checkout main
 git pull origin main
 git checkout -b release/vX.Y.Z
 
-# Update pyproject.toml to a semantic version (example: X.Y.Z)
-# Add CHANGELOG.md entry under: ## [X.Y.Z] - YYYY-MM-DD
+# Update pyproject.toml to a release version (example: X.Y.Z or X.Y.ZaN)
+# Add CHANGELOG.md entry under: ## [X.Y.Z] - YYYY-MM-DD (or prerelease ## [X.Y.ZaN] - YYYY-MM-DD)
 ```
 
 ### 2. Validate Locally
@@ -1208,6 +1209,13 @@ git tag vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
+For prereleases, use the exact prerelease tag instead:
+
+```bash
+git tag vX.Y.ZaN -m "Release vX.Y.ZaN"
+git push origin vX.Y.ZaN
+```
+
 This triggers `.github/workflows/release.yml`.
 
 ### 5. Verify GitHub Release and PyPI Publication
@@ -1220,12 +1228,12 @@ python -m pip index versions spec-kitty-cli
 ### Guardrails
 
 - `release-readiness.yml`: runs on PRs to `main` (and `2.x` if the maintenance branch is still active) to validate version/changelog/tests.
-- `release.yml`: runs on `v*.*.*` tags and performs:
+- `release.yml`: runs on stable and prerelease `v*.*.*` tags and performs:
   - test execution
   - release metadata validation
   - artifact build and checksums
   - PyPI publication via Trusted Publishing
-  - GitHub Release creation with changelog notes
+  - GitHub Release creation with changelog notes, marked as prerelease when the tag is a prerelease
 
 ### Troubleshooting
 
@@ -1243,6 +1251,10 @@ git push origin :refs/tags/vX.Y.Z
 git tag vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
+
+**Installing a prerelease from PyPI**:
+- `python -m pip install --upgrade --pre spec-kitty-cli`
+- `python -m pip install --upgrade "spec-kitty-cli==X.Y.ZaN"`
 
 ### References
 

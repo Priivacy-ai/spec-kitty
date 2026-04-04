@@ -229,7 +229,7 @@ def test_tag_mode_fails_on_regression(tmp_path: Path) -> None:
     assert "does not advance beyond latest tag v0.2.3" in result.stderr
 
 
-def test_tag_mode_rejects_prerelease_versions(tmp_path: Path) -> None:
+def test_tag_mode_accepts_prerelease_versions(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
         tmp_path,
@@ -251,8 +251,8 @@ def test_tag_mode_rejects_prerelease_versions(tmp_path: Path) -> None:
 
     result = run_validator(tmp_path, "--mode", "tag", "--tag", "v0.3.0a0")
 
-    assert result.returncode == 1
-    assert "Tag mode does not allow prerelease version 0.3.0a0" in result.stderr
+    assert result.returncode == 0, result.stderr
+    assert "Tag: v0.3.0a0" in result.stdout
 
 
 def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
@@ -295,7 +295,7 @@ def test_branch_mode_honors_tag_pattern_scope(tmp_path: Path) -> None:
     assert "does not advance beyond latest tag v3.0.0" in result_unscoped.stderr
 
 
-def test_branch_mode_ignores_prerelease_tags_for_progression(tmp_path: Path) -> None:
+def test_tag_mode_rejects_prerelease_regression(tmp_path: Path) -> None:
     init_repo(tmp_path)
     write_release_files(
         tmp_path,
@@ -307,14 +307,63 @@ def test_branch_mode_ignores_prerelease_tags_for_progression(tmp_path: Path) -> 
 
     write_release_files(
         tmp_path,
+        "1.0.1a1",
+        changelog_for_versions(
+            ("1.0.1a1", "- Later prerelease"),
+            ("1.0.0", "- Initial stable release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.1a1")
+    tag(tmp_path, "v1.0.1a1")
+
+    write_release_files(
+        tmp_path,
+        "1.0.1a0",
+        changelog_for_versions(
+            ("1.0.1a0", "- Earlier prerelease"),
+            ("1.0.1a1", "- Later prerelease"),
+            ("1.0.0", "- Initial stable release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: regress to 1.0.1a0")
+
+    result = run_validator(tmp_path, "--mode", "tag", "--tag", "v1.0.1a0")
+
+    assert result.returncode == 1
+    assert "does not advance beyond latest tag v1.0.1a1" in result.stderr
+
+
+def test_branch_mode_accepts_final_release_after_prerelease_tag(tmp_path: Path) -> None:
+    init_repo(tmp_path)
+    write_release_files(
+        tmp_path,
+        "1.0.0",
+        changelog_for_versions(("1.0.0", "- Initial stable release")),
+    )
+    stage_and_commit(tmp_path, "chore: bootstrap 1.0.0")
+    tag(tmp_path, "v1.0.0")
+
+    write_release_files(
+        tmp_path,
+        "1.0.1a1",
+        changelog_for_versions(
+            ("1.0.1a1", "- Release candidate"),
+            ("1.0.0", "- Initial stable release"),
+        ),
+    )
+    stage_and_commit(tmp_path, "chore: prep 1.0.1a1")
+    tag(tmp_path, "v1.0.1a1")
+
+    write_release_files(
+        tmp_path,
         "1.0.1",
         changelog_for_versions(
             ("1.0.1", "- Stable patch release"),
+            ("1.0.1a1", "- Release candidate"),
             ("1.0.0", "- Initial stable release"),
         ),
     )
     stage_and_commit(tmp_path, "chore: prep 1.0.1")
-    tag(tmp_path, "v1.0.0a1")
 
     result = run_validator(tmp_path, "--mode", "branch", "--tag-pattern", "v*.*.*")
 

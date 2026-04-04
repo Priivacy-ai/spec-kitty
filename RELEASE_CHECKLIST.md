@@ -1,10 +1,10 @@
 # Release Checklist
 
-Use this checklist for stable releases from `main`.
+Use this checklist for releases from `main`.
 
-> `main` is the primary stable release line and publishes both GitHub releases and PyPI packages.
+> `main` is the primary release line and publishes both GitHub releases and PyPI packages.
 > `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
-> Historical 2.x release notes remain in Git tags and changelog history; new stable releases ship from `main`.
+> Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 3.x releases ship from `main`.
 
 ## Pre-Release Preparation
 
@@ -14,6 +14,7 @@ Use this checklist for stable releases from `main`.
   - Patch (`X.Y.Z`): bug fixes and small improvements
   - Minor (`X.Y.0`): new features, backward-compatible platform changes
   - Major (`X.0.0`): breaking changes
+- [ ] If cutting a prerelease, use a Python-compatible prerelease suffix (`X.Y.ZaN`, `X.Y.ZbN`, or `X.Y.ZrcN`) and plan to publish the final stable cut later as `X.Y.Z`.
 - [ ] Confirm the release is intended for `main`, not `1.x-maintenance`.
 - [ ] If the release also changes branch policy, docs, or distribution channels, include that in `CHANGELOG.md`.
 
@@ -55,6 +56,7 @@ Use this checklist for stable releases from `main`.
 
 - [ ] Bump `version` in `pyproject.toml`.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
+- [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
 - [ ] Review `README.md` release-track messaging:
   - `main` should be described as the stable `3.x` line.
   - `1.x-maintenance` should be described as deprecated maintenance-only.
@@ -122,6 +124,13 @@ git tag -a vX.Y.Z -m "Release vX.Y.Z"
 git push origin vX.Y.Z
 ```
 
+For prereleases, use the exact prerelease tag instead:
+
+```bash
+git tag -a vX.Y.ZaN -m "Release vX.Y.ZaN"
+git push origin vX.Y.ZaN
+```
+
 ### 7. Monitor Automated Publishing
 
 - [ ] Watch `.github/workflows/release.yml`:
@@ -134,6 +143,7 @@ git push origin vX.Y.Z
   - builds distributions
   - publishes to PyPI
   - creates the GitHub release
+- [ ] If this is a prerelease, confirm GitHub marks the release as `Pre-release`.
 - [ ] Verify the GitHub release payload:
   ```bash
   gh release view vX.Y.Z
@@ -149,6 +159,10 @@ git push origin vX.Y.Z
   python -m pip index versions spec-kitty-cli
   ```
 - [ ] Verify the GitHub release is public and includes the wheel, sdist, and checksums.
+- [ ] If this is a prerelease, verify installation with:
+  ```bash
+  python -m pip install --upgrade --pre "spec-kitty-cli==X.Y.ZaN"
+  ```
 
 ### Installation and Upgrade
 
@@ -191,6 +205,8 @@ If a critical issue is discovered after release:
   check PyPI Trusted Publishing configuration for the workflow and repository, not a legacy token secret.
 - **Fresh install still shows the old version**:
   wait a few minutes for package indexes to refresh, then retry with `pip cache purge` if needed.
+- **Prerelease install does not resolve**:
+  use `pip install --pre spec-kitty-cli` or pin the exact prerelease version.
 
 ---
 

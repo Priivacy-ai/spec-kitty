@@ -9,9 +9,10 @@ testing cut:
 3. Version progression is monotonic relative to existing git tags and, in tag
    mode, matches the release tag that triggered the workflow.
 
-Branch mode accepts stable versions (``X.Y.Z``) and testing prereleases such as
-``X.Y.ZaN``. Tag mode remains stable-only because GitHub Releases and PyPI
-publishing are reserved for final ``vX.Y.Z`` tags.
+Both validation modes accept stable versions (``X.Y.Z``) and prerelease
+versions such as ``X.Y.ZaN``. Tagged prereleases publish through the same
+release workflow, but GitHub marks them as prereleases and installers must opt
+into them explicitly.
 
 It is intentionally dependency-light so it can run both locally and in CI
 without additional bootstrapping beyond Python 3.11.
@@ -34,7 +35,6 @@ except ModuleNotFoundError:  # pragma: no cover - fallback for older interpreter
     import tomli as tomllib  # type: ignore
 
 
-FINAL_SEMVER_RE = re.compile(r"^(\d+)\.(\d+)\.(\d+)$")
 RELEASE_VERSION_RE = re.compile(
     r"^(?P<major>\d+)\.(?P<minor>\d+)\.(?P<patch>\d+)"
     r"(?:(?P<stage>a|b|rc|alpha|beta)(?P<stage_num>\d*))?$",
@@ -99,12 +99,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         choices=("branch", "tag"),
         default="branch",
         help="Validation mode. 'branch' expects a version bump without a tag. "
-        "'tag' enforces tag-version parity and monotonic progression.",
+        "'tag' enforces tag-version parity and monotonic progression for stable "
+        "or prerelease publish tags.",
     )
     parser.add_argument(
         "--tag",
-        help="Explicit tag (e.g., v1.2.3). Defaults to the detected GITHUB_REF or "
-        "GITHUB_REF_NAME in tag mode.",
+        help="Explicit tag (e.g., v1.2.3 or v1.3.0a0). Defaults to the detected "
+        "GITHUB_REF or GITHUB_REF_NAME in tag mode.",
     )
     parser.add_argument(
         "--pyproject",
@@ -198,8 +199,7 @@ def git(*args: str, cwd: Path | None = None) -> str:
         ["git", *args],
         cwd=cwd,
         check=False,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
+        capture_output=True,
         text=True,
     )
     if result.returncode != 0:
@@ -220,7 +220,7 @@ def find_repo_root(start: Path) -> Path:
     return Path(output)
 
 
-def discover_semver_tags(
+def discover_release_tags(
     repo_root: Path, tag_pattern: str, exclude: str | None = None
 ) -> list[str]:
     output = git("tag", "--list", tag_pattern, cwd=repo_root)
@@ -228,19 +228,12 @@ def discover_semver_tags(
     filtered = [
         tag
         for tag in tags
-        if tag != exclude and FINAL_SEMVER_RE.match(tag.lstrip("v"))
+        if tag != exclude
+        and tag.startswith("v")
+        and RELEASE_VERSION_RE.match(tag.lstrip("v"))
     ]
-    filtered.sort(key=lambda tag: parse_semver(tag.lstrip("v")), reverse=True)
+    filtered.sort(key=lambda tag: parse_release_version(tag.lstrip("v")), reverse=True)
     return filtered
-
-
-def parse_semver(value: str) -> tuple[int, int, int]:
-    match = FINAL_SEMVER_RE.match(value)
-    if not match:
-        raise ReleaseValidatorError(
-            f"Value '{value}' is not a valid semantic version (expected X.Y.Z)."
-        )
-    return tuple(int(part) for part in match.groups())
 
 
 def parse_release_version(value: str) -> tuple[int, int, int, int, int]:
@@ -286,7 +279,7 @@ def validate_version_progression(
     if not existing_tags:
         return None
     current_tuple = parse_release_version(current_version)
-    latest_tuple = parse_semver(existing_tags[0].lstrip("v"))
+    latest_tuple = parse_release_version(existing_tags[0].lstrip("v"))
     if current_tuple <= latest_tuple:
         return ValidationIssue(
             message=f"Version {current_version} does not advance beyond latest tag {existing_tags[0]}.",
@@ -343,19 +336,12 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         )
 
     if args.mode == "tag":
-        if is_prerelease_version(version):
-            issues.append(
-                ValidationIssue(
-                    message=f"Tag mode does not allow prerelease version {version}.",
-                    hint="Use a stable X.Y.Z version for tagged releases, or validate prereleases in branch mode.",
-                )
-            )
         tag = args.tag or detect_tag_from_env()
         if not tag:
             issues.append(
                 ValidationIssue(
                     message="No tag supplied and none detected from environment.",
-                    hint="Use --tag vX.Y.Z or set GITHUB_REF_NAME when running in CI.",
+                    hint="Use --tag vX.Y.Z or vX.Y.ZaN, or set GITHUB_REF_NAME when running in CI.",
                 )
             )
         else:
@@ -363,14 +349,14 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
             if mismatch:
                 issues.append(mismatch)
 
-        existing_tags = discover_semver_tags(
+        existing_tags = discover_release_tags(
             repo_root, tag_pattern=args.tag_pattern, exclude=tag
         )
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)
     else:
-        existing_tags = discover_semver_tags(repo_root, tag_pattern=args.tag_pattern)
+        existing_tags = discover_release_tags(repo_root, tag_pattern=args.tag_pattern)
         progression_issue = validate_version_progression(version, existing_tags)
         if progression_issue:
             issues.append(progression_issue)

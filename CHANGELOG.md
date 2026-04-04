@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- **Prerelease publishing is now first-class** — tag-mode release validation accepts matching prerelease tags such as `v3.1.0a0`, GitHub Releases are marked as prereleases automatically for those tags, and maintainer docs now document the end-to-end prerelease PyPI/GitHub publish path.
+
 ## [3.1.0a0] - 2026-04-04
 
 ### Changed

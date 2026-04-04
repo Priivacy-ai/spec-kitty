@@ -77,6 +77,17 @@ jobs:
       - name: Validate release metadata
         run: python scripts/release/validate_release.py --mode tag --tag "${GITHUB_REF_NAME}" --tag-pattern "v*.*.*"
 
+      - name: Classify release channel
+        id: release_channel
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(a|b|rc|alpha|beta)[0-9]*$ ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+        shell: bash
+
       - name: Build distributions
         run: python -m build
 
@@ -174,7 +185,7 @@ jobs:
             dist/*.tar.gz
             SHA256SUMS.txt
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.release_channel.outputs.is_prerelease }}
 
       - name: Upload test output
         uses: actions/upload-artifact@v4
