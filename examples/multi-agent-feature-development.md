@@ -24,7 +24,7 @@ This scenario demonstrates how a lead architect can orchestrate a multi-agent te
    - Human reviewer tracks `tasks/for_review/`.
 
 5. **Run the orchestration loop**
-   - Manual mode: `spec-kitty agent workflow implement WP##` per assigned WP
+   - Manual mode: `spec-kitty agent action implement WP##` per assigned WP
    - Automated mode: `spec-kitty-orchestrator orchestrate --feature 001-cross-platform-chat-upgrade`
 
 6. **Review completed work**

@@ -1,8 +1,8 @@
 ---
 name: spec-kitty-mission-system
 description: >-
-  Understand how Spec Kitty missions work: the 4 built-in missions, how they
-  define workflows, how features and work packages relate, how templates are
+  Understand how Spec Kitty mission types work: the 4 built-in mission types,
+  how they define workflows, how missions and work packages relate, how templates are
   resolved, and how to select the right mission for a project.
   Triggers: "what missions are available", "how do missions work",
   "which mission should I use", "explain the mission system",
@@ -14,10 +14,17 @@ description: >-
 
 # spec-kitty-mission-system
 
-Understand how missions structure work in Spec Kitty. A mission is a
-domain-specific workflow blueprint that defines what phases you go through,
-what templates agents see, what artifacts you produce, and how to validate
-success.
+Understand how missions structure work in Spec Kitty.
+
+Terminology note:
+- `Mission Type` = reusable workflow blueprint
+- `Mission` = concrete tracked item
+- `Mission Run` = runtime/session instance
+- `Feature` = software-dev compatibility alias for a mission
+
+A mission type is a domain-specific workflow blueprint that defines what
+phases you go through, what templates agents see, what artifacts you produce,
+and how to validate success.
 
 ---
 
@@ -25,9 +32,10 @@ success.
 
 ### The Core Concept
 
-A mission answers: "What process should we follow to achieve this goal?"
+A mission type answers: "What process should we follow to achieve this goal?"
 
-Different goals need different processes. Building a software feature is
+Different goals need different processes. Building a software mission such as a
+feature is
 different from conducting research or writing documentation. Each mission
 provides domain-appropriate:
 
@@ -38,12 +46,12 @@ provides domain-appropriate:
 - **Validation** — checks that verify the output quality
 - **Agent context** — personality and instructions for the AI agent
 
-### The Hierarchy: Mission → Feature → Work Package → Execution Workspace
+### The Hierarchy: Mission Type → Mission → Work Package → Execution Workspace
 
 ```
-Mission (e.g., software-dev)
-  └── Feature (kitty-specs/042-auth-system/)
-        ├── meta.json           ← links feature to mission + target branch
+Mission Type (e.g., software-dev)
+  └── Mission (kitty-specs/042-auth-system/)
+        ├── meta.json           ← links mission to mission type + target branch
         ├── spec.md             ← what we're building
         ├── plan.md             ← how we'll build it
         ├── tasks.md            ← WP breakdown
@@ -54,14 +62,15 @@ Mission (e.g., software-dev)
                     └── Execution Workspace (.worktrees/042-auth-system-lane-a/)
 ```
 
-- **Mission** = the workflow blueprint (reusable across features)
-- **Feature** = a concrete thing you're building, linked to a mission via `meta.json`
-- **Work Package (WP)** = one parallelizable slice of work within a feature
-- **Execution Workspace** = the isolated git worktree resolved for implementing a WP; modern features share one per lane, legacy features may still use one per WP
+- **Mission Type** = the workflow blueprint (reusable across missions)
+- **Mission** = a concrete tracked item, linked to a mission type via `meta.json`
+- **Feature** = software-dev compatibility alias for a mission
+- **Work Package (WP)** = one parallelizable slice of work within a mission
+- **Execution Workspace** = the isolated git worktree resolved for implementing a WP; modern missions share one per lane, legacy features may still use one per WP
 
-### meta.json (Feature → Mission Link)
+### meta.json (Mission → Mission-Type Link)
 
-Every feature has a `meta.json` that records which mission it uses:
+Every mission has a `meta.json` that records which mission type it uses:
 
 ```json
 {
@@ -75,7 +84,8 @@ Every feature has a `meta.json` that records which mission it uses:
 ```
 
 The `mission` field determines which templates, guards, and validation rules
-apply. Default is `software-dev` if omitted.
+apply. Default is `software-dev` if omitted. The key name is historical; the
+stored value is the mission type.
 
 ---
 

@@ -37,7 +37,7 @@ from doctrine — do not restate those rules here.
 
 ```bash
 # Claim a specific WP (or omit WP## to auto-select from for_review lane)
-spec-kitty agent workflow review WP## --agent <your-name>
+spec-kitty agent action review WP## --agent <your-name>
 ```
 
 This moves the WP from `for_review` to `doing` and prints the path to a

@@ -18,7 +18,7 @@ Use the slash command in your agent (recommended):
 Or run the workflow command directly:
 
 ```bash
-spec-kitty agent workflow implement WP01 --agent <agent>
+spec-kitty agent action implement WP01 --agent <agent>
 ```
 
 This moves the WP to `lane: "doing"` and prints the full prompt plus the completion command.
@@ -69,7 +69,7 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Ready for review: 
 
 - **"Base workspace does not exist"**: Implement the dependency first.
 - **"WP has dependencies"**: Re-run with `--base WPXX`.
-- **No prompt shown**: Run `/spec-kitty.implement` or `spec-kitty agent workflow implement` again.
+- **No prompt shown**: Run `/spec-kitty.implement` or `spec-kitty agent action implement` again.
 
 ---
 

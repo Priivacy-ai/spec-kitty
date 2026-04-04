@@ -484,6 +484,7 @@ class TestDecideNext:
         d = decision.to_dict()
         assert "kind" in d
         assert "agent" in d
+        assert "mission_slug" in d
         assert "feature_slug" in d
         assert "mission" in d
         assert "mission_state" in d

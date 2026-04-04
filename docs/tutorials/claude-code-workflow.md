@@ -58,11 +58,11 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 ## Dashboard Integration
 
-- Lane transitions triggered by workflow commands (`spec-kitty agent workflow implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `done`, `blocked`, and `canceled`.
+- Lane transitions triggered by action commands (`spec-kitty agent action implement/review`) surface instantly on the kanban dashboard. The full lane model is: `planned`, `claimed`, `in_progress` (alias: `doing`), `for_review`, `done`, `blocked`, and `canceled`.
 - Each lane move records `agent`, `assignee`, and `shell_pid` in prompt frontmatter—Claude should add an ISO 8601 entry to the **Activity Log** summarizing what changed.
 - When Claude finishes a work package, use the workflow command to move it to `for_review` so the dashboard and reviewers stay in sync:
   ```bash
-  spec-kitty agent workflow review WP02
+  spec-kitty agent action review WP02
   ```
 
 ## Recommended Automation
@@ -76,9 +76,9 @@ Claude will use the template metadata to understand scope, file boundaries, and 
 
 | Problem | Cause | Fix |
 |---------|-------|-----|
-| Claude asks for missing context | Prompt not in `in_progress` lane yet | Move prompt to `in_progress` (or `doing` alias) via workflow commands so metadata is injected |
+| Claude asks for missing context | Prompt not in `in_progress` lane yet | Move prompt to `in_progress` (or `doing` alias) via action commands so metadata is injected |
 | Claude edits unexpected files | Prompt instructions unclear | Refine `tasks.md` and regenerate prompt |
-| Dashboard shows stale lane | Prompt moved manually | Always use `spec-kitty agent workflow` commands for lane transitions |
+| Dashboard shows stale lane | Prompt moved manually | Always use `spec-kitty agent action` commands for lane transitions |
 | Claude session interrupted | CLI lost connection | Resume by re-running Claude against the same prompt file; the activity log in the WP frontmatter tracks prior progress |
 
 ## Merge and Cleanup
@@ -90,7 +90,7 @@ Once Claude (and any partner agents) finish the feature:
  ```bash
   spec-kitty merge --remove-worktree
   ```
-   Run it from any checkout where the feature can be resolved; the CLI automatically performs the Git steps from the main checkout so execution workspaces stay in sync.
+   Run it from any checkout where the mission can be resolved; the CLI automatically performs the Git steps from the main checkout so execution workspaces stay in sync.
    The command documents merge steps, updates activity logs, and optionally removes the execution worktrees to keep the repository tidy.
 
 ## Beyond Claude

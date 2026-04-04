@@ -2,6 +2,12 @@
 
 This reference lists the user-facing `spec-kitty` CLI commands and their flags exactly as surfaced by `--help`. For agent-only commands, see `docs/reference/agent-subcommands.md`.
 
+Terminology note:
+- `Mission Type` = reusable workflow blueprint
+- `Mission` = tracked item under `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- Current `--feature` flags and `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
+
 ## spec-kitty
 
 **Synopsis**: `spec-kitty [OPTIONS] COMMAND [ARGS]...`
@@ -16,14 +22,14 @@ This reference lists the user-facing `spec-kitty` CLI commands and their flags e
 
 **Commands**:
 - `init` - Initialize a new Spec Kitty project from templates
-- `accept` - Validate feature readiness before merging to main
+- `accept` - Validate mission readiness before merging to main
 - `config` - Display project configuration and asset resolution information
 - `dashboard` - Open or stop the Spec Kitty dashboard
 - `implement` - Create workspace for work package implementation
-- `specify` - Create a feature scaffold in kitty-specs/
-- `plan` - Scaffold plan.md for a feature
+- `specify` - Create a mission scaffold in kitty-specs/
+- `plan` - Scaffold plan.md for a mission
 - `tasks` - Finalize tasks metadata after task generation
-- `merge` - Merge a completed feature branch into the target branch and clean up resources
+- `merge` - Merge a completed mission branch into the target branch and clean up resources
 - `migrate` - Migrate project .kittify/ to centralized model
 - `next` - Decide and emit the next agent action for the current mission
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
@@ -127,7 +133,7 @@ spec-kitty upgrade --target 0.6.5
 | Flag | Description |
 | --- | --- |
 | `--base TEXT` | Base WP to branch from (e.g., `WP01`) |
-| `--feature TEXT` | Feature slug (e.g., `001-my-feature`) |
+| `--feature TEXT` | Mission slug (legacy flag name; compatibility alias for software-dev missions) |
 | `--force` | Force auto-merge even when dependencies are done |
 | `--auto-commit`, `--no-auto-commit` | Auto-commit lane change (default: from project config) |
 | `--json` | Output in JSON format |
@@ -148,12 +154,12 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty accept [OPTIONS]`
 
-**Description**: Validate feature readiness before merging to main.
+**Description**: Validate mission readiness before merging to main.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug to accept (auto-detected by default) |
+| `--feature TEXT` | Mission slug to accept (legacy flag name; compatibility alias for software-dev missions) |
 | `--mode TEXT` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor TEXT` | Name to record as the acceptance actor |
 | `--test TEXT` | Validation command executed (repeatable) |
@@ -169,7 +175,7 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty merge [OPTIONS]`
 
-**Description**: Merge a completed feature branch into the target branch and clean up resources. For modern multi-workspace features, computes an effective branch tip set using ancestry pruning, then merges only non-redundant tips. For legacy features, merges the feature branch or legacy WP branches as needed. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
+**Description**: Merge a completed mission branch into the target branch and clean up resources. For modern multi-workspace missions, computes an effective branch tip set using ancestry pruning, then merges only non-redundant tips. For legacy features, merges the feature branch or legacy WP branches as needed. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
 
 **Options**:
 | Flag | Description |
@@ -181,7 +187,7 @@ spec-kitty implement WP01 --json
 | `--target TEXT` | Target branch to merge into (auto-detected) |
 | `--dry-run` | Show what would be done without executing |
 | `--json` | Output deterministic JSON (dry-run mode) |
-| `--feature TEXT` | Feature slug when merging from main branch |
+| `--feature TEXT` | Mission slug when merging from main branch (legacy flag name) |
 | `--resume` | Resume an interrupted merge from saved state |
 | `--abort` | Abort and clear merge state |
 | `--help` | Show this message and exit |
@@ -213,7 +219,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug to target (auto-detected when omitted) |
+| `--feature TEXT` | Mission slug to target (legacy flag name; auto-detected when omitted) |
 | `--force` | Overwrite existing research artifacts |
 | `--help` | Show this message and exit |
 
@@ -232,13 +238,13 @@ spec-kitty implement WP01 --json
 
 **Commands**:
 - `contract-version` - Return host contract version and provider compatibility minimum
-- `feature-state` - Return full feature/WP state snapshot
+- `feature-state` - Return full mission/WP state snapshot
 - `list-ready` - Return `planned` WPs whose dependencies are `done`
 - `start-implementation` - Composite claim/start transition for a WP
 - `start-review` - Move rejected WP from `for_review` back to `in_progress`
 - `transition` - Apply explicit lane transition with state-machine validation
 - `append-history` - Append activity history to a WP prompt
-- `accept-feature` - Accept a feature when all WPs are `done`
+- `accept-feature` - Accept a mission when all WPs are `done`
 - `merge-feature` - Run preflight and merge all WP branches
 
 **See Also**: [Orchestrator API Reference](orchestrator-api.md)
@@ -501,7 +507,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug to validate (auto-detected when omitted) |
+| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
 | `--fix` | Automatically fix encoding errors by sanitizing files |
 | `--all` | Check all features, not just one |
 | `--backup`, `--no-backup` | Create .bak files before fixing (default: backup) |
@@ -518,7 +524,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug to validate (auto-detected when omitted) |
+| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
 | `--fix` | Automatically repair metadata inconsistencies |
 | `--all` | Check all features, not just one |
 | `--agent TEXT` | Agent name for activity log |
@@ -536,7 +542,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug to verify (auto-detected when omitted) |
+| `--feature TEXT` | Mission slug to verify (legacy flag name; auto-detected when omitted) |
 | `--json` | Output in JSON format for AI agents |
 | `--check-files` | Check mission file integrity (default: True) |
 | `--check-tools` | Check for installed development tools (default: True) |
@@ -1010,12 +1016,12 @@ spec-kitty specify my-feature --json
 
 **Synopsis**: `spec-kitty plan [OPTIONS]`
 
-**Description**: Scaffold plan.md for a feature.
+**Description**: Scaffold plan.md for a mission.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Feature slug (e.g., `001-user-authentication`) |
+| `--feature TEXT` | Mission slug (legacy flag name; e.g., `001-user-authentication`) |
 | `--json` | Emit JSON result |
 | `--help` | Show this message and exit |
 
@@ -1081,7 +1087,7 @@ spec-kitty config -m documentation
 | --- | --- |
 | `--agent TEXT` | Agent name [required] |
 | `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked` (default: `success`) |
-| `--feature TEXT` | Feature slug (auto-detected if omitted) |
+| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--json` | Output JSON decision only |
 | `--answer TEXT` | Answer to a pending decision |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |

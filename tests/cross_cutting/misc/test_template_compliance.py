@@ -242,7 +242,7 @@ def test_no_deprecated_script_references():
     instead of the spec-kitty CLI command. This caused agents to execute user's local
     cli.py files instead of the spec-kitty entry point.
 
-    All templates must use workflow commands (spec-kitty agent workflow implement/review)
+    All templates must use action commands (spec-kitty agent action implement/review)
     NOT: python3 .kittify/scripts/tasks/tasks_cli.py
     """
     templates = find_mission_templates()
@@ -280,7 +280,7 @@ def test_no_deprecated_script_references():
 
     if violations:
         msg = "\n\nDeprecated script references found (Issue #68):\n"
-        msg += "Templates must use: spec-kitty agent workflow implement/review\n"
+        msg += "Templates must use: spec-kitty agent action implement/review\n"
         msg += "NOT: python3 .kittify/scripts/tasks/tasks_cli.py\n\n"
         for v in violations:
             msg += f"\n{v['file']}:{v['line']}\n  Pattern: {v['pattern']}\n  Line: {v['content'][:100]}\n"
@@ -290,7 +290,7 @@ def test_no_deprecated_script_references():
 def test_templates_do_not_instruct_manual_lane_moves_to_doing():
     """Templates should not instruct manual moves to 'doing' lane.
 
-    The 'spec-kitty agent workflow implement' command auto-moves WPs to 'doing'.
+    The 'spec-kitty agent action implement' command auto-moves WPs to 'doing'.
     Templates should not instruct agents to manually move-task --to doing.
 
     However, move-task --to for_review is allowed (completion step after implementation).
@@ -302,19 +302,19 @@ def test_templates_do_not_instruct_manual_lane_moves_to_doing():
     for template_path in templates:
         content = template_path.read_text(encoding="utf-8")
 
-        # Only flag move-task to "doing" since workflow implement handles that automatically
+        # Only flag move-task to "doing" since action implement handles that automatically
         # move-task to "for_review" is allowed (completion step after implementation)
         if "move-task" in content and "--to doing" in content and "deprecated" not in content.lower():
             violations.append(
                 {
                     "file": template_path.relative_to(template_path.parent.parent.parent),
-                    "issue": "Manual move-task --to doing is deprecated (use workflow implement instead)",
+                    "issue": "Manual move-task --to doing is deprecated (use action implement instead)",
                 }
             )
 
     if violations:
         msg = "\n\nTemplates with deprecated manual 'doing' lane moves:\n"
-        msg += "Use 'spec-kitty agent workflow implement' instead of manual move-task --to doing\n"
+        msg += "Use 'spec-kitty agent action implement' instead of manual move-task --to doing\n"
         for v in violations:
             msg += f"\n{v['file']}\n  Issue: {v['issue']}\n"
         pytest.fail(msg)

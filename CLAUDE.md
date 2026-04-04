@@ -303,7 +303,7 @@ All planning artifacts are created and committed before implementation starts:
 - `/spec-kitty.specify` creates `kitty-specs/<feature>/` artifacts in the main checkout
 - `/spec-kitty.plan` writes planning artifacts in the main checkout
 - `/spec-kitty.tasks` writes `tasks.md` and `tasks/*.md` in the main checkout
-- `spec-kitty agent feature finalize-tasks` validates dependencies, writes any lane metadata, and commits the finalized task set
+- `spec-kitty agent mission finalize-tasks` validates dependencies, writes any lane metadata, and commits the finalized task set
 
 No worktrees are created during planning.
 

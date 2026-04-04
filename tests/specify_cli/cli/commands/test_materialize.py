@@ -67,8 +67,17 @@ def test_write_derived_views_creates_files(tmp_path):
 
     write_derived_views(feature_dir, derived_dir)
 
-    assert (derived_dir / "001-test" / "status.json").exists()
-    assert (derived_dir / "001-test" / "board-summary.json").exists()
+    status_path = derived_dir / "001-test" / "status.json"
+    board_path = derived_dir / "001-test" / "board-summary.json"
+    assert status_path.exists()
+    assert board_path.exists()
+
+    status_data = json.loads(status_path.read_text())
+    board_data = json.loads(board_path.read_text())
+    assert status_data["mission_slug"] == "001-test"
+    assert status_data["feature_slug"] == "001-test"
+    assert board_data["mission_slug"] == "001-test"
+    assert board_data["feature_slug"] == "001-test"
 
 
 def test_generate_progress_json_creates_file(tmp_path):
@@ -83,6 +92,7 @@ def test_generate_progress_json_creates_file(tmp_path):
     progress_file = derived_dir / "002-test" / "progress.json"
     assert progress_file.exists()
     data = json.loads(progress_file.read_text())
+    assert data["mission_slug"] == "002-test"
     assert data["feature_slug"] == "002-test"
     assert data["percentage"] == pytest.approx(30.0)
 
@@ -122,7 +132,7 @@ def test_materialize_output_json_structure(tmp_path):
     generate_progress_json(feature_dir, derived_dir)
 
     data = json.loads((derived_dir / "004-structure" / "progress.json").read_text())
-    for key in ("feature_slug", "percentage", "done_count", "total_count", "per_lane_counts", "per_wp"):
+    for key in ("mission_slug", "feature_slug", "percentage", "done_count", "total_count", "per_lane_counts", "per_wp"):
         assert key in data, f"Missing key: {key}"
 
 

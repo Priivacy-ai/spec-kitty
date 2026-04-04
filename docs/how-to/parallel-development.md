@@ -31,7 +31,7 @@ Parallel development lets you move independent work packages (WPs) at the same t
 ### Terminal 1 - Agent A
 
 ```bash
-spec-kitty agent workflow implement WP01
+spec-kitty agent action implement WP01
 cd <workspace path printed by the command>
 # Agent A implements WP01
 ```
@@ -39,7 +39,7 @@ cd <workspace path printed by the command>
 ### Terminal 2 - Agent B (simultaneously)
 
 ```bash
-spec-kitty agent workflow implement WP02
+spec-kitty agent action implement WP02
 cd <workspace path printed by the command>
 # Agent B implements WP02
 ```
@@ -58,7 +58,7 @@ Once WP01 is finished, three agents can work on WP02, WP03, and WP04 in parallel
 
 ```bash
 # Agent A completes WP01 first
-spec-kitty agent workflow implement WP01
+spec-kitty agent action implement WP01
 # ... implement and finish WP01
 
 # Agent B starts WP02 after WP01 exists

@@ -20,6 +20,12 @@ supported entry point for external automation -- direct frontmatter mutation,
 git worktree manipulation, or internal CLI internals are not part of the
 contract.
 
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = tracked item under `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- Current command names such as `feature-state`, `accept-feature`, `merge-feature`, and `--feature` are legacy software-dev compatibility surfaces for the tracked mission
+
 ---
 
 ## When to Use This Skill

@@ -5,7 +5,7 @@ Operational checklist for executing the Spec Kitty review workflow surface.
 ## 1. Claim and Context
 
 - [ ] Loaded constitution context: `spec-kitty constitution context --action review --json`
-- [ ] Claimed WP: `spec-kitty agent workflow review WP## --agent <name>`
+- [ ] Claimed WP: `spec-kitty agent action review WP## --agent <name>`
 - [ ] Noted the review prompt file path from command output
 
 ## 2. Read the Review Prompt

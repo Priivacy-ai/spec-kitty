@@ -23,7 +23,7 @@ def next_step(
     result: Annotated[
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
-    feature: Annotated[str | None, typer.Option("--feature", help="Feature slug (auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", help="Mission slug (legacy flag name; auto-detected if omitted)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[

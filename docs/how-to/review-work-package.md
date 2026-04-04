@@ -2,11 +2,15 @@
 
 Use this guide to review a completed work package and update its lane.
 
+**Terminology note**
+- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
+- Current review commands still use `--feature` as the legacy flag name for the tracked mission slug
+
 ## Prerequisites
 
 - The WP is in `lane: "for_review"`
-- You are in a checkout where the feature can be resolved; `spec-kitty agent workflow review` will attach to the canonical execution workspace if needed
-- In multi-feature repos, you know the feature slug (required for the `--feature` flag)
+- You are in a checkout where the mission can be resolved; `spec-kitty agent action review` will attach to the canonical execution workspace if needed
+- In multi-mission repos, you know the mission slug (required through the legacy `--feature` flag)
 
 ## Step 1: Discover Reviewable Work Packages
 
@@ -59,13 +63,13 @@ You can also specify a WP ID:
 ### Using the CLI directly
 
 ```bash
-spec-kitty agent workflow review WP01 --agent <your-name> --feature <slug>
+spec-kitty agent action review WP01 --agent <your-name> --feature <slug>
 ```
 
 Omit `WP01` to auto-select the first WP in the `for_review` lane:
 
 ```bash
-spec-kitty agent workflow review --agent <your-name> --feature <slug>
+spec-kitty agent action review --agent <your-name> --feature <slug>
 ```
 
 The review command:

@@ -13,14 +13,26 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 ---
 
+### Mission Type
+
+| | |
+|---|---|
+| **Definition** | Reusable workflow blueprint that configures mission actions, templates, and guardrails. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
+
+---
+
 ### Mission
 
 | | |
 |---|---|
-| **Definition** | Workflow definition that configures phases, templates, and guardrails. |
+| **Definition** | Concrete tracked item stored under `kitty-specs/<mission-slug>/` and linked to exactly one [Mission Type](#mission-type). |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+| **Note** | This is the generic tracked-item noun across software, research, planning, and documentation work. |
 
 ---
 
@@ -28,7 +40,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Runtime collaboration/execution container for a mission instance. |
+| **Definition** | Runtime collaboration/execution container for one mission session. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -40,11 +52,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Planning and delivery unit in current 2.x artifact/worktree model (`kitty-specs/<feature-slug>/`). |
+| **Definition** | Compatibility alias for a [Mission](#mission) whose mission type is `software-dev`. |
 | **Context** | Orchestration |
 | **Status** | canonical (compatibility) |
 | **Applicable to** | `1.x`, `2.x` |
-| **Note** | Feature remains a practical artifact key in 2.x while mission-centric runtime identity is strengthened |
+| **Note** | Allowed on legacy software-delivery surfaces, but not a co-equal canonical architecture noun. |
 
 ---
 
@@ -52,10 +64,46 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Executable slice of work inside a feature plan, typically represented as `WPxx` tasks. |
+| **Definition** | Executable slice of work inside a mission plan, typically represented as `WPxx` tasks. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+
+---
+
+### Mission Action
+
+| | |
+|---|---|
+| **Definition** | Outer lifecycle action for a mission, such as `specify`, `plan`, `implement`, `review`, or `accept`. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
+| **Related terms** | [Mission Type](#mission-type), [Step Contract](#step-contract), [Procedure](./doctrine.md#procedure) |
+
+---
+
+### Step Contract
+
+| | |
+|---|---|
+| **Definition** | Structured contract for one mission action, including step sequencing, guard evaluation, prompt binding, and delegation hooks. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `1.x`, `2.x` |
+| **Related terms** | [Mission Action](#mission-action), [Mission-Runtime YAML](#mission-runtime-yaml), [Procedure](./doctrine.md#procedure) |
+
+---
+
+### Workflow
+
+| | |
+|---|---|
+| **Definition** | Umbrella prose term for the overall flow of work. |
+| **Context** | Orchestration |
+| **Status** | canonical (generic prose only) |
+| **Applicable to** | `1.x`, `2.x` |
+| **Rule** | Use [Mission Type](#mission-type), [Mission Action](#mission-action), [Step Contract](#step-contract), or [Procedure](./doctrine.md#procedure) when precision matters. |
 
 ---
 
@@ -86,11 +134,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Configuration file (`mission-runtime.yaml`) that defines a mission's steps, the order they run in, which steps depend on others, and where to find the prompt templates for each step. |
+| **Definition** | Configuration file (`mission-runtime.yaml`) that defines a mission type's step graph, action ordering, dependencies, and prompt-template bindings. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission](#mission), [Step Dependency](#step-dependency), [Command Template](#command-template) |
+| **Related terms** | [Mission Type](#mission-type), [Step Dependency](#step-dependency), [Step Contract](#step-contract), [Command Template](#command-template) |
 
 ---
 
@@ -122,7 +170,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | A markdown file that provides the prompt for a specific mission step. Located in the mission's template directory and loaded at runtime based on mission type and agent configuration. |
+| **Definition** | A markdown file that provides the prompt for a specific mission action. Located in the mission type's template directory and loaded at runtime based on mission type and agent configuration. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -134,7 +182,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The process of finding and loading the correct command template for a given mission step, considering which mission type is active and which agent is running. |
+| **Definition** | The process of finding and loading the correct command template for a given mission action, considering which mission type is active and which agent is running. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -146,11 +194,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | How the runtime finds and loads mission definition files (mission.yaml, mission-runtime.yaml) from the missions directory at startup. |
+| **Definition** | How the runtime finds and loads mission-type definition files (`mission.yaml`, `mission-runtime.yaml`) from configured mission-pack roots at startup. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Mission](#mission), [Mission-Runtime YAML](#mission-runtime-yaml) |
+| **Related terms** | [Mission Type](#mission-type), [Mission-Runtime YAML](#mission-runtime-yaml) |
 
 ---
 
@@ -194,7 +242,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | A structured choice presented to the Human-in-Charge (HiC) or their delegated agent during the next-command loop. Each decision describes what needs to happen next and offers options to advance the mission workflow. |
+| **Definition** | A structured choice presented to the Human-in-Charge (HiC) or their delegated agent during the next-command loop. Each decision describes what needs to happen next and offers options to advance the mission. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -218,7 +266,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The adapter that connects the CLI's decision loop to the mission execution engine. It translates internal runtime decisions into the format the HiC or agent sees. |
+| **Definition** | The adapter that connects the CLI's decision loop to the mission execution engine. It translates internal runtime decisions into the format the HiC or agent sees while keeping mission identity separate from mission-run identity. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -230,7 +278,7 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | The process of figuring out where a mission currently stands by reading filesystem artifacts and event logs, so the system can determine what actions are available next. |
+| **Definition** | The process of figuring out where a mission currently stands by reading filesystem artifacts and event logs, so the system can determine what mission actions are available next. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -242,11 +290,11 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Feature-level routing value indicating which repository line receives lifecycle/status commits for that feature. |
+| **Definition** | Mission-level routing value indicating which repository line receives lifecycle/status commits for that mission. |
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Feature](#feature), [Lane](#lane), [Work Package](#work-package) |
+| **Related terms** | [Mission](#mission), [Lane](#lane), [Work Package](#work-package) |
 
 ---
 

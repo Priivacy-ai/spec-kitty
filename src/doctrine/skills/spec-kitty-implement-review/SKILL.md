@@ -49,8 +49,8 @@ The orchestrator does NOT hardcode agent names. Instead:
 spec-kitty agent config list
 
 # The workflow commands handle agent selection internally
-spec-kitty agent workflow implement WP01 --agent <your-name>
-spec-kitty agent workflow review WP01 --agent <reviewer-name>
+spec-kitty agent action implement WP01 --agent <your-name>
+spec-kitty agent action review WP01 --agent <reviewer-name>
 ```
 
 ### Agent Capabilities
@@ -120,7 +120,7 @@ agent to do the work.
 ### Step 1a: Claim the Workspace
 
 ```bash
-OUTPUT=$(spec-kitty agent workflow implement WP## --agent <orchestrator-name> 2>&1)
+OUTPUT=$(spec-kitty agent action implement WP## --agent <orchestrator-name> 2>&1)
 ```
 
 This command:
@@ -254,7 +254,7 @@ When a WP reaches `for_review`, dispatch a review agent.
 ### Step 3a: Claim the Review
 
 ```bash
-OUTPUT=$(spec-kitty agent workflow review WP## --agent <reviewer-name> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --agent <reviewer-name> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep -o '/var/folders[^ ]*/spec-kitty-review-WP[0-9]*.md' || echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 ```
@@ -375,7 +375,7 @@ must re-dispatch implementation.
 
 2. **Re-dispatch implementation** using the same two-step pattern from Step 1:
    ```bash
-   OUTPUT=$(spec-kitty agent workflow implement WP## --agent <orchestrator-name> 2>&1)
+   OUTPUT=$(spec-kitty agent action implement WP## --agent <orchestrator-name> 2>&1)
    WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
    PROMPT_FILE=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
    ```
@@ -402,7 +402,7 @@ spec-kitty agent tasks status
 git add kitty-specs/ && git commit -m "chore: Review feedback for WP03 from <reviewer> (cycle 1/3)"
 
 # 3. Re-dispatch implementation (two-step pattern)
-OUTPUT=$(spec-kitty agent workflow implement WP03 --agent coordinator 2>&1)
+OUTPUT=$(spec-kitty agent action implement WP03 --agent coordinator 2>&1)
 WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 PROMPT_FILE=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 
@@ -503,7 +503,7 @@ Dispatch in parallel. Each must complete its review cycle before feature merge.
 spec-kitty next --agent <name> --feature <slug>
 
 # 2. Dispatch implementation (two steps)
-OUTPUT=$(spec-kitty agent workflow implement WP## --agent <name> 2>&1)
+OUTPUT=$(spec-kitty agent action implement WP## --agent <name> 2>&1)
 WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 # Then dispatch agent (Task tool or CLI)
@@ -512,7 +512,7 @@ PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 spec-kitty agent tasks status
 
 # 4. Dispatch review (two steps)
-OUTPUT=$(spec-kitty agent workflow review WP## --agent <reviewer> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --agent <reviewer> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 # Then dispatch reviewer (Task tool or CLI)
@@ -531,8 +531,8 @@ spec-kitty merge --feature <slug>
 
 ## Key Rules
 
-1. **Always use `spec-kitty agent workflow implement WP##`** before dispatching
-2. **Always use `spec-kitty agent workflow review WP##`** before dispatching review
+1. **Always use `spec-kitty agent action implement WP##`** before dispatching
+2. **Always use `spec-kitty agent action review WP##`** before dispatching review
 3. **Use `spec-kitty next`** to determine sequencing -- do not guess
 4. **Commit after every review**: `git add kitty-specs/ && git commit`
 5. **Track rejection cycles** (max 3) in commit messages

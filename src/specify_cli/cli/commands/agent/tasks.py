@@ -1103,7 +1103,7 @@ def move_task(
                 # No canonical state for this WP — finalize-tasks must be run first
                 raise RuntimeError(
                     f"WP {task_id} has no canonical status in feature {feature_slug}. "
-                    f"Run `spec-kitty agent feature finalize-tasks --feature {feature_slug}` to initialize."
+                    f"Run `spec-kitty agent mission finalize-tasks --feature {feature_slug}` to initialize."
                 )
 
             for target in transition_targets:

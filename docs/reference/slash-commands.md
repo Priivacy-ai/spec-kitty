@@ -12,7 +12,7 @@ Syntax format in this reference:
 
 **Syntax**: `/spec-kitty.specify [description]`
 
-**Purpose**: Create or update a feature specification from a natural-language description.
+**Purpose**: Create or update a mission specification from a natural-language description.
 
 **Prerequisites**:
 - Run from the main repository root (no worktree).
@@ -21,7 +21,7 @@ Syntax format in this reference:
 **What it does**:
 - Runs a discovery interview and confirms an intent summary.
 - Determines mission (software-dev or research).
-- Calls `spec-kitty agent feature create-feature` to create feature scaffolding.
+- Calls `spec-kitty agent mission create-feature` to create mission scaffolding.
 
 **Creates/updates**:
 - `kitty-specs/<feature>/spec.md`
@@ -44,7 +44,7 @@ Syntax format in this reference:
 
 **What it does**:
 - Conducts planning interrogation.
-- Calls `spec-kitty agent feature setup-plan`.
+- Calls `spec-kitty agent mission setup-plan`.
 - Generates planning artifacts and updates agent context files.
 
 **Creates/updates** (as applicable):
@@ -72,7 +72,7 @@ Syntax format in this reference:
 **What it does**:
 - Reads spec/plan (and optional research artifacts).
 - Writes `tasks.md` plus one prompt file per work package.
-- Calls `spec-kitty agent feature finalize-tasks` to populate dependencies.
+- Calls `spec-kitty agent mission finalize-tasks` to populate dependencies.
 
 **Creates/updates**:
 - `kitty-specs/<feature>/tasks.md`
@@ -90,11 +90,11 @@ Syntax format in this reference:
 
 **Prerequisites**:
 - Work packages exist in `kitty-specs/<feature>/tasks/`.
-- Run from the main repository for the workflow prompt; the execution workspace is created or reused by the CLI.
+- Run from the main repository for the action prompt; the execution workspace is created or reused by the CLI.
 
 **What it does**:
-- If explicit slash-command args are provided, forwards the WP/base selection into the resolver-first workflow.
-- Step 1: `spec-kitty agent workflow implement WP## --agent <agent>` to show the prompt and move the WP to `doing`.
+- If explicit slash-command args are provided, forwards the WP/base selection into the resolver-first action flow.
+- Step 1: `spec-kitty agent action implement WP## --agent <agent>` to show the prompt and move the WP to `doing`.
 - Step 2: `spec-kitty implement WP## [--base WP##]` to create or reuse the execution workspace.
 - Implementation happens inside the resolved workspace path printed by the command.
 
@@ -113,7 +113,7 @@ Syntax format in this reference:
 **Purpose**: Review a completed work package and update its lane status.
 
 **Prerequisites**:
-- Run from any checkout where the feature can be resolved; review will attach to the canonical execution workspace if needed.
+- Run from any checkout where the mission can be resolved; review will attach to the canonical execution workspace if needed.
 - WP must be in `lane: "for_review"`.
 
 **What it does**:
@@ -136,19 +136,19 @@ Syntax format in this reference:
 
 **Syntax**: `/spec-kitty.accept [options]`
 
-**Purpose**: Validate feature readiness and generate acceptance results.
+**Purpose**: Validate mission readiness and generate acceptance results.
 
 **Prerequisites**:
-- Run from any checkout or branch where feature auto-detection works.
+- Run from any checkout or branch where mission auto-detection works.
 - All WPs should be in `done` or intentionally waived.
 
 **What it does**:
-- Auto-detects feature slug and validation commands when possible.
-- Runs `spec-kitty agent feature accept` to perform acceptance checks.
+- Auto-detects mission slug and validation commands when possible.
+- Runs `spec-kitty agent mission accept` to perform acceptance checks.
 - Outputs acceptance summary and merge instructions.
 
 **Creates/updates**:
-- Acceptance output in the feature directory (and optional commits depending on mode)
+- Acceptance output in the mission directory (and optional commits depending on mode)
 
 **Related**: `/spec-kitty.review`, `/spec-kitty.merge`
 
@@ -158,19 +158,19 @@ Syntax format in this reference:
 
 **Syntax**: `/spec-kitty.merge [options]`
 
-**Purpose**: Merge an accepted feature into the target branch and clean up worktrees.
+**Purpose**: Merge an accepted mission into the target branch and clean up worktrees.
 
 **Prerequisites**:
-- Run from any checkout where the feature can be resolved (main checkout or execution workspace).
-- Feature must pass `/spec-kitty.accept`.
+- Run from any checkout where the mission can be resolved (main checkout or execution workspace).
+- Mission must pass `/spec-kitty.accept`.
 
 **What it does**:
 - Executes `spec-kitty merge` with selected strategy and cleanup flags.
 - Optionally pushes to origin and deletes worktrees/branches.
 
 **Creates/updates**:
-- Merges feature branch into target branch.
-- Deletes worktree and/or feature branch depending on flags.
+- Merges mission branch into target branch.
+- Deletes worktree and/or mission branch depending on flags.
 
 **Related**: `/spec-kitty.accept`
 
@@ -240,7 +240,7 @@ Syntax format in this reference:
 **Purpose**: Scaffold research artifacts for Phase 0 research.
 
 **Prerequisites**:
-- Run from any checkout where the feature can be resolved.
+- Run from any checkout where the mission can be resolved.
 
 **What it does**:
 - Runs `spec-kitty research` to create research templates.
@@ -262,7 +262,7 @@ Syntax format in this reference:
 **Purpose**: Generate a requirements-quality checklist for the current feature.
 
 **Prerequisites**:
-- Run from any checkout where the feature can be resolved.
+- Run from any checkout where the mission can be resolved.
 
 **What it does**:
 - Uses `spec-kitty agent check-prerequisites` for paths.
@@ -282,7 +282,7 @@ Syntax format in this reference:
 **Purpose**: Cross-artifact consistency analysis after tasks generation.
 
 **Prerequisites**:
-- Run from any checkout where the feature can be resolved.
+- Run from any checkout where the mission can be resolved.
 - `spec.md`, `plan.md`, and `tasks.md` must exist.
 
 **What it does**:

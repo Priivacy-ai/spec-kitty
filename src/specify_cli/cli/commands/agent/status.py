@@ -17,6 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
+from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
@@ -33,16 +34,16 @@ console = Console()
 
 
 def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Require an explicit feature slug (no auto-detection).
+    """Require an explicit mission slug (legacy ``--feature`` name).
 
     Args:
-        explicit_feature: Feature slug provided via --feature flag.
+        explicit_feature: Mission slug provided via the legacy ``--feature`` flag.
 
     Returns:
-        Feature slug (e.g., "034-feature-name")
+        Mission slug (e.g., "034-feature-name")
 
     Raises:
-        typer.Exit: If feature slug is not provided.
+        typer.Exit: If the mission slug is not provided.
     """
     try:
         return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
@@ -70,7 +71,7 @@ def _output_error(json_mode: bool, error_message: str):
 def _resolve_feature_dir(
     explicit_feature: str | None = None,
 ) -> tuple[Path, str, Path]:
-    """Resolve feature directory, feature slug, and repo root.
+    """Resolve feature directory, mission slug, and repo root.
 
     Returns:
         (feature_dir, feature_slug, repo_root)
@@ -97,7 +98,7 @@ def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
@@ -206,7 +207,7 @@ def emit(
 
 @app.command()
 def materialize(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -292,7 +293,7 @@ def materialize(
 def doctor(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug"),
+        typer.Option("--feature", help="Mission slug (legacy flag name)"),
     ] = None,
     stale_claimed: Annotated[
         int,
@@ -376,7 +377,7 @@ def doctor(
                 for f in result.findings
             ],
         }
-        console.print_json(json.dumps(report))
+        console.print_json(json.dumps(with_tracked_mission_slug_aliases(report)))
     else:
         # Global Runtime section
         console.print("\n[bold]Global Runtime:[/bold]")
@@ -393,7 +394,7 @@ def doctor(
             console.print(f"  [{color}]{icon}[/{color}] {check.message}")
 
         # Project-specific section
-        console.print(f"\n[bold]Feature Status: {result.feature_slug}[/bold]")
+        console.print(f"\n[bold]Mission Status: {result.feature_slug}[/bold]")
         if result.is_healthy:
             console.print(
                 f"  [green]Healthy[/green]"
@@ -433,7 +434,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
     """Convert a MigrationResult to a JSON-serializable dict."""
     return {
         "features": [
-            {
+            with_tracked_mission_slug_aliases({
                 "feature_slug": f.feature_slug,
                 "status": f.status,
                 "wp_count": len(f.wp_details),
@@ -447,7 +448,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
                     for wp in f.wp_details
                 ],
                 "error": f.error,
-            }
+            })
             for f in result.features
         ],
         "summary": {
@@ -504,7 +505,7 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 def migrate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Single feature slug to migrate"),
+        typer.Option("--feature", "-f", help="Single mission slug to migrate (legacy flag name)"),
     ] = None,
     all_features: Annotated[
         bool,
@@ -553,7 +554,7 @@ def migrate(
 def validate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (required in multi-feature repos)"),
+        typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -613,14 +614,14 @@ def validate(
         if json_output:
             print(
                 json.dumps(
-                    {
+                    with_tracked_mission_slug_aliases({
                         "feature_slug": feature_slug,
                         "passed": True,
                         "errors": [],
                         "warnings": [],
                         "error_count": 0,
                         "warning_count": 0,
-                    }
+                    })
                 )
             )
         else:
@@ -644,14 +645,14 @@ def validate(
     if json_output:
         print(
             json.dumps(
-                {
+                with_tracked_mission_slug_aliases({
                     "feature_slug": feature_slug,
                     "passed": result.passed,
                     "errors": result.errors,
                     "warnings": result.warnings,
                     "error_count": len(result.errors),
                     "warning_count": len(result.warnings),
-                }
+                })
             )
         )
     else:
@@ -692,7 +693,7 @@ def validate(
 def reconcile(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (required in multi-feature repos)"),
+        typer.Option("--feature", "-f", help="Mission slug (legacy flag name; required in multi-mission repos)"),
     ] = None,
     dry_run: Annotated[
         bool,

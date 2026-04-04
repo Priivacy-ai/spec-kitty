@@ -1,6 +1,7 @@
 """Merge command implementation.
 
-Merges completed work packages into target branch with VCS abstraction support.
+Merges completed mission work packages into the target branch with VCS
+abstraction support.
 """
 
 from __future__ import annotations
@@ -847,7 +848,7 @@ def merge(
     target_branch: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected)"),
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
-    feature: str = typer.Option(None, "--feature", help="Feature slug when merging from main branch"),
+    feature: str = typer.Option(None, "--feature", help="Mission slug when merging from main branch (legacy flag name)"),
     resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from saved state"),
     abort: bool = typer.Option(False, "--abort", help="Abort and clear merge state"),
     context_token: str = typer.Option(None, "--context", help="MissionContext token for engine-v2 merge"),

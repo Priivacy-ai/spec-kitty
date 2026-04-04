@@ -110,7 +110,7 @@ In your agent:
 Or via CLI:
 
 ```bash
-spec-kitty agent workflow review WP01
+spec-kitty agent action review WP01
 ```
 
 Follow the review instructions and address any feedback.

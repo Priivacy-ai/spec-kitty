@@ -38,7 +38,7 @@ def validate_tasks(
     (tasks/planned/, tasks/doing/, etc.). Modern projects (3.0+) use
     flat tasks/ directories with canonical status in status.events.jsonl.
 
-    For modern projects, use `spec-kitty agent feature finalize-tasks`
+    For modern projects, use `spec-kitty agent mission finalize-tasks`
     to ensure canonical status state exists.
     """
     try:

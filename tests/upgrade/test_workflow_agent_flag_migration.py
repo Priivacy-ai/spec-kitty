@@ -1,4 +1,4 @@
-"""Scope: workflow agent flag migration unit tests — no real git or subprocesses."""
+"""Scope: action agent flag migration unit tests — no real git or subprocesses."""
 
 from __future__ import annotations
 
@@ -18,22 +18,22 @@ def _write_prompt(path: Path, line: str) -> None:
 
 
 def test_workflow_agent_flag_migration_updates_prompts(tmp_path: Path) -> None:
-    """Migration rewrites workflow commands to include the per-agent --agent flag."""
+    """Migration rewrites action commands to include the per-agent --agent flag."""
     # Arrange
     project_path = tmp_path
     (project_path / ".kittify").mkdir()
 
     _write_prompt(
         project_path / ".claude" / "commands" / "spec-kitty.implement.md",
-        "spec-kitty agent workflow implement WP01",
+        "spec-kitty agent action implement WP01",
     )
     _write_prompt(
         project_path / ".claude" / "commands" / "spec-kitty.review.md",
-        "spec-kitty agent workflow review WP01",
+        "spec-kitty agent action review WP01",
     )
     _write_prompt(
         project_path / ".github" / "prompts" / "spec-kitty.review.md",
-        "spec-kitty agent workflow review WP02",
+        "spec-kitty agent action review WP02",
     )
 
     migration = WorkflowAgentFlagMigration()
@@ -51,6 +51,6 @@ def test_workflow_agent_flag_migration_updates_prompts(tmp_path: Path) -> None:
     claude_review = (project_path / ".claude" / "commands" / "spec-kitty.review.md").read_text(encoding="utf-8")
     copilot_review = (project_path / ".github" / "prompts" / "spec-kitty.review.md").read_text(encoding="utf-8")
 
-    assert "spec-kitty agent workflow implement WP01 --agent claude" in claude_implement
-    assert "spec-kitty agent workflow review WP01 --agent claude" in claude_review
-    assert "spec-kitty agent workflow review WP02 --agent copilot" in copilot_review
+    assert "spec-kitty agent action implement WP01 --agent claude" in claude_implement
+    assert "spec-kitty agent action review WP01 --agent claude" in claude_review
+    assert "spec-kitty agent action review WP02 --agent copilot" in copilot_review

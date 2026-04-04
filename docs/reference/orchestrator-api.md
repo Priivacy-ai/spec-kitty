@@ -9,6 +9,12 @@ description: Contract reference for external orchestration providers that integr
 providers. It is the **only** supported interface for systems running outside the
 project directory (CI pipelines, custom orchestrators, dashboards).
 
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = tracked item under `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- Current command names such as `feature-state`, `accept-feature`, `merge-feature`, and `--feature` are legacy software-dev compatibility surfaces for the tracked mission
+
 - External providers (for example `spec-kitty-orchestrator`) must use this API.
 - Commands always emit JSON: exactly one JSON envelope on stdout; non-zero exit on failure.
 - Parser/usage errors (missing required args, unknown options) also return a JSON envelope with error code `USAGE_ERROR`.
@@ -21,6 +27,7 @@ project directory (CI pipelines, custom orchestrators, dashboards).
 - `CONTRACT_VERSION`: `1.0.0`
 - Command: `spec-kitty orchestrator-api contract-version`
 - Always call `contract-version` at orchestrator startup, before any other commands.
+- Success payloads that identify a tracked mission now emit `mission_slug` canonically and keep `feature_slug` as a deprecated compatibility alias.
 
 ---
 
@@ -82,14 +89,14 @@ persisted in events or returned in API responses.
 | # | Command | Purpose | Mutates State |
 |---|---------|---------|:-------------:|
 | 1 | [`contract-version`](#1-contract-version) | Verify API compatibility | No |
-| 2 | [`feature-state`](#2-feature-state) | Query full feature state | No |
+| 2 | [`feature-state`](#2-feature-state) | Query full mission state (legacy command name) | No |
 | 3 | [`list-ready`](#3-list-ready) | List WPs ready to start | No |
 | 4 | [`start-implementation`](#4-start-implementation) | Claim + begin WP (atomic) | Yes |
 | 5 | [`start-review`](#5-start-review) | Reviewer rollback (for_review to in_progress) | Yes |
 | 6 | [`transition`](#6-transition) | Explicit single lane change | Yes |
 | 7 | [`append-history`](#7-append-history) | Add note to WP activity log | Yes |
-| 8 | [`accept-feature`](#8-accept-feature) | Mark feature as accepted | Yes |
-| 9 | [`merge-feature`](#9-merge-feature) | Merge WP branches into target | Yes |
+| 8 | [`accept-feature`](#8-accept-feature) | Mark a mission as accepted (legacy command name) | Yes |
+| 9 | [`merge-feature`](#9-merge-feature) | Merge mission WP branches into target (legacy command name) | Yes |
 
 ---
 
@@ -150,26 +157,27 @@ Options:
 
 ## 2. feature-state
 
-Query the full state of a feature and all its work packages.
+Query the full state of a mission and all its work packages.
 
 ```
 Usage: spec-kitty orchestrator-api feature-state [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug (e.g. 034-my-feature) [required]
+  --feature  TEXT  Mission slug (legacy flag name; e.g. 034-my-feature) [required]
 ```
 
 **Flags:**
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug (e.g., `047-namespace-aware-artifact-body-sync`) |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name; e.g., `047-namespace-aware-artifact-body-sync`) |
 
 **Response `data` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `feature_slug` | string | The feature identifier |
+| `mission_slug` | string | Canonical tracked mission slug. |
+| `feature_slug` | string | Legacy field name for the tracked mission slug. Treat as a compatibility alias of the canonical mission identifier. |
 | `summary.planned` | int | WPs in the `planned` lane |
 | `summary.claimed` | int | WPs in the `claimed` lane |
 | `summary.in_progress` | int | WPs in the `in_progress` lane |
@@ -195,6 +203,7 @@ Options:
   "success": true,
   "error_code": null,
   "data": {
+    "mission_slug": "047-namespace-aware-artifact-body-sync",
     "feature_slug": "047-namespace-aware-artifact-body-sync",
     "summary": {
       "planned": 0,
@@ -258,7 +267,7 @@ Options:
 
 | Code | Cause |
 |------|-------|
-| `FEATURE_NOT_FOUND` | No feature with this slug exists in `kitty-specs/` |
+| `FEATURE_NOT_FOUND` | No mission with this slug exists in `kitty-specs/` |
 
 ---
 
@@ -271,20 +280,21 @@ dependencies satisfied).
 Usage: spec-kitty orchestrator-api list-ready [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --feature  TEXT  Mission slug (legacy flag name) [required]
 ```
 
 **Flags:**
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 
 **Response `data` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `feature_slug` | string | The feature identifier |
+| `mission_slug` | string | Canonical tracked mission slug. |
+| `feature_slug` | string | Deprecated compatibility alias for `mission_slug`. |
 | `ready_work_packages` | list | WPs ready to start (see below) |
 | `ready_work_packages[].wp_id` | string | Work package identifier |
 | `ready_work_packages[].lane` | string | Current lane (always `planned` for returned WPs) |
@@ -302,6 +312,7 @@ Options:
   "success": true,
   "error_code": null,
   "data": {
+    "mission_slug": "042-test-feature",
     "feature_slug": "042-test-feature",
     "ready_work_packages": [
       {
@@ -322,7 +333,7 @@ in-review, done, or have unmet dependencies.
 
 | Code | Cause |
 |------|-------|
-| `FEATURE_NOT_FOUND` | No feature with this slug exists |
+| `FEATURE_NOT_FOUND` | No mission with this slug exists |
 
 **Usage notes:**
 - This is a query-only command; it does **not** modify any state.
@@ -340,7 +351,7 @@ that moves the WP through `planned` -> `claimed` -> `in_progress` atomically
 Usage: spec-kitty orchestrator-api start-implementation [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --feature  TEXT  Mission slug (legacy flag name) [required]
   --wp       TEXT  Work package ID (e.g. WP01) [required]
   --actor    TEXT  Actor identity [required]
   --policy   TEXT  Policy metadata JSON (required)
@@ -350,7 +361,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--wp` | TEXT | Yes | -- | Work package ID (e.g., `WP01`) |
 | `--actor` | TEXT | Yes | -- | Identity of the claiming actor |
 | `--policy` | TEXT | Yes | -- | JSON string with [policy metadata](#policy-metadata-schema) |
@@ -383,7 +394,7 @@ Options:
 | `POLICY_VALIDATION_FAILED` | Bad JSON or contains secret-like values |
 | `WP_ALREADY_CLAIMED` | Another actor has already claimed this WP |
 | `TRANSITION_REJECTED` | Guard failure (dependency not met, invalid state) |
-| `WP_NOT_FOUND` | WP ID does not exist in feature |
+| `WP_NOT_FOUND` | WP ID does not exist in the mission |
 
 ---
 
@@ -396,7 +407,7 @@ so the implementing agent can address review feedback.
 Usage: spec-kitty orchestrator-api start-review [OPTIONS]
 
 Options:
-  --feature     TEXT  Feature slug [required]
+  --feature     TEXT  Mission slug (legacy flag name) [required]
   --wp          TEXT  Work package ID [required]
   --actor       TEXT  Actor identity [required]
   --policy      TEXT  Policy metadata JSON (required)
@@ -407,7 +418,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--actor` | TEXT | Yes | -- | Identity of the reviewing actor |
 | `--policy` | TEXT | Yes | -- | JSON string with [policy metadata](#policy-metadata-schema) |
@@ -442,7 +453,7 @@ Perform an explicit single lane transition on a work package.
 Usage: spec-kitty orchestrator-api transition [OPTIONS]
 
 Options:
-  --feature     TEXT  Feature slug [required]
+  --feature     TEXT  Mission slug (legacy flag name) [required]
   --wp          TEXT  Work package ID [required]
   --to          TEXT  Target lane [required]
   --actor       TEXT  Actor identity [required]
@@ -456,7 +467,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--to` | TEXT | Yes | -- | Target lane |
 | `--actor` | TEXT | Yes | -- | Identity of the transitioning actor |
@@ -492,7 +503,7 @@ Options:
 | `TRANSITION_REJECTED` | Guard failure or invalid lane transition |
 | `POLICY_METADATA_REQUIRED` | Run-affecting lane without `--policy` |
 | `POLICY_VALIDATION_FAILED` | Bad JSON or contains secret-like values |
-| `WP_NOT_FOUND` | WP ID does not exist in feature |
+| `WP_NOT_FOUND` | WP ID does not exist in the mission |
 
 **Usage notes:**
 - Use `--force` only for recovery from known-bad state, never in normal flow.
@@ -510,7 +521,7 @@ the WP lane.
 Usage: spec-kitty orchestrator-api append-history [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --feature  TEXT  Mission slug (legacy flag name) [required]
   --wp       TEXT  Work package ID [required]
   --actor    TEXT  Actor identity [required]
   --note     TEXT  History note to append [required]
@@ -520,7 +531,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--wp` | TEXT | Yes | -- | Work package ID |
 | `--actor` | TEXT | Yes | -- | Identity of the author |
 | `--note` | TEXT | Yes | -- | History note content |
@@ -535,20 +546,20 @@ Options:
 
 | Code | Cause |
 |------|-------|
-| `FEATURE_NOT_FOUND` | No feature with this slug exists |
-| `WP_NOT_FOUND` | WP ID does not exist in feature |
+| `FEATURE_NOT_FOUND` | No mission with this slug exists |
+| `WP_NOT_FOUND` | WP ID does not exist in the mission |
 
 ---
 
 ## 8. accept-feature
 
-Mark a feature as accepted. All work packages must be in the `done` lane.
+Mark a mission as accepted. All work packages must be in the `done` lane.
 
 ```
 Usage: spec-kitty orchestrator-api accept-feature [OPTIONS]
 
 Options:
-  --feature  TEXT  Feature slug [required]
+  --feature  TEXT  Mission slug (legacy flag name) [required]
   --actor    TEXT  Actor identity [required]
 ```
 
@@ -556,20 +567,20 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--actor` | TEXT | Yes | -- | Identity of the accepting actor |
 
 **Response `data` fields:**
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `accepted` | bool | `true` if feature was accepted |
+| `accepted` | bool | `true` if the mission was accepted |
 
 **Error codes:**
 
 | Code | Cause |
 |------|-------|
-| `FEATURE_NOT_FOUND` | No feature with this slug exists |
+| `FEATURE_NOT_FOUND` | No mission with this slug exists |
 | `FEATURE_NOT_READY` | One or more WPs are not in the `done` lane |
 
 **Usage notes:**
@@ -587,7 +598,7 @@ dependency order.
 Usage: spec-kitty orchestrator-api merge-feature [OPTIONS]
 
 Options:
-  --feature   TEXT  Feature slug [required]
+  --feature   TEXT  Mission slug (legacy flag name) [required]
   --target    TEXT  Target branch to merge into (auto-detected from meta.json)
   --strategy  TEXT  Merge strategy: merge, squash, or rebase [default: merge]
   --push           Push target branch after merge
@@ -597,7 +608,7 @@ Options:
 
 | Flag | Type | Required | Default | Description |
 |------|------|:--------:|---------|-------------|
-| `--feature` | TEXT | Yes | -- | Feature slug |
+| `--feature` | TEXT | Yes | -- | Mission slug (legacy flag name) |
 | `--target` | TEXT | No | auto-detected from `meta.json` | Target branch to merge into |
 | `--strategy` | TEXT | No | `merge` | Merge strategy: `merge` (--no-ff), `squash`, or `rebase` |
 | `--push` | FLAG | No | off | Push target branch to remote after merge |
@@ -625,7 +636,7 @@ On preflight failure, returns `PREFLIGHT_FAILED` with a detailed error list.
 
 | Code | Cause |
 |------|-------|
-| `FEATURE_NOT_FOUND` | No feature with this slug exists |
+| `FEATURE_NOT_FOUND` | No mission with this slug exists |
 | `PREFLIGHT_FAILED` | Worktree dirty, target diverged, or missing WPs |
 | `MERGE_FAILED` | Git merge failed (conflicts or other git error) |
 | `PUSH_FAILED` | Push to remote failed |
@@ -700,7 +711,7 @@ Complete list of all error codes returned by orchestrator-api commands.
 |------------|----------|-------|
 | `USAGE_ERROR` | All | Parser/usage error (missing required args, unknown options) |
 | `CONTRACT_VERSION_MISMATCH` | `contract-version` | Provider version below `min_supported_provider_version` |
-| `FEATURE_NOT_FOUND` | `feature-state`, `list-ready`, `append-history`, `accept-feature`, `merge-feature` | Feature slug does not resolve to a directory in `kitty-specs/` |
+| `FEATURE_NOT_FOUND` | `feature-state`, `list-ready`, `append-history`, `accept-feature`, `merge-feature` | Mission slug does not resolve to a directory in `kitty-specs/` |
 | `WP_NOT_FOUND` | `start-implementation`, `start-review`, `transition`, `append-history` | WP ID does not exist in the feature |
 | `TRANSITION_REJECTED` | `start-implementation`, `start-review`, `transition` | Invalid lane transition or guard failure (dependency not met, invalid state) |
 | `WP_ALREADY_CLAIMED` | `start-implementation` | Another actor has already claimed the WP |
@@ -757,7 +768,7 @@ are not interchangeable.
 | Agent queries its next step | Host CLI (`spec-kitty next`) | Agent is inside the project |
 | Supervisor queries ready WPs | Orchestrator API (`list-ready`) | Supervisor is external |
 | External tool reads WP state | Orchestrator API (`feature-state`) | External tool must use API |
-| CI accepts a feature after all checks pass | Orchestrator API (`accept-feature`) | CI is external |
+| CI accepts a mission after all checks pass | Orchestrator API (`accept-feature`) | CI is external |
 
 ### Anti-Patterns (Do NOT Do)
 

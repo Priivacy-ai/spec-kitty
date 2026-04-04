@@ -21,6 +21,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_v1.events import read_events
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
@@ -63,7 +64,7 @@ class Decision:
     options: list[str] | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        return with_tracked_mission_slug_aliases({
             "kind": self.kind,
             "agent": self.agent,
             "feature_slug": self.feature_slug,
@@ -84,7 +85,7 @@ class Decision:
             "input_key": self.input_key,
             "question": self.question,
             "options": self.options,
-        }
+        })
 
 
 # ---------------------------------------------------------------------------

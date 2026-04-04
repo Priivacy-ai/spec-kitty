@@ -9,7 +9,8 @@ Maps the CLI's Decision dataclass to the runtime's NextDecision by:
 5. Preserving the existing JSON output contract
 
 Run state is stored locally under ``.kittify/runtime/runs/<run_id>/``.
-A feature→run index lives at ``.kittify/runtime/feature-runs.json``.
+A tracked-mission-to-run compatibility index currently lives at
+``.kittify/runtime/feature-runs.json``.
 """
 
 from __future__ import annotations
@@ -163,7 +164,7 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
                     if not _has_raw_dependencies_field(wp_file):
                         failures.append(
                             f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
-                            f"(run 'spec-kitty agent feature finalize-tasks')"
+                            f"(run 'spec-kitty agent mission finalize-tasks')"
                         )
                         break  # One failure message is enough
 

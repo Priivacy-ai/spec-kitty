@@ -1,4 +1,4 @@
-"""Migration: Ensure workflow commands in agent prompts include --agent."""
+"""Migration: Ensure action commands in agent prompts include --agent."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 
 @MigrationRegistry.register
 class WorkflowAgentFlagMigration(BaseMigration):
-    """Append --agent <name> to workflow commands in agent prompts."""
+    """Append --agent <name> to action commands in agent prompts."""
 
     migration_id = "0.11.3_workflow_agent_flag"
-    description = "Ensure workflow commands in agent prompts include --agent"
+    description = "Ensure action commands in agent prompts include --agent"
     target_version = "0.11.3"
 
     AGENT_NAME_MAP = {
@@ -24,6 +24,14 @@ class WorkflowAgentFlagMigration(BaseMigration):
     }
 
     TARGET_FILES = ("spec-kitty.implement.md", "spec-kitty.review.md")
+    IMPLEMENT_PREFIXES = (
+        "spec-kitty agent workflow implement",
+        "spec-kitty agent action implement",
+    )
+    REVIEW_PREFIXES = (
+        "spec-kitty agent workflow review",
+        "spec-kitty agent action review",
+    )
 
     def _agent_name(self, agent_root: str) -> str:
         return self.AGENT_NAME_MAP.get(agent_root, agent_root.lstrip("."))
@@ -43,10 +51,10 @@ class WorkflowAgentFlagMigration(BaseMigration):
                 updated = True
                 line = line.replace("__AGENT__", agent_name)
             # Add --agent flag if missing
-            if "spec-kitty agent workflow implement" in line and "--agent" not in line:
+            if any(prefix in line for prefix in self.IMPLEMENT_PREFIXES) and "--agent" not in line:
                 updated = True
                 return f"{line} --agent {agent_name}"
-            if "spec-kitty agent workflow review" in line and "--agent" not in line:
+            if any(prefix in line for prefix in self.REVIEW_PREFIXES) and "--agent" not in line:
                 updated = True
                 return f"{line} --agent {agent_name}"
             return line
@@ -71,9 +79,9 @@ class WorkflowAgentFlagMigration(BaseMigration):
                     # Detect __AGENT__ placeholder that needs replacement
                     if "__AGENT__" in line:
                         return True
-                    if "spec-kitty agent workflow implement" in line and "--agent" not in line:
+                    if any(prefix in line for prefix in self.IMPLEMENT_PREFIXES) and "--agent" not in line:
                         return True
-                    if "spec-kitty agent workflow review" in line and "--agent" not in line:
+                    if any(prefix in line for prefix in self.REVIEW_PREFIXES) and "--agent" not in line:
                         return True
         return False
 
@@ -99,10 +107,10 @@ class WorkflowAgentFlagMigration(BaseMigration):
                 if self._update_workflow_lines(path, agent_name, dry_run):
                     updated_count += 1
             if updated_count:
-                changes.append(f"Updated {updated_count} workflow prompts for {agent_name}")
+                changes.append(f"Updated {updated_count} action prompts for {agent_name}")
 
         if not changes:
-            warnings.append("No workflow prompts required updates")
+            warnings.append("No action prompts required updates")
 
         return MigrationResult(
             success=len(errors) == 0,

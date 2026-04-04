@@ -57,7 +57,7 @@ cd .worktrees/010-my-feature/
 /spec-kitty.tasks
 → LLM creates tasks.md + tasks/WP01.md, tasks/WP02.md, ... in main
 
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 → Parses dependencies from tasks.md
 → Generates dependency graph in WP frontmatter
 → Validates dependencies (cycle detection)
@@ -117,7 +117,7 @@ LLM creates tasks.md and WP files:
 
 **4. Finalize and commit tasks**
 ```bash
-spec-kitty agent feature finalize-tasks
+spec-kitty agent mission finalize-tasks
 ```
 - Parses dependencies from tasks.md
 - Updates WP frontmatter with `dependencies: []` field
@@ -236,7 +236,7 @@ dependencies: []  # Independent WP, branches from main
 
 ### Validation Rules
 
-Dependencies are validated during `spec-kitty agent feature finalize-tasks`:
+Dependencies are validated during `spec-kitty agent mission finalize-tasks`:
 
 - ✅ Dependencies must reference valid WP IDs (WP01, WP02, etc.)
 - ✅ Cannot depend on self (WP01 depending on WP01 is invalid)

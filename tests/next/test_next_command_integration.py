@@ -187,6 +187,7 @@ class TestNextCommandJSON:
         decision = decide_next("test-agent", "042-test-feature", "success", repo_root)
         d = decision.to_dict()
         assert d["agent"] == "test-agent"
+        assert d["mission_slug"] == "042-test-feature"
         assert d["feature_slug"] == "042-test-feature"
         assert d["mission"] == "software-dev"
         assert "kind" in d

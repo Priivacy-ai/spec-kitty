@@ -137,6 +137,12 @@ The former `1.x` line is deprecated and moves to `1.x-maintenance` for maintenan
 
 Run multi-agent delivery with an external orchestrator while keeping workflow state and guardrails in `spec-kitty`. Core CLI orchestration is exposed as `spec-kitty orchestrator-api`; there is no in-core `spec-kitty orchestrate` shim.
 
+Terminology note:
+- `Mission Type` = reusable blueprint
+- `Mission` = concrete tracked item
+- `Mission Run` = runtime/session instance
+- `--feature` and commands such as `accept-feature` remain legacy software-dev compatibility surfaces for the tracked mission
+
 ```bash
 # Verify host contract
 spec-kitty orchestrator-api contract-version --json
@@ -714,7 +720,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `init`      | Initialize a new Spec Kitty project from templates |
 | `upgrade`   | **Upgrade project structure to current version** (run after updating spec-kitty-cli) |
 | `repair`    | **Repair broken template installations** (fixes bash script references from v0.10.0-0.10.8) |
-| `accept`    | Validate feature readiness before merging to main |
+| `accept`    | Validate mission readiness before merging to main |
 | `check`     | Check that required tooling is available |
 | `dashboard` | Open or stop the Spec Kitty dashboard |
 | `diagnostics` | Show project health and diagnostics information |
@@ -730,7 +736,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | `<project-name>`       | Argument | Name for your new project directory (omit to initialize in the current directory, same as `--here`) |
 | `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
 | `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
-| `--mission`            | Option   | Mission key to seed templates (`software-dev`, `research`, ...)             |
+| `--mission`            | Option   | Mission type key to seed templates (`software-dev`, `research`, ...)        |
 | `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
 | `--ignore-agent-tools` | Flag     | Skip checks for AI agent tools like Claude Code                             |
 | `--no-git`             | Flag     | Skip git repository initialization                                          |
@@ -829,43 +835,43 @@ spec-kitty upgrade --no-worktrees
 The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
 
 **Feature Management:**
-- `spec-kitty agent feature create-feature <name>` – Create new feature with worktree
-- `spec-kitty agent feature check-prerequisites` – Validate project setup and feature context
-- `spec-kitty agent feature setup-plan` – Initialize plan template for feature
+- `spec-kitty agent mission create-feature <name>` – Create new feature with worktree
+- `spec-kitty agent mission check-prerequisites` – Validate project setup and feature context
+- `spec-kitty agent mission setup-plan` – Initialize plan template for feature
 - `spec-kitty agent context update` – Update agent context files
-- `spec-kitty agent feature accept` – Run acceptance workflow
-- `spec-kitty agent feature merge` – Merge feature branch and cleanup
+- `spec-kitty agent mission accept` – Run acceptance workflow
+- `spec-kitty agent mission merge` – Merge feature branch and cleanup
 
 **Task Workflow:**
-- `spec-kitty agent workflow implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
-- `spec-kitty agent workflow review <id> --agent __AGENT__` – Advance for_review → in_progress → planned/done automatically
+- `spec-kitty agent action implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
+- `spec-kitty agent action review <id> --agent __AGENT__` – Advance for_review → in_progress → planned/done automatically
 - `spec-kitty agent tasks list-tasks` – List all tasks grouped by lane
 - `spec-kitty agent tasks mark-status <id> --status <status>` – Mark task status
 - `spec-kitty agent tasks add-history <id> --note <message>` – Add activity log entry
 - `spec-kitty agent tasks validate-workflow <id>` – Validate task metadata
 
 **Workflow Commands:**
-- `spec-kitty agent workflow implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to `in_progress` ("Doing")
-- `spec-kitty agent workflow review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to `in_progress` ("Doing")
+- `spec-kitty agent action implement [WP_ID] --agent __AGENT__` – Display WP prompt and auto-move to `in_progress` ("Doing")
+- `spec-kitty agent action review [WP_ID] --agent __AGENT__` – Display WP prompt for review and auto-move to `in_progress` ("Doing")
 
 **Note:** In generated agent command files, `__AGENT__` is replaced at init time with the agent key (e.g., `codex`, `claude`). If you run commands manually, replace `__AGENT__` with your agent name.
 
 **Example Usage:**
 ```bash
 # Create feature (agent-friendly)
-spec-kitty agent feature create-feature "Payment Flow" --json
+spec-kitty agent mission create-feature "Payment Flow" --json
 
 # Display WP prompt and auto-move to in_progress ("Doing")
-spec-kitty agent workflow implement WP01 --agent __AGENT__
+spec-kitty agent action implement WP01 --agent __AGENT__
 
 # Run workflow to advance lanes
-spec-kitty agent workflow implement WP01 --agent __AGENT__
+spec-kitty agent action implement WP01 --agent __AGENT__
 
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
 
-# Accept feature
-spec-kitty agent feature accept --json
+# Accept mission (legacy `--feature` flag name)
+spec-kitty agent mission accept --json
 ```
 
 ### `spec-kitty dashboard` Options
@@ -891,7 +897,7 @@ spec-kitty dashboard --kill
 
 | Option | Description |
 |--------|-------------|
-| `--feature <slug>` | Feature slug to accept (auto-detected by default) |
+| `--feature <slug>` | Mission slug to accept. Legacy flag name retained as a software-dev compatibility alias. |
 | `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor <name>` | Name to record as the acceptance actor |
 | `--test <command>` | Validation command to execute (repeatable) |
@@ -905,7 +911,7 @@ spec-kitty dashboard --kill
 # Validate feature (auto-detect)
 spec-kitty accept
 
-# Validate specific feature
+# Validate specific mission
 spec-kitty accept --feature 001-auth-system
 
 # Get checklist only (no commit)

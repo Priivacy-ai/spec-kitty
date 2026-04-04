@@ -1,6 +1,12 @@
 # The Mission System Explained
 
-Spec Kitty's mission system lets you choose a workflow optimized for your type of work. This document explains why missions exist, how they shape your experience, and how the pieces fit together.
+Spec Kitty's mission system lets you choose a workflow blueprint optimized for your type of work. This document explains why mission types exist, how they shape your experience, and how the pieces fit together.
+
+Terminology note:
+- `Mission Type` = reusable blueprint such as `software-dev` or `research`
+- `Mission` = concrete tracked item under `kitty-specs/<mission-slug>/`
+- `Mission Run` = runtime/session instance
+- `Feature` = software-dev compatibility alias for a mission
 
 ## Why Different Missions?
 
@@ -18,18 +24,18 @@ A workflow designed for software development doesn't fit research:
 - "Documented sources" isn't relevant for code implementation
 - Phases like "gather data" don't apply to feature development
 
-Missions solve this by providing domain-specific workflows, validation rules, and artifacts.
+Mission types solve this by providing domain-specific workflows, validation rules, and artifacts.
 
-## The Hierarchy: Mission, Feature, Work Package, Workspace
+## The Hierarchy: Mission Type, Mission, Work Package, Workspace
 
 Understanding how the pieces nest together is key to understanding Spec Kitty.
 
 ```
-Mission (reusable workflow blueprint, e.g. software-dev)
+Mission Type (reusable workflow blueprint, e.g. software-dev)
   |
-  +-- Feature (concrete thing being built)
+  +-- Mission (concrete tracked item)
   |     kitty-specs/042-auth-system/
-  |       meta.json        <-- links feature to mission + target branch
+  |       meta.json        <-- links mission to mission type + target branch
   |       spec.md          <-- what we're building
   |       plan.md          <-- how we'll build it
   |       tasks.md         <-- WP breakdown
@@ -42,17 +48,19 @@ Mission (reusable workflow blueprint, e.g. software-dev)
   |                 isolated git worktree resolved for this WP
 ```
 
-**Mission** -- A reusable workflow blueprint. It defines the steps, templates, artifacts, and guards. You never edit missions directly; you select one when starting a feature.
+**Mission Type** -- A reusable workflow blueprint. It defines the steps, templates, artifacts, and guards. You never edit mission types directly; you select one when starting a mission.
 
-**Feature** -- A concrete thing you're building, stored in `kitty-specs/###-feature-name/`. Each feature is linked to exactly one mission via its `meta.json` file. Different features in the same project can use different missions.
+**Mission** -- A concrete tracked item, stored in `kitty-specs/###-name/`. Each mission is linked to exactly one mission type via its `meta.json` file. Different missions in the same project can use different mission types.
 
-**Work Package (WP)** -- One parallelizable slice of work within a feature. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
+**Feature** -- Compatibility alias for a software-delivery mission. In software-dev contexts you will still see `feature` on legacy commands and filesystem fields.
+
+**Work Package (WP)** -- One parallelizable slice of work within a mission. Each WP has its own markdown prompt file (`tasks/WP01.md`), its own status on the kanban board, and its own dependencies on other WPs.
 
 **Workspace** -- An isolated git worktree where a single WP is implemented. Each workspace has its own branch, its own working directory, and its own agent. Multiple workspaces can run in parallel.
 
-### meta.json: The Feature-to-Mission Link
+### meta.json: The Mission-to-Mission-Type Link
 
-Every feature directory contains a `meta.json` that records which mission it uses:
+Every mission directory contains a `meta.json` that records which mission type it uses:
 
 ```json
 {
@@ -65,19 +73,19 @@ Every feature directory contains a `meta.json` that records which mission it use
 }
 ```
 
-The `mission` field determines which templates, guards, and validation rules apply. If omitted, it defaults to `software-dev`.
+The `mission` field determines which templates, guards, and validation rules apply. If omitted, it defaults to `software-dev`. The key name is historical; the stored value is the mission type.
 
-Different features can use different missions simultaneously:
-- `kitty-specs/042-auth-system/` -- software-dev
-- `kitty-specs/043-market-analysis/` -- research
-- `kitty-specs/044-api-docs/` -- documentation
-- `kitty-specs/045-roadmap/` -- plan
+Different missions can use different mission types simultaneously:
+- `kitty-specs/042-auth-system/` -- mission type `software-dev`
+- `kitty-specs/043-market-analysis/` -- mission type `research`
+- `kitty-specs/044-api-docs/` -- mission type `documentation`
+- `kitty-specs/045-roadmap/` -- mission type `plan`
 
 ## How Missions Work
 
-### Selected Per-Feature During /spec-kitty.specify
+### Selected When Creating a Mission During /spec-kitty.specify
 
-When you run `/spec-kitty.specify`, Spec Kitty prompts for the mission type:
+When you run `/spec-kitty.specify`, Spec Kitty prompts for the mission type that will back the new mission:
 
 ```
 ? Select mission type:
@@ -87,23 +95,23 @@ When you run `/spec-kitty.specify`, Spec Kitty prompts for the mission type:
   Documentation Kitty - Create high-quality documentation following Divio principles
 ```
 
-Your choice determines:
+That choice determines:
 - Workflow phases (the steps you go through)
 - Required artifacts (the files you produce)
 - Guards (conditions that must be met to advance)
 - Agent context (personality and instructions for AI agents)
 
-The mission is locked in at feature creation and cannot be changed afterwards.
+The mission type is locked in when the mission is created and cannot be changed afterwards.
 
 ### Two State Machines Working Together
 
 Missions involve two orthogonal state machines that work in tandem:
 
-**Mission state** -- which phase of the workflow are we in?
+**Mission action state** -- which outer lifecycle action are we in?
 ```
 discovery --> specify --> plan --> tasks --> implement --> review --> accept
 ```
-Managed by the mission's step DAG and `spec-kitty next`.
+Managed by the mission type's step DAG and `spec-kitty next`.
 
 **WP status** -- where is each work package in its lifecycle?
 ```
@@ -111,7 +119,7 @@ planned --> claimed --> in_progress --> for_review --> approved --> done
 ```
 Managed by the status model (append-only event log).
 
-Together they determine what `spec-kitty next` returns: "We're in the implement phase, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
+Together they determine what `spec-kitty next` returns: "We're in the implement action, WP01 is done, WP02 is in_progress, WP03 is planned -- your next action is implement WP03."
 
 ## The Four Built-In Missions
 
@@ -137,7 +145,7 @@ discovery --> specify --> plan --> tasks_outline --> tasks_packages --> tasks_fi
 
 **Agent context:** TDD practices, library-first architecture, tests before code.
 
-**Use when:** Building features, fixing bugs, refactoring code -- any work that produces code changes.
+**Use when:** Building software missions such as features, fixing bugs, or refactoring code.
 
 ### research
 

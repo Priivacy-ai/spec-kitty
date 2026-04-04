@@ -161,6 +161,7 @@ STATE_SURFACES: tuple[StateSurface, ...] = (
         git_class=GitClass.IGNORED,
         owner_module="next/runtime_bridge",
         creation_trigger="spec-kitty next (runtime mode)",
+        notes="Legacy filename. Stores mission-slug to mission-run linkage until compatibility rename is completed.",
     ),
     StateSurface(
         name="runtime_run_snapshot",

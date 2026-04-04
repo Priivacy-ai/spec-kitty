@@ -27,7 +27,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 pytestmark = pytest.mark.git_repo
 
 class TestAgentWorkflowImplement:
-    """Integration tests for spec-kitty agent workflow implement."""
+    """Integration tests for spec-kitty agent action implement."""
 
     @pytest.fixture
     def mock_repo(self, tmp_path):
@@ -466,7 +466,7 @@ class TestAgentWorkflowImplement:
         assert "✓ Claimed WP01 for review" not in captured.out
 
 class TestAgentFeatureAccept:
-    """Integration tests for spec-kitty agent feature accept."""
+    """Integration tests for spec-kitty agent mission accept."""
 
     @patch("specify_cli.cli.commands.agent.feature.top_level_accept")
     def test_delegates_to_toplevel(self, mock_accept):
@@ -513,7 +513,7 @@ class TestAgentFeatureAccept:
             )
 
 class TestAgentFeatureMerge:
-    """Integration tests for spec-kitty agent feature merge."""
+    """Integration tests for spec-kitty agent mission merge."""
 
     @patch("specify_cli.cli.commands.agent.feature.top_level_merge")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
