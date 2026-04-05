@@ -149,6 +149,7 @@ exclude = [
 [tool.pytest.ini_options]
 markers = [
     "fast: Pure unit tests with no I/O or subprocess calls (CI fast gate)",
+    "integration: Integration tests using real filesystem or in-process I/O, no subprocess/git",
     "slow: Tests taking >10 seconds or requiring heavy setup",
     "git_repo: Tests that need a real git repository (integration gate)",
     "legacy: Frozen 0.x/1.x contract tests — only run on the 0.x/1.x maintenance branch",
