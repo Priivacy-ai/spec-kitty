@@ -905,6 +905,9 @@ class TestRouteEvent:
 
         def fake_ensure_future(coro):
             ensured.append(coro)
+            task = MagicMock()
+            task.add_done_callback = MagicMock()
+            return task
 
         event = {
             "event_id": emitter.generate_causation_id(),
