@@ -285,9 +285,6 @@ def resolve_active_feature(
     """
     return None
 
-    # Keep previous deterministic fallback for edge cases.
-    return features[0]
-
 
 def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     """Count work packages by lane from the canonical event log.

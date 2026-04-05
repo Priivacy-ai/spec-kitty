@@ -202,7 +202,7 @@ class APIHandler(DashboardHandler):
         from specify_cli.dossier.api import DossierAPIHandler
 
         parsed = urllib.parse.urlparse(self.path)
-        path = parsed.path
+        endpoint = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
         # Extract feature_slug from query params
@@ -220,9 +220,9 @@ class APIHandler(DashboardHandler):
             handler = DossierAPIHandler(repo_root)
 
             # Route to appropriate endpoint
-            if path == '/api/dossier/overview':
+            if endpoint == '/api/dossier/overview':
                 response = handler.handle_dossier_overview(feature_slug)
-            elif path == '/api/dossier/artifacts':
+            elif endpoint == '/api/dossier/artifacts':
                 # Extract filters from query
                 filters = {}
                 if 'class' in query:
@@ -234,11 +234,11 @@ class APIHandler(DashboardHandler):
                 if 'required_only' in query:
                     filters['required_only'] = query['required_only'][0]
                 response = handler.handle_dossier_artifacts(feature_slug, **filters)
-            elif path.startswith('/api/dossier/artifacts/'):
+            elif endpoint.startswith('/api/dossier/artifacts/'):
                 # Extract artifact_key from path
-                artifact_key = path.split('/api/dossier/artifacts/')[-1]
+                artifact_key = endpoint.split('/api/dossier/artifacts/')[-1]
                 response = handler.handle_dossier_artifact_detail(feature_slug, artifact_key)
-            elif path == '/api/dossier/snapshots/export':
+            elif endpoint == '/api/dossier/snapshots/export':
                 response = handler.handle_dossier_snapshot_export(feature_slug)
             else:
                 self.send_response(404)

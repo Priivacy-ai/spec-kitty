@@ -51,8 +51,6 @@ def select_with_arrows(
     option_keys = list(options.keys())
     selected_index = option_keys.index(default_key) if default_key and default_key in option_keys else 0
 
-    selected_key = None
-
     def create_selection_panel():
         """Create the selection panel with current selection highlighted."""
         table = Table.grid(padding=(0, 2))
@@ -77,8 +75,8 @@ def select_with_arrows(
 
     console.print()
 
-    def run_selection_loop():
-        nonlocal selected_key, selected_index
+    def run_selection_loop() -> str:
+        nonlocal selected_index
         with Live(create_selection_panel(), console=console, transient=True, auto_refresh=False) as live:
             while True:
                 try:
@@ -88,8 +86,7 @@ def select_with_arrows(
                     elif key == "down":
                         selected_index = (selected_index + 1) % len(option_keys)
                     elif key == "enter":
-                        selected_key = option_keys[selected_index]
-                        break
+                        return option_keys[selected_index]
                     elif key == "escape":
                         console.print("\n[yellow]Selection cancelled[/yellow]")
                         raise typer.Exit(1)
@@ -100,13 +97,7 @@ def select_with_arrows(
                     console.print("\n[yellow]Selection cancelled[/yellow]")
                     raise typer.Exit(1) from None
 
-    run_selection_loop()
-
-    if selected_key is None:
-        console.print("\n[red]Selection failed.[/red]")
-        raise typer.Exit(1)
-
-    return selected_key
+    return run_selection_loop()
 
 
 def multi_select_with_arrows(  # noqa: C901
