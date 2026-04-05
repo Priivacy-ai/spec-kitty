@@ -19,7 +19,7 @@ from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_si
 pytestmark = pytest.mark.git_repo
 
 
-def _write_valid_meta(feature_dir: Path, slug: str) -> None:
+def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
     feature_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
@@ -28,7 +28,7 @@ def _write_valid_meta(feature_dir: Path, slug: str) -> None:
                 "feature_slug": slug,
                 "friendly_name": "Test Feature",
                 "mission": "software-dev",
-                "target_branch": "main",
+                "target_branch": target_branch,
                 "created_at": "2026-03-20T00:00:00+00:00",
             }
         ),
@@ -48,6 +48,17 @@ def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProc
         text=True,
         env=env,
     )
+
+
+def _current_branch(repo_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     """Test that worktree creation doesn't modify tracked .gitignore file.
@@ -79,7 +90,7 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
 
     # Create WP task file
@@ -189,7 +200,7 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
 
     # Create WP task file
@@ -313,7 +324,7 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
 
     # Create WP task file
