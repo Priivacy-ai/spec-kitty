@@ -300,6 +300,7 @@ class EventEmitter:
     queue: OfflineQueue = field(default_factory=OfflineQueue)
     _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
+    _pending_tasks: set = field(default_factory=set, repr=False)
     _identity: "ProjectIdentity | None" = field(default=None, repr=False)
     _git_resolver: "GitMetadataResolver | None" = field(default=None, repr=False)
 
@@ -778,8 +779,9 @@ class EventEmitter:
                     import asyncio
                     loop = asyncio.get_event_loop()
                     if loop.is_running():
-                        _task = asyncio.ensure_future(self.ws_client.send_event(event))
-                        del _task  # result intentionally discarded; variable prevents premature GC
+                        task = asyncio.ensure_future(self.ws_client.send_event(event))
+                        self._pending_tasks.add(task)
+                        task.add_done_callback(self._pending_tasks.discard)
                     else:
                         loop.run_until_complete(self.ws_client.send_event(event))
                     return True
