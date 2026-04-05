@@ -38,7 +38,7 @@ class APIHandler(DashboardHandler):
         try:
             features = scan_all_features(project_path)
 
-            active_feature = resolve_active_feature(project_path, features)
+            active_feature = resolve_active_feature(project_path)
 
             if active_feature:
                 feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
