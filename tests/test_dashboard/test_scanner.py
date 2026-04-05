@@ -9,6 +9,8 @@ from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import append_event
 
+pytestmark = pytest.mark.fast
+
 
 def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     append_event(
@@ -55,6 +57,45 @@ def test_scan_all_features_detects_feature(tmp_path):
     assert features, "Expected at least one feature"
     assert features[0]["id"] == feature_dir.name
     assert features[0]["artifacts"]["spec"]
+
+
+def test_scan_all_features_tolerates_unreadable_event_log(tmp_path):
+    feature_dir = tmp_path / "kitty-specs" / "001-demo-feature"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    (feature_dir / "spec.md").write_text("# Spec\n", encoding="utf-8")
+    (tasks_dir / "WP01-demo.md").write_text(
+        """---
+work_package_id: WP01
+---
+# Work Package Prompt: Demo
+""",
+        encoding="utf-8",
+    )
+    (feature_dir / "status.events.jsonl").write_text(
+        json.dumps(
+            {
+                "event_id": "TESTBAD00000000000000000000",
+                "mission_slug": feature_dir.name,
+                "wp_id": "WP01",
+                "from_lane": "planned",
+                "to_lane": "doing",
+                "at": "2026-04-05T12:00:00+00:00",
+                "actor": "test-agent",
+                "force": False,
+                "execution_mode": "worktree",
+            }
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    features = scanner.scan_all_features(tmp_path)
+
+    assert len(features) == 1
+    assert features[0]["id"] == feature_dir.name
+    assert features[0]["kanban_stats"]["total"] == 0
+    assert "Event log unreadable" in features[0]["kanban_stats"]["error"]
 
 
 def test_scan_all_features_builds_switcher_display_name(tmp_path):
@@ -159,7 +200,7 @@ def test_only_canonical_path_resolved(tmp_path):
 
 def test_scan_feature_kanban_approved_lane(tmp_path):
     """WPs with canonical lane approved should land in the approved column."""
-    feature_dir = _create_feature(tmp_path, "001-demo", lane="approved")
+    _create_feature(tmp_path, "001-demo", lane="approved")
     lanes = scanner.scan_feature_kanban(tmp_path, "001-demo")
     assert len(lanes["approved"]) == 1
     assert len(lanes["planned"]) == 0

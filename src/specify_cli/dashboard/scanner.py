@@ -327,6 +327,8 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
 
 def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
     """Scan all features and return metadata."""
+    from specify_cli.status.store import StoreError
+
     features: List[Dict[str, Any]] = []
     feature_paths = gather_feature_paths(project_dir)
 
@@ -378,6 +380,16 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     kanban_stats["error"] = (
                         f"Event log not found. Run: spec-kitty agent mission "
                         f"finalize-tasks --feature {feature_dir.name}"
+                    )
+                except StoreError as exc:
+                    logger.warning(
+                        "Unreadable event log for feature '%s' — dashboard counts unavailable: %s",
+                        feature_dir.name,
+                        exc,
+                    )
+                    kanban_stats["error"] = (
+                        "Event log unreadable. Run: spec-kitty upgrade "
+                        f"(feature {feature_dir.name})"
                     )
 
         worktree_root = project_dir / ".worktrees"
