@@ -133,7 +133,8 @@ def test_feature_local_charter_is_ignored_without_project_charter(tmp_path):
     assert all(not feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
-def test_legacy_charter_path_supported(tmp_path):
+def test_legacy_memory_path_not_resolved(tmp_path):
+    """Legacy .kittify/memory/ path is NOT resolved — user must run spec-kitty upgrade."""
     _create_feature(tmp_path, "001-demo-feature")
     _create_feature(tmp_path, "002-another-feature")
     legacy = tmp_path / ".kittify" / "memory" / "charter.md"
@@ -142,17 +143,15 @@ def test_legacy_charter_path_supported(tmp_path):
 
     features = scanner.scan_all_features(tmp_path)
     assert len(features) == 2
-    assert all(feature["artifacts"]["charter"]["exists"] for feature in features)
+    assert all(not feature["artifacts"]["charter"]["exists"] for feature in features)
 
 
-def test_new_path_preferred_when_both_exist(tmp_path):
+def test_only_canonical_path_resolved(tmp_path):
+    """Only .kittify/charter/charter.md is resolved."""
     _create_feature(tmp_path)
     new_path = tmp_path / ".kittify" / "charter" / "charter.md"
-    legacy_path = tmp_path / ".kittify" / "memory" / "charter.md"
     new_path.parent.mkdir(parents=True)
-    legacy_path.parent.mkdir(parents=True)
-    new_path.write_text("new", encoding="utf-8")
-    legacy_path.write_text("legacy", encoding="utf-8")
+    new_path.write_text("canonical", encoding="utf-8")
 
     resolved = resolve_project_charter_path(tmp_path)
     assert resolved == new_path
