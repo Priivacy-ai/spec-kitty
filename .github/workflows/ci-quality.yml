@@ -577,7 +577,6 @@ jobs:
             -v \
             --ignore=tests/doctrine \
             --ignore=tests/kernel \
-            --ignore=tests/legacy \
             -m fast \
             --cov=src/specify_cli --cov=src/charter --cov=src/kernel \
             --cov-report=term-missing \
@@ -692,7 +691,6 @@ jobs:
           python -m pytest \
             -v \
             --ignore=tests/doctrine \
-            --ignore=tests/legacy \
             -m "git_repo or integration" \
             --cov=src/specify_cli --cov=src/charter \
             --cov-report=xml:out/reports/coverage/coverage-integration-core.xml \
@@ -750,7 +748,6 @@ jobs:
         run: |
           python -m pytest \
             -v \
-            --ignore=tests/legacy \
             -m slow \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
