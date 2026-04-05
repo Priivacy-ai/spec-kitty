@@ -15,4 +15,4 @@ references, and initialization declarations.
 | `reviewer.agent.yaml` | `reviewer` | reviewer |
 
 Shipped profiles are read-only at the package level. Project-level overrides in
-`.kittify/constitution/agents/` can customize any profile by matching `profile-id`.
+`.kittify/charter/agents/` can customize any profile by matching `profile-id`.

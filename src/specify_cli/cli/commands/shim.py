@@ -198,15 +198,15 @@ def shim_status(
     _run("status", agent, raw_args, context, json_output)
 
 
-@app.command(name="constitution")
-def shim_constitution(
+@app.command(name="charter")
+def shim_charter(
     agent: _AgentOpt = "claude",
     raw_args: _RawArgsOpt = "",
     context: _ContextOpt = None,
     json_output: _JsonOpt = False,
 ) -> None:
-    """Shim: spec-kitty constitution."""
-    _run("constitution", agent, raw_args, context, json_output)
+    """Shim: spec-kitty charter."""
+    _run("charter", agent, raw_args, context, json_output)
 
 
 __all__ = ["app"]

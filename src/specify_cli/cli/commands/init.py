@@ -394,7 +394,7 @@ def _load_doctrine_defaults() -> dict[str, object]:
 def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
     """Generate a charter using the predefined doctrine defaults.
 
-    Returns True on success, False on failure (non-fatal — user can run
+    Returns True on success, False on failure (non-fatal -- user can run
     ``spec-kitty charter interview`` later).
     """
     try:
@@ -507,7 +507,7 @@ def _run_inline_interview(project_path: Path, console: Console) -> bool:
         answers_path = project_path / ".kittify" / "charter" / "interview" / "answers.yaml"
         write_interview_answers(answers_path, interview_data)
 
-        # Remove checkpoint — interview completed successfully.
+        # Remove checkpoint -- interview completed successfully.
         if checkpoint_path.exists():
             checkpoint_path.unlink()
 
@@ -524,7 +524,7 @@ def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console:
 
     Decision tree
     -------------
-    1. Charter already exists → skip (FR-004).
+    1. Charter already exists -- skip (FR-004).
     2. Checkpoint exists → offer resume / restart (FR-020).
     3. ``--non-interactive`` → apply defaults silently (FR-005, NFR-001).
     4. Interactive → prompt for defaults / manual / skip (FR-001–FR-003).
@@ -535,7 +535,7 @@ def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console:
 
     # FR-004: skip if charter already exists.
     if charter_path.exists():
-        console.print("[dim]Charter already exists — skipping doctrine stack setup.[/dim]")
+        console.print("[dim]Charter already exists -- skipping doctrine stack setup.[/dim]")
         return True
 
     checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"

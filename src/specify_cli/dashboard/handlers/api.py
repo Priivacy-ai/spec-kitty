@@ -7,7 +7,7 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
-from ..constitution_path import resolve_project_constitution_path
+from ..charter_path import resolve_project_charter_path
 from ..diagnostics import run_diagnostics
 from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
 from ..templates import get_dashboard_html
@@ -162,19 +162,19 @@ class APIHandler(DashboardHandler):
             self.end_headers()
             self.wfile.write(json.dumps(error_msg).encode())
 
-    def handle_constitution(self) -> None:
-        """Serve project-level constitution from new path with legacy fallback."""
+    def handle_charter(self) -> None:
+        """Serve project-level charter from new path with legacy fallback."""
         try:
-            constitution_path = resolve_project_constitution_path(Path(self.project_dir))
+            charter_path = resolve_project_charter_path(Path(self.project_dir))
 
-            if not constitution_path:
+            if not charter_path:
                 self.send_response(404)
                 self.send_header('Content-type', 'text/plain')
                 self.end_headers()
-                self.wfile.write(b'Constitution not found')
+                self.wfile.write(b'Charter not found')
                 return
 
-            content = constitution_path.read_text(encoding='utf-8')
+            content = charter_path.read_text(encoding='utf-8')
             self.send_response(200)
             self.send_header('Content-type', 'text/plain; charset=utf-8')
             self.send_header('Cache-Control', 'no-cache')
@@ -183,7 +183,7 @@ class APIHandler(DashboardHandler):
         except Exception as exc:  # pragma: no cover - fallback safety
             import traceback
 
-            error_msg = f"Error loading constitution: {exc}\n{traceback.format_exc()}"
+            error_msg = f"Error loading charter: {exc}\n{traceback.format_exc()}"
             self.send_response(500)
             self.send_header('Content-type', 'text/plain')
             self.end_headers()

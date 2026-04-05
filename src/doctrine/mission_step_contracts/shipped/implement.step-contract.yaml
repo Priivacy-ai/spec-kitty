@@ -4,8 +4,8 @@ action: implement
 mission: software-dev
 steps:
   - id: bootstrap
-    description: Load constitution context for this action
-    command: "spec-kitty constitution context --action implement --role implement --json"
+    description: Load charter context for this action
+    command: "spec-kitty charter context --action implement --role implement --json"
     inputs:
       - flag: --profile
         source: wp.agent_profile
@@ -24,7 +24,7 @@ steps:
         - git-flow
         - trunk-based
     guidance: >
-      If no branching paradigm is selected in the constitution,
+      If no branching paradigm is selected in the charter,
       default to workspace-per-wp behaviour.
 
   - id: execute

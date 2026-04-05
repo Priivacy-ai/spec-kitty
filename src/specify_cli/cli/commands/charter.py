@@ -150,7 +150,7 @@ def interview(
             )
             return
 
-        console.print("[green]✅ Charter interview answers saved[/green]")
+        console.print("[green]Charter interview answers saved[/green]")
         console.print(f"Interview file: {answers_path.relative_to(repo_root)}")
         console.print(f"Mission: {interview_data.mission}")
         console.print(f"Profile: {interview_data.profile}")
@@ -248,7 +248,7 @@ def generate(
             )
             return
 
-        console.print("[green]✅ Charter generated and synced[/green]")
+        console.print("[green]Charter generated and synced[/green]")
         console.print(f"Charter: {charter_path.relative_to(repo_root)}")
         console.print(f"Mission: {compiled.mission}")
         console.print(f"Template set: {compiled.template_set}")
@@ -335,17 +335,17 @@ def sync(
             return
 
         if result.error:
-            console.print(f"[red]❌ Error:[/red] {result.error}")
+            console.print(f"[red]Error:[/red] {result.error}")
             raise typer.Exit(code=1)
 
         if result.synced:
-            console.print("[green]✅ Charter synced successfully[/green]")
+            console.print("[green]Charter synced successfully[/green]")
             console.print(f"Mode: {result.extraction_mode}")
             console.print("\nFiles written:")
             for filename in result.files_written:
                 console.print(f"  ✓ {filename}")
         else:
-            console.print("[blue]ℹ️  Charter already in sync[/blue] (use --force to re-extract)")
+            console.print("[blue]Charter already in sync[/blue] (use --force to re-extract)")
 
     except TaskCliError as e:
         console.print(f"[red]Error:[/red] {e}")
@@ -405,13 +405,13 @@ def status(
         console.print(f"Charter: {charter_path.relative_to(repo_root)}")
 
         if stale:
-            console.print("Status: [yellow]⚠️  STALE[/yellow] (modified since last sync)")
+            console.print("Status: [yellow]STALE[/yellow] (modified since last sync)")
             if stored_hash:
                 console.print(f"Expected hash: {stored_hash}")
             console.print(f"Current hash:  {current_hash}")
             console.print("\n[dim]Run: spec-kitty charter sync[/dim]")
         else:
-            console.print("Status: [green]✅ SYNCED[/green]")
+            console.print("Status: [green]SYNCED[/green]")
             if last_sync:
                 console.print(f"Last sync: {last_sync}")
             console.print(f"Hash: {current_hash}")
@@ -430,11 +430,11 @@ def status(
             size_kb = float(file_info["size_kb"])
 
             if exists:
-                status_icon = "[green]✓[/green]"
+                status_icon = "[green]Y[/green]"
                 size_str = f"{size_kb:.1f} KB"
             else:
-                status_icon = "[red]✗[/red]"
-                size_str = "[dim]—[/dim]"
+                status_icon = "[red]N[/red]"
+                size_str = "[dim]-[/dim]"
 
             table.add_row(name, status_icon, size_str)
 

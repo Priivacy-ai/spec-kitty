@@ -1,8 +1,8 @@
 let currentFeature = null;
 let currentPage = 'overview';
 let allFeatures = [];
-let isConstitutionView = false;
-let lastNonConstitutionPage = 'overview';
+let isCharterView = false;
+let lastNonCharterPage = 'overview';
 let projectPathDisplay = 'Loading…';
 let activeWorktreeDisplay = 'detecting…';
 let featureSelectActive = false;
@@ -204,13 +204,13 @@ function computeFeatureWorktreeStatus(feature) {
 
 function switchFeature(featureId) {
     const isSameFeature = featureId === currentFeature;
-    if (isConstitutionView) {
+    if (isCharterView) {
         if (isSameFeature) {
             return;
         }
-        isConstitutionView = false;
-        if (lastNonConstitutionPage && lastNonConstitutionPage !== 'constitution') {
-            currentPage = lastNonConstitutionPage;
+        isCharterView = false;
+        if (lastNonCharterPage && lastNonCharterPage !== 'charter') {
+            currentPage = lastNonCharterPage;
         } else {
             currentPage = 'overview';
         }
@@ -237,17 +237,17 @@ function switchFeature(featureId) {
 }
 
 function switchPage(pageName) {
-    if (pageName === 'constitution') {
-        showConstitution();
+    if (pageName === 'charter') {
+        showCharter();
         return;
     }
     if (pageName === 'diagnostics') {
         showDiagnostics();
         return;
     }
-    isConstitutionView = false;
+    isCharterView = false;
     currentPage = pageName;
-    lastNonConstitutionPage = pageName;
+    lastNonCharterPage = pageName;
     saveState(currentFeature, currentPage);
 
     // Update sidebar
@@ -279,8 +279,8 @@ function updateSidebarState() {
 
     document.querySelectorAll('.sidebar-item').forEach(item => {
         const page = item.dataset.page;
-        // System pages (constitution, diagnostics) should never be disabled
-        if (!page || page === 'constitution' || page === 'diagnostics') {
+        // System pages (charter, diagnostics) should never be disabled
+        if (!page || page === 'charter' || page === 'diagnostics') {
             item.classList.remove('disabled');
             return;
         }
@@ -296,7 +296,7 @@ function updateSidebarState() {
 }
 
 function loadCurrentPage() {
-    if (isConstitutionView || currentPage === 'constitution') {
+    if (isCharterView || currentPage === 'charter') {
         return;
     }
     if (!currentFeature) return;
@@ -344,7 +344,7 @@ return `
 
     const artifacts = feature.artifacts;
     const artifactList = [
-        {name: 'Project Constitution', key: 'constitution', icon: '⚖️'},
+        {name: 'Project Charter', key: 'charter', icon: '⚖️'},
         {name: 'Specification', key: 'spec', icon: '📄'},
         {name: 'Plan', key: 'plan', icon: '🏗️'},
         {name: 'Tasks', key: 'tasks', icon: '📋'},
@@ -1051,36 +1051,36 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
-function showConstitution() {
-    if (!isConstitutionView && currentPage !== 'constitution') {
-        lastNonConstitutionPage = currentPage;
+function showCharter() {
+    if (!isCharterView && currentPage !== 'charter') {
+        lastNonCharterPage = currentPage;
     }
-    // Switch to constitution page
-    currentPage = 'constitution';
-    isConstitutionView = true;
-    saveState(currentFeature, 'constitution');
+    // Switch to charter page
+    currentPage = 'charter';
+    isCharterView = true;
+    saveState(currentFeature, 'charter');
     document.querySelectorAll('.sidebar-item').forEach(item => item.classList.remove('active'));
-    const constitutionItem = document.querySelector('.sidebar-item[data-page="constitution"]');
-    if (constitutionItem) {
-        constitutionItem.classList.remove('disabled');
-        constitutionItem.classList.add('active');
+    const charterItem = document.querySelector('.sidebar-item[data-page="charter"]');
+    if (charterItem) {
+        charterItem.classList.remove('disabled');
+        charterItem.classList.add('active');
     }
     document.querySelectorAll('.page').forEach(page => page.classList.remove('active'));
-    document.getElementById('page-constitution').classList.add('active');
+    document.getElementById('page-charter').classList.add('active');
 
-    // Load constitution
-    fetch('/api/constitution')
+    // Load charter
+    fetch('/api/charter')
         .then(response => response.ok ? response.text() : Promise.reject('Not found'))
         .then(content => {
             const htmlContent = marked.parse(content);
-            const container = document.getElementById('constitution-content');
+            const container = document.getElementById('charter-content');
             container.innerHTML = htmlContent;
             // Intercept markdown links to route through dashboard
             interceptMarkdownLinks(container);
         })
         .catch(error => {
-            document.getElementById('constitution-content').innerHTML =
-                '<div class="empty-state">Constitution not found. Run /spec-kitty.constitution to create it.</div>';
+            document.getElementById('charter-content').innerHTML =
+                '<div class="empty-state">Charter not found. Run /spec-kitty.charter to create it.</div>';
         });
 }
 
@@ -1134,7 +1134,7 @@ function updateFeatureList(features, activeFeatureId = null) {
         singleFeatureName.style.display = 'none';
         sidebar.style.display = 'block';
         mainContent.style.display = 'block';
-        isConstitutionView = false;
+        isCharterView = false;
         currentFeature = null;
         computeFeatureWorktreeStatus(null);
         setFeatureSelectActive(false);
@@ -1144,9 +1144,9 @@ function updateFeatureList(features, activeFeatureId = null) {
         document.getElementById('page-welcome').classList.add('active');
         currentPage = 'welcome';
 
-        // Disable all sidebar items except constitution link
+        // Disable all sidebar items except charter link
         document.querySelectorAll('.sidebar-item').forEach(item => {
-            if (item.dataset.page === 'constitution') {
+            if (item.dataset.page === 'charter') {
                 item.classList.remove('disabled');
             } else {
                 item.classList.add('disabled');
@@ -1185,8 +1185,8 @@ function updateFeatureList(features, activeFeatureId = null) {
     // Restore saved page if it's valid for the current feature
     const feature = features.find(f => f.id === currentFeature);
     if (savedState.page && savedState.page !== 'overview') {
-        if (savedState.page === 'constitution') {
-            // Will be handled by showConstitution() call below
+        if (savedState.page === 'charter') {
+            // Will be handled by showCharter() call below
             currentPage = savedState.page;
         } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban?.exists) {
             currentPage = savedState.page;
@@ -1212,10 +1212,10 @@ function updateFeatureList(features, activeFeatureId = null) {
     updateSidebarState();
 
     // Restore the page view
-    if (currentPage === 'constitution') {
-        showConstitution();
+    if (currentPage === 'charter') {
+        showCharter();
     } else {
-        isConstitutionView = false;
+        isCharterView = false;
         // Update sidebar highlighting
         document.querySelectorAll('.sidebar-item').forEach(item => {
             if (item.dataset.page === currentPage) {
@@ -1274,7 +1274,7 @@ function fetchData(isInitialLoad = false) {
             }
 
                 // Refresh kanban board if currently viewing it
-                if (currentPage === 'kanban' && !isConstitutionView && currentFeature) {
+                if (currentPage === 'kanban' && !isCharterView && currentFeature) {
                     loadKanban();
                 }
             }
@@ -1305,12 +1305,12 @@ function fetchData(isInitialLoad = false) {
 // Initial fetch
 // Diagnostics functions
 function showDiagnostics() {
-    if (!isConstitutionView && currentPage !== 'diagnostics') {
-        lastNonConstitutionPage = currentPage;
+    if (!isCharterView && currentPage !== 'diagnostics') {
+        lastNonCharterPage = currentPage;
     }
     // Switch to diagnostics page
     currentPage = 'diagnostics';
-    isConstitutionView = false;
+    isCharterView = false;
     saveState(currentFeature, 'diagnostics');
 
     // Update sidebar - consistent with other pages

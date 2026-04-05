@@ -11,10 +11,10 @@ After ``spec-kitty migrate`` has been run (i.e. ``~/.kittify/`` is
 populated), legacy-tier warnings are suppressed.  Pre-migration projects
 receive a single "run ``spec-kitty migrate``" nudge per CLI invocation.
 
-This module lives in **doctrine** so that the ``constitution`` layer can
+This module lives in **doctrine** so that the ``charter`` layer can
 import the resolver without violating the 2.x dependency direction:
 
-    kernel (root) <- doctrine <- constitution <- specify_cli
+    kernel (root) <- doctrine <- charter <- specify_cli
 
 ``specify_cli.runtime.resolver`` re-exports every public symbol for
 backward compatibility.

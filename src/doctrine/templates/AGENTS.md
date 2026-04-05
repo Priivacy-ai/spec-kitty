@@ -105,7 +105,7 @@ spec-kitty validate-encoding --all --fix
 
 **Produce secure, tested, documented work.**
 
-- Follow the plan and constitution requirements.  
+- Follow the plan and charter requirements.  
 - Prefer existing patterns over invention.  
 - Treat security warnings as fatal—fix or escalate.  
 - Run all required tests before claiming work is complete.  
@@ -173,10 +173,10 @@ git status | grep -E '\.(claude|codex|gemini|cursor)/'
 git reset HEAD .claude/
 ```
 
-### Worktree Constitution Sharing
+### Worktree Charter Sharing
 
 In worktrees, `.kittify/memory/` is a symlink to the main repo's memory,
-ensuring all mission branches share the same constitution.
+ensuring all mission branches share the same charter.
 
 ```bash
 # In a worktree, this should show a symlink:
