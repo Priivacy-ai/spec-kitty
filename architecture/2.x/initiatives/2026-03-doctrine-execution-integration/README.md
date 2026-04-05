@@ -262,24 +262,24 @@ and runtime execution. It targets three integration surfaces:
 
 ### Gap Analysis: Issue #284 (Customizable Git Strategy)
 
-Issue #284 proposes git execution paradigms as selectable doctrine artifacts.
-055 does not implement this, but creates the infrastructure that makes it possible:
+This direction is now obsolete. Later runtime work standardized on mandatory
+execution lanes and removed configurable git-topology branches from the active
+system.
 
-- Profile injection proves the pattern of "doctrine artifact resolved at runtime
-  and injected into execution context." Git strategy paradigms would follow the
-  same resolution path: paradigm selected in charter → resolved via
-  DoctrineService → injected into orchestration.
-- The `generic-agent` profile's single directive ("use efficient local tooling")
-  establishes the pattern of a behavioral default that can be overridden by
-  project-level selections.
+What 055 still proves is narrower and still valid:
+- doctrine artifacts can be resolved at runtime and injected into execution
+  context
+- profile defaults can be overridden by project-level selections
 
-Full #284 implementation requires:
-1. Git strategy paradigms as doctrine artifacts (`workspace-per-wp`, `trunk-based`, etc.)
-2. Each paradigm bound to concrete tactics/procedures for workspace setup, branch routing, merge, cleanup
-3. Orchestrator refactored to be strategy-polymorphic (no unconditional worktree assumptions)
-4. Charter bootstrap captures selected paradigm as runtime authority
+What 055 does **not** imply anymore:
+1. Git execution topology should be doctrine-configurable
+2. The orchestrator should become strategy-polymorphic
+3. The charter should decide between multiple workspace/branching models
 
-This is Phase 2+ scope. 055 is a prerequisite, not the implementation.
+Current position:
+- doctrine influences behavior inside the lane-only runtime
+- doctrine does not select between competing git execution strategies
+- `lanes.json` and the lane allocator are the only source of workspace topology
 
 ## Observation: Agent Hook-Based Enforcement
 

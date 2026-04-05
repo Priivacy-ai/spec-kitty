@@ -1,600 +1,196 @@
-"""Tests for worktree topology analysis.
-
-Tests cover:
-1. WPTopologyEntry and FeatureTopology data structures
-2. Stacking detection (has_stacking property)
-3. materialize_worktree_topology with filesystem fixtures
-4. render_topology_json output format
-5. render_topology_text output format
-6. Flat features (no stacking) produce no topology output
-7. Linear chain (WP01 → WP02 → WP03)
-8. Diamond pattern (WP01 → WP02, WP01 → WP03, both → WP04)
-"""
+"""Tests for lane worktree topology analysis."""
 
 from __future__ import annotations
 
-import pytest
 import json
-from unittest.mock import patch, MagicMock
+from pathlib import Path
 
+import pytest
 
 from specify_cli.core.worktree_topology import (
-    WPTopologyEntry,
     FeatureTopology,
+    WPTopologyEntry,
+    materialize_worktree_topology,
     render_topology_json,
     render_topology_text,
-    materialize_worktree_topology,
-    _resolve_base_wp,
 )
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 
 pytestmark = pytest.mark.fast
 
-# ============================================================================
-# Data structure tests
-# ============================================================================
+
+def _manifest(feature_slug: str = "002-feature") -> LanesManifest:
+    return LanesManifest(
+        version=1,
+        feature_slug=feature_slug,
+        mission_id=f"mission-{feature_slug}",
+        mission_branch=f"kitty/mission-{feature_slug}",
+        target_branch="main",
+        lanes=[
+            ExecutionLane(
+                lane_id="lane-a",
+                wp_ids=("WP01", "WP02"),
+                write_scope=("src/**",),
+                predicted_surfaces=("core",),
+                depends_on_lanes=(),
+                parallel_group=0,
+            ),
+            ExecutionLane(
+                lane_id="lane-b",
+                wp_ids=("WP03",),
+                write_scope=("docs/**",),
+                predicted_surfaces=("docs",),
+                depends_on_lanes=("lane-a",),
+                parallel_group=1,
+            ),
+        ],
+        computed_at="2026-04-04T10:00:00Z",
+        computed_from="test",
+    )
 
 
 class TestWPTopologyEntry:
-    def test_defaults(self):
+    def test_defaults(self) -> None:
         entry = WPTopologyEntry(
             wp_id="WP01",
-            branch_name="feat-WP01",
-            base_branch="main",
-            base_wp=None,
+            lane_id="lane-a",
+            lane_wp_ids=["WP01", "WP02"],
+            branch_name="kitty/mission-002-feature-lane-a",
+            base_branch="kitty/mission-002-feature",
         )
-        assert entry.wp_id == "WP01"
         assert entry.dependencies == []
         assert entry.lane == "planned"
         assert entry.worktree_exists is False
         assert entry.commits_ahead_of_base == 0
 
-    def test_stacked_entry(self):
-        entry = WPTopologyEntry(
-            wp_id="WP03",
-            branch_name="feat-WP03",
-            base_branch="feat-WP01",
-            base_wp="WP01",
-            dependencies=["WP01"],
-            lane="doing",
-            worktree_exists=True,
-            commits_ahead_of_base=5,
-        )
-        assert entry.base_wp == "WP01"
-        assert entry.commits_ahead_of_base == 5
-
 
 class TestFeatureTopology:
-    def _make_topology(self, entries):
-        return FeatureTopology(
+    def test_has_stacking_when_lane_is_shared(self) -> None:
+        topology = FeatureTopology(
             feature_slug="002-feature",
             target_branch="main",
-            entries=entries,
-        )
-
-    def test_has_stacking_false_when_flat(self):
-        topology = self._make_topology(
-            [
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None),
-                WPTopologyEntry(wp_id="WP02", branch_name="feat-WP02", base_branch="main", base_wp=None),
-            ]
-        )
-        assert topology.has_stacking is False
-
-    def test_has_stacking_true_when_stacked(self):
-        topology = self._make_topology(
-            [
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None),
-                WPTopologyEntry(wp_id="WP02", branch_name="feat-WP02", base_branch="feat-WP01", base_wp="WP01"),
-            ]
-        )
-        assert topology.has_stacking is True
-
-    def test_get_entry(self):
-        topology = self._make_topology(
-            [
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None),
-                WPTopologyEntry(wp_id="WP02", branch_name="feat-WP02", base_branch="main", base_wp=None),
-            ]
-        )
-        assert topology.get_entry("WP01").wp_id == "WP01"
-        assert topology.get_entry("WP02").wp_id == "WP02"
-        assert topology.get_entry("WP99") is None
-
-    def test_get_actual_base_for_wp_stacked(self):
-        topology = self._make_topology(
-            [
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None),
-                WPTopologyEntry(wp_id="WP03", branch_name="feat-WP03", base_branch="feat-WP01", base_wp="WP01"),
-            ]
-        )
-        assert topology.get_actual_base_for_wp("WP03") == "feat-WP01"
-        assert topology.get_actual_base_for_wp("WP01") == "main"
-
-    def test_get_actual_base_for_wp_unknown(self):
-        topology = self._make_topology([])
-        assert topology.get_actual_base_for_wp("WP99") == "main"
-
-
-# ============================================================================
-# _resolve_base_wp tests
-# ============================================================================
-
-
-class TestResolveBaseWP:
-    def test_base_is_wp_branch(self):
-        wp_branches = {"WP01": "feat-WP01", "WP02": "feat-WP02"}
-        assert _resolve_base_wp("feat-WP01", "002-feature", wp_branches) == "WP01"
-
-    def test_base_is_target_branch(self):
-        wp_branches = {"WP01": "feat-WP01", "WP02": "feat-WP02"}
-        assert _resolve_base_wp("main", "002-feature", wp_branches) is None
-
-    def test_base_is_unknown_branch(self):
-        wp_branches = {"WP01": "feat-WP01"}
-        assert _resolve_base_wp("some-other-branch", "002-feature", wp_branches) is None
-
-
-# ============================================================================
-# render_topology_json tests
-# ============================================================================
-
-
-class TestRenderTopologyJson:
-    def _make_stacked_topology(self):
-        return FeatureTopology(
-            feature_slug="002-event-driven",
-            target_branch="main",
+            mission_branch="kitty/mission-002-feature",
             entries=[
                 WPTopologyEntry(
                     wp_id="WP01",
-                    branch_name="002-event-WP01",
-                    base_branch="main",
-                    base_wp=None,
-                    lane="done",
+                    lane_id="lane-a",
+                    lane_wp_ids=["WP01", "WP02"],
+                    branch_name="kitty/mission-002-feature-lane-a",
+                    base_branch="kitty/mission-002-feature",
+                )
+            ],
+        )
+        assert topology.has_stacking is True
+        assert topology.get_actual_base_for_wp("WP01") == "kitty/mission-002-feature"
+
+
+class TestRenderTopologyJson:
+    def test_json_markers_and_payload(self) -> None:
+        topology = FeatureTopology(
+            feature_slug="002-feature",
+            target_branch="main",
+            mission_branch="kitty/mission-002-feature",
+            entries=[
+                WPTopologyEntry(
+                    wp_id="WP01",
+                    lane_id="lane-a",
+                    lane_wp_ids=["WP01", "WP02"],
+                    branch_name="kitty/mission-002-feature-lane-a",
+                    base_branch="kitty/mission-002-feature",
+                    lane="doing",
                     worktree_exists=True,
                     commits_ahead_of_base=3,
                 ),
                 WPTopologyEntry(
                     wp_id="WP02",
-                    branch_name="002-event-WP02",
-                    base_branch="main",
-                    base_wp=None,
-                    lane="doing",
-                    worktree_exists=True,
-                    commits_ahead_of_base=5,
-                ),
-                WPTopologyEntry(
-                    wp_id="WP03",
-                    branch_name="002-event-WP03",
-                    base_branch="002-event-WP01",
-                    base_wp="WP01",
-                    lane="doing",
-                    worktree_exists=True,
-                    commits_ahead_of_base=2,
-                ),
-                WPTopologyEntry(
-                    wp_id="WP04",
-                    branch_name=None,
-                    base_branch=None,
-                    base_wp=None,
-                    dependencies=["WP02", "WP03"],
+                    lane_id="lane-a",
+                    lane_wp_ids=["WP01", "WP02"],
+                    branch_name="kitty/mission-002-feature-lane-a",
+                    base_branch="kitty/mission-002-feature",
                     lane="planned",
                 ),
             ],
         )
-
-    def test_json_markers(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP03")
+        lines = render_topology_json(topology, "WP01")
         assert lines[0] == "<!-- WORKTREE_TOPOLOGY -->"
         assert lines[-1] == "<!-- /WORKTREE_TOPOLOGY -->"
 
-    def test_json_parseable(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP03")
-        # Extract JSON between markers
-        json_str = "\n".join(lines[1:-1])
-        payload = json.loads(json_str)
-        assert payload["feature"] == "002-event-driven"
-        assert payload["target_branch"] == "main"
-        assert payload["current_wp"] == "WP03"
-        assert payload["stacked"] is True
-
-    def test_your_base_for_stacked_wp(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP03")
         payload = json.loads("\n".join(lines[1:-1]))
-        assert payload["your_base"] == {"branch": "002-event-WP01", "wp": "WP01"}
-        assert "NOT main" in payload["note"]
-
-    def test_your_base_for_non_stacked_wp(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP01")
-        payload = json.loads("\n".join(lines[1:-1]))
-        assert payload["your_base"] is None
-
-    def test_diff_command_uses_actual_base(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP03")
-        payload = json.loads("\n".join(lines[1:-1]))
-        assert payload["diff_command"] == "git diff 002-event-WP01..HEAD"
-
-    def test_entries_list(self):
-        topology = self._make_stacked_topology()
-        lines = render_topology_json(topology, "WP03")
-        payload = json.loads("\n".join(lines[1:-1]))
-        assert len(payload["entries"]) == 4
-        # WP04 has no branch but has dependencies
-        wp04 = payload["entries"][3]
-        assert wp04["branch"] is None
-        assert wp04["dependencies"] == ["WP02", "WP03"]
-
-
-# ============================================================================
-# render_topology_text tests
-# ============================================================================
+        assert payload["feature"] == "002-feature"
+        assert payload["mission_branch"] == "kitty/mission-002-feature"
+        assert payload["shared_lane"] is True
+        assert payload["diff_command"] == "git diff kitty/mission-002-feature..HEAD"
 
 
 class TestRenderTopologyText:
-    def test_box_structure(self):
+    def test_box_structure(self) -> None:
         topology = FeatureTopology(
             feature_slug="002-feature",
             target_branch="main",
+            mission_branch="kitty/mission-002-feature",
             entries=[
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None, lane="done"),
                 WPTopologyEntry(
-                    wp_id="WP02", branch_name="feat-WP02", base_branch="feat-WP01", base_wp="WP01", lane="doing"
-                ),
+                    wp_id="WP01",
+                    lane_id="lane-a",
+                    lane_wp_ids=["WP01"],
+                    branch_name="kitty/mission-002-feature-lane-a",
+                    base_branch="kitty/mission-002-feature",
+                    lane="done",
+                )
             ],
         )
-        lines = render_topology_text(topology, "WP02")
+        lines = render_topology_text(topology, "WP01")
         assert lines[0].startswith("╔")
         assert lines[-1].startswith("╚")
-        assert any("WORKTREE TOPOLOGY" in line for line in lines)
-
-    def test_current_wp_highlighted(self):
-        topology = FeatureTopology(
-            feature_slug="002-feature",
-            target_branch="main",
-            entries=[
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None, lane="done"),
-                WPTopologyEntry(
-                    wp_id="WP02", branch_name="feat-WP02", base_branch="feat-WP01", base_wp="WP01", lane="doing"
-                ),
-            ],
-        )
-        lines = render_topology_text(topology, "WP02")
-        wp02_lines = [line for line in lines if "WP02" in line and "→" in line]
-        assert len(wp02_lines) > 0
-
-    def test_non_current_wp_not_highlighted(self):
-        topology = FeatureTopology(
-            feature_slug="002-feature",
-            target_branch="main",
-            entries=[
-                WPTopologyEntry(wp_id="WP01", branch_name="feat-WP01", base_branch="main", base_wp=None, lane="done"),
-                WPTopologyEntry(
-                    wp_id="WP02", branch_name="feat-WP02", base_branch="feat-WP01", base_wp="WP01", lane="doing"
-                ),
-            ],
-        )
-        lines = render_topology_text(topology, "WP02")
-        # WP01 line should have space marker, not arrow
-        wp01_lines = [line for line in lines if "WP01" in line and "[done]" in line]
-        for line in wp01_lines:
-            # The marker before WP01 should be a space, not →
-            idx = line.index("WP01")
-            assert line[idx - 2] == " "
-
-
-# ============================================================================
-# materialize_worktree_topology tests (with mocking)
-# ============================================================================
+        assert any("LANE WORKTREE TOPOLOGY" in line for line in lines)
 
 
 class TestMaterializeWorktreeTopology:
-    """Test materialization with mocked dependencies."""
-
-    @patch("specify_cli.core.worktree_topology.list_contexts")
-    @patch("specify_cli.core.worktree_topology.build_dependency_graph")
-    @patch("specify_cli.core.worktree_topology.topological_sort")
-    @patch("specify_cli.core.worktree_topology.get_feature_target_branch")
-    @patch("specify_cli.core.worktree_topology.get_main_repo_root")
-    @patch("specify_cli.core.worktree_topology.read_frontmatter")
-    def test_flat_feature_no_stacking(
-        self,
-        mock_read_fm,
-        mock_main_root,
-        mock_target,
-        mock_topo,
-        mock_dep_graph,
-        mock_list_ctx,
-        tmp_path,
-    ):
-        """Flat feature where all WPs branch from main."""
-        repo_root = tmp_path / "repo"
-        repo_root.mkdir()
-        feature_dir = repo_root / "kitty-specs" / "002-feature" / "tasks"
+    def test_materialize_from_manifest_and_context(self, tmp_path: Path) -> None:
+        repo_root = tmp_path
+        feature_slug = "002-feature"
+        feature_dir = repo_root / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
-
-        # Create WP files
-        (feature_dir / "WP01-setup.md").write_text("---\nwork_package_id: WP01\nlane: done\n---\n")
-        (feature_dir / "WP02-impl.md").write_text("---\nwork_package_id: WP02\nlane: doing\n---\n")
-
-        mock_main_root.return_value = repo_root
-        mock_target.return_value = "main"
-        mock_dep_graph.return_value = {"WP01": [], "WP02": []}
-        mock_topo.return_value = ["WP01", "WP02"]
-
-        # Both WPs based on main
-        ctx1 = MagicMock()
-        ctx1.wp_id = "WP01"
-        ctx1.feature_slug = "002-feature"
-        ctx1.branch_name = "002-feature-WP01"
-        ctx1.base_branch = "main"
-
-        ctx2 = MagicMock()
-        ctx2.wp_id = "WP02"
-        ctx2.feature_slug = "002-feature"
-        ctx2.branch_name = "002-feature-WP02"
-        ctx2.base_branch = "main"
-
-        mock_list_ctx.return_value = [ctx1, ctx2]
-
-        # Mock read_frontmatter for lane detection
-        def fake_read_fm(path):
-            if "WP01" in str(path):
-                return ({"work_package_id": "WP01", "lane": "done"}, "")
-            return ({"work_package_id": "WP02", "lane": "doing"}, "")
-
-        mock_read_fm.side_effect = fake_read_fm
-
-        topology = materialize_worktree_topology(repo_root, "002-feature")
-
-        assert topology.feature_slug == "002-feature"
-        assert topology.target_branch == "main"
-        assert topology.has_stacking is False
-        assert len(topology.entries) == 2
-
-    @patch("specify_cli.core.worktree_topology.list_contexts")
-    @patch("specify_cli.core.worktree_topology.build_dependency_graph")
-    @patch("specify_cli.core.worktree_topology.topological_sort")
-    @patch("specify_cli.core.worktree_topology.get_feature_target_branch")
-    @patch("specify_cli.core.worktree_topology.get_main_repo_root")
-    @patch("specify_cli.core.worktree_topology.read_frontmatter")
-    def test_linear_chain_stacking(
-        self,
-        mock_read_fm,
-        mock_main_root,
-        mock_target,
-        mock_topo,
-        mock_dep_graph,
-        mock_list_ctx,
-        tmp_path,
-    ):
-        """Linear chain: WP01 → WP02 → WP03 (each branches from previous)."""
-        repo_root = tmp_path / "repo"
-        repo_root.mkdir()
-        feature_dir = repo_root / "kitty-specs" / "002-feature" / "tasks"
-        feature_dir.mkdir(parents=True)
-
-        for wp in ["WP01", "WP02", "WP03"]:
-            (feature_dir / f"{wp}.md").write_text(f"---\nwork_package_id: {wp}\nlane: doing\n---\n")
-
-        mock_main_root.return_value = repo_root
-        mock_target.return_value = "main"
-        mock_dep_graph.return_value = {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
-        mock_topo.return_value = ["WP01", "WP02", "WP03"]
-
-        ctx1 = MagicMock(wp_id="WP01", feature_slug="002-feature", branch_name="002-WP01", base_branch="main")
-        ctx2 = MagicMock(wp_id="WP02", feature_slug="002-feature", branch_name="002-WP02", base_branch="002-WP01")
-        ctx3 = MagicMock(wp_id="WP03", feature_slug="002-feature", branch_name="002-WP03", base_branch="002-WP02")
-        mock_list_ctx.return_value = [ctx1, ctx2, ctx3]
-
-        def fake_read_fm(path):
-            for wp in ["WP01", "WP02", "WP03"]:
-                if wp in str(path):
-                    return ({"work_package_id": wp, "lane": "doing"}, "")
-            return ({}, "")
-
-        mock_read_fm.side_effect = fake_read_fm
-
-        topology = materialize_worktree_topology(repo_root, "002-feature")
-
-        assert topology.has_stacking is True
-        assert len(topology.entries) == 3
-
-        # WP01 bases on main (no stacking)
-        assert topology.entries[0].base_wp is None
-        # WP02 bases on WP01
-        assert topology.entries[1].base_wp == "WP01"
-        # WP03 bases on WP02
-        assert topology.entries[2].base_wp == "WP02"
-
-    @patch("specify_cli.core.worktree_topology.list_contexts")
-    @patch("specify_cli.core.worktree_topology.build_dependency_graph")
-    @patch("specify_cli.core.worktree_topology.topological_sort")
-    @patch("specify_cli.core.worktree_topology.get_feature_target_branch")
-    @patch("specify_cli.core.worktree_topology.get_main_repo_root")
-    @patch("specify_cli.core.worktree_topology.read_frontmatter")
-    def test_diamond_pattern(
-        self,
-        mock_read_fm,
-        mock_main_root,
-        mock_target,
-        mock_topo,
-        mock_dep_graph,
-        mock_list_ctx,
-        tmp_path,
-    ):
-        """Diamond: WP01 → WP02 and WP03, both → WP04."""
-        repo_root = tmp_path / "repo"
-        repo_root.mkdir()
-        feature_dir = repo_root / "kitty-specs" / "002-feature" / "tasks"
-        feature_dir.mkdir(parents=True)
-
-        for wp in ["WP01", "WP02", "WP03", "WP04"]:
-            (feature_dir / f"{wp}.md").write_text(f"---\nwork_package_id: {wp}\nlane: doing\n---\n")
-
-        mock_main_root.return_value = repo_root
-        mock_target.return_value = "main"
-        mock_dep_graph.return_value = {
-            "WP01": [],
-            "WP02": ["WP01"],
-            "WP03": ["WP01"],
-            "WP04": ["WP02", "WP03"],
-        }
-        mock_topo.return_value = ["WP01", "WP02", "WP03", "WP04"]
-
-        ctx1 = MagicMock(wp_id="WP01", feature_slug="002-feature", branch_name="002-WP01", base_branch="main")
-        ctx2 = MagicMock(wp_id="WP02", feature_slug="002-feature", branch_name="002-WP02", base_branch="002-WP01")
-        ctx3 = MagicMock(wp_id="WP03", feature_slug="002-feature", branch_name="002-WP03", base_branch="002-WP01")
-        # WP04 bases on WP03 (one of its two deps)
-        ctx4 = MagicMock(wp_id="WP04", feature_slug="002-feature", branch_name="002-WP04", base_branch="002-WP03")
-        mock_list_ctx.return_value = [ctx1, ctx2, ctx3, ctx4]
-
-        def fake_read_fm(path):
-            for wp in ["WP01", "WP02", "WP03", "WP04"]:
-                if wp in str(path):
-                    return ({"work_package_id": wp, "lane": "doing"}, "")
-            return ({}, "")
-
-        mock_read_fm.side_effect = fake_read_fm
-
-        topology = materialize_worktree_topology(repo_root, "002-feature")
-
-        assert topology.has_stacking is True
-        assert len(topology.entries) == 4
-
-        # WP02 and WP03 both base on WP01
-        assert topology.entries[1].base_wp == "WP01"
-        assert topology.entries[2].base_wp == "WP01"
-
-        # WP04 bases on WP03
-        assert topology.entries[3].base_wp == "WP03"
-
-    @patch("specify_cli.core.worktree_topology.list_contexts")
-    @patch("specify_cli.core.worktree_topology.build_dependency_graph")
-    @patch("specify_cli.core.worktree_topology.topological_sort")
-    @patch("specify_cli.core.worktree_topology.get_feature_target_branch")
-    @patch("specify_cli.core.worktree_topology.get_main_repo_root")
-    @patch("specify_cli.core.worktree_topology.read_frontmatter")
-    def test_wp_without_context_gets_none_base(
-        self,
-        mock_read_fm,
-        mock_main_root,
-        mock_target,
-        mock_topo,
-        mock_dep_graph,
-        mock_list_ctx,
-        tmp_path,
-    ):
-        """WP with no workspace context (not yet implemented) gets None for base."""
-        repo_root = tmp_path / "repo"
-        repo_root.mkdir()
-        feature_dir = repo_root / "kitty-specs" / "002-feature" / "tasks"
-        feature_dir.mkdir(parents=True)
-        (feature_dir / "WP01.md").write_text("---\nwork_package_id: WP01\nlane: planned\n---\n")
-
-        mock_main_root.return_value = repo_root
-        mock_target.return_value = "main"
-        mock_dep_graph.return_value = {"WP01": []}
-        mock_topo.return_value = ["WP01"]
-        mock_list_ctx.return_value = []  # No contexts (WP not implemented yet)
-
-        def fake_read_fm(path):
-            return ({"work_package_id": "WP01", "lane": "planned"}, "")
-
-        mock_read_fm.side_effect = fake_read_fm
-
-        topology = materialize_worktree_topology(repo_root, "002-feature")
-
-        assert len(topology.entries) == 1
-        entry = topology.entries[0]
-        assert entry.branch_name is None
-        assert entry.base_branch is None
-        assert entry.base_wp is None
-        assert entry.worktree_exists is False
-
-
-# ============================================================================
-# Integration: render_topology_json for stacked features
-# ============================================================================
-
-
-class TestRenderTopologyJsonIntegration:
-    def test_stacked_wp_gets_correct_note(self):
-        topology = FeatureTopology(
-            feature_slug="002-feature",
-            target_branch="main",
-            entries=[
-                WPTopologyEntry(
-                    wp_id="WP01",
-                    branch_name="002-WP01",
-                    base_branch="main",
-                    base_wp=None,
-                    lane="done",
-                    worktree_exists=True,
-                    commits_ahead_of_base=10,
-                ),
-                WPTopologyEntry(
-                    wp_id="WP03",
-                    branch_name="002-WP03",
-                    base_branch="002-WP01",
-                    base_wp="WP01",
-                    lane="doing",
-                    worktree_exists=True,
-                    commits_ahead_of_base=2,
-                ),
-            ],
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"feature_number": "002", "feature_slug": feature_slug, "target_branch": "main"}),
+            encoding="utf-8",
         )
-        lines = render_topology_json(topology, "WP03")
-        payload = json.loads("\n".join(lines[1:-1]))
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01-core.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n")
+        (tasks_dir / "WP02-api.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n")
+        (tasks_dir / "WP03-docs.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP02]\n---\n")
+        write_lanes_json(feature_dir, _manifest(feature_slug))
 
-        # Should tell agent it stacks on WP01, NOT main
-        assert "WP01" in payload["note"]
-        assert "NOT main" in payload["note"]
-        assert payload["diff_command"] == "git diff 002-WP01..HEAD"
-
-    def test_non_stacked_wp_in_stacked_feature(self):
-        """A WP based on main in a feature that has stacking elsewhere."""
-        topology = FeatureTopology(
-            feature_slug="002-feature",
-            target_branch="main",
-            entries=[
-                WPTopologyEntry(
-                    wp_id="WP01",
-                    branch_name="002-WP01",
-                    base_branch="main",
-                    base_wp=None,
-                    lane="done",
-                    worktree_exists=True,
-                    commits_ahead_of_base=10,
-                ),
-                WPTopologyEntry(
-                    wp_id="WP02",
-                    branch_name="002-WP02",
-                    base_branch="main",
-                    base_wp=None,
-                    lane="doing",
-                    worktree_exists=True,
-                    commits_ahead_of_base=5,
-                ),
-                WPTopologyEntry(
-                    wp_id="WP03",
-                    branch_name="002-WP03",
-                    base_branch="002-WP01",
-                    base_wp="WP01",
-                    lane="doing",
-                    worktree_exists=True,
-                    commits_ahead_of_base=2,
-                ),
-            ],
+        worktree = repo_root / ".worktrees" / f"{feature_slug}-lane-a"
+        worktree.mkdir(parents=True)
+        (repo_root / ".git").mkdir()
+        (repo_root / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)
+        (repo_root / ".kittify" / "workspaces" / f"{feature_slug}-lane-a.json").write_text(
+            json.dumps(
+                {
+                    "wp_id": "WP02",
+                    "feature_slug": feature_slug,
+                    "worktree_path": f".worktrees/{feature_slug}-lane-a",
+                    "branch_name": f"kitty/mission-{feature_slug}-lane-a",
+                    "base_branch": f"kitty/mission-{feature_slug}",
+                    "base_commit": "abc123",
+                    "dependencies": ["WP01"],
+                    "created_at": "2026-01-25T12:00:00Z",
+                    "created_by": "implement-command-lane",
+                    "vcs_backend": "git",
+                    "lane_id": "lane-a",
+                    "lane_wp_ids": ["WP01", "WP02"],
+                    "current_wp": "WP02",
+                }
+            ),
+            encoding="utf-8",
         )
-        lines = render_topology_json(topology, "WP02")
-        payload = json.loads("\n".join(lines[1:-1]))
 
-        # WP02 is based on main, but feature has stacking
-        assert payload["your_base"] is None
-        assert payload["diff_command"] == "git diff main..HEAD"
-        assert "Other WPs" in payload["note"]
+        topology = materialize_worktree_topology(repo_root, feature_slug)
+
+        assert topology.mission_branch == f"kitty/mission-{feature_slug}"
+        assert [entry.wp_id for entry in topology.entries] == ["WP01", "WP02", "WP03"]
+        assert topology.get_entry("WP01").lane_id == "lane-a"
+        assert topology.get_entry("WP03").lane_id == "lane-b"

@@ -144,6 +144,10 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         for item in scripts_src.iterdir():
             if item.is_file():
                 shutil.copy2(item, scripts_dest / item.name)
+        (scripts_dest / ".spec-kitty-src-root").write_text(
+            str((repo_root / "src").resolve()) + "\n",
+            encoding="utf-8",
+        )
 
     # Copy from src/doctrine/templates/ (doctrine artifacts)
     # The src/doctrine/templates/ directory contains:

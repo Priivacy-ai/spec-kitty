@@ -50,7 +50,7 @@ Mission Type (reusable workflow blueprint, e.g. software-dev)
 - **Mission** -- stored in `kitty-specs/###-name/`; linked to its mission type via `meta.json`.
 - **Feature** -- legacy software-dev alias for a mission.
 - **Work Package** -- one unit of implementable work; has its own status on the kanban board and its own dependencies.
-- **Execution Workspace** -- the git worktree resolved for implementation. Modern features share one worktree per execution lane; legacy features may still use one worktree per work package.
+- **Execution Workspace** -- the git worktree resolved for implementation. The runtime creates exactly one worktree per execution lane, and sequential WPs in the same lane reuse that worktree.
 
 Different missions in the same project can use different mission types simultaneously.
 
@@ -123,5 +123,5 @@ See [Orchestration and API Boundary](orchestration-and-api.md) for operator and 
 
 - **Deep dive on missions**: [The Mission System Explained](../explanation/mission-system.md) -- why missions exist, how they shape your experience, detailed comparison of all four built-in missions
 - **Kanban workflow**: [Kanban Workflow Explained](../explanation/kanban-workflow.md) -- how lanes work and what happens when work moves between them
-- **Workspace model**: [Execution Workspace Model](../explanation/workspace-per-wp.md) -- lane-based worktrees with legacy per-WP fallback
+- **Workspace model**: [Execution Workspace Model](../explanation/execution-lanes.md) -- lane-based worktrees only
 - **CLI reference**: [CLI Commands Reference](../reference/cli-commands.md) -- complete `next`, `mission`, and `status` subcommand details

@@ -10,6 +10,7 @@ from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 from specify_cli.core.context_validation import ExecutionContext
+from tests.lane_test_utils import write_single_lane_manifest
 
 
 runner = CliRunner()
@@ -27,18 +28,20 @@ def _extract_json(output: str) -> dict[str, object]:
     raise AssertionError(f"No JSON payload found in output:\n{output}")
 
 
-def _write_meta_json(feature_dir: Path, target_branch: str) -> None:
+def _write_feature_config(feature_dir: Path, target_branch: str, *, with_meta: bool = True) -> None:
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text(
-        json.dumps(
-            {
-                "feature_number": "049",
-                "slug": feature_dir.name,
-                "target_branch": target_branch,
-            }
-        ),
-        encoding="utf-8",
-    )
+    write_single_lane_manifest(feature_dir, target_branch=target_branch)
+    if with_meta:
+        (feature_dir / "meta.json").write_text(
+            json.dumps(
+                {
+                    "feature_number": "049",
+                    "slug": feature_dir.name,
+                    "target_branch": target_branch,
+                }
+            ),
+            encoding="utf-8",
+        )
 
 
 def _force_main_repo(monkeypatch, repo_root: Path) -> None:
@@ -67,10 +70,6 @@ def _patch_merge_environment(
     monkeypatch.setattr(
         "specify_cli.cli.commands.merge._enforce_git_preflight",
         lambda *_args, **_kwargs: None,
-    )
-    monkeypatch.setattr(
-        "specify_cli.cli.commands.merge.detect_worktree_structure",
-        lambda *_args, **_kwargs: "legacy",
     )
     monkeypatch.setattr(
         "specify_cli.core.paths.get_main_repo_root",
@@ -103,7 +102,7 @@ def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, 
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    _write_meta_json(repo_root / "kitty-specs" / slug, "2.x")
+    _write_feature_config(repo_root / "kitty-specs" / slug, "2.x")
     _patch_merge_environment(
         monkeypatch,
         repo_root,
@@ -119,16 +118,16 @@ def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, 
     assert payload["target_branch"] == "2.x"
 
 
-def test_merge_without_feature_on_wp_branch_validates_inferred_target(monkeypatch, tmp_path: Path) -> None:
+def test_merge_without_feature_on_lane_branch_validates_inferred_target(monkeypatch, tmp_path: Path) -> None:
     slug = "049-fix-merge-target-resolution"
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    _write_meta_json(repo_root / "kitty-specs" / slug, "does-not-exist")
+    _write_feature_config(repo_root / "kitty-specs" / slug, "does-not-exist")
     _patch_merge_environment(
         monkeypatch,
         repo_root,
-        current_branch=f"{slug}-WP01",
+        current_branch=f"kitty/mission-{slug}-lane-a",
         existing_branches=set(),
     )
 
@@ -147,7 +146,7 @@ def test_explicit_target_overrides_meta_json(monkeypatch, tmp_path: Path) -> Non
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    _write_meta_json(repo_root / "kitty-specs" / slug, "2.x")
+    _write_feature_config(repo_root / "kitty-specs" / slug, "2.x")
     _patch_merge_environment(
         monkeypatch,
         repo_root,
@@ -170,7 +169,7 @@ def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) ->
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    _write_meta_json(repo_root / "kitty-specs" / slug, "2.x")
+    _write_feature_config(repo_root / "kitty-specs" / slug, "2.x")
     _patch_merge_environment(
         monkeypatch,
         repo_root,
@@ -194,7 +193,7 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    # No meta.json written — feature dir does not exist
+    _write_feature_config(repo_root / "kitty-specs" / slug, "main", with_meta=False)
     _patch_merge_environment(
         monkeypatch,
         repo_root,
@@ -213,7 +212,7 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
     assert payload["target_branch"] == "main"
 
 
-def test_no_feature_no_feature_branch_uses_primary_branch(monkeypatch, tmp_path: Path) -> None:
+def test_no_feature_no_feature_branch_requires_explicit_feature(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
@@ -226,9 +225,9 @@ def test_no_feature_no_feature_branch_uses_primary_branch(monkeypatch, tmp_path:
 
     result = runner.invoke(cli_app, ["merge", "--dry-run", "--json"])
 
-    assert result.exit_code == 0
+    assert result.exit_code == 1
     payload = _extract_json(result.stdout)
-    assert payload["target_branch"] == "main"
+    assert payload["error"] == "Feature slug could not be resolved. Use --feature <slug>."
 
 
 def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
@@ -236,7 +235,7 @@ def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
-    _write_meta_json(repo_root / "kitty-specs" / slug, "main")
+    _write_feature_config(repo_root / "kitty-specs" / slug, "main")
     _patch_merge_environment(
         monkeypatch,
         repo_root,

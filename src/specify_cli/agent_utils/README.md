@@ -38,7 +38,7 @@ result = show_kanban_status("012-documentation-mission")
    - Which WPs are ready to start (all dependencies satisfied)
    - Which can run in parallel (no inter-dependencies)
    - Which must run sequentially (depend on each other)
-   - Exact `spec-kitty implement` commands with correct `--base` flags
+   - Exact `spec-kitty implement` commands for the resolved lane workspace
 5. **Next Steps** - What's ready for review, in progress, or next up
 6. **Summary Panel** - Total WPs, completed %, in progress, planned
 
@@ -67,7 +67,7 @@ Progress: 8/10 (80.0%)
 
   ▶️  Ready to start:
      • WP09 - Testing & Validation
-     spec-kitty implement WP09 --base WP08
+     spec-kitty implement WP09
 
 ╭─────────────────── Summary ───────────────────╮
 │ Total WPs:    10                              │

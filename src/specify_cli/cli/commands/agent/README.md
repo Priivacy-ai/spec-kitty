@@ -9,7 +9,7 @@ commands, adding agent-specific UX enhancements:
 2. **Prompt display**: Output implementation/review prompts
 3. **Status updates**: Move WPs between lanes, track agent/PID
 4. **Error recovery**: Auto-retry, navigation to correct worktree
-5. **Dependency validation**: Validate dependencies before creating workspaces
+5. **Lane validation**: Require finalized lane metadata before creating workspaces
 
 ## Pattern: Direct Import and Delegation
 
@@ -26,40 +26,25 @@ def implement_wrapper(...):
     # 5. Post-processing (display prompt, etc.)
 ```
 
-## Critical: Dependency Validation
+## Critical: Lane Validation
 
-**ALWAYS** validate work package dependencies before creating workspaces!
+**ALWAYS** require finalized lane metadata before creating workspaces.
 
 ```python
-from specify_cli.core.implement_validation import (
-    validate_and_resolve_base,
-    validate_base_workspace_exists,
-)
+from specify_cli.lanes.persistence import require_lanes_json
 
-# Parse WP file to check dependencies
-wp = locate_work_package(repo_root, feature_slug, wp_id)
-
-# Validate dependencies (errors if single dep and no --base)
-resolved_base, auto_merge = validate_and_resolve_base(
-    wp_id=wp_id,
-    wp_file=wp.path,
-    base=base,  # User-provided or None
-    feature_slug=feature_slug,
-    repo_root=repo_root
-)
-
-# Validate base workspace exists (if resolved)
-if resolved_base:
-    validate_base_workspace_exists(resolved_base, feature_slug, repo_root)
+lanes = require_lanes_json(feature_dir)
+if lanes.lane_for_wp(wp_id) is None:
+    raise RuntimeError(f"{wp_id} is missing from lanes.json")
 
 # Now safe to create workspace
-top_level_implement(wp_id=wp_id, base=resolved_base, ...)
+top_level_implement(wp_id=wp_id, ...)
 ```
 
 **Why This Matters:**
-- Without validation, WPs with dependencies branch from wrong base (main instead of WP01)
-- Results in silent correctness bugs - workspace created but missing dependency code
-- User discovers error only during implementation when imports fail
+- Without validation, agents can enter the wrong operator path for a WP
+- Results in deterministic failure later than necessary
+- Task finalization is the only valid place to compute execution lanes
 
 ## Examples
 
@@ -68,7 +53,7 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 **Responsibilities:**
 - Auto-detect first planned WP (if not specified)
 - Normalize WP ID formats (wp01 → WP01)
-- **Validate dependencies** (error if single dep and no --base)
+- **Validate lane metadata** (`lanes.json` must exist and contain the WP)
 - Create workspace via top-level implement
 - Display implementation prompt
 - Update WP lane to "doing" with agent/PID tracking
@@ -76,7 +61,7 @@ top_level_implement(wp_id=wp_id, base=resolved_base, ...)
 **Implementation:**
 ```python
 @app.command(name="implement")
-def implement(wp_id: str | None, base: str | None, agent: str | None):
+def implement(wp_id: str | None, agent: str | None):
     # Auto-detect WP if omitted
     if not wp_id:
         wp_id = _find_first_planned_wp(repo_root, feature_slug)
@@ -84,15 +69,13 @@ def implement(wp_id: str | None, base: str | None, agent: str | None):
     # Normalize format
     wp_id = _normalize_wp_id(wp_id)  # "wp01" → "WP01"
 
-    # CRITICAL: Validate dependencies
-    wp = locate_work_package(repo_root, feature_slug, wp_id)
-    resolved_base, auto_merge = validate_and_resolve_base(
-        wp_id, wp.path, base, feature_slug, repo_root
-    )
+    # CRITICAL: Validate lane assignment
+    lanes = require_lanes_json(feature_dir)
+    if lanes.lane_for_wp(wp_id) is None:
+        raise RuntimeError(f"{wp_id} is missing from lanes.json")
 
-    # Create workspace if needed
-    if auto_merge or resolved_base or not workspace_exists:
-        top_level_implement(wp_id, resolved_base, feature_slug)
+    # Create or reuse the lane workspace
+    top_level_implement(wp_id, feature_slug)
 
     # Display prompt
     display_implement_prompt(wp_id, workspace_path)
@@ -186,14 +169,14 @@ When wrapping top-level commands, carefully map parameters:
 - Duplicate business logic from top-level commands
 - Call legacy `scripts/` code (tasks_cli.py is removed!)
 - Re-implement validation/orchestration logic
-- Skip dependency validation before workspace creation
+- Skip lane validation before workspace creation
 - Use subprocess to call top-level commands (import and call directly!)
 
 ## DO:
 - Import and call top-level commands directly
 - Add agent-specific UX (prompts, auto-detection, status tracking)
 - Map parameter names if needed (document differences and inversions!)
-- Validate dependencies **before** creating workspaces
+- Validate lane metadata **before** creating workspaces
 - Handle typer.Exit gracefully (propagate, don't catch silently)
 
 ## Testing Requirements
@@ -202,32 +185,29 @@ When adding or modifying agent commands:
 
 1. **Unit tests**: Verify parameter mapping and validation logic
 2. **Integration tests**: Test full workflow (auto-detect → validate → delegate)
-3. **Dependency tests**: Verify error when single dep and no --base
+3. **Lane tests**: Verify failure when `lanes.json` is missing or missing the WP
 4. **Regression tests**: Test scenarios from bug reports
 
 See `tests/integration/test_agent_command_wrappers.py` for examples.
 
 ## Common Pitfalls
 
-### ❌ Skipping Dependency Validation
+### ❌ Skipping Lane Validation
 
 ```python
-# BAD: Creates workspace without checking dependencies
-if base:
-    top_level_implement(wp_id, base, feature)
-# Otherwise just display prompt - NO VALIDATION!
+# BAD: Creates workspace without checking lanes.json
+top_level_implement(wp_id, feature)
 ```
 
-**Result**: WP06 with dependency on WP04 branches from main, missing WP04's code.
+**Result**: the wrapper can no longer prove which lane owns the WP.
 
 ### ✅ Always Validate First
 
 ```python
-# GOOD: Validate before creating workspace
-resolved_base, auto_merge = validate_and_resolve_base(...)
-if resolved_base:
-    validate_base_workspace_exists(...)
-top_level_implement(wp_id, resolved_base, feature)
+# GOOD: validate before creating workspace
+lanes = require_lanes_json(feature_dir)
+assert lanes.lane_for_wp(wp_id) is not None
+top_level_implement(wp_id, feature)
 ```
 
 ### ❌ Calling Legacy Scripts
@@ -266,13 +246,12 @@ top_level_merge(delete_branch=not keep_branch)  # Correct!
 ## Version History
 
 - **0.13.4**: Created shared validation utility, fixed broken agent commands
-- **0.11.0**: Introduced workspace-per-WP model, dependency tracking
+- **0.11.0**: Introduced execution-lanes model, dependency tracking
 - **0.10.x**: Legacy single-workspace model
 
 ## See Also
 
-- [Dependency Validation](../../core/implement_validation.py) - Shared validation utility
 - [Top-Level Implement](../implement.py) - Business logic for workspace creation
 - [Top-Level Accept](../accept.py) - Acceptance workflow logic
 - [Top-Level Merge](../merge.py) - Merge orchestration logic
-- [Workspace-per-WP Documentation](../../../../docs/workspace-per-wp.md) - User guide
+- [Execution Lanes Documentation](../../../../docs/explanation/execution-lanes.md) - User guide

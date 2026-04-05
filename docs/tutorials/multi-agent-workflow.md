@@ -56,12 +56,12 @@ cd <workspace path printed by the command>
 
 Each agent updates only their own worktree. Do not edit another agent's worktree.
 
-## Handling Dependencies with --base
+## Handling Dependencies Through Execution Lanes
 
 If WP02 depends on WP01, create WP02 from the WP01 base:
 
 ```bash
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 ```
 
 Expected output (abridged):
@@ -72,7 +72,7 @@ OK Created workspace: .worktrees/###-feature-lane-b
 
 ## Git Worktrees, Briefly
 
-Each execution lane is a Git worktree on its own branch. Sequential WPs may reuse the same lane workspace, while independent WPs run in parallel in separate lane worktrees. For details, see [Execution Workspace Model](../explanation/workspace-per-wp.md) and [Git Worktrees](../explanation/git-worktrees.md).
+Each execution lane is a Git worktree on its own branch. Sequential WPs may reuse the same lane workspace, while independent WPs run in parallel in separate lane worktrees. For details, see [Execution Workspace Model](../explanation/execution-lanes.md) and [Git Worktrees](../explanation/git-worktrees.md).
 
 ## Tips for Coordinating Agents
 
@@ -82,7 +82,7 @@ Each execution lane is a Git worktree on its own branch. Sequential WPs may reus
 
 ## Troubleshooting
 
-- **"WP has dependencies"**: Re-run with `spec-kitty implement WP## --base WPXX`.
+- **"lanes.json is required"**: Run task finalization before implementation.
 - **Worktree already exists**: Run `git worktree list` and reuse the existing folder.
 - **Agent edits the wrong WP**: Stop and switch to the workspace path printed for the correct WP before continuing.
 
@@ -107,5 +107,5 @@ You've completed the core tutorials. Explore how-to guides for specific tasks or
 
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
 - [Run External Orchestrator](../how-to/run-external-orchestrator.md) - Automate WP execution with the external provider
-- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Isolation strategy
+- [Execution Workspace Model](../explanation/execution-lanes.md) - Isolation strategy
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work

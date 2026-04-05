@@ -486,7 +486,6 @@ spec-kitty agent config set auto_commit true
 | `--action TEXT` | Action to resolve context for (`tasks`, `tasks_outline`, `tasks_packages`, `tasks_finalize`, `implement`, `review`) [required] |
 | `--feature TEXT` | Mission slug (legacy flag name; e.g., `020-my-feature`) |
 | `--wp-id TEXT` | Work package ID (e.g., `WP01`) |
-| `--base TEXT` | Explicit base WP for implement |
 | `--agent TEXT` | Agent name for exact command rendering |
 | `--json` | Output results as JSON |
 | `--help` | Show this message and exit |
@@ -495,7 +494,7 @@ spec-kitty agent config set auto_commit true
 ```bash
 spec-kitty agent context resolve --action implement --wp-id WP01 --json
 spec-kitty agent context resolve --action review --feature 020-my-feature --agent claude
-spec-kitty agent context resolve --action implement --wp-id WP02 --base WP01
+spec-kitty agent context resolve --action implement --wp-id WP02
 ```
 
 ### spec-kitty agent context update-context
@@ -534,7 +533,7 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 
 **Synopsis**: `spec-kitty agent action implement [OPTIONS] [WP_ID]`
 
-**Description**: Display work package prompt with implementation instructions. Automatically moves WP from planned to doing lane (requires `--agent` to track who is working). If `--base` is provided, creates a worktree for this WP branching from the base WP's branch.
+**Description**: Display work package prompt with implementation instructions. Automatically moves WP from planned to doing lane (requires `--agent` to track who is working). The runtime resolves the lane workspace from `lanes.json`.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`, `wp01`, `WP01-slug`) - auto-detects first planned if omitted
@@ -544,13 +543,12 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 | --- | --- |
 | `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
 | `--agent TEXT` | Agent name (required for auto-move to doing lane) |
-| `--base TEXT` | Base WP to branch from (e.g., `WP01`) - creates worktree if provided |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty agent action implement WP01 --agent claude
-spec-kitty agent action implement WP02 --agent claude --base WP01
+spec-kitty agent action implement WP02 --agent claude
 spec-kitty agent action implement --agent gemini
 ```
 

@@ -3,10 +3,17 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-01-29-17-auto-create-target-branch-on-first-implement.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-01-29 |
 | Deciders | Robert Douglass |
 | Technical Story | Discovered during ~/tmp multi-feature testing when Feature 002 (target: 3.x) created WP01 but agent was confused about how to create the 3.x branch. |
+
+> Superseded on 2026-04-05 by
+> `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> The lane-only runtime no longer falls back to `main` or auto-creates an
+> arbitrary target branch during `implement`. Features are expected to target an
+> existing planning branch, and runtime-created execution branches are the
+> mission branch plus its lane branches.
 
 ---
 

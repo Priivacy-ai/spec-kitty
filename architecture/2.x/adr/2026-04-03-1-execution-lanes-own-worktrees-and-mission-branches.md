@@ -23,7 +23,7 @@ context warm for a coherent slice of work, and making integration predictable.
 Feature `028-saas-active-projects-shell` exposed the failure mode clearly:
 
 1. A correct landing-page implementation landed.
-2. Later work in another WP branch touched overlapping dashboard files.
+2. Later work in another parallel execution branch touched overlapping dashboard files.
 3. A stale merge reintroduced old code.
 4. The feature was declared complete before the integrated mission branch
    actually satisfied the spec.
@@ -83,16 +83,24 @@ Two WPs MUST be placed in the same lane when any of the following are true:
 4. one is a cleanup/deprecation WP for a surface changed by the other,
 5. one is an integration/QA WP validating the other in integrated form.
 
+The lane manifest is mandatory runtime input. `implement`, `review`, `accept`,
+and `merge` MUST fail closed when `lanes.json` is absent or malformed. There is
+no runtime fallback to per-WP worktrees, per-WP branches, or structure
+"detection" logic.
+
 ### Branch Model
 
-1. Mission integration branch naming SHOULD follow:
-   `codex/mission-<mission-id>-<slug>`
-2. Lane branch naming SHOULD follow:
-   `codex/mission-<mission-id>-lane-<id>-<slug>`
+1. Mission integration branch naming MUST follow:
+   `kitty/mission-<feature-slug>`
+2. Lane branch naming MUST follow:
+   `kitty/mission-<feature-slug>-lane-<id>`
 3. Lane branches merge into the mission integration branch continuously at
    stable checkpoints.
 4. `main` is updated only from the mission integration branch, never directly
    from a lane branch.
+5. When the planner computes exactly one lane, the feature gets exactly one
+   worktree and one lane branch. Sequential DAGs are valid single-lane
+   features, not a reason to recreate per-WP worktrees.
 
 ### Stale-Lane Merge Guard
 
@@ -120,8 +128,8 @@ re-run review on the overlapping diff before merging.
 
 * Planner complexity increases because lane computation now needs conflict
   heuristics, not just dependency ordering.
-* Lane branches are longer-lived than per-WP branches and therefore need better
-  merge discipline.
+* Lane branches are longer-lived than transient task branches and therefore
+  need better merge discipline.
 * Progress accounting becomes two-dimensional: WPs are still tracked, but lane
   state must also be visible.
 
@@ -141,9 +149,11 @@ This decision is validated when all of the following are true:
 3. Missions with safe disjoint work produce multiple lanes without overlapping
    write scopes.
 4. QA and final acceptance happen on the mission integration branch, not on a
-   stale WP branch.
+   stale lane branch.
 5. Regressions of the Feature 028 class are blocked by stale-lane merge guards
    before they reach `main`.
+6. No shipped runtime command creates or merges `.worktrees/<feature>-WP##`
+   worktrees or `<feature>-WP##` branches.
 
 ## Pros and Cons of the Options
 
@@ -197,6 +207,8 @@ All work for a mission happens in one branch/worktree, even if disjoint.
 
 **Supersedes:**
 - `architecture/1.x/adr/2026-01-26-9-worktree-cleanup-at-merge-not-eager.md`
+- `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md`
+- `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md`
 
 **Related ADRs:**
 - `2026-02-17-1-canonical-next-command-runtime-loop.md`

@@ -13,6 +13,8 @@ from specify_cli.next.decision import DecisionKind
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
+
 pytestmark = pytest.mark.git_repo
 
 runner = CliRunner()
@@ -113,6 +115,7 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
         # Seed event log for non-planned lanes
         if lane != "planned":
             _seed_wp_lane(feature_dir, wp_id, lane)
+    write_single_lane_manifest(feature_dir, wp_ids=tuple(wps.keys()))
 
 def _advance_runtime_to_step(
     repo_root: Path,

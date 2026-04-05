@@ -1,6 +1,6 @@
 # Centralized Workspace Context Storage
 
-**Status:** Accepted
+**Status:** Superseded
 
 **Date:** 2026-01-23
 
@@ -10,9 +10,17 @@
 
 ---
 
+> Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> This ADR was written for the legacy filtered-worktree era. The current
+> runtime uses mandatory execution lanes, mission/lane branches, and
+> lane-scoped runtime context instead of per-WP workspace metadata.
+
 ## Context and Problem Statement
 
-LLM agents working in worktrees need runtime visibility into workspace state (base branch, dependencies, creation time, etc.). While base branch is tracked in frontmatter ([ADR-2026-01-23-2](2026-01-23-2-explicit-base-branch-tracking.md)), frontmatter files are **excluded from worktrees** via sparse-checkout.
+LLM agents working in worktrees need runtime visibility into workspace state
+(base branch, dependencies, creation time, etc.). In the legacy
+filtered-worktree model, base-branch metadata in frontmatter was not visible
+inside every workspace.
 
 This creates a visibility problem:
 - Agents in worktrees cannot read their own WP frontmatter
@@ -22,7 +30,7 @@ This creates a visibility problem:
 
 Where should we store runtime context information that is:
 - Accessible from both main repo and worktrees
-- Not subject to sparse-checkout exclusion
+- Not hidden by workspace-local filtering
 - Survives worktree deletion (for audit trail)
 - Doesn't create merge conflicts
 
@@ -47,7 +55,7 @@ Where should we store runtime context information that is:
 **Chosen option:** "Option 2: Centralized storage in `.kittify/workspaces/`", because:
 - Aligns with existing `.kittify/` pattern (config, metadata, merge-state all in `.kittify/`)
 - Survives worktree deletion (audit trail)
-- No sparse-checkout complexity (.kittify/ not excluded)
+- Avoids workspace-local filtering complexity
 - Queryable from anywhere (main repo and worktrees)
 - Simple cleanup on merge
 - No risk of merge conflicts (files in main repo, not worktrees)
@@ -58,7 +66,7 @@ Where should we store runtime context information that is:
 
 * Context accessible from both main repo and worktrees via relative path
 * Persists after worktree deletion (post-mortem debugging)
-* No .gitignore or sparse-checkout complexity
+* No .gitignore or workspace-filtering complexity
 * Consistent with existing architecture (all state in `.kittify/`)
 * Simple cleanup (delete JSON file)
 * Queryable via CLI (`spec-kitty context info`)

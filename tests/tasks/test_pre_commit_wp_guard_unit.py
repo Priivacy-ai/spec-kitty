@@ -1,4 +1,4 @@
-"""Tests for WP branch protection in the manual pre-commit workflow hook."""
+"""Tests for lane-branch protection in the manual pre-commit workflow hook."""
 
 from __future__ import annotations
 
@@ -40,14 +40,14 @@ def _hook_script() -> Path:
     return hook_script
 
 
-def test_wp_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
+def test_lane_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)
     hook_path = _hook_script()
 
     subprocess.run(
-        ["git", "checkout", "-b", "001-test-feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-001-test-feature-lane-a"],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -76,10 +76,9 @@ def test_wp_branch_hook_blocks_kitty_specs(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 1
-    assert "wp branches must not commit kitty-specs/" in result.stdout.lower()
+    assert "lane branches must not commit kitty-specs/" in result.stdout.lower()
 
-
-def test_wp_branch_hook_allows_non_wp_branches(tmp_path: Path) -> None:
+def test_lane_branch_hook_allows_non_lane_branches(tmp_path: Path) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
     _init_repo(repo)

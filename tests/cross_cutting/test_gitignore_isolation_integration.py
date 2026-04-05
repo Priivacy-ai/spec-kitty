@@ -14,11 +14,12 @@ from pathlib import Path
 
 import pytest
 from tests.utils import REPO_ROOT
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
 
 
-def _write_valid_meta(feature_dir: Path, slug: str) -> None:
+def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
     feature_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
@@ -27,7 +28,7 @@ def _write_valid_meta(feature_dir: Path, slug: str) -> None:
                 "feature_slug": slug,
                 "friendly_name": "Test Feature",
                 "mission": "software-dev",
-                "target_branch": "main",
+                "target_branch": target_branch,
                 "created_at": "2026-03-20T00:00:00+00:00",
             }
         ),
@@ -47,6 +48,17 @@ def _run_checkout_cli(project_dir: Path, *args: str) -> subprocess.CompletedProc
         text=True,
         env=env,
     )
+
+
+def _current_branch(repo_root: Path) -> str:
+    result = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"],
+        cwd=repo_root,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
 
 def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     """Test that worktree creation doesn't modify tracked .gitignore file.
@@ -78,7 +90,14 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -136,7 +155,7 @@ dependencies: []
     )
 
     # CRITICAL TEST: Verify .gitignore in WORKTREE was not created/modified either
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = lane_worktree_path(tmp_path, "001-test-feature")
     worktree_gitignore = worktree_path / ".gitignore"
 
     # The worktree should have the same .gitignore as main (or none if not in main)
@@ -187,7 +206,14 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -229,7 +255,7 @@ dependencies: []
     assert result.returncode == 0, f"implement failed: {result.stderr}"
 
     # In worktree, create a test file and commit
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = lane_worktree_path(tmp_path, "001-test-feature")
     test_file = worktree_path / "test.txt"
     test_file.write_text("test content")
 
@@ -246,7 +272,7 @@ dependencies: []
         capture_output=True,
     )
 
-    # Merge WP branch back to the repository default branch
+    # Merge the lane branch back to the repository default branch
     subprocess.run(
         ["git", "checkout", default_branch],
         cwd=tmp_path,
@@ -254,7 +280,7 @@ dependencies: []
         capture_output=True,
     )
     subprocess.run(
-        ["git", "merge", "001-test-feature-WP01", "--no-edit"],
+        ["git", "merge", lane_branch_name("001-test-feature"), "--no-edit"],
         cwd=tmp_path,
         check=True,
         capture_output=True,
@@ -310,7 +336,14 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature")
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -341,7 +374,7 @@ dependencies: []
 
     # Check that .git/info/exclude exists (in git directory, not worktree)
     # For worktrees, .git is a file pointing to the actual git directory
-    worktree_path = tmp_path / ".worktrees" / "001-test-feature-WP01"
+    worktree_path = lane_worktree_path(tmp_path, "001-test-feature")
     git_file = worktree_path / ".git"
 
     # Read .git file to get actual git directory path

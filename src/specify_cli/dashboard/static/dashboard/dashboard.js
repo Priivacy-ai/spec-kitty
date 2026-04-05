@@ -191,14 +191,13 @@ function updateTreeInfo() {
     if (activeWorktreeDisplay) {
         lines.push(`   └─ Active worktree: ${activeWorktreeDisplay}`);
     }
-    // Note: In 0.11.0+, worktrees are per-WP, not per-feature
-    // Feature-level worktree display removed (obsolete 0.10.x concept)
+    // Worktrees are lane-scoped, not feature-scoped.
+    // Feature-level worktree display remains obsolete.
     treeElement.textContent = lines.join('\n');
 }
 
 function computeFeatureWorktreeStatus(feature) {
-    // No-op: Feature-level worktrees are obsolete in 0.11.0+
-    // In workspace-per-WP model, worktrees are per-WP, not per-feature
+    // No-op: feature-level worktrees are obsolete in the lane model.
     // This function is kept for compatibility but does nothing
 }
 

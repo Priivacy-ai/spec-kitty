@@ -1,9 +1,9 @@
 """Tests for workspace strategy routing in core/worktree.py.
 
 Verifies:
-- code_change WPs create standard git worktrees (no sparse checkout).
+- code_change WPs create standard git worktrees with full repository checkouts.
 - planning_artifact WPs return repo_root directly (no worktree created).
-- No sparse checkout configuration is applied in either mode.
+- Both execution modes avoid any file-hiding workspace mechanism.
 - create_wp_workspace() routes correctly for both execution modes.
 """
 
@@ -53,34 +53,34 @@ class TestPlanningArtifactWorkspace:
 
     def test_returns_repo_root(self, tmp_path: Path) -> None:
         """planning_artifact WP returns repo_root directly."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         result = create_wp_workspace(
             repo_root=tmp_path,
             workspace_path=workspace_path,
-            workspace_name="test-feature-WP01",
+            workspace_name="kitty/mission-test-feature-lane-a",
             wp_frontmatter=_make_frontmatter(execution_mode="planning_artifact"),
         )
         assert result == tmp_path
 
     def test_does_not_create_worktree_dir(self, tmp_path: Path) -> None:
         """planning_artifact WP does NOT create a worktree directory."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         create_wp_workspace(
             repo_root=tmp_path,
             workspace_path=workspace_path,
-            workspace_name="test-feature-WP01",
+            workspace_name="kitty/mission-test-feature-lane-a",
             wp_frontmatter=_make_frontmatter(execution_mode="planning_artifact"),
         )
         assert not workspace_path.exists()
 
     def test_no_vcs_call_for_planning_artifact(self, tmp_path: Path) -> None:
         """planning_artifact WP never calls vcs.create_workspace()."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         with patch("specify_cli.core.worktree.get_vcs") as mock_get_vcs:
             create_wp_workspace(
                 repo_root=tmp_path,
                 workspace_path=workspace_path,
-                workspace_name="test-feature-WP01",
+                workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="planning_artifact"),
             )
             mock_get_vcs.assert_not_called()
@@ -103,11 +103,11 @@ class TestPlanningArtifactWorkspace:
 # ---------------------------------------------------------------------------
 
 class TestCodeChangeWorkspace:
-    """code_change WPs must create standard worktrees without sparse checkout."""
+    """code_change WPs must create standard full-checkout worktrees."""
 
     def test_calls_vcs_create_workspace(self, tmp_path: Path) -> None:
         """code_change WP delegates to vcs.create_workspace() when workspace does not exist."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         # workspace_path does NOT exist before the call
 
         mock_vcs = MagicMock()
@@ -117,7 +117,7 @@ class TestCodeChangeWorkspace:
             result = create_wp_workspace(
                 repo_root=tmp_path,
                 workspace_path=workspace_path,
-                workspace_name="test-feature-WP01",
+                workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
             )
 
@@ -125,8 +125,8 @@ class TestCodeChangeWorkspace:
         assert result == workspace_path
 
     def test_no_sparse_exclude_passed(self, tmp_path: Path) -> None:
-        """code_change WP does NOT pass sparse_exclude to vcs.create_workspace()."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        """code_change WP does not pass removed legacy workspace arguments."""
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         # workspace_path does NOT exist before the call
 
         mock_vcs = MagicMock()
@@ -136,7 +136,7 @@ class TestCodeChangeWorkspace:
             create_wp_workspace(
                 repo_root=tmp_path,
                 workspace_path=workspace_path,
-                workspace_name="test-feature-WP01",
+                workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
             )
 
@@ -149,7 +149,7 @@ class TestCodeChangeWorkspace:
 
     def test_returns_workspace_path(self, tmp_path: Path) -> None:
         """code_change WP returns workspace_path after creation."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         # workspace_path does NOT exist before the call
 
         mock_vcs = MagicMock()
@@ -159,7 +159,7 @@ class TestCodeChangeWorkspace:
             result = create_wp_workspace(
                 repo_root=tmp_path,
                 workspace_path=workspace_path,
-                workspace_name="test-feature-WP01",
+                workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
             )
 
@@ -167,7 +167,7 @@ class TestCodeChangeWorkspace:
 
     def test_raises_on_vcs_failure(self, tmp_path: Path) -> None:
         """code_change WP raises RuntimeError if vcs.create_workspace() fails."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
 
         mock_vcs = MagicMock()
         fail_result = MagicMock()
@@ -180,13 +180,13 @@ class TestCodeChangeWorkspace:
                 create_wp_workspace(
                     repo_root=tmp_path,
                     workspace_path=workspace_path,
-                    workspace_name="test-feature-WP01",
+                    workspace_name="kitty/mission-test-feature-lane-a",
                     wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
                 )
 
     def test_reuses_existing_valid_worktree(self, tmp_path: Path) -> None:
         """code_change WP reuses an existing workspace that has a .git marker."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         workspace_path.mkdir(parents=True)
         (workspace_path / ".git").write_text("gitdir: fake\n")
 
@@ -194,7 +194,7 @@ class TestCodeChangeWorkspace:
             result = create_wp_workspace(
                 repo_root=tmp_path,
                 workspace_path=workspace_path,
-                workspace_name="test-feature-WP01",
+                workspace_name="kitty/mission-test-feature-lane-a",
                 wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
             )
             # Should NOT call vcs when reusing
@@ -204,7 +204,7 @@ class TestCodeChangeWorkspace:
 
     def test_raises_if_existing_dir_is_not_worktree(self, tmp_path: Path) -> None:
         """code_change WP raises FileExistsError if dir exists without .git marker."""
-        workspace_path = tmp_path / ".worktrees" / "test-feature-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
         workspace_path.mkdir(parents=True)
         # No .git file/dir — not a valid worktree
 
@@ -213,7 +213,7 @@ class TestCodeChangeWorkspace:
                 create_wp_workspace(
                     repo_root=tmp_path,
                     workspace_path=workspace_path,
-                    workspace_name="test-feature-WP01",
+                    workspace_name="kitty/mission-test-feature-lane-a",
                     wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
                 )
 
@@ -273,11 +273,11 @@ class TestExecutionModeDefaults:
 
 
 # ---------------------------------------------------------------------------
-# T020: verify sparse checkout is not present in VCS layer signature
+# T020: verify legacy file-filtering hooks are absent from the VCS layer
 # ---------------------------------------------------------------------------
 
 class TestNoSparseCheckoutInVCS:
-    """Verify that sparse checkout has been removed from the VCS layer."""
+    """Verify that legacy file-hiding workspace hooks are absent from the VCS layer."""
 
     def test_vcs_create_workspace_has_no_sparse_param(self) -> None:
         """GitVCS.create_workspace() must not accept sparse_exclude parameter."""
@@ -300,7 +300,7 @@ class TestNoSparseCheckoutInVCS:
         )
 
     def test_git_vcs_has_no_apply_sparse_checkout_method(self) -> None:
-        """_apply_sparse_checkout must not exist on GitVCS."""
+        """Legacy sparse helper must not exist on GitVCS."""
         from specify_cli.core.vcs.git import GitVCS
 
         assert not hasattr(GitVCS, "_apply_sparse_checkout"), (

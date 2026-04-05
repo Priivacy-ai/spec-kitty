@@ -29,7 +29,7 @@ class TestDelegatesTo:
             DelegatesTo(kind=ArtifactKind.TACTIC, candidates=[])
 
     def test_accepts_paradigm_kind(self) -> None:
-        d = DelegatesTo(kind=ArtifactKind.PARADIGM, candidates=["workspace-per-wp"])
+        d = DelegatesTo(kind=ArtifactKind.PARADIGM, candidates=["execution-lanes"])
         assert d.kind == ArtifactKind.PARADIGM
 
 
@@ -49,9 +49,9 @@ class TestMissionStep:
             command="spec-kitty implement {wp_id}",
             delegates_to=DelegatesTo(
                 kind=ArtifactKind.PARADIGM,
-                candidates=["workspace-per-wp", "shared-branch-ci"],
+                candidates=["execution-lanes", "shared-branch-ci"],
             ),
-            guidance="Default to worktree if no paradigm selected.",
+            guidance="Execution lanes own worktrees.",
         )
         assert step.command is not None
         assert step.delegates_to is not None
@@ -78,7 +78,7 @@ class TestMissionStepContract:
         workspace_step = contract.steps[1]
         assert workspace_step.delegates_to is not None
         assert workspace_step.delegates_to.kind == ArtifactKind.PARADIGM
-        assert "workspace-per-wp" in workspace_step.delegates_to.candidates
+        assert "execution-lanes" in workspace_step.delegates_to.candidates
 
         # Check freeform guidance
         commit_step = contract.steps[4]

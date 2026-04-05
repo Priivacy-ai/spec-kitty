@@ -459,8 +459,8 @@ WP01 (approved) --> WP02 (approved) --> WP03 (approved) --> merge --> all done
 ```
 
 1. Implement WP01, review, approve
-2. THEN implement WP02 (`--base WP01`), review, approve
-3. THEN implement WP03 (`--base WP02`), review, approve
+2. THEN implement WP02, review, approve
+3. THEN implement WP03, review, approve
 4. `spec-kitty merge --feature <slug>`
 
 ### Parallel Opportunities (Independent WPs)
@@ -484,8 +484,8 @@ Dispatch in parallel. Each must complete its review cycle before feature merge.
 ```
 
 1. Implement and approve WP01
-2. Implement WP02 and WP03 in parallel (both `--base WP01`)
-3. After both approved, implement WP04 (`--base WP03`, then `git merge <WP02-branch>`)
+2. Implement WP02 and WP03 in parallel only if task finalization assigned them to separate lanes
+3. After both approved, implement WP04 in its computed lane
 
 ### Decision Tree
 

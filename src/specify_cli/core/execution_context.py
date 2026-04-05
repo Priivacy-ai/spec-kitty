@@ -13,12 +13,9 @@ from typing import Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
-from specify_cli.core.implement_validation import (
-    BaseResolutionError,
-    validate_and_resolve_base,
-)
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.tasks_support import extract_scalar, locate_work_package, split_frontmatter
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 ActionName = Literal[
@@ -161,7 +158,6 @@ def resolve_action_context(
     action: ActionName,
     feature: str | None = None,
     wp_id: str | None = None,
-    base: str | None = None,
     agent: str | None = None,
     cwd: Path | None = None,
     env: Mapping[str, str] | None = None,
@@ -213,38 +209,16 @@ def resolve_action_context(
     except Exception:
         _ec_raw_lane = "planned"
     lane = resolve_lane_alias(_ec_raw_lane)
-    workspace_path = repo_root / ".worktrees" / f"{feature_slug}-{normalized_wp_id}"
+    workspace = resolve_workspace_for_wp(repo_root, feature_slug, normalized_wp_id)
 
     context.wp_id = normalized_wp_id
     context.wp_file = str(wp.path)
     context.lane = lane
     context.dependencies = dependencies
-    context.workspace_path = str(workspace_path)
+    context.workspace_path = str(workspace.worktree_path)
 
     if action == "implement":
-        try:
-            resolved_base, auto_merge = validate_and_resolve_base(
-                wp_id=normalized_wp_id,
-                wp_file=wp.path,
-                base=base,
-                feature_slug=feature_slug,
-                repo_root=repo_root,
-                auto_detect_single_dependency=True,
-                quiet=True,
-                raise_on_error=True,
-            )
-        except BaseResolutionError as exc:
-            raise ActionContextError(
-                "WORK_PACKAGE_BASE_UNRESOLVED",
-                str(exc),
-            ) from exc
-
-        context.resolved_base = resolved_base
-        context.auto_merge = auto_merge
-
         command = f"spec-kitty agent action implement {normalized_wp_id}"
-        if resolved_base:
-            command += f" --base {resolved_base}"
         if agent:
             command += f" --agent {agent}"
         context.commands["workflow"] = command

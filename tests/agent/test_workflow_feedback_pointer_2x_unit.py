@@ -102,7 +102,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
         review_feedback=feedback_pointer,
     )
 
-    workspace = repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace = repo / ".worktrees" / f"{feature_slug}-lane-a"
     workspace.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)

@@ -21,7 +21,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "feature_slug": "057-canonical-context-architecture-cleanup",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
-        "authoritative_ref": "057-canonical-context-architecture-cleanup-WP01",
+        "authoritative_ref": "kitty/mission-057-canonical-context-architecture-cleanup-lane-a",
         "owned_files": ("src/specify_cli/context/**",),
         "execution_mode": "code_change",
         "dependency_mode": "independent",
@@ -45,7 +45,7 @@ class TestMissionContextCreation:
         assert ctx.feature_slug == "057-canonical-context-architecture-cleanup"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == "/tmp/repo"
-        assert ctx.authoritative_ref == "057-canonical-context-architecture-cleanup-WP01"
+        assert ctx.authoritative_ref == "kitty/mission-057-canonical-context-architecture-cleanup-lane-a"
         assert ctx.owned_files == ("src/specify_cli/context/**",)
         assert ctx.execution_mode == "code_change"
         assert ctx.dependency_mode == "independent"

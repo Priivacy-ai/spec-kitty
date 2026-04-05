@@ -66,8 +66,8 @@ class VCSProtocol(Protocol):
 
         Args:
             workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace (e.g., "015-feature-WP01")
-            base_branch: Branch to base on (for --base flag)
+            workspace_name: Name for the workspace (e.g., "015-feature-lane-a")
+            base_branch: Branch to base the workspace on
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Repository root for command execution when caller already knows it
 

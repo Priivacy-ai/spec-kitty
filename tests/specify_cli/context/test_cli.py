@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.cli.commands.context import app
 
 
@@ -51,6 +52,7 @@ def _make_project(tmp_path: Path, *, feature_slug: str = "057-test-feature", wp_
         f"# {wp_code} – Test\n"
     )
     (tasks_dir / f"{wp_code}-test-wp.md").write_text(wp_content, encoding="utf-8")
+    write_single_lane_manifest(feature_dir, wp_ids=(wp_code,))
 
     return tmp_path
 

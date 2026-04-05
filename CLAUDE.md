@@ -312,7 +312,6 @@ No worktrees are created during planning.
 `spec-kitty implement WP##` is the only supported way to prepare a coding workspace.
 
 - Lane-based feature: creates or reuses `.worktrees/<feature>-lane-a`, `.worktrees/<feature>-lane-b`, and so on
-- Legacy feature: creates or reuses `.worktrees/<feature>-WP01`, `.worktrees/<feature>-WP02`, and so on
 - Agent-facing workflow commands must print and consume the resolved workspace path instead of reconstructing it
 
 Example:
@@ -320,20 +319,19 @@ Example:
 ```bash
 # After planning completes in main:
 spec-kitty implement WP01               # resolves the actual workspace for WP01
-spec-kitty implement WP02 --base WP01   # resolves the actual workspace for WP02
+spec-kitty implement WP02               # reuses the lane workspace when WP02 is in the same lane
 spec-kitty implement WP03               # independent WP, may land in another lane
 ```
 
-For multi-parent dependencies, continue to use `--base` for one dependency and manually merge the other dependency branch inside the resolved workspace.
+If multiple dependent WPs land in one lane, that lane workspace is the only coding workspace for the sequence.
 
 ### Contributor Rules
 
 When modifying workflow or orchestration behavior:
 
 1. Update the runtime-owned resolver logic first.
-2. Update all agent-facing wrappers to use the resolver instead of guessing `.worktrees/<feature>-WP##`.
-3. Update mission templates, skills, and docs together so they describe the same workspace contract.
-4. Keep the legacy fallback working for features without `lanes.json`.
+2. Update all agent-facing wrappers to use the resolver instead of guessing workspace paths.
+3. Update mission templates, skills, and docs together so they describe the same lane-only contract.
 
 ### Testing Expectations
 
@@ -346,7 +344,6 @@ Any execution-workspace change should include:
 Prefer tests that exercise both:
 
 - lane-based features with shared worktrees
-- legacy features with one worktree per WP
 
 ### Status Tracking Notes
 
@@ -358,7 +355,7 @@ Work package status remains tracked in the feature artifacts on the main branch.
 
 ### References
 
-- [docs/explanation/workspace-per-wp.md](docs/explanation/workspace-per-wp.md) - execution workspace model and legacy fallback
+- [docs/explanation/execution-lanes.md](docs/explanation/execution-lanes.md) - lane computation and worktree ownership
 - [docs/explanation/git-worktrees.md](docs/explanation/git-worktrees.md) - git worktree mechanics
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md) - original design history
 

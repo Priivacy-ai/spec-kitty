@@ -7,6 +7,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.prompt_builder import (
     _feature_context_header,
     _governance_context,
@@ -36,6 +37,7 @@ def feature_with_wp(feature_dir: Path) -> Path:
         "---\nwork_package_id: WP01\nlane: planned\n---\n# WP01 Content\nDo stuff.\n",
         encoding="utf-8",
     )
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
     return feature_dir
 
 

@@ -888,17 +888,41 @@ jobs:
             echo ""
           fi
 
+      - name: "[ENFORCED] Check out repository"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
       - name: "[INFO] Resolve SonarCloud project settings"
         id: sonar_settings
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
-          organization="${{ vars.SONAR_ORGANIZATION || 'priivacy-ai' }}"
-          host_url="${{ vars.SONAR_HOST_URL || 'https://sonarcloud.io' }}"
+          organization="${{ vars.SONAR_ORGANIZATION }}"
+          host_url="${{ vars.SONAR_HOST_URL }}"
           repo_name="${{ github.event.repository.name }}"
+          repo_owner="${{ github.repository_owner }}"
           project_key="${{ vars.SONAR_PROJECT_KEY }}"
 
+          if [ -z "$organization" ] && [ -f sonar-project.properties ]; then
+            organization="$(sed -n 's/^sonar\.organization=//p' sonar-project.properties | head -n 1)"
+          fi
+          if [ -z "$organization" ]; then
+            organization="priivacy-ai"
+          fi
+
+          if [ -z "$host_url" ] && [ -f sonar-project.properties ]; then
+            host_url="$(sed -n 's/^sonar\.host\.url=//p' sonar-project.properties | head -n 1)"
+          fi
+          if [ -z "$host_url" ]; then
+            host_url="https://sonarcloud.io"
+          fi
+
+          if [ -z "$project_key" ] && [ -f sonar-project.properties ]; then
+            project_key="$(sed -n 's/^sonar\.projectKey=//p' sonar-project.properties | head -n 1)"
+          fi
           if [ -z "$project_key" ]; then
-            project_key="${organization}_${repo_name}"
+            project_key="${repo_owner}_${repo_name}"
           fi
 
           echo "organization=$organization" >> "$GITHUB_OUTPUT"
@@ -909,12 +933,6 @@ jobs:
           echo "  host_url=$host_url"
           echo "  organization=$organization"
           echo "  project_key=$project_key"
-
-      - name: "[ENFORCED] Check out repository"
-        if: steps.sonar_token.outputs.enabled == 'true'
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Materialize effective Sonar config"
         if: steps.sonar_token.outputs.enabled == 'true'

@@ -132,9 +132,7 @@ spec-kitty upgrade --target 0.6.5
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--base TEXT` | Base WP to branch from (e.g., `WP01`) |
 | `--feature TEXT` | Mission slug (legacy flag name; compatibility alias for software-dev missions) |
-| `--force` | Force auto-merge even when dependencies are done |
 | `--auto-commit`, `--no-auto-commit` | Auto-commit lane change (default: from project config) |
 | `--json` | Output in JSON format |
 | `--help` | Show this message and exit |
@@ -142,7 +140,7 @@ spec-kitty upgrade --target 0.6.5
 **Examples**:
 ```bash
 spec-kitty implement WP01
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 spec-kitty implement WP01 --feature 001-my-feature
 spec-kitty implement WP06 --force
 spec-kitty implement WP01 --json
@@ -175,7 +173,7 @@ spec-kitty implement WP01 --json
 
 **Synopsis**: `spec-kitty merge [OPTIONS]`
 
-**Description**: Merge a completed mission branch into the target branch and clean up resources. For modern multi-workspace missions, computes an effective branch tip set using ancestry pruning, then merges only non-redundant tips. For legacy features, merges the feature branch or legacy WP branches as needed. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
+**Description**: Merge lane branches into the mission branch, merge the mission branch into the target branch, and clean up execution worktrees. Use `--resume` to continue an interrupted merge from saved state. Use `--abort` to clear merge state and abort any in-progress git merge.
 
 **Options**:
 | Flag | Description |
@@ -245,7 +243,7 @@ spec-kitty implement WP01 --json
 - `transition` - Apply explicit lane transition with state-machine validation
 - `append-history` - Append activity history to a WP prompt
 - `accept-feature` - Accept a mission when all WPs are `done`
-- `merge-feature` - Run preflight and merge all WP branches
+- `merge-feature` - Run preflight and land the mission into the target branch
 
 **See Also**: [Orchestrator API Reference](orchestrator-api.md)
 
@@ -1307,7 +1305,7 @@ spec-kitty migrate --verbose
 **Examples**:
 ```bash
 spec-kitty context info
-spec-kitty context info --workspace 010-feature-WP02
+spec-kitty context info --workspace 010-feature-lane-a
 spec-kitty context info --json
 ```
 

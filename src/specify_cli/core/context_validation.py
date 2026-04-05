@@ -53,7 +53,7 @@ class CurrentContext:
     location: ExecutionContext
     cwd: Path
     repo_root: Path | None
-    worktree_name: str | None  # e.g., "010-feature-WP02" if in worktree
+    worktree_name: str | None  # e.g., "010-feature-lane-a" if in worktree
     worktree_path: Path | None  # Absolute path to worktree directory
 
 
@@ -170,7 +170,7 @@ def format_location_error(
             f"[yellow]Current location:[/yellow] Main repository\n"
             f"[yellow]Required location:[/yellow] Inside a worktree\n\n"
             f"[bold]Change to a worktree:[/bold]\n"
-            f"  cd .worktrees/###-feature-WP##/\n\n"
+            f"  cd .worktrees/###-feature-lane-a/\n\n"
             f"[dim]This command operates on workspace files and must run from inside a worktree.[/dim]"
         )
 

@@ -61,7 +61,7 @@ The detection follows a strict priority order:
 3. **Git branch name**
    - Pattern: `###-feature-name` or `###-feature-name-WP##`
    - Strips `-WP##` suffix for worktree branches
-   - Example: `020-my-feature-WP01` → `020-my-feature`
+   - Example: `020-my-feature-lane-a` → `020-my-feature`
 
 4. **Current directory path**
    - Walks up tree looking for `###-feature-name` pattern

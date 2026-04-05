@@ -72,7 +72,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Event log is sole authority for mutable WP state.** Frontmatter `lane`, `review_status`, `reviewed_by`, and `progress` fields are no longer written or read at runtime. Status is read from `status.events.jsonl` via the reducer.
 - **`feature_detection.py` deleted.** All commands require explicit `--feature <slug>` in multi-feature repos. No branch scanning, no env var detection, no cwd walking.
-- **Sparse checkout removed.** `planning_artifact` WPs work in-repo; `code_change` WPs use standard worktrees without sparse checkout.
+- **Legacy worktree file filtering removed.** `planning_artifact` WPs work in-repo; `code_change` WPs use standard full worktrees.
 - **Command templates restored as hybrid.** Planning commands (specify, plan, tasks, etc.) install as full prompts; execution commands (implement, review, merge, etc.) install as thin CLI-dispatch shims.
 
 ### Added
@@ -435,7 +435,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Bug #120**: Use local git exclude for worktree ignores
   - Worktree-specific ignores now written to `.git/info/exclude` instead of `.gitignore`
   - Prevents `.gitignore` pollution when merging worktrees
-  - VCS abstraction layer handles sparse-checkout consistently
+  - VCS abstraction layer handles legacy worktree filtering consistently
 
 - **Bug #117**: Improve dashboard lifecycle and error diagnostics
   - Dashboard process detection no longer reports false failures
@@ -471,7 +471,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 
 **Consolidated workflow implement workspace creation**:
 - `spec-kitty agent workflow implement` now delegates workspace creation to `spec-kitty implement` when needed
-- Removes duplicated worktree/sparse-checkout setup in the agent command
+- Removes duplicated worktree setup in the agent command
 - Prevents agents from creating worktrees from inside another worktree
 
 ### 🐛 Fixed
@@ -591,7 +591,7 @@ All fixes include comprehensive test coverage (54+ new tests) and maintain backw
 - Git commit validation for "done" status transitions - prevents completing WPs with uncommitted changes
 - Empty branch detection in merge-base creation - warns when dependencies have no commits
 - Git commit workflow section in documentation mission template (consistency with software-dev/research)
-- Comprehensive troubleshooting guide for empty branch recovery in workspace-per-wp documentation
+- Comprehensive troubleshooting guide for empty branch recovery in the legacy workspace-model documentation
 - Migration to add commit workflow section to existing projects (`m_0_13_5_add_commit_workflow_to_templates.py`)
 
 ### Changed
@@ -907,13 +907,13 @@ It will NOT remove specific subpath patterns that are intentionally used in work
 - Added workspace-per-WP model (0.11.0+) documentation vs legacy pattern in worktree strategy section
 
 **Documentation Accuracy** (Feature 014):
-- Rewrote `multi-agent-orchestration.md` for 0.11.0+ workspace-per-WP model:
+- Rewrote `multi-agent-orchestration.md` for the 0.11.0+ isolated-WP worktree model:
   - Planning happens in main repo (not worktrees)
   - Each WP gets its own worktree (not shared)
   - Removed references to non-existent scripts
   - Updated lane tracking to frontmatter (not directories)
   - Added parallelization patterns and status monitoring
-- Fixed `workspace-per-wp.md` merge command syntax (runs from worktree without feature argument)
+- Fixed the legacy isolated-worktree guide merge command syntax (runs from worktree without feature argument)
 - Fixed `documentation-mission.md` broken source links
 - Fixed `reference/README.md` - replaced outdated "Planned Content" with actual content links
 - Fixed `kanban-workflow.md` - clarified `/spec-kitty.accept` works on features, not individual WPs
@@ -925,7 +925,7 @@ It will NOT remove specific subpath patterns that are intentionally used in work
   - **Tutorials**: Getting Started, Your First Feature, Claude Code Integration, Claude Code Workflow, Multi-Agent Workflow, Missions Overview
   - **How-To Guides**: 14 task-oriented guides covering installation, specifications, planning, implementation, review, dependencies, parallel development, dashboard usage, and migration
   - **Reference**: CLI Commands, Slash Commands, Agent Subcommands, Configuration, Environment Variables, File Structure, Missions, Supported Agents
-  - **Explanations**: Spec-Driven Development, Divio Documentation, Workspace-per-WP, Git Worktrees, Mission System, Kanban Workflow, AI Agent Architecture, Documentation Mission, Multi-Agent Orchestration
+  - **Explanations**: Spec-Driven Development, Divio Documentation, legacy isolated worktree model, Git Worktrees, Mission System, Kanban Workflow, AI Agent Architecture, Documentation Mission, Multi-Agent Orchestration
 - Cross-references between all documentation types
 - DocFX-compatible structure with `toc.yml` navigation
 
@@ -966,7 +966,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 
 ### ✨ Added
 
-**Workspace-per-WP Features (010)**:
+**Legacy isolated-WP worktree features (010)**:
 - **New command**: `spec-kitty implement WP## [--base WPXX]` - Create workspace for work package
   - `--base` flag branches from another WP's branch (for dependencies)
   - Automatically moves WP from `planned` → `doing` lane
@@ -1018,7 +1018,7 @@ See [docs/upgrading-to-0-11-0.md](docs/upgrading-to-0-11-0.md) for complete migr
 
 ### 📖 Documentation - Feature 010
 
-- **New docs**: `docs/workspace-per-wp.md` - Workflow guide with examples
+- **New docs**: legacy isolated-worktree workflow guide with examples
 - **New docs**: `docs/upgrading-to-0-11-0.md` - Migration instructions
 
 ### 🎯 Why These Changes?

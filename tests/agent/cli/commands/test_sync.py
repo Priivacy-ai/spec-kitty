@@ -36,7 +36,7 @@ class TestDetectWorkspaceContext:
     def test_detect_from_worktree_path(self, tmp_path):
         """Test detection from .worktrees directory path."""
         # Simulate being in a worktree
-        worktree = tmp_path / ".worktrees" / "010-test-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-test-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with patch("pathlib.Path.cwd", return_value=worktree):
@@ -48,7 +48,10 @@ class TestDetectWorkspaceContext:
     def test_detect_from_git_branch(self, tmp_path):
         """Test detection from git branch name."""
         with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
-            mock_run.return_value = MagicMock(returncode=0, stdout="015-vcs-integration-WP03\n")
+            mock_run.return_value = MagicMock(
+                returncode=0,
+                stdout="kitty/mission-015-vcs-integration-lane-c\n",
+            )
 
             workspace_path, feature_slug = _detect_workspace_context()
 
@@ -169,7 +172,7 @@ class TestSyncCommand:
     def test_sync_up_to_date(self, tmp_path):
         """Test sync when already up to date."""
         # Setup worktree path
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with (
@@ -196,7 +199,7 @@ class TestSyncCommand:
 
     def test_sync_with_changes(self, tmp_path):
         """Test sync with changes to integrate."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with (
@@ -226,7 +229,7 @@ class TestSyncWithConflicts:
 
     def test_sync_with_conflicts_git_reports(self, tmp_path):
         """Test git sync reports conflicts (may fail)."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with (
@@ -269,7 +272,7 @@ class TestSyncRepair:
 
     def test_repair_success(self, tmp_path):
         """Test successful repair."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with (
@@ -289,7 +292,7 @@ class TestSyncRepair:
 
     def test_repair_failure(self, tmp_path):
         """Test failed repair."""
-        worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         worktree.mkdir(parents=True)
 
         with (

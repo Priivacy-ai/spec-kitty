@@ -95,7 +95,7 @@ pytest tests/merge/
 pytest
 
 # Single file
-pytest tests/merge/test_multi_parent_merge.py -v
+pytest tests/lanes/test_compute.py -v
 ```
 
 ---
@@ -241,10 +241,10 @@ Core fixtures are defined in `tests/conftest.py` and available everywhere:
 | `run_cli` | function | Callable that runs `spec-kitty` via venv subprocess inside a project dir |
 | `temp_repo` | function | `tmp_path` with `git init`, user name/email configured |
 | `feature_repo` | function | `temp_repo` with a full `kitty-specs/001-demo-feature/` tree |
-| `merge_repo` | function | Two-branch repo with a WP worktree |
-| `conflicting_wps_repo` | function | Repo with 3 WP branches all touching a shared file |
-| `git_stale_workspace` | function | Repo where `main` has advanced past the WP branch |
-| `dirty_worktree_repo` | function | WP worktree with uncommitted changes |
+| `merge_repo` | function | Two-branch repo with a lane worktree |
+| `conflicting_wps_repo` | function | Repo with 3 lane branches all touching a shared file |
+| `git_stale_workspace` | function | Repo where `main` has advanced past the lane branch |
+| `dirty_worktree_repo` | function | Lane worktree with uncommitted changes |
 
 Integration-specific fixtures live in the conftest.py files inside each slice
 (e.g. `tests/status/conftest.py`).

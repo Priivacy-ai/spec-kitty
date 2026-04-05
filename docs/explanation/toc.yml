@@ -2,8 +2,8 @@
   href: spec-driven-development.md
 - name: Divio Documentation System
   href: divio-documentation.md
-- name: Workspace-per-WP Model
-  href: workspace-per-wp.md
+- name: Execution Lanes
+  href: execution-lanes.md
 - name: Git Worktrees
   href: git-worktrees.md
 - name: Git Workflow

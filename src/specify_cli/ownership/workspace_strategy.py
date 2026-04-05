@@ -8,8 +8,6 @@ source-code changes).  They do not need an isolated git worktree because:
 
 * They work directly in the main repository root.
 * All planning files (kitty-specs/) are visible there by definition.
-* Sparse checkout is NOT used anywhere in spec-kitty (removed in WP04).
-
 The function returns ``repo_root`` so callers receive a consistent ``Path``
 whether the WP is ``code_change`` (worktree) or ``planning_artifact`` (repo root).
 """
@@ -27,9 +25,8 @@ def create_planning_workspace(
 ) -> Path:
     """Return the workspace path for a planning-artifact work package.
 
-    Planning-artifact WPs work directly in-repo.  No worktree is created and
-    no sparse checkout is configured.  All files in the repository are
-    accessible at ``repo_root``.
+    Planning-artifact WPs work directly in-repo. No worktree is created, and
+    all files in the repository are accessible at ``repo_root``.
 
     Args:
         feature_slug: Feature identifier (e.g. ``"057-canonical-context-architecture-cleanup"``).

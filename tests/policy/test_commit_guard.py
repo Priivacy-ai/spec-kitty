@@ -9,11 +9,11 @@ from specify_cli.policy.config import CommitGuardConfig
 
 
 class TestBranchDetection:
-    def test_wp_branch(self):
-        assert is_implementation_branch("057-feat-WP01") is True
-
     def test_lane_branch(self):
         assert is_implementation_branch("kitty/mission-057-feat-lane-a") is True
+
+    def test_non_lane_branch_rejected(self):
+        assert is_implementation_branch("057-feat-dev") is False
 
     def test_main_branch(self):
         assert is_implementation_branch("main") is False
@@ -23,11 +23,11 @@ class TestBranchDetection:
 
 
 class TestKittySpecsProtection:
-    def test_blocks_kitty_specs_on_wp_branch(self):
+    def test_blocks_kitty_specs_on_lane_branch(self):
         result = validate_staged_files(
             staged_files=["kitty-specs/057/spec.md", "src/app.py"],
             owned_files=["src/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="block"),
         )
         assert result.allowed is False
@@ -37,7 +37,7 @@ class TestKittySpecsProtection:
         result = validate_staged_files(
             staged_files=["kitty-specs/057/spec.md"],
             owned_files=["src/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="warn"),
         )
         assert result.allowed is True
@@ -47,7 +47,7 @@ class TestKittySpecsProtection:
         result = validate_staged_files(
             staged_files=["kitty-specs/057/spec.md"],
             owned_files=["src/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(block_kitty_specs=False),
         )
         assert result.allowed is True
@@ -59,7 +59,7 @@ class TestOwnershipEnforcement:
         result = validate_staged_files(
             staged_files=["src/views/dashboard.py", "src/views/utils.py"],
             owned_files=["src/views/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="block"),
         )
         assert result.allowed is True
@@ -68,7 +68,7 @@ class TestOwnershipEnforcement:
         result = validate_staged_files(
             staged_files=["src/views/dashboard.py", "src/merge/engine.py"],
             owned_files=["src/views/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="block"),
         )
         assert result.allowed is False
@@ -78,7 +78,7 @@ class TestOwnershipEnforcement:
         result = validate_staged_files(
             staged_files=["src/merge/engine.py"],
             owned_files=["src/views/**"],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="warn"),
         )
         assert result.allowed is True
@@ -88,7 +88,7 @@ class TestOwnershipEnforcement:
         result = validate_staged_files(
             staged_files=["anything.py"],
             owned_files=[],
-            branch_name="057-feat-WP01",
+            branch_name="kitty/mission-057-feat-lane-a",
             policy=CommitGuardConfig(mode="block"),
         )
         assert result.allowed is True

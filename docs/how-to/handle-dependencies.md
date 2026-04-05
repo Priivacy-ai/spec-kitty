@@ -5,7 +5,7 @@ description: Declare, implement, and maintain dependencies between work packages
 
 # How to Handle Work Package Dependencies
 
-Use dependencies to tell Spec Kitty which work packages (WPs) must land before another WP can safely build on them. Dependencies drive the `--base` workflow and keep parallel work predictable.
+Use dependencies to tell Spec Kitty which work packages (WPs) must land before another WP can safely build on them. Dependencies drive lane computation and keep parallel work predictable.
 
 ## Understanding Dependencies
 
@@ -35,25 +35,17 @@ dependencies: ["WP01", "WP03"]
 
 ## Implementing with Dependencies
 
-When a WP has dependencies, implement it with a base WP so your workspace branches from the correct upstream:
+When a WP has dependencies, task finalization places it in the correct execution lane:
 
 ```bash
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 ```
 
-This resolves the correct workspace for WP02 with WP01's changes already present.
+This resolves the correct lane workspace for WP02 with WP01's changes already present.
 
 ## Multiple Dependencies
 
-Git can only branch from one base commit, so you choose the primary dependency and merge the others manually:
-
-```bash
-spec-kitty implement WP04 --base WP03
-cd <workspace path printed by spec-kitty implement>
-
-# Merge the other dependency manually
-git merge ###-feature-WP02
-```
+Task finalization folds multi-dependency work into a lane plan before implementation starts. Agents do not choose a primary dependency or manually merge sibling lane outputs to reconstruct the plan.
 
 
 ## Keeping Dependencies Updated
@@ -67,11 +59,11 @@ spec-kitty sync workspace
 
 You may need to resolve conflicts during sync. See [Sync Workspaces](sync-workspaces.md).
 
-## What `--base` Does
+## What Dependencies Do
 
-- Creates the new WP branch from the base WP branch.
-- Includes all code from the base WP in the child workspace.
-- Validates the `--base` flag against the declared dependencies and prompts if it does not match.
+- Influence lane computation during `finalize_tasks`
+- Force dependent work into the same lane or into lanes with explicit ordering
+- Ensure `spec-kitty implement WP##` resolves the correct workspace without manual branch selection
 
 ## Handling Rebase When Parent Changes
 
@@ -115,10 +107,10 @@ WP01 -> WP02 -> WP03 -> WP04
 
 **Error:**
 ```
-WP02 has dependencies. Use: spec-kitty implement WP02 --base WP01
+WP02 has dependencies. Use: spec-kitty implement WP02
 ```
 
-**Fix:** Re-run with the suggested `--base` flag.
+**Fix:** Re-run task finalization so the dependency graph is reflected in `lanes.json`.
 
 ## Tips
 
@@ -135,13 +127,13 @@ WP02 has dependencies. Use: spec-kitty implement WP02 --base WP01
 
 ## See Also
 
-- [Implement a Work Package](implement-work-package.md) - Using `--base` in practice
+- [Implement a Work Package](implement-work-package.md) - Implementing inside the computed lane workspace
 - [Parallel Development](parallel-development.md) - Running multiple agents
 - [Generate Tasks](generate-tasks.md) - Where dependencies are declared
 
 ## Background
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Why dependencies matter
+- [Execution Lanes](../explanation/execution-lanes.md) - Why dependencies matter
 - [Git Worktrees](../explanation/git-worktrees.md) - Branching mechanics
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
 

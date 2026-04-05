@@ -99,6 +99,7 @@ class TestResolveMissionCommandTemplatesDir:
         pkg_root = tmp_path / "pkg"
         _make_package_asset_root_with_templates(pkg_root)
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root))
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-home"))
 
         project = tmp_path / "project"
         project.mkdir()

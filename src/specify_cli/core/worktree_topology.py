@@ -1,15 +1,9 @@
-"""Worktree topology analysis for stacked work package branches.
+"""Lane worktree topology analysis.
 
-When WPs branch from other WPs (stacking), agents need visibility into the
-dependency stack to understand that being "behind main" is expected behavior.
-This module materializes the full worktree topology and renders it as structured
-JSON for prompt injection.
-
-Key concepts:
-- A WP is "stacked" if its base_branch (from workspace context) points to
-  another WP's branch rather than the feature's target branch.
-- Topology is only injected into prompts when has_stacking is True.
-- JSON output is wrapped in HTML comment markers for reliable agent parsing.
+Agents need a deterministic view of which work packages share a lane worktree,
+which lane branch they are on, and what the diff base is. This module renders
+that lane topology as structured JSON for prompt injection and as simple text
+for diagnostics.
 """
 
 from __future__ import annotations
@@ -18,29 +12,22 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
-from specify_cli.frontmatter import read_frontmatter as _read_frontmatter_compat
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
-from specify_cli.workspace_context import (
-    list_contexts as _list_workspace_contexts,
-    resolve_workspace_for_wp,
-)
-
-# Legacy patch seam kept for tests that monkeypatch this module attribute directly.
-read_frontmatter = _read_frontmatter_compat
+from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
 @dataclass
 class WPTopologyEntry:
-    """Per-WP topology information."""
+    """Per-WP lane topology information."""
 
     wp_id: str
-    branch_name: Optional[str]  # None if worktree not yet created
-    base_branch: Optional[str]  # None if worktree not yet created
-    base_wp: Optional[str]  # WP ID of base, or None if based on target branch
+    lane_id: str
+    lane_wp_ids: list[str]
+    branch_name: str
+    base_branch: str
     dependencies: list[str] = field(default_factory=list)
     lane: str = "planned"
     worktree_exists: bool = False
@@ -49,70 +36,33 @@ class WPTopologyEntry:
 
 @dataclass
 class FeatureTopology:
-    """Full feature worktree topology."""
+    """Lane topology for a feature."""
 
     feature_slug: str
     target_branch: str
+    mission_branch: str
     entries: list[WPTopologyEntry] = field(default_factory=list)
 
     @property
     def has_stacking(self) -> bool:
-        """True if any WP bases on another WP rather than target branch."""
-        return any(e.base_wp is not None for e in self.entries)
+        """Compatibility shim: true when the lane topology is worth injecting."""
+        lane_ids = {entry.lane_id for entry in self.entries}
+        return len(lane_ids) > 1 or any(len(entry.lane_wp_ids) > 1 for entry in self.entries)
 
-    def get_entry(self, wp_id: str) -> Optional[WPTopologyEntry]:
-        """Get entry for a specific WP."""
+    def get_entry(self, wp_id: str) -> WPTopologyEntry | None:
         for entry in self.entries:
             if entry.wp_id == wp_id:
                 return entry
         return None
 
     def get_actual_base_for_wp(self, wp_id: str) -> str:
-        """Get the actual base branch for a WP (may be another WP's branch)."""
         entry = self.get_entry(wp_id)
-        if entry and entry.base_branch:
+        if entry is not None:
             return entry.base_branch
-        return self.target_branch
-
-
-def list_contexts(repo_root: Path, feature_slug: str) -> list[object]:
-    """Return workspace contexts for a feature.
-
-    This compatibility shim preserves the older ``worktree_topology.list_contexts``
-    seam used by tests and callers while the canonical storage lives in
-    ``specify_cli.workspace_context``.
-    """
-    return [
-        context
-        for context in _list_workspace_contexts(repo_root)
-        if getattr(context, "feature_slug", None) == feature_slug
-    ]
-
-
-def _build_feature_context_index_from_contexts(contexts: list[object]) -> dict[str, object]:
-    """Index feature contexts by WP ID, expanding lane contexts when present."""
-    index: dict[str, object] = {}
-    for context in contexts:
-        lane_wp_ids = getattr(context, "lane_wp_ids", None)
-        if not isinstance(lane_wp_ids, list):
-            lane_wp_ids = []
-        for lane_wp_id in lane_wp_ids:
-            if isinstance(lane_wp_id, str) and lane_wp_id:
-                index.setdefault(lane_wp_id, context)
-
-        current_wp = getattr(context, "current_wp", None)
-        if isinstance(current_wp, str) and current_wp:
-            index[current_wp] = context
-
-        wp_id = getattr(context, "wp_id", None)
-        if isinstance(wp_id, str) and wp_id:
-            index.setdefault(wp_id, context)
-
-    return index
+        return self.mission_branch
 
 
 def _read_canonical_lane_or_default(feature_dir: Path, wp_id: str) -> str:
-    """Read the canonical lane, falling back only when status is unbootstrapped."""
     try:
         lane = get_wp_lane(feature_dir, wp_id)
     except CanonicalStatusNotFoundError:
@@ -124,35 +74,7 @@ def _read_canonical_lane_or_default(feature_dir: Path, wp_id: str) -> str:
     return lane
 
 
-def _resolve_base_wp(
-    base_branch: str,
-    feature_slug: str,
-    wp_branches: dict[str, str],
-) -> Optional[str]:
-    """Determine if base_branch is another WP's branch.
-
-    Args:
-        base_branch: The base branch name from workspace context
-        feature_slug: Feature slug for pattern matching
-        wp_branches: Map of WP ID -> branch name
-
-    Returns:
-        WP ID if base is another WP, None if base is target branch
-    """
-    for wp_id, branch in wp_branches.items():
-        if branch == base_branch:
-            return wp_id
-    return None
-
-
-def _count_commits_ahead(
-    worktree_path: Path,
-    base_branch: str,
-) -> int:
-    """Count commits ahead of base branch in worktree.
-
-    Returns 0 on any error.
-    """
+def _count_commits_ahead(worktree_path: Path, base_branch: str) -> int:
     result = subprocess.run(
         ["git", "rev-list", "--count", f"{base_branch}..HEAD"],
         cwd=worktree_path,
@@ -170,201 +92,122 @@ def _count_commits_ahead(
     return 0
 
 
-def materialize_worktree_topology(
-    repo_root: Path,
-    feature_slug: str,
-) -> FeatureTopology:
-    """Gather the full worktree topology for a feature.
+def materialize_worktree_topology(repo_root: Path, feature_slug: str) -> FeatureTopology:
+    """Gather the full lane worktree topology for a feature."""
+    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.persistence import require_lanes_json
 
-    Combines workspace contexts, WP frontmatter, dependency graph,
-    and git rev-list counts into a complete topology view.
-
-    Args:
-        repo_root: Main repository root path
-        feature_slug: Feature slug (e.g., "002-event-driven")
-
-    Returns:
-        FeatureTopology with all WP entries in topological order
-    """
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, feature_slug)
-
     feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    lanes_manifest = require_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
 
-    # Get topological order (dependencies before dependents)
     try:
         topo_order = topological_sort(graph)
     except ValueError:
-        # Cycle detected — fall back to sorted keys
         topo_order = sorted(graph.keys())
 
-    # Build WP branch map from workspace contexts, expanding lane contexts.
-    feature_contexts = _build_feature_context_index_from_contexts(
-        list_contexts(main_repo_root, feature_slug)
-    )
-
-    # Map WP ID -> branch name for base resolution
-    wp_branches: dict[str, str] = {}
-    for wp_id, ctx in feature_contexts.items():
-        wp_branches[wp_id] = ctx.branch_name
-
-    # Read lane status from canonical event log
-    wp_lanes: dict[str, str] = {}
-    try:
-        from specify_cli.status.store import read_events
-        from specify_cli.status.reducer import reduce
-
-        events = read_events(feature_dir)
-        if events:
-            snapshot = reduce(events)
-            wp_lanes = {
-                wp_id: str(state.get("lane", "planned"))
-                for wp_id, state in snapshot.work_packages.items()
-            }
-    except Exception:
-        pass
-
-    # Build topology entries
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        ctx = feature_contexts.get(wp_id)
-        branch_name = ctx.branch_name if ctx else None
-        base_branch = ctx.base_branch if ctx else None
-        dependencies = graph.get(wp_id, [])
-        lane = wp_lanes.get(wp_id, _read_canonical_lane_or_default(feature_dir, wp_id))
+        lane_entry = lanes_manifest.lane_for_wp(wp_id)
+        if lane_entry is None:
+            raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
 
-        # Determine if base is another WP
-        base_wp = None
-        if base_branch:
-            base_wp = _resolve_base_wp(base_branch, feature_slug, wp_branches)
-
-        # Count commits ahead of base
-        commits_ahead = 0
         workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
-        worktree_path = workspace.worktree_path
         worktree_exists = workspace.exists
-        if worktree_exists and base_branch:
-            commits_ahead = _count_commits_ahead(worktree_path, base_branch)
+        commits_ahead = 0
+        if worktree_exists:
+            commits_ahead = _count_commits_ahead(workspace.worktree_path, lanes_manifest.mission_branch)
 
-        entries.append(WPTopologyEntry(
-            wp_id=wp_id,
-            branch_name=branch_name,
-            base_branch=base_branch,
-            base_wp=base_wp,
-            dependencies=dependencies,
-            lane=lane,
-            worktree_exists=worktree_exists,
-            commits_ahead_of_base=commits_ahead,
-        ))
+        entries.append(
+            WPTopologyEntry(
+                wp_id=wp_id,
+                lane_id=lane_entry.lane_id,
+                lane_wp_ids=list(lane_entry.wp_ids),
+                branch_name=lane_branch_name(feature_slug, lane_entry.lane_id),
+                base_branch=lanes_manifest.mission_branch,
+                dependencies=graph.get(wp_id, []),
+                lane=_read_canonical_lane_or_default(feature_dir, wp_id),
+                worktree_exists=worktree_exists,
+                commits_ahead_of_base=commits_ahead,
+            )
+        )
 
     return FeatureTopology(
         feature_slug=feature_slug,
         target_branch=target_branch,
+        mission_branch=lanes_manifest.mission_branch,
         entries=entries,
     )
 
 
-def render_topology_json(
-    topology: FeatureTopology,
-    current_wp_id: str,
-) -> list[str]:
-    """Render topology as structured JSON for prompt injection.
-
-    Only call this when topology.has_stacking is True.
-    Output is wrapped in HTML comment markers for reliable agent parsing.
-
-    Args:
-        topology: Feature topology data
-        current_wp_id: The WP being implemented/reviewed
-
-    Returns:
-        List of lines to append to prompt
-    """
+def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[str]:
+    """Render lane topology as structured JSON for prompt injection."""
     current_entry = topology.get_entry(current_wp_id)
-
-    # Build base info for current WP
-    your_base = None
-    if current_entry and current_entry.base_wp:
-        your_base = {
-            "branch": current_entry.base_branch,
-            "wp": current_entry.base_wp,
-        }
-
-    # Build diff command
     diff_base = topology.get_actual_base_for_wp(current_wp_id)
-    diff_command = f"git diff {diff_base}..HEAD"
 
-    # Build entries list
     entries_json = []
     for entry in topology.entries:
-        entry_data: dict = {
+        entry_data: dict[str, object] = {
             "wp": entry.wp_id,
-            "lane": entry.lane,
+            "status": entry.lane,
+            "lane_id": entry.lane_id,
+            "lane_wp_ids": entry.lane_wp_ids,
             "branch": entry.branch_name,
-            "base": entry.base_wp if entry.base_wp else topology.target_branch,
+            "base": entry.base_branch,
         }
         if entry.worktree_exists:
             entry_data["commits_ahead"] = entry.commits_ahead_of_base
-        if entry.dependencies and not entry.worktree_exists:
+        if entry.dependencies:
             entry_data["dependencies"] = entry.dependencies
         entries_json.append(entry_data)
 
     payload = {
         "feature": topology.feature_slug,
         "target_branch": topology.target_branch,
+        "mission_branch": topology.mission_branch,
         "current_wp": current_wp_id,
-        "your_base": your_base,
-        "diff_command": diff_command,
-        "stacked": True,
-        "note": f"Your branch stacks on {current_entry.base_wp}, NOT {topology.target_branch}. Do not worry about being 'behind {topology.target_branch}'."
-            if current_entry and current_entry.base_wp
-            else f"Your branch is based on {topology.target_branch}. Other WPs in this feature use stacking.",
+        "diff_command": f"git diff {diff_base}..HEAD",
+        "shared_lane": bool(current_entry and len(current_entry.lane_wp_ids) > 1),
+        "note": (
+            f"{current_wp_id} shares lane {current_entry.lane_id} with {', '.join(current_entry.lane_wp_ids)}. "
+            "Sequential WPs in the same lane reuse one worktree."
+            if current_entry and len(current_entry.lane_wp_ids) > 1
+            else f"{current_wp_id} owns lane {current_entry.lane_id} alone."
+            if current_entry
+            else f"{current_wp_id} is not in the computed topology."
+        ),
         "entries": entries_json,
     }
 
-    lines = [
+    return [
         "<!-- WORKTREE_TOPOLOGY -->",
         json.dumps(payload, indent=2),
         "<!-- /WORKTREE_TOPOLOGY -->",
     ]
-    return lines
 
 
-def render_topology_text(
-    topology: FeatureTopology,
-    current_wp_id: str,
-) -> list[str]:
-    """Render topology as human-readable text for CLI output.
-
-    Utility function for human-facing displays (not used in prompts).
-
-    Args:
-        topology: Feature topology data
-        current_wp_id: The WP to highlight
-
-    Returns:
-        List of lines for console output
-    """
+def render_topology_text(topology: FeatureTopology, current_wp_id: str) -> list[str]:
+    """Render lane topology as human-readable text."""
     lines = []
     lines.append("╔" + "═" * 78 + "╗")
-    lines.append("║  WORKTREE TOPOLOGY" + " " * 59 + "║")
+    lines.append("║  LANE WORKTREE TOPOLOGY" + " " * 54 + "║")
     lines.append("╠" + "═" * 78 + "╣")
     lines.append(f"║  Feature: {topology.feature_slug:<66} ║")
     lines.append(f"║  Target:  {topology.target_branch:<66} ║")
+    lines.append(f"║  Mission: {topology.mission_branch:<66} ║")
     lines.append("║" + " " * 78 + "║")
 
     for entry in topology.entries:
         marker = "→" if entry.wp_id == current_wp_id else " "
-        base_label = entry.base_wp if entry.base_wp else topology.target_branch
-        branch_label = entry.branch_name or "(not created)"
-        status = entry.lane
-
-        line_text = f"{marker} {entry.wp_id} [{status}] base={base_label} branch={branch_label}"
+        lane_members = ",".join(entry.lane_wp_ids)
+        line_text = (
+            f"{marker} {entry.wp_id} [{entry.lane}] lane={entry.lane_id} "
+            f"members={lane_members} branch={entry.branch_name}"
+        )
         if entry.worktree_exists and entry.commits_ahead_of_base > 0:
             line_text += f" (+{entry.commits_ahead_of_base})"
-
-        # Pad to fit box
         padded = line_text[:76].ljust(76)
         lines.append(f"║  {padded}║")
 

@@ -487,9 +487,9 @@ dependencies: []
 @pytest.fixture
 def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     """
-    Create main repo + stale WP worktree.
+    Create main repo + stale lane worktree.
 
-    The main branch will have commits that the WP branch doesn't have,
+    The main branch will have commits that the lane branch doesn't have,
     simulating a stale workspace that needs syncing.
 
     Returns:
@@ -507,10 +507,10 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     run(["git", "commit", "-m", "initial commit"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    # Create feature branch and worktree
+    # Create lane branch and worktree
     feature_slug = "018-stale-test"
-    branch_name = f"{feature_slug}-WP01"
-    worktree_dir = repo / ".worktrees" / branch_name
+    branch_name = f"kitty/mission-{feature_slug}-lane-a"
+    worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
     # Make commit in worktree
@@ -536,7 +536,7 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
 @pytest.fixture
 def dirty_worktree_repo(tmp_path: Path) -> tuple[Path, Path]:
     """
-    Add uncommitted changes to a WP worktree.
+    Add uncommitted changes to a lane worktree.
 
     Returns:
         Tuple of (repo_root, dirty_worktree_path)
@@ -573,8 +573,8 @@ dependencies: []
     )
 
     # Create worktree
-    branch_name = f"{feature_slug}-WP01"
-    worktree_dir = repo / ".worktrees" / branch_name
+    branch_name = f"kitty/mission-{feature_slug}-lane-a"
+    worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
     # Make commit

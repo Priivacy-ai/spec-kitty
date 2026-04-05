@@ -143,7 +143,7 @@ class WorkspaceInfo:
     """
 
     # Identity
-    name: str  # Workspace name (e.g., "015-feature-WP01")
+    name: str  # Workspace name (e.g., "015-feature-lane-a")
     path: Path  # Absolute path to workspace directory
 
     # State
@@ -156,7 +156,7 @@ class WorkspaceInfo:
     current_commit_id: str  # Current HEAD commit
 
     # Relationship to base
-    base_branch: str | None  # Branch this was created from (--base flag)
+    base_branch: str | None  # Branch this workspace was created from
     base_commit_id: str | None  # Commit this was branched from
 
     # Health

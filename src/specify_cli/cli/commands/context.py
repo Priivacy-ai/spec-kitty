@@ -62,7 +62,7 @@ def info_command(
         spec-kitty context info
 
         # Explicit workspace
-        spec-kitty context info --workspace 010-feature-WP02
+        spec-kitty context info --workspace 010-feature-lane-a
 
         # JSON output
         spec-kitty context info --json
@@ -79,7 +79,7 @@ def info_command(
         if workspace is None:
             console.print("[red]Error:[/red] Not inside a worktree and no --workspace specified")
             console.print("\nRun from inside a worktree or use --workspace flag:")
-            console.print("  spec-kitty context info --workspace 010-feature-WP02")
+            console.print("  spec-kitty context info --workspace 010-feature-lane-a")
             raise typer.Exit(1)
 
     # Load context

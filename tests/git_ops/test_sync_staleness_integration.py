@@ -1,10 +1,10 @@
 """Integration tests for sync workspace staleness detection.
 
-Tests staleness detection and update functionality for parallel WP development:
+Tests staleness detection and update functionality for lane worktrees:
 - Detecting stale workspaces
 - Updating from main branch
 - Preserving uncommitted changes
-- Handling dependent WP staleness
+- Comparing multiple lane worktrees with different freshness
 """
 
 from __future__ import annotations
@@ -98,9 +98,9 @@ class TestSyncStaleness:
         main_branch = result.stdout.strip()
 
         # Create worktree from latest main
-        worktree_dir = repo / ".worktrees" / "feature-WP01"
+        worktree_dir = repo / ".worktrees" / "feature-lane-a"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "kitty/mission-feature-lane-a"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -212,8 +212,8 @@ class TestSyncStaleness:
         # Modified file should still exist with uncommitted changes
         assert (worktree_path / "WP01.txt").read_text() == "modified uncommitted work"
 
-    def test_parallel_wps_with_one_stale(self, tmp_path: Path):
-        """Test detecting staleness when some WPs are stale and others aren't."""
+    def test_parallel_lanes_with_one_stale(self, tmp_path: Path):
+        """Test detecting staleness when one lane is stale and another is not."""
         repo = tmp_path / "repo"
         repo.mkdir()
         subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
@@ -249,10 +249,10 @@ class TestSyncStaleness:
         )
         main_branch = result.stdout.strip()
 
-        # Create WP01 worktree
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
+        # Create lane-a worktree
+        wp01_dir = repo / ".worktrees" / "feature-lane-a"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(wp01_dir), "-b", "kitty/mission-feature-lane-a"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -266,7 +266,7 @@ class TestSyncStaleness:
             capture_output=True,
         )
 
-        # Advance main (making WP01 stale)
+        # Advance main (making lane-a stale)
         subprocess.run(
             ["git", "checkout", main_branch],
             cwd=repo,
@@ -282,10 +282,10 @@ class TestSyncStaleness:
             capture_output=True,
         )
 
-        # Create WP02 worktree (after main advanced, so up-to-date)
-        wp02_dir = repo / ".worktrees" / "feature-WP02"
+        # Create lane-b worktree (after main advanced, so up-to-date)
+        wp02_dir = repo / ".worktrees" / "feature-lane-b"
         subprocess.run(
-            ["git", "worktree", "add", str(wp02_dir), "-b", "feature-WP02"],
+            ["git", "worktree", "add", str(wp02_dir), "-b", "kitty/mission-feature-lane-b"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -309,7 +309,7 @@ class TestSyncStaleness:
         )
         main_sha = main_sha_result.stdout.strip()
 
-        # Check WP01 merge-base (should be behind)
+        # Check lane-a merge-base (should be behind)
         wp01_base_result = subprocess.run(
             ["git", "merge-base", "HEAD", main_branch],
             cwd=wp01_dir,
@@ -319,10 +319,10 @@ class TestSyncStaleness:
         )
         wp01_base = wp01_base_result.stdout.strip()
 
-        # WP01 is stale (merge-base != main)
+        # lane-a is stale (merge-base != main)
         assert wp01_base != main_sha
 
-        # Check WP02 merge-base (should be up-to-date)
+        # Check lane-b merge-base (should be up-to-date)
         wp02_base_result = subprocess.run(
             ["git", "merge-base", "HEAD", main_branch],
             cwd=wp02_dir,
@@ -332,131 +332,8 @@ class TestSyncStaleness:
         )
         wp02_base = wp02_base_result.stdout.strip()
 
-        # WP02 is up-to-date (merge-base == main)
+        # lane-b is up-to-date (merge-base == main)
         assert wp02_base == main_sha
-
-    def test_dependent_wp_staleness_cascade(self, tmp_path: Path):
-        """Test that dependent WP becomes stale when base WP is updated."""
-        repo = tmp_path / "repo"
-        repo.mkdir()
-        subprocess.run(["git", "init"], cwd=repo, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "config", "user.name", "Test"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-        subprocess.run(
-            ["git", "config", "user.email", "test@example.com"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-
-        (repo / "README.md").write_text("initial")
-        subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "init"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-
-        # Get default branch name
-        result = subprocess.run(
-            ["git", "rev-parse", "--abbrev-ref", "HEAD"],
-            cwd=repo,
-            capture_output=True,
-            text=True,
-            check=True,
-        )
-        main_branch = result.stdout.strip()
-
-        # Create WP01 (base)
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
-        subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-        (wp01_dir / "WP01.txt").write_text("WP01 work")
-        subprocess.run(["git", "add", "."], cwd=wp01_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "WP01"],
-            cwd=wp01_dir,
-            check=True,
-            capture_output=True,
-        )
-
-        # Create WP02 dependent on WP01
-        subprocess.run(
-            ["git", "checkout", main_branch],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-        wp02_dir = repo / ".worktrees" / "feature-WP02"
-        subprocess.run(
-            ["git", "worktree", "add", str(wp02_dir), "feature-WP01", "-b", "feature-WP02"],
-            cwd=repo,
-            check=True,
-            capture_output=True,
-        )
-        (wp02_dir / "WP02.txt").write_text("WP02 work")
-        subprocess.run(["git", "add", "."], cwd=wp02_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "WP02"],
-            cwd=wp02_dir,
-            check=True,
-            capture_output=True,
-        )
-
-        # Get WP01 SHA before update
-        wp01_sha_before = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=wp01_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        # Update WP01 (add new commit)
-        (wp01_dir / "WP01_updated.txt").write_text("updated")
-        subprocess.run(["git", "add", "."], cwd=wp01_dir, check=True, capture_output=True)
-        subprocess.run(
-            ["git", "commit", "-m", "update WP01"],
-            cwd=wp01_dir,
-            check=True,
-            capture_output=True,
-        )
-
-        # Get WP01 SHA after update
-        wp01_sha_after = subprocess.run(
-            ["git", "rev-parse", "HEAD"],
-            cwd=wp01_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        # Verify WP01 changed
-        assert wp01_sha_before != wp01_sha_after
-
-        # Check WP02 merge-base with WP01 branch
-        wp02_base = subprocess.run(
-            ["git", "merge-base", "HEAD", "feature-WP01"],
-            cwd=wp02_dir,
-            capture_output=True,
-            text=True,
-            check=True,
-        ).stdout.strip()
-
-        # WP02's merge-base should be old WP01 SHA (before update)
-        assert wp02_base == wp01_sha_before
-
-        # WP02 is now stale relative to its dependency (WP01)
-        assert wp02_base != wp01_sha_after
 
     def test_sync_fails_with_uncommitted_and_conflicts(self, git_stale_workspace: dict):
         """Test sync fails gracefully with uncommitted changes and potential conflicts."""
@@ -516,10 +393,10 @@ class TestSyncStaleness:
         )
         main_branch = result.stdout.strip()
 
-        # Create WP01
-        wp01_dir = repo / ".worktrees" / "feature-WP01"
+        # Create lane-a
+        wp01_dir = repo / ".worktrees" / "feature-lane-a"
         subprocess.run(
-            ["git", "worktree", "add", str(wp01_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(wp01_dir), "-b", "kitty/mission-feature-lane-a"],
             cwd=repo,
             check=True,
             capture_output=True,
@@ -552,7 +429,7 @@ class TestSyncStaleness:
         # Check status using git commands
         # (In real sync command, this would be formatted nicely)
         status_result = subprocess.run(
-            ["git", "rev-list", "--count", f"feature-WP01..{main_branch}"],
+            ["git", "rev-list", "--count", f"kitty/mission-feature-lane-a..{main_branch}"],
             cwd=repo,
             capture_output=True,
             text=True,
@@ -561,5 +438,5 @@ class TestSyncStaleness:
 
         commits_behind = int(status_result.stdout.strip())
 
-        # WP01 should be behind by 1 commit
+        # lane-a should be behind by 1 commit
         assert commits_behind == 1

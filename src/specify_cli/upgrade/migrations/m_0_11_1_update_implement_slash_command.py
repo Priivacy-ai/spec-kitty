@@ -1,7 +1,7 @@
 """Migration: Update /spec-kitty.implement slash command across all agents.
 
 This migration fixes a critical bug where the /spec-kitty.implement slash command
-was severely outdated after the 0.11.0 workspace-per-WP migration.
+drifted away from the packaged workflow templates.
 
 Issue: The slash command only documented step 1 (display prompt via workflow command)
 but did NOT tell agents to run step 2 (create worktree via implement command).
@@ -31,7 +31,7 @@ from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
 class UpdateImplementSlashCommandMigration(BaseMigration):
     """Update /spec-kitty.implement slash command to show 2-step workflow.
 
-    The 0.11.0 migration updated mission templates but did NOT update agent
+    Earlier template changes updated mission templates but did NOT update agent
     slash commands. This migration copies the correct implement.md template
     from packaged missions to all agent directories.
     """

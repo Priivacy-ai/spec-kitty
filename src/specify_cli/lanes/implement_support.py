@@ -1,7 +1,7 @@
 """Lane-mode workspace creation support for the implement command.
 
 Extracted from implement.py to keep the command clean.
-This module handles the lane-mode path: reading lanes.json,
+This module handles the only supported execution path: reading lanes.json,
 allocating the lane worktree, and creating the workspace context.
 """
 
@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from specify_cli.lanes.models import LanesManifest
-from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.worktree_allocator import allocate_lane_worktree
 from specify_cli.workspace_context import WorkspaceContext, save_context
 
@@ -31,14 +30,6 @@ class LaneWorkspaceResult:
     vcs_backend_value: str
 
 
-def try_lane_mode(feature_dir: Path) -> LanesManifest | None:
-    """Check if a feature uses lane-based execution.
-
-    Returns the LanesManifest if lanes.json exists, None otherwise.
-    """
-    return read_lanes_json(feature_dir)
-
-
 def create_lane_workspace(
     repo_root: Path,
     feature_slug: str,
@@ -50,8 +41,7 @@ def create_lane_workspace(
 ) -> LaneWorkspaceResult:
     """Create or reuse a lane worktree for the given WP.
 
-    This is the lane-mode equivalent of the legacy workspace creation
-    in implement.py. It:
+    It:
     1. Allocates the lane worktree (creating mission branch if needed).
     2. Detects reuse vs fresh creation.
     3. Updates WP frontmatter with base tracking.

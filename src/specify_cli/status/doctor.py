@@ -186,7 +186,7 @@ def check_orphan_workspaces(
     if not worktrees_dir.exists():
         return findings
 
-    feature_pattern = f"{feature_slug}-WP*"
+    feature_pattern = f"{feature_slug}-lane-*"
     orphan_dirs = list(worktrees_dir.glob(feature_pattern))
 
     for orphan_dir in orphan_dirs:

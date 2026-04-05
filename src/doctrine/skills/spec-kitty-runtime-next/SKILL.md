@@ -130,7 +130,7 @@ Every call to `spec-kitty next` returns exactly one decision kind:
   "mission_state": "implementing",
   "action": "implement",
   "wp_id": "WP02",
-  "workspace_path": ".worktrees/042-test-mission-WP02",
+  "workspace_path": ".worktrees/042-test-mission-lane-b",
   "prompt_file": "/tmp/spec-kitty-next-claude-042-test-mission-implement-WP02.md",
   "reason": null,
   "guard_failures": [],
@@ -200,7 +200,7 @@ Runtime state is persisted between calls:
 
 When `--mission` is omitted, the runtime detects the mission via (in order):
 1. `SPECIFY_MISSION` environment variable
-2. Git branch name (strips `-WP##` suffix for worktree branches)
+2. Git branch name (mission and lane branches both encode the feature slug)
 3. Current directory path (walks up looking for `###-mission-name`)
 4. Single mission auto-detect (only if exactly one mission exists)
 5. Error with guidance if ambiguous

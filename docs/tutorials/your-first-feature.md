@@ -150,7 +150,7 @@ You should see the feature merged into `main` and the worktrees cleaned up.
 ## Troubleshooting
 
 - **"Planning created a worktree"**: In v0.11.0+, planning stays in `main`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
-- **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02 --base WP01` as suggested. The returned workspace may be a shared lane worktree instead of `...-WP02`.
+- **"WP has dependencies"**: If the WP frontmatter lists dependencies, run `spec-kitty implement WP02` as suggested. The returned workspace may be a shared lane worktree such as `...-lane-a`.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 
 ## What's Next?
@@ -173,6 +173,6 @@ Continue with [Multi-Agent Workflow](multi-agent-workflow.md) to learn parallel 
 
 ### Learn More
 
-- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Why modern features use lane worktrees
+- [Execution Workspace Model](../explanation/execution-lanes.md) - Why modern features use lane worktrees
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions
 - [Spec-Driven Development](../explanation/spec-driven-development.md) - The philosophy

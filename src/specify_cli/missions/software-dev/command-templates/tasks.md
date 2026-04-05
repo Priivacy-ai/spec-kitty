@@ -37,7 +37,7 @@
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create or reuse the execution workspace for that WP. Modern features with `lanes.json` use shared lane worktrees; legacy features without lanes still use per-WP worktrees.
+**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create or reuse the execution workspace for that WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 
 **In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
@@ -157,7 +157,7 @@ Prompts do not rediscover feature context. Commands do.
      - Follow the WP prompt template structure defined below in this prompt (**do NOT write instructions to read a template file from `.kittify/`**) to capture:
      - Frontmatter with `work_package_id`, `subtasks` array, `dependencies`, `planning_base_branch`, `merge_target_branch`, `branch_strategy`, `owned_files`, `authoritative_surface`, `execution_mode`, and history entry
        - Objective, context, detailed guidance per subtask
-       - A Branch Strategy section that repeats the planning branch, final merge target, and notes that the actual `base_branch` may later differ for stacked WPs during `/spec-kitty.implement`
+       - A Branch Strategy section that repeats the planning branch, final merge target, and explains that execution worktrees are allocated per computed lane from `lanes.json`
        - Test strategy (only if requested)
        - Definition of Done, risks, reviewer guidance
      - Update `tasks.md` to reference the prompt filename
@@ -191,12 +191,12 @@ Prompts do not rediscover feature context. Commands do.
    spec-kitty agent mission finalize-tasks --json --feature <feature-slug>
    ```
 
-   This step is MANDATORY for modern execution-lane features (and still required for legacy worktree-per-WP compatibility). Without it:
+   This step is MANDATORY. Without it:
    - Dependencies won't be in frontmatter
    - Branching-strategy metadata won't be normalized into every WP prompt
    - `lanes.json` won't be available to resolve the real workspace path/branch for each WP
    - Requirement refs won't be validated/normalized
-   - Agents won't know which `--base` flag to use or whether the runtime will place them in a shared lane worktree
+   - Agents won't know which lane a WP belongs to or which workspace to enter
    - Tasks won't be committed to target branch
 
    **IMPORTANT - DO NOT COMMIT AGAIN AFTER THIS COMMAND**:
@@ -244,7 +244,7 @@ subtasks: ["T001", "T002"]
 
 **Include the correct implementation command**:
 - No dependencies: `spec-kitty implement WP01`
-- With dependencies: `spec-kitty implement WP02 --base WP01`
+- With dependencies: `spec-kitty implement WP02`
 
 The WP prompt must show the correct command so agents don't branch from the wrong base.
 

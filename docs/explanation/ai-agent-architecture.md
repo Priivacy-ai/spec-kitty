@@ -249,7 +249,7 @@ The command file provides all instructions; the agent executes them.
 
 ## See Also
 
-- [Execution Workspace Model](workspace-per-wp.md) - How parallel development enables multi-agent collaboration
+- [Execution Workspace Model](execution-lanes.md) - How parallel development enables multi-agent collaboration
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes regardless of agent
 - [Mission System](mission-system.md) - How missions customize commands for different work types
 

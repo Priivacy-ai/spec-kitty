@@ -9,6 +9,7 @@ Updates existing generated agent prompts in user projects to fix:
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 from ..registry import MigrationRegistry
@@ -38,18 +39,16 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
             "spec-kitty agent mission check-prerequisites --json --paths-only",
         ),
         (
-            "merges each WP branch into main in sequence",
-            "merges effective WP branch tips after ancestry pruning",
-        ),
-        (
-            "Merges each WP branch into the target branch in sequence",
-            "Merges effective WP branch tips after ancestry pruning",
-        ),
-        (
             "main repository root",
             "primary repository checkout root",
         ),
     ]
+
+    STALE_MERGE_PATTERNS: tuple[re.Pattern[str], ...] = (
+        re.compile(r"merges each .* into main in sequence"),
+        re.compile(r"Merges each .* into the target branch in sequence"),
+        re.compile(r"merges each lane branch into the mission branch before the target branch"),
+    )
 
     def detect(self, project_path: Path) -> bool:
         """Detect stale generated prompts that require repair."""
@@ -62,7 +61,7 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
                 "spec-kitty agent check-prerequisites" in content
                 or "--require-tasks" in content
                 or "(Missing script command for sh)" in content
-                or "merges each WP branch into main in sequence" in content
+                or any(pattern.search(content) for pattern in self.STALE_MERGE_PATTERNS)
             ):
                 return True
         return False
@@ -86,6 +85,11 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
             updated = original
             for old, new in self.REPLACEMENTS:
                 updated = updated.replace(old, new)
+            for pattern in self.STALE_MERGE_PATTERNS:
+                updated = pattern.sub(
+                    "merges lane branches into the mission branch before landing the mission branch",
+                    updated,
+                )
 
             if updated == original:
                 continue

@@ -9,7 +9,7 @@ and robustness issues in the 0.13.0 release. Tests are organized by attack categ
 - test_csv_attacks.py: Formula injection, encoding attacks, malformed files
 - test_git_state.py: Detached HEAD, merge state, branch divergence
 - test_migration_robustness.py: Atomicity, concurrency, recovery
-- test_multi_parent_merge.py: Diamond dependencies, determinism
+- test_stale_lane_merges.py: Lane drift, overlap, and stale-merge prevention
 - test_workspace_context.py: Orphaned/corrupted context files
 - test_context_validation.py: Decorator bypass prevention
 - test_agent_config.py: Corrupt YAML handling

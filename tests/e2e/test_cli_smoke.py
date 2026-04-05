@@ -250,9 +250,8 @@ Create a hello module.
             "--json",
         )
 
-        # Parse workspace path from JSON output (supports both lane-based
-        # and legacy WP-per-worktree paths).
-        worktree_dir = repo / ".worktrees" / f"{feature_slug}-WP01"  # fallback
+        # Parse workspace path from JSON output (lane worktrees are the only supported topology).
+        worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
         if result.returncode == 0 and result.stdout.strip():
             try:
                 impl_data = json.loads(result.stdout.strip().splitlines()[-1])

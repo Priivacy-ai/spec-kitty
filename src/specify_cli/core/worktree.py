@@ -6,7 +6,7 @@ for parallel feature development. Uses the VCS abstraction layer.
 All functions are location-aware and work correctly whether called from main
 repository or existing worktree/workspace.
 
-Workspace routing by execution_mode (WP04):
+Workspace routing by execution_mode:
 - ``code_change`` WPs  → standard git worktree (full checkout, no sparse exclusions)
 - ``planning_artifact`` WPs → in-repo workspace (``repo_root`` returned directly)
 """
@@ -99,8 +99,6 @@ def create_wp_workspace(
     * ``code_change``        → creates a standard git worktree at ``workspace_path``
     * ``planning_artifact``  → returns ``repo_root`` (work directly in-repo, no
       worktree created, full repo visible)
-
-    No sparse checkout is applied in either case.
 
     Args:
         repo_root: Absolute path to the repository root.

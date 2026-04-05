@@ -153,11 +153,11 @@ class TestWorkspaceOperations:
 
     def test_create_workspace(self, git_repo, git_vcs):
         """create_workspace should create a git worktree."""
-        workspace_path = git_repo / ".worktrees" / "test-WP01"
+        workspace_path = git_repo / ".worktrees" / "test-lane-a"
 
         result = git_vcs.create_workspace(
             workspace_path,
-            "test-WP01",
+            "test-lane-a",
             repo_root=git_repo,
         )
 
@@ -203,11 +203,11 @@ class TestWorkspaceOperations:
 
         # Create workspace from feature-base branch
         # Note: git worktree add needs to run from within the repo
-        workspace_path = git_repo / ".worktrees" / "test-WP02"
+        workspace_path = git_repo / ".worktrees" / "test-lane-b"
 
         # Run worktree add from the git repo directory
         wt_result = subprocess.run(
-            ["git", "worktree", "add", "-b", "test-WP02", str(workspace_path), "feature-base"],
+            ["git", "worktree", "add", "-b", "test-lane-b", str(workspace_path), "feature-base"],
             cwd=git_repo,
             capture_output=True,
             text=True,
@@ -219,11 +219,11 @@ class TestWorkspaceOperations:
 
     def test_create_workspace_returns_error_on_failure(self, tmp_path, git_vcs):
         """create_workspace should return error for non-repo path."""
-        workspace_path = tmp_path / ".worktrees" / "test-WP01"
+        workspace_path = tmp_path / ".worktrees" / "test-lane-a"
 
         result = git_vcs.create_workspace(
             workspace_path,
-            "test-WP01",
+            "test-lane-a",
         )
 
         # Git worktree add should fail in non-repo

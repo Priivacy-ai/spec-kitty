@@ -71,7 +71,7 @@ kitty-specs/012-feature/tasks/WP03-tests.md
 ## Background
 
 - [Kanban Workflow](../explanation/kanban-workflow.md) - Lane transitions explained
-- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Why modern features use lane worktrees
+- [Execution Workspace Model](../explanation/execution-lanes.md) - Why modern features use lane worktrees
 
 ## Getting Started
 

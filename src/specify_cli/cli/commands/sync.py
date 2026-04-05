@@ -159,10 +159,10 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
     parts = cwd.parts
     for i, part in enumerate(parts):
         if part == ".worktrees" and i + 1 < len(parts):
-            # Found a worktree path like: /repo/.worktrees/010-feature-WP01
+            # Found a worktree path like: /repo/.worktrees/010-feature-lane-a
             workspace_name = parts[i + 1]
-            # Extract feature slug from workspace name (###-feature-WP##)
-            match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", workspace_name)
+            # Extract feature slug from workspace name (###-feature-lane-x)
+            match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-lane-[a-z]+$", workspace_name)
             if match:
                 return cwd, match.group(1)
 
@@ -179,8 +179,8 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
         )
         if result.returncode == 0:
             branch_name = result.stdout.strip()
-            # Check if branch matches WP pattern (###-feature-WP##)
-            match = re.match(r"^(\d{3}-[a-zA-Z0-9-]+)-WP\d+$", branch_name)
+            # Check if branch matches lane pattern (kitty/mission-###-feature-lane-x)
+            match = re.match(r"^kitty/mission-(\d{3}-[a-zA-Z0-9-]+)-lane-[a-z]+$", branch_name)
             if match:
                 return cwd, match.group(1)
     except (FileNotFoundError, OSError):
@@ -332,7 +332,7 @@ def sync_workspace(
     if feature_slug is None:
         console.print("[yellow]⚠ Not in a recognized workspace[/yellow]")
         console.print("Run this command from a worktree directory:")
-        console.print("  cd .worktrees/<feature>-WP##/")
+        console.print("  cd .worktrees/<feature>-lane-a/")
         raise typer.Exit(1)
 
     console.print(f"[cyan]Workspace:[/cyan] {workspace_path.name}")

@@ -24,6 +24,8 @@ from specify_cli.context.errors import (
 from specify_cli.context.models import MissionContext
 from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
+from specify_cli.lanes.branch_naming import lane_branch_name
+from specify_cli.lanes.persistence import require_lanes_json
 
 
 def _generate_token() -> str:
@@ -196,11 +198,15 @@ def resolve_context(
         list(dependencies_raw) if isinstance(dependencies_raw, list) else []
     )
 
-    # Compute authoritative_ref: branch name for code_change, None for planning_artifact
+    # Compute authoritative_ref: lane branch for code_change, None for planning_artifact
     if execution_mode == "planning_artifact":
         authoritative_ref = None
     else:
-        authoritative_ref = f"{feature_slug}-{wp_code}"
+        lane = require_lanes_json(feature_dir).lane_for_wp(wp_code)
+        if lane is None:
+            msg = f"{wp_code} is not assigned to any lane in {feature_dir / 'lanes.json'}."
+            raise MissingIdentityError(msg)
+        authoritative_ref = lane_branch_name(feature_slug, lane.lane_id)
 
     # Compute dependency_mode
     dependency_mode = "chained" if dependencies else "independent"

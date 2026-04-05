@@ -1,49 +1,60 @@
-"""Tests for lane merge policy enforcement.
+"""Tests for the lane-only merge contract."""
 
-Verifies that lane branches cannot bypass the mission integration branch
-and merge directly to the target (e.g., main).
-"""
+from __future__ import annotations
 
-from specify_cli.cli.commands.merge import detect_worktree_structure
+import json
+
+from typer.testing import CliRunner
+
+from specify_cli import app as cli_app
+from tests.lane_test_utils import write_single_lane_manifest
 
 
-def test_lanes_json_triggers_lane_based_structure(tmp_path):
-    """When lanes.json exists, detect_worktree_structure returns 'lane-based'.
+runner = CliRunner()
 
-    This ensures the merge command dispatches to the two-tier lane merge flow
-    (lane→mission→target) rather than the legacy WP-per-worktree merge that
-    would merge directly to the target branch.
-    """
-    # Create minimal repo structure
-    import subprocess
-    subprocess.run(["git", "init", str(tmp_path)], capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=str(tmp_path), capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.name", "T"], cwd=str(tmp_path), capture_output=True, check=True)
-    (tmp_path / "README.md").write_text("init\n")
-    subprocess.run(["git", "add", "."], cwd=str(tmp_path), capture_output=True, check=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), capture_output=True, check=True)
 
-    # Create kitty-specs with lanes.json
-    feature_dir = tmp_path / "kitty-specs" / "010-feat"
+def test_merge_dry_run_loads_lane_manifest(monkeypatch, tmp_path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    feature_dir = repo_root / "kitty-specs" / "010-feat"
     feature_dir.mkdir(parents=True)
-    (feature_dir / "lanes.json").write_text('{"version": 1}')
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"), target_branch="main")
 
-    result = detect_worktree_structure(tmp_path, "010-feat")
-    assert result == "lane-based"
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
+        return 0, "", ""
+
+    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.cli.commands.merge.run_command", fake_run_command)
+
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--feature", "010-feat", "--target", "main"])
+
+    assert result.exit_code == 0
+    payload = json.loads(result.stdout.strip())
+    assert payload["mission_branch"] == "kitty/mission-010-feat"
+    assert payload["lanes"][0]["wp_ids"] == ["WP01", "WP02"]
 
 
-def test_no_lanes_json_does_not_trigger_lane_based(tmp_path):
-    import subprocess
-    subprocess.run(["git", "init", str(tmp_path)], capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.email", "t@t.com"], cwd=str(tmp_path), capture_output=True, check=True)
-    subprocess.run(["git", "config", "user.name", "T"], cwd=str(tmp_path), capture_output=True, check=True)
-    (tmp_path / "README.md").write_text("init\n")
-    subprocess.run(["git", "add", "."], cwd=str(tmp_path), capture_output=True, check=True)
-    subprocess.run(["git", "commit", "-m", "init"], cwd=str(tmp_path), capture_output=True, check=True)
+def test_merge_dry_run_refuses_missing_lanes_manifest(monkeypatch, tmp_path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    (repo_root / "kitty-specs" / "010-feat").mkdir(parents=True)
 
-    feature_dir = tmp_path / "kitty-specs" / "010-feat"
-    feature_dir.mkdir(parents=True)
-    # No lanes.json
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
+        return 0, "", ""
 
-    result = detect_worktree_structure(tmp_path, "010-feat")
-    assert result != "lane-based"
+    monkeypatch.setattr("specify_cli.cli.commands.merge.find_repo_root", lambda: repo_root)
+    monkeypatch.setattr("specify_cli.cli.commands.merge._enforce_git_preflight", lambda *_a, **_k: None)
+    monkeypatch.setattr("specify_cli.cli.commands.merge.run_command", fake_run_command)
+
+    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--feature", "010-feat", "--target", "main"])
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout.strip())
+    assert "lanes.json is required" in payload["error"]

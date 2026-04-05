@@ -586,18 +586,15 @@ class TestMergeFeature:
         feature_slug = "099-test-feature"
 
         mock_preflight = MagicMock()
-        mock_preflight.passed = False
-        mock_preflight.errors = ["Missing worktree for WP01"]
+        mock_preflight.target_branch = "main"
+        mock_preflight.errors = ["lanes.json is missing for this feature"]
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
+            "specify_cli.orchestrator_api.commands._build_merge_preflight",
             return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
         ):
             result = runner.invoke(
                 app,
@@ -611,25 +608,24 @@ class TestMergeFeature:
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["error_code"] == "PREFLIGHT_FAILED"
-        assert "Missing worktree" in data["data"]["errors"][0]
+        assert "lanes.json" in data["data"]["errors"][0]
 
     def test_merge_success(self, tmp_path):
         repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
         feature_slug = "099-test-feature"
 
         mock_preflight = MagicMock()
-        mock_preflight.passed = True
+        mock_preflight.target_branch = "main"
         mock_preflight.errors = []
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
+            "specify_cli.orchestrator_api.commands._build_merge_preflight",
             return_value=mock_preflight,
         ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
+            "specify_cli.orchestrator_api.commands._execute_lane_merge",
         ):
             result = runner.invoke(
                 app,
@@ -655,18 +651,17 @@ class TestMergeFeature:
         feature_slug = "099-test-feature"
 
         mock_preflight = MagicMock()
-        mock_preflight.passed = True
+        mock_preflight.target_branch = "main"
         mock_preflight.errors = []
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ), patch(
-            "specify_cli.orchestrator_api.commands.run_preflight",
+            "specify_cli.orchestrator_api.commands._build_merge_preflight",
             return_value=mock_preflight,
         ), patch(
-            "specify_cli.orchestrator_api.commands.get_merge_order",
-            return_value=[],
+            "specify_cli.orchestrator_api.commands._execute_lane_merge",
         ):
             result = runner.invoke(
                 app,

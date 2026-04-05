@@ -183,7 +183,7 @@ def test_apply_cleans_legacy_worktree_assets(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     repo_root = tmp_path / "repo"
-    worktree = repo_root / ".worktrees" / "001-feature-WP01"
+    worktree = repo_root / ".worktrees" / "001-feature-lane-a"
     commands_dir = worktree / ".claude" / "commands"
     scripts_dir = worktree / ".kittify" / "scripts"
     commands_dir.mkdir(parents=True)

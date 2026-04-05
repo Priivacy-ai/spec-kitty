@@ -16,7 +16,7 @@ cd /path/to/project/root  # Your project root checkout
 # - NO worktrees created
 ```
 
-**Worktrees are created later** during `/spec-kitty.implement`, not during planning.
+**Worktrees are created later** during `/spec-kitty.implement`, after task finalization computes execution lanes.
 
 **In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
 
@@ -142,7 +142,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: Use `spec-kitty implement WP##` to create the execution workspace for that WP. Modern features with `lanes.json` create or reuse lane worktrees (for example, `.worktrees/###-feature-lane-a`); legacy features without lanes still use `.worktrees/###-feature-WP##`.
+**Worktrees created later**: Use `spec-kitty implement WP##` after task finalization computes execution lanes. Each lane gets exactly one worktree, for example `.worktrees/###-feature-lane-a`.
 
 ## Location
 

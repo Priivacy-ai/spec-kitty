@@ -3,10 +3,17 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-01-30 |
 | Deciders | Robert Douglass |
 | Technical Story | Fixes workflow gap where `spec-kitty implement` fails when a single-parent dependency (WP01) has been merged to the target branch, causing dependent WPs (WP02, WP08) to block on non-existent workspace branches. |
+
+> Superseded on 2026-04-05 by
+> `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> The lane-only runtime removed per-WP base-branch selection entirely.
+> Dependent WPs that must share code context are co-located in a single lane,
+> so `implement` no longer switches between target-branch and per-WP branch
+> bases.
 
 ---
 
@@ -255,7 +262,9 @@ else:
 - **ADR-15:** Merge-First Suggestion for Multi-Parent (handles all-done multi-parent case)
 - **ADR-13:** Target Branch Routing (establishes target branch as source of truth)
 
-**Enhances:** Workspace-per-WP workflow (0.11.0+)
+**Enhances:** Historical per-WP workflow only
+
+**Superseded by:** `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
 
 **Version:** 0.13.20 (bugfix)
 

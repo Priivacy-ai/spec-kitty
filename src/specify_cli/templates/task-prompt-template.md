@@ -25,7 +25,7 @@ history:
 
 - **Planning/base branch at prompt creation**: `{{planning_base_branch}}`
 - **Final merge target for completed work**: `{{merge_target_branch}}`
-- **Actual worktree base may differ later**: `/spec-kitty.implement` populates frontmatter `base_branch` when the worktree is created. For stacked WPs it may point at another WP branch, but the final merge target remains `{{merge_target_branch}}` unless the human explicitly changes the landing branch.
+- **Actual execution workspace is resolved later**: `/spec-kitty.implement` selects the lane worktree and records the lane branch in `base_branch`. Trust the printed lane workspace instead of guessing a path or branch.
 - **If human instructions contradict these fields**: stop and resolve the intended landing branch before coding.
 
 ---
@@ -46,32 +46,18 @@ history:
 
 ---
 
-## ⚠️ Dependency Rebase Guidance
+## ⚠️ Lane Sync Guidance
 
-**If this WP depends on other WPs** (check frontmatter `dependencies:` field):
+- Dependencies are resolved when `finalize_tasks` computes execution lanes.
+- If this WP shares a lane with earlier work, use the lane workspace printed by `spec-kitty implement`.
+- Do not choose a different base branch or create a second worktree for the same lane.
+- If the lane branch has advanced while you were away, sync the printed workspace before continuing:
 
-When a parent WP changes during review:
-1. You'll need to rebase your workspace to get latest changes
-2. Command: `cd .worktrees/{{feature_slug}}-{{work_package_id}} && git rebase {{feature_slug}}-{{base_wp_id}}`
-3. Resolve any conflicts
-4. Continue work on updated foundation
-
-**Check if rebase needed**:
 ```bash
-cd .worktrees/{{feature_slug}}-{{work_package_id}}
-git log --oneline HEAD..{{base_branch}}  # Shows commits in the base branch that are not in your workspace yet
+cd .worktrees/{{feature_slug}}-lane-a
+git log --oneline HEAD..{{base_branch}}
+git rebase {{base_branch}}
 ```
-
-**If this WP has dependent WPs** (other WPs depend on this one):
-
-When you make changes:
-1. Notify agents working on dependent WPs
-2. They'll need to rebase their workspaces to get your changes
-3. This is a git limitation - future jj integration will auto-rebase
-
-The `spec-kitty implement` command will display warnings when:
-- You resume work and the base has changed
-- You start work and other WPs depend on you
 
 ---
 

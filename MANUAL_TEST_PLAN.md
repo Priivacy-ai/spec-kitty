@@ -62,7 +62,7 @@ Create a fresh test feature and run through the full lifecycle:
 | 1.2.3 | Run `spec-kitty plan` | Creates `plan.md` with architecture decisions, tech stack, data model | | |
 | 1.2.4 | Run `spec-kitty tasks` (outline + packages + finalize) | Creates `tasks.md` and `tasks/WP*.md` files with frontmatter | | |
 | 1.2.5 | Verify dependency frontmatter | Each WP has `dependencies: []` field, no cycles detected | | |
-| 1.2.6 | Run `spec-kitty implement WP01` | Creates worktree at `.worktrees/<slug>-WP01/`, switches to WP branch | | |
+| 1.2.6 | Run `spec-kitty implement WP01` | Creates or reuses `.worktrees/<slug>-lane-a/`, switches to the lane branch | | |
 | 1.2.7 | Make a code change and commit in the worktree | Commit succeeds, WP status moves to `in_progress` | | |
 | 1.2.8 | Run `spec-kitty agent tasks move-task WP01 --to for_review` | WP status commits to main, status.events.jsonl updated | | |
 | 1.2.9 | Run `spec-kitty review` on WP01 | Review workflow starts, can approve or request changes | | |
@@ -95,12 +95,10 @@ Create a fresh test feature and run through the full lifecycle:
 | # | Step | Expected Result | Pass/Fail | Notes |
 |---|------|-----------------|-----------|-------|
 | 1.5.1 | Run `spec-kitty merge --dry-run` on a multi-WP feature | Conflict forecast shows predicted conflicts, auto-resolvable flags | | |
-| 1.5.2 | Run `spec-kitty merge --feature <slug>` | Preflight validates all WP worktrees clean, target branch not diverged | | |
-| 1.5.3 | Interrupt merge mid-way (Ctrl+C) | `.kittify/merge-state.json` persisted with progress | | |
-| 1.5.4 | Run `spec-kitty merge --resume` | Resumes from last completed WP, doesn't redo finished ones | | |
-| 1.5.5 | Run `spec-kitty merge --abort` | Cleans up merge state, returns to pre-merge state | | |
-| 1.5.6 | Complete a full merge | All WPs merged in topological order, worktrees cleaned up | | |
-| 1.5.7 | Verify status file auto-resolution | `status.events.jsonl` merge conflicts auto-resolved (append-both) | | |
+| 1.5.2 | Run `spec-kitty merge --feature <slug>` | Preflight validates the lane manifest, lane worktrees are clean, and target branch exists | | |
+| 1.5.3 | Run `spec-kitty merge --dry-run --json` | JSON shows mission branch, target branch, and computed lanes | | |
+| 1.5.4 | Complete a full merge | Lane branches merge into the mission branch, then the mission branch merges into target, and lane worktrees are cleaned up | | |
+| 1.5.5 | Verify status file auto-resolution | `status.events.jsonl` merge conflicts auto-resolved (append-both) | | |
 
 ---
 
