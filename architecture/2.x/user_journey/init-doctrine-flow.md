@@ -9,7 +9,7 @@
 ## Overview
 
 When a user runs `spec-kitty init`, the doctrine stack setup step runs automatically
-after the project skeleton is created. It configures the project constitution —
+after the project skeleton is created. It configures the project charter —
 the governance document that defines paradigms, directives, and tool settings for
 all AI agents working in the project.
 
@@ -26,8 +26,8 @@ Skeleton created + "Project ready." displayed
     ▼
 _run_doctrine_stack_init(project_path, non_interactive)
     │
-    ├─ [.kittify/constitution/constitution.md exists?] ──YES──▶ Skip (FR-004)
-    │                                                            "Constitution already exists — skipping"
+    ├─ [.kittify/charter/charter.md exists?] ──YES──▶ Skip (FR-004)
+    │                                                            "Charter already exists — skipping"
     │
     ├─ [.kittify/.init-checkpoint.yaml exists?] ──YES──▶ Offer resume/restart (FR-020)
     │       │
@@ -40,7 +40,7 @@ _run_doctrine_stack_init(project_path, non_interactive)
             │
             ├─ "defaults"  ──▶  _apply_doctrine_defaults()
             ├─ "manual"    ──▶  _run_inline_interview()
-            └─ "skip"      ──▶  Print hint to run `spec-kitty constitution interview` later
+            └─ "skip"      ──▶  Print hint to run `spec-kitty charter interview` later
 ```
 
 ---
@@ -52,14 +52,14 @@ _run_doctrine_stack_init(project_path, non_interactive)
 **Trigger**: User selects "defaults" at the governance prompt, or `--non-interactive` flag is set.
 
 **Steps**:
-1. Load `src/doctrine/constitution/defaults.yaml`.
+1. Load `src/doctrine/charter/defaults.yaml`.
 2. Call `default_interview(mission, profile)` for baseline answers.
 3. Apply overrides from defaults.yaml (paradigms, directives, tools).
-4. Call `build_constitution_draft(mission, interview)`.
-5. Write markdown to `.kittify/constitution/constitution.md`.
+4. Call `build_charter_draft(mission, interview)`.
+5. Write markdown to `.kittify/charter/charter.md`.
 6. Print success message.
 
-**Result**: `.kittify/constitution/constitution.md` exists with standard governance.
+**Result**: `.kittify/charter/charter.md` exists with standard governance.
 
 **NFR-001**: This path completes in ≤2 seconds (no user prompts, pure computation).
 
@@ -70,15 +70,15 @@ _run_doctrine_stack_init(project_path, non_interactive)
 **Trigger**: User selects "manual" → then "minimal" at the depth prompt.
 
 **Steps**:
-1. Print informational message about constitution and governance.
+1. Print informational message about charter and governance.
 2. Prompt for interview depth (`minimal` / `comprehensive`).
 3. For each question in `MINIMAL_QUESTION_ORDER` (7 questions):
    a. Save checkpoint to `.kittify/.init-checkpoint.yaml` (atomic write).
    b. Ask question with default answer pre-filled.
 4. Call `apply_answer_overrides(interview, answers)`.
-5. Call `build_constitution_draft()`.
-6. Write `.kittify/constitution/constitution.md`.
-7. Write `.kittify/constitution/interview/answers.yaml` for future re-generation.
+5. Call `build_charter_draft()`.
+6. Write `.kittify/charter/charter.md`.
+7. Write `.kittify/charter/interview/answers.yaml` for future re-generation.
 8. Delete checkpoint.
 
 ---
@@ -89,9 +89,9 @@ Same as Path 2 but uses all 11 questions from `QUESTION_ORDER`.
 
 ---
 
-### Path 4: Skip (Constitution Already Exists)
+### Path 4: Skip (Charter Already Exists)
 
-**Trigger**: `.kittify/constitution/constitution.md` already exists (FR-004).
+**Trigger**: `.kittify/charter/charter.md` already exists (FR-004).
 
 **Steps**: Print skip message. Return immediately.
 
@@ -146,29 +146,29 @@ answers_so_far:
 
 ---
 
-## C-002: Independence of Existing Constitution Commands
+## C-002: Independence of Existing Charter Commands
 
-`spec-kitty constitution interview` and `spec-kitty constitution generate` continue
+`spec-kitty charter interview` and `spec-kitty charter generate` continue
 to work independently. The init flow only **orchestrates** the existing machinery:
 
 - `_run_doctrine_stack_init()` calls `_apply_doctrine_defaults()` or `_run_inline_interview()`.
-- These call `constitution.interview.default_interview()`, `apply_answer_overrides()`,
-  `constitution.generator.build_constitution_draft()`, and `write_constitution()`.
-- No code was removed from the constitution commands.
-- The standalone `spec-kitty constitution interview` CLI command is unaffected.
+- These call `charter.interview.default_interview()`, `apply_answer_overrides()`,
+  `charter.generator.build_charter_draft()`, and `write_charter()`.
+- No code was removed from the charter commands.
+- The standalone `spec-kitty charter interview` CLI command is unaffected.
 
 ---
 
 ## Defaults File
 
-**Location**: `src/doctrine/constitution/defaults.yaml`
+**Location**: `src/doctrine/charter/defaults.yaml`
 
-**Accessed via**: `resolve_doctrine_root() / "constitution" / "defaults.yaml"`
+**Accessed via**: `resolve_doctrine_root() / "charter" / "defaults.yaml"`
 
 **Purpose**: Defines the pre-selected paradigms, directives, and tools applied
 when a user accepts defaults or uses `--non-interactive` mode.
 
-**Format** (must match `constitution.interview.apply_answer_overrides` input):
+**Format** (must match `charter.interview.apply_answer_overrides` input):
 
 ```yaml
 mission: software-dev
@@ -192,6 +192,6 @@ available_tools:
 | File | Change |
 |------|--------|
 | `src/specify_cli/cli/commands/init.py` | Added `_load_doctrine_defaults()`, `_apply_doctrine_defaults()`, `_run_inline_interview()`, `_run_doctrine_stack_init()`; wired `_run_doctrine_stack_init()` call after `_maybe_generate_structure_templates()` |
-| `src/doctrine/constitution/defaults.yaml` | New: predefined governance selections for accept-defaults path |
+| `src/doctrine/charter/defaults.yaml` | New: predefined governance selections for accept-defaults path |
 | `tests/specify_cli/cli/commands/test_init_doctrine.py` | New: 7 ATDD acceptance tests (US-1 scenarios 1-3, US-2 scenarios 1-4) |
 | `architecture/2.x/user_journey/init-doctrine-flow.md` | New: this document |

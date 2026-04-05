@@ -1,4 +1,4 @@
-# Constitution as Central Path Resolver — Gap Analysis
+# Charter as Central Path Resolver — Gap Analysis
 
 **Date**: 2026-03-30
 **Origin**: WP09 (058-mission-template-repository-refactor)
@@ -7,14 +7,14 @@
 ## Context
 
 WP09 introduced `ProjectMissionPaths` and `MissionType` in
-`src/specify_cli/constitution/mission_paths.py` to centralize
+`src/specify_cli/charter/mission_paths.py` to centralize
 `.kittify/missions/` path construction.  This stops filesystem layout
 details from leaking into `manifest.py`, `mission.py`, and
 `cli/commands/agent/config.py`.
 
 During implementation, the HiC identified a broader principle:
 
-> The constitution serves as the "local doctrine override and project
+> The charter serves as the "local doctrine override and project
 > configuration" entry point.  Most CLI and runtime calls should route
 > through it.
 
@@ -23,22 +23,22 @@ what remains.
 
 ## Gaps
 
-### 1. Constitution path not routed through `ProjectMissionPaths`
+### 1. Charter path not routed through `ProjectMissionPaths`
 
-Constitution files (`.kittify/constitution/constitution.md`,
+Charter files (`.kittify/charter/charter.md`,
 `references.yaml`, `context-state.json`) are resolved ad-hoc in:
 
-- `src/specify_cli/dashboard/constitution_path.py`
-- `src/specify_cli/constitution/sync.py`
-- `src/specify_cli/constitution/context.py`
+- `src/specify_cli/dashboard/charter_path.py`
+- `src/specify_cli/charter/sync.py`
+- `src/specify_cli/charter/context.py`
 
 **Action**: Extend `ProjectMissionPaths` (or a sibling
-`ProjectConstitutionPaths`) to cover constitution path resolution.
+`ProjectCharterPaths`) to cover charter path resolution.
 
 ### 2. Doctrine defaults location
 
-`src/doctrine/constitution/defaults.yaml` should move to
-`src/constitution/defaults.yaml` so the constitution package owns its
+`src/doctrine/charter/defaults.yaml` should move to
+`src/charter/defaults.yaml` so the charter package owns its
 own defaults rather than reaching into the doctrine package.
 
 **Action**: Move the file and update all importers.
@@ -84,7 +84,7 @@ A future enhancement could add a `paths:` section to
 ```yaml
 paths:
   missions: .kittify/missions       # default
-  constitution: .kittify/constitution  # default
+  charter: .kittify/charter  # default
   kitty_specs: kitty-specs           # default
 ```
 
@@ -93,7 +93,7 @@ hardcoding the layout.
 
 ## Design Principles (from HiC)
 
-1. **Constitution is the configuration entry point** — project-local
+1. **Charter is the configuration entry point** — project-local
    overrides and path resolution should route through it.
 2. **No filesystem info leaks** — callers should not construct paths
    from string segments; they should call typed methods.

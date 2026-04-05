@@ -236,7 +236,7 @@ pip show kernel | grep Requires
 ```bash
 rtk grep -r "from specify_cli" src/kernel/
 rtk grep -r "from doctrine" src/kernel/
-rtk grep -r "from constitution" src/kernel/
+rtk grep -r "from charter" src/kernel/
 ```
 
 **Expected:** zero results. `kernel` must import from nothing outside stdlib.
@@ -297,30 +297,30 @@ generated WP file (e.g. `kitty-specs/<mission>/tasks/WP01-*.md`) after running
 
 ---
 
-## 7. Constitution defaults and init-time doctrine integration
+## 7. Charter defaults and init-time doctrine integration
 
-### 7.1 Constitution defaults injected at init
+### 7.1 Charter defaults injected at init
 
 ```bash
 cd /tmp/test-sk-init  # from section 6.4 above
-cat .kittify/constitution/constitution.yaml 2>/dev/null || \
-    echo "not yet generated — run: spec-kitty constitution generate"
-spec-kitty constitution generate
-cat .kittify/constitution/constitution.yaml
+cat .kittify/charter/charter.yaml 2>/dev/null || \
+    echo "not yet generated — run: spec-kitty charter generate"
+spec-kitty charter generate
+cat .kittify/charter/charter.yaml
 ```
 
 **Expected:** file exists and contains valid governance YAML. No crash.
 
-### 7.2 Constitution context bootstrap works
+### 7.2 Charter context bootstrap works
 
 ```bash
-spec-kitty constitution context --action implement
+spec-kitty charter context --action implement
 ```
 
 **Expected:** outputs governance context text (depth-2 on first call).
 Second call:
 ```bash
-spec-kitty constitution context --action implement
+spec-kitty charter context --action implement
 ```
 **Expected:** depth-1 (compact) output — shorter than first call.
 
@@ -421,7 +421,7 @@ are tracked in `docs/development/linting-cutoff-policy.md`).
 | 4 | Orchestrator API JSON envelope | `test_json_envelope_contract_integration.py` | Manual envelope shape check |
 | 5 | Kernel refactor | `tests/kernel/` | Import smoke + zero-dep check |
 | 6 | Agent profile infrastructure | `tests/doctrine/` | `spec-kitty init` + profile count |
-| 7 | Constitution defaults | `tests/constitution/` | `constitution generate` + `context` |
+| 7 | Charter defaults | `tests/charter/` | `charter generate` + `context` |
 | 8 | Diamond dependency merge | `tests/` `-k diamond` | n/a if fixture present |
 | 9 | C1/C2/C3 bug fixes | Covered in general test suite | Dashboard timeout check |
 | 10 | `--mission-type` hard error guard | `test_mission_type_flag_rename.py` | Manual invocation |

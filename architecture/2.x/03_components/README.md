@@ -40,9 +40,9 @@ flowchart TB
       decisionOut[Next-Action Recommendation Output]
     end
 
-    subgraph Governance["Constitution and Governance Engine"]
-      interview[Constitution Interview Flow]
-      compile[Constitution Compiler]
+    subgraph Governance["Charter and Governance Engine"]
+      interview[Charter Interview Flow]
+      compile[Charter Compiler]
       ctxResolve[Action Context Resolver]
     end
 
@@ -110,7 +110,7 @@ flowchart TB
 | Command Router | Normalizes and dispatches commands to the correct capability surface |
 | Workflow Command Set | Drives specify/plan/tasks/implement/review/merge command families |
 | Status Mutation Command Set | Handles lane transition and status-mutation command families |
-| Governance Command Set | Handles constitution/guidance workflow interactions |
+| Governance Command Set | Handles charter/guidance workflow interactions |
 | Orchestrator API Command Set | Handles API-surface lifecycle operations |
 | Next Loop Coordinator | Governs canonical per-agent execution sequencing |
 | Mission Discovery and Resolution | Selects mission/runtime assets by deterministic precedence |
@@ -119,8 +119,8 @@ flowchart TB
 | Runtime Asset Migration Path | Applies forward-compatible migration behavior for legacy runtime assets |
 | Feature Context Detection | Determines active feature context without ambiguous heuristics |
 | Next-Action Recommendation Output | Emits decisioning output without applying lifecycle mutation |
-| Constitution Interview Flow | Captures governance intent from the Human in Charge |
-| Constitution Compiler | Produces constitution bundles and references |
+| Charter Interview Flow | Captures governance intent from the Human in Charge |
+| Charter Compiler | Produces charter bundles and references |
 | Action Context Resolver | Provides command-scoped governance context |
 | Doctrine Catalog Loader | Loads doctrine assets as typed artifacts |
 | Schema Validation Gate | Enforces artifact compliance before runtime use |
@@ -142,7 +142,7 @@ See [2.x Domain Breakdown](../README.md#domain-breakdown) for domain-level defin
 
 | Domain | Primary Components |
 |---|---|
-| Project and Governance Onboarding | `Governance Command Set`, `Constitution Interview Flow`, `Constitution Compiler` |
+| Project and Governance Onboarding | `Governance Command Set`, `Charter Interview Flow`, `Charter Compiler` |
 | Mission Runtime and Flow Control | `Command Router`, `Next Loop Coordinator`, `Mission Discovery and Resolution`, `Runtime Asset Lifecycle Coordinator`, `Tiered Template Resolution Pipeline`, `Next-Action Recommendation Output` |
 | Doctrine and Knowledge Governance | `Doctrine Catalog Loader`, `Schema Validation Gate`, `Glossary Hook Coordinator` |
 | Work Package State and Evidence | `Status Mutation Command Set`, `Lifecycle Command Gateway`, `Target-Line Router`, `WP Lifecycle Engine`, `Event Semantics Reducer`, `Feature Context Detection` |
@@ -213,13 +213,13 @@ sequenceDiagram
 sequenceDiagram
     participant Human as Human In Charge
     participant GovCmd as Governance Command Set
-    participant Interview as Constitution Interview Flow
-    participant Compile as Constitution Compiler
+    participant Interview as Charter Interview Flow
+    participant Compile as Charter Compiler
     participant Resolver as Action Context Resolver
 
     Human->>GovCmd: start governance update
     GovCmd->>Interview: collect governance answers
-    Interview->>Compile: compile constitution bundle
+    Interview->>Compile: compile charter bundle
     Compile->>Resolver: refresh action context projection
     Resolver-->>GovCmd: updated governance context
     GovCmd-->>Human: confirmation and next actions

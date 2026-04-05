@@ -29,7 +29,7 @@ flowchart TB
       cli[CLI Command Surface]
       runtime[Runtime and Mission Resolver]
       assets[Runtime Asset Lifecycle]
-      governance[Constitution and Governance Engine]
+      governance[Charter and Governance Engine]
       doctrine[Doctrine Artifact Catalog]
       glossary[Glossary Corpus and Runtime Hook Layer]
       state[Status and Event Model Layer]
@@ -62,7 +62,7 @@ flowchart TB
 | CLI Command Surface | Interactive and scripted command entry point | Validates command intent and routes to runtime/governance/state surfaces |
 | Runtime and Mission Resolver | Canonical `next` loop and mission precedence | Owns execution sequencing and next-action decisioning, not lifecycle persistence |
 | Runtime Asset Lifecycle | Runtime bootstrap, tiered asset resolution, and migration path management | Maintains deterministic template/mission/script resolution behavior |
-| Constitution and Governance Engine | Constitution interview, generation, and action context projection | Produces governance constraints consumed by runtime |
+| Charter and Governance Engine | Charter interview, generation, and action context projection | Produces governance constraints consumed by runtime |
 | Doctrine Artifact Catalog | Typed governance and mission assets | Loads/validates doctrine resources for runtime use |
 | Glossary Corpus and Runtime Hook Layer | Context glossary lifecycle and glossary-aware execution checks | Applies terminology and context safeguards at runtime edges |
 | Status and Event Model Layer | Canonical lifecycle and event semantics | Enforces guarded transitions and persists event-sourced lifecycle state |
@@ -76,9 +76,9 @@ See [2.x Domain Breakdown](../README.md#domain-breakdown) for the domain-level m
 
 | Domain | Primary Containers | Secondary Containers |
 |---|---|---|
-| Project and Governance Onboarding | CLI Command Surface, Constitution and Governance Engine | Runtime and Mission Resolver, Runtime Asset Lifecycle |
+| Project and Governance Onboarding | CLI Command Surface, Charter and Governance Engine | Runtime and Mission Resolver, Runtime Asset Lifecycle |
 | Mission Runtime and Flow Control | Runtime and Mission Resolver, CLI Command Surface | Doctrine Artifact Catalog, Status and Event Model Layer |
-| Doctrine and Knowledge Governance | Doctrine Artifact Catalog, Glossary Corpus and Runtime Hook Layer | Constitution and Governance Engine |
+| Doctrine and Knowledge Governance | Doctrine Artifact Catalog, Glossary Corpus and Runtime Hook Layer | Charter and Governance Engine |
 | Work Package State and Evidence | Status and Event Model Layer, Runtime and Mission Resolver | Sync Reliability Core, Tracker Connector Boundary |
 | External Integration Boundaries | Orchestrator API Boundary, Tracker Connector Boundary | Status and Event Model Layer, Sync Reliability Core |
 

@@ -247,7 +247,7 @@ All import cleanly.
 ```bash
 grep -r "from specify_cli" src/kernel/   # 0 results ✅
 grep -r "from doctrine" src/kernel/      # 0 results ✅
-grep -r "from constitution" src/kernel/  # 0 results ✅
+grep -r "from charter" src/kernel/  # 0 results ✅
 ```
 
 Zero results for all three checks.
@@ -298,7 +298,7 @@ ls .agents/skills/
 # 8 skills deployed ✅
 ```
 
-Skills deployed: `constitution-doctrine`, `git-workflow`, `glossary-context`,
+Skills deployed: `charter-doctrine`, `git-workflow`, `glossary-context`,
 `mission-system`, `orchestrator-api-operator`, `runtime-next`, `runtime-review`,
 `setup-doctor`.
 
@@ -312,22 +312,22 @@ WP templates include `Suggested agent profile:` lines. Confirmed in WP template 
 
 ---
 
-## Section 7 — Constitution defaults and init-time doctrine integration
+## Section 7 — Charter defaults and init-time doctrine integration
 
-### 7.1 Constitution generated at init
+### 7.1 Charter generated at init
 
-`constitution.md` generated automatically during `spec-kitty init`. File exists and contains
+`charter.md` generated automatically during `spec-kitty init`. File exists and contains
 valid governance content.
 
 **Status: PASS**
 
-### 7.2 Constitution context depth semantics
+### 7.2 Charter context depth semantics
 
 ```bash
-spec-kitty constitution context --action implement
+spec-kitty charter context --action implement
 # First call: (bootstrap) — depth-2, full output ✅
 
-spec-kitty constitution context --action implement
+spec-kitty charter context --action implement
 # Second call: (compact) — depth-1, shorter output ✅
 ```
 
@@ -407,10 +407,10 @@ exception chaining, S110 silent pass — tracked in `docs/development/linting-cu
 
 ## Findings
 
-### F-01 — Spurious secondary error line in `constitution.py` exception handler
+### F-01 — Spurious secondary error line in `charter.py` exception handler
 
 **Severity:** Cosmetic, non-blocking  
-**Files:** `src/specify_cli/cli/commands/constitution.py` — `interview`, `generate`,
+**Files:** `src/specify_cli/cli/commands/charter.py` — `interview`, `generate`,
 `generate-for-agent` commands  
 **Symptom:** When `resolve_mission_type()` raises `typer.Exit(1)` (e.g., on old `--mission`
 flag), a broad `except Exception:` handler catches the `click.Exit` object and prints a
@@ -456,7 +456,7 @@ support, but it is undocumented and not noted in the kernel architecture docs.
 ### F-04 — `--mission` hard error only fires when all Typer-required args are present
 
 **Severity:** Low, informational  
-**Affected commands:** `spec-kitty specify`, `spec-kitty constitution generate-for-agent`  
+**Affected commands:** `spec-kitty specify`, `spec-kitty charter generate-for-agent`  
 **Finding:** When required positional arguments (e.g. `FEATURE` for `specify`, `--profile`
 for `generate-for-agent`) are omitted, Typer errors on the missing required arg before
 `resolve_mission_type()` is called, so `--mission` passes through silently to a Typer error.
@@ -474,7 +474,7 @@ UX gain.
 **CONDITIONAL PASS**
 
 The branch is functionally correct for all critical paths: flag renames, envelope contract,
-kernel boundary, agent profile infrastructure, constitution integration, and critical bug
+kernel boundary, agent profile infrastructure, charter integration, and critical bug
 fixes. All 4 findings are non-blocking.
 
 **Blocker before merge:** The 5 pre-existing test failures must be resolved:

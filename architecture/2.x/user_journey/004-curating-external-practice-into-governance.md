@@ -5,7 +5,7 @@
 | **Status** | DRAFT |
 | **Implementation Status** | VISION (target-state proposal; not current runtime reality) |
 | **Date** | 2026-02-17 |
-| **Primary Contexts** | Governance, Curation, Constitution |
+| **Primary Contexts** | Governance, Curation, Charter |
 | **Supporting Contexts** | Orchestration, Agent Profiles, Tool Selection |
 | **Related Spec / ADR** | Proposed ADR: `2026-02-17-1-explicit-governance-layer-model` (not present in this branch) |
 
@@ -19,7 +19,7 @@ The system should support this as a pull-based flow:
 
 1. capture the external idea as a curated candidate,
 2. adapt and classify it into Spec Kitty doctrine concepts,
-3. activate it through constitution-level governance selection,
+3. activate it through charter-level governance selection,
 4. and reflect it in implementation behavior.
 
 ---
@@ -37,7 +37,7 @@ The system should support this as a pull-based flow:
 ## Preconditions
 
 1. Project has `doctrine/` structure initialized.
-2. Constitution exists and is project authority for governance selection.
+2. Charter exists and is project authority for governance selection.
 3. Schema validation tests are available in `tests/`.
 4. Lead developer has identified an external source to curate.
 
@@ -51,7 +51,7 @@ The system should support this as a pull-based flow:
 | 2. Classification | AI Agent | Map external idea to target concept (paradigm/directive/tactic/template) | `ImportCandidateClassified` |
 | 3. Adaptation | AI Agent ↔ Lead Developer | Propose adapted wording and constraints for Spec Kitty canon | `ImportCandidateAdapted` |
 | 4. Governance Integration | AI Agent | Add/update doctrine artifacts and profile defaults | `GovernanceArtifactsUpdated` |
-| 5. Constitution Selection | Lead Developer ↔ AI Agent | Activate selected doctrine assets and profile/tool scope in constitution | `ConstitutionSelectionsUpdated` |
+| 5. Charter Selection | Lead Developer ↔ AI Agent | Activate selected doctrine assets and profile/tool scope in charter | `CharterSelectionsUpdated` |
 | 6. Validation | Spec-Kitty CLI | Run schema and consistency validation in tests/CI | `GovernanceValidationPassed` |
 | 7. Operational Use | AI Agent | Implementation runs with newly activated behavior | `BehaviorActivatedForImplementation` |
 
@@ -61,7 +61,7 @@ The system should support this as a pull-based flow:
 
 1. External practices are never adopted directly; they must enter through `ImportCandidate`.
 2. Classification and adaptation must be explicit before activation.
-3. Constitution is the only project-level authority for activation.
+3. Charter is the only project-level authority for activation.
 4. Schema validation must pass before behavior is considered active.
 5. If adaptation is ambiguous, stop and request developer confirmation.
 
@@ -79,12 +79,12 @@ The system should support this as a pull-based flow:
 
 1. Analyze source practice and extract applicable concepts.
 2. Propose mapping and adapted doctrine representation.
-3. Update mission-adjacent behavior via doctrine + constitution (not by embedding ad hoc behavior in mission text).
+3. Update mission-adjacent behavior via doctrine + charter (not by embedding ad hoc behavior in mission text).
 
 ### Lead Developer (Human Authority)
 
 1. Approve/reject curation mapping and adaptation.
-2. Decide activation scope via constitution selections.
+2. Decide activation scope via charter selections.
 3. Confirm final adoption into project standards.
 
 ---
@@ -95,7 +95,7 @@ The system should support this as a pull-based flow:
 
 1. Candidate-based curation flow for one external source at a time.
 2. Mapping to at least one doctrine concept (`Paradigm` or `Directive` or `Tactic`).
-3. Constitution update for selected profiles and available tools.
+3. Charter update for selected profiles and available tools.
 4. Schema validation pass/fail gate.
 
 ### Out of Scope (Deferred)
@@ -114,7 +114,7 @@ The system should support this as a pull-based flow:
 | 2 | `ImportCandidateClassified` | AI Agent | 2 |
 | 3 | `ImportCandidateAdapted` | AI Agent | 3 |
 | 4 | `GovernanceArtifactsUpdated` | AI Agent | 4 |
-| 5 | `ConstitutionSelectionsUpdated` | AI Agent | 5 |
+| 5 | `CharterSelectionsUpdated` | AI Agent | 5 |
 | 6 | `GovernanceValidationPassed` | CLI | 6 |
 | 7 | `BehaviorActivatedForImplementation` | AI Agent | 7 |
 
@@ -126,15 +126,15 @@ The system should support this as a pull-based flow:
    Given a lead developer provides a ZOMBIES TDD source,
    when an import candidate is curated, classified, adapted, and approved,
    then doctrine artifacts are updated,
-   and constitution selections activate the behavior for implementation profiles.
+   and charter selections activate the behavior for implementation profiles.
 
 2. **Invalid artifact blocked by schema gate**
    Given a malformed curation or doctrine artifact,
    when validation runs,
    then activation is blocked and actionable validation errors are reported.
 
-3. **Constitution authority enforced**
-   Given doctrine artifacts exist but constitution selections are not updated,
+3. **Charter authority enforced**
+   Given doctrine artifacts exist but charter selections are not updated,
    when implementation runs,
    then the new behavior is not considered active for project execution.
 
@@ -145,11 +145,11 @@ The system should support this as a pull-based flow:
 | Decision | Rationale | ADR |
 |----------|-----------|-----|
 | Curation is candidate-first | Preserves provenance and explicit adaptation | pending (`2026-02-17-1` proposed) |
-| Constitution is activation authority | Keeps per-project governance explicit and auditable | pending (`2026-02-17-1` proposed) |
+| Charter is activation authority | Keeps per-project governance explicit and auditable | pending (`2026-02-17-1` proposed) |
 | Schema validation is required pre-activation | Provides early QA guardrail for governance changes | pending (`2026-02-17-1` proposed) |
 
 ---
 
 ## Product Alignment
 
-This journey operationalizes the governance-layer model by showing how external practices become project behavior through curation + constitution selection rather than ad hoc mission prompt edits.
+This journey operationalizes the governance-layer model by showing how external practices become project behavior through curation + charter selection rather than ad hoc mission prompt edits.

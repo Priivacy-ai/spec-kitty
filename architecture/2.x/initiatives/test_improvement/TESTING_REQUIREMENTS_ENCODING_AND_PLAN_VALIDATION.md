@@ -510,7 +510,7 @@ plan_file.write_text("""
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest or NEEDS CLARIFICATION]
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 # [REMOVE IF UNUSED] Option 1
 # [REMOVE IF UNUSED] Option 2
 ACTION REQUIRED: Replace the content
@@ -640,7 +640,7 @@ plan_4_markers = """
 **Language/Version**: Python 3.11 or NEEDS CLARIFICATION
 **Primary Dependencies**: FastAPI or NEEDS CLARIFICATION
 **Testing**: pytest or NEEDS CLARIFICATION
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 ✓ Password hashing required
 backend/src/
 """

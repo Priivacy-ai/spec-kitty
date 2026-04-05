@@ -30,7 +30,7 @@ implementation-agnostic:
 | Orchestration | Python modules (lifecycle engine, status) | Same — domain logic |
 | Agent Tool Connectors | In-tool (`spec-kitty implement`) | Async shell, SDK, remote API |
 | Doctrine | YAML artifacts in `src/doctrine/`; canonical skill packs in `src/doctrine/skills/`; deployment bridge in `src/specify_cli/skills/` | Same — knowledge artifacts, different deployment target |
-| Constitution | Compiled governance bundle in `.kittify/` | Same — governance artifacts |
+| Charter | Compiled governance bundle in `.kittify/` | Same — governance artifacts |
 | Kernel | Zero-dependency shared primitives in `src/kernel/` | Same — utility layer |
 
 Whether a module is in-process, a separate service, or a remote API is an
@@ -75,7 +75,7 @@ service availability.
 
 ### 5. Governance at the Execution Boundary
 
-Agent Tool Connectors inject **Doctrine and Constitution context into every
+Agent Tool Connectors inject **Doctrine and Charter context into every
 execution**, ensuring governance constraints are enforced regardless of which
 connector implementation dispatches the work. Agents cannot bypass governance
 or directly mutate lifecycle state — the connector is the enforcement point.
@@ -100,7 +100,7 @@ Retains final acceptance authority over all governance and lifecycle decisions.
 ### Control Plane
 
 The user-facing interaction surface. Accepts commands and routes them to
-Kitty-core (planning workflows), Constitution (governance updates), and
+Kitty-core (planning workflows), Charter (governance updates), and
 Orchestration (execution control). The CLI is the current implementation.
 
 ### Kitty-core
@@ -139,7 +139,7 @@ to any other container.
 
 Pluggable execution providers. Receive dispatched work from Orchestration and
 execute it through whatever mechanism the connector implements (in-tool prompt,
-async shell command, SDK call, remote API). Consume Doctrine and Constitution
+async shell command, SDK call, remote API). Consume Doctrine and Charter
 at execution time to operate within governance constraints and with doctrine
 context.
 
@@ -150,16 +150,16 @@ directives, tactics, paradigms, styleguides, toolguides, agent profiles,
 canonical skill packs, and mission templates.
 Includes per-action governance indexes (`actions/<action>/index.yaml`) that
 scope which artifacts apply to each execution phase within a mission.
-Consumed by Constitution (compilation source and action-scoped intersection)
+Consumed by Charter (compilation source and action-scoped intersection)
 and by Agent Tool Connectors (execution-time governance context). The Skills
 Installer (`specify_cli/skills/`) deploys canonical skill packs from
 `doctrine/skills/` into agent directories during `spec-kitty init`. Doctrine
 itself is standalone — it does not depend on any other container.
 
-### Constitution
+### Charter
 
 Compiled governance rules. Built from Doctrine artifacts through the
-constitution interview flow (initiated via Control Plane by the User).
+charter interview flow (initiated via Control Plane by the User).
 Consumed by Agent Tool Connectors at execution time. Depends on Doctrine
 as its source material.
 
@@ -197,7 +197,7 @@ flowchart TB
         doc_desc["Knowledge Store\ndirectives / tactics / paradigms\nstyleguides / toolguides\nmission templates"]
     end
 
-    subgraph Constitution["Constitution"]
+    subgraph Charter["Charter"]
         const_desc["Governance Rules\ncompiled from Doctrine"]
     end
 
@@ -207,7 +207,7 @@ flowchart TB
 
     %% Control Plane routes
     ControlPlane --> KittyCore
-    ControlPlane --> Constitution
+    ControlPlane --> Charter
 
     %% Kitty-core writes to Event Store
     KittyCore -- "writes" --> EventStore
@@ -222,12 +222,12 @@ flowchart TB
     %% Orchestration dispatches to Connectors
     Orchestration --> Connectors
 
-    %% Connectors use Doctrine and Constitution
+    %% Connectors use Doctrine and Charter
     Connectors -. "uses" .-> Doctrine
-    Connectors -. "uses" .-> Constitution
+    Connectors -. "uses" .-> Charter
 
-    %% Constitution uses Doctrine
-    Constitution -. "uses" .-> Doctrine
+    %% Charter uses Doctrine
+    Charter -. "uses" .-> Doctrine
 
     %% Styling
     classDef person fill:#E1F5FE,stroke:#0288D1,stroke-width:2px
@@ -245,7 +245,7 @@ flowchart TB
     class Dashboard view
     class Connectors knowledge
     class Doctrine knowledge
-    class Constitution knowledge
+    class Charter knowledge
 ```
 
 ## Interaction Contracts
@@ -255,20 +255,20 @@ flowchart TB
 | User | Control Plane | → | Commands, interview answers, approvals |
 | User | Dashboard | → | Read-only queries (kanban, status) |
 | Control Plane | Kitty-core | → | Planning workflow invocations (specify, plan, tasks) |
-| Control Plane | Constitution | → | Governance interview flow, constitution updates |
+| Control Plane | Charter | → | Governance interview flow, charter updates |
 | Kitty-core | Event Store | → write | Planning artifacts, mission events |
 | Orchestration | Event Store | ↔ read/write | Reads state for scheduling; writes lifecycle/execution events |
 | Dashboard | Event Store | ← read | WP status, mission progress, execution history |
 | Orchestration | Agent Tool Connectors | → | Work dispatch (WP prompt, context, constraints) |
 | Agent Tool Connectors | Doctrine | ← uses | Directive/tactic/paradigm context at execution time |
-| Agent Tool Connectors | Constitution | ← uses | Governance rules at execution time |
-| Constitution | Doctrine | ← uses | Source material for governance compilation |
+| Agent Tool Connectors | Charter | ← uses | Governance rules at execution time |
+| Charter | Doctrine | ← uses | Source material for governance compilation |
 
 ## Dependency Rules
 
-1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli`, `constitution`, and `doctrine`. Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
-2. **Doctrine is a root knowledge dependency** — consumed by Constitution and Agent Tool Connectors; depends on nothing except Kernel.
-3. **Constitution depends only on Doctrine and Kernel** — never on Kitty-core, Orchestration, or Event Store.
+1. **Kernel is a root dependency** — zero-dependency shared primitives (`atomic_write`, etc.) consumed by `specify_cli`, `charter`, and `doctrine`. Nothing imports from Kernel except to use its utilities; Kernel imports nothing from them.
+2. **Doctrine is a root knowledge dependency** — consumed by Charter and Agent Tool Connectors; depends on nothing except Kernel.
+3. **Charter depends only on Doctrine and Kernel** — never on Kitty-core, Orchestration, or Event Store.
 4. **Event Store is a shared persistence boundary** — writers (Kitty-core, Orchestration) and readers (Dashboard, Orchestration) interact through interface contracts, never directly with each other through the store.
 5. **Dashboard has no write path** — strictly read-only against Event Store.
 6. **Agent Tool Connectors are leaf nodes** — they execute work and consume governance context; they do not write to other containers except through Orchestration (results/events flow back through Orchestration to Event Store).

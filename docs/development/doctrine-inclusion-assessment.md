@@ -7,7 +7,7 @@ Status: assessment as of 2026-04-01, based on PR #305 / #348 and the
 
 PR #305 (superseded by #348) establishes three peer landscape containers:
 `specify_cli` (control plane), `doctrine` (knowledge library), and
-`constitution` (governance onboarding). This assessment evaluates how far that
+`charter` (governance onboarding). This assessment evaluates how far that
 work brings us toward three goals: agent profiles, mission type customization,
 and ad-hoc experimentation via doctrine composition.
 
@@ -18,7 +18,7 @@ and ad-hoc experimentation via doctrine composition.
 - `AgentProfile` Pydantic model with 6 sections: context_sources, purpose,
   specialization, collaboration, mode_defaults, initialization_declaration.
 - `AgentProfileRepository` with two-source loading (shipped + project
-  `.kittify/constitution/agents/`), field-level merge, hierarchy traversal
+  `.kittify/charter/agents/`), field-level merge, hierarchy traversal
   (`get_children`, `get_ancestors`), and cycle/orphan validation.
 - DDR-011 weighted matching: language (0.40), framework (0.20), file-pattern
   (0.20), keyword (0.10), exact-id (0.10), plus workload penalty and
@@ -95,14 +95,14 @@ and know the internal directory conventions.
 - `DoctrineService` lazy aggregator exposing all 8 artifact repositories:
   agent_profiles, directives, tactics, styleguides, toolguides, paradigms,
   procedures, mission_step_contracts.
-- `compile_constitution()` full pipeline: interview answers -> sanitize
+- `compile_charter()` full pipeline: interview answers -> sanitize
   against catalog -> build references (transitive) -> render markdown.
-- `build_constitution_context()` with action-scoped depth loading (depth-1
+- `build_charter_context()` with action-scoped depth loading (depth-1
   compact, depth-2 full references) and first-load state tracking.
 - `Procedure` artifact model with two-source repository and save support.
 - `ProcedureRepository` supports creating custom procedures in
   `.kittify/procedures/`.
-- Action index scoping: `constitution/context.py` loads doctrine
+- Action index scoping: `charter/context.py` loads doctrine
   per-action, building directive/tactic/extended lines only for the current
   workflow step.
 - Mission dossier system: artifact indexing, manifest registry,
@@ -127,7 +127,7 @@ and know the internal directory conventions.
 ### Maturity: ~25%
 
 The foundation (DoctrineService, action-scoped context, procedures,
-constitution pipeline) is in place. The compiler proposed in #327 is the
+charter pipeline) is in place. The compiler proposed in #327 is the
 critical missing bridge that would make doctrine the authoritative source
 for mission behavior rather than an advisory layer sitting beside the
 template overlay machinery.
@@ -182,7 +182,7 @@ The following skill updates have been applied in `src/doctrine/skills/`:
   section covering agent profile loading at init, action-scoped context at
   step boundaries, on-demand tactic/directive retrieval, and the anti-
   pattern of upfront context dumps.
-- **spec-kitty-constitution-doctrine**: Added "Programmatic Doctrine
+- **spec-kitty-charter-doctrine**: Added "Programmatic Doctrine
   Access" section documenting `DoctrineService` entry points, agent profile
   resolution via DDR-011, action index scoping, `MissionStepContract`
   delegation semantics, and the iterative context loading pattern.

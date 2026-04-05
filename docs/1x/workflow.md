@@ -14,9 +14,9 @@
 1. `spec.md` defines requirements and acceptance intent.
 2. `plan.md` captures architecture and implementation strategy.
 3. `tasks.md` materializes executable work packages.
-4. `implement` and `review` execute against plan and constitution constraints.
+4. `implement` and `review` execute against plan and charter constraints.
 
 ## Governance in 1.x
 
-The legacy governance source is `.kittify/memory/constitution.md`.  
+The legacy governance source is `.kittify/memory/charter.md`.  
 Workflow prompts and reviews are expected to align to those principles.

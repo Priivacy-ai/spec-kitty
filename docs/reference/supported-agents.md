@@ -304,7 +304,7 @@ All agents support the same 13 slash commands:
 | `/spec-kitty.merge` | Merge feature to main |
 | `/spec-kitty.status` | Show kanban status |
 | `/spec-kitty.dashboard` | Open web dashboard |
-| `/spec-kitty.constitution` | Create project principles |
+| `/spec-kitty.charter` | Create project principles |
 | `/spec-kitty.research` | Conduct research |
 | `/spec-kitty.checklist` | Generate checklists |
 | `/spec-kitty.analyze` | Analyze codebase |

@@ -503,19 +503,19 @@ For features requiring upfront research (e.g., "Add ML-based recommendations"):
 # Implementation tasks based on researched approach
 ```
 
-### Constitution-Driven Development
+### Charter-Driven Development
 
 Encode your team's quality standards once:
 
 ```bash
-/spec-kitty.constitution
-# Claude helps create constitution.md with principles like:
+/spec-kitty.charter
+# Claude helps create charter.md with principles like:
 # - All APIs must have rate limiting
 # - All database queries must use parameterized statements
 # - All user input must be validated
 
-# Now ALL slash commands automatically reference constitution
-# Claude: "Per constitution principle 2, I'm adding parameterized queries..."
+# Now ALL slash commands automatically reference charter
+# Claude: "Per charter principle 2, I'm adding parameterized queries..."
 ```
 
 ---

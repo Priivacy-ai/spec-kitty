@@ -28,7 +28,7 @@ Syntax format in this reference:
 - `kitty-specs/<feature>/meta.json`
 - `kitty-specs/<feature>/checklists/requirements.md`
 
-**Related**: `/spec-kitty.plan`, `/spec-kitty.constitution`
+**Related**: `/spec-kitty.plan`, `/spec-kitty.charter`
 
 ---
 
@@ -213,21 +213,21 @@ Syntax format in this reference:
 
 ---
 
-## /spec-kitty.constitution
+## /spec-kitty.charter
 
-**Syntax**: `/spec-kitty.constitution`
+**Syntax**: `/spec-kitty.charter`
 
-**Purpose**: Create or update the project constitution.
+**Purpose**: Create or update the project charter.
 
 **Prerequisites**:
 - Run from the main repository root.
 
 **What it does**:
 - Runs a phase-based discovery interview (minimal or comprehensive).
-- Writes project-wide principles to the constitution file.
+- Writes project-wide principles to the charter file.
 
 **Creates/updates**:
-- `.kittify/memory/constitution.md`
+- `.kittify/memory/charter.md`
 
 **Related**: `/spec-kitty.specify`, `/spec-kitty.plan`
 
@@ -286,7 +286,7 @@ Syntax format in this reference:
 - `spec.md`, `plan.md`, and `tasks.md` must exist.
 
 **What it does**:
-- Reads spec, plan, tasks, and constitution (if present).
+- Reads spec, plan, tasks, and charter (if present).
 - Produces a read-only analysis report of gaps and conflicts.
 
 **Creates/updates**:

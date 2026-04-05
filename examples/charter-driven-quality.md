@@ -1,25 +1,25 @@
-# Constitution-Driven Quality Gates
+# Charter-Driven Quality Gates
 
-Enforce consistent standards across all features using a project constitution.
+Enforce consistent standards across all features using a project charter.
 
-## What is a Constitution?
+## What is a Charter?
 
-A project constitution defines non-negotiable principles that guide all development:
+A project charter defines non-negotiable principles that guide all development:
 - Code quality standards
 - Testing requirements
 - Security practices
 - Performance expectations
 - Documentation rules
 
-**Location:** `.kittify/memory/constitution.md`
+**Location:** `.kittify/memory/charter.md`
 
 **Scope:** Applies to ALL features in the project, enforced automatically by Spec Kitty commands
 
-## Setup Constitution
+## Setup Charter
 
-### 1. Create Constitution (One-time per project)
+### 1. Create Charter (One-time per project)
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Create principles for:
 
@@ -53,25 +53,25 @@ Create principles for:
 - Architectural decisions recorded in ADRs
 ```
 
-**Result:** Creates `.kittify/memory/constitution.md` that all subsequent commands reference
+**Result:** Creates `.kittify/memory/charter.md` that all subsequent commands reference
 
-### 2. View Constitution
+### 2. View Charter
 ```bash
-cat .kittify/memory/constitution.md
+cat .kittify/memory/charter.md
 ```
 
-## How Constitution Enforces Quality
+## How Charter Enforces Quality
 
 ### During Specification (/spec-kitty.specify)
-Constitution influences what goes into spec.md:
+Charter influences what goes into spec.md:
 
-**Without Constitution:**
+**Without Charter:**
 ```markdown
 ## User Story
 As a user, I want to upload photos
 ```
 
-**With Constitution (Security + Performance principles):**
+**With Charter (Security + Performance principles):**
 ```markdown
 ## User Story
 As a user, I want to upload photos
@@ -85,9 +85,9 @@ As a user, I want to upload photos
 ```
 
 ### During Planning (/spec-kitty.plan)
-Constitution shapes technical decisions:
+Charter shapes technical decisions:
 
-**Constitution Says:** "80% test coverage required"
+**Charter Says:** "80% test coverage required"
 
 **Plan Includes:**
 ```markdown
@@ -98,7 +98,7 @@ Constitution shapes technical decisions:
 - CI pipeline blocks merge if coverage < 80%
 ```
 
-**Constitution Says:** "No secrets in code"
+**Charter Says:** "No secrets in code"
 
 **Plan Includes:**
 ```markdown
@@ -110,9 +110,9 @@ Constitution shapes technical decisions:
 ```
 
 ### During Task Generation (/spec-kitty.tasks)
-Constitution auto-generates quality tasks:
+Charter auto-generates quality tasks:
 
-**Constitution enforces test coverage:**
+**Charter enforces test coverage:**
 
 ```markdown
 ## Work Packages
@@ -137,11 +137,11 @@ Constitution auto-generates quality tasks:
 **Notice:** Testing and security tasks automatically included!
 
 ### During Implementation (/spec-kitty.implement)
-Constitution reminds agents of standards:
+Charter reminds agents of standards:
 
 **Agent prompt includes:**
 ```text
-IMPORTANT: Project constitution requires:
+IMPORTANT: Project charter requires:
 - 80% test coverage - write tests FIRST (TDD)
 - Input validation - check file type and size
 - No secrets in code - use environment variables
@@ -155,12 +155,12 @@ Before moving to review, verify:
 ```
 
 ### During Review (/spec-kitty.review)
-Constitution provides review checklist:
+Charter provides review checklist:
 
 ```text
 Reviewing WP01: Image Upload API
 
-Constitution Compliance Checklist:
+Charter Compliance Checklist:
 - [ ] Test coverage measured? (Requirement: >80%)
 - [ ] Input validation present?
 - [ ] No secrets in code?
@@ -172,7 +172,7 @@ Constitution Compliance Checklist:
 Agent must verify each before approving work.
 
 ### During Acceptance (/spec-kitty.accept)
-Constitution enforces final gates:
+Charter enforces final gates:
 
 ```bash
 /spec-kitty.accept
@@ -181,7 +181,7 @@ Constitution enforces final gates:
 **Validation checks:**
 ```text
 ✓ All work packages in done/
-✓ Constitution compliance:
+✓ Charter compliance:
   ✓ Running coverage report...
     Result: 84% (Required: >80%) PASS
   ✓ Checking for secrets in code...
@@ -196,7 +196,7 @@ Feature ready for merge!
 
 **If violations found:**
 ```text
-✗ Constitution violations detected:
+✗ Charter violations detected:
 
 Coverage: 72% (Required: >80%)
 - Missing tests in upload_handler.py lines 45-67
@@ -211,7 +211,7 @@ Blocking acceptance until resolved.
 
 ## Example: Test Coverage Principle
 
-### Constitution Definition
+### Charter Definition
 ```markdown
 ## Article III: Test-Driven Development
 
@@ -274,7 +274,7 @@ pytest --cov=app --cov-report=term-missing
 
 ## Example: Security Validation Principle
 
-### Constitution Definition
+### Charter Definition
 ```markdown
 ## Article V: Security Standards
 
@@ -328,7 +328,7 @@ Security Checklist (Article V):
 Approved for done/
 ```
 
-## Benefits of Constitution
+## Benefits of Charter
 
 ### 1. Consistency Across Features
 Every feature follows same standards automatically:
@@ -337,7 +337,7 @@ Every feature follows same standards automatically:
 - Feature C: 81% coverage, input validation, <195ms
 
 ### 2. Prevents Shortcuts Under Pressure
-Constitution blocks acceptance when standards not met:
+Charter blocks acceptance when standards not met:
 ```text
 /spec-kitty.accept
 ✗ Coverage: 68% - BLOCKED (15 more tests needed)
@@ -346,7 +346,7 @@ Constitution blocks acceptance when standards not met:
 Developer can't skip quality gates even when rushed.
 
 ### 3. Onboarding New Developers
-New team members see constitution in every command:
+New team members see charter in every command:
 - Specification shows quality requirements
 - Plan includes testing/security strategy
 - Tasks break down quality work
@@ -354,24 +354,24 @@ New team members see constitution in every command:
 
 ### 4. Audit Trail
 ```bash
-# Show constitution version over time
-git log .kittify/memory/constitution.md
+# Show charter version over time
+git log .kittify/memory/charter.md
 
-# See which features used which constitution version
-grep "constitution_version" kitty-specs/*/meta.json
+# See which features used which charter version
+grep "charter_version" kitty-specs/*/meta.json
 ```
 
 ### 5. Living Documentation
-Constitution documents quality decisions:
+Charter documents quality decisions:
 - Why 80% coverage? (Balances thoroughness vs speed)
 - Why 200ms target? (User experience research)
 - Why no secrets? (Security incident from 2023)
 
-## Constitution Evolution
+## Charter Evolution
 
-### Updating Constitution
+### Updating Charter
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Update Article III:
 - Increase coverage requirement from 80% to 85%
@@ -385,7 +385,7 @@ Version bump: 1.2.0 → 2.0.0 (breaking change)
 ```json
 // meta.json in each feature
 {
-  "constitution_version": "2.0.0",
+  "charter_version": "2.0.0",
   "accepted_at": "2025-01-20T15:30:00Z"
 }
 ```
@@ -425,7 +425,7 @@ ALL API endpoints MUST include performance benchmarks:
 ✓ P95 latency: 178ms (Target: <200ms) PASS
 ```
 
-## Common Constitution Articles
+## Common Charter Articles
 
 ### Must-Have Articles
 1. **Testing Standards** - Coverage, test types, TDD
@@ -446,4 +446,4 @@ ALL API endpoints MUST include performance benchmarks:
 - **Justify requirements:** Explain WHY each standard exists
 - **Review quarterly:** Update based on team learnings
 - **Version bumps:** Major = breaking, Minor = additive, Patch = clarifications
-- **Enforce automatically:** Constitution only works if `/accept` validates it
+- **Enforce automatically:** Charter only works if `/accept` validates it

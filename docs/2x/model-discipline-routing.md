@@ -19,7 +19,7 @@ In current 2.x flow, task execution is agent-selected by the operator (`--agent 
 2. Tool selection config is currently static (`preferred_implementer`, `preferred_reviewer`) with first-available fallback (
    `src/specify_cli/core/tool_config.py`).
 3. Agent profiles already support weighted matching by task context, but no model-cost dimension (`src/doctrine/agent_profiles/repository.py`).
-4. Doctrine artifacts already provide governance hooks (directives, toolguides) for 2.x (`docs/2x/doctrine-and-constitution.md`).
+4. Doctrine artifacts already provide governance hooks (directives, toolguides) for 2.x (`docs/2x/doctrine-and-charter.md`).
 
 ## Proposed User Journey
 
@@ -46,7 +46,7 @@ A team enables a **Model Discipline** doctrine rule so Spec Kitty can recommend 
 
 | Phase                   | Actor(s)                 | System                                                         | Key Events                                             |
 |-------------------------|--------------------------|----------------------------------------------------------------|--------------------------------------------------------|
-| 1. Configure Policy     | Operator                 | Enables model-discipline mode in config/constitution profile   | `ModelDisciplineConfigured`                            |
+| 1. Configure Policy     | Operator                 | Enables model-discipline mode in config/charter profile   | `ModelDisciplineConfigured`                            |
 | 2. Refresh Catalog      | Model Catalog Updater    | Pulls latest model ranking metadata and pricing snapshots      | `ModelCatalogRefreshed`                                |
 | 3. Classify Task        | Spec Kitty CLI           | Determines task type from mission step + WP metadata           | `TaskTypeClassified`                                   |
 | 4. Recommend Assignment | Spec Kitty CLI           | Scores candidates by quality/cost/risk and suggests tool+model | `ModelAssignmentRecommended`                           |

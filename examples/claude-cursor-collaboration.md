@@ -15,7 +15,7 @@ cd my-project
 claude
 ```
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Create principles focused on code quality, testing standards,
 and consistent documentation across all features.

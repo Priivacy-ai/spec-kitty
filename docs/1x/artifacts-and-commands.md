@@ -19,7 +19,7 @@ Optional supporting artifacts (for example `research.md`, `data-model.md`, `quic
 
 ## Legacy Governance Artifacts
 
-1. `.kittify/memory/constitution.md`
+1. `.kittify/memory/charter.md`
 2. Mission command templates under project or package template roots
 3. Lane/frontmatter state in work package markdown files
 

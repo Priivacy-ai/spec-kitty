@@ -10,8 +10,8 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Key contents** | `config.yaml`, `constitution/constitution.md` (canonical), command templates, migration metadata |
-| **Related terms** | [Constitution](./governance.md#constitution), [Mission](./orchestration.md#mission) |
+| **Key contents** | `config.yaml`, `charter/charter.md` (canonical), command templates, migration metadata |
+| **Related terms** | [Charter](./governance.md#charter), [Mission](./orchestration.md#mission) |
 
 ---
 
@@ -59,28 +59,28 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Constitution](./governance.md#constitution), [Mission](./orchestration.md#mission) |
+| **Related terms** | [Charter](./governance.md#charter), [Mission](./orchestration.md#mission) |
 
 ---
 
-### Project Constitution
+### Project Charter
 
 | | |
 |---|---|
-| **Definition** | The compiled, project-specific constitution containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/constitution/`. Use "Project Constitution" when distinguishing from the Constitution Library. |
+| **Definition** | The compiled, project-specific charter containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/charter/`. Use "Project Charter" when distinguishing from the Charter Library. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Constitution](./governance.md#constitution), [Constitution Library](#constitution-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
+| **Related terms** | [Charter](./governance.md#charter), [Charter Library](#charter-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
 
-### Constitution Library
+### Charter Library
 
 | | |
 |---|---|
-| **Definition** | The project-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Constitution and indexed by a reference manifest. |
+| **Definition** | The project-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Charter and indexed by a reference manifest. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Project Constitution](#project-constitution), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |
+| **Related terms** | [Project Charter](#project-charter), [Doctrine Catalog](./doctrine.md#doctrine-catalog) |

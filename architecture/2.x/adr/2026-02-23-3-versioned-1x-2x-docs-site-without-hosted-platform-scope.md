@@ -36,7 +36,7 @@ For this release, documentation scope must remain local-first and must not add h
 ### Decision Details
 
 1. Documentation navigation is versioned at top level (`1.x`, `2.x`).
-2. 2.x track documents doctrine architecture, constitution workflow, glossary system, mission/runtime loop, and ADR coverage.
+2. 2.x track documents doctrine architecture, charter workflow, glossary system, mission/runtime loop, and ADR coverage.
 3. 1.x track remains local-first and excludes hosted-platform guidance in this docs path.
 4. Docs CI includes versioned-doc checks for link integrity and forbidden out-of-scope terms in versioned pages.
 5. GitHub Pages workflow deploys documentation updates from both `main` and `2.x` branches.

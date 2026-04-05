@@ -67,7 +67,7 @@ All 12 imported modules (`agent.feature`, `agent.tasks`, `agent.workflow`, `stat
 | `git_ops/` | Unit + integration | Branch tracking, stale detection, safe commit |
 | `status/` | Unit + integration | Resolver, E2E status routing |
 | `upgrade/` | Unit + integration | Migrations, version update |
-| `init/` | Integration | Constitution runtime, init flow |
+| `init/` | Integration | Charter runtime, init flow |
 | `sync/` | Async unit | Dual-write, staleness detection |
 | `runtime/` | Unit + integration | Bootstrap, doctor, paths, show-origin |
 | `research/` | Unit + integration | Deliverables, plan missions, workflow |
@@ -81,7 +81,7 @@ All 12 imported modules (`agent.feature`, `agent.tasks`, `agent.workflow`, `stat
 | `concurrency/` | Mixed | Concurrency tests |
 | `cross_branch/` | Integration | Branch compatibility |
 | `contract/` | Integration | Handoff verification |
-| `constitution/` | Unit | Constitution compliance |
+| `charter/` | Unit | Charter compliance |
 | `legacy/` | Gated | 0 items collected on `2.x`; immutable snapshot |
 
 ### Marker summary
@@ -110,7 +110,7 @@ Added `fast` and `slow` pytest markers to all profiled `specify_cli/` subdirecto
 | `status/` | 632 | 1.25s | `fast` |
 | `glossary/` | 689 | 0.64s | `fast` |
 | `upgrade/` | 168 | 1.73s | `fast` |
-| `constitution/` | 114 | 0.62s | `fast` |
+| `charter/` | 114 | 0.62s | `fast` |
 | `cli/` | 190 | 12.88s | `slow` |
 | `core/` | 153+57skip | 16.05s | `slow` |
 | `test_cli/` | 101 | 29.42s | `slow` |
@@ -285,7 +285,7 @@ Fixtures `test_project`, `clean_project`, `dirty_project`, `project_with_worktre
 | `unit/test_merge_forecast.py` | `merge/` |
 | `unit/test_merge_preflight.py` | `merge/` |
 | `unit/test_merge_state.py` | `merge/` |
-| `unit/test_migration_constitution_cleanup.py` | `upgrade/` |
+| `unit/test_migration_charter_cleanup.py` | `upgrade/` |
 | `unit/test_migration_python_only.py` | `upgrade/` |
 | `unit/test_mission_schema.py` | `missions/` |
 | `unit/test_move_task_git_validation.py` | `tasks/` |
@@ -328,7 +328,7 @@ Fixtures `test_project`, `clean_project`, `dirty_project`, `project_with_worktre
 | `integration/test_bug_124_branch_routing.py` | `git_ops/` |
 | `integration/test_config_show_origin.py` | `runtime/` |
 | `integration/test_conflict_resolution.py` | `merge/` |
-| `integration/test_constitution_runtime.py` | `init/` |
+| `integration/test_charter_runtime.py` | `init/` |
 | `integration/test_dual_write.py` | `sync/` |
 | `integration/test_e2e_mission_v1.py` | `missions/` |
 | `integration/test_e2e_runtime.py` | `runtime/` |
