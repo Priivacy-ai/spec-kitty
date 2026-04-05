@@ -42,7 +42,11 @@ def is_dashboard_accessible(port: int, timeout: float = 2.0) -> bool:
     """
     try:
         with urlopen(f"http://127.0.0.1:{port}/api/features", timeout=timeout) as response:
-            return response.status == 200
+            if response.status != 200:
+                return False
+
+            payload = json.loads(response.read().decode())
+            return isinstance(payload, dict) and isinstance(payload.get("features"), list)
     except (URLError, OSError, Exception):
         return False
 

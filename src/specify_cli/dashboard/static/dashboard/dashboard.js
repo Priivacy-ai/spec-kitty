@@ -7,18 +7,6 @@ let projectPathDisplay = 'Loading…';
 let activeWorktreeDisplay = 'detecting…';
 let featureSelectActive = false;
 let featureSelectIdleTimer = null;
-let activeMission = {
-    name: 'Loading…',
-    domain: '',
-    version: '',
-    slug: '',
-    path: '',
-    description: ''
-};
-
-if (typeof window !== 'undefined' && window.__INITIAL_MISSION__) {
-    activeMission = window.__INITIAL_MISSION__;
-}
 
 /**
  * Intercept clicks on links within rendered markdown content.
@@ -100,17 +88,6 @@ function interceptMarkdownLinks(container, basePath = '') {
             link.title = `View ${fullPath} in dashboard`;
         }
     });
-}
-
-function updateMissionDisplay(mission) {
-    const nameEl = document.getElementById('mission-name');
-    if (!nameEl) return;
-
-    if (mission) {
-        activeMission = mission;
-    }
-
-    nameEl.textContent = activeMission.name || 'Unknown mission';
 }
 
 // Cookie-based state persistence
@@ -1289,10 +1266,6 @@ function fetchData(isInitialLoad = false) {
                 activeWorktreeDisplay = '';
             }
 
-            if (data.active_mission) {
-                updateMissionDisplay(data.active_mission);
-            }
-
             const currentFeatureObj = allFeatures.find(f => f.id === currentFeature);
             computeFeatureWorktreeStatus(currentFeatureObj || null);
             updateTreeInfo();
@@ -1493,7 +1466,6 @@ function refreshDiagnostics() {
     loadDiagnostics();
 }
 
-updateMissionDisplay();
 updateTreeInfo();
 fetchData(true);  // Pass true for initial load
 

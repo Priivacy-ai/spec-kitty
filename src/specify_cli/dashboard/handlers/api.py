@@ -9,10 +9,9 @@ from pathlib import Path
 
 from ..charter_path import resolve_project_charter_path
 from ..diagnostics import run_diagnostics
-from ..scanner import format_path_for_display, resolve_active_feature, scan_all_features
+from ..scanner import format_path_for_display
 from ..templates import get_dashboard_html
 from .base import DashboardHandler
-from specify_cli.mission import MissionError, get_mission_by_name
 from specify_cli.sync.daemon import ensure_sync_daemon_running, get_sync_daemon_status
 
 __all__ = ["APIHandler"]
@@ -23,42 +22,10 @@ class APIHandler(DashboardHandler):
 
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
-        project_path = Path(self.project_dir).resolve()
-
-        # Derive active mission from the most active feature (per-feature mission model)
-        mission_context = {
-            'name': 'No active feature',
-            'domain': 'unknown',
-            'version': '',
-            'slug': '',
-            'description': '',
-            'path': '',
-        }
-
-        try:
-            features = scan_all_features(project_path)
-
-            active_feature = resolve_active_feature(project_path, features)
-
-            if active_feature:
-                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
-                kittify_dir = project_path / ".kittify"
-                mission = get_mission_by_name(feature_mission_key, kittify_dir)
-                mission_context = {
-                    'name': mission.name,
-                    'domain': mission.config.domain,
-                    'version': mission.config.version,
-                    'slug': mission.path.name,
-                    'description': mission.config.description or '',
-                    'path': format_path_for_display(str(mission.path)),
-                }
-        except (MissionError, Exception):
-            pass  # Keep default "No active feature" context
-
         self.send_response(200)
         self.send_header('Content-type', 'text/html')
         self.end_headers()
-        self.wfile.write(get_dashboard_html(mission_context=mission_context).encode())
+        self.wfile.write(get_dashboard_html().encode())
 
     def handle_health(self) -> None:
         """Return project health metadata."""
