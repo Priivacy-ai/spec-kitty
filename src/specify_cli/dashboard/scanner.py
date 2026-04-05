@@ -275,6 +275,7 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
 
 def resolve_active_feature(
     project_dir: Path,
+    features: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return None — active feature cannot be auto-detected; requires explicit --feature.
 
