@@ -1272,10 +1272,9 @@ function fetchData(isInitialLoad = false) {
                 updateFeatureListSilent(data.features);
             }
 
-                // Refresh kanban board if currently viewing it
-                if (currentPage === 'kanban' && !isCharterView && currentFeature) {
-                    loadKanban();
-                }
+            // Refresh kanban board if currently viewing it
+            if (currentPage === 'kanban' && !isCharterView && currentFeature) {
+                loadKanban();
             }
 
             document.getElementById('last-update').textContent = new Date().toLocaleTimeString();

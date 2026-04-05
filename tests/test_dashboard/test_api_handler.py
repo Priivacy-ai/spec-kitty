@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import io
 import json
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -27,23 +26,25 @@ class TestHealthEndpointNoSideEffects:
             spawn_called["called"] = True
             raise AssertionError("health endpoint must not call ensure_sync_daemon_running")
 
-        with patch.object(api_module, "ensure_sync_daemon_running", boom):
-            with patch.object(
+        with (
+            patch.object(api_module, "ensure_sync_daemon_running", boom),
+            patch.object(
                 api_module,
                 "get_sync_daemon_status",
                 return_value=SyncDaemonStatus(healthy=False),
-            ):
-                handler = MagicMock()
-                handler.project_dir = str(tmp_path)
-                handler.project_token = "tok"
-                handler.send_response = MagicMock()
-                handler.send_header = MagicMock()
-                handler.end_headers = MagicMock()
-                buf = io.BytesIO()
-                handler.wfile = buf
+            ),
+        ):
+            handler = MagicMock()
+            handler.project_dir = str(tmp_path)
+            handler.project_token = "tok"
+            handler.send_response = MagicMock()
+            handler.send_header = MagicMock()
+            handler.end_headers = MagicMock()
+            buf = io.BytesIO()
+            handler.wfile = buf
 
-                # Call the real handle_health method
-                api_module.APIHandler.handle_health(handler)
+            # Call the real handle_health method
+            api_module.APIHandler.handle_health(handler)
 
         assert not spawn_called["called"]
         # Verify it wrote valid JSON
@@ -51,3 +52,23 @@ class TestHealthEndpointNoSideEffects:
         data = json.loads(buf.read().decode("utf-8"))
         assert data["status"] == "ok"
         assert data["sync"]["running"] is False
+
+
+class TestFeaturesEndpointErrorHandling:
+    """Feature list handler should return JSON errors, not partial responses."""
+
+    def test_features_endpoint_returns_structured_error_on_scan_failure(self, tmp_path):
+        from specify_cli.dashboard.handlers import features as features_module
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler._send_json = MagicMock()
+
+        with patch.object(features_module, "scan_all_features", side_effect=RuntimeError("boom")):
+            features_module.FeatureHandler.handle_features_list(handler)
+
+        handler._send_json.assert_called_once()
+        status_code, payload = handler._send_json.call_args.args
+        assert status_code == 500
+        assert payload["error"] == "failed_to_scan_features"
+        assert "boom" in payload["detail"]
