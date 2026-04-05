@@ -1,1 +1,0 @@
-/Users/robert/.agents/skills/spec-kitty-constitution-doctrine/references/doctrine-artifact-structure.md

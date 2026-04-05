@@ -42,16 +42,16 @@ def test_handle_charter_prefers_new_path(tmp_path: Path) -> None:
     assert handler.wfile.getvalue().decode("utf-8") == "new-path-content"
 
 
-def test_handle_charter_uses_legacy_when_new_missing(tmp_path: Path) -> None:
-    legacy_path = tmp_path / ".kittify" / "memory" / "charter.md"
+def test_handle_charter_returns_404_for_legacy_path(tmp_path: Path) -> None:
+    """Legacy memory path is NOT resolved — user must run spec-kitty upgrade."""
+    legacy_path = tmp_path / ".kittify" / "memory" / "constitution.md"
     legacy_path.parent.mkdir(parents=True)
     legacy_path.write_text("legacy-content", encoding="utf-8")
 
     handler = _DummyAPIHandler(tmp_path)
     APIHandler.handle_charter(handler)  # type: ignore[arg-type]
 
-    assert handler.status_code == 200
-    assert handler.wfile.getvalue().decode("utf-8") == "legacy-content"
+    assert handler.status_code == 404
 
 
 def test_handle_charter_returns_404_when_missing(tmp_path: Path) -> None:

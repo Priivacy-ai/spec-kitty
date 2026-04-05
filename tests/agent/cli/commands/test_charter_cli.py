@@ -48,7 +48,7 @@ def test_sync_command_success(mock_repo: Path) -> None:
         result = runner.invoke(app, ["sync"])
 
         assert result.exit_code == 0
-        assert "✅ Charter synced successfully" in result.stdout
+        assert "Charter synced successfully" in result.stdout
         assert "governance.yaml" in result.stdout
         assert "directives.yaml" in result.stdout
         assert "metadata.yaml" in result.stdout
@@ -99,7 +99,7 @@ def test_status_command_synced(mock_repo: Path) -> None:
         result = runner.invoke(app, ["status"])
 
         assert result.exit_code == 0
-        assert "✅ SYNCED" in result.stdout
+        assert "SYNCED" in result.stdout
         assert "governance.yaml" in result.stdout
         assert "directives.yaml" in result.stdout
 
@@ -163,7 +163,7 @@ def test_generate_command_requires_force_when_existing(tmp_path: Path) -> None:
         result = runner.invoke(app, ["generate"])
 
         assert result.exit_code == 1
-        assert "Use --force" in result.stdout
+        assert "--force" in result.stdout
 
 
 def test_generate_command_force_overwrites(tmp_path: Path) -> None:

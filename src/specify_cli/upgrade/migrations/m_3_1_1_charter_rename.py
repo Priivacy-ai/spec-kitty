@@ -295,26 +295,23 @@ class CharterRenameMigration(BaseMigration):
     ) -> None:
         """Rename agent command files and skill directories."""
         for agent_root, subdir in get_agent_dirs_for_project(project_path):
+            # Rename spec-kitty.constitution.md -> spec-kitty.charter.md (if command dir exists)
             agent_dir = project_path / agent_root / subdir
-            if not agent_dir.exists():
-                continue
+            if agent_dir.exists():
+                old_cmd = agent_dir / "spec-kitty.constitution.md"
+                new_cmd = agent_dir / "spec-kitty.charter.md"
+                if old_cmd.exists() and not new_cmd.exists():
+                    if dry_run:
+                        changes.append(f"Would rename {agent_root}/{subdir}/spec-kitty.constitution.md")
+                    else:
+                        try:
+                            shutil.move(str(old_cmd), str(new_cmd))
+                            changes.append(f"Renamed {agent_root}/{subdir}/spec-kitty.constitution.md -> spec-kitty.charter.md")
+                            self._rewrite_file(new_cmd, project_path, dry_run=False, changes=changes, errors=errors)
+                        except OSError as e:
+                            errors.append(f"Failed to rename {agent_root}/{subdir}/spec-kitty.constitution.md: {e}")
 
-            # Rename spec-kitty.constitution.md -> spec-kitty.charter.md
-            old_cmd = agent_dir / "spec-kitty.constitution.md"
-            new_cmd = agent_dir / "spec-kitty.charter.md"
-            if old_cmd.exists() and not new_cmd.exists():
-                if dry_run:
-                    changes.append(f"Would rename {agent_root}/{subdir}/spec-kitty.constitution.md")
-                else:
-                    try:
-                        shutil.move(str(old_cmd), str(new_cmd))
-                        changes.append(f"Renamed {agent_root}/{subdir}/spec-kitty.constitution.md -> spec-kitty.charter.md")
-                        # Rewrite content inside the renamed file
-                        self._rewrite_file(new_cmd, project_path, dry_run=False, changes=changes, errors=errors)
-                    except OSError as e:
-                        errors.append(f"Failed to rename {agent_root}/{subdir}/spec-kitty.constitution.md: {e}")
-
-            # Rename skill directories
+            # Rename skill directories (independent of command dir existence)
             skills_dir = project_path / agent_root / "skills"
             if not skills_dir.exists():
                 continue

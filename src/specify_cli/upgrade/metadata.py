@@ -105,9 +105,23 @@ class ProjectMetadata:
             platform_version=env.get("platform_version", ""),
             applied_migrations=applied,
         )
-        if metadata._normalize_legacy_ids():
-            metadata.save(kittify_dir)
+        # Note: legacy ID normalization is NOT performed on load.
+        # It must be triggered explicitly via normalize_and_save_legacy_ids()
+        # to avoid mutating files during dry-run or read-only operations.
         return metadata
+
+    def normalize_and_save_legacy_ids(self, kittify_dir: Path) -> list[str]:
+        """Normalize constitution-era migration IDs and persist if changed.
+
+        Returns a list of change descriptions for reporting.
+        Call this explicitly from the migration runner or charter-rename
+        migration -- never from load().
+        """
+        changes: list[str] = []
+        if self._normalize_legacy_ids():
+            self.save(kittify_dir)
+            changes.append("Normalized legacy constitution-era migration IDs to charter-era IDs")
+        return changes
 
     def _normalize_legacy_ids(self) -> bool:
         """Rewrite constitution-era migration IDs to charter-era IDs.
