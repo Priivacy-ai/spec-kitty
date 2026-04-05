@@ -9,14 +9,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a2] - 2026-04-05
+
 ### Changed
 
 - **Prerelease publishing is now first-class** — tag-mode release validation accepts matching prerelease tags such as `v3.1.0a0`, GitHub Releases are marked as prereleases automatically for those tags, and maintainer docs now document the end-to-end prerelease PyPI/GitHub publish path.
-
-## [3.1.0a0] - 2026-04-04
-
-### Changed
-
 - **Rebased doctrine-stack work onto `main`'s execution architecture** — carry forward the doctrine, constitution, and template-repository work from PR #305 into PR #348 while preserving `main`'s context, ownership, event-log, merge-engine, and shim foundations instead of reviving deleted subsystems.
 - **Kernel established as the shared dependency floor** — `src/kernel/` now owns shared path, atomic-write, and glossary-boundary primitives; doctrine no longer reaches back into `specify_cli`, and the package boundary is documented by ADRs and enforced by architectural tests.
 - **Constitution now acts as the local routing layer for governance assets** — project-local mission path construction flows through `ProjectMissionPaths`, while doctrine-backed mission/template access is routed through `MissionTemplateRepository` and constitution-facing resolvers instead of scattered path assembly.
@@ -26,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- **Dashboard loading regressions on shared mission installs** — repaired the shared dashboard JavaScript syntax error, made feature scanning tolerate unreadable legacy event logs, hardened `/api/features` error handling, and marked the scanner regressions as part of the `fast` suite so CI/Sonar coverage reflects the new branches.
 - **Narrow exception handlers in doctrine repositories** — Replace 21 bare `except Exception` handlers across `src/doctrine/` with specific exception tuples (`YAMLError`, `ValidationError`, `OSError`, `ModuleNotFoundError`, `TypeError`, `UnicodeDecodeError`) matching actual failure modes. Addresses PR #305 review finding M1.
 - **Fix `spec-kitty --help` crash** — Add missing `Optional` import to `workflow.py` and `tasks.py`. `from __future__ import annotations` defers annotation evaluation; Typer's `eval()` of `Optional[str]` annotations raised `NameError` at app construction time.
 - **Address PR #305 architectural review gaps in the rebased branch** — resolve the core review findings by removing doctrine→`specify_cli` dependency leakage, bringing doctrine into CI coverage, lifting shared glossary/path primitives into kernel, and documenting the resulting boundary in the architecture corpus.
