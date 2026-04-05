@@ -1,7 +1,7 @@
 """Scope: mock-boundary tests for doctrine catalog loading — no real git."""
 
 import pytest
-from constitution.catalog import load_doctrine_catalog
+from charter.catalog import load_doctrine_catalog
 
 pytestmark = pytest.mark.fast
 

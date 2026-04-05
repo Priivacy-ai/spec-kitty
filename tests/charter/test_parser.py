@@ -1,17 +1,17 @@
-"""Tests for constitution parser module."""
+"""Tests for charter parser module."""
 
 import pytest
 
-from constitution.parser import ConstitutionParser, ConstitutionSection
+from charter.parser import CharterParser, CharterSection
 
 pytestmark = pytest.mark.fast
 
-class TestConstitutionSection:
-    """Tests for ConstitutionSection dataclass."""
+class TestCharterSection:
+    """Tests for CharterSection dataclass."""
 
     def test_section_creation(self):
-        """T001: ConstitutionSection can be instantiated with required fields."""
-        section = ConstitutionSection(
+        """T001: CharterSection can be instantiated with required fields."""
+        section = CharterSection(
             heading="Testing",
             level=2,
             content="## Testing\nContent here.",
@@ -22,13 +22,13 @@ class TestConstitutionSection:
         assert section.requires_ai is True
 
 
-class TestConstitutionParser:
-    """Tests for ConstitutionParser."""
+class TestCharterParser:
+    """Tests for CharterParser."""
 
     @pytest.fixture
     def parser(self):
         """Provide parser instance."""
-        return ConstitutionParser()
+        return CharterParser()
 
     def test_empty_content_returns_empty_list(self, parser):
         """T002: Parsing empty content returns empty list."""
@@ -287,16 +287,16 @@ We believe in clear specifications."""
         assert section.structured_data == {}
         assert section.requires_ai is True
 
-    def test_real_constitution_parsing(self, parser):
-        """T026: Parse real constitution file successfully."""
+    def test_real_charter_parsing(self, parser):
+        """T026: Parse real charter file successfully."""
         from pathlib import Path
 
 
-        constitution_path = Path(".kittify/memory/constitution.md")
-        if not constitution_path.exists():
-            pytest.skip("Real constitution not found")
+        charter_path = Path(".kittify/memory/charter.md")
+        if not charter_path.exists():
+            pytest.skip("Real charter not found")
 
-        content = constitution_path.read_text()
+        content = charter_path.read_text()
         result = parser.parse(content)
 
         # Verify we got sections

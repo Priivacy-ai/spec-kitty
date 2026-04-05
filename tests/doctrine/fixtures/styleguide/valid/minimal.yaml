@@ -6,4 +6,4 @@ principles:
   - Prefer explicit typing for public functions.
   - Keep modules cohesive.
 references:
-  - .kittify/memory/constitution.md
+  - .kittify/charter/charter.md

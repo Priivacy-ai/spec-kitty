@@ -38,7 +38,7 @@ ALL_COMMANDS = [
     "checklist",
     "analyze",
     "research",
-    "constitution",
+    "charter",
     "implement",
     "review",
     "accept",

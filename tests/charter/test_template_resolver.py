@@ -1,4 +1,4 @@
-"""Tests for constitution-level template resolution."""
+"""Tests for charter-level template resolution."""
 
 from __future__ import annotations
 
@@ -7,8 +7,8 @@ from types import SimpleNamespace
 
 import pytest
 
-import constitution.template_resolver as template_resolver_module
-from constitution.template_resolver import ConstitutionTemplateResolver
+import charter.template_resolver as template_resolver_module
+from charter.template_resolver import CharterTemplateResolver
 from doctrine.missions.repository import TemplateResult
 from doctrine.resolver import ResolutionResult, ResolutionTier
 
@@ -27,7 +27,7 @@ def test_resolve_command_template_with_project_context_uses_runtime_chain(
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.OVERRIDE, mission="software-dev"),
     )
 
-    resolver = ConstitutionTemplateResolver(repo=SimpleNamespace())
+    resolver = CharterTemplateResolver(repo=SimpleNamespace())
     result = resolver.resolve_command_template("software-dev", "plan", project_dir=tmp_path)
 
     assert result.content == "override command"
@@ -47,7 +47,7 @@ def test_resolve_content_template_with_project_context_uses_runtime_chain(
         lambda *args, **kwargs: ResolutionResult(path=path, tier=ResolutionTier.LEGACY, mission="software-dev"),
     )
 
-    resolver = ConstitutionTemplateResolver(repo=SimpleNamespace())
+    resolver = CharterTemplateResolver(repo=SimpleNamespace())
     result = resolver.resolve_content_template("software-dev", "spec-template.md", project_dir=tmp_path)
 
     assert result.content == "legacy content"
@@ -61,7 +61,7 @@ def test_resolve_templates_without_project_context_use_doctrine_repo() -> None:
         get_content_template=lambda mission, name: TemplateResult("template body", "doctrine/software-dev/templates/spec-template.md"),
     )
 
-    resolver = ConstitutionTemplateResolver(repo=repo)
+    resolver = CharterTemplateResolver(repo=repo)
 
     command = resolver.resolve_command_template("software-dev", "plan")
     content = resolver.resolve_content_template("software-dev", "spec-template.md")
@@ -79,7 +79,7 @@ def test_resolve_templates_raise_when_doctrine_repo_has_no_match() -> None:
         get_command_template=lambda mission, name: None,
         get_content_template=lambda mission, name: None,
     )
-    resolver = ConstitutionTemplateResolver(repo=repo)
+    resolver = CharterTemplateResolver(repo=repo)
 
     with pytest.raises(FileNotFoundError):
         resolver.resolve_command_template("software-dev", "plan")
@@ -89,5 +89,5 @@ def test_resolve_templates_raise_when_doctrine_repo_has_no_match() -> None:
 
 
 def test_tier_to_origin_falls_back_to_unknown_prefix() -> None:
-    origin = ConstitutionTemplateResolver._tier_to_origin(object(), "software-dev", "templates", "spec-template.md")
+    origin = CharterTemplateResolver._tier_to_origin(object(), "software-dev", "templates", "spec-template.md")
     assert origin == "unknown/software-dev/templates/spec-template.md"

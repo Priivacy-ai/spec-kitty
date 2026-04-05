@@ -15,9 +15,9 @@ class TestProcedureRepository:
 
     def test_default_repository_includes_migration_procedure(self) -> None:
         repo = ProcedureRepository()
-        procedure = repo.get("migrate-project-guidance-to-spec-kitty-constitution")
+        procedure = repo.get("migrate-project-guidance-to-spec-kitty-charter")
         assert procedure is not None
-        assert procedure.name == "Migrate Project Guidance to Spec Kitty Constitution"
+        assert procedure.name == "Migrate Project Guidance to Spec Kitty Charter"
 
     def test_list_all_from_shipped(self, tmp_procedure_dir: Path) -> None:
         repo = ProcedureRepository(shipped_dir=tmp_procedure_dir)

@@ -1,4 +1,4 @@
-"""End-to-end integration for profile-aware constitution compilation."""
+"""End-to-end integration for profile-aware charter compilation."""
 
 from __future__ import annotations
 
@@ -12,16 +12,16 @@ from typer.testing import CliRunner
 import pytest
 
 from doctrine.service import DoctrineService
-from specify_cli.cli.commands.constitution import app
-from constitution.catalog import DoctrineCatalog
-from constitution.compiler import compile_constitution, write_compiled_constitution
+from specify_cli.cli.commands.charter import app
+from charter.catalog import DoctrineCatalog
+from charter.compiler import compile_charter, write_compiled_charter
 
-from constitution.interview import (
+from charter.interview import (
     LocalSupportDeclaration,
     apply_answer_overrides,
     default_interview,
 )
-from constitution.resolver import resolve_governance_for_profile
+from charter.resolver import resolve_governance_for_profile
 
 runner = CliRunner()
 pytestmark = pytest.mark.fast
@@ -35,9 +35,9 @@ def _write_yaml(path: Path, data: dict[object, object]) -> None:
         yaml.dump(data, handle)
 
 
-def test_profile_aware_constitution_compilation_resolves_transitive_references(tmp_path: Path) -> None:
+def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_path: Path) -> None:
     shipped_root = tmp_path / "doctrine"
-    output_dir = tmp_path / "repo" / ".kittify" / "constitution"
+    output_dir = tmp_path / "repo" / ".kittify" / "charter"
 
     _write_yaml(
         shipped_root / "directives" / "shipped" / "001-review.directive.yaml",
@@ -140,7 +140,7 @@ def test_profile_aware_constitution_compilation_resolves_transitive_references(t
     )
 
     resolution = resolve_governance_for_profile("reviewer", "reviewer", doctrine_service, interview)
-    compiled = compile_constitution(
+    compiled = compile_charter(
         mission="software-dev",
         interview=apply_answer_overrides(
             interview,
@@ -151,13 +151,13 @@ def test_profile_aware_constitution_compilation_resolves_transitive_references(t
         doctrine_catalog=doctrine_catalog,
         doctrine_service=doctrine_service,
     )
-    result = write_compiled_constitution(output_dir, compiled, force=True)
+    result = write_compiled_charter(output_dir, compiled, force=True)
 
     assert resolution.directives == ["REVIEW_FIRST", "INTERVIEW_ONLY"]
     assert resolution.tactics == ["review-tactic"]
     assert resolution.styleguides == ["review-style"]
     assert compiled.diagnostics == []
-    assert "constitution.md" in result.files_written
+    assert "charter.md" in result.files_written
     assert "agent_profile: reviewer" in compiled.markdown
     assert any(ref.kind == "tactic" and ref.title == "Review Tactic" for ref in compiled.references)
     assert any(ref.kind == "styleguide" and ref.title == "Review Style" for ref in compiled.references)
@@ -201,9 +201,9 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
     """Full scenario: interview with local support → generate → context (2x) → additive warning."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    constitution_dir = repo_root / ".kittify" / "constitution"
-    constitution_dir.mkdir(parents=True)
-    interview_dir = constitution_dir / "interview"
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    interview_dir = charter_dir / "interview"
 
     # ── Step 1: write answers.yaml with an explicit local support declaration ──
     _make_interview_yaml(
@@ -211,10 +211,10 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
         local_files=[{"path": "docs/team-guide.md"}],
     )
 
-    with patch("specify_cli.cli.commands.constitution.find_repo_root") as mock_root:
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_root:
         mock_root.return_value = repo_root
 
-        # ── Step 2: generate constitution from interview answers ──
+        # ── Step 2: generate charter from interview answers ──
         gen_result = runner.invoke(app, ["generate", "--json"])
         assert gen_result.exit_code == 0, gen_result.stdout
         payload = json.loads(gen_result.stdout)
@@ -222,10 +222,10 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
 
         # ── Step 3: library_files lists declared paths, NOT a library/ directory ──
         assert "docs/team-guide.md" in payload["library_files"]
-        assert not (constitution_dir / "library").exists(), "library/ directory must NOT be materialised on disk"
+        assert not (charter_dir / "library").exists(), "library/ directory must NOT be materialised on disk"
 
         # ── Step 4: agents.yaml must NOT be generated ──
-        assert not (constitution_dir / "agents.yaml").exists(), "agents.yaml must NOT be generated"
+        assert not (charter_dir / "agents.yaml").exists(), "agents.yaml must NOT be generated"
 
         # ── Step 5: first context call → bootstrap mode ──
         ctx1 = runner.invoke(app, ["context", "--action", "specify", "--json"])
@@ -248,7 +248,7 @@ def test_local_support_declarations_end_to_end(tmp_path: Path) -> None:
 
 def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_path: Path) -> None:
     """Local file targeting a shipped concept produces an additive warning diagnostic."""
-    output_dir = tmp_path / ".kittify" / "constitution"
+    output_dir = tmp_path / ".kittify" / "charter"
 
     interview = default_interview(mission="software-dev", profile="minimal")
     # Select DIRECTIVE_003 so it appears in shipped references; declare a local
@@ -266,7 +266,7 @@ def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_pat
         ],
     )
 
-    compiled = compile_constitution(mission="software-dev", interview=interview)
+    compiled = compile_charter(mission="software-dev", interview=interview)
 
     # Must have exactly one additive warning diagnostic
     overlap_warnings = [d for d in compiled.diagnostics if "overlaps shipped" in d]
@@ -283,8 +283,8 @@ def test_local_support_additive_warning_when_overlapping_shipped_concept(tmp_pat
     assert "additive" in local_ref_content.lower()
 
     # Write to disk and confirm no library/ directory is created
-    result = write_compiled_constitution(output_dir, compiled, force=True)
-    assert "constitution.md" in result.files_written
+    result = write_compiled_charter(output_dir, compiled, force=True)
+    assert "charter.md" in result.files_written
     assert not (output_dir / "library").exists(), (
         "library/ directory must NOT be created even when local support files are declared"
     )

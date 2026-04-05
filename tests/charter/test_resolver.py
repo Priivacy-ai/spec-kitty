@@ -1,4 +1,4 @@
-"""Tests for constitution-centric governance resolver."""
+"""Tests for charter-centric governance resolver."""
 
 from pathlib import Path
 from types import SimpleNamespace
@@ -6,9 +6,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-import constitution.catalog as catalog_module
-from constitution.interview import default_interview
-from constitution.resolver import (
+import charter.catalog as catalog_module
+from charter.interview import default_interview
+from charter.resolver import (
     GovernanceResolutionError,
     collect_governance_diagnostics,
     resolve_governance,
@@ -17,23 +17,23 @@ from constitution.resolver import (
 
 pytestmark = pytest.mark.fast
 
-def _write_constitution_files(
+def _write_charter_files(
     root: Path,
     *,
     governance: str,
     directives: str = "directives: []\n",
 ) -> Path:
-    constitution_dir = root / ".kittify" / "constitution"
-    constitution_dir.mkdir(parents=True)
-    (constitution_dir / "governance.yaml").write_text(governance, encoding="utf-8")
-    (constitution_dir / "directives.yaml").write_text(directives, encoding="utf-8")
-    return constitution_dir
+    charter_dir = root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+    (charter_dir / "governance.yaml").write_text(governance, encoding="utf-8")
+    (charter_dir / "directives.yaml").write_text(directives, encoding="utf-8")
+    return charter_dir
 
 
-def test_resolve_governance_reads_constitution_selections_first(
+def test_resolve_governance_reads_charter_selections_first(
     tmp_path: Path, monkeypatch
 ) -> None:
-    """Constitution selections (paradigms, directives, tools, template_set) are used
+    """Charter selections (paradigms, directives, tools, template_set) are used
     when explicitly declared and all values exist in the shipped catalog."""
     # Build a minimal doctrine root so shipped paradigm validation passes.
     doctrine_root = tmp_path / "doctrine_root"
@@ -50,7 +50,7 @@ def test_resolve_governance_reads_constitution_selections_first(
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="""
 doctrine:
@@ -72,11 +72,11 @@ directives:
     assert result.directives == ["TEST_FIRST"]
     assert result.tools == ["git"]
     assert result.template_set == "software-dev-default"
-    assert result.metadata["template_set_source"] == "constitution"
+    assert result.metadata["template_set_source"] == "charter"
 
 
 def test_resolve_governance_missing_paradigm_hard_fails(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -91,7 +91,7 @@ doctrine:
 
 
 def test_resolve_governance_missing_directive_hard_fails(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -106,7 +106,7 @@ doctrine:
 
 
 def test_resolve_governance_missing_tool_hard_fails(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -121,7 +121,7 @@ doctrine:
 
 
 def test_resolve_governance_missing_template_set_hard_fails(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -136,7 +136,7 @@ doctrine:
 
 
 def test_resolve_governance_template_set_fallback_visible(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -156,7 +156,7 @@ doctrine:
 
 
 def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="doctrine: {}\n",
     )
@@ -169,7 +169,7 @@ def test_resolver_does_not_read_mission_files(tmp_path: Path) -> None:
 
 
 def test_collect_governance_diagnostics_reports_failures(tmp_path: Path) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="""
 doctrine:
@@ -185,7 +185,7 @@ doctrine:
 def test_resolve_governance_uses_registry_local_directives_and_template_fallback(
     tmp_path: Path,
 ) -> None:
-    _write_constitution_files(
+    _write_charter_files(
         tmp_path,
         governance="doctrine: {}\n",
         directives="""
@@ -217,9 +217,9 @@ def test_resolve_governance_uses_catalog_directives_when_no_local_declarations(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _write_constitution_files(tmp_path, governance="doctrine: {}\n")
+    _write_charter_files(tmp_path, governance="doctrine: {}\n")
     monkeypatch.setattr(
-        "constitution.resolver.load_doctrine_catalog",
+        "charter.resolver.load_doctrine_catalog",
         lambda: SimpleNamespace(
             paradigms=frozenset(),
             directives=frozenset({"DIRECTIVE_010", "DIRECTIVE_003"}),
@@ -290,7 +290,7 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
         unresolved=[("directives", "MISSING_DIRECTIVE")],
     )
 
-    with patch("constitution.resolver.resolve_references_transitively", return_value=monkeypatch_graph):
+    with patch("charter.resolver.resolve_references_transitively", return_value=monkeypatch_graph):
         resolution = resolve_governance_for_profile(" reviewer ", "   ", doctrine_service, interview)
 
     assert resolution.directives == ["PROFILE_DIRECTIVE", "PROFILE_SECOND", "INTERVIEW_DIRECTIVE"]
@@ -347,7 +347,7 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
 def test_collect_governance_diagnostics_returns_success_diagnostics(
     tmp_path: Path,
 ) -> None:
-    _write_constitution_files(tmp_path, governance="doctrine: {}\n")
+    _write_charter_files(tmp_path, governance="doctrine: {}\n")
 
     diagnostics = collect_governance_diagnostics(
         tmp_path,
@@ -386,7 +386,7 @@ def test_paradigm_failure_names_exact_offending_id(tmp_path: Path, monkeypatch) 
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  selected_paradigms: [my-bad-paradigm]\n",
     )
@@ -409,7 +409,7 @@ def test_paradigm_failure_skipped_when_shipped_dir_absent(tmp_path: Path, monkey
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  selected_paradigms: [any-value]\n",
     )
@@ -425,7 +425,7 @@ def test_directive_failure_names_exact_offending_id(tmp_path: Path, monkeypatch)
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  selected_directives: [GHOST_DIRECTIVE]\n",
     )
@@ -442,7 +442,7 @@ def test_template_set_failure_names_exact_offending_value(tmp_path: Path, monkey
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  template_set: ghost-template-set\n",
     )
@@ -459,7 +459,7 @@ def test_tool_failure_names_exact_offending_value(tmp_path: Path, monkeypatch) -
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  available_tools: [ghost-tool]\n",
     )
@@ -476,7 +476,7 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
     monkeypatch.setattr(catalog_module, "resolve_doctrine_root", lambda: doctrine_root)
 
     repo_root = tmp_path / "repo"
-    _write_constitution_files(
+    _write_charter_files(
         repo_root,
         governance="doctrine:\n  selected_directives: [LOCAL_ONLY]\n",
         directives="directives:\n  - id: LOCAL_ONLY\n    title: Local rule\n",
@@ -488,13 +488,13 @@ def test_local_support_declaration_bypasses_catalog_validation(tmp_path: Path, m
 
 
 def test_sync_output_does_not_include_agents_yaml(tmp_path: Path) -> None:
-    """Constitution sync writes exactly governance/directives/metadata — no agents.yaml."""
-    from constitution.sync import sync
+    """Charter sync writes exactly governance/directives/metadata — no agents.yaml."""
+    from charter.sync import sync
 
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text("# Project\n\n## Directives\n1. Write tests\n")
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text("# Project\n\n## Directives\n1. Write tests\n")
 
-    result = sync(constitution_file, tmp_path)
+    result = sync(charter_file, tmp_path)
 
     assert result.synced is True
     assert set(result.files_written) == {"governance.yaml", "directives.yaml", "metadata.yaml"}

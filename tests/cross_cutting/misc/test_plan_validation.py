@@ -26,8 +26,8 @@ def test_detect_unfilled_plan_with_template():
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
 
-## Constitution Check
-[Gates determined based on constitution file]
+## Charter Check
+[Gates determined based on charter file]
 
 ## Project Structure
 # [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
@@ -57,7 +57,7 @@ def test_detect_unfilled_plan_with_filled_plan():
 **Primary Dependencies**: FastAPI, SQLAlchemy, bcrypt
 **Testing**: pytest with coverage
 
-## Constitution Check
+## Charter Check
 ✓ Single responsibility per module
 ✓ All endpoints have error handling
 ✓ Passwords never logged
@@ -98,7 +98,7 @@ def test_validate_plan_filled_strict_mode():
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest or NEEDS CLARIFICATION]
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 # [REMOVE IF UNUSED] Option 1: Single project
 # [REMOVE IF UNUSED] Option 2: Web application
 # [REMOVE IF UNUSED] Option 3: Mobile + API
@@ -124,7 +124,7 @@ def test_validate_plan_filled_lenient_mode(capsys):
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
 **Testing**: [e.g., pytest or NEEDS CLARIFICATION]
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 # [REMOVE IF UNUSED] Option 1: Single project
 # [REMOVE IF UNUSED] Option 2: Web application
 # [REMOVE IF UNUSED] Option 3: Mobile + API
@@ -159,7 +159,7 @@ def test_validate_plan_filled_passes_for_complete_plan():
 **Performance Goals**: Support 10k concurrent connections
 **Constraints**: <100ms message latency
 
-## Constitution Check
+## Charter Check
 ✓ All WebSocket endpoints authenticated
 ✓ Rate limiting on message send
 ✓ Message validation and sanitization
@@ -202,10 +202,10 @@ def test_validate_plan_with_partial_markers():
 **Target Platform**: Modern browsers
 **Performance Goals**: <2s initial load
 
-## Constitution Check
+## Charter Check
 ✓ Accessibility WCAG 2.1 AA
 ✓ Mobile responsive
-[Gates determined based on constitution file]
+[Gates determined based on charter file]
 
 ## Project Structure
 frontend/

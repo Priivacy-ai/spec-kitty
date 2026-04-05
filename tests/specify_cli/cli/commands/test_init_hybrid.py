@@ -60,7 +60,7 @@ def _make_package_asset_root_with_templates(pkg_root: Path) -> Path:
         "checklist",
         "analyze",
         "research",
-        "constitution",
+        "charter",
     ]
 
     for cmd in prompt_commands:

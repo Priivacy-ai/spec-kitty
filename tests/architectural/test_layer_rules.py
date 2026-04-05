@@ -3,7 +3,7 @@
 These tests enforce the dependency direction documented in
 architecture/2.x/00_landscape/README.md:
 
-    kernel (root) <- doctrine <- constitution <- specify_cli
+    kernel (root) <- doctrine <- charter <- specify_cli
 
 A violation here means a package imports from a package it should not.
 See ADR 2026-03-27-1 for rationale.
@@ -33,7 +33,7 @@ class TestKernelIsolation:
             .are_named("doctrine")
         ).assert_applies(evaluable)
 
-    def test_kernel_does_not_import_constitution(self, evaluable, landscape):
+    def test_kernel_does_not_import_charter(self, evaluable, landscape):
         (
             LayerRule()
             .based_on(landscape)
@@ -41,7 +41,7 @@ class TestKernelIsolation:
             .are_named("kernel")
             .should_not()
             .access_layers_that()
-            .are_named("constitution")
+            .are_named("charter")
         ).assert_applies(evaluable)
 
     def test_kernel_does_not_import_specify_cli(self, evaluable, landscape):
@@ -60,7 +60,7 @@ class TestKernelIsolation:
 
 
 class TestDoctrineIsolation:
-    """doctrine must not import from specify_cli or constitution."""
+    """doctrine must not import from specify_cli or charter."""
 
     def test_doctrine_does_not_import_specify_cli(self, evaluable, landscape):
         (
@@ -73,7 +73,7 @@ class TestDoctrineIsolation:
             .are_named("specify_cli")
         ).assert_applies(evaluable)
 
-    def test_doctrine_does_not_import_constitution(self, evaluable, landscape):
+    def test_doctrine_does_not_import_charter(self, evaluable, landscape):
         (
             LayerRule()
             .based_on(landscape)
@@ -81,22 +81,22 @@ class TestDoctrineIsolation:
             .are_named("doctrine")
             .should_not()
             .access_layers_that()
-            .are_named("constitution")
+            .are_named("charter")
         ).assert_applies(evaluable)
 
 
-# --- Invariant 3: constitution boundary ---
+# --- Invariant 3: charter boundary ---
 
 
-class TestConstitutionBoundary:
-    """constitution may import doctrine + kernel only. No specify_cli imports."""
+class TestCharterBoundary:
+    """charter may import doctrine + kernel only. No specify_cli imports."""
 
-    def test_constitution_does_not_import_specify_cli(self, evaluable, landscape):
+    def test_charter_does_not_import_specify_cli(self, evaluable, landscape):
         (
             LayerRule()
             .based_on(landscape)
             .layers_that()
-            .are_named("constitution")
+            .are_named("charter")
             .should_not()
             .access_layers_that()
             .are_named("specify_cli")

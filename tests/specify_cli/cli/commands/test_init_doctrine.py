@@ -1,4 +1,4 @@
-"""ATDD acceptance tests for WP07: Constitution Defaults File + Init Integration.
+"""ATDD acceptance tests for WP07: Charter Defaults File + Init Integration.
 
 US-1 scenarios 1-3 and US-2 scenarios 1-4.
 Requirements: FR-001, FR-002, FR-003, FR-004, FR-005, FR-015, FR-020, NFR-001, C-002.
@@ -18,9 +18,9 @@ import pytest
 # ---------------------------------------------------------------------------
 
 
-def test_init_accept_defaults_creates_constitution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """US-1 Scenario 1: fresh project, user selects 'accept defaults' → constitution created."""
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+def test_init_accept_defaults_creates_charter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """US-1 Scenario 1: fresh project, user selects 'accept defaults' → charter created."""
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     # Simulate user typing "defaults" at the governance prompt
     monkeypatch.setattr("typer.prompt", lambda *args, **kwargs: "defaults")
@@ -32,17 +32,17 @@ def test_init_accept_defaults_creates_constitution(tmp_path: Path, monkeypatch: 
     result = _run_doctrine_stack_init(tmp_path, non_interactive=False, console=console)
 
     assert result is True
-    constitution_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    assert constitution_path.exists(), (
-        f"Constitution not found at {constitution_path}. "
+    charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    assert charter_path.exists(), (
+        f"Charter not found at {charter_path}. "
         "Expected '_run_doctrine_stack_init' to generate it when user selects 'defaults'."
     )
-    assert constitution_path.stat().st_size > 0, "Constitution file is empty"
+    assert charter_path.stat().st_size > 0, "Charter file is empty"
 
 
 def test_init_non_interactive_applies_defaults(tmp_path: Path) -> None:
-    """US-1 Scenario 2: --non-interactive on fresh project → constitution created without prompts."""
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+    """US-1 Scenario 2: --non-interactive on fresh project → charter created without prompts."""
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     from specify_cli.cli.commands.init import _run_doctrine_stack_init
     from rich.console import Console
@@ -51,20 +51,20 @@ def test_init_non_interactive_applies_defaults(tmp_path: Path) -> None:
     result = _run_doctrine_stack_init(tmp_path, non_interactive=True, console=console)
 
     assert result is True
-    constitution_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    assert constitution_path.exists(), (
-        f"Constitution not found at {constitution_path}. "
+    charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    assert charter_path.exists(), (
+        f"Charter not found at {charter_path}. "
         "Expected non-interactive mode to apply doctrine defaults automatically."
     )
-    assert constitution_path.stat().st_size > 0, "Constitution file is empty"
+    assert charter_path.stat().st_size > 0, "Charter file is empty"
 
 
-def test_init_skips_doctrine_if_constitution_exists(tmp_path: Path) -> None:
-    """US-1 Scenario 3: project with existing constitution → doctrine step skipped."""
-    constitution_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    constitution_path.parent.mkdir(parents=True)
-    original_content = "# Existing Constitution\n\nAlready configured.\n"
-    constitution_path.write_text(original_content, encoding="utf-8")
+def test_init_skips_doctrine_if_charter_exists(tmp_path: Path) -> None:
+    """US-1 Scenario 3: project with existing charter → doctrine step skipped."""
+    charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    charter_path.parent.mkdir(parents=True)
+    original_content = "# Existing Charter\n\nAlready configured.\n"
+    charter_path.write_text(original_content, encoding="utf-8")
 
     from specify_cli.cli.commands.init import _run_doctrine_stack_init
     from rich.console import Console
@@ -74,9 +74,9 @@ def test_init_skips_doctrine_if_constitution_exists(tmp_path: Path) -> None:
     result = _run_doctrine_stack_init(tmp_path, non_interactive=False, console=console)
 
     assert result is True
-    # Constitution must NOT be overwritten
-    assert constitution_path.read_text(encoding="utf-8") == original_content, (
-        "Constitution was overwritten — skip-if-exists check is missing or broken."
+    # Charter must NOT be overwritten
+    assert charter_path.read_text(encoding="utf-8") == original_content, (
+        "Charter was overwritten — skip-if-exists check is missing or broken."
     )
     output_text = output.getvalue()
     assert "skip" in output_text.lower() or "already exists" in output_text.lower() or "existing" in output_text.lower(), (
@@ -91,7 +91,7 @@ def test_init_skips_doctrine_if_constitution_exists(tmp_path: Path) -> None:
 
 def test_init_configure_manually_asks_interview_depth(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """US-2 Scenario 1: user selects 'manual' path → interview depth question is asked."""
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     depth_prompts: list[str] = []
 
@@ -116,7 +116,7 @@ def test_init_configure_manually_asks_interview_depth(tmp_path: Path, monkeypatc
 
 def test_init_configure_manually_informs_user(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """US-2 Scenario 2: 'configure manually' path → informational message shown before interview."""
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     monkeypatch.setattr("typer.prompt", lambda *args, **kwargs: "minimal")
 
@@ -128,15 +128,15 @@ def test_init_configure_manually_informs_user(tmp_path: Path, monkeypatch: pytes
     _run_inline_interview(tmp_path, console)
 
     output_text = output.getvalue()
-    assert "constitution" in output_text.lower() or "governance" in output_text.lower(), (
-        "Expected informational message about constitution/governance before the interview starts. "
+    assert "charter" in output_text.lower() or "governance" in output_text.lower(), (
+        "Expected informational message about charter/governance before the interview starts. "
         f"Got: {output_text!r}"
     )
 
 
-def test_init_configure_manually_generates_constitution(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    """US-2 Scenario 3: user completes inline interview → constitution generated."""
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+def test_init_configure_manually_generates_charter(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """US-2 Scenario 3: user completes inline interview → charter generated."""
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     # Return "minimal" for all prompts (depth question + all interview questions)
     monkeypatch.setattr("typer.prompt", lambda *args, **kwargs: "minimal")
@@ -148,19 +148,19 @@ def test_init_configure_manually_generates_constitution(tmp_path: Path, monkeypa
     result = _run_inline_interview(tmp_path, console)
 
     assert result is True
-    constitution_path = tmp_path / ".kittify" / "constitution" / "constitution.md"
-    assert constitution_path.exists(), (
-        f"Constitution not found at {constitution_path}. "
+    charter_path = tmp_path / ".kittify" / "charter" / "charter.md"
+    assert charter_path.exists(), (
+        f"Charter not found at {charter_path}. "
         "Expected _run_inline_interview to generate it after a complete interview."
     )
-    assert constitution_path.stat().st_size > 0, "Constitution file is empty"
+    assert charter_path.stat().st_size > 0, "Charter file is empty"
 
 
 def test_init_resume_after_interrupt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """US-2 Scenario 4: interrupted init with checkpoint → resume/restart offered.
     Selecting 'restart' discards checkpoint; fresh start applies defaults.
     """
-    (tmp_path / ".kittify" / "constitution").mkdir(parents=True)
+    (tmp_path / ".kittify" / "charter").mkdir(parents=True)
 
     # Create a fake checkpoint from a previous interrupted session
     checkpoint_path = tmp_path / ".kittify" / ".init-checkpoint.yaml"

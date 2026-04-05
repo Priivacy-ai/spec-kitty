@@ -1,4 +1,4 @@
-"""Conftest for constitution tests."""
+"""Conftest for charter tests."""
 
 import pytest
 from pathlib import Path

@@ -1,7 +1,7 @@
 """Unit tests for kernel.atomic — atomic file write utility.
 
 The kernel module is zero-dependency shared infrastructure used by
-specify_cli, constitution, and doctrine. These tests must remain
+specify_cli, charter, and doctrine. These tests must remain
 independent of all higher-level modules.
 """
 
@@ -136,6 +136,6 @@ class TestAtomicWriteImport:
         from specify_cli.core.atomic import atomic_write as aw
         assert callable(aw)
 
-    def test_importable_via_constitution(self) -> None:
-        from constitution.context import build_constitution_context
-        assert callable(build_constitution_context)
+    def test_importable_via_charter(self) -> None:
+        from charter.context import build_charter_context
+        assert callable(build_charter_context)

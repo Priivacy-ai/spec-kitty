@@ -1,18 +1,18 @@
-"""Tests for constitution extraction pipeline."""
+"""Tests for charter extraction pipeline."""
 
 from datetime import datetime, UTC
 from unittest.mock import patch
 
 import pytest
 
-from constitution.extractor import (
+from charter.extractor import (
     ExtractionResult,
     Extractor,
     extract_with_ai,
     write_extraction_result,
 )
-from constitution.parser import ConstitutionParser, ConstitutionSection
-from constitution.schemas import (
+from charter.parser import CharterParser, CharterSection
+from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
@@ -27,10 +27,10 @@ class TestExtractor:
     def test_extractor_initialization(self) -> None:
         extractor = Extractor()
         assert extractor.parser is not None
-        assert isinstance(extractor.parser, ConstitutionParser)
+        assert isinstance(extractor.parser, CharterParser)
 
     def test_extractor_with_custom_parser(self) -> None:
-        parser = ConstitutionParser()
+        parser = CharterParser()
         extractor = Extractor(parser=parser)
         assert extractor.parser is parser
 
@@ -142,7 +142,7 @@ class TestMetadataGeneration:
     def extractor(self) -> Extractor:
         return Extractor()
 
-    @patch("constitution.extractor.datetime")
+    @patch("charter.extractor.datetime")
     def test_metadata_has_timestamp(self, mock_datetime, extractor: Extractor) -> None:
         fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time
@@ -153,7 +153,7 @@ class TestMetadataGeneration:
 
     def test_metadata_has_hash(self, extractor: Extractor) -> None:
         result = extractor.extract("## Testing\n90% coverage required.")
-        assert result.metadata.constitution_hash.startswith("sha256:")
+        assert result.metadata.charter_hash.startswith("sha256:")
 
 
 class TestIdempotency:
@@ -161,7 +161,7 @@ class TestIdempotency:
     def extractor(self) -> Extractor:
         return Extractor()
 
-    @patch("constitution.extractor.datetime")
+    @patch("charter.extractor.datetime")
     def test_extract_twice_identical_results(self, mock_datetime, extractor: Extractor) -> None:
         fixed_time = datetime(2026, 2, 15, 12, 0, 0, tzinfo=UTC)
         mock_datetime.now.return_value = fixed_time
@@ -189,7 +189,7 @@ We use ruff for linting. 2 approvals required.
 class TestAIFallback:
     def test_extract_with_ai_returns_empty_dict(self) -> None:
         sections = [
-            ConstitutionSection(
+            CharterSection(
                 heading="Philosophy",
                 level=2,
                 content="Just prose text",
@@ -201,7 +201,7 @@ class TestAIFallback:
 
     def test_extract_with_ai_logs_info(self, caplog) -> None:
         sections = [
-            ConstitutionSection(
+            CharterSection(
                 heading="Philosophy",
                 level=2,
                 content="Just prose text",
@@ -219,30 +219,30 @@ class TestYAMLWriter:
         extractor = Extractor()
         result = extractor.extract("## Testing\n90% coverage required.")
 
-        constitution_dir = tmp_path / "constitution"
-        write_extraction_result(result, constitution_dir)
+        charter_dir = tmp_path / "charter"
+        write_extraction_result(result, charter_dir)
 
-        assert constitution_dir.exists()
-        assert constitution_dir.is_dir()
+        assert charter_dir.exists()
+        assert charter_dir.is_dir()
 
     def test_write_extraction_result_creates_all_files(self, tmp_path) -> None:
         extractor = Extractor()
         result = extractor.extract("## Testing\n90% coverage required.")
 
-        constitution_dir = tmp_path / "constitution"
-        write_extraction_result(result, constitution_dir)
+        charter_dir = tmp_path / "charter"
+        write_extraction_result(result, charter_dir)
 
-        assert (constitution_dir / "governance.yaml").exists()
-        assert (constitution_dir / "directives.yaml").exists()
-        assert (constitution_dir / "metadata.yaml").exists()
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
 
     def test_write_extraction_result_yaml_has_header(self, tmp_path) -> None:
         extractor = Extractor()
         result = extractor.extract("## Testing\n90% coverage required.")
 
-        constitution_dir = tmp_path / "constitution"
-        write_extraction_result(result, constitution_dir)
+        charter_dir = tmp_path / "charter"
+        write_extraction_result(result, charter_dir)
 
-        governance_content = (constitution_dir / "governance.yaml").read_text()
-        assert "# Auto-generated from constitution.md" in governance_content
-        assert "# Run 'spec-kitty constitution sync' to regenerate" in governance_content
+        governance_content = (charter_dir / "governance.yaml").read_text()
+        assert "# Auto-generated from charter.md" in governance_content
+        assert "# Run 'spec-kitty charter sync' to regenerate" in governance_content

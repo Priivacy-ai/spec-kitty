@@ -1,16 +1,16 @@
-"""Tests for constitution sync orchestrator."""
+"""Tests for charter sync orchestrator."""
 
 import pytest
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from constitution.hasher import hash_content
-from constitution.sync import sync
+from charter.hasher import hash_content
+from charter.sync import sync
 
 pytestmark = pytest.mark.fast
-# Sample constitution content for testing
-SAMPLE_CONSTITUTION = """# Testing Standards
+# Sample charter content for testing
+SAMPLE_CHARTER = """# Testing Standards
 
 ## Coverage Requirements
 - Minimum 80% code coverage
@@ -41,12 +41,12 @@ SAMPLE_CONSTITUTION = """# Testing Standards
 """
 
 
-def test_sync_fresh_constitution(tmp_path: Path):
-    """Sync with a fresh constitution (no prior extraction)."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+def test_sync_fresh_charter(tmp_path: Path):
+    """Sync with a fresh charter (no prior extraction)."""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
-    result = sync(constitution_file, tmp_path)
+    result = sync(charter_file, tmp_path)
 
     assert result.synced is True
     assert result.stale_before is True
@@ -63,17 +63,17 @@ def test_sync_fresh_constitution(tmp_path: Path):
         assert (tmp_path / filename).exists()
 
 
-def test_sync_unchanged_constitution(tmp_path: Path):
-    """Sync with unchanged constitution should skip extraction."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+def test_sync_unchanged_charter(tmp_path: Path):
+    """Sync with unchanged charter should skip extraction."""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     # First sync
-    result1 = sync(constitution_file, tmp_path)
+    result1 = sync(charter_file, tmp_path)
     assert result1.synced is True
 
     # Second sync (unchanged)
-    result2 = sync(constitution_file, tmp_path)
+    result2 = sync(charter_file, tmp_path)
 
     assert result2.synced is False
     assert result2.stale_before is False
@@ -83,36 +83,36 @@ def test_sync_unchanged_constitution(tmp_path: Path):
 
 def test_sync_with_force_flag(tmp_path: Path):
     """Sync with --force should extract even if unchanged."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     # First sync
-    result1 = sync(constitution_file, tmp_path)
+    result1 = sync(charter_file, tmp_path)
     assert result1.synced is True
 
     # Second sync with force=True
-    result2 = sync(constitution_file, tmp_path, force=True)
+    result2 = sync(charter_file, tmp_path, force=True)
 
     assert result2.synced is True
     assert result2.stale_before is False  # Was not stale
     assert len(result2.files_written) == 3
 
 
-def test_sync_modified_constitution(tmp_path: Path):
-    """Sync with modified constitution should extract."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+def test_sync_modified_charter(tmp_path: Path):
+    """Sync with modified charter should extract."""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     # First sync
-    result1 = sync(constitution_file, tmp_path)
+    result1 = sync(charter_file, tmp_path)
     assert result1.synced is True
 
-    # Modify constitution
-    modified_content = SAMPLE_CONSTITUTION + "\n4. New directive\n"
-    constitution_file.write_text(modified_content, encoding="utf-8")
+    # Modify charter
+    modified_content = SAMPLE_CHARTER + "\n4. New directive\n"
+    charter_file.write_text(modified_content, encoding="utf-8")
 
     # Second sync (modified)
-    result2 = sync(constitution_file, tmp_path)
+    result2 = sync(charter_file, tmp_path)
 
     assert result2.synced is True
     assert result2.stale_before is True
@@ -121,11 +121,11 @@ def test_sync_modified_constitution(tmp_path: Path):
 
 def test_sync_idempotency(tmp_path: Path):
     """Running sync twice with same content produces identical output."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     # First sync
-    result1 = sync(constitution_file, tmp_path, force=True)
+    result1 = sync(charter_file, tmp_path, force=True)
     assert result1.synced is True
 
     # Read generated files
@@ -138,7 +138,7 @@ def test_sync_idempotency(tmp_path: Path):
             metadata = yaml.load(file_path)
             files1[filename] = {
                 "schema_version": metadata.get("schema_version"),
-                "constitution_hash": metadata.get("constitution_hash"),
+                "charter_hash": metadata.get("charter_hash"),
                 "extraction_mode": metadata.get("extraction_mode"),
                 "sections_parsed": metadata.get("sections_parsed"),
             }
@@ -146,7 +146,7 @@ def test_sync_idempotency(tmp_path: Path):
             files1[filename] = file_path.read_text()
 
     # Second sync with force
-    result2 = sync(constitution_file, tmp_path, force=True)
+    result2 = sync(charter_file, tmp_path, force=True)
     assert result2.synced is True
 
     # Read generated files again
@@ -157,7 +157,7 @@ def test_sync_idempotency(tmp_path: Path):
             metadata = yaml.load(file_path)
             files2[filename] = {
                 "schema_version": metadata.get("schema_version"),
-                "constitution_hash": metadata.get("constitution_hash"),
+                "charter_hash": metadata.get("charter_hash"),
                 "extraction_mode": metadata.get("extraction_mode"),
                 "sections_parsed": metadata.get("sections_parsed"),
             }
@@ -171,11 +171,11 @@ def test_sync_idempotency(tmp_path: Path):
 
 
 def test_sync_updates_metadata_hash(tmp_path: Path):
-    """Sync updates the metadata with current constitution hash."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+    """Sync updates the metadata with current charter hash."""
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
-    result = sync(constitution_file, tmp_path)
+    result = sync(charter_file, tmp_path)
     assert result.synced is True
 
     # Read metadata
@@ -185,19 +185,19 @@ def test_sync_updates_metadata_hash(tmp_path: Path):
     yaml = YAML()
     metadata = yaml.load(metadata_file)
 
-    assert "constitution_hash" in metadata
-    expected_hash = hash_content(SAMPLE_CONSTITUTION)
-    assert metadata["constitution_hash"] == expected_hash
+    assert "charter_hash" in metadata
+    expected_hash = hash_content(SAMPLE_CHARTER)
+    assert metadata["charter_hash"] == expected_hash
 
 
 def test_sync_custom_output_dir(tmp_path: Path):
     """Sync can write to custom output directory."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     output_dir = tmp_path / "custom_output"
 
-    result = sync(constitution_file, output_dir)
+    result = sync(charter_file, output_dir)
 
     assert result.synced is True
     for filename in result.files_written:
@@ -206,25 +206,25 @@ def test_sync_custom_output_dir(tmp_path: Path):
 
 def test_sync_creates_output_dir(tmp_path: Path):
     """Sync creates output directory if it doesn't exist."""
-    constitution_file = tmp_path / "constitution.md"
-    constitution_file.write_text(SAMPLE_CONSTITUTION, encoding="utf-8")
+    charter_file = tmp_path / "charter.md"
+    charter_file.write_text(SAMPLE_CHARTER, encoding="utf-8")
 
     output_dir = tmp_path / "nested" / "output"
     assert not output_dir.exists()
 
-    result = sync(constitution_file, output_dir)
+    result = sync(charter_file, output_dir)
 
     assert result.synced is True
     assert output_dir.exists()
 
 
-def test_sync_with_invalid_constitution(tmp_path: Path):
-    """Sync handles invalid constitution gracefully."""
-    constitution_file = tmp_path / "constitution.md"
+def test_sync_with_invalid_charter(tmp_path: Path):
+    """Sync handles invalid charter gracefully."""
+    charter_file = tmp_path / "charter.md"
     # Write empty content
-    constitution_file.write_text("", encoding="utf-8")
+    charter_file.write_text("", encoding="utf-8")
 
-    result = sync(constitution_file, tmp_path)
+    result = sync(charter_file, tmp_path)
 
     # Should complete but may have minimal content
     # (Parser is fault-tolerant, won't raise exception)
@@ -232,11 +232,11 @@ def test_sync_with_invalid_constitution(tmp_path: Path):
     assert result.error is None
 
 
-def test_sync_missing_constitution_file(tmp_path: Path):
-    """Sync returns error when constitution file doesn't exist."""
-    constitution_file = tmp_path / "nonexistent.md"
+def test_sync_missing_charter_file(tmp_path: Path):
+    """Sync returns error when charter file doesn't exist."""
+    charter_file = tmp_path / "nonexistent.md"
 
-    result = sync(constitution_file, tmp_path)
+    result = sync(charter_file, tmp_path)
 
     assert result.synced is False
     assert result.error is not None
