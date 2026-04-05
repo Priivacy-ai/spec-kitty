@@ -4,7 +4,7 @@ Covers:
 - Network failure queues event (SC-006)
 - Invalid schema discards event
 - Lamport clock desync recovery
-- Queue overflow warning at 10K limit
+- Queue overflow warning at the configured capacity limit
 - Concurrent emission thread safety
 - Non-blocking emission (SC-008)
 """
@@ -110,7 +110,7 @@ class TestLamportClockDesyncRecovery:
 
 
 class TestQueueOverflow:
-    """Test queue behavior at 10K limit."""
+    """Test queue behavior at the configured capacity limit."""
 
     def test_queue_rejects_at_max(self, tmp_path: Path):
         """Queue evicts the oldest event when it reaches MAX_QUEUE_SIZE."""

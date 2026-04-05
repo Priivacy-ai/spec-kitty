@@ -53,13 +53,13 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - Implement `OfflineBodyUploadQueue` class with idempotent enqueue, per-task backoff drain, lifecycle methods, and stats
 - Queue survives process restarts (FR-009)
 - Idempotent enqueue prevents duplicate tasks for same content+namespace (FR-010)
-- Queue capacity bounded to 10,000 tasks (NFR-002)
+- Queue capacity bounded by the shared sync queue default of 100,000 tasks (NFR-002)
 - Per-task backoff prevents tight-loop retry (NFR-003)
 - `pytest tests/specify_cli/sync/test_body_queue.py` passes with 90%+ coverage
 
 ## Context & Constraints
 
-- **Spec**: FR-007 (durable queue), FR-009 (survives restart), FR-010 (idempotent), NFR-002 (10K capacity), NFR-003 (per-task backoff 1s→5min)
+- **Spec**: FR-007 (durable queue), FR-009 (survives restart), FR-010 (idempotent), NFR-002 (100K shared capacity default), NFR-003 (per-task backoff 1s→5min)
 - **Plan**: Module Responsibilities → `body_queue.py`, Key Design Decisions #4 (per-task backoff via `next_attempt_at`), #6 (idempotent enqueue via 7-field unique constraint)
 - **Existing code**: `src/specify_cli/sync/queue.py` — `OfflineQueue` class (pattern reference for SQLite CRUD, schema, stats)
 - **Existing schema**: `queue` table uses `event_id TEXT UNIQUE`, `data TEXT`, `timestamp INTEGER`, `retry_count INTEGER`
@@ -126,7 +126,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      if TYPE_CHECKING:
          from .namespace import NamespaceRef
 
-     MAX_BODY_QUEUE_SIZE = 10_000
+     DEFAULT_BODY_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
 
      @dataclass
      class BodyUploadTask:
@@ -176,7 +176,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
      ) -> bool:
          """Enqueue a body upload task. Returns True if new, False if duplicate."""
      ```
-  2. Check queue size first: `SELECT COUNT(*) FROM body_upload_queue`. If >= `MAX_BODY_QUEUE_SIZE`, log warning and return `False`
+  2. Check queue size first: `SELECT COUNT(*) FROM body_upload_queue`. If >= the configured shared sync queue limit, return a `queue_full` result without emitting user-visible warning noise
   3. Use `INSERT OR IGNORE` with the unique constraint to achieve idempotency:
      ```sql
      INSERT OR IGNORE INTO body_upload_queue
@@ -208,12 +208,12 @@ Use language identifiers in code blocks: ````python`, ````bash`
             retry_count, next_attempt_at, created_at, last_error
      FROM body_upload_queue
      WHERE next_attempt_at <= ?
-     ORDER BY created_at ASC
+     ORDER BY created_at ASC, id ASC
      LIMIT ?
      ```
   3. Pass `time.time()` as the current timestamp parameter
   4. Map rows to `BodyUploadTask` dataclass instances
-  5. Return the list (FIFO order by `created_at`)
+  5. Return the list (FIFO order by `created_at`, with `id` as a deterministic tiebreaker)
 
 - **Files**: `src/specify_cli/sync/body_queue.py` (extend, ~25 lines)
 - **Parallel?**: No — sequential after T008.
@@ -315,7 +315,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 
 - **Risk**: Schema migration breaks existing event queue. **Mitigation**: `CREATE TABLE IF NOT EXISTS` + `CREATE INDEX IF NOT EXISTS` only; never ALTER/DROP existing tables.
 - **Risk**: SQLite concurrent access from background thread. **Mitigation**: `check_same_thread=False` + SQLite WAL mode (already used by OfflineQueue).
-- **Risk**: Queue grows unbounded. **Mitigation**: Hard 10K capacity check in `enqueue()` + `remove_stale()` for poison rows.
+- **Risk**: Queue grows unbounded. **Mitigation**: Shared 100K capacity check in `enqueue()` + `remove_stale()` for poison rows.
 
 ## Review Guidance
 
@@ -332,4 +332,4 @@ Use language identifiers in code blocks: ````python`, ````bash`
 - 2026-03-09T08:23:00Z – claude-opus – shell_pid=49905 – lane=doing – Assigned agent via workflow command
 - 2026-03-09T08:25:54Z – claude-opus – shell_pid=49905 – lane=for_review – Ready for review: OfflineBodyUploadQueue with 7-field idempotent enqueue, exponential backoff drain, lifecycle methods, stats. 27 tests, all passing.
 - 2026-03-09T08:34:30Z – claude-opus – shell_pid=50890 – lane=doing – Started review via workflow command
-- 2026-03-09T08:36:08Z – claude-opus – shell_pid=50890 – lane=done – Review passed: Clean implementation of OfflineBodyUploadQueue. 7-field unique constraint, INSERT OR IGNORE idempotency, exponential backoff (1s->300s cap), 10K capacity limit all match spec. Schema safely integrated into OfflineQueue._init_db(). 27/27 tests passing. Only minor: unused pytest import in test file (F401). | Done override: Review approved pre-merge. Branch 047-namespace-aware-artifact-body-sync-WP02 ready for merge to 2.x.
+- 2026-03-09T08:36:08Z – claude-opus – shell_pid=50890 – lane=done – Review passed: Clean implementation of OfflineBodyUploadQueue. 7-field unique constraint, INSERT OR IGNORE idempotency, exponential backoff (1s->300s cap), shared capacity limit all match spec. Schema safely integrated into OfflineQueue._init_db(). 27/27 tests passing. Only minor: unused pytest import in test file (F401). | Done override: Review approved pre-merge. Branch 047-namespace-aware-artifact-body-sync-WP02 ready for merge to 2.x.

@@ -119,7 +119,7 @@ A developer has non-UTF-8, binary, or oversized files in the artifact tree and e
 | ID | Requirement | Threshold | Status |
 |----|-------------|-----------|--------|
 | NFR-001 | Body upload phase completes within a bounded time for a typical feature namespace. | All supported artifacts uploaded within 10 seconds for a feature with up to 30 artifacts on a standard connection. | Draft |
-| NFR-002 | Offline queue growth is bounded to prevent unbounded disk usage. | Queue capacity limit of 10,000 upload tasks (consistent with existing event queue limit). | Draft |
+| NFR-002 | Offline queue growth is bounded to prevent unbounded disk usage. | Queue capacity defaults to 100,000 upload tasks and reuses the shared sync queue sizing policy/configuration. | Draft |
 | NFR-003 | Retry backoff prevents thundering-herd or tight-loop retry against SaaS. | Exponential backoff starting at 1 second, capped at 5 minutes between retries, tracked per upload task (not globally). The existing queue schema tracks retry count globally per event row; the plan phase MUST address whether the schema needs a per-task backoff timestamp or next-eligible-at column. | Draft |
 | NFR-004 | New code maintains existing test coverage standards. | 90%+ line coverage for new modules; mypy --strict passes. | Draft |
 

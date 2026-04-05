@@ -13,6 +13,7 @@ import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from .body_queue import BodyEnqueueResult
 from .namespace import UploadOutcome, UploadStatus, is_supported_format
 
 if TYPE_CHECKING:
@@ -44,9 +45,7 @@ def _is_supported_surface(relative_path: str) -> bool:
         return True
     if any(relative_path.startswith(prefix) for prefix in _DIRECTORY_PREFIXES):
         return True
-    if _WP_PATTERN.match(relative_path):
-        return True
-    return False
+    return bool(_WP_PATTERN.match(relative_path))
 
 
 def _check_format(relative_path: str) -> UploadOutcome | None:
@@ -178,7 +177,7 @@ def prepare_body_uploads(
         content, actual_hash = result
 
         # Enqueue
-        enqueued = body_queue.enqueue(
+        enqueue_result = body_queue.enqueue(
             namespace=namespace_ref,
             artifact_path=artifact.relative_path,
             content_hash=actual_hash,
@@ -186,10 +185,20 @@ def prepare_body_uploads(
             size_bytes=len(content.encode("utf-8")),
         )
 
+        if enqueue_result == BodyEnqueueResult.ENQUEUED:
+            status = UploadStatus.QUEUED
+            reason = "enqueued"
+        elif enqueue_result == BodyEnqueueResult.ALREADY_EXISTS:
+            status = UploadStatus.ALREADY_EXISTS
+            reason = "already_in_queue"
+        else:
+            status = UploadStatus.FAILED
+            reason = "queue_full"
+
         outcomes.append(UploadOutcome(
             artifact_path=artifact.relative_path,
-            status=UploadStatus.QUEUED if enqueued else UploadStatus.ALREADY_EXISTS,
-            reason="enqueued" if enqueued else "already_in_queue",
+            status=status,
+            reason=reason,
             content_hash=actual_hash,
         ))
 

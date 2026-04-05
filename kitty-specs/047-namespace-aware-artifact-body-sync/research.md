@@ -85,7 +85,7 @@
 
 **Decision**: 512 KiB per artifact, measured as UTF-8 encoded byte length of `content_body` before enqueue. Code constant in v1, not user-configurable.
 
-**Rationale**: 1 MB is too generous for queue-backed storage (worst-case 10,000 × 1 MB = 10 GB queue). 256 KB is too tight for legitimate large research or contract documents. 512 KiB provides headroom for normal spec artifacts while bounding queue growth to a reasonable worst case (~5 GB, which is still extreme but bounded).
+**Rationale**: 1 MB is too generous for queue-backed storage. 256 KB is too tight for legitimate large research or contract documents. 512 KiB provides headroom for normal spec artifacts while preserving the existing shared sync queue default of 100,000 items; the theoretical worst case is large, but parity with the event queue and reuse of the shared `max_queue_size` setting avoid a second divergent capacity policy.
 
 ## R7: Supported Artifact Surfaces and Format Filtering
 

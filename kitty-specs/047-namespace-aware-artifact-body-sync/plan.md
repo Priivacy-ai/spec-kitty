@@ -15,7 +15,7 @@ Extend the spec-kitty sync pipeline to upload renderable artifact bodies to SaaS
 **Target Platform**: Cross-platform (Linux, macOS, Windows 10+)
 **Project Type**: Single (CLI tool)
 **Performance Goals**: All supported artifacts uploaded within 10 seconds for a feature with up to 30 artifacts
-**Constraints**: 512 KiB per artifact inline limit, 10,000 task queue cap, per-task exponential backoff (1s → 5 min)
+**Constraints**: 512 KiB per artifact inline limit, 100,000 task queue cap via the shared sync queue sizing policy, per-task exponential backoff (1s → 5 min)
 **Scale/Scope**: Typical feature has 5-30 text artifacts
 
 ## Constitution Check
