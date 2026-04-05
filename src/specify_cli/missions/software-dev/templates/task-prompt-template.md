@@ -59,7 +59,7 @@ Use language identifiers in code blocks: ````python`, ````bash`
 ## Context & Constraints
 
 - Reference prerequisite work and related documents.
-- Link to supporting specs: `.kittify/constitution/constitution.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
+- Link to supporting specs: `.kittify/charter/charter.md`, `kitty-specs/.../plan.md`, `kitty-specs/.../tasks.md`, data model, contracts, research, quickstart.
 - Highlight architectural decisions, constraints, or trade-offs to honor.
 
 ## Subtasks & Detailed Guidance

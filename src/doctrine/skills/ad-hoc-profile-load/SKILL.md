@@ -8,8 +8,8 @@ description: >-
   "switch to implementer", "use the researcher persona",
   "start a session as planner", "adopt the curator role",
   "initialize profile", "assume the designer identity".
-  Does NOT handle: mission advancement (use runtime-next), constitution
-  interview/generation (use constitution-doctrine), or profile creation
+  Does NOT handle: mission advancement (use runtime-next), charter
+  interview/generation (use charter-doctrine), or profile creation
   (use spec-kitty agent profile create).
 argument-hint: "<profile-id>"
 ---
@@ -133,11 +133,11 @@ Do NOT load the full doctrine catalog. The profile scopes what matters.
 
 ## Step 3: Scope Governance Context
 
-After adopting the profile, load constitution context scoped to the action
+After adopting the profile, load charter context scoped to the action
 the user wants to perform:
 
 ```bash
-spec-kitty constitution context --action implement --json
+spec-kitty charter context --action implement --json
 ```
 
 If the user hasn't named an action, infer it from the profile's

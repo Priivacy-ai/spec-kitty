@@ -144,7 +144,7 @@ Agent directories like `.claude/`, `.codex/`, `.gemini/` contain:
 
 - `.kittify/templates/` - Command templates (source)
 - `.kittify/missions/` - Mission definitions
-- `.kittify/constitution/constitution.md` - Project constitution
+- `.kittify/charter/charter.md` - Project charter
 - `.gitignore` - With all agent directories excluded
 
 ❌ **DO NOT commit:**

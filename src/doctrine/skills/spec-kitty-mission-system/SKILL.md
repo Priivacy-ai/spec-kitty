@@ -11,7 +11,7 @@ description: >-
   "what is a mission", "change the mission", "mission templates",
   "step contracts", "action index", "mission procedures".
   Does NOT handle: runtime loop advancement (use runtime-next),
-  setup or repair (use setup-doctor), governance (use constitution-doctrine),
+  setup or repair (use setup-doctor), governance (use charter-doctrine),
   or glossary curation (use glossary-context).
 ---
 
@@ -370,7 +370,7 @@ toolguides: []
 procedures: [implementation-handoff]
 ```
 
-The constitution context builder uses these indices to scope what gets
+The charter context builder uses these indices to scope what gets
 injected into the agent prompt at each step. This prevents agents from
 seeing review-scoped doctrine during implementation and vice versa.
 

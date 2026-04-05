@@ -16,10 +16,10 @@ This command delegates charter work to the CLI charter workflow. Do not hand-aut
 
 ### Output location
 
-- Charter markdown: `.kittify/constitution/constitution.md`
-- Interview answers: `.kittify/constitution/interview/answers.yaml`
-- Reference manifest: `.kittify/constitution/references.yaml`
-- Local reference docs: `.kittify/constitution/library/*.md`
+- Charter markdown: `.kittify/charter/charter.md`
+- Interview answers: `.kittify/charter/interview/answers.yaml`
+- Reference manifest: `.kittify/charter/references.yaml`
+- Local reference docs: `.kittify/charter/library/*.md`
 
 ## Execution Paths
 
@@ -55,7 +55,7 @@ After generation, verify status:
 spec-kitty charter status --json
 ```
 
-## Context Bootstrap Requirement
+## Charter Context Bootstrap
 
 After charter generation, first-run lifecycle actions should load context explicitly:
 
