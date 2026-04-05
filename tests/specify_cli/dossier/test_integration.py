@@ -144,7 +144,7 @@ class TestMissingRequiredArtifactDetection:
         else:
             # If no missing detected, verify dossier has artifacts for all required items
             # (this means missing detection isn't step-specific in current implementation)
-            assert len(dossier.artifacts) >= 0  # Just verify dossier exists
+            assert dossier.artifacts is not None  # Just verify dossier exists
 
     def test_multiple_missing_artifacts_all_detected(self, tmp_path):
         """Multiple missing artifacts all detected (not just first one)."""
