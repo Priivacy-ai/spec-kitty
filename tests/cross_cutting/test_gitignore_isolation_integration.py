@@ -90,8 +90,14 @@ def test_worktree_creation_does_not_modify_gitignore(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
-    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -200,8 +206,14 @@ def test_worktree_merge_has_no_gitignore_pollution(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
-    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
@@ -324,8 +336,14 @@ def test_git_info_exclude_contains_exclusion_patterns(tmp_path: Path):
     feature_dir = tmp_path / "kitty-specs" / "001-test-feature"
     feature_dir.mkdir(parents=True)
 
-    _write_valid_meta(feature_dir, "001-test-feature", _current_branch(tmp_path))
-    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("gitignore",))
+    target_branch = _current_branch(tmp_path)
+    _write_valid_meta(feature_dir, "001-test-feature", target_branch)
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=("WP01",),
+        predicted_surfaces=("gitignore",),
+        target_branch=target_branch,
+    )
 
     # Create WP task file
     tasks_dir = feature_dir / "tasks"
