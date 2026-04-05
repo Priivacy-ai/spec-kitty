@@ -54,7 +54,7 @@ class VersionDetector:
         if schema_version is None:
             # Legacy project: .kittify/ exists but no schema_version field.
             # Treat as version 0 — needs migration.
-            return 0 if self.kittify_dir.exists() else 0
+            return 0
         return schema_version
 
     def get_needed_migrations(self, target_version: str) -> list[str]:
