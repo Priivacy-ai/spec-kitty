@@ -23,7 +23,7 @@ def next_step(
     result: Annotated[
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
-    feature: Annotated[str | None, typer.Option("--feature", help="Mission slug (legacy flag name; auto-detected if omitted)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias; use --mission-run)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[
@@ -38,7 +38,7 @@ def next_step(
 
     Examples:
         spec-kitty next --agent claude --json
-        spec-kitty next --agent codex --feature 034-my-feature
+        spec-kitty next --agent codex --mission-run 034-my-feature
         spec-kitty next --agent gemini --result failed --json
         spec-kitty next --agent claude --answer "yes" --json
         spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json

@@ -44,7 +44,7 @@ class ProcedureRepository:
         shipped: dict[str, Procedure] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.glob("*.procedure.yaml")):
+            for yaml_file in sorted(self._shipped_dir.rglob("*.procedure.yaml")):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

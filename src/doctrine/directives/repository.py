@@ -52,7 +52,7 @@ class DirectiveRepository:
         shipped: dict[str, Directive] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.glob("*.directive.yaml")):
+            for yaml_file in sorted(self._shipped_dir.rglob("*.directive.yaml")):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

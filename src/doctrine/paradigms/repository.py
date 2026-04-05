@@ -44,7 +44,7 @@ class ParadigmRepository:
         shipped: dict[str, Paradigm] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.glob("*.paradigm.yaml")):
+            for yaml_file in sorted(self._shipped_dir.rglob("*.paradigm.yaml")):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

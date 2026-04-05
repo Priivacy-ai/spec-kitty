@@ -52,7 +52,7 @@ class MissionStepContractRepository:
         shipped: dict[str, MissionStepContract] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.glob(self.GLOB)):
+            for yaml_file in sorted(self._shipped_dir.rglob(self.GLOB)):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

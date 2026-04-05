@@ -846,7 +846,7 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
@@ -1273,7 +1273,7 @@ def move_task(
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -1456,7 +1456,7 @@ def mark_status(
 @app.command(name="list-tasks")
 def list_tasks(
     lane: Annotated[Optional[str], typer.Option("--lane", help="Filter by lane")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -1544,7 +1544,7 @@ def list_tasks(
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1625,7 +1625,7 @@ def add_history(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[bool, typer.Option("--validate-only", help="Validate without writing changes")] = False,
 ) -> None:
@@ -1791,7 +1791,7 @@ def map_requirements(
     ] = False,
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Feature slug (required in multi-feature repos)"),
+        typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
@@ -2092,7 +2092,7 @@ def map_requirements(
 @app.command(name="validate-workflow")
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -2192,7 +2192,7 @@ def validate_workflow(
 def status(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Feature slug (e.g., 012-documentation-mission). Required in multi-feature repos.")
+        typer.Option("--feature", "--mission-run", "-f", help="Mission run slug (--feature is the legacy alias)")
     ] = None,
     json_output: Annotated[
         bool,
@@ -2520,7 +2520,7 @@ def status(
 @app.command(name="list-dependents")
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).
