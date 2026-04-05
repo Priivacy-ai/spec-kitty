@@ -9,6 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a3] - 2026-04-05
+
+### Fixed
+
+- **Doctrine artifact discovery in subdirectories** — all 7 doctrine repositories now use `rglob()` instead of `glob()`, so artifacts in subdirectories of `shipped/` are no longer silently skipped (#396).
+- **Dashboard `/api/features` empty response** — `StatusEvent.from_dict()` now accepts both `feature_slug` and `mission_slug` field names and normalizes the legacy `in_review` lane to `for_review`.
+- **Stale `patch()` targets caught at lint time** — new `scripts/check_patch_targets.py` validates every `@patch()` target string resolves, added as an `[ENFORCED]` CI lint step (#394).
+- **Architectural layer coverage guards** — meta-tests fail when a `src/` package has no layer assignment or a defined layer matches no module (#395).
+- **Sonar reliability bugs** — resolved 7 findings: unreachable code (S1763), identical branches (S3923), premature async task GC (S7502), always-true condition (S2583), tautological assertion (S3981), CSS shorthand override (S4657), parameter shadowing (S1226).
+- **Async task GC in event emitter** — `asyncio.ensure_future()` results held in `_pending_tasks` set with done-callback cleanup, preventing premature garbage collection.
+- **`check-readiness` CI gate unblocked** — post-release version bump missed after tagging v3.1.0a2 (#408).
+
+### Changed
+
+- **CI test parallelization** — `fast-tests` and `integration-tests` split into `doctrine` + `core` phases running in parallel (#397).
+- **`--mission-run` as canonical CLI flag** — added as alias for `--feature` across all CLI commands. `--feature` remains accepted as legacy alias.
+- **Node.js 20 → 22** in CI workflows (current LTS).
+- **Mutation testing CI job disabled** — too slow to run reliably.
+- **Ruff max line length** increased from 120 to 164.
+- **Defunct `tests/legacy` references removed**.
+
+### Added
+
+- **RTK search tooling toolguide** — new shipped doctrine artifact documenting RTK interception patterns and correct search tooling for worktree sessions.
+- **`last_updated` field** on Toolguide model and schema.
+- **Integration tests for nested artifact discovery** — 281-line test suite covering all 8 doctrine repository types.
+- **`integration` pytest marker** registered in `pyproject.toml`.
+
 ## [3.1.0a2] - 2026-04-05
 
 ### Changed
