@@ -24,11 +24,11 @@ Example output:
 
 ```
 Resuming merge of 017-my-feature
-  Progress: 2/5 WPs
-  Remaining: WP03, WP04, WP05
+  Progress: 1/2 lanes
+  Remaining: lane-b
 
-Merging WP03 (017-my-feature-WP03)...
-✓ WP03 merged
+Merging lane-b (kitty/mission-017-my-feature-lane-b)...
+✓ lane-b merged
 ```
 
 ### Understanding Merge State
@@ -135,7 +135,7 @@ If auto-resolution fails (unusual file structure, corrupted content):
    lane: "done"
    =======
    lane: "for_review"
-   >>>>>>> 017-feature-WP03
+   >>>>>>> kitty/mission-017-feature-lane-b
    ```
 3. Choose the appropriate value (usually "done" for lane)
 4. Remove conflict markers
@@ -166,7 +166,7 @@ For conflicts in source code files:
    =======
    def existing_function():
        return "new behavior"
-   >>>>>>> 017-feature-WP02
+   >>>>>>> kitty/mission-017-feature-lane-a
    ```
 
 3. Edit to combine both changes appropriately:
@@ -200,7 +200,7 @@ Pre-flight runs before any merge operations. All issues are shown upfront.
 
 ```
 Pre-flight failed. Fix these issues before merging:
-  1. Uncommitted changes in 017-feature-WP02
+  1. Uncommitted changes in kitty/mission-017-feature-lane-a
 ```
 
 **Fix**: Commit or stash changes in that execution workspace:
@@ -223,7 +223,7 @@ git stash
 ```
 Pre-flight failed. Fix these issues before merging:
 
-  1. Missing worktree for WP03. Expected at 017-feature-WP03. Run: spec-kitty agent action implement WP03
+  1. Missing worktree for lane-b. Expected at 017-feature-lane-b. Run: spec-kitty agent action implement WP03
 ```
 
 **Fix**: Create the missing worktree using the agent workflow command:
@@ -252,7 +252,7 @@ Then retry the merge from any checkout where the feature resolves correctly.
 
 ```
 Pre-flight failed. Fix these issues before merging:
-  1. Branch 017-feature-WP02 does not exist
+  1. Branch kitty/mission-017-feature-lane-a does not exist
 ```
 
 **Fix**: This usually means the worktree was manually deleted without the branch. Recreate:
@@ -284,7 +284,7 @@ spec-kitty implement WP02
 | `⚠ Invalid merge state file cleared` | State file was corrupted | Start fresh with `spec-kitty merge` |
 | `⚠ Git merge in progress - resolve conflicts first` | Unresolved conflict from previous attempt | Resolve conflicts, then `spec-kitty merge --resume` |
 | `No merge state to abort` | No active merge to abort | Nothing to do, merge was already complete or never started |
-| `Note: Rebase strategy not supported for workspace-per-WP.` | Used --strategy rebase with a multi-workspace feature | Use `merge` or `squash` strategy instead |
+| `Note: Rebase strategy not supported for execution-lanes.` | Used --strategy rebase with a multi-workspace feature | Use `merge` or `squash` strategy instead |
 | `Pre-flight failed. Fix these issues before merging:` | One or more pre-flight checks failed | See numbered list below message, fix each issue |
 | `Warning: No WP worktrees found for feature <slug>` | Feature may be merged already, not implemented yet, or still using only lane manifests without created worktrees | Check feature slug, then create or inspect the expected execution workspaces |
 
@@ -303,7 +303,7 @@ spec-kitty implement WP02
 
 ## Background
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - How worktrees and merging work
+- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees and merging work
 - [Git Worktrees](../explanation/git-worktrees.md) - Git worktree fundamentals
 
 ## Getting Started

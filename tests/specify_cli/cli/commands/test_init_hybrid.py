@@ -112,7 +112,7 @@ class TestResolveMissionCommandTemplatesDir:
 
         assert result.is_dir(), "Resolved dir must exist"
         templates = list(result.glob("*.md"))
-        assert len(templates) == 9, f"Expected 9 templates, got {len(templates)}: {[t.name for t in templates]}"
+        assert len(templates) == 10, f"Expected 10 templates, got {len(templates)}: {[t.name for t in templates]}"
 
     def test_resolves_from_global_tier(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Global tier (tier 3) wins over package tier when both exist."""

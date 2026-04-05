@@ -69,7 +69,7 @@ def _make_mock_context(**kwargs) -> MissionContext:
         "feature_slug": "057-test",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
-        "authoritative_ref": "057-test-WP01",
+        "authoritative_ref": "kitty/mission-057-test-lane-a",
         "owned_files": (),
         "execution_mode": "code_change",
         "dependency_mode": "independent",

@@ -112,7 +112,6 @@ spec-kitty orchestrator-api list-ready --mission TEXT
 | `ready_work_packages[].wp_id` | string | Work package identifier (e.g., `WP01`) |
 | `ready_work_packages[].lane` | string | Current lane (always `planned` for ready WPs) |
 | `ready_work_packages[].dependencies_satisfied` | bool | Always `true` for returned WPs |
-| `ready_work_packages[].recommended_base` | string or null | Recommended `--base` value for `implement` |
 
 **Error codes:**
 

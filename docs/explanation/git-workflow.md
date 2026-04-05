@@ -2,7 +2,7 @@
 
 Spec Kitty draws a hard line between **infrastructure git** and **content git**. Python handles all the plumbing -- resolving execution workspaces, creating worktrees, committing status changes, merging branches, cleaning up. Agents (and humans) handle all the content -- writing code, committing implementations, rebasing, and resolving conflicts.
 
-Understanding this boundary matters because crossing it causes breakage. An agent that creates a worktree manually will end up without workspace context, without sparse checkout, and without proper branch naming. A human who commits planning artifacts from inside a worktree will pollute the wrong branch.
+Understanding this boundary matters because crossing it causes breakage. An agent that creates a worktree manually will end up without workspace context, without canonical lane assignment, and without proper branch naming. A human who commits planning artifacts from inside a worktree will pollute the wrong branch.
 
 > **Companion doc:** [Git Worktrees](git-worktrees.md) explains the underlying git worktree technology. This document explains how Spec Kitty uses that technology in practice.
 
@@ -14,8 +14,8 @@ Understanding this boundary matters because crossing it causes breakage. An agen
 | `git commit` (planning artifacts) | Python | Before worktree creation |
 | `git commit` (lane transitions) | Python | WP moves to doing / for_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
-| `git rebase` (stacked WPs) | **Agent** | When base WP has new changes |
-| `git merge` (WP into target) | Python | `spec-kitty merge` |
+| `git rebase` (stale lane sync) | **Agent** | When the mission branch advanced and the lane must resync |
+| `git merge` (lane into mission, mission into target) | Python | `spec-kitty merge` |
 | `git push` | Python (opt-in) | `spec-kitty merge --push` only |
 | `git push` | **Agent** | Any other push scenario |
 | Conflict resolution | **Agent** | During rebase or manual merge |
@@ -34,15 +34,15 @@ Every execution workspace passes through five stages.
 spec-kitty implement WP01
 ```
 
-Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, configures sparse checkout (excluding `kitty-specs/`), creates a workspace context file at `.kittify/workspaces/<feature>-<workspace>.json`, and sets the WP status to `in_progress`.
+Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, creates a workspace context file at `.kittify/workspaces/<feature>-<workspace>.json`, and sets the WP status to `in_progress`.
 
-For dependent WPs, use the `--base` flag:
+For dependent WPs, rely on task finalization to place the work in the correct execution lane:
 
 ```bash
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 ```
 
-This branches from WP01's branch instead of the target branch, so WP02 starts with WP01's changes already present. If WP01 and WP02 share a lane, the same workspace may be reused sequentially.
+If WP01 and WP02 share a lane, the same workspace is reused sequentially. If they do not share a lane, each lane branches from the mission branch and integrates through the lane-only merge flow.
 
 ### 2. Active
 
@@ -158,12 +158,10 @@ Spec Kitty displays a warning when it detects the base has diverged, but it does
 Git can only branch from one parent. If WP04 depends on both WP02 and WP03:
 
 ```bash
-spec-kitty implement WP04 --base WP03
-cd <workspace path printed by spec-kitty implement>
-git merge 042-feature-WP02
+spec-kitty implement WP04
 ```
 
-Use `--base` for one dependency, then manually merge the other.
+Task finalization resolves multi-dependency lane ownership before implementation starts.
 
 ### Pushing
 
@@ -182,7 +180,7 @@ If `spec-kitty merge` encounters conflicts, it stops and reports the conflicting
 git worktree add -b my-branch .worktrees/my-branch main
 ```
 
-Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), sparse checkout configuration, and canonical branch naming. Spec Kitty commands will not recognize them reliably.
+Manual worktrees lack workspace context (`.kittify/workspaces/*.json`), lane metadata, and canonical branch naming. Spec Kitty commands will not recognize them reliably.
 
 Always use `spec-kitty implement`.
 
@@ -226,7 +224,7 @@ Spec Kitty does not install or manage git hooks. The pre-commit hook that previo
 
 ---
 
-*This document explains the git workflow boundary. For the underlying worktree technology, see [Git Worktrees](git-worktrees.md). For the execution workspace model, see [Execution Workspace Model](workspace-per-wp.md).*
+*This document explains the git workflow boundary. For the underlying worktree technology, see [Git Worktrees](git-worktrees.md). For the execution workspace model, see [Execution Workspace Model](execution-lanes.md).*
 
 ## Try It
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)

@@ -86,8 +86,10 @@ execution_mode: "code_change"
 ```
 
 Include the correct implementation command:
-- No dependencies: `spec-kitty implement WP01`
-- With dependencies: `spec-kitty implement WP02 --base WP01`
+- `spec-kitty implement WP01`
+- `spec-kitty implement WP02`
+
+`finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
 
 **Ownership rules**:
 - `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.

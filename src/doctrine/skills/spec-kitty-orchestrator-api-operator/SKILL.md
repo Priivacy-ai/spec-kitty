@@ -73,7 +73,7 @@ results. No command returns prose or mixed text/JSON.
 | `transition` | Explicit single lane change | Yes |
 | `append-history` | Add note to WP activity log | Yes |
 | `accept-mission` | Mark mission as accepted | Yes |
-| `merge-mission` | Merge WP branches into target | Yes |
+| `merge-mission` | Merge lane branches into the mission branch, then land the mission branch | Yes |
 
 ### Policy Metadata (Required for Run-Affecting Lanes)
 
@@ -171,14 +171,14 @@ spec-kitty orchestrator-api list-ready --mission <slug>
 ```
 
 Returns only WPs whose dependencies are satisfied (in `planned` lane with all
-deps in `done`). Each entry includes `recommended_base` — the branch to use
-with `--base` when creating the worktree.
+deps in `done`). The host runtime computes the lane workspace; orchestrators do
+not choose a base branch manually.
 
 ```json
 {
   "mission_slug": "042-test-mission",
   "ready_work_packages": [
-    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true, "recommended_base": "042-test-mission-WP01"}
+    {"wp_id": "WP03", "lane": "planned", "dependencies_satisfied": true}
   ]
 }
 ```

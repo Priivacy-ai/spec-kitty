@@ -20,6 +20,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.cli.commands.agent import tasks as tasks_cli
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.cli.commands.agent.tasks import (
@@ -851,6 +852,7 @@ def test_workflow_review_holds_feature_lock_through_safe_commit(
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     wp_path = tasks_dir / "WP01-test.md"
 

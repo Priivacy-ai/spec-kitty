@@ -11,6 +11,7 @@ import typer
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
+from tests.lane_test_utils import write_single_lane_manifest
 
 pytestmark = pytest.mark.fast
 
@@ -207,44 +208,65 @@ def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> N
     )
 
 
-def test_merge_dry_run_outputs_steps(monkeypatch, tmp_path: Path) -> None:
+def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    feature_dir = repo_root / "kitty-specs" / "010-test-feature"
+    feature_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"), target_branch="main")
 
     def fake_run_command(cmd, capture=False, **_kwargs):
-        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
-            return 0, "feature/test", ""
-        if cmd[:3] == ["git", "rev-parse", "--git-dir"]:
-            return 0, str(repo_root / ".git"), ""
-        if cmd[:3] == ["git", "status", "--porcelain"]:
-            return 0, "", ""
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
         return 0, "", ""
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--dry-run"])
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--json", "--dry-run", "--feature", "010-test-feature", "--target", "main"],
+    )
     assert result.exit_code == 0
-    assert "Dry run - would execute" in result.stdout
-    assert "git checkout main" in result.stdout
+    payload = json.loads(result.stdout.strip())
+    assert payload["feature_slug"] == "010-test-feature"
+    assert payload["mission_branch"] == "kitty/mission-010-test-feature"
+    assert payload["target_branch"] == "main"
+    assert payload["lanes"] == [
+        {
+            "lane_id": "lane-a",
+            "wp_ids": ["WP01", "WP02"],
+            "write_scope": ["src/**"],
+            "predicted_surfaces": ["test"],
+            "depends_on_lanes": [],
+            "parallel_group": 0,
+        }
+    ]
 
 
-def test_merge_json_dry_run_requires_feature_on_target_branch(monkeypatch, tmp_path: Path) -> None:
+def test_merge_json_dry_run_requires_lane_manifest(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    (repo_root / ".git").mkdir()
 
     def fake_run_command(cmd, capture=False, **_kwargs):
-        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
-            return 0, "2.x", ""
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
         return 0, "", ""
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
 
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--target", "2.x"])
+    result = runner.invoke(
+        cli_app,
+        ["merge", "--json", "--dry-run", "--feature", "010-test-feature", "--target", "main"],
+    )
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
-    assert "Already on 2.x" in payload["error"]
+    assert "lanes.json is required" in payload["error"]
 
 
 def test_merge_git_preflight_json_payload_includes_cli_version(
@@ -279,116 +301,78 @@ def test_merge_git_preflight_json_payload_includes_cli_version(
     assert "spec_kitty_version" in payload
 
 
-def test_merge_json_dry_run_workspace_per_wp_plan(monkeypatch, tmp_path: Path) -> None:
+def test_merge_json_dry_run_requires_feature_resolution(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-    existing = tmp_path / "worktree-existing"
-    existing.mkdir()
-    missing = tmp_path / "worktree-missing"
-
-    wp_workspaces = [
-        (existing, "WP01", "010-test-feature-WP01"),
-        (missing, "WP02", "010-test-feature-WP02"),
-    ]
-    merge_plan = {
-        "all_wp_workspaces": wp_workspaces,
-        "effective_wp_workspaces": wp_workspaces,
-        "skipped_already_in_target": [],
-        "skipped_ancestor_of": {},
-        "reason_summary": ["plan"],
-    }
+    (repo_root / ".git").mkdir()
 
     def fake_run_command(cmd, capture=False, **_kwargs):
         if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
-            return 0, "010-test-feature-WP99", ""
+            return 0, "main", ""
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
         return 0, "", ""
 
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(merge_module, "run_command", fake_run_command)
-    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
-    monkeypatch.setattr(merge_module, "detect_worktree_structure", lambda *_args, **_kwargs: "workspace-per-wp")
-    monkeypatch.setattr(merge_module, "find_wp_worktrees", lambda *_args, **_kwargs: wp_workspaces)
-    monkeypatch.setattr(merge_module, "_build_workspace_per_wp_merge_plan", lambda *_args, **_kwargs: merge_plan)
-    monkeypatch.setattr(merge_module, "get_main_repo_root", lambda path: path)
-    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _repo: "2.x")
 
     result = runner.invoke(
         cli_app,
-        ["merge", "--json", "--dry-run", "--strategy", "squash", "--push", "--feature", "010-test-feature"],
+        ["merge", "--json", "--dry-run", "--target", "main"],
+    )
+
+    assert result.exit_code == 1
+    payload = json.loads(result.stdout.strip())
+    assert payload["error"] == "Feature slug could not be resolved. Use --feature <slug>."
+
+
+def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    (repo_root / ".git").mkdir()
+    feature_dir = repo_root / "kitty-specs" / "010-test-feature"
+    feature_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, target_branch="main")
+
+    def fake_run_command(cmd, capture=False, **_kwargs):
+        if cmd[:4] == ["git", "rev-parse", "--verify", "refs/heads/main"]:
+            return 0, "main", ""
+        return 0, "", ""
+
+    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
+    result = runner.invoke(
+        cli_app,
+        [
+            "merge",
+            "--json",
+            "--dry-run",
+            "--feature",
+            "010-test-feature",
+            "--target",
+            "main",
+            "--keep-worktree",
+            "--keep-branch",
+        ],
     )
 
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
-    assert payload["target_branch"] == "2.x"
-    assert payload["effective_wp_branches"] == ["010-test-feature-WP01", "010-test-feature-WP02"]
-    assert "git merge --squash 010-test-feature-WP01" in payload["planned_steps"]
-    assert "git merge --squash 010-test-feature-WP02" in payload["planned_steps"]
-    assert "git push origin 2.x" in payload["planned_steps"]
-    assert f"git worktree remove {existing}" in payload["planned_steps"]
-    assert "# skip worktree removal for WP02 (path not present)" in payload["planned_steps"]
-    assert "git branch -d 010-test-feature-WP01" in payload["planned_steps"]
-    assert "git branch -d 010-test-feature-WP02" in payload["planned_steps"]
+    assert payload["delete_branch"] is False
+    assert payload["remove_worktree"] is False
 
 
-def test_merge_json_dry_run_legacy_plan(monkeypatch, tmp_path: Path) -> None:
+def test_merge_rejects_resume_and_abort(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
-
-    def fake_run_command(cmd, capture=False, **_kwargs):
-        if cmd[:3] == ["git", "rev-parse", "--abbrev-ref"]:
-            return 0, "feature/test", ""
-        return 0, "", ""
-
+    (repo_root / ".git").mkdir()
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
-    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
-    monkeypatch.setattr(merge_module, "detect_worktree_structure", lambda *_args, **_kwargs: "legacy")
-    monkeypatch.setattr("specify_cli.core.git_ops.resolve_primary_branch", lambda _repo: "main")
-
-    result = runner.invoke(cli_app, ["merge", "--json", "--dry-run", "--strategy", "rebase"])
-
-    assert result.exit_code == 0
-    payload = json.loads(result.stdout.strip())
-    assert payload["target_branch"] == "main"
-    assert "git merge --ff-only feature/test (after rebase)" in payload["planned_steps"]
-    assert payload["reason_summary"] == ["Legacy/single-branch merge plan generated."]
-
-
-def test_merge_skips_pull_when_target_has_no_tracking(monkeypatch, tmp_path: Path) -> None:
-    repo_root = tmp_path / "repo"
-    repo_root.mkdir()
-    calls: list[list[str]] = []
-
-    def fake_run_command(cmd, capture=False, **_kwargs):
-        call = list(cmd)
-        calls.append(call)
-        if call[:3] == ["git", "rev-parse", "--abbrev-ref"]:
-            return 0, "feature/test", ""
-        if call[:3] == ["git", "rev-parse", "--git-dir"]:
-            return 0, str(repo_root / ".git"), ""
-        if call[:3] == ["git", "status", "--porcelain"]:
-            return 0, "", ""
-        if call[:2] == ["git", "checkout"]:
-            return 0, "", ""
-        if call[:2] == ["git", "merge"]:
-            return 0, "", ""
-        if call[:2] == ["git", "branch"]:
-            return 0, "", ""
-        if call[:2] == ["git", "pull"]:
-            raise AssertionError("git pull should be skipped when no tracking branch exists")
-        return 0, "", ""
-
-    monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
-    monkeypatch.setattr(merge_module, "run_command", fake_run_command)
-    monkeypatch.setattr(merge_module, "check_version_compatibility", lambda *_args, **_kwargs: None)
-    monkeypatch.setattr(merge_module, "has_remote", lambda _repo: True)
-    monkeypatch.setattr(merge_module, "has_tracking_branch", lambda _repo: False)
-    monkeypatch.setattr(merge_module, "show_banner", lambda: None)
-
-    result = runner.invoke(cli_app, ["merge", "--keep-worktree", "--keep-branch"])
-    assert result.exit_code == 0
-    assert ["git", "pull", "--ff-only"] not in calls
-    assert "Skipping pull (main branch not tracking remote)" in result.stdout
+    monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
+    result = runner.invoke(cli_app, ["merge", "--resume"])
+    assert result.exit_code == 1
+    assert "Resume/abort merge flows were removed" in result.stdout
 
 
 def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:

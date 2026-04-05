@@ -79,7 +79,7 @@ Terminology note:
   "team_slug": "my-team",
   "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
   "project_slug": "spec-kitty",
-  "git_branch": "033-github-observability-event-metadata-WP01",
+  "git_branch": "kitty/mission-033-github-observability-event-metadata-lane-a",
   "head_commit_sha": "68b09b04a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
   "repo_slug": "Priivacy-ai/spec-kitty"
 }

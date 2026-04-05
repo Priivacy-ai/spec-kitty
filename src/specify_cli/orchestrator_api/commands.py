@@ -25,12 +25,12 @@ import subprocess
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
+from dataclasses import dataclass
 
 import typer
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.git.commit_helpers import safe_commit
-from specify_cli.merge import run_preflight, get_merge_order
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -148,6 +148,12 @@ app = typer.Typer(
 _RUN_AFFECTING_LANES = frozenset(["claimed", "in_progress", "for_review"])
 
 
+@dataclass
+class _MergePreflightResult:
+    target_branch: str
+    errors: list[str]
+
+
 def _emit(envelope: dict) -> None:
     """Print canonical JSON envelope to stdout."""
     print(json.dumps(envelope))
@@ -224,6 +230,134 @@ def _resolve_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
     for p in sorted(tasks_dir.glob(f"{wp_id}-*.md")):
         return p
     return None
+
+
+def _resolve_merge_target_branch(main_repo_root: Path, feature_slug: str, target: str | None) -> str:
+    if target is not None:
+        return target
+
+    from specify_cli.core.paths import get_feature_target_branch
+
+    return get_feature_target_branch(main_repo_root, feature_slug)
+
+
+def _build_merge_preflight(
+    main_repo_root: Path,
+    feature_dir: Path,
+    feature_slug: str,
+    target: str | None,
+) -> _MergePreflightResult:
+    """Validate merge prerequisites and collect machine-readable errors."""
+    from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
+    from specify_cli.core.git_ops import run_command
+    from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+
+    resolved_target = _resolve_merge_target_branch(main_repo_root, feature_slug, target)
+    errors: list[str] = []
+
+    if (main_repo_root / ".git").exists():
+        preflight = run_git_preflight(main_repo_root, check_worktree_list=True)
+        if not preflight.passed:
+            payload = build_git_preflight_failure_payload(preflight, command_name="orchestrator-api merge-feature")
+            errors.append(payload["error"])
+            errors.extend(payload.get("remediation", []))
+
+        ret_local, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/heads/{resolved_target}"],
+            capture=True,
+            check_return=False,
+            cwd=main_repo_root,
+        )
+        ret_remote, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/remotes/origin/{resolved_target}"],
+            capture=True,
+            check_return=False,
+            cwd=main_repo_root,
+        )
+        if ret_local != 0 and ret_remote != 0:
+            errors.append(f"Target branch '{resolved_target}' does not exist locally or on origin.")
+
+    try:
+        require_lanes_json(feature_dir)
+    except (MissingLanesError, CorruptLanesError) as exc:
+        errors.append(str(exc))
+
+    return _MergePreflightResult(target_branch=resolved_target, errors=errors)
+
+
+def _execute_lane_merge(
+    main_repo_root: Path,
+    feature_dir: Path,
+    feature_slug: str,
+    target_branch: str,
+    *,
+    push: bool,
+    delete_branch: bool,
+    remove_worktree: bool,
+) -> None:
+    """Execute the lane-based merge flow without emitting console prose."""
+    from specify_cli.cli.commands.merge import _mark_wp_merged_done
+    from specify_cli.core.git_ops import has_remote, run_command
+    from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
+    from specify_cli.lanes.persistence import require_lanes_json
+    from specify_cli.policy.config import load_policy_config
+    from specify_cli.policy.merge_gates import evaluate_merge_gates
+
+    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest.target_branch = target_branch
+
+    policy = load_policy_config(main_repo_root)
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    gate_eval = evaluate_merge_gates(
+        feature_dir,
+        feature_slug,
+        all_wp_ids,
+        policy.merge_gates,
+        main_repo_root,
+    )
+    if not gate_eval.overall_pass:
+        blocking = [gate.details for gate in gate_eval.gates if gate.blocking]
+        raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
+
+    for lane in lanes_manifest.lanes:
+        lane_result = merge_lane_to_mission(main_repo_root, feature_slug, lane.lane_id, lanes_manifest)
+        if not lane_result.success:
+            raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
+
+    mission_result = merge_mission_to_target(main_repo_root, feature_slug, lanes_manifest)
+    if not mission_result.success:
+        raise RuntimeError("; ".join(mission_result.errors) or "Mission merge failed.")
+
+    for lane in lanes_manifest.lanes:
+        for wp_id in lane.wp_ids:
+            _mark_wp_merged_done(main_repo_root, feature_slug, wp_id, lanes_manifest.target_branch)
+
+    if push and has_remote(main_repo_root):
+        run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo_root)
+
+    if remove_worktree:
+        for lane in lanes_manifest.lanes:
+            wt_path = main_repo_root / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            if wt_path.exists():
+                run_command(
+                    ["git", "worktree", "remove", str(wt_path), "--force"],
+                    cwd=main_repo_root,
+                    check_return=False,
+                )
+
+    if delete_branch:
+        for lane in lanes_manifest.lanes:
+            run_command(
+                ["git", "branch", "-D", lane_branch_name(feature_slug, lane.lane_id)],
+                cwd=main_repo_root,
+                check_return=False,
+            )
+        run_command(
+            ["git", "branch", "-D", lanes_manifest.mission_branch],
+            cwd=main_repo_root,
+            check_return=False,
+        )
 
 
 # ── Command 1: contract-version ────────────────────────────────────────────
@@ -386,14 +520,11 @@ def list_ready(
             for dep in deps
         )
 
-        recommended_base = deps[-1] if deps else None
-
         ready_wps.append(
             {
                 "wp_id": wp_id,
                 "lane": lane,
                 "dependencies_satisfied": all_deps_done,
-                "recommended_base": recommended_base,
             }
         )
 
@@ -854,7 +985,7 @@ def merge_feature(
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
-    """Run preflight checks then merge all WP branches into target."""
+    """Merge a lane-based mission into target."""
     cmd = "merge-feature"
 
     _SUPPORTED_STRATEGIES = frozenset(["merge", "squash", "rebase"])
@@ -873,127 +1004,42 @@ def merge_feature(
         _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
         return
 
-    # Auto-detect target branch from meta.json if not specified
-    if target is None:
-        from specify_cli.core.paths import get_feature_target_branch
-        target = get_feature_target_branch(main_repo_root, feature)
-
-    # Discover worktrees for this feature
-    worktrees_root = main_repo_root / ".worktrees"
-    wp_workspaces: list[tuple[Path, str, str]] = []
-    if worktrees_root.exists():
-        for wt_path in sorted(worktrees_root.iterdir()):
-            if wt_path.name.startswith(f"{feature}-") and wt_path.is_dir():
-                # Extract WP ID from directory name: e.g. "034-feature-WP01" → "WP01"
-                suffix = wt_path.name[len(feature) + 1:]
-                if suffix.startswith("WP"):
-                    wp_id = suffix
-                    branch_name = wt_path.name
-                    wp_workspaces.append((wt_path, wp_id, branch_name))
-
-    # Run preflight
-    preflight_result = run_preflight(
-        feature_slug=feature,
-        target_branch=target,
-        repo_root=main_repo_root,
-        wp_workspaces=wp_workspaces,
-    )
-
-    if not preflight_result.passed:
+    preflight = _build_merge_preflight(main_repo_root, feature_dir, feature, target)
+    if preflight.errors:
         _fail(
             cmd,
             "PREFLIGHT_FAILED",
-            "Preflight checks failed",
-            {"errors": preflight_result.errors},
+            "Merge failed",
+            {
+                "feature_slug": feature,
+                "target_branch": preflight.target_branch,
+                "errors": preflight.errors,
+            },
         )
         return
 
-    # Determine merge order
-    ordered_workspaces = get_merge_order(wp_workspaces, feature_dir)
-
-    # Execute merges using git directly (simplified)
-    merged_wps = []
-    for wt_path, wp_id, branch_name in ordered_workspaces:
-        try:
-            # Checkout target branch and merge
-            subprocess.run(
-                ["git", "-C", str(main_repo_root), "checkout", target],
-                check=True,
-                capture_output=True,
-            )
-            if strategy == "squash":
-                subprocess.run(
-                    ["git", "-C", str(main_repo_root), "merge", "--squash", branch_name],
-                    check=True,
-                    capture_output=True,
-                )
-                # squash leaves staged changes; commit them
-                subprocess.run(
-                    [
-                        "git", "-C", str(main_repo_root), "commit",
-                        "-m", f"squash merge: {feature}/{wp_id} into {target}",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-            elif strategy == "rebase":
-                # Rebase WP branch onto target, then fast-forward target.
-                subprocess.run(
-                    ["git", "-C", str(main_repo_root), "checkout", branch_name],
-                    check=True,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(main_repo_root), "rebase", target],
-                    check=True,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(main_repo_root), "checkout", target],
-                    check=True,
-                    capture_output=True,
-                )
-                subprocess.run(
-                    ["git", "-C", str(main_repo_root), "merge", "--ff-only", branch_name],
-                    check=True,
-                    capture_output=True,
-                )
-            else:
-                # Default: --no-ff merge
-                subprocess.run(
-                    [
-                        "git", "-C", str(main_repo_root), "merge",
-                        "--no-ff", branch_name,
-                        "-m", f"merge: {feature}/{wp_id} into {target}",
-                    ],
-                    check=True,
-                    capture_output=True,
-                )
-            merged_wps.append(wp_id)
-        except subprocess.CalledProcessError as exc:
-            _fail(
-                cmd,
-                "MERGE_FAILED",
-                f"Failed to merge {wp_id}: {exc.stderr.decode() if exc.stderr else str(exc)}",
-                {"merged_so_far": merged_wps, "failed_wp": wp_id},
-            )
-            return
-
-    if push:
-        try:
-            subprocess.run(
-                ["git", "-C", str(main_repo_root), "push", "origin", target],
-                check=True,
-                capture_output=True,
-            )
-        except subprocess.CalledProcessError as exc:
-            _fail(
-                cmd,
-                "PUSH_FAILED",
-                f"Merge succeeded but push failed: {exc.stderr.decode() if exc.stderr else str(exc)}",
-                {"merged_wps": merged_wps},
-            )
-            return
+    try:
+        _execute_lane_merge(
+            main_repo_root,
+            feature_dir,
+            feature,
+            preflight.target_branch,
+            push=push,
+            delete_branch=True,
+            remove_worktree=True,
+        )
+    except RuntimeError as exc:
+        _fail(
+            cmd,
+            "PREFLIGHT_FAILED",
+            "Merge failed",
+            {
+                "feature_slug": feature,
+                "target_branch": preflight.target_branch,
+                "errors": [str(exc)],
+            },
+        )
+        return
 
     envelope = make_envelope(
         command=cmd,
@@ -1001,9 +1047,8 @@ def merge_feature(
         data=with_tracked_mission_slug_aliases({
             "feature_slug": feature,
             "merged": True,
-            "target_branch": target,
+            "target_branch": preflight.target_branch,
             "strategy": strategy,
-            "merged_wps": merged_wps,
             "worktree_removed": False,
         }),
     )

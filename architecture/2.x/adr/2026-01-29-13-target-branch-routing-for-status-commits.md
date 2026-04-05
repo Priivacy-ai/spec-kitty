@@ -3,10 +3,16 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-01-29-13-target-branch-routing-for-status-commits.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-01-29 |
 | Deciders | Robert Douglass |
 | Technical Story | Implements dual-branch development support for 0.13.8 hotfix, enabling Feature 025 (CLI Event Log Integration) to develop on the `2.x` branch without race conditions or branch divergence. |
+
+> Superseded on 2026-04-05 by
+> `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> `target_branch` remains the feature's merge destination, but the runtime no
+> longer models implementation/status ancestry as "target branch plus one WP
+> branch". Mission and lane branches now derive from the target branch instead.
 
 ---
 

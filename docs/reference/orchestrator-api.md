@@ -96,7 +96,7 @@ persisted in events or returned in API responses.
 | 6 | [`transition`](#6-transition) | Explicit single lane change | Yes |
 | 7 | [`append-history`](#7-append-history) | Add note to WP activity log | Yes |
 | 8 | [`accept-feature`](#8-accept-feature) | Mark a mission as accepted (legacy command name) | Yes |
-| 9 | [`merge-feature`](#9-merge-feature) | Merge mission WP branches into target (legacy command name) | Yes |
+| 9 | [`merge-feature`](#9-merge-feature) | Merge lane branches into the mission branch, then land the mission branch | Yes |
 
 ---
 
@@ -299,7 +299,6 @@ Options:
 | `ready_work_packages[].wp_id` | string | Work package identifier |
 | `ready_work_packages[].lane` | string | Current lane (always `planned` for returned WPs) |
 | `ready_work_packages[].dependencies_satisfied` | bool | Always `true` for returned WPs |
-| `ready_work_packages[].recommended_base` | string or null | WP ID to pass as `--base` to `spec-kitty implement` (e.g., `WP01`, not a branch name) |
 
 **Example output** (feature with ready WPs):
 
@@ -319,7 +318,6 @@ Options:
         "wp_id": "WP03",
         "lane": "planned",
         "dependencies_satisfied": true,
-        "recommended_base": "WP01"
       }
     ]
   }
@@ -591,8 +589,8 @@ Options:
 
 ## 9. merge-feature
 
-Run preflight checks then merge all WP branches into the target branch in
-dependency order.
+Run preflight checks, merge lane branches into the mission branch, then merge
+the mission branch into the target branch.
 
 ```
 Usage: spec-kitty orchestrator-api merge-feature [OPTIONS]

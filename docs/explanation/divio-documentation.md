@@ -136,7 +136,7 @@ docs/
 └── explanation/                 # Understanding-oriented
     ├── spec-driven-development.md
     ├── divio-documentation.md   # (this file)
-    ├── workspace-per-wp.md
+    ├── execution-lanes.md
     └── ...
 ```
 

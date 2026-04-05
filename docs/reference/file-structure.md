@@ -96,7 +96,7 @@ kitty-specs/
 
 ## .worktrees/ Directory (0.11.0+)
 
-Contains Git worktrees for implementation. Modern features typically create one shared workspace per execution lane; legacy features still create one workspace per work package.
+Contains Git worktrees for implementation. Features create one shared workspace per execution lane.
 
 ```
 .worktrees/
@@ -106,15 +106,12 @@ Contains Git worktrees for implementation. Modern features typically create one 
 │   └── .git                      # Pointer to main .git
 ├── 014-documentation-lane-b/     # Parallel lane workspace
 │   └── ...
-└── 014-documentation-WP03/       # Legacy fallback workspace
-    └── ...
 ```
 
 ### Key Points
 
-- Modern features usually create **one worktree per execution lane**
+- Features create **one worktree per execution lane**
 - Each lane worktree has its own branch: `<feature-slug>-lane-<id>`
-- Legacy features without `lanes.json` still use `<feature-slug>-WP##`
 - Worktrees share the `.git` database with the main repository
 - Created by `spec-kitty implement WP##`
 - Removed after merge with `git worktree remove`
@@ -203,7 +200,7 @@ docs/
 │   └── configuration.md
 ├── explanation/                  # Understanding-oriented
 │   ├── spec-driven-development.md
-│   └── workspace-per-wp.md
+│   └── execution-lanes.md
 └── assets/
     ├── images/
     └── css/
@@ -245,8 +242,8 @@ my-project/
 │           ├── WP02-api.md
 │           └── WP03-ui.md
 ├── .worktrees/
-│   ├── 001-auth-system-WP01/
-│   └── 001-auth-system-WP02/
+│   ├── 001-auth-system-lane-a/
+│   └── 001-auth-system-lane-b/
 ├── docs/
 │   └── (documentation)
 ├── src/
@@ -262,7 +259,7 @@ my-project/
 ## See Also
 
 - [Configuration](configuration.md) — Configuration file formats
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) — How worktrees work
+- [Execution Lanes](../explanation/execution-lanes.md) — How worktrees work
 - [Git Worktrees](../explanation/git-worktrees.md) — Git worktrees explained
 
 ## Getting Started

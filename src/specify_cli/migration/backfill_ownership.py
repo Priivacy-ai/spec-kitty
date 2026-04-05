@@ -5,7 +5,7 @@ to derive ``execution_mode``, ``owned_files``, and ``authoritative_surface``
 for each WP that does not already have these fields.
 
 Additionally attempts a best-effort git-diff to discover actually-changed
-files when a WP branch exists.
+files when the WP has a lane branch in lanes.json.
 """
 
 from __future__ import annotations
@@ -33,10 +33,10 @@ def _git_diff_files(repo_root: Path, base_branch: str, wp_branch: str) -> list[s
     Args:
         repo_root: Root directory of the git repository.
         base_branch: The base/target branch (e.g. ``"main"``).
-        wp_branch: The WP's feature branch.
+        wp_branch: The WP's lane branch.
 
     Returns:
-        Sorted list of relative file paths touched by the WP branch.
+        Sorted list of relative file paths touched by the lane branch.
     """
     try:
         result = subprocess.run(
@@ -122,20 +122,30 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         # Full WP content for inference
         full_content = body
 
-        # Best-effort: try to get actually-changed files from git diff
+        # Best-effort: try to get actually-changed files from the lane branch diff
         git_files: list[str] = []
         if repo_root is not None:
             base_branch = frontmatter.get("base_branch") or frontmatter.get("planning_base_branch") or ""
-            # Build a candidate WP branch name
             wp_code = frontmatter.get("wp_code", "")
             if not wp_code:
-                # Try to parse from filename
                 m_code = re.match(r"^(WP\d+)", wp_file.stem)
                 wp_code = m_code.group(1) if m_code else ""
 
             if base_branch and wp_code:
-                wp_branch = f"{feature_slug}-{wp_code}"
-                git_files = _git_diff_files(repo_root, base_branch, wp_branch)
+                try:
+                    from specify_cli.lanes.branch_naming import lane_branch_name
+                    from specify_cli.lanes.persistence import read_lanes_json
+
+                    manifest = read_lanes_json(feature_dir)
+                    lane = manifest.lane_for_wp(wp_code) if manifest is not None else None
+                    if lane is not None:
+                        git_files = _git_diff_files(
+                            repo_root,
+                            base_branch,
+                            lane_branch_name(feature_slug, lane.lane_id),
+                        )
+                except Exception as exc:
+                    logger.debug("lane diff inference failed for %s: %s", wp_file.name, exc)
 
         updates: dict = {}
 

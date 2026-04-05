@@ -280,15 +280,15 @@ class TestIntegrationBranchGuard:
     def test_feature_branch_still_gets_merge_guidance(self, tmp_path: Path) -> None:
         """A real feature branch must still get full merge + cleanup guidance."""
         summary = self._make_summary_on_branch(
-            tmp_path, "054-my-feature-WP01", target_branch="main"
+            tmp_path, "kitty/mission-054-my-feature-lane-a", target_branch="main"
         )
         result = perform_acceptance(summary, mode="local", actor="tester", auto_commit=False)
 
         merged = " ".join(result.instructions + result.cleanup_instructions)
-        assert "git merge 054-my-feature-WP01" in merged, (
+        assert "git merge kitty/mission-054-my-feature-lane-a" in merged, (
             f"Feature branch should get merge guidance. instructions={result.instructions}"
         )
-        assert "git branch -d 054-my-feature-WP01" in merged, (
+        assert "git branch -d kitty/mission-054-my-feature-lane-a" in merged, (
             f"Feature branch should get cleanup guidance. cleanup={result.cleanup_instructions}"
         )
 

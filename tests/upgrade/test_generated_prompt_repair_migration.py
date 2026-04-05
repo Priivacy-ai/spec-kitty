@@ -43,7 +43,7 @@ def test_applies_replacements_to_generated_prompts(tmp_path: Path) -> None:
             [
                 "spec-kitty agent check-prerequisites --json --require-tasks",
                 "(Missing script command for sh)",
-                "The command merges each WP branch into main in sequence",
+                "The command merges each lane branch into the mission branch before the target branch",
                 "Run from main repository root",
             ]
         )
@@ -59,7 +59,7 @@ def test_applies_replacements_to_generated_prompts(tmp_path: Path) -> None:
     assert "spec-kitty agent mission check-prerequisites" in updated
     assert "--require-tasks" not in updated
     assert "(Missing script command for sh)" not in updated
-    assert "ancestry pruning" in updated
+    assert "merges lane branches into the mission branch before landing the mission branch" in updated
     assert "primary repository checkout root" in updated
 
 

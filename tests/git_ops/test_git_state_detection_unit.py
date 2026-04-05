@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 from tests.utils import run
 
 pytestmark = [pytest.mark.adversarial, pytest.mark.git_repo]
@@ -28,14 +29,18 @@ def _init_repo(tmp_path: Path) -> tuple[Path, Path]:
 
     feature_dir = repo / "kitty-specs" / FEATURE_SLUG
     feature_dir.mkdir(parents=True, exist_ok=True)
-    (feature_dir / "meta.json").write_text('{"mission": "software-dev"}\n', encoding="utf-8")
+    (feature_dir / "meta.json").write_text(
+        '{"mission": "software-dev", "target_branch": "main"}\n',
+        encoding="utf-8",
+    )
+    write_single_lane_manifest(feature_dir, wp_ids=(WP_ID,))
     run(["git", "add", "kitty-specs"], cwd=repo)
     run(["git", "commit", "-m", "add feature"], cwd=repo)
 
-    worktree_dir = repo / ".worktrees" / f"{FEATURE_SLUG}-{WP_ID}"
+    worktree_dir = lane_worktree_path(repo, FEATURE_SLUG)
     worktree_dir.parent.mkdir(exist_ok=True)
     run(
-        ["git", "worktree", "add", str(worktree_dir), "-b", f"{FEATURE_SLUG}-{WP_ID}"],
+        ["git", "worktree", "add", str(worktree_dir), "-b", lane_branch_name(FEATURE_SLUG)],
         cwd=repo,
     )
 

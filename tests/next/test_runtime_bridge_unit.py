@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.decision import DecisionKind
 from spec_kitty_runtime import DiscoveryContext
 
@@ -84,6 +85,7 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
         )
         # Always seed event log (canonical status is required)
         _seed_wp_lane(feature_dir, wp_id, lane)
+    write_single_lane_manifest(feature_dir, wp_ids=tuple(wps.keys()))
 
 
 # ---------------------------------------------------------------------------

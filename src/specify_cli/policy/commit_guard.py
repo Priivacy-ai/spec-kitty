@@ -23,14 +23,13 @@ class CommitGuardResult:
     warnings: list[str] = field(default_factory=list)
 
 
-# Matches WP branches (057-feat-WP01) and lane branches (kitty/mission-057-feat-lane-a)
-_WP_BRANCH_RE = re.compile(r".*-WP\d{2}$")
+# Matches lane branches (kitty/mission-057-feat-lane-a)
 _LANE_BRANCH_RE = re.compile(r"^kitty/mission-.+-lane-[a-z]$")
 
 
 def is_implementation_branch(branch_name: str) -> bool:
-    """Return True if the branch is a WP or lane implementation branch."""
-    return bool(_WP_BRANCH_RE.match(branch_name) or _LANE_BRANCH_RE.match(branch_name))
+    """Return True if the branch is a lane implementation branch."""
+    return bool(_LANE_BRANCH_RE.match(branch_name))
 
 
 def validate_staged_files(

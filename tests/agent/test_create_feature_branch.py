@@ -229,7 +229,7 @@ def test_create_feature_rejects_worktree(tmp_path, monkeypatch):
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
     # Create a fake worktree directory
-    worktree = repo / ".worktrees" / "001-test-WP01"
+    worktree = repo / ".worktrees" / "001-test-lane-a"
     worktree.mkdir(parents=True)
     monkeypatch.chdir(worktree)
 

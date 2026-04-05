@@ -17,6 +17,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
+
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import StatusEvent, Lane
@@ -75,6 +77,10 @@ def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "vcs:\n  type: git\nproject:\n  uuid: test-project-uuid\n  slug: test-project\n",
+        encoding="utf-8",
+    )
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
@@ -101,6 +107,7 @@ class TestImplementBodyNoteLaneFree:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -109,7 +116,7 @@ class TestImplementBodyNoteLaneFree:
         # Seed canonical state so implement doesn't hard-fail
         _seed_wp_lane(feature_dir, "WP01", "planned")
 
-        workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace = lane_worktree_path(workflow_repo, feature_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
@@ -132,6 +139,7 @@ class TestImplementBodyNoteLaneFree:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -140,7 +148,7 @@ class TestImplementBodyNoteLaneFree:
         # Seed canonical state as in_progress (= doing)
         _seed_wp_lane(feature_dir, "WP01", "doing")
 
-        workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace = lane_worktree_path(workflow_repo, feature_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
@@ -170,6 +178,7 @@ class TestReviewBodyNoteLaneFree:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -205,6 +214,7 @@ class TestImplementHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -212,7 +222,7 @@ class TestImplementHardFailNoCanonical:
         _write_wp_file(wp_path, "WP01", lane="planned")
         # NO event seeding -- WP has no canonical state
 
-        workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace = lane_worktree_path(workflow_repo, feature_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
@@ -234,6 +244,7 @@ class TestImplementHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -242,7 +253,7 @@ class TestImplementHardFailNoCanonical:
         # Seed events for WP02 only — WP01 has no canonical state
         _seed_wp_lane(feature_dir, "WP02", "planned")
 
-        workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace = lane_worktree_path(workflow_repo, feature_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
@@ -259,6 +270,7 @@ class TestImplementHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )
@@ -267,7 +279,7 @@ class TestImplementHardFailNoCanonical:
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "planned")
 
-        workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+        workspace = lane_worktree_path(workflow_repo, feature_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
@@ -291,6 +303,7 @@ class TestReviewHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="for_review")
         # NO event seeding -- WP has no canonical state
@@ -314,6 +327,7 @@ class TestReviewHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="for_review")
         # Seed events for WP02 only
@@ -333,6 +347,7 @@ class TestReviewHardFailNoCanonical:
         feature_dir = workflow_repo / "kitty-specs" / feature_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
         (feature_dir / "tasks.md").write_text(
             "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
         )

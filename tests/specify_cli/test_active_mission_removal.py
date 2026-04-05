@@ -201,7 +201,8 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
 
     Calling _resolve_feature_dir(worktree_root, feature=...) must still
     resolve the feature directory under main_repo/kitty-specs/ because
-    worktrees lack kitty-specs/ via sparse checkout.
+    worktree path resolution must anchor to the planning repo, not rely on the
+    current working directory contents.
     """
     from specify_cli.cli.commands.verify import _resolve_feature_dir
 

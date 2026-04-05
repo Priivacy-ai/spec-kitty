@@ -66,7 +66,6 @@ def resolve_context(
     ],
     feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
     wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
-    base: Annotated[Optional[str], typer.Option("--base", help="Explicit base WP for implement")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
 ) -> None:
@@ -90,7 +89,6 @@ def resolve_context(
             action=cast(ActionName, action),
             feature=feature,
             wp_id=wp_id,
-            base=base,
             agent=agent,
             cwd=Path.cwd(),
         )

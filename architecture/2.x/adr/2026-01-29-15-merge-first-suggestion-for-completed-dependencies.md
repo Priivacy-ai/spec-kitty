@@ -3,10 +3,16 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md` |
-| Status | Accepted |
+| Status | Superseded |
 | Date | 2026-01-29 |
 | Deciders | Robert Douglass |
 | Technical Story | Enhances ADR-4's auto-merge behavior with proactive guidance when all multi-parent dependencies are completed, preventing auto-merge conflicts by suggesting merge-first workflow. |
+
+> Superseded on 2026-04-05 by
+> `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> The lane-only runtime no longer uses per-WP branch stacking, merge-first
+> implement guidance, or `--force` escape hatches in `implement`. Dependency
+> coupling is resolved by lane computation before execution starts.
 
 ---
 
@@ -181,6 +187,8 @@ ELSE IF single-parent:
 - ADR-4: Auto-Merge Multi-Parent Dependencies (original design)
 - ADR-13: Target Branch Routing (status commits advance target, causing staleness)
 
-**Enhances:** ADR-4 (auto-merge still works, now with smart guidance)
+**Enhances:** ADR-4 (historical only)
+
+**Superseded by:** `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`
 
 **Version:** 0.13.8 improvement (agent guidance enhancement)

@@ -1,4 +1,4 @@
-"""Unit tests for implement command."""
+"""Unit tests for lane-only implement command."""
 
 from __future__ import annotations
 
@@ -14,14 +14,14 @@ from specify_cli.cli.commands.implement import (
     detect_feature_context,
     find_wp_file,
     implement,
-    validate_workspace_path,
 )
-from specify_cli.core.vcs import VCSBackend
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 
 pytestmark = pytest.mark.fast
 
+
 def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
-    """Helper to create meta.json in a feature directory."""
     meta_path = feature_dir / "meta.json"
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_content = {
@@ -39,722 +39,158 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
     return meta_path
 
 
+def create_lanes_json(feature_dir: Path, wp_ids: tuple[str, ...] = ("WP01",)) -> None:
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            feature_slug=feature_dir.name,
+            mission_id=f"mission-{feature_dir.name}",
+            mission_branch=f"kitty/mission-{feature_dir.name}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=wp_ids,
+                    write_scope=("src/**",),
+                    predicted_surfaces=("core",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-04T10:00:00Z",
+            computed_from="test",
+        ),
+    )
+
+
 class TestDetectFeatureContext:
-    """Tests for detect_feature_context().
-
-    After WP02 removed heuristic detection, detect_feature_context requires
-    an explicit feature flag.  No branch parsing, git, or cwd detection occurs.
-    """
-
-    def test_detect_with_explicit_flag(self, tmp_path):
-        """Explicit feature flag returns correct (number, slug) tuple."""
-        number, slug = detect_feature_context("010-workspace-per-wp")
+    def test_detect_with_explicit_flag(self) -> None:
+        number, slug = detect_feature_context("010-lane-only-runtime")
         assert number == "010"
-        assert slug == "010-workspace-per-wp"
+        assert slug == "010-lane-only-runtime"
 
-    def test_detect_failure_no_flag(self):
-        """No feature flag raises typer.Exit (no auto-detection)."""
+    def test_detect_failure_no_flag(self) -> None:
         with pytest.raises(typer.Exit):
             detect_feature_context(None)
 
-    def test_detect_invalid_format(self):
-        """Invalid slug format (missing ###- prefix) raises typer.Exit."""
+    def test_detect_invalid_format(self) -> None:
         with pytest.raises(typer.Exit):
-            detect_feature_context("workspace-per-wp")  # Missing number prefix
+            detect_feature_context("lane-only-runtime")
 
 
 class TestFindWpFile:
-    """Tests for find_wp_file()."""
-
-    def test_find_wp_file_success(self, tmp_path):
-        """Test finding WP file successfully."""
-        # Create test structure
+    def test_find_wp_file_success(self, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
         tasks_dir.mkdir(parents=True)
         wp_file = tasks_dir / "WP01-setup.md"
         wp_file.write_text("# WP01")
 
         result = find_wp_file(tmp_path, "010-feature", "WP01")
-
         assert result == wp_file
 
-    def test_find_wp_file_not_found(self, tmp_path):
-        """Test error when WP file not found."""
-        # Create tasks dir but no WP file
+    def test_find_wp_file_not_found(self, tmp_path: Path) -> None:
         tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
         tasks_dir.mkdir(parents=True)
-
         with pytest.raises(FileNotFoundError, match="WP file not found"):
             find_wp_file(tmp_path, "010-feature", "WP01")
 
-    def test_find_wp_file_rejects_invalid_wp_id(self, tmp_path):
-        """Reject path-like or malformed WP identifiers before filesystem lookup."""
-        tasks_dir = tmp_path / "kitty-specs" / "010-feature" / "tasks"
-        tasks_dir.mkdir(parents=True)
-        (tasks_dir / "WP01-setup.md").write_text("# WP01")
 
-        with pytest.raises(FileNotFoundError, match="Invalid work package ID"):
-            find_wp_file(tmp_path, "010-feature", "../WP01")
+class TestEnsureVcsInMeta:
+    def test_existing_vcs_is_preserved(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir, vcs="git")
+        assert _ensure_vcs_in_meta(feature_dir, tmp_path).value == "git"
 
-    def test_find_wp_file_tasks_dir_missing(self, tmp_path):
-        """Test error when tasks directory doesn't exist."""
-        with pytest.raises(FileNotFoundError, match="Tasks directory not found"):
-            find_wp_file(tmp_path, "010-feature", "WP01")
-
-
-class TestValidateWorkspacePath:
-    """Tests for validate_workspace_path()."""
-
-    def test_path_doesnt_exist(self, tmp_path):
-        """Test when workspace path doesn't exist (should create)."""
-        workspace = tmp_path / "workspace"
-
-        result = validate_workspace_path(workspace, "WP01")
-
-        assert result is False  # Should create
-
-    def test_path_exists_valid_worktree(self, tmp_path):
-        """Test when workspace exists and is valid worktree (should reuse)."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-
-        with patch("subprocess.run") as mock_run:
-            # git rev-parse succeeds (valid worktree)
-            mock_run.return_value = MagicMock(returncode=0)
-
-            result = validate_workspace_path(workspace, "WP01")
-
-            assert result is True  # Reuse existing
-            mock_run.assert_called_once()
-
-    def test_path_exists_invalid_worktree(self, tmp_path):
-        """Test when workspace exists but is not valid worktree (error)."""
-        workspace = tmp_path / "workspace"
-        workspace.mkdir()
-
-        with patch("subprocess.run") as mock_run:
-            # git rev-parse fails (not a worktree)
-            mock_run.return_value = MagicMock(returncode=1)
-
-            with pytest.raises(typer.Exit):
-                validate_workspace_path(workspace, "WP01")
+    def test_missing_meta_errors(self, tmp_path: Path) -> None:
+        with pytest.raises(typer.Exit):
+            _ensure_vcs_in_meta(tmp_path / "kitty-specs" / "010-feature", tmp_path)
 
 
 class TestImplementCommand:
-    """Integration tests for implement command."""
-
-    def test_implement_no_dependencies(self, tmp_path):
-        """Test implement WP01 creates workspace from main."""
-        # Setup
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        # Workspace path that will be "created"
-        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                # Mock VCS detection to return git
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None  # Workspace doesn't exist
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        # Mock git commands for resolve_primary_branch
-                        mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                        # Run implement
-                        implement("WP01", base=None)
-
-                        # Verify vcs.create_workspace was called
-                        mock_vcs.create_workspace.assert_called_once()
-                        call_kwargs = mock_vcs.create_workspace.call_args[1]
-                        assert call_kwargs["workspace_name"] == "010-feature-WP01"
-                        # sparse_exclude removed: sparse-checkout feature was removed
-
-    def test_implement_json_output_is_clean(self, tmp_path, capsys):
-        """--json output should be pure JSON with no progress/log prefixes."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-                        implement("WP01", base=None, json_output=True)
-
-        output = capsys.readouterr().out.strip()
-        assert output.startswith("{")
-        payload = json.loads(output)
-        assert payload["status"] == "created"
-        assert payload["wp_id"] == "WP01"
-        assert payload["workspace"] == ".worktrees/010-feature-WP01"
-        assert payload["workspace_path"] == payload["workspace"]
-
-    def test_implement_claim_commit_includes_meta_and_config(self, tmp_path):
-        """Claim commit should include side-effect metadata/config files."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-        config_path = tmp_path / ".kittify" / "config.yaml"
-        config_path.parent.mkdir(parents=True, exist_ok=True)
-        config_path.write_text("config: true\n", encoding="utf-8")
-
-        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit:
-                        mock_safe_commit.return_value = True
-                        with patch("subprocess.run") as mock_run:
-                            mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-                            implement("WP01", base=None, json_output=True)
-
-        assert mock_safe_commit.call_count >= 1
-        files_to_commit = mock_safe_commit.call_args.kwargs["files_to_commit"]
-        assert (feature_dir / "meta.json").resolve() in files_to_commit
-        assert config_path.resolve() in files_to_commit
-
-    def test_implement_uses_project_auto_commit_default_for_programmatic_calls(self, tmp_path):
-        """Direct Python callers should honor the project auto_commit default."""
+    def test_implement_requires_lanes_json(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
         wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
-        workspace_path = tmp_path / ".worktrees" / "010-feature-WP01"
-
-        def run_side_effect(cmd, *args, **kwargs):
-            if cmd[:3] == ["git", "status", "--porcelain"]:
-                return MagicMock(returncode=0, stdout="")
-            if cmd[:3] == ["git", "rev-parse", "main"]:
-                return MagicMock(returncode=0, stdout="abc123\n")
-            return MagicMock(returncode=0, stdout="main\n")
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), \
-             patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")), \
-             patch("specify_cli.cli.commands.implement.get_auto_commit_default", return_value=False) as mock_auto_commit_default, \
-             patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs, \
-             patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit, \
-             patch("specify_cli.cli.commands.implement.subprocess.run", side_effect=run_side_effect):
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.GIT
-            mock_vcs.get_workspace_info.return_value = None
-            mock_vcs.create_workspace.return_value = MagicMock(
-                success=True,
-                workspace=MagicMock(name="010-feature-WP01", path=workspace_path),
-                error=None,
-            )
-            mock_get_vcs.return_value = mock_vcs
-
-            implement("WP01", base=None)
-
-        mock_auto_commit_default.assert_called_once_with(tmp_path)
-        mock_safe_commit.assert_not_called()
-
-    def test_implement_no_auto_commit_blocks_dirty_planning_artifacts(self, tmp_path):
-        """Dirty planning artifacts must block workspace creation when auto-commit is disabled."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), \
-             patch("specify_cli.cli.commands.implement.detect_feature_context", return_value=("010", "010-feature")), \
-             patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs, \
-             patch("specify_cli.cli.commands.implement.safe_commit") as mock_safe_commit, \
-             patch("specify_cli.cli.commands.implement.subprocess.run") as mock_run:
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.GIT
-            mock_vcs.get_workspace_info.return_value = None
-            mock_get_vcs.return_value = mock_vcs
-
-            def run_side_effect(cmd, *args, **kwargs):
-                if cmd[:3] == ["git", "status", "--porcelain"]:
-                    return MagicMock(returncode=0, stdout=" M kitty-specs/010-feature/tasks/WP01-setup.md\n")
-                return MagicMock(returncode=0, stdout="main\n")
-
-            mock_run.side_effect = run_side_effect
-
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.implement.detect_feature_context",
+            return_value=("010", "010-feature"),
+        ):
             with pytest.raises(typer.Exit):
-                implement("WP01", base=None, auto_commit=False)
+                implement("WP01", feature="010-feature")
 
-        mock_vcs.create_workspace.assert_not_called()
-        mock_safe_commit.assert_not_called()
-
-    def test_implement_json_error_output_is_clean(self, tmp_path, capsys):
-        """--json failures should still emit a single machine-parseable object."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        feature_dir.mkdir(parents=True)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                with patch("subprocess.run") as mock_run:
-                    mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                    with pytest.raises(typer.Exit):
-                        implement("WP01", base=None, json_output=True)
-
-        output = capsys.readouterr().out.strip()
-        payload = json.loads(output)
-        assert payload["status"] == "error"
-        assert payload["wp_id"] == "WP01"
-
-    def test_implement_with_base(self, tmp_path):
-        """Test implement WP02 --base WP01 creates workspace from WP01 branch."""
-        # Setup
+    def test_implement_json_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        # Create WP01 file (base dependency)
-        (tasks_dir / "WP01-setup.md").write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-        wp_file = tasks_dir / "WP02-feature.md"
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        create_lanes_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
 
-        # Create base workspace
-        base_workspace = tmp_path / ".worktrees" / "010-feature-WP01"
-        base_workspace.mkdir(parents=True)
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.implement.detect_feature_context",
+            return_value=("010", "010-feature"),
+        ), patch(
+            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            return_value="main",
+        ), patch(
+            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+        ), patch(
+            "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+        ) as mock_ensure_vcs, patch(
+            "specify_cli.cli.commands.implement.create_lane_workspace",
+        ) as mock_create_lane_workspace:
+            mock_ensure_vcs.return_value = MagicMock(value="git")
+            mock_create_lane_workspace.return_value = MagicMock(
+                workspace_path=tmp_path / ".worktrees" / "010-feature-lane-a",
+                branch_name="kitty/mission-010-feature-lane-a",
+                lane_id="lane-a",
+                mission_branch="kitty/mission-010-feature",
+                is_reuse=False,
+            )
 
-        # Workspace path that will be "created"
-        workspace_path = tmp_path / ".worktrees" / "010-feature-WP02"
+            implement("WP01", feature="010-feature", json_output=True)
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
+        payload = json.loads(capsys.readouterr().out.strip())
+        assert payload["workspace"] == ".worktrees/010-feature-lane-a"
+        assert payload["branch"] == "kitty/mission-010-feature-lane-a"
+        assert payload["lane_id"] == "lane-a"
 
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                # Mock VCS detection to return git
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-
-                    # First call for new workspace (returns None), second for base workspace
-                    def get_workspace_info_side_effect(path):
-                        if "WP01" in str(path):
-                            return MagicMock(
-                                name="010-feature-WP01",
-                                path=base_workspace,
-                                current_branch="010-feature-WP01",
-                                is_stale=False,
-                            )
-                        return None  # Workspace doesn't exist
-
-                    mock_vcs.get_workspace_info.side_effect = get_workspace_info_side_effect
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="010-feature-WP02", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        # Mock git commands for branch verification
-                        mock_run.return_value = MagicMock(returncode=0, stdout="")
-
-                        # Run implement
-                        implement("WP02", base="WP01")
-
-                        # Verify vcs.create_workspace was called with base branch
-                        mock_vcs.create_workspace.assert_called_once()
-                        call_kwargs = mock_vcs.create_workspace.call_args[1]
-                        assert call_kwargs["workspace_name"] == "010-feature-WP02"
-                        assert call_kwargs["base_branch"] == "010-feature-WP01"
-
-    def test_implement_missing_base_workspace(self, tmp_path):
-        """Test error when base workspace doesn't exist."""
+    def test_implement_creates_lane_workspace(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP02-feature.md"
+        create_lanes_json(feature_dir, wp_ids=("WP01", "WP02"))
+        wp_file = feature_dir / "tasks" / "WP02-api.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
+        wp_file.write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# WP02")
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.implement.detect_feature_context",
+            return_value=("010", "010-feature"),
+        ), patch(
+            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            return_value="main",
+        ), patch(
+            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+        ), patch(
+            "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+        ) as mock_ensure_vcs, patch(
+            "specify_cli.cli.commands.implement.create_lane_workspace",
+        ) as mock_create_lane_workspace:
+            mock_ensure_vcs.return_value = MagicMock(value="git")
+            mock_create_lane_workspace.return_value = MagicMock(
+                workspace_path=tmp_path / ".worktrees" / "010-feature-lane-a",
+                branch_name="kitty/mission-010-feature-lane-a",
+                lane_id="lane-a",
+                mission_branch="kitty/mission-010-feature",
+                is_reuse=True,
+            )
 
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
+            implement("WP02", feature="010-feature")
 
-                # Mock VCS detection to return git
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None  # Workspace doesn't exist
-                    mock_get_vcs.return_value = mock_vcs
-
-                    # Base workspace doesn't exist
-                    with pytest.raises(typer.Exit):
-                        implement("WP02", base="WP01")
-
-    def test_implement_has_deps_no_base_flag(self, tmp_path):
-        """Test error when WP has dependencies but --base not provided."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP02-feature.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                # No --base flag provided
-                with pytest.raises(typer.Exit):
-                    implement("WP02", base=None)
-
-    def test_implement_workspace_already_exists(self, tmp_path):
-        """Test reusing existing valid workspace."""
-        feature_dir = tmp_path / "kitty-specs" / "010-feature"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        # Create existing workspace
-        workspace = tmp_path / ".worktrees" / "010-feature-WP01"
-        workspace.mkdir(parents=True)
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-feature")
-
-                with patch("subprocess.run") as mock_run:
-                    # Mock git commands for resolve_primary_branch and planning artifact check
-                    mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                    # Mock VCS detection to return git
-                    with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                        mock_vcs = MagicMock()
-                        mock_vcs.backend = VCSBackend.GIT
-                        # Workspace already exists
-                        mock_vcs.get_workspace_info.return_value = MagicMock(
-                            name="010-feature-WP01",
-                            path=workspace,
-                            current_branch="010-feature-WP01",
-                            is_stale=False,
-                        )
-                        mock_get_vcs.return_value = mock_vcs
-
-                        # Run implement - should reuse existing
-                        implement("WP01", base=None)
-
-                        # Verify vcs.create_workspace was NOT called (reusing existing)
-                        mock_vcs.create_workspace.assert_not_called()
-
-    def test_workspace_naming_convention(self, tmp_path):
-        """Test workspace naming follows convention."""
-        # Use the feature slug that will be detected
-        feature_dir = tmp_path / "kitty-specs" / "010-workspace-per-wp"
-        create_meta_json(feature_dir)
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        # Workspace path that will be "created"
-        workspace_path = tmp_path / ".worktrees" / "010-workspace-per-wp-WP01"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("010", "010-workspace-per-wp")
-
-                # Mock VCS detection to return git
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None  # Workspace doesn't exist
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="010-workspace-per-wp-WP01", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        # Mock git commands for resolve_primary_branch
-                        mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                        # Run implement
-                        implement("WP01", base=None)
-
-                        # Verify workspace naming convention
-                        mock_vcs.create_workspace.assert_called_once()
-                        call_kwargs = mock_vcs.create_workspace.call_args[1]
-                        # Workspace name should be: ###-feature-WP##
-                        assert call_kwargs["workspace_name"] == "010-workspace-per-wp-WP01"
-                        # Verify workspace path
-                        assert str(call_kwargs["workspace_path"]).endswith(".worktrees/010-workspace-per-wp-WP01")
-
-
-class TestVCSAbstraction:
-    """Tests for VCS abstraction in implement command."""
-
-    def test_implement_creates_workspace(self, tmp_path):
-        """Test implement creates workspace correctly for git backend."""
-        # Setup
-        feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs="git")
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        workspace_path = tmp_path / ".worktrees" / "015-feature-WP01"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("015", "015-feature")
-
-                # Mock VCS detection to return git
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-                    mock_vcs.get_workspace_info.return_value = None  # Workspace doesn't exist
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="015-feature-WP01", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        # Mock git commands for resolve_primary_branch
-                        mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                        # Run implement
-                        implement("WP01", base=None)
-
-                        # Verify vcs.create_workspace was called
-                        mock_vcs.create_workspace.assert_called_once()
-                        call_kwargs = mock_vcs.create_workspace.call_args[1]
-                        assert call_kwargs["workspace_name"] == "015-feature-WP01"
-
-                        # sparse_exclude removed: sparse-checkout feature was removed
-
-    def test_vcs_locking_in_meta_json(self, tmp_path):
-        """Test VCS is stored and locked in meta.json on first workspace creation."""
-        # Setup - meta.json WITHOUT vcs field
-        feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        meta_path = create_meta_json(feature_dir, vcs="")
-
-        # Mock VCS detection
-        with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-            mock_vcs = MagicMock()
-            mock_vcs.backend = VCSBackend.GIT
-            mock_get_vcs.return_value = mock_vcs
-
-            # Call helper function
-            backend = _ensure_vcs_in_meta(feature_dir, tmp_path)
-
-            # Verify VCS was locked
-            assert backend == VCSBackend.GIT
-
-            # Verify meta.json was updated
-            updated_meta = json.loads(meta_path.read_text())
-            assert updated_meta["vcs"] == "git"
-            assert "vcs_locked_at" in updated_meta
-
-    def test_vcs_already_locked(self, tmp_path):
-        """Test VCS is converted from jj to git (jj no longer supported)."""
-        # Setup - meta.json WITH vcs field already set to jj
-        feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs="jj")
-
-        # Call helper function
-        backend = _ensure_vcs_in_meta(feature_dir, tmp_path)
-
-        # Verify jj is converted to git
-        assert backend == VCSBackend.GIT
-
-    def test_stale_workspace_detection(self, tmp_path):
-        """Test stale workspace detection works for git backend."""
-        # Setup
-        feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs="git")
-        wp_file = feature_dir / "tasks" / "WP01-setup.md"
-        wp_file.parent.mkdir(parents=True)
-        wp_file.write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-
-        workspace_path = tmp_path / ".worktrees" / "015-feature-WP01"
-        workspace_path.mkdir(parents=True)
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("015", "015-feature")
-
-                with patch("subprocess.run") as mock_run:
-                    mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
-
-                    with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                        mock_vcs = MagicMock()
-                        mock_vcs.backend = VCSBackend.GIT
-                        # Workspace exists and is STALE
-                        mock_vcs.get_workspace_info.return_value = MagicMock(
-                            name="015-feature-WP01",
-                            path=workspace_path,
-                            current_branch="015-feature-WP01",
-                            is_stale=True,  # Workspace is stale
-                        )
-                        mock_get_vcs.return_value = mock_vcs
-
-                        # Run implement - should warn about stale workspace
-                        implement("WP01", base=None)
-
-                        # Verify workspace was reused (not recreated)
-                        mock_vcs.create_workspace.assert_not_called()
-                        # Stale detection was triggered via workspace_info.is_stale
-
-    def test_implement_with_base_flag(self, tmp_path):
-        """Test --base flag works for git backend."""
-        # Setup
-        feature_dir = tmp_path / "kitty-specs" / "015-feature"
-        create_meta_json(feature_dir, vcs="git")
-        tasks_dir = feature_dir / "tasks"
-        tasks_dir.mkdir(parents=True)
-        # Create WP01 file (base dependency)
-        (tasks_dir / "WP01-setup.md").write_text(
-            "---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01"
-        )
-        wp_file = tasks_dir / "WP02-setup.md"
-        wp_file.write_text(
-            '---\nwork_package_id: WP02\ndependencies: ["WP01"]\n---\n# WP02'
-        )
-
-        # Create base workspace
-        base_workspace = tmp_path / ".worktrees" / "015-feature-WP01"
-        base_workspace.mkdir(parents=True)
-
-        workspace_path = tmp_path / ".worktrees" / "015-feature-WP02"
-
-        with patch("specify_cli.cli.commands.implement.find_repo_root") as mock_repo_root:
-            mock_repo_root.return_value = tmp_path
-
-            with patch("specify_cli.cli.commands.implement.detect_feature_context") as mock_detect:
-                mock_detect.return_value = ("015", "015-feature")
-
-                with patch("specify_cli.cli.commands.implement.get_vcs") as mock_get_vcs:
-                    mock_vcs = MagicMock()
-                    mock_vcs.backend = VCSBackend.GIT
-
-                    def get_workspace_info_side_effect(path):
-                        if "WP01" in str(path):
-                            return MagicMock(
-                                name="015-feature-WP01",
-                                path=base_workspace,
-                                current_branch="015-feature-WP01",
-                                is_stale=False,
-                            )
-                        return None
-
-                    mock_vcs.get_workspace_info.side_effect = get_workspace_info_side_effect
-                    mock_vcs.create_workspace.return_value = MagicMock(
-                        success=True,
-                        workspace=MagicMock(name="015-feature-WP02", path=workspace_path),
-                        error=None,
-                    )
-                    mock_get_vcs.return_value = mock_vcs
-
-                    with patch("subprocess.run") as mock_run:
-                        mock_run.return_value = MagicMock(returncode=0, stdout="")
-
-                        # Run implement with --base
-                        implement("WP02", base="WP01")
-
-                        # Verify vcs.create_workspace was called with base branch
-                        mock_vcs.create_workspace.assert_called_once()
-                        call_kwargs = mock_vcs.create_workspace.call_args[1]
-                        assert call_kwargs["workspace_name"] == "015-feature-WP02"
-                        assert call_kwargs["base_branch"] == "015-feature-WP01"
+            kwargs = mock_create_lane_workspace.call_args.kwargs
+            assert kwargs["wp_id"] == "WP02"
+            assert kwargs["declared_deps"] == ["WP01"]

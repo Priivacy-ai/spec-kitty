@@ -16,6 +16,7 @@ from typer.testing import CliRunner
 from specify_cli.cli.commands.agent.tasks import app, _validate_ready_for_review
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
 
 pytestmark = pytest.mark.git_repo
 
@@ -62,6 +63,7 @@ def git_repo_with_worktree(tmp_path: Path) -> tuple[Path, Path]:
     feature_dir = repo / "kitty-specs" / "017-test-feature"
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
 
     task_file = tasks_dir / "WP01-test-task.md"
     task_content = """---
@@ -108,9 +110,9 @@ Test content here.
     )
 
     # Create worktree with branch that has commits beyond main
-    worktree_dir = repo / ".worktrees" / "017-test-feature-WP01"
+    worktree_dir = lane_worktree_path(repo, "017-test-feature")
     subprocess.run(
-        ["git", "worktree", "add", "-b", "017-test-feature-WP01", str(worktree_dir), "main"],
+        ["git", "worktree", "add", "-b", lane_branch_name("017-test-feature"), str(worktree_dir), "main"],
         cwd=repo,
         check=True,
         capture_output=True,
@@ -256,10 +258,10 @@ class TestMoveTaskGitValidation:
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
 
-        # Merge WP branch into main while keeping branch ref so ancestry can be verified.
+        # Merge the lane branch into main while keeping the branch ref so ancestry can be verified.
         subprocess.run(["git", "checkout", "main"], cwd=repo_root, check=True, capture_output=True)
         subprocess.run(
-            ["git", "merge", "--no-ff", "017-test-feature-WP01", "-m", "Merge WP01"],
+            ["git", "merge", "--no-ff", lane_branch_name("017-test-feature"), "-m", "Merge lane-a"],
             cwd=repo_root,
             check=True,
             capture_output=True,
@@ -392,13 +394,13 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_for_review_blocks_when_wp_branch_has_kitty_specs_commits(
+    def test_move_for_review_blocks_when_lane_branch_has_kitty_specs_commits(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
     ):
-        """for_review gate should block WP branches that committed planning artifacts."""
+        """for_review gate should block lane branches that committed planning artifacts."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"
@@ -415,7 +417,7 @@ class TestMoveTaskGitValidation:
             capture_output=True,
         )
         subprocess.run(
-            ["git", "commit", "-m", "accidental: planning edit in WP branch"],
+            ["git", "commit", "-m", "accidental: planning edit in lane branch"],
             cwd=worktree,
             check=True,
             capture_output=True,
@@ -430,14 +432,14 @@ class TestMoveTaskGitValidation:
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
-    def test_move_for_review_from_worktree_does_not_mirror_commit_to_wp_branch(
+    def test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch(
         self,
         mock_slug: Mock,
         mock_root: Mock,
         git_repo_with_worktree: tuple[Path, Path],
         monkeypatch: pytest.MonkeyPatch,
     ):
-        """Moving from a WP worktree should not add kitty-specs commits to the WP branch."""
+        """Moving from a lane worktree should not add kitty-specs commits to the lane branch."""
         repo_root, worktree = git_repo_with_worktree
         mock_root.return_value = repo_root
         mock_slug.return_value = "017-test-feature"

@@ -62,7 +62,7 @@ spec-kitty agent action implement WP01
 # ... implement and finish WP01
 
 # Agent B starts WP02 after WP01 exists
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 cd <workspace path printed by the command>
 ```
 
@@ -106,7 +106,7 @@ Use the dashboard to monitor lane movement and agent activity in real time.
 ## Background
 
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md) - Coordination patterns
-- [Execution Workspace Model](../explanation/workspace-per-wp.md) - Isolation strategy
+- [Execution Workspace Model](../explanation/execution-lanes.md) - Isolation strategy
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
 
 ## Getting Started

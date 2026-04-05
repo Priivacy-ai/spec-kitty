@@ -40,13 +40,13 @@ def full_step_contract_data() -> dict:
                 "delegates_to": {
                     "kind": "paradigm",
                     "candidates": [
-                        "workspace-per-wp",
+                        "execution-lanes",
                         "shared-branch-ci",
                         "git-flow",
                         "trunk-based",
                     ],
                 },
-                "guidance": "If no branching paradigm selected, default to workspace-per-wp.",
+                "guidance": "Execution lanes own worktrees.",
             },
             {
                 "id": "execute",

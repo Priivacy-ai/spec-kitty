@@ -84,7 +84,7 @@ Syntax format in this reference:
 
 ## /spec-kitty.implement
 
-**Syntax**: `/spec-kitty.implement [WP_ID] [--base WP_ID]`
+**Syntax**: `/spec-kitty.implement [WP_ID]`
 
 **Purpose**: Resolve the execution workspace and start implementation for a specific work package.
 
@@ -93,13 +93,13 @@ Syntax format in this reference:
 - Run from the main repository for the action prompt; the execution workspace is created or reused by the CLI.
 
 **What it does**:
-- If explicit slash-command args are provided, forwards the WP/base selection into the resolver-first action flow.
+- If explicit slash-command args are provided, forwards the WP selection into the resolver-first action flow.
 - Step 1: `spec-kitty agent action implement WP## --agent <agent>` to show the prompt and move the WP to `doing`.
-- Step 2: `spec-kitty implement WP## [--base WP##]` to create or reuse the execution workspace.
+- Step 2: `spec-kitty implement WP##` to create or reuse the execution workspace.
 - Implementation happens inside the resolved workspace path printed by the command.
 
 **Creates/updates**:
-- `.worktrees/<feature>-lane-<id>/` for lane-based features, or `.worktrees/<feature>-WP##/` for legacy fallback
+- `.worktrees/<feature>-lane-<id>/`
 - `kitty-specs/<feature>/tasks/WP##-*.md` lane status updates
 
 **Related**: `/spec-kitty.tasks`, `/spec-kitty.review`

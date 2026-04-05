@@ -59,7 +59,7 @@ class TestContextDetection:
         """Test detection when in worktree root directory."""
         # Create worktree structure
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
 
         ctx = detect_execution_context(cwd=worktree_path)
@@ -67,14 +67,14 @@ class TestContextDetection:
         assert ctx.location == ExecutionContext.WORKTREE
         assert ctx.cwd == worktree_path
         assert ctx.repo_root == tmp_path
-        assert ctx.worktree_name == "010-feature-WP02"
+        assert ctx.worktree_name == "010-feature-lane-b"
         assert ctx.worktree_path == worktree_path
 
     def test_detect_worktree_subdirectory(self, tmp_path: Path):
         """Test detection when in subdirectory of worktree."""
         # Create worktree with subdirectory
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         subdir = worktree_path / "src" / "components"
         subdir.mkdir(parents=True)
 
@@ -83,16 +83,16 @@ class TestContextDetection:
         assert ctx.location == ExecutionContext.WORKTREE
         assert ctx.cwd == subdir
         assert ctx.repo_root == tmp_path
-        assert ctx.worktree_name == "010-feature-WP02"
+        assert ctx.worktree_name == "010-feature-lane-b"
         assert ctx.worktree_path == worktree_path
 
     def test_detect_nested_worktree_path(self, tmp_path: Path):
         """Test detection prevents nested worktree confusion."""
         # Create nested structure (should not happen, but test detection)
         (tmp_path / ".kittify").mkdir()
-        outer_worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        outer_worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         # This would be a nested worktree (invalid)
-        nested_path = outer_worktree / ".worktrees" / "010-feature-WP02"
+        nested_path = outer_worktree / ".worktrees" / "010-feature-lane-b"
         nested_path.mkdir(parents=True)
 
         ctx = detect_execution_context(cwd=nested_path)
@@ -100,7 +100,7 @@ class TestContextDetection:
         # Should detect as worktree (first .worktrees in path)
         assert ctx.location == ExecutionContext.WORKTREE
         # Should use first .worktrees found
-        assert ctx.worktree_name == "010-feature-WP01"
+        assert ctx.worktree_name == "010-feature-lane-a"
 
     def test_get_current_context(self, tmp_path: Path, monkeypatch):
         """Test get_current_context uses current working directory."""
@@ -145,7 +145,7 @@ class TestRequireMainRepo:
     def test_blocks_execution_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test decorator blocks execution from worktree."""
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
@@ -161,7 +161,7 @@ class TestRequireMainRepo:
     def test_error_message_from_worktree(self, tmp_path: Path, monkeypatch, capsys):
         """Test error message when blocked from worktree."""
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
@@ -183,7 +183,7 @@ class TestRequireWorktree:
     def test_allows_execution_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test decorator allows execution from worktree."""
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
@@ -217,10 +217,10 @@ class TestLocationErrorMessages:
         """Test error message for command needing main repo, run from worktree."""
         ctx = CurrentContext(
             location=ExecutionContext.WORKTREE,
-            cwd=tmp_path / ".worktrees" / "010-feature-WP02",
+            cwd=tmp_path / ".worktrees" / "010-feature-lane-b",
             repo_root=tmp_path,
-            worktree_name="010-feature-WP02",
-            worktree_path=tmp_path / ".worktrees" / "010-feature-WP02",
+            worktree_name="010-feature-lane-b",
+            worktree_path=tmp_path / ".worktrees" / "010-feature-lane-b",
         )
 
         error_msg = format_location_error(
@@ -232,7 +232,7 @@ class TestLocationErrorMessages:
 
         assert "implement" in error_msg
         assert "main repository" in error_msg
-        assert "010-feature-WP02" in error_msg
+        assert "010-feature-lane-b" in error_msg
         assert f"cd {tmp_path}" in error_msg
 
 
@@ -298,13 +298,13 @@ class TestEnvironmentVariables:
 
     def test_set_context_env_vars_worktree(self, tmp_path: Path):
         """Test setting environment variables for worktree context."""
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
 
         ctx = CurrentContext(
             location=ExecutionContext.WORKTREE,
             cwd=worktree_path,
             repo_root=tmp_path,
-            worktree_name="010-feature-WP02",
+            worktree_name="010-feature-lane-b",
             worktree_path=worktree_path,
         )
 
@@ -313,34 +313,34 @@ class TestEnvironmentVariables:
         import os
 
         assert os.environ["SPEC_KITTY_CONTEXT"] == "worktree"
-        assert os.environ["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-WP02"
+        assert os.environ["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-lane-b"
         assert os.environ["SPEC_KITTY_WORKTREE_PATH"] == str(worktree_path)
 
     def test_get_context_env_vars(self, tmp_path: Path):
         """Test getting context environment variables."""
         ctx = CurrentContext(
             location=ExecutionContext.WORKTREE,
-            cwd=tmp_path / ".worktrees" / "010-feature-WP02",
+            cwd=tmp_path / ".worktrees" / "010-feature-lane-b",
             repo_root=tmp_path,
-            worktree_name="010-feature-WP02",
-            worktree_path=tmp_path / ".worktrees" / "010-feature-WP02",
+            worktree_name="010-feature-lane-b",
+            worktree_path=tmp_path / ".worktrees" / "010-feature-lane-b",
         )
 
         set_context_env_vars(ctx)
         env_vars = get_context_env_vars()
 
         assert env_vars["SPEC_KITTY_CONTEXT"] == "worktree"
-        assert env_vars["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-WP02"
+        assert env_vars["SPEC_KITTY_WORKTREE_NAME"] == "010-feature-lane-b"
 
     def test_env_vars_cleared_when_switching_context(self, tmp_path: Path):
         """Test environment variables are cleared when switching from worktree to main."""
         # Set worktree context
         worktree_ctx = CurrentContext(
             location=ExecutionContext.WORKTREE,
-            cwd=tmp_path / ".worktrees" / "010-feature-WP02",
+            cwd=tmp_path / ".worktrees" / "010-feature-lane-b",
             repo_root=tmp_path,
-            worktree_name="010-feature-WP02",
-            worktree_path=tmp_path / ".worktrees" / "010-feature-WP02",
+            worktree_name="010-feature-lane-b",
+            worktree_path=tmp_path / ".worktrees" / "010-feature-lane-b",
         )
         set_context_env_vars(worktree_ctx)
 
@@ -372,7 +372,7 @@ class TestWorktreeNestingPrevention:
         """
         (tmp_path / ".kittify").mkdir()
         # Setup worktree
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
@@ -388,7 +388,7 @@ class TestWorktreeNestingPrevention:
     def test_merge_blocked_from_worktree(self, tmp_path: Path, monkeypatch):
         """Test that merge command is blocked from worktree."""
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-feature-WP02"
+        worktree_path = tmp_path / ".worktrees" / "010-feature-lane-b"
         worktree_path.mkdir(parents=True)
         monkeypatch.chdir(worktree_path)
 
@@ -403,9 +403,9 @@ class TestWorktreeNestingPrevention:
         """Test detection of nested worktree paths (edge case)."""
         # Create what would be a nested worktree (invalid scenario)
         (tmp_path / ".kittify").mkdir()
-        outer_worktree = tmp_path / ".worktrees" / "010-feature-WP01"
+        outer_worktree = tmp_path / ".worktrees" / "010-feature-lane-a"
         nested_worktrees = outer_worktree / ".worktrees"
-        nested_workspace = nested_worktrees / "010-feature-WP02"
+        nested_workspace = nested_worktrees / "010-feature-lane-b"
         nested_workspace.mkdir(parents=True)
 
         ctx = detect_execution_context(cwd=nested_workspace)
@@ -413,7 +413,7 @@ class TestWorktreeNestingPrevention:
         # Should detect as worktree (first .worktrees in path)
         assert ctx.location == ExecutionContext.WORKTREE
         # This prevents trying to create another worktree
-        assert ctx.worktree_name == "010-feature-WP01"
+        assert ctx.worktree_name == "010-feature-lane-a"
 
 
 class TestEdgeCases:
@@ -448,10 +448,10 @@ class TestEdgeCases:
     def test_worktree_name_with_hyphens(self, tmp_path: Path):
         """Test worktree detection with complex names."""
         (tmp_path / ".kittify").mkdir()
-        worktree_path = tmp_path / ".worktrees" / "010-workspace-per-wp-WP08"
+        worktree_path = tmp_path / ".worktrees" / "010-sequential-lane-h"
         worktree_path.mkdir(parents=True)
 
         ctx = detect_execution_context(cwd=worktree_path)
 
         assert ctx.location == ExecutionContext.WORKTREE
-        assert ctx.worktree_name == "010-workspace-per-wp-WP08"
+        assert ctx.worktree_name == "010-sequential-lane-h"

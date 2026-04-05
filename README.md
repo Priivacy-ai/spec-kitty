@@ -47,7 +47,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 |------------|--------------------------|
 | **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
 | **Work package execution** | Uses canonical 2.x lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
-| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; lane-based features share a worktree per execution lane and legacy features may still use one worktree per work package |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every feature executes through lane-based worktrees, with exactly one worktree per computed execution lane |
 | **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
 | **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
 | **Multi-agent support** | Template and command generation for 12 AI agent integrations |
@@ -182,7 +182,7 @@ sequenceDiagram
 
 **Key Benefits:**
 - 🔀 **Parallel execution** - Multiple WPs simultaneously
-- 🌳 **Worktree isolation** - Lane-based features reuse shared lane worktrees; legacy features still isolate one workspace per WP
+- 🌳 **Worktree isolation** - Each execution lane gets one worktree, and sequential WPs in the same lane reuse it
 - 👀 **Full visibility** - Dashboard shows who's doing what
 - 🔒 **Security boundary** - Orchestration policy and transitions are validated at the host API boundary
 
@@ -598,7 +598,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - Specification: `/kitty-specs/###-feature-name/spec.md`
 - Plan: `/kitty-specs/###-feature-name/plan.md`
 - Tasks: `/kitty-specs/###-feature-name/tasks.md`
-- Implementation: `.worktrees/###-feature-name-lane-a/` (modern lane-based features) or `.worktrees/###-feature-name-WP01/` (legacy fallback)
+- Implementation: `.worktrees/###-feature-name-lane-a/`, `.worktrees/###-feature-name-lane-b/`, and so on
 
 **Lifecycle**:
 1. `/spec-kitty.specify` – Create the feature and its branch
@@ -1047,7 +1047,7 @@ graph TD
 - Planning stays in the main checkout, so artifacts remain visible and auditable
 - Lane-based features can share a worktree across sequential WPs in the same execution lane
 - Independent lanes still run in parallel in separate directories with separate branches
-- Legacy features without `lanes.json` still fall back to one worktree per WP
+- If task finalization computes one lane, the feature uses one worktree
 - Main branch stays clean without manual `git checkout` juggling
 
 ### The Pattern
@@ -1056,7 +1056,7 @@ my-project/                    # Main repo (main branch)
 ├── .worktrees/
 │   ├── 001-auth-system-lane-a/  # Feature 1 lane A (shared by sequential WPs)
 │   ├── 001-auth-system-lane-b/  # Feature 1 lane B (parallel work)
-│   └── 002-dashboard-WP01/      # Legacy feature fallback
+│   └── 002-dashboard-lane-a/    # Single-lane feature
 ├── .kittify/
 ├── kitty-specs/
 └── ... (main branch files)
@@ -1067,7 +1067,7 @@ my-project/                    # Main repo (main branch)
 2. **Implementation branches** live under `.worktrees/`
 3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
 4. **Lane-based features** reuse `.worktrees/<feature>-lane-<id>` when multiple WPs share a lane
-5. **Legacy features without `lanes.json`** still use `.worktrees/<feature>-WP##`
+5. **One computed lane means one worktree** for the whole feature
 6. **Automatic cleanup** removes execution worktrees after merge
 
 ### The Complete Workflow

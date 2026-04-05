@@ -10,7 +10,7 @@
 
 ---
 
-> Superseded by `architecture/2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
+> Superseded by `../2.x/adr/2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md`.
 > This ADR assumed one worktree per work package. The current execution model
 > uses one worktree per execution lane and one mission integration branch.
 
@@ -32,7 +32,7 @@ However, investigation reveals critical edge cases that make eager cleanup **uns
 * Diamond dependency patterns (WP needs same base as sibling)
 * Review rework scenarios (WP back to "planned" after dependent created)
 * Current validation expects worktrees to exist
-* Sparse checkout makes worktrees small (~MB not GB)
+* Legacy file filtering kept worktrees small enough that disk pressure was not the primary risk
 
 ## Considered Options
 
@@ -47,7 +47,7 @@ However, investigation reveals critical edge cases that make eager cleanup **uns
 - Diamond dependencies work correctly (all deps available at creation time)
 - Review rework doesn't break workflows (worktree available if WP reopened)
 - Current validation logic is correct (checks worktree existence)
-- Worktrees are small due to sparse checkout (disk usage not critical)
+- Worktrees were small enough that disk usage was not the primary concern
 - Merge cleanup is automatic, safe, and default behavior
 
 ### Consequences
@@ -64,13 +64,13 @@ However, investigation reveals critical edge cases that make eager cleanup **uns
 
 #### Negative
 
-* **Disk usage**: Worktrees accumulate until merge (mitigated by sparse checkout)
+* **Disk usage**: Worktrees accumulate until merge (historically mitigated by filtered worktrees)
 * **Mental model mismatch**: Users may think worktree unnecessary after dependent created
 * **No explicit feedback**: Users don't see "worktree cleaned" during implement
 
 #### Neutral
 
-* Worktrees are small (~MB) due to sparse checkout excluding `kitty-specs/`
+* Worktrees were small in the legacy model because not every file surface was present in every workspace
 * Merge cleanup happens automatically unless `--no-cleanup` specified
 * Branches persist independently (worktree deletion doesn't affect git history)
 
@@ -80,7 +80,7 @@ We'll validate this decision by:
 - No reports of parallel implementation failures due to missing worktrees
 - Diamond dependency patterns complete successfully
 - Review rework scenarios don't require worktree recreation
-- Disk usage remains manageable (sparse checkout effective)
+- Disk usage remains manageable under the legacy model
 - Users find merge cleanup behavior intuitive
 
 ## Pros and Cons of the Options
@@ -288,13 +288,13 @@ def safe_to_delete_worktree(wp_id, feature_dir):
 
 **Estimated effort:** ~5-8 hours implementation + testing vs **0 hours** for current behavior.
 
-**Benefit:** Minimal (sparse checkout keeps worktrees small).
+**Benefit:** Minimal (the legacy model already kept worktrees small).
 
 ### Disk Usage Analysis
 
 **Sparse Checkout Configuration:**
 ```bash
-# .worktrees/###-feature-WP01/.git/info/sparse-checkout
+# legacy filtered-worktree metadata file
 /*
 !/kitty-specs/
 ```

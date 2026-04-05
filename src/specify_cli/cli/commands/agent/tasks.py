@@ -275,7 +275,7 @@ def _check_unchecked_subtasks(
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         force: If True, only warn; if False, fail on unchecked tasks
 
@@ -332,7 +332,7 @@ def _check_dependent_warnings(
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         target_lane: Target lane being moved to
         json_mode: If True, suppress Rich console output
@@ -479,7 +479,7 @@ def _validate_ready_for_review(
 
     Args:
         repo_root: Repository root path (could be main or worktree)
-        feature_slug: Feature slug (e.g., "010-workspace-per-wp")
+        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         force: If True, skip validation (return success)
 
@@ -606,8 +606,8 @@ def _validate_ready_for_review(
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
 
-            # Check if worktree branch is behind its base branch
-            # For stacked WPs (WP03 based on WP01), check against WP01's branch, not main
+            # Check if the lane worktree is behind the branch it is expected to
+            # track. In the lane-only model this is usually the mission branch.
             target_branch = get_feature_target_branch(repo_root, feature_slug)
 
             # Resolve actual base: workspace context tracks the real base branch
@@ -714,7 +714,7 @@ def _validate_ready_for_review(
                     pass
 
             if commit_count == 0:
-                guidance.append("No implementation commits on WP branch!")
+                guidance.append("No implementation commits on lane branch!")
                 guidance.append("")
                 guidance.append(f"The worktree exists but has no commits beyond {check_branch}.")
                 guidance.append("Either:")
@@ -733,9 +733,9 @@ def _validate_ready_for_review(
                 base_branch=check_branch,
             )
             if contamination_files:
-                guidance.append("WP branch contains forbidden planning changes under kitty-specs/!")
+                guidance.append("Lane branch contains forbidden planning changes under kitty-specs/!")
                 guidance.append("")
-                guidance.append("Committed kitty-specs files on this WP branch:")
+                guidance.append("Committed kitty-specs files on this lane branch:")
                 for path in contamination_files[:5]:
                     guidance.append(f"  {path}")
                 if len(contamination_files) > 5:
@@ -744,7 +744,7 @@ def _validate_ready_for_review(
                 guidance.append("Clean the branch before moving to for_review:")
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append(f"  git restore --source {check_branch} --staged --worktree -- kitty-specs/")
-                guidance.append("  git commit -m \"chore: remove planning artifacts from WP branch\"")
+                guidance.append("  git commit -m \"chore: remove planning artifacts from lane branch\"")
                 guidance.append("")
                 guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
                 return False, guidance
@@ -758,7 +758,7 @@ def _wp_branch_merged_into_target(
     wp_id: str,
     target_branch: str,
 ) -> tuple[bool, str]:
-    """Check whether a WP branch tip is reachable from the target branch.
+    """Check whether a lane branch tip is reachable from the target branch.
 
     Returns:
         (is_merged, message)
@@ -800,7 +800,7 @@ def _wp_branch_merged_into_target(
 
 
 def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -> List[str]:
-    """Return kitty-specs/ files changed on the WP branch compared to its base."""
+    """Return kitty-specs/ files changed on the lane branch compared to its base."""
     merge_base_result = subprocess.run(
         ["git", "merge-base", "HEAD", base_branch],
         cwd=worktree_path,

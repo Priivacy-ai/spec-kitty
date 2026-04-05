@@ -277,7 +277,7 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 | Flag | Description | Default |
 |------|-------------|---------|
 | `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace features) | `merge` |
-| `--delete-branch` / `--keep-branch` | Delete WP branches after merge | Delete |
+| `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge | Delete |
 | `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
 | `--push` | Push to origin after merge | No push |
 | `--target` | Target branch to merge into | `main` |
@@ -292,12 +292,12 @@ Full CLI reference: [CLI Commands](../reference/cli-commands.md)
 
 - [Accept and Merge](accept-and-merge.md#troubleshooting) - Recovery and conflict resolution
 - [Accept and Merge](accept-and-merge.md) - Feature validation before merge
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - How worktrees work
+- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees work
 - [Review Work Packages](review-work-package.md) - WP review process
 
 ## Background
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - How worktrees work
+- [Execution Lanes](../explanation/execution-lanes.md) - How worktrees work
 - [Git Worktrees](../explanation/git-worktrees.md) - Git worktree fundamentals
 
 ## Getting Started

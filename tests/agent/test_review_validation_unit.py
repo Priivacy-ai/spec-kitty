@@ -9,6 +9,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
+from tests.lane_test_utils import lane_branch_name, lane_worktree_path, write_single_lane_manifest
+
 
 class TestValidateReadyForReview:
     """Tests for _validate_ready_for_review helper."""
@@ -85,7 +87,7 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
     @patch("subprocess.run")
-    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
+    @patch("specify_cli.core.git_ops.get_current_branch", return_value="kitty/mission-008-feature-lane-a")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_uncommitted_worktree_blocks_review(
@@ -108,7 +110,8 @@ class TestValidateReadyForReview:
         # Create feature and worktree directories
         feature_dir = tmp_path / "kitty-specs" / "008-feature"
         feature_dir.mkdir(parents=True)
-        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
+        worktree_path = lane_worktree_path(tmp_path, "008-feature")
         worktree_path.mkdir(parents=True)
 
         # Simulate: main clean, worktree has uncommitted changes
@@ -123,7 +126,7 @@ class TestValidateReadyForReview:
                     return Mock(returncode=0, stdout="")  # Main repo clean
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
                 # Return a branch name so we don't trigger detached HEAD
-                return Mock(returncode=0, stdout="008-feature-WP01\n")
+                return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations (MERGE_HEAD, REBASE_HEAD, etc. don't exist)
                 return Mock(returncode=1, stdout="")
@@ -150,7 +153,7 @@ class TestValidateReadyForReview:
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key")
     @patch("subprocess.run")
-    @patch("specify_cli.core.git_ops.get_current_branch", return_value="008-feature-WP01")
+    @patch("specify_cli.core.git_ops.get_current_branch", return_value="kitty/mission-008-feature-lane-a")
     @patch("specify_cli.workspace_context.load_context", return_value=None)
     @patch("specify_cli.cli.commands.agent.tasks.get_feature_target_branch", return_value="main")
     def test_softwaredev_no_commits_blocks_review(
@@ -173,7 +176,8 @@ class TestValidateReadyForReview:
         # Create feature and worktree directories
         feature_dir = tmp_path / "kitty-specs" / "008-feature"
         feature_dir.mkdir(parents=True)
-        worktree_path = tmp_path / ".worktrees" / "008-feature-WP01"
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
+        worktree_path = lane_worktree_path(tmp_path, "008-feature")
         worktree_path.mkdir(parents=True)
 
         # Simulate: main clean, worktree clean, but no commits beyond main
@@ -184,7 +188,7 @@ class TestValidateReadyForReview:
             if "status" in cmd and "--porcelain" in cmd:
                 return Mock(returncode=0, stdout="")  # Both clean
             elif "rev-parse" in cmd and "--abbrev-ref" in cmd:
-                return Mock(returncode=0, stdout="008-feature-WP01\n")
+                return Mock(returncode=0, stdout=f"{lane_branch_name('008-feature')}\n")
             elif "rev-parse" in cmd and "--verify" in cmd:
                 # No in-progress operations
                 return Mock(returncode=1, stdout="")
@@ -240,21 +244,22 @@ class TestMoveTaskPreflightCheck:
         feature_slug = "001-test-feature"
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
-        worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_path = lane_worktree_path(tmp_path, feature_slug)
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
 
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"{lane_branch_name(feature_slug)}\n", stderr="")
                 elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"{lane_branch_name(feature_slug)}\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:
@@ -287,21 +292,22 @@ class TestMoveTaskPreflightCheck:
         feature_slug = "001-test-feature"
         feature_dir = tmp_path / "kitty-specs" / feature_slug
         feature_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("review",))
 
         (feature_dir / "meta.json").write_text('{"mission": "software-dev", "target_branch": "main"}')
 
-        worktree_path = tmp_path / ".worktrees" / f"{feature_slug}-WP01"
+        worktree_path = lane_worktree_path(tmp_path, feature_slug)
         worktree_path.mkdir(parents=True)
 
         with patch("subprocess.run") as mock_run:
 
             def git_command_side_effect(args, **kwargs):
                 if "branch" in args and "--show-current" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"{lane_branch_name(feature_slug)}\n", stderr="")
                 elif "status" in args and "--porcelain" in args and "kitty-specs" in str(args):
                     return MagicMock(returncode=0, stdout="", stderr="")
                 elif "rev-parse" in args and "--abbrev-ref" in args:
-                    return MagicMock(returncode=0, stdout=f"feature/{feature_slug}-WP01\n", stderr="")
+                    return MagicMock(returncode=0, stdout=f"{lane_branch_name(feature_slug)}\n", stderr="")
                 elif "rev-parse" in args and "--verify" in args:
                     return MagicMock(returncode=1, stdout="", stderr="")
                 elif "rev-list" in args and "HEAD..main" in args:

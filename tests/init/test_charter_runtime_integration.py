@@ -483,9 +483,9 @@ Document in ADR, require 3 approvals, set sunset date for temporary exceptions
         )
 
         # Create worktree
-        worktree_dir = repo / ".worktrees" / "feature-WP01"
+        worktree_dir = repo / ".worktrees" / "feature-lane-a"
         subprocess.run(
-            ["git", "worktree", "add", str(worktree_dir), "-b", "feature-WP01"],
+            ["git", "worktree", "add", str(worktree_dir), "-b", "kitty/mission-feature-lane-a"],
             cwd=repo,
             check=True,
             capture_output=True,

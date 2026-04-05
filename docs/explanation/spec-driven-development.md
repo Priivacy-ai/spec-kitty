@@ -188,7 +188,7 @@ Spec-driven development with Spec Kitty enables parallel work:
 
 ## See Also
 
-- [Workspace-per-WP Model](workspace-per-wp.md) - How isolation enables parallelization
+- [Execution Lanes](execution-lanes.md) - How isolation enables parallelization
 - [Kanban Workflow](kanban-workflow.md) - How work moves through lanes
 - [Mission System](mission-system.md) - Different workflows for different needs
 

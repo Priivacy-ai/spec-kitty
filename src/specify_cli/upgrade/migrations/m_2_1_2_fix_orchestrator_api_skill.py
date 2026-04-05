@@ -3,8 +3,8 @@
 Adds JSON output examples for feature-state and list-ready, error code catalog,
 start-implementation idempotency table, workspace_path creation responsibility,
 start-review --review-ref requirement, merge preflight details, policy secret
-validation, full lane list including blocked/canceled, list-ready
-recommended_base field, and correlation_id explanation.
+validation, full lane list including blocked/canceled, list-ready examples,
+and correlation_id explanation.
 """
 
 from __future__ import annotations

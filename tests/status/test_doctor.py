@@ -475,8 +475,8 @@ class TestCheckOrphanWorkspaces:
         """All WPs done + worktree exists -> finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
-        (worktrees_dir / "034-test-feature-WP02").mkdir()
+        (worktrees_dir / "034-test-feature-lane-a").mkdir()
+        (worktrees_dir / "034-test-feature-lane-b").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -492,7 +492,7 @@ class TestCheckOrphanWorkspaces:
         """Worktree exists, but WP01 is still in_progress -> no finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
+        (worktrees_dir / "034-test-feature-lane-a").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -527,7 +527,7 @@ class TestCheckOrphanWorkspaces:
         """Some done, some canceled (all terminal) + worktree -> finding."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-feature-WP01").mkdir()
+        (worktrees_dir / "034-test-feature-lane-a").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -549,7 +549,7 @@ class TestCheckOrphanWorkspaces:
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
         # Create a file, not a directory
-        (worktrees_dir / "034-test-feature-WP01").write_text("not a dir")
+        (worktrees_dir / "034-test-feature-lane-a").write_text("not a dir")
 
         snapshot = {
             "work_packages": {
@@ -563,7 +563,7 @@ class TestCheckOrphanWorkspaces:
         """Worktrees for other features are not flagged."""
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "999-other-feature-WP01").mkdir()
+        (worktrees_dir / "999-other-feature-lane-a").mkdir()
 
         snapshot = {
             "work_packages": {
@@ -748,7 +748,7 @@ class TestRunDoctor:
 
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-test-WP01").mkdir()
+        (worktrees_dir / "034-test-lane-a").mkdir()
 
         status_data = {
             "feature_slug": "034-test",
@@ -784,7 +784,7 @@ class TestRunDoctor:
 
         worktrees_dir = tmp_path / ".worktrees"
         worktrees_dir.mkdir()
-        (worktrees_dir / "034-other-WP01").mkdir()
+        (worktrees_dir / "034-other-lane-a").mkdir()
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {

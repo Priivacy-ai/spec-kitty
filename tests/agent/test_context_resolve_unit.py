@@ -6,6 +6,8 @@ from pathlib import Path
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent import context
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 
@@ -52,6 +54,33 @@ def _make_feature(repo_root: Path, slug: str, *, target_branch: str = "main") ->
     return feature_dir
 
 
+def _write_lanes(feature_dir: Path, *lane_defs: tuple[str, tuple[str, ...]]) -> None:
+    lanes = [
+        ExecutionLane(
+            lane_id=lane_id,
+            wp_ids=wp_ids,
+            write_scope=("src/**",),
+            predicted_surfaces=("core",),
+            depends_on_lanes=(),
+            parallel_group=index,
+        )
+        for index, (lane_id, wp_ids) in enumerate(lane_defs)
+    ]
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            feature_slug=feature_dir.name,
+            mission_id=f"mission-{feature_dir.name}",
+            mission_branch=f"kitty/mission-{feature_dir.name}",
+            target_branch="main",
+            lanes=lanes,
+            computed_at="2026-04-04T10:00:00Z",
+            computed_from="test",
+        ),
+    )
+
+
 def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatch) -> None:
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
@@ -88,6 +117,7 @@ def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatc
     _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "done")
     _seed_wp_lane(feature_dir, "WP01", "done")
     _write_wp(feature_dir / "tasks" / "WP02.md", "WP02", "planned", dependencies="[WP01]")
+    _write_lanes(feature_dir, ("lane-a", ("WP01", "WP02")))
     # No event seeding needed for planned lane
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
@@ -102,8 +132,9 @@ def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatc
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["wp_id"] == "WP02"
-    assert payload["resolved_base"] == "WP01"
-    assert payload["commands"]["workflow"].endswith("implement WP02 --base WP01 --agent codex")
+    assert payload["resolved_base"] is None
+    assert payload["workspace_path"].endswith(".worktrees/021-context-test-lane-a")
+    assert payload["commands"]["workflow"].endswith("implement WP02 --agent codex")
 
 
 def test_context_resolve_canonicalizes_doing_lane_when_selecting_wp(
@@ -116,6 +147,7 @@ def test_context_resolve_canonicalizes_doing_lane_when_selecting_wp(
     feature_dir = _make_feature(repo_root, "021-context-test")
     _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "doing")
     _seed_wp_lane(feature_dir, "WP01", "in_progress")
+    _write_lanes(feature_dir, ("lane-a", ("WP01",)))
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
@@ -139,6 +171,7 @@ def test_context_resolve_review_returns_approve_command(tmp_path: Path, monkeypa
     feature_dir = _make_feature(repo_root, "021-context-test")
     _write_wp(feature_dir / "tasks" / "WP01.md", "WP01", "for_review")
     _seed_wp_lane(feature_dir, "WP01", "for_review")
+    _write_lanes(feature_dir, ("lane-a", ("WP01",)))
 
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)

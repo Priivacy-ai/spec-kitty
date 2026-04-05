@@ -38,7 +38,7 @@ def sample_review_approval() -> ReviewApproval:
 def sample_repo_evidence() -> RepoEvidence:
     return RepoEvidence(
         repo="my-org/my-repo",
-        branch="034-feature-WP01",
+        branch="kitty/mission-034-feature-lane-a",
         commit="abc1234",
         files_touched=["src/models.py", "tests/test_models.py"],
     )

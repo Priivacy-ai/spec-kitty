@@ -254,182 +254,63 @@ rules.
 
 ---
 
-## 6. Charter-Driven Git Branching Strategy
+## 6. Execution Topology Is Not Doctrine-Configurable
 
-### Problem
+### What Changed
 
-Spec Kitty currently hardcodes a worktree-per-work-package branching model.
-This is baked into:
-- `implement.md` templates (all 48 copies)
-- `src/specify_cli/orchestrator/` (worktree creation logic)
-- `src/specify_cli/merge/` (worktree-based merge assumptions)
-- Charter context guidelines (worktree discipline prose)
+An earlier idea in this postmortem was to make git execution topology
+configurable through doctrine paradigms. That direction is now explicitly
+rejected.
 
-Users wanting git-flow branches, CI to a shared branch, or trunk-based
-development cannot configure this without forking templates.
+Spec Kitty's current contract is:
+- execution lanes are mandatory planning output
+- each lane owns exactly one worktree
+- each mission owns exactly one integration branch
+- work-package branches and per-WP worktree fallback paths do not exist
 
-### Solution: Branching strategy as a doctrine paradigm
+### Why The Earlier Proposal Was Wrong
 
-**Layer 1: Paradigm artifact defines the mental model**
+Treating branching strategy as a doctrine selection would have made the most
+failure-prone part of the runtime polymorphic. That increases the number of
+states the planner, implementer, merger, dashboard, migrations, prompts, and
+tests all need to understand.
 
-```yaml
-# doctrine/paradigms/shipped/workspace-per-wp.paradigm.yaml
-id: workspace-per-wp
-schema_version: "1.0"
-title: Workspace per Work Package
-description: >
-  Each WP gets an isolated git worktree with a dedicated branch.
-  Enables parallel development across WPs. Merges happen sequentially
-  via the merge command.
-tactic_refs:
-  - worktree-isolation
-  - sequential-merge
-opposed_by:
-  - id: shared-branch-ci
-    contradiction: >
-      Shared-branch CI trades isolation for simpler merge flow.
-      Conflicts detected earlier but parallelism is limited.
+The lane-only runtime instead fixes a single execution topology and moves
+project choice higher up the stack:
+- charters can influence process, review discipline, risk posture, and
+  implementation tactics
+- charters do not get to swap out the runtime's git topology
+- orchestration stays deterministic because lane planning is the sole source of
+  workspace structure
+
+### Current Architectural Position
+
+The correct indirection point is not "pick a git strategy at runtime." The
+correct model is:
+
+```text
+tasks finalization computes execution lanes
+  -> lanes.json becomes mandatory
+  -> implement allocates the lane worktree
+  -> review runs in that same lane worktree
+  -> merge consumes lane branches into the mission branch
 ```
 
-```yaml
-# doctrine/paradigms/shipped/shared-branch-ci.paradigm.yaml
-id: shared-branch-ci
-title: Shared Integration Branch
-description: >
-  All WPs commit to a shared feature branch. CI validates integration
-  continuously. No worktrees needed. Simpler for solo developers or
-  small teams.
-tactic_refs:
-  - feature-branch-workflow
-  - ci-integration-testing
-opposed_by:
-  - id: workspace-per-wp
-    contradiction: >
-      Worktree isolation prevents merge conflicts during development
-      but adds complexity for solo developers.
-```
+This keeps topology computation centralized and testable. It also guarantees
+that overlapping or dependency-coupled work packages are serialized through the
+same lane workspace instead of being allowed to diverge.
 
-```yaml
-# doctrine/paradigms/shipped/git-flow.paradigm.yaml
-id: git-flow
-title: Git Flow
-description: >
-  Classic git-flow with develop, release, hotfix branches.
-  WPs branch from develop, merge back via pull requests.
-tactic_refs:
-  - git-flow-branching
-  - pull-request-merge
-```
+### Postmortem Outcome
 
-```yaml
-# doctrine/paradigms/shipped/trunk-based.paradigm.yaml
-id: trunk-based
-title: Trunk-Based Development
-description: >
-  All work committed directly to main behind feature flags.
-  WPs are short-lived branches (< 1 day) merged frequently.
-tactic_refs:
-  - short-lived-branches
-  - feature-flag-gating
-```
+The actionable conclusion from this section is the opposite of the original
+proposal:
+- remove legacy topology branches from runtime code
+- remove topology selection prose from prompts and doctrine
+- keep lane allocation as the only execution path
+- fail closed when lane planning artifacts are missing
 
-**Layer 2: Tactics implement the branching behaviour**
-
-Each paradigm references tactics that describe the concrete steps. The
-`worktree-isolation` tactic has steps for `git worktree add`, the
-`feature-branch-workflow` tactic has steps for `git checkout -b`, etc.
-
-**Layer 3: Charter interview captures the choice**
-
-The charter interview already captures `selected_paradigms`. Adding
-branching paradigms to the selection:
-
-```yaml
-# In interview/answers.yaml
-selected_paradigms:
-  - test-first
-  - workspace-per-wp    # <-- branching strategy selection
-```
-
-**Layer 4: Action index routes to correct tactics**
-
-The `implement` action index becomes branching-strategy-aware:
-
-```yaml
-# missions/software-dev/actions/implement/index.yaml
-action: implement
-directives: [...]
-tactics:
-  # Always included:
-  - acceptance-test-first
-  - tdd-red-green-refactor
-  # Branching-strategy-conditional:
-  - $paradigm:workspace-per-wp:worktree-isolation
-  - $paradigm:shared-branch-ci:feature-branch-workflow
-  - $paradigm:git-flow:git-flow-branching
-  - $paradigm:trunk-based:short-lived-branches
-```
-
-The `$paradigm:` prefix is a conditional inclusion syntax: include this tactic
-only if the named paradigm is in the project's `selected_paradigms`.
-
-**Layer 5: Orchestration reads charter, not hardcoded strategy**
-
-```python
-# Pseudocode for implement entry point
-def implement_wp(wp_id, repo_root):
-    charter = load_charter(repo_root)
-
-    if "workspace-per-wp" in charter.selected_paradigms:
-        create_worktree(wp_id)
-    elif "shared-branch-ci" in charter.selected_paradigms:
-        checkout_feature_branch(wp_id)
-    elif "git-flow" in charter.selected_paradigms:
-        checkout_from_develop(wp_id)
-    elif "trunk-based" in charter.selected_paradigms:
-        checkout_short_lived_branch(wp_id)
-```
-
-**Layer 6: Merge command respects strategy**
-
-The merge command similarly reads the paradigm selection to determine merge
-mechanics (worktree-based sequential merge, PR-based merge, direct-to-trunk,
-etc.).
-
-### Implementation roadmap
-
-| Step | Scope | Effort |
-|---|---|---|
-| 1. Create branching paradigm artifacts | Doctrine only — no code changes | Small |
-| 2. Create branching tactic artifacts | Doctrine only — step definitions | Small |
-| 3. Add conditional inclusion to action index loader | `action_index.py` change | Medium |
-| 4. Charter interview: add branching paradigm question | `interview.py` change | Small |
-| 5. Refactor orchestrator to read paradigm | `orchestrator/` refactor | Large |
-| 6. Refactor merge to read paradigm | `merge/` refactor | Large |
-| 7. Update templates to remove hardcoded worktree instructions | Migration | Medium |
-
-Steps 1-4 are low-risk doctrine additions. Steps 5-6 are the heavy lift —
-they require the orchestration and merge subsystems to become
-strategy-polymorphic rather than worktree-hardcoded.
-
-### Key insight: The charter is already the right indirection point
-
-The charter already sits between "what the project wants" (interview
-answers) and "what the agent does" (context bootstrap). Making branching
-strategy a paradigm selection flows naturally through the existing pipeline:
-
-```
-Interview → selected_paradigms includes branching strategy
-  → Compiler resolves paradigm → tactic_refs
-  → Action index intersects with paradigm-conditional tactics
-  → Context bootstrap injects correct branching procedures
-  → Agent follows the procedures it received
-  → Orchestrator reads same paradigm to create correct workspace type
-```
-
-No new architectural primitives needed. The doctrine stack already supports
-this — it just needs the branching-specific content authored and the
-orchestrator decoupled from the worktree assumption.
+That simplification has now replaced the older "strategy-polymorphic"
+direction.
 
 ---
 

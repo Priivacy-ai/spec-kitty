@@ -138,7 +138,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
             return None
 
     # Strategy 2: Check if we're in a worktree for a feature
-    # e.g., .worktrees/015-feature-name-WP01/src/file.py
+    # e.g., .worktrees/015-feature-name-lane-a/src/file.py
     if ".worktrees" in str(current):
         # Find the worktree root (direct child of .worktrees/)
         worktree_root = None
@@ -149,7 +149,7 @@ def _get_locked_vcs_from_feature(path: Path) -> VCSBackend | None:
 
         if worktree_root:
             # Extract feature number from worktree name
-            # Pattern: ###-feature-name-WP##
+            # Pattern: ###-feature-name-lane-x
             worktree_name = worktree_root.name
             match = re.match(r"(\d{3})-", worktree_name)
             if match:

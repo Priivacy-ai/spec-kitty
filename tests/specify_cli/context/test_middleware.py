@@ -29,7 +29,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "feature_slug": "057-test-feature",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
-        "authoritative_ref": "057-test-feature-WP01",
+        "authoritative_ref": "kitty/mission-057-test-feature-lane-a",
         "owned_files": ("src/**",),
         "execution_mode": "code_change",
         "dependency_mode": "independent",

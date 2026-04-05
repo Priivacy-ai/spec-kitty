@@ -106,7 +106,7 @@ class TestImplementContractStructure:
         assert workspace is not None
         assert workspace.delegates_to is not None
         assert workspace.delegates_to.kind == ArtifactKind.PARADIGM
-        assert "workspace-per-wp" in workspace.delegates_to.candidates
+        assert "execution-lanes" in workspace.delegates_to.candidates
 
     def test_has_quality_gate_step(self, contract: MissionStepContract) -> None:
         gate = next((s for s in contract.steps if s.id == "quality_gate"), None)

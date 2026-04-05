@@ -23,7 +23,7 @@ def test_detect_current_feature_always_returns_none_no_auto_detection(tmp_path, 
 
 def test_detect_current_feature_returns_none_from_worktree(tmp_path, monkeypatch):
     """_detect_current_feature returns None even from worktree (auto-detection removed)."""
-    worktree_dir = tmp_path / ".worktrees" / "001-research-WP01"
+    worktree_dir = tmp_path / ".worktrees" / "001-research-lane-a"
     worktree_dir.mkdir(parents=True)
     monkeypatch.chdir(worktree_dir)
 

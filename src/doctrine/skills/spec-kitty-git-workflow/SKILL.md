@@ -32,8 +32,8 @@ conflict resolution.
 | `git commit` (planning artifacts) | Python | Before worktree creation |
 | `git commit` (lane transitions) | Python | WP moves to doing/for_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
-| `git rebase` (stacked WPs) | **Agent** | When base WP has new changes |
-| `git merge` (WP → target) | Python | `spec-kitty merge` |
+| `git rebase` (stale lane sync) | **Agent** | When the mission branch advanced and the lane must resync |
+| `git merge` (lane → mission → target) | Python | `spec-kitty merge` |
 | `git push` | Python (opt-in) | `spec-kitty merge --push` only |
 | `git push` | **Agent** | Any other push scenario |
 | Conflict resolution | **Agent** | During rebase or manual merge |
@@ -49,25 +49,25 @@ conflict resolution.
 When you run `spec-kitty implement WP01`, Python:
 
 ```
-git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
+git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a main
 ```
 
-It also configures sparse checkout to exclude `kitty-specs/` from the
-worktree so agents don't accidentally modify planning artifacts from the
-worktree context.
+It also records the lane workspace context in
+`.kittify/workspaces/<feature>-<lane>.json` so later commands resolve the same
+lane worktree deterministically.
 
 The agent never creates worktrees. Always use `spec-kitty implement`.
 
-For dependent WPs with `--base`:
+For dependent WPs in the same execution lane:
 
 ```
-spec-kitty implement WP02 --base WP01
+spec-kitty implement WP02
 ```
 
-This branches from WP01's branch instead of main:
+This reuses the lane worktree instead of creating a second workspace:
 
 ```
-git worktree add -b 042-mission-WP02 .worktrees/042-mission-WP02 042-mission-WP01
+# WP02 reuses .worktrees/042-mission-lane-a
 ```
 
 ### 2. Planning Artifact Auto-Commits
@@ -115,15 +115,9 @@ one would create excessive git noise.
 ```
 git checkout main
 git pull --ff-only                    # sync with remote
-git merge --no-ff 042-mission-WP01   # merge in dependency order
-git merge --no-ff 042-mission-WP02
-git merge --no-ff 042-mission-WP03
-git worktree remove .worktrees/042-mission-WP01 --force
-git worktree remove .worktrees/042-mission-WP02 --force
-git worktree remove .worktrees/042-mission-WP03 --force
-git branch -d 042-mission-WP01       # cleanup branches
-git branch -d 042-mission-WP02
-git branch -d 042-mission-WP03
+git merge --no-ff kitty/mission-042-mission
+git worktree remove .worktrees/042-mission-lane-a --force
+git branch -d kitty/mission-042-mission-lane-a
 ```
 
 Merge order follows the dependency graph (topological sort).
@@ -152,7 +146,7 @@ All actual code work must be committed by the agent. Python creates the
 worktree but never commits code:
 
 ```bash
-cd .worktrees/042-mission-WP01
+cd .worktrees/042-mission-lane-a
 # ... write code, run tests ...
 git add src/ tests/
 git commit -m "feat(WP01): implement auth middleware"
@@ -163,34 +157,23 @@ checks that the worktree has commits ahead of the base branch
 (`git rev-list --count <base>..HEAD`). If zero commits, the transition is
 rejected.
 
-### 2. Rebasing Dependent WPs
+### 2. Rebasing a Lane Workspace
 
-When WP02 depends on WP01 and WP01 has changed since WP02 branched:
-
-```bash
-cd .worktrees/042-mission-WP02
-git rebase 042-mission-WP01
-# resolve conflicts if any
-git add .
-git rebase --continue
-```
-
-Python displays a rebase warning but does not execute it. The agent must
-handle this manually.
-
-**When this happens:** After WP01 is reviewed and gets changes, or after
-WP01 is merged and WP02 needs to pick up those changes.
-
-### 3. Multi-Parent Dependencies
-
-If WP04 depends on both WP02 and WP03, use `--base` for one and manually
-merge the other:
+If a lane branch has advanced while you were away:
 
 ```bash
-spec-kitty implement WP04 --base WP03    # branches from WP03
-cd .worktrees/042-mission-WP04
-git merge 042-mission-WP02               # manually merge WP02
+cd .worktrees/042-mission-lane-a
+git rebase kitty/mission-042-mission-lane-a
 ```
+
+Python displays the lane workspace and branch, but the agent resolves conflicts
+and completes the rebase manually when needed.
+
+### 3. Multi-Dependency Work
+
+Task finalization computes a lane that already contains the required dependency
+shape. Agents do not choose one dependency as a manual base and do not manually
+merge sibling lane outputs to reconstruct the lane.
 
 ### 4. Pushing
 
@@ -226,11 +209,11 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 ```
 1. CREATED
    spec-kitty implement WP01
-   → git worktree add -b 042-mission-WP01 .worktrees/042-mission-WP01 main
-   → .kittify/workspaces/042-mission-WP01.json created
+   → git worktree add -b kitty/mission-042-mission-lane-a .worktrees/042-mission-lane-a main
+   → .kittify/workspaces/042-mission-lane-a.json created
 
 2. ACTIVE (agent works here)
-   cd .worktrees/042-mission-WP01
+   cd .worktrees/042-mission-lane-a
    → agent writes code, commits, tests
    → WP status: in_progress
 
@@ -241,10 +224,10 @@ Per-command override: `--no-auto-commit` flag on `spec-kitty implement`.
 
 4. MERGED
    spec-kitty merge --mission 042-mission
-   → git merge --no-ff 042-mission-WP01
-   → git worktree remove .worktrees/042-mission-WP01 --force
-   → git branch -d 042-mission-WP01
-   → .kittify/workspaces/042-mission-WP01.json removed
+   → git merge --no-ff kitty/mission-042-mission-lane-a
+   → git worktree remove .worktrees/042-mission-lane-a --force
+   → git branch -d kitty/mission-042-mission-lane-a
+   → .kittify/workspaces/042-mission-lane-a.json removed
 
 5. CLEANED UP
    Worktree directory gone, branch deleted, workspace context removed
@@ -264,7 +247,7 @@ Spec-kitty does NOT use git hooks. Feature 043 replaced the pre-commit hook
 
 1. **Agent creates worktree manually** — Don't `git worktree add` yourself.
    Use `spec-kitty implement`. Manual worktrees won't have workspace context,
-   sparse checkout, or proper branch naming.
+   canonical workspace context, or proper branch naming.
 
 2. **Agent commits in main repo during implementation** — Implementation
    commits belong in the worktree, not in the main repo. The main repo is

@@ -19,13 +19,13 @@ steps:
     delegates_to:
       kind: paradigm
       candidates:
-        - workspace-per-wp
+        - execution-lanes
         - shared-branch-ci
         - git-flow
         - trunk-based
     guidance: >
-      If no branching paradigm is selected in the charter,
-      default to workspace-per-wp behaviour.
+      Execution lanes are the default and only supported git worktree paradigm.
+      If no branching paradigm is selected in the charter, use execution-lane worktrees.
 
   - id: execute
     description: Implement the work package according to the prompt file

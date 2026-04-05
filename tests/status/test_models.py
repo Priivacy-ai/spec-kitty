@@ -68,7 +68,7 @@ class TestRepoEvidence:
     def test_to_dict(self, sample_repo_evidence: RepoEvidence) -> None:
         d = sample_repo_evidence.to_dict()
         assert d["repo"] == "my-org/my-repo"
-        assert d["branch"] == "034-feature-WP01"
+        assert d["branch"] == "kitty/mission-034-feature-lane-a"
         assert d["commit"] == "abc1234"
         assert d["files_touched"] == ["src/models.py", "tests/test_models.py"]
 

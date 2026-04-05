@@ -150,7 +150,7 @@ def test_get_last_meaningful_commit_time_fresh_worktree_main(git_repo_with_main:
     """Test that fresh worktree with 'main' branch is NOT stale."""
     # Create a feature branch (simulating worktree)
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -169,7 +169,7 @@ def test_get_last_meaningful_commit_time_fresh_worktree_master(
     """Test that fresh worktree with 'master' branch is NOT stale."""
     # Create a feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,
@@ -186,7 +186,7 @@ def test_get_last_meaningful_commit_time_with_commits_main(git_repo_with_main: P
     """Test commit time detection with 'main' branch."""
     # Create a feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -221,7 +221,7 @@ def test_get_last_meaningful_commit_time_with_commits_master(
     """Test commit time detection with 'master' branch."""
     # Create a feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,
@@ -253,7 +253,7 @@ def test_check_wp_staleness_fresh_worktree(git_repo_with_main: Path):
     """Test that fresh worktree is NOT flagged as stale."""
     # Create a feature branch (no commits)
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -273,7 +273,7 @@ def test_check_wp_staleness_old_commit(git_repo_with_main: Path):
 
     # Create a feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -320,7 +320,7 @@ def test_check_wp_staleness_recent_commit(git_repo_with_main: Path):
 
     # Create a feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_main,
         check=True,
         capture_output=True,
@@ -378,7 +378,7 @@ def test_stale_detection_with_master_branch_old_commit(git_repo_with_master: Pat
 
     # Create feature branch
     subprocess.run(
-        ["git", "checkout", "-b", "feature-WP01"],
+        ["git", "checkout", "-b", "kitty/mission-feature-lane-a"],
         cwd=git_repo_with_master,
         check=True,
         capture_output=True,

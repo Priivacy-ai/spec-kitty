@@ -18,6 +18,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
+
 from specify_cli.context import (
     MissionContext,
     resolve_context,
@@ -87,6 +89,12 @@ def _setup_project(
         f"# Work Package: {wp_code}\n\nContent.\n"
     )
     (tasks_dir / f"{wp_code}-lifecycle-wp.md").write_text(wp_content, encoding="utf-8")
+    write_single_lane_manifest(
+        feature_dir,
+        wp_ids=(wp_code,),
+        mission_id=mission_id or feature_slug,
+        predicted_surfaces=("context",),
+    )
     return tmp_path
 
 
@@ -294,8 +302,7 @@ class TestContextFieldCorrectness:
     def test_authoritative_ref_set_for_code_change(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, execution_mode="code_change")
         ctx = resolve_context("WP01", "047-lifecycle-test", "claude", repo)
-        # authoritative_ref = {feature_slug}-{wp_code}
-        assert ctx.authoritative_ref == "047-lifecycle-test-WP01"
+        assert ctx.authoritative_ref == "kitty/mission-047-lifecycle-test-lane-a"
 
     def test_authoritative_ref_none_for_planning_artifact(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, execution_mode="planning_artifact")

@@ -60,7 +60,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, approved, 
 
 **What happens**:
 - Agent works in the WP's worktree
-- Makes commits to the WP branch
+- Makes commits to the lane branch backing the current workspace
 - Only ONE agent should have a WP in `in_progress` at a time
 
 **Alias**: `doing` is accepted as input and resolved to `in_progress` at input boundaries. The alias is never persisted in events or frontmatter.
@@ -100,7 +100,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, approved, 
 - Guard: requires reviewer approval evidence
 
 **What happens**:
-- WP branch is ready for merging
+- Lane branch content is ready for merge orchestration
 - No further changes expected
 - `done` is a terminal lane (force required to leave)
 - Once ALL WPs are in `done`, run `/spec-kitty.accept` to validate the entire feature
@@ -448,7 +448,7 @@ Before moving a WP to `claimed` or `in_progress`:
 
 The implement command enforces this:
 ```bash
-spec-kitty implement WP02 --base WP01  # Ensures WP01 code is available
+spec-kitty implement WP02  # Ensures WP01 code is available
 ```
 
 ### Review Before Done
@@ -508,7 +508,7 @@ Work paused due to external dependency, then resumed.
 ## See Also
 
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that creates work packages
-- [Workspace-per-WP](workspace-per-wp.md) - How parallel development works
+- [Execution Lanes](execution-lanes.md) - How parallel development works
 - [AI Agent Architecture](ai-agent-architecture.md) - How agents claim and process work
 
 ---

@@ -625,7 +625,7 @@ Claude Code, Cursor, Windsurf all support slash commands natively. The commands 
 
 **Documentation**:
 - [Spec-Driven Development](../explanation/spec-driven-development.md)
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
+- [Execution Lanes](../explanation/execution-lanes.md)
 - [Multi-Agent Orchestration](../explanation/multi-agent-orchestration.md)
 
 ---

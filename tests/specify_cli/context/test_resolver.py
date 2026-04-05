@@ -16,6 +16,8 @@ from specify_cli.context.errors import (
 from specify_cli.context.models import MissionContext
 from specify_cli.context.resolver import resolve_context, resolve_or_load
 from specify_cli.context.store import save_context
+from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.persistence import write_lanes_json
 
 
 def _setup_project(
@@ -85,6 +87,29 @@ def _setup_project(
     )
     (tasks_dir / f"{wp_code}-test-wp.md").write_text(wp_content, encoding="utf-8")
 
+    write_lanes_json(
+        feature_dir,
+        LanesManifest(
+            version=1,
+            feature_slug=feature_slug,
+            mission_id=mission_id or feature_slug,
+            mission_branch=f"kitty/mission-{feature_slug}",
+            target_branch="main",
+            lanes=[
+                ExecutionLane(
+                    lane_id="lane-a",
+                    wp_ids=(wp_code,),
+                    write_scope=("src/**",),
+                    predicted_surfaces=("context",),
+                    depends_on_lanes=(),
+                    parallel_group=0,
+                )
+            ],
+            computed_at="2026-04-04T10:00:00Z",
+            computed_from="test",
+        ),
+    )
+
     return tmp_path
 
 
@@ -129,7 +154,7 @@ class TestResolveContext:
     def test_authoritative_ref_for_code_change(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, execution_mode="code_change")
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        assert ctx.authoritative_ref == "057-test-feature-WP01"
+        assert ctx.authoritative_ref == "kitty/mission-057-test-feature-lane-a"
 
     def test_authoritative_ref_none_for_planning_artifact(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, execution_mode="planning_artifact")

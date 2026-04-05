@@ -430,4 +430,4 @@ Usage:
 
 ## Background
 - [AI Agent Architecture](../explanation/ai-agent-architecture.md)
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md)
+- [Execution Lanes](../explanation/execution-lanes.md)

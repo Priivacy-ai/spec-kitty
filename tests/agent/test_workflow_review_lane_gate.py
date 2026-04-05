@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
+from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
+
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.emit import emit_status_transition
@@ -67,6 +69,10 @@ def _write_wp_file(path: Path, wp_id: str, lane: str) -> None:
 def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     repo_root = tmp_path
     (repo_root / ".kittify").mkdir()
+    (repo_root / ".kittify" / "config.yaml").write_text(
+        "vcs:\n  type: git\nproject:\n  uuid: test-project-uuid\n  slug: test-project\n",
+        encoding="utf-8",
+    )
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
@@ -85,6 +91,7 @@ def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="planned")
     # Seed event log with planned lane so review command finds canonical state
@@ -106,6 +113,7 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
     # Seed event log with for_review lane so review command finds canonical state
@@ -136,6 +144,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="planned")
@@ -143,7 +152,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     _seed_wp_lane(feature_dir, "WP01", "planned")
 
     # Pre-create workspace so implement skips worktree creation (which needs real git)
-    workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace = lane_worktree_path(workflow_repo, feature_slug)
     workspace.mkdir(parents=True)
 
     # Assumption check
@@ -175,6 +184,7 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
@@ -203,6 +213,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane="for_review")
@@ -242,13 +253,14 @@ def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> t
     feature_dir = workflow_repo / "kitty-specs" / feature_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
     wp_path = tasks_dir / "WP01-test.md"
     _write_wp_file(wp_path, "WP01", lane=lane)
     # Seed canonical state so implement doesn't hard-fail (no frontmatter fallback)
     _seed_wp_lane(feature_dir, "WP01", lane)
     # Pre-create workspace so implement skips real git worktree creation
-    workspace = workflow_repo / ".worktrees" / f"{feature_slug}-WP01"
+    workspace = lane_worktree_path(workflow_repo, feature_slug)
     workspace.mkdir(parents=True, exist_ok=True)
     return wp_path, feature_slug
 

@@ -35,7 +35,7 @@ class TestIsMissionBranch:
 
     def test_regular_branch(self):
         assert is_mission_branch("main") is False
-        assert is_mission_branch("057-feat-WP01") is False
+        assert is_mission_branch("057-feat") is False
 
     def test_partial_prefix(self):
         assert is_mission_branch("kitty/other-057") is False
@@ -63,8 +63,8 @@ class TestParseFeatureSlug:
     def test_from_regular_branch(self):
         assert parse_feature_slug_from_branch("main") is None
 
-    def test_from_legacy_wp_branch(self):
-        assert parse_feature_slug_from_branch("057-feat-WP01") is None
+    def test_from_nonmission_feature_branch(self):
+        assert parse_feature_slug_from_branch("057-feat") is None
 
 
 class TestParseLaneId:

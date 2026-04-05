@@ -9,8 +9,8 @@ conflict detection, and commit operations.
 This module wraps existing git operations from git_ops.py where appropriate
 and adds VCS abstraction layer functionality.
 
-Note: sparse checkout support was removed entirely (WP04). Worktrees now
-receive a full checkout; access control is handled at the ownership layer.
+Worktrees receive a full checkout; access control is handled at the ownership
+layer.
 """
 
 from __future__ import annotations
@@ -72,13 +72,13 @@ class GitVCS:
         """
         Create a new git worktree for a work package.
 
-        Creates a full-checkout worktree. Sparse checkout is not used; all files
-        are visible in the workspace. Access control is handled at the ownership layer.
+        Creates a full-checkout worktree. All files are visible in the
+        workspace; access control is handled at the ownership layer.
 
         Args:
             workspace_path: Where to create the workspace
-            workspace_name: Name for the workspace branch (e.g., "015-feature-WP01")
-            base_branch: Branch to base on (for --base flag)
+            workspace_name: Name for the workspace branch (e.g., "015-feature-lane-a")
+            base_branch: Branch to base the workspace on
             base_commit: Specific commit to base on (alternative to branch)
             repo_root: Root of the git repository (auto-detected if not provided)
 

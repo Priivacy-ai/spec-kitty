@@ -7,6 +7,7 @@ from pathlib import Path
 
 import pytest
 
+from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.status.store import append_event
 from specify_cli.status.models import StatusEvent, Lane
 
@@ -87,6 +88,7 @@ def feature_with_tasks(feature_dir: Path) -> Path:
     _seed_wp_lane(feature_dir, "WP02", "in_progress")
     _seed_wp_lane(feature_dir, "WP03", "done")
     _seed_wp_lane(feature_dir, "WP04", "for_review")
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02", "WP03", "WP04"))
     return feature_dir
 
 

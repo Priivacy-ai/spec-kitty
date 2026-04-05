@@ -118,7 +118,7 @@ def test_upgrade_creates_worktree_metadata_when_only_kitty_specs_exists(
 ) -> None:
     """Worktrees without .kittify should still be upgraded when they have kitty-specs."""
     project_path = _setup_project(tmp_path)
-    worktree = project_path / ".worktrees" / "001-feature-WP01"
+    worktree = project_path / ".worktrees" / "001-feature-lane-a"
     (worktree / "kitty-specs" / "001-feature" / "tasks").mkdir(parents=True)
     (worktree / "kitty-specs" / "001-feature" / "tasks" / "WP01-test.md").write_text(
         "---\nwork_package_id: WP01\nlane: planned\ndependencies: []\n---\n# WP01\n",

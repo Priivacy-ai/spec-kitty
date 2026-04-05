@@ -168,41 +168,15 @@ git worktree remove --force .worktrees/feature-lane-a
 git worktree prune
 ```
 
-## Sparse Checkouts
+## Full Checkouts
 
-A sparse checkout limits which files appear in your working directory. Combined with worktrees, this allows each execution workspace to have only the files it needs.
+Current Spec Kitty lane worktrees use full checkouts. Isolation is enforced by
+lane computation, ownership metadata, workspace context, and merge guards
+rather than by hiding files from the working directory.
 
-**Without sparse checkout**:
-```
-.worktrees/feature-lane-a/
-├── docs/           # Agent doesn't need docs
-├── tests/          # Agent doesn't need tests
-├── src/
-│   └── module.py   # Agent only needs this
-└── README.md       # Agent doesn't need this
-```
-
-**With sparse checkout**:
-```
-.worktrees/feature-lane-a/
-└── src/
-    └── module.py   # Only what the agent needs
-```
-
-Spec Kitty uses sparse checkouts to:
-- Keep the `kitty-specs/` directory only in the main repo
-- Reduce noise in execution workspaces
-- Ensure status tracking stays centralized
-
-### Configure Sparse Checkout
-
-```bash
-# Enable sparse checkout
-git sparse-checkout init --cone
-
-# Include only specific paths
-git sparse-checkout set src/ tests/
-```
+That means an execution worktree still contains the full repository checkout,
+but agents are expected to stay inside the files owned by the active WP and
+lane.
 
 ## Common Issues
 
@@ -278,17 +252,16 @@ git worktree list
 **Solution**:
 ```bash
 cd .worktrees/feature-lane-a
-git checkout -b feature-lane-a  # Create and switch to branch
+git checkout -b kitty/mission-feature-lane-a  # Create and switch to branch
 ```
 
 ## Further Reading
 
 - [Git Worktree Documentation](https://git-scm.com/docs/git-worktree) - Official git documentation
-- [Git Sparse Checkout](https://git-scm.com/docs/git-sparse-checkout) - Sparse checkout documentation
 
 ## See Also
 
-- [Workspace-per-WP Model](workspace-per-wp.md) - How Spec Kitty uses worktrees
+- [Execution Lanes](execution-lanes.md) - How Spec Kitty uses worktrees
 - [Spec-Driven Development](spec-driven-development.md) - The methodology that requires parallel work
 - [Kanban Workflow](kanban-workflow.md) - How work progresses through lanes
 

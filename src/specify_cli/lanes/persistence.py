@@ -24,6 +24,10 @@ class CorruptLanesError(Exception):
     """Raised when lanes.json exists but cannot be parsed."""
 
 
+class MissingLanesError(Exception):
+    """Raised when lanes.json is required but missing."""
+
+
 def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     """Write lanes.json atomically to the feature directory.
 
@@ -81,3 +85,14 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
         raise CorruptLanesError(
             f"lanes.json at {lanes_path} is corrupt or malformed: {exc}"
         ) from exc
+
+
+def require_lanes_json(feature_dir: Path) -> LanesManifest:
+    """Read lanes.json or raise a deterministic missing-manifest error."""
+    manifest = read_lanes_json(feature_dir)
+    if manifest is None:
+        raise MissingLanesError(
+            f"lanes.json is required for {feature_dir}. "
+            "Run the task-finalization step to compute execution lanes."
+        )
+    return manifest

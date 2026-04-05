@@ -129,7 +129,7 @@ spec-kitty agent status reconcile --feature 034-feature-name --apply
 **How it works**:
 1. Scans target repos for branches matching `*<feature-slug>*WP##*`
 2. Scans commit messages containing `WP##`
-3. Checks which WP branches are merged into main/master
+3. Checks which lane or mission branches are merged into the target branch
 4. Compares implementation evidence against canonical snapshot state
 5. Generates legal transition events to align planning with reality
 

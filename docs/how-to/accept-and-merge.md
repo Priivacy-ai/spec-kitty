@@ -121,7 +121,7 @@ For detailed troubleshooting including pre-flight failures, conflict resolution,
 
 ## Background
 
-- [Workspace-per-WP Model](../explanation/workspace-per-wp.md) - Worktree cleanup
+- [Execution Lanes](../explanation/execution-lanes.md) - Worktree cleanup
 - [Git Worktrees](../explanation/git-worktrees.md) - How worktrees work
 
 ## Getting Started

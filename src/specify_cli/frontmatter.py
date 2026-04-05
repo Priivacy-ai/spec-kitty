@@ -46,7 +46,7 @@ class FrontmatterManager:
         "planning_base_branch",  # Planning branch active when the WP prompt was generated
         "merge_target_branch",  # Final branch where completed WP changes must land
         "branch_strategy",  # Human-readable branch contract to prevent landing on wrong stream
-        "base_branch",  # Git branch this WP was created from (e.g., "010-feature-WP01" or "main")
+        "base_branch",  # Git branch this workspace was created from (e.g., "kitty/mission-010-feature-lane-a" or "main")
         "base_commit",  # Git commit SHA this WP was created from (snapshot for validation)
         "created_at",  # ISO timestamp when workspace was created
         "subtasks",

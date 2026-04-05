@@ -32,7 +32,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
     # Lane is event-log-driven; seed it as "approved" via lane_reader
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
@@ -60,7 +60,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "approved",
@@ -87,7 +87,7 @@ def test_mark_wp_merged_done_for_review_without_metadata_skips(
     _write_wp(tasks_dir / "WP01-test.md")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "for_review",
@@ -109,7 +109,7 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
 
     emit_mock = Mock()
-    monkeypatch.setattr("specify_cli.cli.commands.merge.emit_status_transition", emit_mock)
+    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
     monkeypatch.setattr(
         "specify_cli.status.lane_reader.get_wp_lane",
         lambda *_a, **_kw: "for_review",
