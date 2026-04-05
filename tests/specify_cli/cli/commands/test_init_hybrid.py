@@ -99,6 +99,7 @@ class TestResolveMissionCommandTemplatesDir:
         pkg_root = tmp_path / "pkg"
         _make_package_asset_root_with_templates(pkg_root)
         monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root))
+        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-home"))
 
         project = tmp_path / "project"
         project.mkdir()
@@ -112,7 +113,7 @@ class TestResolveMissionCommandTemplatesDir:
 
         assert result.is_dir(), "Resolved dir must exist"
         templates = list(result.glob("*.md"))
-        assert len(templates) == 10, f"Expected 10 templates, got {len(templates)}: {[t.name for t in templates]}"
+        assert len(templates) == 9, f"Expected 9 templates, got {len(templates)}: {[t.name for t in templates]}"
 
     def test_resolves_from_global_tier(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Global tier (tier 3) wins over package tier when both exist."""
