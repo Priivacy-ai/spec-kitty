@@ -1,4 +1,4 @@
-"""Pydantic schemas for constitution config extraction.
+"""Pydantic schemas for charter config extraction.
 
 Defines the output schema for:
 - governance.yaml (testing, quality, performance, branch strategy)
@@ -13,13 +13,13 @@ from ruamel.yaml import YAML
 
 # Header comment for all emitted YAML files
 YAML_HEADER = (
-    "# Auto-generated from constitution.md — do not edit directly.\n"
-    "# Run 'spec-kitty constitution sync' to regenerate.\n\n"
+    "# Auto-generated from charter.md — do not edit directly.\n"
+    "# Run 'spec-kitty charter sync' to regenerate.\n\n"
 )
 
 
-class ConstitutionTestingConfig(BaseModel):
-    """Testing requirements extracted from constitution."""
+class CharterTestingConfig(BaseModel):
+    """Testing requirements extracted from charter."""
 
     min_coverage: int = 0
     tdd_required: bool = False
@@ -57,7 +57,7 @@ class BranchStrategyConfig(BaseModel):
 
 
 class DoctrineSelectionConfig(BaseModel):
-    """Constitution-level selection of active doctrine elements."""
+    """Charter-level selection of active doctrine elements."""
 
     selected_paradigms: list[str] = Field(default_factory=list)
     selected_directives: list[str] = Field(default_factory=list)
@@ -68,7 +68,7 @@ class DoctrineSelectionConfig(BaseModel):
 class GovernanceConfig(BaseModel):
     """Top-level governance configuration."""
 
-    testing: ConstitutionTestingConfig = Field(default_factory=ConstitutionTestingConfig)
+    testing: CharterTestingConfig = Field(default_factory=CharterTestingConfig)
     quality: QualityConfig = Field(default_factory=QualityConfig)
     commits: CommitConfig = Field(default_factory=CommitConfig)
     performance: PerformanceConfig = Field(default_factory=PerformanceConfig)
@@ -78,7 +78,7 @@ class GovernanceConfig(BaseModel):
 
 
 class Directive(BaseModel):
-    """A single numbered directive from the constitution."""
+    """A single numbered directive from the charter."""
 
     id: str
     title: str
@@ -88,7 +88,7 @@ class Directive(BaseModel):
 
 
 class DirectivesConfig(BaseModel):
-    """Collection of directives extracted from constitution."""
+    """Collection of directives extracted from charter."""
 
     directives: list[Directive] = Field(default_factory=list)
 
@@ -106,8 +106,8 @@ class ExtractionMetadata(BaseModel):
 
     schema_version: str = "1.0.0"
     extracted_at: str = ""  # ISO 8601 timestamp
-    constitution_hash: str = ""  # "sha256:..."
-    source_path: str = ".kittify/constitution/constitution.md"
+    charter_hash: str = ""  # "sha256:..."
+    source_path: str = ".kittify/charter/charter.md"
     extraction_mode: str = "deterministic"  # "deterministic" | "hybrid" | "ai_only"
     sections_parsed: SectionsParsed = Field(default_factory=SectionsParsed)
 

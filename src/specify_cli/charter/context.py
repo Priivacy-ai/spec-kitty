@@ -1,4 +1,4 @@
-"""Constitution context bootstrap for prompt generation."""
+"""Charter context bootstrap for prompt generation."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
+from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.core.atomic import atomic_write
 
 
@@ -17,8 +17,8 @@ BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "
 
 
 @dataclass(frozen=True)
-class ConstitutionContextResult:
-    """Rendered constitution context payload."""
+class CharterContextResult:
+    """Rendered charter context payload."""
 
     action: str
     mode: str
@@ -27,23 +27,23 @@ class ConstitutionContextResult:
     references_count: int
 
 
-def build_constitution_context(
+def build_charter_context(
     repo_root: Path,
     *,
     action: str,
     mark_loaded: bool = True,
-) -> ConstitutionContextResult:
-    """Build constitution context text for a command action.
+) -> CharterContextResult:
+    """Build charter context text for a command action.
 
     For first load of bootstrap actions, include summary + references.
     For later loads (or non-bootstrap actions), include compact governance context.
     """
     normalized = action.strip().lower()
-    constitution_path = repo_root / ".kittify" / "constitution" / "constitution.md"
-    references_path = repo_root / ".kittify" / "constitution" / "references.yaml"
+    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
 
     if normalized not in BOOTSTRAP_ACTIONS:
-        return ConstitutionContextResult(
+        return CharterContextResult(
             action=normalized,
             mode="compact",
             first_load=False,
@@ -51,23 +51,23 @@ def build_constitution_context(
             references_count=0,
         )
 
-    state_path = repo_root / ".kittify" / "constitution" / "context-state.json"
+    state_path = repo_root / ".kittify" / "charter" / "context-state.json"
     state = _load_state(state_path)
     first_load = normalized not in state.get("actions", {})
 
     references = _load_references(references_path)
 
-    if not constitution_path.exists():
+    if not charter_path.exists():
         text = (
-            "Constitution Context:\n"
-            "  - Constitution file not found at `.kittify/constitution/constitution.md`.\n"
-            "  - Run `spec-kitty constitution interview` then `spec-kitty constitution generate`."
+            "Charter Context:\n"
+            "  - Charter file not found at `.kittify/charter/charter.md`.\n"
+            "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
         )
         mode = "missing"
     elif first_load:
-        constitution_content = constitution_path.read_text(encoding="utf-8")
-        summary = _extract_policy_summary(constitution_content)
-        text = _render_bootstrap(constitution_path, summary, references)
+        charter_content = charter_path.read_text(encoding="utf-8")
+        summary = _extract_policy_summary(charter_content)
+        text = _render_bootstrap(charter_path, summary, references)
         mode = "bootstrap"
     else:
         text = _render_compact_governance(repo_root)
@@ -78,7 +78,7 @@ def build_constitution_context(
         actions[normalized] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         _write_state(state_path, state)
 
-    return ConstitutionContextResult(
+    return CharterContextResult(
         action=normalized,
         mode=mode,
         first_load=first_load,
@@ -87,10 +87,10 @@ def build_constitution_context(
     )
 
 
-def _render_bootstrap(constitution_path: Path, summary: list[str], references: list[dict[str, str]]) -> str:
+def _render_bootstrap(charter_path: Path, summary: list[str], references: list[dict[str, str]]) -> str:
     lines: list[str] = [
-        "Constitution Context (Bootstrap):",
-        f"  - Source: {constitution_path}",
+        "Charter Context (Bootstrap):",
+        f"  - Source: {charter_path}",
         "  - This is the first load for this action. Use the summary and follow references as needed.",
         "",
         "Policy Summary:",
@@ -100,7 +100,7 @@ def _render_bootstrap(constitution_path: Path, summary: list[str], references: l
         for item in summary[:8]:
             lines.append(f"  - {item}")
     else:
-        lines.append("  - No explicit policy summary section found in constitution.md.")
+        lines.append("  - No explicit policy summary section found in charter.md.")
 
     lines.append("")
     lines.append("Reference Docs:")

@@ -1,6 +1,6 @@
-"""Constitution extraction pipeline.
+"""Charter extraction pipeline.
 
-Maps parsed constitution sections to validated Pydantic models:
+Maps parsed charter sections to validated Pydantic models:
 - governance.yaml (testing, quality, performance, branch strategy)
 - directives.yaml (numbered rules and enforcement)
 - metadata.yaml (extraction provenance and statistics)
@@ -12,9 +12,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from constitution.hasher import hash_content
-from constitution.parser import ConstitutionParser, ConstitutionSection
-from constitution.schemas import (
+from charter.hasher import hash_content
+from charter.parser import CharterParser, CharterSection
+from charter.schemas import (
     BranchStrategyConfig,
     CommitConfig,
     DoctrineSelectionConfig,
@@ -25,7 +25,7 @@ from constitution.schemas import (
     PerformanceConfig,
     QualityConfig,
     SectionsParsed,
-    ConstitutionTestingConfig,
+    CharterTestingConfig,
     emit_yaml,
 )
 
@@ -60,21 +60,21 @@ class ExtractionResult:
 
 
 class Extractor:
-    """Extract structured configuration from parsed constitution sections."""
+    """Extract structured configuration from parsed charter sections."""
 
-    def __init__(self, parser: ConstitutionParser | None = None):
+    def __init__(self, parser: CharterParser | None = None):
         """Initialize extractor with optional parser.
 
         Args:
-            parser: ConstitutionParser instance (creates default if None)
+            parser: CharterParser instance (creates default if None)
         """
-        self.parser = parser or ConstitutionParser()
+        self.parser = parser or CharterParser()
 
     def extract(self, content: str) -> ExtractionResult:
         """Full extraction pipeline: parse → map → validate → return.
 
         Args:
-            content: Raw constitution markdown text
+            content: Raw charter markdown text
 
         Returns:
             ExtractionResult with all validated Pydantic models
@@ -92,16 +92,16 @@ class Extractor:
             metadata=metadata,
         )
 
-    def _extract_governance(self, sections: list[ConstitutionSection]) -> GovernanceConfig:  # noqa: C901
+    def _extract_governance(self, sections: list[CharterSection]) -> GovernanceConfig:  # noqa: C901
         """Extract governance configuration from classified sections.
 
         Args:
-            sections: Parsed constitution sections
+            sections: Parsed charter sections
 
         Returns:
             Merged GovernanceConfig with testing/quality/performance/branch/commits data
         """
-        testing = ConstitutionTestingConfig()
+        testing = CharterTestingConfig()
         quality = QualityConfig()
         commits = CommitConfig()
         performance = PerformanceConfig()
@@ -129,7 +129,7 @@ class Extractor:
                 handler(section)
 
         # Also scan all sections for explicit doctrine selection keys
-        # so constitution headings remain flexible.
+        # so charter headings remain flexible.
         for section in sections:
             self._merge_doctrine_selection(section, doctrine)
 
@@ -142,7 +142,7 @@ class Extractor:
             doctrine=doctrine,
         )
 
-    def _apply_testing_keywords(self, testing: ConstitutionTestingConfig, keywords: dict[str, Any]) -> None:
+    def _apply_testing_keywords(self, testing: CharterTestingConfig, keywords: dict[str, Any]) -> None:
         """Apply testing section keyword values to the testing config."""
         if "min_coverage" in keywords:
             testing.min_coverage = keywords["min_coverage"]
@@ -194,7 +194,7 @@ class Extractor:
         if numbered_items:
             branch_strategy.rules = numbered_items
 
-    def _merge_doctrine_selection(self, section: ConstitutionSection, doctrine: DoctrineSelectionConfig) -> None:
+    def _merge_doctrine_selection(self, section: CharterSection, doctrine: DoctrineSelectionConfig) -> None:
         """Merge doctrine selection hints from a section into doctrine config."""
         tables = section.structured_data.get("tables", [])
         yaml_blocks = section.structured_data.get("yaml_blocks", [])
@@ -255,11 +255,11 @@ class Extractor:
                     return value
         return None
 
-    def _extract_directives(self, sections: list[ConstitutionSection]) -> DirectivesConfig:
+    def _extract_directives(self, sections: list[CharterSection]) -> DirectivesConfig:
         """Extract numbered directives from classified sections.
 
         Args:
-            sections: Parsed constitution sections
+            sections: Parsed charter sections
 
         Returns:
             DirectivesConfig with auto-generated DIR-XXX IDs
@@ -293,11 +293,11 @@ class Extractor:
 
         return DirectivesConfig(directives=directives_list)
 
-    def _build_metadata(self, content: str, sections: list[ConstitutionSection]) -> ExtractionMetadata:
+    def _build_metadata(self, content: str, sections: list[CharterSection]) -> ExtractionMetadata:
         """Build extraction metadata with provenance info.
 
         Args:
-            content: Raw constitution markdown text
+            content: Raw charter markdown text
             sections: Parsed sections
 
         Returns:
@@ -317,7 +317,7 @@ class Extractor:
         extraction_mode = "deterministic" if ai_assisted_count == 0 else "hybrid"
 
         # Generate hash
-        constitution_hash = hash_content(content)
+        charter_hash = hash_content(content)
 
         # ISO timestamp
         extracted_at = datetime.now(UTC).isoformat()
@@ -325,8 +325,8 @@ class Extractor:
         return ExtractionMetadata(
             schema_version="1.0.0",
             extracted_at=extracted_at,
-            constitution_hash=constitution_hash,
-            source_path=".kittify/constitution/constitution.md",
+            charter_hash=charter_hash,
+            source_path=".kittify/charter/charter.md",
             extraction_mode=extraction_mode,
             sections_parsed=sections_parsed,
         )
@@ -355,7 +355,7 @@ class Extractor:
 
 
 def extract_with_ai(
-    prose_sections: list[ConstitutionSection],
+    prose_sections: list[CharterSection],
     schema_hint: dict[str, Any],  # noqa: ARG001
 ) -> dict[str, Any]:
     """Send prose sections to configured AI agent for structured extraction.
@@ -376,15 +376,15 @@ def extract_with_ai(
     return {}
 
 
-def write_extraction_result(result: ExtractionResult, constitution_dir: Path) -> None:
+def write_extraction_result(result: ExtractionResult, charter_dir: Path) -> None:
     """Write all YAML files from an extraction result.
 
     Args:
         result: Complete extraction result
-        constitution_dir: Target directory (e.g., .kittify/constitution/)
+        charter_dir: Target directory (e.g., .kittify/charter/)
     """
-    constitution_dir.mkdir(parents=True, exist_ok=True)
+    charter_dir.mkdir(parents=True, exist_ok=True)
 
-    emit_yaml(result.governance, constitution_dir / "governance.yaml")
-    emit_yaml(result.directives, constitution_dir / "directives.yaml")
-    emit_yaml(result.metadata, constitution_dir / "metadata.yaml")
+    emit_yaml(result.governance, charter_dir / "governance.yaml")
+    emit_yaml(result.directives, charter_dir / "directives.yaml")
+    emit_yaml(result.metadata, charter_dir / "metadata.yaml")

@@ -1,4 +1,4 @@
-"""Constitution compiler: interview answers + doctrine assets -> constitution bundle."""
+"""Charter compiler: interview answers + doctrine assets -> charter bundle."""
 
 from __future__ import annotations
 
@@ -10,14 +10,14 @@ import re
 
 from ruamel.yaml import YAML
 
-from specify_cli.constitution.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
-from specify_cli.constitution.interview import ConstitutionInterview
-from specify_cli.constitution.resolver import DEFAULT_TOOL_REGISTRY
+from specify_cli.charter.catalog import DoctrineCatalog, load_doctrine_catalog, resolve_doctrine_root
+from specify_cli.charter.interview import CharterInterview
+from specify_cli.charter.resolver import DEFAULT_TOOL_REGISTRY
 
 
 @dataclass(frozen=True)
-class ConstitutionReference:
-    """One reference item used by constitution context."""
+class CharterReference:
+    """One reference item used by charter context."""
 
     id: str
     kind: str
@@ -29,8 +29,8 @@ class ConstitutionReference:
 
 
 @dataclass(frozen=True)
-class CompiledConstitution:
-    """Compiled constitution bundle."""
+class CompiledCharter:
+    """Compiled charter bundle."""
 
     mission: str
     template_set: str
@@ -38,25 +38,25 @@ class CompiledConstitution:
     selected_directives: list[str]
     available_tools: list[str]
     markdown: str
-    references: list[ConstitutionReference]
+    references: list[CharterReference]
     diagnostics: list[str] = field(default_factory=list)
 
 
 @dataclass(frozen=True)
 class WriteBundleResult:
-    """Filesystem write result for compiled constitution bundle."""
+    """Filesystem write result for compiled charter bundle."""
 
     files_written: list[str]
 
 
-def compile_constitution(
+def compile_charter(
     *,
     mission: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     template_set: str | None = None,
     doctrine_catalog: DoctrineCatalog | None = None,
-) -> CompiledConstitution:
-    """Compile constitution markdown, references manifest, and library docs."""
+) -> CompiledCharter:
+    """Compile charter markdown, references manifest, and library docs."""
     catalog = doctrine_catalog or load_doctrine_catalog()
     diagnostics: list[str] = []
 
@@ -90,7 +90,7 @@ def compile_constitution(
         paradigms=selected_paradigms,
         directives=selected_directives,
     )
-    markdown = _render_constitution_markdown(
+    markdown = _render_charter_markdown(
         mission=mission,
         template_set=template,
         interview=interview,
@@ -100,7 +100,7 @@ def compile_constitution(
         references=references,
     )
 
-    return CompiledConstitution(
+    return CompiledCharter(
         mission=mission,
         template_set=template,
         selected_paradigms=selected_paradigms,
@@ -112,23 +112,23 @@ def compile_constitution(
     )
 
 
-def write_compiled_constitution(
+def write_compiled_charter(
     output_dir: Path,
-    compiled: CompiledConstitution,
+    compiled: CompiledCharter,
     *,
     force: bool = False,
 ) -> WriteBundleResult:
-    """Write constitution bundle artifacts to output_dir."""
+    """Write charter bundle artifacts to output_dir."""
     output_dir.mkdir(parents=True, exist_ok=True)
-    constitution_path = output_dir / "constitution.md"
+    charter_path = output_dir / "charter.md"
 
-    if constitution_path.exists() and not force:
-        raise FileExistsError(f"Constitution already exists at {constitution_path}. Use --force to overwrite.")
+    if charter_path.exists() and not force:
+        raise FileExistsError(f"Charter already exists at {charter_path}. Use --force to overwrite.")
 
     files_written: list[str] = []
 
-    constitution_path.write_text(compiled.markdown, encoding="utf-8")
-    files_written.append("constitution.md")
+    charter_path.write_text(compiled.markdown, encoding="utf-8")
+    files_written.append("charter.md")
 
     references_path = output_dir / "references.yaml"
     _write_references_yaml(references_path, compiled)
@@ -214,13 +214,13 @@ def _build_references(
     *,
     mission: str,
     template_set: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     paradigms: list[str],
     directives: list[str],
-) -> list[ConstitutionReference]:
+) -> list[CharterReference]:
     doctrine_root = resolve_doctrine_root()
 
-    references: list[ConstitutionReference] = []
+    references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
 
     paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
@@ -296,7 +296,7 @@ def _doctrine_yaml_reference(
     kind: str,
     raw_id: str,
     source: dict[str, object] | None,
-) -> ConstitutionReference:
+) -> CharterReference:
     source = source or {"id": raw_id, "title": raw_id, "summary": "Definition unavailable in bundled doctrine."}
 
     source_path = str(source.get("_source_path", ""))
@@ -318,7 +318,7 @@ def _doctrine_yaml_reference(
         f"{source_yaml}```\n"
     )
 
-    return ConstitutionReference(
+    return CharterReference(
         id=f"{kind.upper()}:{raw_id}",
         kind=kind,
         title=title,
@@ -329,7 +329,7 @@ def _doctrine_yaml_reference(
     )
 
 
-def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> ConstitutionReference:
+def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> CharterReference:
     mission_path = doctrine_root / "missions" / mission / "mission.yaml"
     source = _load_yaml_asset(mission_path) if mission_path.exists() else {"name": mission}
 
@@ -344,7 +344,7 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
         f"{_dump_yaml(source)}```\n"
     )
 
-    return ConstitutionReference(
+    return CharterReference(
         id=f"TEMPLATE_SET:{template_set}",
         kind="template_set",
         title=template_set,
@@ -355,7 +355,7 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
     )
 
 
-def _user_profile_reference(interview: ConstitutionInterview) -> ConstitutionReference:
+def _user_profile_reference(interview: CharterInterview) -> CharterReference:
     lines: list[str] = ["# User Project Profile", ""]
     lines.append(f"- Mission: `{interview.mission}`")
     lines.append(f"- Interview profile: `{interview.profile}`")
@@ -375,26 +375,26 @@ def _user_profile_reference(interview: ConstitutionInterview) -> ConstitutionRef
     lines.append(f"- Tools: {', '.join(interview.available_tools) or '(none)'}")
     lines.append("")
 
-    return ConstitutionReference(
+    return CharterReference(
         id="USER:PROJECT_PROFILE",
         kind="user_profile",
         title="User Project Profile",
-        summary="Project-specific interview answers captured for constitution compilation.",
-        source_path=".kittify/constitution/interview/answers.yaml",
+        summary="Project-specific interview answers captured for charter compilation.",
+        source_path=".kittify/charter/interview/answers.yaml",
         local_path="library/user-project-profile.md",
         content="\n".join(lines) + "\n",
     )
 
 
-def _render_constitution_markdown(
+def _render_charter_markdown(
     *,
     mission: str,
     template_set: str,
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     selected_paradigms: list[str],
     selected_directives: list[str],
     available_tools: list[str],
-    references: list[ConstitutionReference],
+    references: list[CharterReference],
 ) -> str:
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -423,8 +423,8 @@ def _render_constitution_markdown(
         )
 
     return (
-        "# Project Constitution\n\n"
-        "<!-- Generated by `spec-kitty constitution generate` -->\n\n"
+        "# Project Charter\n\n"
+        "<!-- Generated by `spec-kitty charter generate` -->\n\n"
         f"Generated: {now}\n\n"
         "## Testing Standards\n\n"
         f"- {testing}\n\n"
@@ -453,7 +453,7 @@ def _render_constitution_markdown(
     )
 
 
-def _render_directives(interview: ConstitutionInterview, selected_directives: list[str]) -> str:
+def _render_directives(interview: CharterInterview, selected_directives: list[str]) -> str:
     lines: list[str] = []
     index = 1
 
@@ -477,7 +477,7 @@ def _render_directives(interview: ConstitutionInterview, selected_directives: li
     return "\n".join(lines)
 
 
-def _write_references_yaml(path: Path, compiled: CompiledConstitution) -> None:
+def _write_references_yaml(path: Path, compiled: CompiledCharter) -> None:
     payload = {
         "schema_version": "1.0.0",
         "generated_at": datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ"),

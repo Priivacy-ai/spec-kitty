@@ -1,6 +1,6 @@
-"""Constitution markdown parser.
+"""Charter markdown parser.
 
-Parses constitution markdown into structured sections and extracts:
+Parses charter markdown into structured sections and extracts:
 - Markdown tables (e.g., | Key | Value | rows)
 - YAML code blocks (```yaml ... ```)
 - Numbered lists (1. Item, 2. Item, ...)
@@ -20,8 +20,8 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class ConstitutionSection:
-    """A parsed section from the constitution markdown."""
+class CharterSection:
+    """A parsed section from the charter markdown."""
 
     heading: str  # Section heading text
     level: int  # Heading level (2 = ##, 3 = ###, 0 = preamble)
@@ -30,8 +30,8 @@ class ConstitutionSection:
     requires_ai: bool = True  # True if only prose (needs AI extraction)
 
 
-class ConstitutionParser:
-    """Parser for constitution markdown documents."""
+class CharterParser:
+    """Parser for charter markdown documents."""
 
     # Regex patterns for parsing
     HEADING_PATTERN = re.compile(r"^(#{2,3})\s+(.+)$", re.MULTILINE)
@@ -53,24 +53,24 @@ class ConstitutionParser:
         (r"ruff", "linting", lambda _: "ruff"),
     ]
 
-    def parse(self, content: str) -> list[ConstitutionSection]:
-        """Split constitution markdown into sections by headings.
+    def parse(self, content: str) -> list[CharterSection]:
+        """Split charter markdown into sections by headings.
 
         Args:
-            content: Full constitution markdown text
+            content: Full charter markdown text
 
         Returns:
-            List of ConstitutionSection objects with parsed content
+            List of CharterSection objects with parsed content
         """
         if not content.strip():
             return []
 
-        sections: list[ConstitutionSection] = []
+        sections: list[CharterSection] = []
         heading_matches = list(self.HEADING_PATTERN.finditer(content))
 
         if not heading_matches:
             # No headings found - return entire content as single section
-            section = ConstitutionSection(
+            section = CharterSection(
                 heading="preamble",
                 level=0,
                 content=content.strip(),
@@ -85,7 +85,7 @@ class ConstitutionParser:
         if heading_matches[0].start() > 0:
             preamble_content = content[: heading_matches[0].start()].strip()
             if preamble_content:
-                section = ConstitutionSection(
+                section = CharterSection(
                     heading="preamble",
                     level=0,
                     content=preamble_content,
@@ -106,7 +106,7 @@ class ConstitutionParser:
             end = heading_matches[i + 1].start() if i + 1 < len(heading_matches) else len(content)
             section_content = content[start:end].strip()
 
-            section = ConstitutionSection(
+            section = CharterSection(
                 heading=heading_text,
                 level=level,
                 content=section_content,
@@ -118,7 +118,7 @@ class ConstitutionParser:
 
         return sections
 
-    def _parse_section_content(self, section: ConstitutionSection) -> None:
+    def _parse_section_content(self, section: CharterSection) -> None:
         """Parse structured data from section content and update section in place."""
         has_structured = False
 

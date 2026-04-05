@@ -1,18 +1,18 @@
-"""Constitution draft generation adapters."""
+"""Charter draft generation adapters."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from constitution.catalog import DoctrineCatalog
-from constitution.compiler import compile_constitution
-from constitution.interview import ConstitutionInterview, default_interview
+from charter.catalog import DoctrineCatalog
+from charter.compiler import compile_charter
+from charter.interview import CharterInterview, default_interview
 
 
 @dataclass(frozen=True)
-class ConstitutionDraft:
-    """Draft constitution with deterministic doctrine selections."""
+class CharterDraft:
+    """Draft charter with deterministic doctrine selections."""
 
     mission: str
     template_set: str
@@ -23,23 +23,23 @@ class ConstitutionDraft:
     diagnostics: list[str] = field(default_factory=list)
 
 
-def build_constitution_draft(
+def build_charter_draft(
     *,
     mission: str,
     template_set: str | None = None,
     doctrine_catalog: DoctrineCatalog | None = None,
-    interview: ConstitutionInterview | None = None,
-) -> ConstitutionDraft:
-    """Build deterministic constitution markdown for a mission."""
+    interview: CharterInterview | None = None,
+) -> CharterDraft:
+    """Build deterministic charter markdown for a mission."""
     interview_data = interview or default_interview(mission=mission)
-    compiled = compile_constitution(
+    compiled = compile_charter(
         mission=mission,
         interview=interview_data,
         template_set=template_set,
         doctrine_catalog=doctrine_catalog,
     )
 
-    return ConstitutionDraft(
+    return CharterDraft(
         mission=compiled.mission,
         template_set=compiled.template_set,
         selected_paradigms=compiled.selected_paradigms,
@@ -50,9 +50,9 @@ def build_constitution_draft(
     )
 
 
-def write_constitution(path: Path, markdown: str, *, force: bool = False) -> None:
-    """Write constitution markdown to disk."""
+def write_charter(path: Path, markdown: str, *, force: bool = False) -> None:
+    """Write charter markdown to disk."""
     if path.exists() and not force:
-        raise FileExistsError(f"Constitution already exists at {path}. Use --force to overwrite.")
+        raise FileExistsError(f"Charter already exists at {path}. Use --force to overwrite.")
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(markdown, encoding="utf-8")

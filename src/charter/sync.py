@@ -1,7 +1,7 @@
-"""Constitution sync orchestrator.
+"""Charter sync orchestrator.
 
 Provides the main sync() function that orchestrates:
-1. Read constitution.md
+1. Read charter.md
 2. Check staleness (skip if unchanged, unless --force)
 3. Parse and extract to YAML
 4. Write governance/directives/metadata files
@@ -14,9 +14,9 @@ from pathlib import Path
 
 from ruamel.yaml import YAML
 
-from constitution.extractor import Extractor, write_extraction_result
-from constitution.hasher import is_stale
-from constitution.schemas import (
+from charter.extractor import Extractor, write_extraction_result
+from charter.hasher import is_stale
+from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
 )
@@ -26,47 +26,47 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class SyncResult:
-    """Result of a constitution sync operation."""
+    """Result of a charter sync operation."""
 
     synced: bool  # True if extraction ran
-    stale_before: bool  # True if constitution was stale before sync
+    stale_before: bool  # True if charter was stale before sync
     files_written: list[str]  # List of YAML file names written
     extraction_mode: str  # "deterministic" | "hybrid"
     error: str | None = None  # Error message if sync failed
 
 
 def sync(
-    constitution_path: Path,
+    charter_path: Path,
     output_dir: Path | None = None,
     force: bool = False,
 ) -> SyncResult:
-    """Sync constitution.md to structured YAML config files.
+    """Sync charter.md to structured YAML config files.
 
     Args:
-        constitution_path: Path to constitution.md
-        output_dir: Directory for YAML output (default: same as constitution_path.parent)
+        charter_path: Path to charter.md
+        output_dir: Directory for YAML output (default: same as charter_path.parent)
         force: If True, extract even if not stale
 
     Returns:
         SyncResult with status and file paths
     """
-    # Default output directory to same location as constitution
+    # Default output directory to same location as charter
     if output_dir is None:
-        output_dir = constitution_path.parent
+        output_dir = charter_path.parent
 
     # Metadata path
     metadata_path = output_dir / "metadata.yaml"
 
     try:
-        # Read constitution content once
-        content = constitution_path.read_text("utf-8")
+        # Read charter content once
+        content = charter_path.read_text("utf-8")
 
         # Check staleness using the content (eliminates TOCTOU race)
         stale, _, _ = is_stale(None, metadata_path, content=content)
 
         # Skip if not stale and not forced
         if not stale and not force:
-            logger.info("Constitution unchanged, skipping sync")
+            logger.info("Charter unchanged, skipping sync")
             return SyncResult(
                 synced=False,
                 stale_before=False,
@@ -88,7 +88,7 @@ def sync(
             "metadata.yaml",
         ]
 
-        logger.info(f"Constitution synced successfully (mode: {result.metadata.extraction_mode})")
+        logger.info(f"Charter synced successfully (mode: {result.metadata.extraction_mode})")
 
         return SyncResult(
             synced=True,
@@ -108,33 +108,33 @@ def sync(
         )
 
 
-def post_save_hook(constitution_path: Path) -> None:
-    """Auto-trigger sync after constitution write.
+def post_save_hook(charter_path: Path) -> None:
+    """Auto-trigger sync after charter write.
 
-    Called synchronously after CLI writes to constitution.md.
+    Called synchronously after CLI writes to charter.md.
     Failures are logged but don't propagate (FR-2.3).
 
     Args:
-        constitution_path: Path to constitution.md
+        charter_path: Path to charter.md
     """
     try:
-        result = sync(constitution_path, force=True)
+        result = sync(charter_path, force=True)
         if result.synced:
             logger.info(
-                "Constitution synced: %d YAML files updated",
+                "Charter synced: %d YAML files updated",
                 len(result.files_written),
             )
         elif result.error:
-            logger.warning("Constitution sync warning: %s", result.error)
+            logger.warning("Charter sync warning: %s", result.error)
     except Exception:
         logger.warning(
-            "Constitution auto-sync failed. Run 'spec-kitty constitution sync' manually.",
+            "Charter auto-sync failed. Run 'spec-kitty charter sync' manually.",
             exc_info=True,
         )
 
 
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
-    """Load governance config from .kittify/constitution/governance.yaml.
+    """Load governance config from .kittify/charter/governance.yaml.
 
     Falls back to empty GovernanceConfig if file missing (FR-4.4).
     Checks staleness and logs warning if stale (FR-4.2).
@@ -147,20 +147,20 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     Returns:
         GovernanceConfig instance (empty if file missing)
     """
-    constitution_dir = repo_root / ".kittify" / "constitution"
-    governance_path = constitution_dir / "governance.yaml"
+    charter_dir = repo_root / ".kittify" / "charter"
+    governance_path = charter_dir / "governance.yaml"
 
     if not governance_path.exists():
-        logger.warning("governance.yaml not found. Run 'spec-kitty constitution sync'.")
+        logger.warning("governance.yaml not found. Run 'spec-kitty charter sync'.")
         return GovernanceConfig()
 
     # Check staleness
-    constitution_path = constitution_dir / "constitution.md"
-    metadata_path = constitution_dir / "metadata.yaml"
-    if constitution_path.exists() and metadata_path.exists():
-        stale, _, _ = is_stale(constitution_path, metadata_path)
+    charter_path = charter_dir / "charter.md"
+    metadata_path = charter_dir / "metadata.yaml"
+    if charter_path.exists() and metadata_path.exists():
+        stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
-            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
+            logger.warning("Charter changed since last sync. Run 'spec-kitty charter sync' to update.")
 
     # Load and validate
     yaml = YAML()
@@ -169,7 +169,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
 
 
 def load_directives_config(repo_root: Path) -> DirectivesConfig:
-    """Load directives config from .kittify/constitution/directives.yaml.
+    """Load directives config from .kittify/charter/directives.yaml.
 
     Falls back to empty DirectivesConfig if file missing.
     Checks staleness and logs warning if stale.
@@ -180,19 +180,19 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     Returns:
         DirectivesConfig instance (empty if file missing)
     """
-    constitution_dir = repo_root / ".kittify" / "constitution"
-    directives_path = constitution_dir / "directives.yaml"
+    charter_dir = repo_root / ".kittify" / "charter"
+    directives_path = charter_dir / "directives.yaml"
 
     if not directives_path.exists():
-        logger.warning("directives.yaml not found. Run 'spec-kitty constitution sync'.")
+        logger.warning("directives.yaml not found. Run 'spec-kitty charter sync'.")
         return DirectivesConfig()
 
-    constitution_path = constitution_dir / "constitution.md"
-    metadata_path = constitution_dir / "metadata.yaml"
-    if constitution_path.exists() and metadata_path.exists():
-        stale, _, _ = is_stale(constitution_path, metadata_path)
+    charter_path = charter_dir / "charter.md"
+    metadata_path = charter_dir / "metadata.yaml"
+    if charter_path.exists() and metadata_path.exists():
+        stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
-            logger.warning("Constitution changed since last sync. Run 'spec-kitty constitution sync' to update.")
+            logger.warning("Charter changed since last sync. Run 'spec-kitty charter sync' to update.")
 
     yaml = YAML()
     data = yaml.load(directives_path)

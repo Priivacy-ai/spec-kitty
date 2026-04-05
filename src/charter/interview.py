@@ -1,4 +1,4 @@
-"""Interview answer model for constitution generation."""
+"""Interview answer model for charter generation."""
 
 from __future__ import annotations
 
@@ -8,8 +8,8 @@ from collections.abc import Iterable
 
 from ruamel.yaml import YAML
 
-from constitution.catalog import DoctrineCatalog, load_doctrine_catalog
-from constitution.resolver import DEFAULT_TOOL_REGISTRY
+from charter.catalog import DoctrineCatalog, load_doctrine_catalog
+from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 # Known action values for LocalSupportDeclaration normalization.
 _KNOWN_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
@@ -138,8 +138,8 @@ QUESTION_PROMPTS: dict[str, str] = {
     "deployment_constraints": "What deployment/platform constraints apply?",
     "documentation_policy": "What documentation standards should be enforced?",
     "risk_boundaries": "What safety, privacy, or reliability boundaries are non-negotiable?",
-    "amendment_process": "How should constitution changes be proposed and approved?",
-    "exception_policy": "How should exceptions to the constitution be handled?",
+    "amendment_process": "How should charter changes be proposed and approved?",
+    "exception_policy": "How should exceptions to the charter be handled?",
 }
 
 _DEFAULT_MISSION_PARADIGMS: dict[str, tuple[str, ...]] = {
@@ -157,8 +157,8 @@ _UNSET = object()
 
 
 @dataclass(frozen=True)
-class ConstitutionInterview:
-    """Persisted interview answers used to compile constitution artifacts."""
+class CharterInterview:
+    """Persisted interview answers used to compile charter artifacts."""
 
     mission: str
     profile: str
@@ -192,7 +192,7 @@ class ConstitutionInterview:
         return d
 
     @classmethod
-    def from_dict(cls, data: dict[str, object]) -> ConstitutionInterview:
+    def from_dict(cls, data: dict[str, object]) -> CharterInterview:
         mission = str(data.get("mission", "software-dev")).strip() or "software-dev"
         profile = str(data.get("profile", "minimal")).strip() or "minimal"
         raw_answers = data.get("answers")
@@ -226,7 +226,7 @@ def default_interview(
     mission: str,
     profile: str = "minimal",
     doctrine_catalog: DoctrineCatalog | None = None,
-) -> ConstitutionInterview:
+) -> CharterInterview:
     """Return deterministic default interview answers."""
     catalog = doctrine_catalog or load_doctrine_catalog()
 
@@ -258,7 +258,7 @@ def default_interview(
         available=catalog.directives,
     )
 
-    return ConstitutionInterview(
+    return CharterInterview(
         mission=mission,
         profile=profile,
         answers=answers,
@@ -268,7 +268,7 @@ def default_interview(
     )
 
 
-def read_interview_answers(path: Path) -> ConstitutionInterview | None:
+def read_interview_answers(path: Path) -> CharterInterview | None:
     """Read interview answers from YAML, returning None when missing/invalid."""
     if not path.exists():
         return None
@@ -282,10 +282,10 @@ def read_interview_answers(path: Path) -> ConstitutionInterview | None:
     if not isinstance(data, dict):
         return None
 
-    return ConstitutionInterview.from_dict(data)
+    return CharterInterview.from_dict(data)
 
 
-def write_interview_answers(path: Path, interview: ConstitutionInterview) -> None:
+def write_interview_answers(path: Path, interview: CharterInterview) -> None:
     """Persist interview answers to YAML."""
     path.parent.mkdir(parents=True, exist_ok=True)
     yaml = YAML()
@@ -295,7 +295,7 @@ def write_interview_answers(path: Path, interview: ConstitutionInterview) -> Non
 
 
 def apply_answer_overrides(
-    interview: ConstitutionInterview,
+    interview: CharterInterview,
     *,
     answers: dict[str, str] | None = None,
     selected_paradigms: Iterable[str] | None = None,
@@ -304,7 +304,7 @@ def apply_answer_overrides(
     agent_profile: str | None | object = _UNSET,
     agent_role: str | None | object = _UNSET,
     local_supporting_files: list[LocalSupportDeclaration] | None | object = _UNSET,
-) -> ConstitutionInterview:
+) -> CharterInterview:
     """Return an updated interview with selected fields overridden."""
     merged_answers = dict(interview.answers)
     if answers:
@@ -321,7 +321,7 @@ def apply_answer_overrides(
     else:
         resolved_local = list(local_supporting_files)  # type: ignore[call-overload]
 
-    return ConstitutionInterview(
+    return CharterInterview(
         mission=interview.mission,
         profile=interview.profile,
         answers=merged_answers,

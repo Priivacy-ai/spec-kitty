@@ -1,7 +1,7 @@
 """Project-aware template resolution through the 5-tier override chain.
 
 Composes MissionTemplateRepository (doctrine-level, tier 5) with the
-specify_cli runtime resolver (tiers 1-4). Constitution is the
+specify_cli runtime resolver (tiers 1-4). Charter is the
 concretization of doctrine into local context-aware legislation.
 """
 
@@ -18,7 +18,7 @@ from doctrine.resolver import (
 )
 
 
-class ConstitutionTemplateResolver:
+class CharterTemplateResolver:
     """5-tier project-aware template resolution.
 
     Resolution order: OVERRIDE > LEGACY > GLOBAL_MISSION > GLOBAL > PACKAGE_DEFAULT.
