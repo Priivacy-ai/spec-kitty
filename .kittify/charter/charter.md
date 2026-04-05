@@ -1,11 +1,11 @@
-# Spec Kitty Constitution
+# Spec Kitty Charter
 
 > Created: 2026-01-27
 > Version: 1.0.0
 
 ## Purpose
 
-This constitution captures the technical standards, architectural principles, and development practices for Spec Kitty. All features and pull requests should align with these principles.
+This charter captures the technical standards, architectural principles, and development practices for Spec Kitty. All features and pull requests should align with these principles.
 
 ---
 
@@ -276,13 +276,13 @@ Any maintainer can propose amendments via pull request. Changes are discussed an
 
 ### Compliance Validation
 
-Code reviewers validate compliance during PR review. Constitution violations should be flagged and addressed before merge.
+Code reviewers validate compliance during PR review. Charter violations should be flagged and addressed before merge.
 
 ### Exception Handling
 
 Exceptions discussed case-by-case. Strong justification required.
 
-**If exceptions become common:** Update constitution instead of creating more exceptions.
+**If exceptions become common:** Update charter instead of creating more exceptions.
 
 ---
 
