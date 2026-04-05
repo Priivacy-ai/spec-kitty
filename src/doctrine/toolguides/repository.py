@@ -43,7 +43,7 @@ class ToolguideRepository:
         shipped: dict[str, Toolguide] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in sorted(self._shipped_dir.glob("*.toolguide.yaml")):
+            for yaml_file in sorted(self._shipped_dir.rglob("*.toolguide.yaml")):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

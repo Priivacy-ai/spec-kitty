@@ -95,7 +95,7 @@ After review rejection (WP moves back to `planned` with `review_status: has_feed
 planned --> [workflow implement] --> in_progress --> [agent fixes] --> for_review --> [review] --> approved or planned
 ```
 
-After ALL WPs are approved: `spec-kitty merge --feature <slug>` merges
+After ALL WPs are approved: `spec-kitty merge --mission-run <slug>` merges
 everything and moves WPs to `done`.
 
 **`approved` unblocks dependents immediately.** Do NOT wait for `done` before
@@ -104,8 +104,11 @@ starting dependent WPs. The `done` lane is only reached via feature merge.
 To determine what to do next, always run:
 
 ```bash
-spec-kitty next --agent <your-name> --feature <feature-slug>
+spec-kitty next --agent <your-name> --mission-run <mission-slug>
 ```
+
+> **Note:** `--feature` is the legacy alias for `--mission-run` and still accepted.
+> Always use `--mission-run` in new scripts.
 
 This reads the dependency graph and current lane state and returns the exact
 command. Do NOT reason about lane transitions yourself.
@@ -120,8 +123,26 @@ agent to do the work.
 ### Step 1a: Claim the Workspace
 
 ```bash
-OUTPUT=$(spec-kitty agent action implement WP## --agent <orchestrator-name> 2>&1)
+OUTPUT=$(spec-kitty agent action implement WP## --mission-run <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
 ```
+
+**Agent identity** — always provide the full compact form so the WP records who is working:
+
+```
+--agent <tool>:<model>:<profile>:<role>
+```
+
+Examples:
+- `--agent opencode:o3:python-implementer:implementer`
+- `--agent claude:sonnet:implementer:implementer`
+- `--agent codex:gpt-4o:python-implementer:implementer`
+
+Partial compact strings are accepted (missing fields default to `unknown`).
+You may also use explicit flags instead:
+- `--tool <tool>` — agent key (e.g. `opencode`, `claude`)
+- `--model <model>` — AI model identifier (e.g. `o3`, `gpt-4o`)
+- `--profile <profile-id>` — doctrine profile (e.g. `python-implementer`)
+- `--role <role>` — role label (e.g. `implementer`, `reviewer`)
 
 This command:
 - Moves WP from `planned` to `in_progress`
@@ -254,7 +275,7 @@ When a WP reaches `for_review`, dispatch a review agent.
 ### Step 3a: Claim the Review
 
 ```bash
-OUTPUT=$(spec-kitty agent action review WP## --agent <reviewer-name> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --mission-run <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep -o '/var/folders[^ ]*/spec-kitty-review-WP[0-9]*.md' || echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 ```
@@ -459,9 +480,9 @@ WP01 (approved) --> WP02 (approved) --> WP03 (approved) --> merge --> all done
 ```
 
 1. Implement WP01, review, approve
-2. THEN implement WP02, review, approve
-3. THEN implement WP03, review, approve
-4. `spec-kitty merge --feature <slug>`
+2. THEN implement WP02 (`--base WP01`), review, approve
+3. THEN implement WP03 (`--base WP02`), review, approve
+4. `spec-kitty merge --mission-run <slug>`
 
 ### Parallel Opportunities (Independent WPs)
 
@@ -500,31 +521,32 @@ Dispatch in parallel. Each must complete its review cycle before feature merge.
 
 ```bash
 # 1. Determine what to do next
-spec-kitty next --agent <name> --feature <slug>
+spec-kitty next --agent <name> --mission-run <slug>
 
 # 2. Dispatch implementation (two steps)
-OUTPUT=$(spec-kitty agent action implement WP## --agent <name> 2>&1)
+#    --agent compact form: <tool>:<model>:<profile>:<role>
+OUTPUT=$(spec-kitty agent action implement WP## --mission-run <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
 WORKSPACE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 # Then dispatch agent (Task tool or CLI)
 
 # 3. Monitor progress
-spec-kitty agent tasks status
+spec-kitty agent tasks status --mission-run <slug>
 
 # 4. Dispatch review (two steps)
-OUTPUT=$(spec-kitty agent action review WP## --agent <reviewer> 2>&1)
+OUTPUT=$(spec-kitty agent action review WP## --mission-run <slug> --agent <tool>:<model>:<profile>:<role> 2>&1)
 REVIEW_PROMPT=$(echo "$OUTPUT" | grep 'cat ' | sed 's/.*cat //')
 WORKTREE=$(echo "$OUTPUT" | grep 'Workspace: cd ' | sed 's/.*Workspace: cd //')
 # Then dispatch reviewer (Task tool or CLI)
 
 # 5. After review: check outcome
-spec-kitty agent tasks status
+spec-kitty agent tasks status --mission-run <slug>
 # If approved: next WP (repeat from step 1)
 # If rejected: commit feedback, re-implement (cycle tracking)
 # If 3 rejections: arbiter mode
 
 # 6. After all WPs approved: merge
-spec-kitty merge --feature <slug>
+spec-kitty merge --mission-run <slug>
 ```
 
 ---

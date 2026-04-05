@@ -210,7 +210,7 @@ class AgentProfileRepository:
         shipped_profiles: dict[str, AgentProfile] = {}
 
         if self._shipped_dir.exists():
-            for yaml_file in self._shipped_dir.glob("*.agent.yaml"):
+            for yaml_file in self._shipped_dir.rglob("*.agent.yaml"):
                 try:
                     data = yaml.load(yaml_file)
                     if data is None:

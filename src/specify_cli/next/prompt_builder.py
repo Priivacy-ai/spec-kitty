@@ -74,7 +74,7 @@ def build_decision_prompt(
         lines.append("")
 
     lines.append("To answer:")
-    lines.append(f'  spec-kitty next --agent {agent} --feature {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+    lines.append(f'  spec-kitty next --agent {agent} --mission-run {feature_slug} --answer "<your answer>" --decision-id "{decision_id}"')
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
