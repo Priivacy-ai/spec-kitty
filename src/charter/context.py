@@ -68,7 +68,8 @@ def build_charter_context(
 
     state_path = repo_root / ".kittify" / "charter" / "context-state.json"
     state = _load_state(state_path)
-    first_load = normalized not in state.get("actions", {})
+    actions_val = state.get("actions", {})
+    first_load = normalized not in actions_val if isinstance(actions_val, dict) else True
 
     # Resolve effective depth: explicit wins, else state decides.
     effective_depth = depth if depth is not None else 2 if first_load else 1
@@ -101,8 +102,11 @@ def build_charter_context(
     # Always update state on first load (state decides default only - explicit
     # depth does not suppress the state update).
     if mark_loaded and first_load and mode != "missing":
-        actions = state.setdefault("actions", {})
-        actions[normalized] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+        actions_obj = state.setdefault("actions", {})
+        if not isinstance(actions_obj, dict):
+            actions_obj = {}
+            state["actions"] = actions_obj
+        actions_obj[normalized] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
         _write_state(state_path, state)
 
     return CharterContextResult(

@@ -331,7 +331,7 @@ def _doctrine_yaml_reference(
 
 def _template_reference(*, doctrine_root: Path, mission: str, template_set: str) -> CharterReference:
     mission_path = doctrine_root / "missions" / mission / "mission.yaml"
-    source = _load_yaml_asset(mission_path) if mission_path.exists() else {"name": mission}
+    source: dict[str, object] = _load_yaml_asset(mission_path) if mission_path.exists() else {"name": mission}
 
     summary = str(source.get("description") or f"Mission template set for {mission}.")
     content = (

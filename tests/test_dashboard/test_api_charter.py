@@ -42,11 +42,12 @@ def test_handle_charter_prefers_new_path(tmp_path: Path) -> None:
     assert handler.wfile.getvalue().decode("utf-8") == "new-path-content"
 
 
-def test_handle_charter_returns_404_for_legacy_path(tmp_path: Path) -> None:
-    """Legacy memory path is NOT resolved — user must run spec-kitty upgrade."""
-    legacy_path = tmp_path / ".kittify" / "memory" / "constitution.md"
-    legacy_path.parent.mkdir(parents=True)
-    legacy_path.write_text("legacy-content", encoding="utf-8")
+def test_handle_charter_returns_404_for_non_charter_state(tmp_path: Path) -> None:
+    """Only .kittify/charter/charter.md is resolved — other paths return 404."""
+    # Create a .kittify dir with files but NOT the canonical charter path
+    other_dir = tmp_path / ".kittify" / "memory"
+    other_dir.mkdir(parents=True)
+    (other_dir / "notes.md").write_text("not a charter", encoding="utf-8")
 
     handler = _DummyAPIHandler(tmp_path)
     APIHandler.handle_charter(handler)  # type: ignore[arg-type]

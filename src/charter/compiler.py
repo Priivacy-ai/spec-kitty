@@ -603,7 +603,8 @@ def _template_reference(*, doctrine_root: Path, mission: str, template_set: str)
     repo = MissionTemplateRepository.default()
     config = repo.get_mission_config(mission)
     mission_path = repo._mission_config_path(mission) or (doctrine_root / "missions" / mission / "mission.yaml")
-    source = config.parsed if config is not None else {"name": mission}
+    raw_parsed = config.parsed if config is not None else {"name": mission}
+    source: dict[str, object] = raw_parsed if isinstance(raw_parsed, dict) else {"name": mission}
 
     summary = str(source.get("description") or f"Mission template set for {mission}.")
     content = (

@@ -34,21 +34,20 @@ console = Console()
 
 
 def _resolve_charter_path(repo_root: Path) -> Path:
-    """Find charter.md in canonical location only."""
+    """Find charter.md in canonical location only.
+
+    Does not fall back to legacy locations. Users with pre-charter state
+    must run 'spec-kitty upgrade' first (handled by the charter-rename migration).
+    """
     charter_path = repo_root / ".kittify" / "charter" / "charter.md"
     if charter_path.exists():
         return charter_path
 
-    # Check for legacy state that needs migration
-    legacy_constitution = repo_root / ".kittify" / "constitution" / "constitution.md"
-    legacy_memory = repo_root / ".kittify" / "memory" / "constitution.md"
-    if legacy_constitution.exists() or legacy_memory.exists():
-        raise TaskCliError(
-            "Legacy governance state detected. Run 'spec-kitty upgrade' to migrate to charter format.\n"
-            f"  Expected: {charter_path}"
-        )
-
-    raise TaskCliError(f"Charter not found at {charter_path}\n  Run 'spec-kitty charter interview' to create one.")
+    raise TaskCliError(
+        f"Charter not found at {charter_path}\n"
+        "  Run 'spec-kitty charter interview' to create one,\n"
+        "  or 'spec-kitty upgrade' if migrating from an older version."
+    )
 
 
 def _parse_csv_option(raw: str | None) -> list[str] | None:
