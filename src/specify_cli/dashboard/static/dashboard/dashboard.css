@@ -48,21 +48,6 @@ body {
     gap: 16px;
 }
 
-.mission-display {
-    font-size: 0.9em;
-    color: var(--medium-text);
-}
-
-.mission-label {
-    color: #6b7280;
-    margin-right: 6px;
-}
-
-.mission-name {
-    font-weight: 600;
-    color: var(--dark-text);
-}
-
 .docs-site-link {
     display: inline-flex;
     align-items: center;

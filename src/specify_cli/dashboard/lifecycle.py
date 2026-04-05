@@ -160,14 +160,14 @@ def _is_spec_kitty_dashboard(port: int, timeout: float = 0.3) -> bool:
         True if confirmed to be a spec-kitty dashboard, False otherwise
     """
     health_url = f"http://127.0.0.1:{port}/api/health"
-    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     return bool(data and 'project_path' in data and 'status' in data)
 
 
-def _fetch_dashboard_health_payload(health_url: str, timeout: float = 0.5) -> dict | None:
-    """Fetch and decode dashboard health payload, returning None on failure."""
+def _fetch_dashboard_json_payload(url: str, timeout: float = 0.5) -> dict | None:
+    """Fetch and decode a JSON dashboard payload, returning None on failure."""
     try:
-        with urllib.request.urlopen(health_url, timeout=timeout) as response:
+        with urllib.request.urlopen(url, timeout=timeout) as response:
             if response.status != 200:
                 return None
             payload = response.read()
@@ -182,6 +182,33 @@ def _fetch_dashboard_health_payload(health_url: str, timeout: float = 0.5) -> di
         return None
 
     return data if isinstance(data, dict) else None
+
+
+def _fetch_dashboard_features_payload(port: int, timeout: float = 0.5) -> dict | None:
+    """Fetch dashboard bootstrap data and ensure it matches the UI contract."""
+    url = f"http://127.0.0.1:{port}/api/features"
+    data = _fetch_dashboard_json_payload(url, timeout=timeout)
+    if data is None:
+        return None
+
+    features = data.get('features')
+    if not isinstance(features, list):
+        return None
+
+    return data
+
+
+def _check_dashboard_bootstrap(
+    port: int,
+    project_dir: Path,
+    expected_token: Optional[str],
+    timeout: float = 0.5,
+) -> bool:
+    """Verify that the dashboard can satisfy the browser bootstrap contract."""
+    if not _check_dashboard_health(port, project_dir, expected_token, timeout=timeout):
+        return False
+
+    return _fetch_dashboard_features_payload(port, timeout=timeout) is not None
 
 
 def _cleanup_orphaned_dashboards_in_range(start_port: int = 9237, port_count: int = 100) -> int:
@@ -252,7 +279,7 @@ def _check_dashboard_health(
 ) -> bool:
     """Verify that the dashboard on the port belongs to the provided project."""
     health_url = f"http://127.0.0.1:{port}/api/health"
-    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     if data is None:
         return False
 
@@ -292,7 +319,7 @@ def get_dashboard_status(project_dir: Path, timeout: float = 0.5) -> DashboardSt
         return DashboardStatus(healthy=False, url=url, token=token, pid=pid)
 
     health_url = f"http://127.0.0.1:{port}/api/health"
-    data = _fetch_dashboard_health_payload(health_url, timeout=timeout)
+    data = _fetch_dashboard_json_payload(health_url, timeout=timeout)
     if data is None:
         return DashboardStatus(
             healthy=False,
@@ -371,8 +398,10 @@ def ensure_dashboard_running(
     if dashboard_file.exists():
         existing_url, existing_port, existing_token, existing_pid = _parse_dashboard_file(dashboard_file)
 
-        # First, try health check - if dashboard is healthy, reuse it
-        if existing_port is not None and _check_dashboard_health(existing_port, project_dir_resolved, existing_token):
+        # Only reuse a running daemon when the UI bootstrap endpoint is valid.
+        if existing_port is not None and _check_dashboard_bootstrap(
+            existing_port, project_dir_resolved, existing_token
+        ):
             url = existing_url or f"http://127.0.0.1:{existing_port}"
             return url, existing_port, False
 

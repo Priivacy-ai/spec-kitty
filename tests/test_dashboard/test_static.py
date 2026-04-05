@@ -6,12 +6,20 @@ import pytest
 
 from specify_cli.dashboard.templates import get_dashboard_html
 
+pytestmark = pytest.mark.fast
+
 
 def test_dashboard_template_references_static_assets():
     html = get_dashboard_html()
     assert '<link rel="stylesheet" href="/static/dashboard/dashboard.css">' in html
     assert '<script src="/static/dashboard/dashboard.js"></script>' in html
     assert '<link rel="icon" type="image/png" href="/static/spec-kitty.png">' in html
+
+
+def test_dashboard_template_omits_mission_badge():
+    html = get_dashboard_html()
+    assert 'mission-display' not in html
+    assert 'Mission:' not in html
 
 
 def test_static_assets_exist():
@@ -27,7 +35,6 @@ def test_static_assets_exist():
         assert asset.stat().st_size > 0, f"{asset} should not be empty"
 
 
-@pytest.mark.fast
 def test_dashboard_javascript_has_valid_syntax():
     if shutil.which("node") is None:
         pytest.skip("node is required for dashboard.js syntax validation")

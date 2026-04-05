@@ -5,6 +5,8 @@ import pytest
 
 from specify_cli.dashboard import lifecycle
 
+pytestmark = pytest.mark.fast
+
 
 def test_parse_and_write_dashboard_file_roundtrip(tmp_path):
     dashboard_file = tmp_path / ".kittify" / ".dashboard"
@@ -154,3 +156,49 @@ def test_get_dashboard_status_reads_sync_metadata(monkeypatch, tmp_path):
     assert status.last_sync == "2026-04-04T12:00:00+00:00"
     assert status.consecutive_failures == 2
     assert status.websocket_status == "Connected"
+
+
+def test_ensure_dashboard_running_restarts_stale_reused_daemon(monkeypatch, tmp_path):
+    project_dir = tmp_path
+    dashboard_meta = project_dir / ".kittify" / ".dashboard"
+    dashboard_meta.parent.mkdir(parents=True)
+    lifecycle._write_dashboard_file(
+        dashboard_meta,
+        "http://127.0.0.1:9238",
+        9238,
+        "staletoken",
+        pid=4242,
+    )
+
+    killed = {"count": 0}
+
+    class FakeProc:
+        def kill(self):
+            killed["count"] += 1
+
+    monkeypatch.setattr(
+        lifecycle,
+        "_check_dashboard_bootstrap",
+        lambda port, proj_dir, token: False,
+    )
+    monkeypatch.setattr(
+        lifecycle,
+        "_check_dashboard_health",
+        lambda port, proj_dir, token: token == "fresh-token",
+    )
+    monkeypatch.setattr(lifecycle, "_is_process_alive", lambda pid: pid == 4242)
+    monkeypatch.setattr(lifecycle.psutil, "Process", lambda pid: FakeProc())
+    monkeypatch.setattr(lifecycle, "start_dashboard", lambda *args, **kwargs: (9345, 5151))
+    monkeypatch.setattr(lifecycle.secrets, "token_hex", lambda _size: "fresh-token")
+
+    url, port, started = lifecycle.ensure_dashboard_running(project_dir, background_process=False)
+
+    assert started is True
+    assert port == 9345
+    assert url == "http://127.0.0.1:9345"
+    assert killed["count"] == 1
+
+    _, stored_port, stored_token, stored_pid = lifecycle._parse_dashboard_file(dashboard_meta)
+    assert stored_port == 9345
+    assert stored_token == "fresh-token"
+    assert stored_pid == 5151
