@@ -9,8 +9,8 @@ from __future__ import annotations
 import tempfile
 from pathlib import Path
 
-from specify_cli.constitution.context import build_constitution_context
-from specify_cli.constitution.resolver import GovernanceResolutionError, resolve_governance
+from specify_cli.charter.context import build_charter_context
+from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
@@ -199,12 +199,12 @@ def _feature_context_header(feature_slug: str, feature_dir: Path, agent: str) ->
 def _governance_context(repo_root: Path, action: str | None = None) -> str:
     """Render governance context for prompt preamble.
 
-    For bootstrap actions, constitution context is injected on first load.
-    Falls back to compact governance rendering if constitution artifacts are missing.
+    For bootstrap actions, charter context is injected on first load.
+    Falls back to compact governance rendering if charter artifacts are missing.
     """
     if action:
         try:
-            context = build_constitution_context(repo_root, action=action, mark_loaded=True)
+            context = build_charter_context(repo_root, action=action, mark_loaded=True)
             if context.mode != "missing":
                 return context.text
         except Exception:

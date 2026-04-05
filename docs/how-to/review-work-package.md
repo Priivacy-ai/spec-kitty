@@ -32,15 +32,15 @@ implementing agent to move a WP into that lane.
 ## Step 2: Load Governance Context
 
 Load the project's review governance context before inspecting any code. This
-surfaces constitution rules, acceptance criteria templates, and review guidance
+surfaces charter rules, acceptance criteria templates, and review guidance
 from doctrine:
 
 ```bash
-spec-kitty constitution context --action review --json
+spec-kitty charter context --action review --json
 ```
 
 The returned `text` field contains governance context that applies to every
-review in this project. If governance files are missing (no constitution
+review in this project. If governance files are missing (no charter
 configured), the command still works with fallback defaults -- it is not a
 blocker.
 
@@ -170,7 +170,7 @@ spec-kitty agent tasks status --feature <slug>
 - **"Multiple features found"**: Add `--feature <slug>` to the command. This is required in repos with more than one active feature.
 - **Wrong workspace**: Open the WP worktree that contains the implementation.
 - **Need more context**: Check the spec and plan for the feature before completing review.
-- **Governance context empty**: The constitution may not be configured yet. Review can still proceed using the acceptance criteria in the review prompt.
+- **Governance context empty**: The charter may not be configured yet. Review can still proceed using the acceptance criteria in the review prompt.
 
 ---
 

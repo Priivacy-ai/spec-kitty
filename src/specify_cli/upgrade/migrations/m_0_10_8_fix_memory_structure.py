@@ -135,23 +135,23 @@ class FixMemoryStructureMigration(BaseMigration):
         # Step 3: Create .kittify/memory/ from template if missing
         if not kittify_memory.exists():
             # Check if there's a template in missions
-            template_constitution = None
+            template_charter = None
             missions_dir = kittify_dir / "missions" / "software-dev"
             if missions_dir.exists():
-                # Look for constitution template in command templates
-                template_path = missions_dir / "command-templates" / "constitution.md"
+                # Look for charter template in command templates
+                template_path = missions_dir / "command-templates" / "charter.md"
                 if not template_path.exists():
-                    template_path = kittify_dir / "templates" / "command-templates" / "constitution.md"
+                    template_path = kittify_dir / "templates" / "command-templates" / "charter.md"
                 if template_path.exists():
-                    template_constitution = template_path
+                    template_charter = template_path
 
-            if template_constitution:
+            if template_charter:
                 if dry_run:
                     changes_made.append(f"Would create {kittify_memory} from template")
                 else:
                     kittify_memory.mkdir(parents=True, exist_ok=True)
-                    constitution_dest = kittify_memory / "constitution.md"
-                    shutil.copy2(template_constitution, constitution_dest)
+                    charter_dest = kittify_memory / "charter.md"
+                    shutil.copy2(template_charter, charter_dest)
                     changes_made.append(f"Created {kittify_memory} from template")
             else:
                 warnings.append(f"{kittify_memory} doesn't exist and no template found")

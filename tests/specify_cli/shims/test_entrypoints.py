@@ -187,7 +187,7 @@ class TestShimDispatch:
             "checklist",
             "analyze",
             "research",
-            "constitution",
+            "charter",
         ],
     )
     def test_prompt_driven_commands_return_none(self, command: str, tmp_path: Path) -> None:

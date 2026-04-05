@@ -35,18 +35,18 @@ as Python modules within a single-process CLI application.
 | **Dashboard** | `src/specify_cli/dashboard/` | `specify_cli` | Playwright-based local browser kanban. Read-only against Event Store. |
 | **Agent Tool Connectors** | `src/doctrine/missions/*/command-templates/` → deployed as `.claude/`, `.codex/`, `.amazonq/`, etc. | `doctrine` (source), `specify_cli` (deployment) | Current connector is a rendered markdown prompt template. One "adapter" per agent (12 agents). Source templates relocated to `doctrine/missions/` in feature 054; migration is complete. |
 | **Skills Installer** | `src/specify_cli/skills/` | `specify_cli` | Deployment bridge introduced in feature 055. `SkillRegistry` discovers canonical skills from `src/doctrine/skills/`; `ManagedSkillManifest` tracks installed files by hash for drift detection; `installer.py` and `verifier.py` deploy skills into agent directories alongside command templates during `spec-kitty init`. |
-| **Doctrine** | `src/doctrine/` (artifacts) + `src/doctrine/skills/` (canonical skill packs) | `doctrine` (standalone package, own `pyproject.toml`) | YAML artifacts, JSON Schema validation, Pydantic models, repository pattern. Includes 6 shipped skill packs in `doctrine/skills/` (e.g., `spec-kitty-runtime-next`, `spec-kitty-constitution-doctrine`). Zero dependency on `specify_cli`. |
-| **Constitution** | `src/constitution/` | `constitution` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/constitution/` bundles. Context bootstrap injects governance at every execution boundary. |
+| **Doctrine** | `src/doctrine/` (artifacts) + `src/doctrine/skills/` (canonical skill packs) | `doctrine` (standalone package, own `pyproject.toml`) | YAML artifacts, JSON Schema validation, Pydantic models, repository pattern. Includes 6 shipped skill packs in `doctrine/skills/` (e.g., `spec-kitty-runtime-next`, `spec-kitty-charter-doctrine`). Zero dependency on `specify_cli`. |
+| **Charter** | `src/charter/` | `charter` (standalone package) | Interview flow, compiler, action context resolver with depth semantics and action index intersection. Produces `.kittify/charter/` bundles. Context bootstrap injects governance at every execution boundary. |
 
 ### Key structural observation
 
-The `doctrine` and `constitution` packages are **standalone Python packages**
+The `doctrine` and `charter` packages are **standalone Python packages**
 registered in `pyproject.toml`. All other containers are modules within
-the `specify_cli` monolith. The separation of `doctrine` and `constitution`
+the `specify_cli` monolith. The separation of `doctrine` and `charter`
 from `specify_cli` is architecturally deliberate:
 
 - `doctrine` — zero external dependencies, pure knowledge library
-- `constitution` — consumes `doctrine` and limited `specify_cli.runtime` utilities;
+- `charter` — consumes `doctrine` and limited `specify_cli.runtime` utilities;
   produces the governance artifacts that agents consume at execution boundaries
 - `specify_cli` — control plane, lifecycle, and orchestration; uses both
 
@@ -101,28 +101,28 @@ User runs: spec-kitty implement WP01
   → src/specify_cli/status/emit.py (Event Store write — lifecycle event)
 ```
 
-### Loop C: Governance (User → Constitution → Doctrine)
+### Loop C: Governance (User → Charter → Doctrine)
 
 ```
-User runs: spec-kitty constitution interview / generate
+User runs: spec-kitty charter interview / generate
   → src/specify_cli/cli/commands/ (Control Plane)
-  → src/constitution/interview.py (Constitution interview)
-  → src/constitution/compiler.py (Constitution compiler)
-  → src/constitution/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
+  → src/charter/interview.py (Charter interview)
+  → src/charter/compiler.py (Charter compiler)
+  → src/charter/reference_resolver.py (transitive DFS: directive → tactic → styleguide/toolguide)
   → src/doctrine/service.py → per-artifact repositories (Doctrine read)
-  → .kittify/constitution/ (compiled governance bundle)
+  → .kittify/charter/ (compiled governance bundle)
 ```
 
-### Loop C': Action Context Bootstrap (Agent → Constitution → Doctrine)
+### Loop C': Action Context Bootstrap (Agent → Charter → Doctrine)
 
 ```
-Agent calls: spec-kitty constitution context --action implement
-  → src/constitution/context.py (Action Context Resolver)
+Agent calls: spec-kitty charter context --action implement
+  → src/charter/context.py (Action Context Resolver)
   → Load action index: src/doctrine/missions/software-dev/actions/implement/index.yaml
   → Two-stage intersection: action index ∩ project selections (references.yaml)
   → src/doctrine/service.py (DoctrineService) → fetch directive/tactic content by depth
   → Load action guidelines: src/doctrine/missions/software-dev/actions/implement/guidelines.md
-  → Render ConstitutionContextResult (governance text injected into agent prompt)
+  → Render CharterContextResult (governance text injected into agent prompt)
   → Persist context-state.json (first-load tracking for depth semantics)
 ```
 
@@ -156,7 +156,7 @@ Orchestration lifecycle event triggers:
 | **Command Router** | `cli/` | `cli/__init__.py`, command group registration |
 | **Workflow Command Set** | `cli/commands/` | `specify.py`, `plan.py`, `tasks.py`, `implement.py`, `review.py`, `merge.py`. Canon terminology: `--mission-type` is the flag for mission-type selection (renamed from `--mission` in 5 type-selection commands, 2026-03-25; old `--mission` alias raises hard error). `--mission` remains the slug selector on all other commands. `--feature` is a hidden deprecated alias everywhere. |
 | **Status Mutation Command Set** | `cli/commands/` | `status.py`, lane transition commands |
-| **Governance Command Set** | `cli/commands/` | `constitution.py` |
+| **Governance Command Set** | `cli/commands/` | `charter.py` |
 | **Next Loop Coordinator** | `next/` | `next/__init__.py` — per-agent action sequencing |
 | **Mission Discovery and Resolution** | `core/`, `mission.py`, `mission_v1/` | Mission context detection, asset loading |
 | **Runtime Asset Lifecycle Coordinator** | `runtime/` | Bootstrap, tier selection, compatibility |
@@ -173,9 +173,9 @@ Orchestration lifecycle event triggers:
 | **Doctrine Catalog Loader** | `doctrine/service.py` | `DoctrineService` — lazy aggregation facade |
 | **Schema Validation Gate** | `doctrine/*/validation.py`, `doctrine/schemas/` | JSON Schema + Pydantic validation |
 | **Glossary Hook Coordinator** | `doctrine/missions/glossary_hook.py`, `specify_cli/glossary/` | Glossary checks during mission execution |
-| **Constitution Interview Flow** | `constitution/interview.py` | Guided Q&A for governance capture |
-| **Constitution Compiler** | `constitution/compiler.py` | Doctrine→constitution bundle compilation |
-| **Action Context Resolver** | `constitution/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
+| **Charter Interview Flow** | `charter/interview.py` | Guided Q&A for governance capture |
+| **Charter Compiler** | `charter/compiler.py` | Doctrine→charter bundle compilation |
+| **Action Context Resolver** | `charter/context.py`, `resolver.py`, `reference_resolver.py` | Action-scoped governance context with depth semantics (1=compact, 2=bootstrap, 3=extended) and two-stage intersection (action index ∩ project selections) |
 | **Action Index** | `doctrine/missions/*/actions/*/index.yaml` | Per-action directive/tactic/styleguide/toolguide selection — loaded by `doctrine/missions/action_index.py` |
 | **Execution Dispatch** | `doctrine/missions/*/command-templates/implement.md` | Prompt rendering for agent dispatch (source relocated from `specify_cli/missions/` in feature 054) |
 | **Agent Adapters** | `.claude/`, `.codex/`, `.amazonq/`, etc. | Per-agent command templates (12 agents) |
@@ -219,7 +219,7 @@ layers are strictly defined.
 | **Output Shapes** | Styleguide | `src/doctrine/styleguides/` | shipped set | Define *what output looks like* — formatting, naming, structure. |
 | **Tool Contracts** | Toolguide | `src/doctrine/toolguides/` | shipped set | Define *how tools are used* — config, invocation, constraints. |
 | **Execution Identity** | Agent Profile | `src/doctrine/agent_profiles/shipped/` | 7 (architect, curator, designer, implementer, planner, researcher, reviewer) | Agent capabilities, constraints, collaboration contracts. Injected by `SkillRegistry` at `init` time. |
-| **Deployable Governance Packs** | Skill | `src/doctrine/skills/` | 8 (constitution-doctrine, git-workflow, glossary-context, mission-system, orchestrator-api-operator, runtime-next, runtime-review, setup-doctor) | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
+| **Deployable Governance Packs** | Skill | `src/doctrine/skills/` | 8 (charter-doctrine, git-workflow, glossary-context, mission-system, orchestrator-api-operator, runtime-next, runtime-review, setup-doctor) | Self-contained governance bundles (SKILL.md + optional references/scripts/assets) deployed to agent directories during `spec-kitty init` by `specify_cli/skills/`. |
 | **Process Templates** | Mission Template | `src/doctrine/missions/` | 3 types (software-dev, documentation, research) + plan | Define the SDD process stages for different mission types. Also carries per-action governance indexes. |
 | **Process Templates** | Expected Artifacts Manifest | `src/doctrine/missions/*/expected-artifacts.yaml` | 3 (software-dev, documentation, research) | Per-step, class-tagged (`input`, `output`, `workflow`, `evidence`), blocking-semantics artifact requirements consumed by dossier `ManifestRegistry` via `MissionRepository.get_expected_artifacts()`. |
 
@@ -283,7 +283,7 @@ Cross-cutting infrastructure used by all artifact subpackages:
 
 The `DoctrineService` (`src/doctrine/service.py`) is the aggregation facade —
 it lazily instantiates all per-type repositories and is the single entry point
-for all consumers (Constitution compiler, Connectors, Kitty-core).
+for all consumers (Charter compiler, Connectors, Kitty-core).
 
 ### Schema Validation
 
@@ -319,14 +319,14 @@ update and a valid fixture update.
 | Cross-artifact references (`tactic_refs`, `references[]`) | ✅ Complete | Wired with test coverage (40 doctrine tests) |
 | `opposed_by` contradiction modeling | ✅ Complete | Schema + data on paradigm, directive, tactic |
 | DAG cycle detection — shipped artifacts | ✅ Complete | `test_tactic_reference_graph_has_no_cycles` in `tests/doctrine/test_directive_consistency.py` |
-| Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/constitution/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
+| Cycle detection at resolution boundary (raises `DoctrineResolutionCycleError`) | ✅ Complete | `src/charter/reference_resolver.py` `_Walker`; `tests/doctrine/test_cycle_detection.py` |
 | Shared schema loading (`SchemaUtilities`) | ✅ Complete | `src/doctrine/shared/schema_utils.py`; replaces 6 duplicated per-type loaders |
 | Domain exceptions (`DoctrineArtifactLoadError`, `DoctrineResolutionCycleError`) | ✅ Complete | `src/doctrine/shared/exceptions.py` |
 | `DoctrineService` aggregation facade | ✅ Complete | `src/doctrine/service.py` |
-| Constitution compiler consumes Doctrine | ✅ Complete | `src/constitution/compiler.py` |
+| Charter compiler consumes Doctrine | ✅ Complete | `src/charter/compiler.py` |
 | Command templates as connector implementation | ✅ Complete | 12-agent template system via migrations |
-| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/constitution/reference_resolver.py` (feature 054) |
-| Action-scoped governance injection with depth semantics | ✅ Complete | `src/constitution/context.py` + `src/doctrine/missions/*/actions/*/index.yaml` (feature 054) |
+| Transitive reference resolution (directive → tactic → styleguide/toolguide) | ✅ Complete | `src/charter/reference_resolver.py` (feature 054) |
+| Action-scoped governance injection with depth semantics | ✅ Complete | `src/charter/context.py` + `src/doctrine/missions/*/actions/*/index.yaml` (feature 054) |
 | Per-action guidelines extraction from templates | ✅ Complete | `src/doctrine/missions/software-dev/actions/*/guidelines.md` (feature 054) |
 | ArtifactKind canonical enum | ✅ Complete | `src/doctrine/artifact_kinds.py` (feature 054, WP09-WP10) |
 | MissionRepository package relocation | ✅ Complete | `src/doctrine/missions/` is the authoritative source for all mission assets (YAML, command templates, content templates, expected-artifacts). `src/specify_cli/missions/` retains only Python code modules (`primitives.py`, `glossary_hook.py`, `.contextive.yml`) for the glossary subsystem per ADR 2026-03-25-1. |

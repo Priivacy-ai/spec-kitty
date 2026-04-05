@@ -201,7 +201,7 @@ grep "lane=done" kitty-specs/*/tasks/done/*.md | wc -l
 1. **Brand the dashboard** - Add agency logo to dashboard (future feature)
 2. **Screenshot automation** - Daily dashboard screenshots to Slack/email
 3. **Spec.md templates** - Standardize how you write specifications
-4. **Constitution per client** - Different quality standards for different clients
+4. **Charter per client** - Different quality standards for different clients
 5. **Dashboard as sales tool** - Show prospects live projects
 
 ## Common Questions

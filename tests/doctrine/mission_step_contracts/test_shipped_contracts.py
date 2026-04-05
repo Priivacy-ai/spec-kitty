@@ -99,7 +99,7 @@ class TestImplementContractStructure:
         bootstrap = next((s for s in contract.steps if s.id == "bootstrap"), None)
         assert bootstrap is not None
         assert bootstrap.command is not None
-        assert "constitution context" in bootstrap.command
+        assert "charter context" in bootstrap.command
 
     def test_has_workspace_step_with_paradigm_delegation(self, contract: MissionStepContract) -> None:
         workspace = next((s for s in contract.steps if s.id == "workspace"), None)

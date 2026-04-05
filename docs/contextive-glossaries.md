@@ -75,7 +75,7 @@ Each filename (without `.md`) under `glossary/contexts/` is a valid context slug
 | `doctrine` | Doctrine domain model and artifact taxonomy |
 | `dossier` | Artifact inventory and drift detection |
 | `execution` | CLI invocation and semantic safety gates |
-| `governance` | Constitution, ADR, and policy precedence |
+| `governance` | Charter, ADR, and policy precedence |
 | `identity` | Actors, roles, and Human-in-Charge |
 | `lexical` | Glossary internal data model |
 | `orchestration` | Feature, WP, mission lifecycle |

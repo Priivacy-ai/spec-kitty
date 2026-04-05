@@ -68,7 +68,7 @@
 
 ## Design Impact
 
-- **Affected By**: Doctrine curation flow, constitution activation path, and validation gates.
+- **Affected By**: Doctrine curation flow, charter activation path, and validation gates.
 - **Needs From Design**: Clear ownership of transitions from proposal to active behavior.
 - **Risk If Ignored**: Shadow conventions and inconsistent implementation quality.
 - **Acceptance Signal**: Curated practices can be activated and observed without manual interpretation.

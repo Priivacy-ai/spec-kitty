@@ -121,6 +121,11 @@ class MigrationRunner:
         if metadata is None:
             metadata = self._create_initial_metadata(from_version)
 
+        # Normalize legacy migration IDs before checking has_migration()
+        if not dry_run:
+            norm_changes = metadata.normalize_and_save_legacy_ids(self.kittify_dir)
+            result.warnings.extend(norm_changes)
+
         # Apply each migration to main project
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)

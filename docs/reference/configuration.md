@@ -170,18 +170,18 @@ Each entry has:
 
 ---
 
-## constitution.md (Project Principles)
+## charter.md (Project Principles)
 
 Optional file defining project-wide coding principles and standards.
 
-**Location**: `.kittify/memory/constitution.md`
+**Location**: `.kittify/memory/charter.md`
 
 **Purpose**: When present, all slash commands reference these principles. Claude and other agents will follow these guidelines during implementation.
 
 **Example**:
 
 ```markdown
-# Project Constitution
+# Project Charter
 
 ## Code Quality Principles
 
@@ -197,7 +197,7 @@ Optional file defining project-wide coding principles and standards.
 3. Document all public APIs
 ```
 
-**Creating**: Use `/spec-kitty.constitution` to interactively create this file.
+**Creating**: Use `/spec-kitty.charter` to interactively create this file.
 
 ---
 

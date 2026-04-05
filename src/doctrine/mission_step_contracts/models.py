@@ -17,7 +17,7 @@ class DelegatesTo(BaseModel):
 
     The ``kind`` identifies the artifact type (paradigm, tactic, directive, etc.).
     The ``candidates`` list names which artifacts *could* concretize this step —
-    the constitution's selections determine which one actually applies at runtime.
+    the charter's selections determine which one actually applies at runtime.
     """
 
     model_config = ConfigDict(frozen=True)

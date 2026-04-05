@@ -118,7 +118,7 @@ Test type is expressed by:
 
 ### Option B — Source package mirror
 
-Top-level directories mirror `src/specify_cli/`: `constitution/`, `glossary/`,
+Top-level directories mirror `src/specify_cli/`: `charter/`, `glossary/`,
 `status/`, `sync/`, etc. Each module directory gets `unit/` and `integration/`
 subdirs.
 
@@ -131,7 +131,7 @@ subdirs.
 * Internal module boundaries leak into the test tree. Refactoring the source
   package (e.g. splitting or merging modules) forces test directory renames.
 * Module boundaries do not align with user-facing capabilities — `glossary/` and
-  `constitution/` are implementation details, not product features.
+  `charter/` are implementation details, not product features.
 * The `unit/` + `integration/` nesting restores the type-first problem one level deeper.
 
 ### Option C — Type-first top level, internals mirror source

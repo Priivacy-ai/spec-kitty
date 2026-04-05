@@ -20,7 +20,7 @@ tests/
   git_ops/          — branch ops, worktree, preflight, stale detection, safe commit
   status/           — status model, lane management, CLI, validation
   upgrade/          — migrations, upgrade path, version detection
-  init/             — project initialisation, constitution setup
+  init/             — project initialisation, charter setup
   sync/             — background sync, event emission, transport, offline queue
   runtime/          — bootstrap, doctor, resolver, global convergence
   research/         — research workflow, research plan deliverables

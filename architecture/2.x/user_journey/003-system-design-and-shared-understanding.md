@@ -13,7 +13,7 @@
 
 ## Scenario
 
-A team has bootstrapped their project — vision and constitution are established.
+A team has bootstrapped their project — vision and charter are established.
 They now need to build shared understanding of the system before diving into
 feature work: who the stakeholders are, what language the domain uses, how the
 system is structured, and what architectural decisions have been made.
@@ -45,7 +45,7 @@ but a set of continuously-referenced resources that downstream commands
 
 1. Project has been initialized with `spec-kitty init`.
 2. Bootstrap completed — `.kittify/memory/vision.md` exists with project purpose and scope.
-3. Constitution exists — `.kittify/constitution/constitution.md` with technical standards and governance.
+3. Charter exists — `.kittify/charter/charter.md` with technical standards and governance.
 4. At least one supported AI agent is configured.
 5. Git repository is initialized.
 
@@ -56,13 +56,13 @@ but a set of continuously-referenced resources that downstream commands
 | Phase | Actor(s) | System | Key Events |
 |-------|----------|--------|------------|
 | 1. Stakeholder Discovery | Architect ↔ AI Agent | AI interviews: who uses, operates, develops, funds, is affected by this system? | `DesignSessionStarted`, `StakeholderIdentified` |
-| 2. Language Harvesting | AI Agent ↔ Codebase | AI scans code, docs, vision, constitution for domain terms; presents candidate glossary | `TerminologyExtracted`, `GlossaryDraftCreated` |
+| 2. Language Harvesting | AI Agent ↔ Codebase | AI scans code, docs, vision, charter for domain terms; presents candidate glossary | `TerminologyExtracted`, `GlossaryDraftCreated` |
 | 3. Glossary Refinement | Architect ↔ AI Agent | Architect validates, corrects, and enriches terms; AI detects conflicts and ambiguities | `TermDefined`, `AmbiguityDetected`, `BoundaryHinted` |
 | 4. Context Mapping | Architect ↔ AI Agent | Based on glossary conflicts, AI proposes bounded context boundaries; architect validates | `ContextBoundaryProposed`, `ContextMapCreated` |
 | 5. User Journey Capture | Architect ↔ AI Agent | AI interviews for key cross-boundary flows; produces journey artifacts | `JourneyCaptured` |
 | 6. Constraint & NFR Capture | Architect ↔ AI Agent | AI interviews: quality attributes, hard constraints, performance expectations | `ConstraintCaptured`, `QualityAttributeDefined` |
 | 7. Decision Formalization | Architect ↔ AI Agent | AI proposes ADRs for significant decisions surfaced during Phases 1-6; architect confirms | `ArchitectureDecisionRecorded` |
-| 8. Artifact Generation | AI Agent ↔ CLI | CLI commits all design artifacts; links to vision and constitution | `DesignArtifactsGenerated`, `DesignSessionCompleted` |
+| 8. Artifact Generation | AI Agent ↔ CLI | CLI commits all design artifacts; links to vision and charter | `DesignArtifactsGenerated`, `DesignSessionCompleted` |
 | 9. Downstream Integration | — | Subsequent spec-kitty commands reference design artifacts for consistency | `FeatureSpecAligned` |
 
 ---
@@ -118,7 +118,7 @@ but a set of continuously-referenced resources that downstream commands
 
 2. **Living glossary**:
    - Harvest terms from codebase (class names, method names, comments, existing docs)
-   - Harvest terms from vision.md and constitution.md
+   - Harvest terms from vision.md and charter.md
    - Present candidate glossary for architect validation
    - Detect conflicts: same term with different implicit meanings
    - Flag missing terms: concepts in code without explicit vocabulary
@@ -184,7 +184,7 @@ but a set of continuously-referenced resources that downstream commands
 
 **Automated analysis** (AI Agent performs):
 1. Scan source code: class names, method names, module names, constants
-2. Scan existing docs: README, vision.md, constitution.md, any existing glossary
+2. Scan existing docs: README, vision.md, charter.md, any existing glossary
 3. Scan git history: commit messages for domain vocabulary
 4. Extract candidate terms with frequency and source location
 5. Group by apparent domain area
@@ -296,7 +296,7 @@ Post-design, the artifacts are passively consumed:
 ## Acceptance Scenarios
 
 1. **Greenfield design session**
-   Given a bootstrapped project with vision.md and constitution.md but no architecture artifacts,
+   Given a bootstrapped project with vision.md and charter.md but no architecture artifacts,
    when the architect runs `/spec-kitty.design`,
    then the AI conducts Phases 1-7 and produces a glossary, at least one journey, and at least one ADR.
 
@@ -375,7 +375,7 @@ Post-design, the artifacts are passively consumed:
 
 | Journey | Relationship |
 |---------|-------------|
-| [001 — Project Onboarding & Bootstrap](001-project-onboarding-bootstrap.md) | **Precondition** — bootstrap captures purpose and constitution; design captures structure and language. Bootstrap must run first. |
+| [001 — Project Onboarding & Bootstrap](001-project-onboarding-bootstrap.md) | **Precondition** — bootstrap captures purpose and charter; design captures structure and language. Bootstrap must run first. |
 | Feature specification (`/spec-kitty.specify`) | **Downstream consumer** — specs reference glossary terms, stakeholder personas, and ADRs for consistency. |
 | Feature planning (`/spec-kitty.plan`) | **Downstream consumer** — plan's "Technical Context" cross-references ADRs; uses context map for WP decomposition. |
 | Feature review (`/spec-kitty.review`) | **Downstream consumer** — review checks terminology consistency against glossary. |

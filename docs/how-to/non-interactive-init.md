@@ -273,7 +273,7 @@ When you specify agents with `--ai`, spec-kitty creates:
 - `.kittify/AGENTS.md` (master copy)
 - `.kittify/templates/` (command templates)
 - `.kittify/scripts/` (helper scripts)
-- `.kittify/memory/` (for constitution, etc.)
+- `.kittify/memory/` (for charter, etc.)
 
 ## Platform-Specific Behavior
 

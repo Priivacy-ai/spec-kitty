@@ -41,7 +41,7 @@ Contains Spec Kitty configuration, templates, and project memory.
 │   └── documentation/
 │       └── mission.yaml
 └── memory/                       # Project memory
-    └── constitution.md           # Project principles (optional)
+    └── charter.md           # Project principles (optional)
 ```
 
 ### Key Files
@@ -50,7 +50,7 @@ Contains Spec Kitty configuration, templates, and project memory.
 |------|---------|
 | `templates/*.md` | Templates used by `/spec-kitty.specify`, `/spec-kitty.plan`, etc. |
 | `missions/*/mission.yaml` | Mission-specific configuration and phases |
-| `memory/constitution.md` | Project-wide principles referenced by all commands |
+| `memory/charter.md` | Project-wide principles referenced by all commands |
 
 ---
 
@@ -164,7 +164,7 @@ my-project/
 │       ├── spec-kitty.merge.md
 │       ├── spec-kitty.status.md
 │       ├── spec-kitty.dashboard.md
-│       ├── spec-kitty.constitution.md
+│       ├── spec-kitty.charter.md
 │       ├── spec-kitty.research.md
 │       ├── spec-kitty.checklist.md
 │       └── spec-kitty.analyze.md
@@ -230,7 +230,7 @@ my-project/
 │   │   ├── research/
 │   │   └── documentation/
 │   └── memory/
-│       └── constitution.md
+│       └── charter.md
 ├── .claude/
 │   └── commands/
 │       └── (13 slash command files)

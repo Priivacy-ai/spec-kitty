@@ -1,7 +1,7 @@
 # Initiative: 2026-03 Doctrine-to-Execution Integration
 
 This initiative captures the assessment and roadmap for wiring the doctrine
-repository layer (delivered in feature 046) into the constitution resolver,
+repository layer (delivered in feature 046) into the charter resolver,
 mission template system, and execution dispatch chain.
 
 ## Context
@@ -12,7 +12,7 @@ toolguides, agent profiles). These are loadable on-demand through
 `DoctrineService` but are not yet consumed by the execution pipeline.
 
 The current execution flow resolves governance through string-based lookups
-in `governance.yaml` and injects constitution summaries into agent prompts.
+in `governance.yaml` and injects charter summaries into agent prompts.
 Agents receive directive titles but not the enriched content (procedures,
 tactic_refs, scope, validation_criteria) that was added in 046.
 
@@ -28,8 +28,8 @@ implement.py: create worktree and context
 prompt_builder.py: build_prompt()
   |-- Load mission config (software-dev/mission.yaml)
   |-- Load command template (software-dev/command-templates/implement.md)
-  |-- Load constitution (build_constitution_context)
-  |     |-- Parse constitution.md (first load only)
+  |-- Load charter (build_charter_context)
+  |     |-- Parse charter.md (first load only)
   |     |-- Resolve governance (directives as strings, paradigms as strings)
   |     +-- Inject summary + references into prompt
   +-- Assemble final prompt with governance context
@@ -38,7 +38,7 @@ prompt_builder.py: build_prompt()
 Rendered markdown prompt -> Agent (12 adapter formats)
 ```
 
-**Key gap**: The constitution resolver uses `governance.yaml` with string-based
+**Key gap**: The charter resolver uses `governance.yaml` with string-based
 directive/paradigm references. It does not call `DoctrineService` to retrieve
 the full typed artifacts with procedures, tactic steps, and cross-references.
 
@@ -54,7 +54,7 @@ implement.py: create worktree and context
 prompt_builder.py: build_prompt()
   |-- Load mission template (via MissionTemplateRepository)
   |-- Load command template (doctrine artifact, not inline markdown)
-  |-- Load constitution
+  |-- Load charter
   |     |-- Resolve governance via DoctrineService
   |     |-- DoctrineService.directives.get(id) -> full Directive with procedures
   |     |-- Resolve tactic_refs -> full Tactic objects with steps
@@ -69,7 +69,7 @@ Connector interface contract -> Agent adapter (pluggable)
 
 | Phase | Status | Feature |
 |-------|--------|---------|
-| Phase 1: Constitution Resolver + Mission Template Extraction | ✅ Complete (2026-03-10) | `054-constitution-interview-compiler-and-bootstrap` |
+| Phase 1: Charter Resolver + Mission Template Extraction | ✅ Complete (2026-03-10) | `054-charter-interview-compiler-and-bootstrap` |
 | Phase 2: Connector Interface Contract | Planned | TBD |
 | Phase 3: Event Store Interface Abstraction | Deferred | TBD |
 
@@ -77,14 +77,14 @@ Connector interface contract -> Agent adapter (pluggable)
 
 ## Roadmap: Three Phases
 
-### Phase 1: Constitution Resolver + Mission Template Extraction (single mission)
+### Phase 1: Charter Resolver + Mission Template Extraction (single mission)
 
-**Goal**: Wire `DoctrineService` into the constitution resolver and extract
+**Goal**: Wire `DoctrineService` into the charter resolver and extract
 inline mission governance into proper doctrine artifacts.
 
 **Scope** (as implemented in feature 054):
 
-1. Replace string-based directive lookups in `constitution/resolver.py` with
+1. Replace string-based directive lookups in `charter/resolver.py` with
    `DoctrineService.directives.get(id)` calls. Inject full directive content
    (intent, procedures, tactic_refs, scope) into agent prompts.
 
@@ -95,22 +95,22 @@ inline mission governance into proper doctrine artifacts.
 3. Extract inline governance from `software-dev` command templates
    (`specify.md`, `plan.md`, `implement.md`, `review.md`) into per-action
    doctrine files at `src/doctrine/missions/software-dev/actions/<action>/guidelines.md`.
-   Templates reference IDs and retrieve content at runtime via `constitution context`.
+   Templates reference IDs and retrieve content at runtime via `charter context`.
 
-4. Implement action-scoped iterative deepening in `constitution context` via `--depth <1|2|3>`:
+4. Implement action-scoped iterative deepening in `charter context` via `--depth <1|2|3>`:
    - Retrieval is scoped via two-stage intersection: action index (`actions/<action>/index.yaml`) ∩ project selections (`references.yaml`). Prevents cross-action content bleed.
    - Each artifact type fetched via its own dedicated repository service (`DirectiveRepository`, `TacticRepository`, etc.) — no cross-type fetches.
    - Depth 1 (compact): directive titles + tactic IDs for the action scope
    - Depth 2 (bootstrap): full directive procedures + tactic steps via `DoctrineService` for the action scope
    - Depth 3 (explicit): adds styleguide/toolguide details + per-action mission guidelines
 
-5. Constitution treated as configuration layer only — `generate` no longer
-   materialises content into `.kittify/constitution/library/`. All content
+5. Charter treated as configuration layer only — `generate` no longer
+   materialises content into `.kittify/charter/library/`. All content
    retrieved live from `DoctrineService` on each `context` call.
 
 6. Deploy slimmed templates to all 48 agent copies via migration `m_2_0_2`.
 
-**Entry point**: `src/specify_cli/constitution/context.py`, `src/specify_cli/constitution/resolver.py`.
+**Entry point**: `src/specify_cli/charter/context.py`, `src/specify_cli/charter/resolver.py`.
 
 **Note on MissionTemplateRepository**: Creation deferred to a follow-on feature.
 The `src/doctrine/missions` package is used directly by `context.py` for
@@ -153,7 +153,7 @@ Connectors so external execution engines can be plugged in.
 | LangFlow | Agent Tool Connector (visual) | Visual prompt flow builder for doctrine-enriched prompt construction. |
 
 **Key architectural insight**: None of these replace Kitty-core (planning,
-doctrine, constitution). They replace the execution machinery. Principle 2
+doctrine, charter). They replace the execution machinery. Principle 2
 (implementation-agnostic boundaries) means the Orchestration container's
 interface contract stays the same regardless of backend.
 
@@ -183,7 +183,7 @@ event store (JSONL + frontmatter) works for local-first operation.
 Curation cycle (interactive review of 046 artifacts)
   |
   v
-Phase 1: Constitution resolver + mission template extraction
+Phase 1: Charter resolver + mission template extraction
   |
   v
 Phase 2: Connector interface contract
@@ -215,14 +215,14 @@ review intent -> scope -> procedures -> tactic_refs (resolve to full tactics)
 Feature 055 fills the remaining gaps between the doctrine repository layer (046)
 and runtime execution. It targets three integration surfaces:
 
-1. **Init-time doctrine onboarding** — Embeds constitution setup into
+1. **Init-time doctrine onboarding** — Embeds charter setup into
    `spec-kitty init` (accept defaults or inline interview). Closes the gap
    where governance activation was a disconnected discovery step.
 
 2. **Profile injection at workflow execution** — The implement workflow resolves
    agent profiles from WP frontmatter and injects identity fragments into the
-   prompt. Same injection pattern as constitution governance context
-   (`_render_constitution_context()` in `workflow.py`). This makes profiles
+   prompt. Same injection pattern as charter governance context
+   (`_render_charter_context()` in `workflow.py`). This makes profiles
    functional participants in the Execution Coordination behavior loop
    (see `architecture/2.x/02_containers/README.md`).
 
@@ -234,7 +234,7 @@ and runtime execution. It targets three integration surfaces:
 
 | Initiative Phase | 055 Contribution |
 |------------------|------------------|
-| Phase 1 (Constitution Resolver) | Extends: init-time constitution generation from defaults or interview answers |
+| Phase 1 (Charter Resolver) | Extends: init-time charter generation from defaults or interview answers |
 | Phase 2 (Connector Interface) | Prepares: profile identity fragments become part of the governance context payload that connectors must carry |
 | Curation Prerequisite | Respects: `generic-agent` profile + directive start in `_proposed/`, require HIC review before promotion |
 
@@ -257,7 +257,7 @@ and runtime execution. It targets three integration surfaces:
 
 - `AgentProfileRepository` (045-WP02): shipped, provides two-source profile resolution
 - `DoctrineService` (046): shipped, provides typed artifact access
-- Constitution resolver (054): shipped, provides action-scoped context injection
+- Charter resolver (054): shipped, provides action-scoped context injection
 - Profile CLI (`agent profile show/list`): shipped (045-WP07), used by `profile-context` template
 
 ### Gap Analysis: Issue #284 (Customizable Git Strategy)
@@ -267,7 +267,7 @@ Issue #284 proposes git execution paradigms as selectable doctrine artifacts.
 
 - Profile injection proves the pattern of "doctrine artifact resolved at runtime
   and injected into execution context." Git strategy paradigms would follow the
-  same resolution path: paradigm selected in constitution → resolved via
+  same resolution path: paradigm selected in charter → resolved via
   DoctrineService → injected into orchestration.
 - The `generic-agent` profile's single directive ("use efficient local tooling")
   establishes the pattern of a behavioral default that can be overridden by
@@ -277,7 +277,7 @@ Full #284 implementation requires:
 1. Git strategy paradigms as doctrine artifacts (`workspace-per-wp`, `trunk-based`, etc.)
 2. Each paradigm bound to concrete tactics/procedures for workspace setup, branch routing, merge, cleanup
 3. Orchestrator refactored to be strategy-polymorphic (no unconditional worktree assumptions)
-4. Constitution bootstrap captures selected paradigm as runtime authority
+4. Charter bootstrap captures selected paradigm as runtime authority
 
 This is Phase 2+ scope. 055 is a prerequisite, not the implementation.
 
@@ -297,14 +297,14 @@ Hook-based enforcement sits at a **different layer** than doctrine injection:
 Doctrine (directives, toolguides)        ← guidance layer (all agents)
   |
   v
-Constitution context injection           ← prompt layer (all agents)
+Charter context injection           ← prompt layer (all agents)
   |
   v
 Agent hook rewrite (PreToolUse)           ← enforcement layer (select agents only)
 ```
 
 The guidance and prompt layers are universal — every agent receives tooling
-directives through the constitution context pipeline. The hook layer is an
+directives through the charter context pipeline. The hook layer is an
 **optional acceleration** that provides deterministic enforcement for agents
 whose host environment supports it.
 
@@ -321,7 +321,7 @@ whose host environment supports it.
 ### Design rule
 
 **Hooks must not be the sole mechanism for enforcing tooling behavior.** The
-doctrine stack (directive + toolguide + constitution context) is the primary
+doctrine stack (directive + toolguide + charter context) is the primary
 guidance layer and must be sufficient on its own. Hooks are a deterministic
 accelerator when available — they reduce token waste and eliminate agent
 decision overhead — but the system must degrade gracefully to directive-only
@@ -329,7 +329,7 @@ guidance when hooks are not supported.
 
 This means:
 1. Directives and toolguides must contain complete guidance (not "use the hook")
-2. Constitution context injection must surface tooling preferences in prompts
+2. Charter context injection must surface tooling preferences in prompts
 3. Hooks are additive enforcement, not a replacement for prompt-layer governance
 4. Agent-specific hook configurations belong in the agent's environment
    (e.g., `.claude/settings.json`), not in doctrine artifacts
@@ -339,7 +339,7 @@ This means:
 - Feature 046 spec: `kitty-specs/046-doctrine-artifact-domain-models/spec.md`
 - System Landscape: `architecture/2.x/00_landscape/README.md`
 - Implementation Mapping: `architecture/2.x/04_implementation_mapping/README.md`
-- Current resolver: `src/specify_cli/constitution/resolver.py`
+- Current resolver: `src/specify_cli/charter/resolver.py`
 - Current prompt builder: `src/specify_cli/next/prompt_builder.py`
 - Mission schema: `src/doctrine/schemas/mission.schema.yaml`
 - DoctrineService: `src/doctrine/service.py`

@@ -66,9 +66,9 @@ cd ecommerce-platform
 claude
 ```
 
-### 2. Create Constitution (One-time)
+### 2. Create Charter (One-time)
 ```text
-/spec-kitty.constitution
+/spec-kitty.charter
 
 Create principles for:
 - Security: PCI compliance for payments, secure auth

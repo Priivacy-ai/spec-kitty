@@ -17,19 +17,19 @@ reviewer: architect
 
 **Problem**: FR-004/FR-005 place `resolve_command_template()` and `resolve_content_template()` on `MissionTemplateRepository` in `src/doctrine/missions/repository.py`, with lazy imports from `specify_cli.runtime.resolver` (FR-018). Even lazy imports are runtime dependencies — `doctrine` becomes non-distributable standalone.
 
-**Verified**: `src/doctrine/` currently has zero imports from `specify_cli` or `constitution`. This must be preserved.
+**Verified**: `src/doctrine/` currently has zero imports from `specify_cli` or `charter`. This must be preserved.
 
-**HiC Decision**: **(B) — `ConstitutionTemplateResolver` in `src/constitution/template_resolver.py`**. Constitution is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's constitution by definition.
+**HiC Decision**: **(B) — `CharterTemplateResolver` in `src/charter/template_resolver.py`**. Charter is the concretization of doctrine into local context-aware legislation. The 5-tier override chain is "how project context modifies doctrine defaults" — that's charter by definition.
 
-**Corrected dependency model** (per HiC): `kernel` is the true zero-dependency root. `doctrine` depends only on `kernel`. `constitution` depends on `doctrine` + `kernel` + may import `specify_cli.runtime`. `specify_cli` depends on all three.
+**Corrected dependency model** (per HiC): `kernel` is the true zero-dependency root. `doctrine` depends only on `kernel`. `charter` depends on `doctrine` + `kernel` + may import `specify_cli.runtime`. `specify_cli` depends on all three.
 
-**Applied**: FR-004, FR-005, FR-018 updated in spec. WP03 restructured: T014/T015 now create `ConstitutionTemplateResolver` in `src/constitution/`. Plan updated with decision rationale.
+**Applied**: FR-004, FR-005, FR-018 updated in spec. WP03 restructured: T014/T015 now create `CharterTemplateResolver` in `src/charter/`. Plan updated with decision rationale.
 
-## AR-2 (MEDIUM): `ProjectMissionPaths` targets legacy constitution location
+## AR-2 (MEDIUM): `ProjectMissionPaths` targets legacy charter location
 
-**Problem**: WP09 places `ProjectMissionPaths` in `src/specify_cli/constitution/mission_paths.py` but PR #305 extracted constitution to `src/constitution/` as standalone package. Both directories exist; legacy will eventually be removed.
+**Problem**: WP09 places `ProjectMissionPaths` in `src/specify_cli/charter/mission_paths.py` but PR #305 extracted charter to `src/charter/` as standalone package. Both directories exist; legacy will eventually be removed.
 
-**Fix**: Target `src/constitution/mission_paths.py` instead.
+**Fix**: Target `src/charter/mission_paths.py` instead.
 
 ## AR-3 (LOW): `MissionTemplateRepository` not wired into `DoctrineService`
 

@@ -12,7 +12,7 @@ contracts, procedures, action indices, mission definitions).
 Two tracks exist and should remain distinct:
 
 1. **Skills** — how an external agent correctly uses Spec Kitty itself:
-   runtime-next control loop, constitution/doctrine access, review workflow,
+   runtime-next control loop, charter/doctrine access, review workflow,
    setup/repair, glossary context, git workflow, orchestrator API.
 
 2. **Doctrine mission composition** — how a team does product work: which
@@ -33,7 +33,7 @@ load a tactic, reading an action index to scope context). Skills should
 Skills should teach agents to load doctrine **iteratively**:
 
 1. At init: resolve agent profile, load initialization declaration.
-2. At each step boundary: call `build_constitution_context(action, depth=1)`.
+2. At each step boundary: call `build_charter_context(action, depth=1)`.
 3. When stuck or need guidance: pull specific tactic/directive by ID.
 4. Never: load the full doctrine catalog into prompt context upfront.
 
@@ -42,7 +42,7 @@ Skills should teach agents to load doctrine **iteratively**:
 | Skill | Purpose |
 |---|---|
 | `spec-kitty-runtime-next` | Drive the `next --agent` control loop with doctrine-aware context loading |
-| `spec-kitty-constitution-doctrine` | Constitution lifecycle + `DoctrineService` programmatic access |
+| `spec-kitty-charter-doctrine` | Charter lifecycle + `DoctrineService` programmatic access |
 | `spec-kitty-mission-system` | Mission types, step contracts, procedures, action indices, template resolution |
 | `ad-hoc-profile-load` | Load an agent profile on demand for interactive sessions outside the mission loop |
 | `spec-kitty-runtime-review` | Review workflow surface: claim, review, approve/reject |
@@ -61,6 +61,6 @@ copies (`.claude/skills/`, `.agents/skills/`, etc.) are generated during
 ## Related
 
 - Issue #327: Doctrine mission compiler proposal
-- PR #305 / #348: Doctrine artifact domain, agent profiles, constitution bootstrap
+- PR #305 / #348: Doctrine artifact domain, agent profiles, charter bootstrap
 - `src/doctrine/missions/`: Mission type definitions with action indices
 - `src/doctrine/agent_profiles/`: Agent profile repository and shipped profiles

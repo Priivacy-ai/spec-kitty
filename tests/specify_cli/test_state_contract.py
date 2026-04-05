@@ -57,7 +57,7 @@ def test_all_state_roots_used():
 def test_all_git_classes_used():
     """At least one surface per GitClass value (except retired classes)."""
     # INSIDE_REPO_NOT_IGNORED was retired in feature 054: all surfaces using it
-    # were either removed (active_mission_marker) or reclassified (constitution).
+    # were either removed (active_mission_marker) or reclassified (charter).
     retired_classes = {GitClass.INSIDE_REPO_NOT_IGNORED}
     classes_used = {s.git_class for s in STATE_SURFACES}
     for gc in GitClass:
@@ -204,11 +204,11 @@ def test_runtime_gitignore_entries_exact():
     entries = get_runtime_gitignore_entries()
     expected = [
         ".kittify/.dashboard",
-        ".kittify/constitution/context-state.json",
-        ".kittify/constitution/directives.yaml",
-        ".kittify/constitution/governance.yaml",
-        ".kittify/constitution/metadata.yaml",
-        ".kittify/constitution/references.yaml",
+        ".kittify/charter/context-state.json",
+        ".kittify/charter/directives.yaml",
+        ".kittify/charter/governance.yaml",
+        ".kittify/charter/metadata.yaml",
+        ".kittify/charter/references.yaml",
         ".kittify/dossiers/",
         ".kittify/events/",
         ".kittify/merge-state.json",
@@ -297,13 +297,13 @@ def test_deprecated_authority_class():
 
 
 # ---------------------------------------------------------------------------
-# Constitution Git policy (feature 054)
+# Charter Git policy (feature 054)
 # ---------------------------------------------------------------------------
 
 
-def test_constitution_references_is_local_runtime_ignored():
-    """constitution_references must be LOCAL_RUNTIME / IGNORED (local machine state)."""
-    surface = next(s for s in STATE_SURFACES if s.name == "constitution_references")
+def test_charter_references_is_local_runtime_ignored():
+    """charter_references must be LOCAL_RUNTIME / IGNORED (local machine state)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "charter_references")
     assert surface.authority == AuthorityClass.LOCAL_RUNTIME, (
         f"Expected LOCAL_RUNTIME, got {surface.authority}"
     )
@@ -312,9 +312,9 @@ def test_constitution_references_is_local_runtime_ignored():
     )
 
 
-def test_constitution_library_is_authoritative_tracked():
-    """constitution_library must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
-    surface = next(s for s in STATE_SURFACES if s.name == "constitution_library")
+def test_charter_library_is_authoritative_tracked():
+    """charter_library must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "charter_library")
     assert surface.authority == AuthorityClass.AUTHORITATIVE, (
         f"Expected AUTHORITATIVE, got {surface.authority}"
     )
@@ -323,9 +323,9 @@ def test_constitution_library_is_authoritative_tracked():
     )
 
 
-def test_constitution_answers_is_authoritative_tracked():
-    """constitution_interview_answers must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
-    surface = next(s for s in STATE_SURFACES if s.name == "constitution_interview_answers")
+def test_charter_answers_is_authoritative_tracked():
+    """charter_interview_answers must be AUTHORITATIVE / TRACKED (shared team knowledge)."""
+    surface = next(s for s in STATE_SURFACES if s.name == "charter_interview_answers")
     assert surface.authority == AuthorityClass.AUTHORITATIVE, (
         f"Expected AUTHORITATIVE, got {surface.authority}"
     )
@@ -368,18 +368,18 @@ def test_section_a_project_surfaces_present():
     assert not missing, f"Missing Section A surfaces: {missing}"
 
 
-def test_section_b_constitution_surfaces_present():
+def test_section_b_charter_surfaces_present():
     """Key Section B surfaces exist."""
     names = {s.name for s in STATE_SURFACES}
     expected = {
-        "constitution_source",
-        "constitution_interview_answers",
-        "constitution_references",
-        "constitution_library",
-        "constitution_governance",
-        "constitution_directives",
-        "constitution_sync_metadata",
-        "constitution_context_state",
+        "charter_source",
+        "charter_interview_answers",
+        "charter_references",
+        "charter_library",
+        "charter_governance",
+        "charter_directives",
+        "charter_sync_metadata",
+        "charter_context_state",
     }
     missing = expected - names
     assert not missing, f"Missing Section B surfaces: {missing}"

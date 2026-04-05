@@ -237,7 +237,7 @@ jobs:
           fi
 
           mapfile -d '' CHANGED < <(git diff --name-only -z --diff-filter=ACM "$FROM_SHA" "$TO_SHA" \
-            -- 'glossary/**' 'src/specify_cli/**' 'src/constitution/**' 'src/constitution/**' '.kittify/traceability/**')
+            -- 'glossary/**' 'src/specify_cli/**' 'src/charter/**' 'src/charter/**' '.kittify/traceability/**')
 
           if [ "${#CHANGED[@]}" -eq 0 ]; then
             echo "No changes in glossary/, src/specify_cli/, or .kittify/traceability/. Skipping Contextive check."
@@ -265,7 +265,7 @@ jobs:
         continue-on-error: true
         run: |
           set -o pipefail
-          if python -m mypy --strict src/specify_cli src/constitution src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
+          if python -m mypy --strict src/specify_cli src/charter src/doctrine 2>&1 | tee out/reports/static-analysis/mypy-report.txt; then
             echo "has_failures=false" >> "$GITHUB_OUTPUT"
           else
             echo "has_failures=true" >> "$GITHUB_OUTPUT"
@@ -525,7 +525,7 @@ jobs:
             -v \
             --ignore=tests/legacy \
             -m fast \
-            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine --cov=src/kernel \
+            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine --cov=src/kernel \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-fast-${{ github.run_id }}.xml
@@ -590,7 +590,7 @@ jobs:
             -v \
             --ignore=tests/legacy \
             -m git_repo \
-            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
+            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-integration.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-${{ github.run_id }}.xml
 
@@ -648,7 +648,7 @@ jobs:
             -v \
             --ignore=tests/legacy \
             -m slow \
-            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
+            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
             | tee out/reports/slow-e2e/slow.log
@@ -661,7 +661,7 @@ jobs:
             -v \
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution" \
-            --cov=src/specify_cli --cov=src/constitution --cov=src/doctrine \
+            --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-append \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml \
@@ -716,7 +716,7 @@ jobs:
           path: out/reports/integration
         continue-on-error: true
 
-      # Critical-path modules: kernel, doctrine, constitution, status, mission detection,
+      # Critical-path modules: kernel, doctrine, charter, status, mission detection,
       # dashboard, merge, next.
       # Coverage effort is proportional to risk — flat 80% incentivizes meaningless tests.
       - name: "[ENFORCED] Critical-path diff coverage (90% on core modules)"
@@ -738,7 +738,7 @@ jobs:
             --include \
               'src/kernel/*' \
               'src/doctrine/*' \
-              'src/constitution/*' \
+              'src/charter/*' \
               'src/specify_cli/status/*' \
               'src/specify_cli/core/mission_detection.py' \
               'src/specify_cli/dashboard/handlers/*' \

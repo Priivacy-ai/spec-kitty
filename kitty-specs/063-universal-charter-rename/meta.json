@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-04-04T18:39:27.049383+00:00",
+  "feature_number": "063",
+  "feature_slug": "063-universal-charter-rename",
+  "friendly_name": "Universal Charter Rename",
+  "mission": "software-dev",
+  "slug": "063-universal-charter-rename",
+  "source_description": "Rename every occurrence of 'constitution' to 'charter' across the entire spec-kitty repository — CLI, modules, paths, skills, docs, tests, migrations, templates, and generated artifacts — plus an idempotent migration for existing user project state.",
+  "target_branch": "main",
+  "vcs": "git"
+}

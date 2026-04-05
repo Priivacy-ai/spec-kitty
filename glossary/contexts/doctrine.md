@@ -19,12 +19,12 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 |                   |                                                                                                                                                                                                                                         |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A high-level doctrine rule expressing non-negotiable or strongly preferred governance behavior. Guidelines sit at the highest precedence and bound what project-level constitution may customize.                                     |
+| **Definition**    | A high-level doctrine rule expressing non-negotiable or strongly preferred governance behavior. Guidelines sit at the highest precedence and bound what project-level charter may customize.                                     |
 | **Context**       | Doctrine                                                                                                                                                                                                                                |
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | Precedence concept in governance model (no dedicated `src/doctrine/guidelines/` directory in current tree)                                                                                                                           |
-| **Related terms** | [Directive](#directive), [Constitution Selection](#constitution-selection), [Precedence Hierarchy](./governance.md)                                                                                                                  |
+| **Related terms** | [Directive](#directive), [Charter Selection](#charter-selection), [Precedence Hierarchy](./governance.md)                                                                                                                  |
 
 ---
 
@@ -37,7 +37,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/doctrine/paradigms/`                                                                                                                                                                                                              |
-| **Related terms** | [Directive](#directive), [Tactic](#tactic), [Constitution](#constitution-selection)                                                                                                                                                   |
+| **Related terms** | [Directive](#directive), [Tactic](#tactic), [Charter](#charter-selection)                                                                                                                                                   |
 
 ---
 
@@ -84,12 +84,12 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 |                   |                                                                                                                                                                                                                                         |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | A structured set of doctrine templates that shape output artifacts and interaction contracts for mission actions and procedures. Template sets allow consistent behavior across mission types while remaining configurable through constitution selections. |
+| **Definition**    | A structured set of doctrine templates that shape output artifacts and interaction contracts for mission actions and procedures. Template sets allow consistent behavior across mission types while remaining configurable through charter selections. |
 | **Context**       | Doctrine                                                                                                                                                                                                                                |
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/doctrine/templates/sets/`                                                                                                                                                                                                         |
-| **Related terms** | [Procedure](#procedure), [Tactic](#tactic), [Constitution Selection](#constitution-selection)                                                                                                                                         |
+| **Related terms** | [Procedure](#procedure), [Tactic](#tactic), [Charter Selection](#charter-selection)                                                                                                                                         |
 
 ---
 
@@ -102,7 +102,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
 | **Location**      | `src/doctrine/styleguides/`                                                                                                                                                                                                            |
-| **Related terms** | [Toolguide](#toolguide), [Schema (Doctrine Artifact)](#schema-doctrine-artifact), [Constitution Selection](#constitution-selection)                                                                                                   |
+| **Related terms** | [Toolguide](#toolguide), [Schema (Doctrine Artifact)](#schema-doctrine-artifact), [Charter Selection](#charter-selection)                                                                                                   |
 
 ---
 
@@ -145,7 +145,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 ---
 
-### Constitution Selection
+### Charter Selection
 
 |                   |                                                                                                                                                                                                                                         |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -153,7 +153,7 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 | **Context**       | Doctrine                                                                                                                                                                                                                                |
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
-| **Location**      | `.kittify/constitution/`                                                                                                                                                                                                               |
+| **Location**      | `.kittify/charter/`                                                                                                                                                                                                               |
 | **Related terms** | [Doctrine Domain](#doctrine-domain), [Governance](./governance.md), [Configuration & Project Structure](./configuration-project-structure.md)                                                                                        |
 
 ---
@@ -162,10 +162,10 @@ Terms describing the Doctrine domain model and doctrine artifact taxonomy.
 
 |                   |                                                                                                                                                                                                                                         |
 |-------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Definition**    | The registry of all available paradigms, directives, template sets, and tools that the HiC can select from when building their constitution. The constitution compiler validates selections against this catalog.                       |
+| **Definition**    | The registry of all available paradigms, directives, template sets, and tools that the HiC can select from when building their charter. The charter compiler validates selections against this catalog.                       |
 | **Context**       | Doctrine                                                                                                                                                                                                                                |
 | **Status**        | canonical                                                                                                                                                                                                                               |
 | **Applicable to** | `1.x`, `2.x` |
-| **Related terms** | [Constitution Selection](#constitution-selection), [Constitution Compiler](./governance.md#constitution-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic)                                                         |
+| **Related terms** | [Charter Selection](#charter-selection), [Charter Compiler](./governance.md#charter-compiler), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic)                                                         |
 
 ---

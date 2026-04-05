@@ -53,7 +53,7 @@ The glossary runtime supports three enforcement levels:
 | `medium` | Only HIGH severity conflicts block generation |
 | `max` | Any unresolved conflict blocks generation |
 
-Strictness is configured per-project in `.kittify/config.yaml` or via the constitution interview. The default is `medium`.
+Strictness is configured per-project in `.kittify/config.yaml` or via the charter interview. The default is `medium`.
 
 ## Conflict Resolution
 

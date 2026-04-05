@@ -336,7 +336,7 @@ class TestSetupFeatureDirectory:
         # Create memory directory in main repo
         memory_dir = repo_root / ".kittify" / "memory"
         memory_dir.mkdir(parents=True)
-        (memory_dir / "constitution.md").write_text("Constitution content")
+        (memory_dir / "charter.md").write_text("Charter content")
 
         # Execute
         setup_feature_directory(feature_dir, worktree_path, repo_root, create_symlinks=False)
@@ -346,7 +346,7 @@ class TestSetupFeatureDirectory:
         assert worktree_memory.exists()
         assert worktree_memory.is_dir()
         assert not worktree_memory.is_symlink()
-        assert (worktree_memory / "constitution.md").read_text() == "Constitution content"
+        assert (worktree_memory / "charter.md").read_text() == "Charter content"
 
     @patch("platform.system")
     def test_uses_copy_on_windows(self, mock_system: Mock, tmp_path: Path):
@@ -872,7 +872,7 @@ class TestExcludeFromGit:
         # Create memory and AGENTS.md in main repo
         memory_dir = tmp_path / ".kittify" / "memory"
         memory_dir.mkdir(parents=True)
-        (memory_dir / "constitution.md").write_text("Constitution")
+        (memory_dir / "charter.md").write_text("Charter")
         (tmp_path / ".kittify" / "AGENTS.md").write_text("# Agents")
 
         # Execute: setup_feature_directory should call _exclude_from_git

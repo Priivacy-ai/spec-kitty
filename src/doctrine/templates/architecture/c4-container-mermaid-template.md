@@ -18,7 +18,7 @@ flowchart TB
     subgraph Host["Spec Kitty Host"]
       cli[CLI Command Surface]
       runtime[Runtime and Mission Resolver]
-      governance[Constitution and Governance Engine]
+      governance[Charter and Governance Engine]
       doctrine[Doctrine Artifact Catalog]
       glossary[Glossary Corpus and Hook Layer]
       api[Orchestrator API]
@@ -39,7 +39,7 @@ flowchart TB
 |---|---|
 | CLI Command Surface | User and agent entrypoint |
 | Runtime and Mission Resolver | Canonical `next` loop and mission resolution |
-| Constitution and Governance Engine | Constitution interview/generate/context/status/sync |
+| Charter and Governance Engine | Charter interview/generate/context/status/sync |
 | Doctrine Artifact Catalog | Typed directives/tactics/styleguides/templates |
 | Glossary Corpus and Hook Layer | Context glossary and runtime glossary checks |
 | Orchestrator API | External automation contract |

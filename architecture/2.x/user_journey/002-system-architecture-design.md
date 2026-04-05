@@ -46,7 +46,7 @@ artifacts rather than feature artifacts.
 
 1. Project has been initialized with `spec-kitty init`.
 2. Project has been bootstrapped (`/spec-kitty.bootstrap`) — `vision.md` exists with project purpose and scope.
-3. Constitution exists (from bootstrap or standalone `/spec-kitty.constitution`).
+3. Charter exists (from bootstrap or standalone `/spec-kitty.charter`).
 4. At least one supported AI agent is configured.
 5. Git repository is initialized (architecture artifacts are version-controlled).
 
@@ -63,7 +63,7 @@ artifacts rather than feature artifacts.
 | 5. Pattern Research | AI Agent | AI researches applicable architectural patterns based on constraints + NFRs | `PatternResearched`, `AlternativeEvaluated` |
 | 6. Reference Architecture Selection | Architect ↔ AI Agent | AI proposes reference architecture with alternatives; architect decides | `ReferenceArchitectureProposed`, `ArchitectureDecisionRecorded` |
 | 7. Design Pattern Decisions | Architect ↔ AI Agent | AI proposes specific patterns (bounded contexts, ACL, layers); architect validates | `DesignPatternSelected`, `ArchitectureDecisionRecorded` |
-| 8. Artifact Generation | AI Agent ↔ CLI | CLI commits architecture artifacts; links to vision and constitution | `DesignArtifactsGenerated`, `DesignSessionCompleted` |
+| 8. Artifact Generation | AI Agent ↔ CLI | CLI commits architecture artifacts; links to vision and charter | `DesignArtifactsGenerated`, `DesignSessionCompleted` |
 | 9. Downstream Alignment | — | Subsequent `/spec-kitty.plan` commands reference architecture artifacts for per-feature design | `FeaturePlanAligned` |
 
 ---

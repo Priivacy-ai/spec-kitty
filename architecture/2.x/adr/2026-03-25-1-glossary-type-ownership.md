@@ -2,7 +2,7 @@
 
 **Date**: 2026-03-25
 **Status**: Accepted
-**Scope**: Dependency boundary between `doctrine`, `specify_cli`, `constitution`, and the new `kernel` package
+**Scope**: Dependency boundary between `doctrine`, `specify_cli`, `charter`, and the new `kernel` package
 
 ---
 
@@ -26,7 +26,7 @@ shared by all three higher-level packages. Its declared contract is:
 
 ```
 kernel  <-  doctrine
-kernel  <-  constitution
+kernel  <-  charter
 kernel  <-  specify_cli
 ```
 
@@ -77,7 +77,7 @@ kernel (stdlib only)
   |     doctrine.missions.primitives imports from kernel.glossary_types
   |     doctrine.missions.glossary_hook: kernel for Strictness; lazy import for specify_cli
   |
-  +-- constitution (no dependency on specify_cli at module level)
+  +-- charter (no dependency on specify_cli at module level)
   |
   +-- specify_cli
         specify_cli.glossary.* re-exports from kernel.glossary_types

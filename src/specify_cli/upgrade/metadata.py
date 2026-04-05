@@ -11,6 +11,14 @@ import yaml
 
 from specify_cli.core.atomic import atomic_write
 
+_LEGACY_MIGRATION_ID_MAP: dict[str, str] = {
+    "0.10.12_constitution_cleanup": "0.10.12_charter_cleanup",
+    "0.13.0_update_constitution_templates": "0.13.0_update_charter_templates",
+    "2.0.0_constitution_directory": "2.0.0_charter_directory",
+    "2.0.2_constitution_context_bootstrap": "2.0.2_charter_context_bootstrap",
+    "2.1.2_fix_constitution_doctrine_skill": "2.1.2_fix_charter_doctrine_skill",
+}
+
 
 @dataclass
 class MigrationRecord:
@@ -88,7 +96,7 @@ class ProjectMetadata:
         except ValueError:
             last_upgraded_at = None
 
-        return cls(
+        metadata = cls(
             version=spec_kitty.get("version", "unknown"),
             initialized_at=initialized_at,
             last_upgraded_at=last_upgraded_at,
@@ -97,6 +105,36 @@ class ProjectMetadata:
             platform_version=env.get("platform_version", ""),
             applied_migrations=applied,
         )
+        # Note: legacy ID normalization is NOT performed on load.
+        # It must be triggered explicitly via normalize_and_save_legacy_ids()
+        # to avoid mutating files during dry-run or read-only operations.
+        return metadata
+
+    def normalize_and_save_legacy_ids(self, kittify_dir: Path) -> list[str]:
+        """Normalize constitution-era migration IDs and persist if changed.
+
+        Returns a list of change descriptions for reporting.
+        Call this explicitly from the migration runner or charter-rename
+        migration -- never from load().
+        """
+        changes: list[str] = []
+        if self._normalize_legacy_ids():
+            self.save(kittify_dir)
+            changes.append("Normalized legacy constitution-era migration IDs to charter-era IDs")
+        return changes
+
+    def _normalize_legacy_ids(self) -> bool:
+        """Rewrite constitution-era migration IDs to charter-era IDs.
+
+        Returns True if any IDs were rewritten.
+        """
+        changed = False
+        for record in self.applied_migrations:
+            new_id = _LEGACY_MIGRATION_ID_MAP.get(record.id)
+            if new_id:
+                record.id = new_id
+                changed = True
+        return changed
 
     def save(self, kittify_dir: Path) -> None:
         """Save metadata to .kittify/metadata.yaml.
