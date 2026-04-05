@@ -141,12 +141,7 @@ def test_resolve_active_feature_requires_explicit_selection(tmp_path):
     --feature flag.  This test confirms the contract: without heuristics,
     resolve_active_feature always returns None.
     """
-    features = [
-        {"id": "009-old-feature"},
-        {"id": "010-new-feature"},
-    ]
-
-    resolved = scanner.resolve_active_feature(tmp_path, features)
+    resolved = scanner.resolve_active_feature(tmp_path)
     assert resolved is None, (
         "resolve_active_feature must return None after removal of auto-detection"
     )

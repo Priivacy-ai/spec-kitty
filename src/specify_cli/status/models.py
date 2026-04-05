@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, ClassVar
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 
@@ -172,15 +172,22 @@ class StatusEvent:
         }
         return d
 
+    # Legacy lane name aliases from older event log formats.
+    _LANE_ALIASES: ClassVar[dict[str, str]] = {"in_review": "for_review"}
+
+    @classmethod
+    def _coerce_lane(cls, value: str) -> Lane:
+        return Lane(cls._LANE_ALIASES.get(value, value))
+
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusEvent:
         evidence_data = data.get("evidence")
         return cls(
             event_id=data["event_id"],
-            feature_slug=data["feature_slug"],
+            feature_slug=data.get("mission_slug") or data["feature_slug"],
             wp_id=data["wp_id"],
-            from_lane=Lane(data["from_lane"]),
-            to_lane=Lane(data["to_lane"]),
+            from_lane=cls._coerce_lane(data["from_lane"]),
+            to_lane=cls._coerce_lane(data["to_lane"]),
             at=data["at"],
             actor=data["actor"],
             force=data["force"],

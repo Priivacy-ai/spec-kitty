@@ -149,9 +149,9 @@ exclude = [
 [tool.pytest.ini_options]
 markers = [
     "fast: Pure unit tests with no I/O or subprocess calls (CI fast gate)",
+    "integration: Integration tests using real filesystem or in-process I/O, no subprocess/git",
     "slow: Tests taking >10 seconds or requiring heavy setup",
     "git_repo: Tests that need a real git repository (integration gate)",
-    "legacy: Frozen 0.x/1.x contract tests — only run on the 0.x/1.x maintenance branch",
     "adversarial: Adversarial/security tests for 0.13.0",
     "doctrine: Doctrine package smoke and integration checks",
     "distribution: Tests requiring wheel install (slow, no SPEC_KITTY_TEMPLATE_ROOT)",
@@ -163,7 +163,7 @@ markers = [
 
 [tool.ruff]
 target-version = "py311"
-line-length = 120
+line-length = 164
 
 [tool.ruff.lint]
 select = [

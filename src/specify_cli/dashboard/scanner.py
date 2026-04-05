@@ -275,7 +275,7 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
 
 def resolve_active_feature(
     project_dir: Path,
-    features: List[Dict[str, Any]],
+    features: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return None — active feature cannot be auto-detected; requires explicit --feature.
 
@@ -284,9 +284,6 @@ def resolve_active_feature(
     feature slug from the caller.
     """
     return None
-
-    # Keep previous deterministic fallback for edge cases.
-    return features[0]
 
 
 def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
