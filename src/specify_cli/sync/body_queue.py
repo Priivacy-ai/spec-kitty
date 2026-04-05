@@ -7,21 +7,24 @@ same SQLite DB file.
 
 from __future__ import annotations
 
-import logging
 import sqlite3
 import time
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from .queue import default_queue_db_path, ensure_body_queue_schema
+from .queue import (
+    DEFAULT_MAX_QUEUE_SIZE,
+    default_queue_db_path,
+    ensure_body_queue_schema,
+    get_max_queue_size,
+)
 
 if TYPE_CHECKING:
     from .namespace import NamespaceRef
 
-logger = logging.getLogger(__name__)
-
-MAX_BODY_QUEUE_SIZE = 10_000
+DEFAULT_BODY_QUEUE_SIZE = DEFAULT_MAX_QUEUE_SIZE
 _BACKOFF_BASE = 1.0
 _BACKOFF_CAP = 300.0
 
@@ -60,6 +63,14 @@ class BodyQueueStats:
     retry_histogram: dict[int, int]
 
 
+class BodyEnqueueResult(StrEnum):
+    """Classification of a body queue enqueue attempt."""
+
+    ENQUEUED = "enqueued"
+    ALREADY_EXISTS = "already_exists"
+    QUEUE_FULL = "queue_full"
+
+
 class OfflineBodyUploadQueue:
     """SQLite-backed queue for artifact body uploads.
 
@@ -67,16 +78,30 @@ class OfflineBodyUploadQueue:
     idempotent enqueue, per-task backoff drain, and lifecycle methods.
     """
 
-    def __init__(self, db_path: Path | None = None) -> None:
+    def __init__(
+        self,
+        db_path: Path | None = None,
+        max_queue_size: int | None = None,
+    ) -> None:
         if db_path is None:
             db_path = default_queue_db_path()
         self.db_path = db_path
+        self._max_queue_size = (
+            int(max_queue_size)
+            if max_queue_size is not None
+            else get_max_queue_size()
+        )
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         try:
             ensure_body_queue_schema(conn)
         finally:
             conn.close()
+
+    @property
+    def max_queue_size(self) -> int:
+        """Configured queue capacity for body uploads."""
+        return self._max_queue_size
 
     def enqueue(
         self,
@@ -86,19 +111,16 @@ class OfflineBodyUploadQueue:
         content_body: str,
         size_bytes: int,
         hash_algorithm: str = "sha256",
-    ) -> bool:
-        """Enqueue a body upload task. Returns True if new, False if duplicate."""
+    ) -> BodyEnqueueResult:
+        """Enqueue a body upload task."""
         conn = sqlite3.connect(self.db_path)
         try:
             row = conn.execute("SELECT COUNT(*) FROM body_upload_queue").fetchone()
             count = int(row[0]) if row else 0
-            if count >= MAX_BODY_QUEUE_SIZE:
-                logger.warning(
-                    "Body upload queue full (%d tasks). Dropping enqueue for %s",
-                    MAX_BODY_QUEUE_SIZE,
-                    artifact_path,
-                )
-                return False
+            if count >= self._max_queue_size:
+                # Keep normal CLI output quiet in offline-first mode. Saturation can
+                # still be inspected explicitly via queue diagnostics.
+                return BodyEnqueueResult.QUEUE_FULL
             cursor = conn.execute(
                 """INSERT OR IGNORE INTO body_upload_queue
                    (project_uuid, feature_slug, target_branch, mission_key,
@@ -120,7 +142,9 @@ class OfflineBodyUploadQueue:
                 ),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            if cursor.rowcount > 0:
+                return BodyEnqueueResult.ENQUEUED
+            return BodyEnqueueResult.ALREADY_EXISTS
         finally:
             conn.close()
 
@@ -135,7 +159,7 @@ class OfflineBodyUploadQueue:
                           created_at, last_error
                    FROM body_upload_queue
                    WHERE next_attempt_at <= ?
-                   ORDER BY created_at ASC
+                   ORDER BY created_at ASC, id ASC
                    LIMIT ?""",
                 (time.time(), limit),
             )
@@ -206,7 +230,7 @@ class OfflineBodyUploadQueue:
         finally:
             conn.close()
 
-    def mark_failed_permanent(self, row_id: int, error: str) -> None:
+    def mark_failed_permanent(self, row_id: int, _error: str) -> None:
         """Remove a permanently failed task (non-retryable error)."""
         conn = sqlite3.connect(self.db_path)
         try:

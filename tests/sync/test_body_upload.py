@@ -371,6 +371,49 @@ class TestPrepareBodyUploads:
         outcomes2 = prepare_body_uploads([artifact], ns, queue, tmp_path)
         assert outcomes2[0].status == UploadStatus.ALREADY_EXISTS
 
+    def test_queue_full_returns_failed(self, tmp_path: Path) -> None:
+        spec_path = tmp_path / "spec.md"
+        spec_path.write_text("# Spec\n", encoding="utf-8")
+        spec_hash = hashlib.sha256(spec_path.read_bytes()).hexdigest()
+
+        plan_path = tmp_path / "plan.md"
+        plan_path.write_text("# Plan\n", encoding="utf-8")
+        plan_hash = hashlib.sha256(plan_path.read_bytes()).hexdigest()
+
+        queue = OfflineBodyUploadQueue(
+            db_path=tmp_path / "queue.db",
+            max_queue_size=1,
+        )
+
+        first = prepare_body_uploads(
+            [
+                _artifact(
+                    relative_path="spec.md",
+                    content_hash=spec_hash,
+                    size_bytes=len(spec_path.read_bytes()),
+                )
+            ],
+            _ns(),
+            queue,
+            tmp_path,
+        )
+        assert first[0].status == UploadStatus.QUEUED
+
+        second = prepare_body_uploads(
+            [
+                _artifact(
+                    relative_path="plan.md",
+                    content_hash=plan_hash,
+                    size_bytes=len(plan_path.read_bytes()),
+                )
+            ],
+            _ns(),
+            queue,
+            tmp_path,
+        )
+        assert second[0].status == UploadStatus.FAILED
+        assert second[0].reason == "queue_full"
+
     def test_hash_mismatch_skipped(self, tmp_path: Path) -> None:
         file_path = tmp_path / "spec.md"
         file_path.write_text("original", encoding="utf-8")

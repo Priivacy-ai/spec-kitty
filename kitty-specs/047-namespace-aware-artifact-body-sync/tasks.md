@@ -69,7 +69,7 @@
 - Table lives in the same SQLite DB file as the event `queue` table (shared DB connection)
 - Unique constraint prevents duplicate tasks for same content+namespace; changed content (new hash) creates new task
 - `next_attempt_at` column enables per-task exponential backoff (1s initial, 5min cap)
-- Queue capacity limit: 10,000 rows (consistent with event queue)
+- Queue capacity limit: 100,000 rows by default, reusing the shared sync queue policy/configuration
 
 ### Parallel Opportunities
 - T011 (stats) is independent once schema exists.

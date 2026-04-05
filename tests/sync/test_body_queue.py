@@ -2,20 +2,24 @@
 
 from __future__ import annotations
 
-import pytest
+import logging
 import sqlite3
 import time
 from unittest.mock import patch
 
+import pytest
 
 from specify_cli.sync.body_queue import (
+    BodyEnqueueResult,
     BodyQueueStats,
     BodyUploadTask,
+    DEFAULT_BODY_QUEUE_SIZE,
     OfflineBodyUploadQueue,
 )
 from specify_cli.sync.namespace import NamespaceRef
 
 pytestmark = pytest.mark.fast
+
 
 def _ns(
     project_uuid: str = "uuid-1",
@@ -97,7 +101,7 @@ class TestEnqueue:
             content_body="# Spec",
             size_bytes=6,
         )
-        assert result is True
+        assert result == BodyEnqueueResult.ENQUEUED
 
     def test_duplicate_returns_false(self, tmp_path: object) -> None:
         from pathlib import Path
@@ -107,7 +111,7 @@ class TestEnqueue:
         ns = _ns()
         q.enqueue(ns, "spec.md", "sha256abc", "# Spec", 6)
         result = q.enqueue(ns, "spec.md", "sha256abc", "# Spec", 6)
-        assert result is False
+        assert result == BodyEnqueueResult.ALREADY_EXISTS
 
     def test_different_hash_creates_new_task(self, tmp_path: object) -> None:
         from pathlib import Path
@@ -115,8 +119,8 @@ class TestEnqueue:
         db = Path(str(tmp_path)) / "test.db"
         q = OfflineBodyUploadQueue(db_path=db)
         ns = _ns()
-        assert q.enqueue(ns, "spec.md", "hash1", "v1", 2) is True
-        assert q.enqueue(ns, "spec.md", "hash2", "v2", 2) is True
+        assert q.enqueue(ns, "spec.md", "hash1", "v1", 2) == BodyEnqueueResult.ENQUEUED
+        assert q.enqueue(ns, "spec.md", "hash2", "v2", 2) == BodyEnqueueResult.ENQUEUED
 
     def test_different_namespace_creates_new_task(self, tmp_path: object) -> None:
         from pathlib import Path
@@ -125,29 +129,38 @@ class TestEnqueue:
         q = OfflineBodyUploadQueue(db_path=db)
         ns1 = _ns(feature_slug="feat-a")
         ns2 = _ns(feature_slug="feat-b")
-        assert q.enqueue(ns1, "spec.md", "hash1", "body", 4) is True
-        assert q.enqueue(ns2, "spec.md", "hash1", "body", 4) is True
+        assert q.enqueue(ns1, "spec.md", "hash1", "body", 4) == BodyEnqueueResult.ENQUEUED
+        assert q.enqueue(ns2, "spec.md", "hash1", "body", 4) == BodyEnqueueResult.ENQUEUED
+
+    def test_default_capacity_matches_event_queue_default(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        db = Path(str(tmp_path)) / "test.db"
+        q = OfflineBodyUploadQueue(db_path=db)
+        assert q.max_queue_size == DEFAULT_BODY_QUEUE_SIZE
 
     def test_capacity_limit(self, tmp_path: object) -> None:
         from pathlib import Path
 
         db = Path(str(tmp_path)) / "test.db"
-        q = OfflineBodyUploadQueue(db_path=db)
-        # Insert MAX tasks directly
-        conn = sqlite3.connect(db)
-        for i in range(10_000):
-            conn.execute(
-                """INSERT INTO body_upload_queue
-                   (project_uuid, feature_slug, target_branch, mission_key,
-                    manifest_version, artifact_path, content_hash, hash_algorithm,
-                    content_body, size_bytes, retry_count, next_attempt_at, created_at)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0.0, ?)""",
-                ("u", "f", "b", "m", "v", f"file{i}.md", f"h{i}", "sha256", "x", 1, time.time()),
-            )
-        conn.commit()
-        conn.close()
+        q = OfflineBodyUploadQueue(db_path=db, max_queue_size=2)
+        q.enqueue(_ns(), "a.md", "hash-a", "body", 4)
+        q.enqueue(_ns(), "b.md", "hash-b", "body", 4)
         result = q.enqueue(_ns(), "extra.md", "new-hash", "body", 4)
-        assert result is False
+        assert result == BodyEnqueueResult.QUEUE_FULL
+
+    def test_capacity_limit_is_silent(self, tmp_path: object, caplog: pytest.LogCaptureFixture) -> None:
+        from pathlib import Path
+
+        db = Path(str(tmp_path)) / "test.db"
+        q = OfflineBodyUploadQueue(db_path=db, max_queue_size=1)
+        q.enqueue(_ns(), "spec.md", "hash-a", "body", 4)
+
+        with caplog.at_level(logging.WARNING):
+            result = q.enqueue(_ns(), "plan.md", "hash-b", "body", 4)
+
+        assert result == BodyEnqueueResult.QUEUE_FULL
+        assert caplog.records == []
 
 
 # --- Drain ---
@@ -166,6 +179,21 @@ class TestDrain:
             q.enqueue(_ns(), "b.md", "h2", "body-b", 6)
             mock_time.time.return_value = 300.0
             tasks = q.drain()
+        assert len(tasks) == 2
+        assert tasks[0].artifact_path == "a.md"
+        assert tasks[1].artifact_path == "b.md"
+
+    def test_returns_fifo_order_when_timestamps_tie(self, tmp_path: object) -> None:
+        from pathlib import Path
+
+        db = Path(str(tmp_path)) / "test.db"
+        q = OfflineBodyUploadQueue(db_path=db)
+        with patch("specify_cli.sync.body_queue.time") as mock_time:
+            mock_time.time.return_value = 100.0
+            q.enqueue(_ns(), "a.md", "h1", "body-a", 6)
+            q.enqueue(_ns(), "b.md", "h2", "body-b", 6)
+            tasks = q.drain()
+
         assert len(tasks) == 2
         assert tasks[0].artifact_path == "a.md"
         assert tasks[1].artifact_path == "b.md"

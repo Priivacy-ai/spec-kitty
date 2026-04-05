@@ -6,13 +6,12 @@ from io import StringIO
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-pytestmark = pytest.mark.fast
-
 from rich.console import Console
 
 from specify_cli.cli.commands.sync import format_queue_health
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
+
+pytestmark = pytest.mark.fast
 
 
 class TestFormatQueueHealthCapacity:
@@ -20,28 +19,28 @@ class TestFormatQueueHealthCapacity:
 
     def test_shows_capacity_and_percentage(self):
         stats = QueueStats(
-            total_queued=8000,
-            max_queue_size=10000,
+            total_queued=80_000,
+            max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
             total_retried=0,
-            retry_distribution={"0 retries": 8000},
-            top_event_types=[("Test", 8000)],
+            retry_distribution={"0 retries": 80_000},
+            top_event_types=[("Test", 80_000)],
         )
         buf = StringIO()
         test_console = Console(file=buf, force_terminal=False, width=120)
         format_queue_health(stats, test_console)
         output = buf.getvalue()
 
-        assert "8,000" in output
-        assert "10,000" in output
+        assert "80,000" in output
+        assert "100,000" in output
         assert "80%" in output
 
     def test_full_queue_shows_100_percent(self):
         stats = QueueStats(
-            total_queued=10000,
-            max_queue_size=10000,
+            total_queued=DEFAULT_MAX_QUEUE_SIZE,
+            max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
             total_retried=0,
-            retry_distribution={"0 retries": 10000},
-            top_event_types=[("Test", 10000)],
+            retry_distribution={"0 retries": DEFAULT_MAX_QUEUE_SIZE},
+            top_event_types=[("Test", DEFAULT_MAX_QUEUE_SIZE)],
         )
         buf = StringIO()
         test_console = Console(file=buf, force_terminal=False, width=120)
@@ -95,9 +94,9 @@ class TestDoctorCommand:
         """Doctor reports issues when queue is full and auth is expired."""
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(
-            total_queued=10000,
-            max_queue_size=10000,
-            top_event_types=[("MissionDossierArtifactIndexed", 7900)],
+            total_queued=DEFAULT_MAX_QUEUE_SIZE,
+            max_queue_size=DEFAULT_MAX_QUEUE_SIZE,
+            top_event_types=[("MissionDossierArtifactIndexed", 79_000)],
         )
         mock_queue.db_path = "/tmp/test.db"
         mock_queue_cls.return_value = mock_queue
