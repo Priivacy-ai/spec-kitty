@@ -30,94 +30,95 @@ class FeatureHandler(DashboardHandler):
 
     def handle_features_list(self) -> None:
         """Return summary data for all features."""
+        self.send_response(200)
+        self.send_header('Content-type', 'application/json')
+        self.send_header('Cache-Control', 'no-cache')
+        self.end_headers()
+
+        project_path = Path(self.project_dir).resolve()
+        features = scan_all_features(project_path)
+
+        # Add legacy format indicator to each feature
+        for feature in features:
+            feature_dir = project_path / feature['path']
+            feature['is_legacy'] = is_legacy_format(feature_dir)
+
+        # Derive active mission from the same active-feature resolver used by CLI status.
+        mission_context = {
+            'name': 'No active feature',
+            'domain': 'unknown',
+            'version': '',
+            'slug': '',
+            'description': '',
+            'path': '',
+        }
+
+        active_feature = resolve_active_feature(project_path)
+
+        if active_feature:
+            feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+            try:
+                kittify_dir = project_path / ".kittify"
+                mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                mission_context = {
+                    'name': mission.name,
+                    'domain': mission.config.domain,
+                    'version': mission.config.version,
+                    'slug': mission.path.name,
+                    'description': mission.config.description or '',
+                    'path': format_path_for_display(str(mission.path)),
+                    'feature': active_feature.get('name', ''),
+                }
+            except MissionError:
+                # Fallback: show feature name with unknown mission
+                mission_context = {
+                    'name': f"Unknown ({feature_mission_key})",
+                    'domain': 'unknown',
+                    'version': '',
+                    'slug': feature_mission_key,
+                    'description': '',
+                    'path': '',
+                    'feature': active_feature.get('name', ''),
+                }
+
+        worktrees_root_path = project_path / '.worktrees'
         try:
-            project_path = Path(self.project_dir).resolve()
-            features = scan_all_features(project_path)
+            worktrees_root_resolved = worktrees_root_path.resolve()
+        except Exception:
+            worktrees_root_resolved = worktrees_root_path
 
-            # Add legacy format indicator to each feature
-            for feature in features:
-                feature_dir = project_path / feature['path']
-                feature['is_legacy'] = is_legacy_format(feature_dir)
+        try:
+            current_path = Path.cwd().resolve()
+        except Exception:
+            current_path = Path.cwd()
 
-            # Derive active mission from the same active-feature resolver used by CLI status.
-            mission_context = {
-                'name': 'No active feature',
-                'domain': 'unknown',
-                'version': '',
-                'slug': '',
-                'description': '',
-                'path': '',
-            }
+        worktrees_root_exists = worktrees_root_path.exists()
+        worktrees_root_display = (
+            format_path_for_display(str(worktrees_root_resolved))
+            if worktrees_root_exists
+            else None
+        )
 
-            active_feature = resolve_active_feature(project_path, features)
-
-            if active_feature:
-                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
-                try:
-                    kittify_dir = project_path / ".kittify"
-                    mission = get_mission_by_name(feature_mission_key, kittify_dir)
-                    mission_context = {
-                        'name': mission.name,
-                        'domain': mission.config.domain,
-                        'version': mission.config.version,
-                        'slug': mission.path.name,
-                        'description': mission.config.description or '',
-                        'path': format_path_for_display(str(mission.path)),
-                        'feature': active_feature.get('name', ''),
-                    }
-                except MissionError:
-                    # Fallback: show feature name with unknown mission
-                    mission_context = {
-                        'name': f"Unknown ({feature_mission_key})",
-                        'domain': 'unknown',
-                        'version': '',
-                        'slug': feature_mission_key,
-                        'description': '',
-                        'path': '',
-                        'feature': active_feature.get('name', ''),
-                    }
-
-            worktrees_root_path = project_path / '.worktrees'
+        active_worktree_display: Optional[str] = None
+        if worktrees_root_exists:
             try:
-                worktrees_root_resolved = worktrees_root_path.resolve()
-            except Exception:
-                worktrees_root_resolved = worktrees_root_path
-
-            try:
-                current_path = Path.cwd().resolve()
-            except Exception:
-                current_path = Path.cwd()
-
-            worktrees_root_exists = worktrees_root_path.exists()
-            worktrees_root_display = (
-                format_path_for_display(str(worktrees_root_resolved))
-                if worktrees_root_exists
-                else None
-            )
-
-            active_worktree_display: Optional[str] = None
-            if worktrees_root_exists:
-                try:
-                    current_path.relative_to(worktrees_root_resolved)
-                    active_worktree_display = format_path_for_display(str(current_path))
-                except ValueError:
-                    active_worktree_display = None
-
-            if not active_worktree_display and current_path != project_path:
+                current_path.relative_to(worktrees_root_resolved)
                 active_worktree_display = format_path_for_display(str(current_path))
+            except ValueError:
+                active_worktree_display = None
 
-            response = {
-                'features': features,
-                'active_feature_id': active_feature.get('id') if active_feature else None,
-                'project_path': format_path_for_display(str(project_path)),
-                'worktrees_root': worktrees_root_display,
-                'active_worktree': active_worktree_display,
-                'active_mission': mission_context,
-            }
-            self._send_json(200, response)
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            logger.exception("Failed to scan dashboard features")
-            self._send_json(500, {'error': 'failed_to_scan_features', 'detail': str(exc)})
+        if not active_worktree_display and current_path != project_path:
+            active_worktree_display = format_path_for_display(str(current_path))
+
+        response = {
+            'features': features,
+            'active_feature_id': active_feature.get('id') if active_feature else None,
+            'project_path': format_path_for_display(str(project_path)),
+            'worktrees_root': worktrees_root_display,
+            'active_worktree': active_worktree_display,
+            'active_mission': mission_context,
+        }
+        self.wfile.write(json.dumps(response).encode())
 
     def handle_kanban(self, path: str) -> None:
         """Return kanban data for a specific feature slug."""
