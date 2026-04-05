@@ -184,7 +184,7 @@ class StatusEvent:
         evidence_data = data.get("evidence")
         return cls(
             event_id=data["event_id"],
-            feature_slug=data.get("feature_slug") or data.get("mission_slug") or data["feature_slug"],
+            feature_slug=data.get("mission_slug") or data["feature_slug"],
             wp_id=data["wp_id"],
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
