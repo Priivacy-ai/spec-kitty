@@ -1269,6 +1269,82 @@ def move_task(
         raise typer.Exit(1)
 
 
+# ---------------------------------------------------------------------------
+# Pipe-table task row helpers (T022, T023)
+# ---------------------------------------------------------------------------
+
+def _is_pipe_table_task_row(line: str, task_id: str) -> bool:
+    """Return True if *line* is a pipe-table data row containing *task_id*.
+
+    Rules:
+    - Separator rows (|---|---| or |:---|:---:|) are always rejected.
+    - The task ID must appear as a whole cell, not as a substring of a longer
+      token (e.g. "T001" must not match "T0012" or "XT001").
+    """
+    # Reject separator rows: any row whose non-pipe content is only dashes/colons/spaces
+    if re.match(r'^\s*\|[\s\-:]+\|', line):
+        return False
+    # Match the task ID as a complete cell value (whitespace-padded OK)
+    return bool(re.search(rf'\|\s*{re.escape(task_id)}\s*\|', line))
+
+
+def _parse_pipe_table_header(lines: list[str], task_row_idx: int) -> dict[str, int]:
+    """Scan backwards from a pipe-table task row to find its header row.
+
+    Returns a mapping of lower-case column name → zero-based column index.
+    Returns an empty dict if no header can be identified.
+    """
+    for i in range(task_row_idx - 1, -1, -1):
+        candidate = lines[i].strip()
+        # Skip separator rows
+        if re.match(r'^\|[\s\-:]+\|', candidate):
+            continue
+        # A header row must contain '|' and must not look like a separator
+        if '|' in candidate:
+            cells = [c.strip().lower() for c in candidate.split('|')[1:-1]]
+            return {name: idx for idx, name in enumerate(cells) if name}
+        # Anything else (blank line, heading, etc.) means no header found
+        break
+    return {}
+
+
+def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]) -> str:
+    """Update the status marker in a pipe-table row without corrupting other columns.
+
+    Strategy (in priority order):
+    1. If a "status" column exists in *header_map* → update only that cell.
+    2. If a "parallel" column exists → do NOT touch it; append a new status cell.
+    3. If the last cell already looks like a status marker ([P]/[D]/[ ]/[x]) →
+       replace it in place.
+    4. Otherwise → append a new status cell.
+    """
+    # Split on '|'; cells[0] and cells[-1] are empty strings outside the row.
+    cells = line.split('|')
+    inner_cells = cells[1:-1]
+
+    done_marker = ' [D] '
+    pending_marker = ' [ ] '
+    new_marker = done_marker if status == 'done' else pending_marker
+
+    status_col = header_map.get('status')
+    parallel_col = header_map.get('parallel')
+
+    if status_col is not None and status_col < len(inner_cells):
+        # Update the designated status column only
+        inner_cells[status_col] = new_marker
+    elif parallel_col is not None:
+        # Parallel column exists — do NOT corrupt it; append status instead
+        inner_cells.append(new_marker)
+    else:
+        # No header guidance — check if the last cell looks like a status marker
+        if inner_cells and re.match(r'\s*\[\s*[PDx ]\s*\]\s*$', inner_cells[-1]):
+            inner_cells[-1] = new_marker
+        else:
+            inner_cells.append(new_marker)
+
+    return '|' + '|'.join(inner_cells) + '|'
+
+
 @app.command(name="mark-status")
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
@@ -1340,10 +1416,18 @@ def mark_status(
             for task_id in task_ids:
                 task_found = False
                 for i, line in enumerate(lines):
-                    # Match checkbox lines with this task ID
+                    # Strategy 1: Checkbox format (canonical)
                     if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
                         # Replace the checkbox
                         lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
+                        updated_tasks.append(task_id)
+                        task_found = True
+                        break
+
+                    # Strategy 2: Pipe-table format (backward compatibility)
+                    if _is_pipe_table_task_row(line, task_id):
+                        header_map = _parse_pipe_table_header(lines, i)
+                        lines[i] = _update_pipe_table_status(line, status, header_map)
                         updated_tasks.append(task_id)
                         task_found = True
                         break
