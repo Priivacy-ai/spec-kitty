@@ -9,7 +9,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|----------|
-| T001 | Wire MergeState lifecycle into `_run_lane_based_merge()` | WP01 | | [D] |
+| T001 | Wire MergeState lifecycle into `_run_lane_based_merge()` | WP01 | | [D] | [D] |
 | T002 | Restructure state file preservation in cleanup | WP01 | | [D] |
 | T003 | Add event_id dedup guard in `_mark_wp_merged_done()` | WP01 | [D] |
 | T004 | Re-enable resume/abort CLI path | WP01 | | [D] |
