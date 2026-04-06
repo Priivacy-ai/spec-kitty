@@ -342,3 +342,4 @@ The `require_explicit_feature()` function at `core/paths.py:273-339` does genera
 - 2026-04-06T14:27:02Z – claude:sonnet:implementer:implementer – shell_pid=12750 – Started implementation via action command
 - 2026-04-06T14:32:00Z – claude:sonnet:implementer:implementer – shell_pid=12750 – Ready for review: all 8 subtasks complete (T026-T033). Fixed --mission flag in error messages, shims, 6 templates, and 5 caller sites. 175 tests pass.
 - 2026-04-06T14:32:22Z – claude:opus:reviewer:reviewer – shell_pid=13255 – Started review via action command
+- 2026-04-06T14:34:09Z – claude:opus:reviewer:reviewer – shell_pid=13255 – Review passed: All 8 subtasks (T026-T033) verified. --mission flag correctly replaces --feature in middleware.py, store.py, 5 command_hint callers, 6 templates. Shim template has guidance line. require_explicit_feature error now has copy-pasteable examples. 175 tests pass. No scope creep.
