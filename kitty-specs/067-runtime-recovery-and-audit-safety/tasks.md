@@ -20,12 +20,12 @@
 | T009 | Implement status reconciliation for missing lane transitions | WP02 | [P] |
 | T010 | Add `--recover` flag to implement CLI command | WP02 | |
 | T011 | Write tests for crash recovery scenarios | WP02 | |
-| T012 | Rewrite `generate_shim_content()` for direct canonical commands | WP03 | |
-| T013 | Add `"accept"` to ActionName Literal | WP03 | [P] |
-| T014 | Delete shim runtime files and CLI registration | WP03 | |
-| T015 | Update `rewrite_agent_shims()` for new generator output | WP03 | |
-| T016 | Write migration to regenerate all agent command files | WP03 | |
-| T017 | Write tests verifying direct commands across agent surfaces | WP03 | |
+| T012 | Rewrite `generate_shim_content()` for direct canonical commands | WP03 | | [D] |
+| T013 | Add `"accept"` to ActionName Literal | WP03 | [D] |
+| T014 | Delete shim runtime files and CLI registration | WP03 | | [D] |
+| T015 | Update `rewrite_agent_shims()` for new generator output | WP03 | | [D] |
+| T016 | Write migration to regenerate all agent command files | WP03 | | [D] |
+| T017 | Write tests verifying direct commands across agent surfaces | WP03 | | [D] |
 | T018 | Add `scope` field to WP_FIELD_ORDER in frontmatter.py | WP04 | | [D] |
 | T019 | Relax ownership validation for codebase-wide scope | WP04 | | [D] |
 | T020 | Define audit template target paths | WP04 | [D] |
