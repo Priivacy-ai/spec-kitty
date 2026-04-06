@@ -10,7 +10,12 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-067-runtime-recovery-and-audit-safety
+base_commit: 3d2111f0a8ae6f38cc87624d0da7a2f93d012fad
+created_at: '2026-04-06T18:54:42.111429+00:00'
 subtasks: [T018, T019, T020, T021, T022]
+shell_pid: "90780"
+agent: "claude:opus:implementer:implementer"
 history:
 - timestamp: '2026-04-06T18:43:32+00:00'
   event: created
@@ -207,3 +212,8 @@ WP frontmatter fields are defined in `frontmatter.py:41-58` (`WP_FIELD_ORDER`). 
 - Verify `scope` field is truly optional — search for required-field validation lists
 - Check that narrow WPs are NOT affected by the scope relaxation
 - Verify audit targets list matches AGENT_DIRS from the migration module
+
+## Activity Log
+
+- 2026-04-06T18:54:42Z – claude:opus:implementer:implementer – shell_pid=90780 – Started implementation via action command
+- 2026-04-06T19:02:18Z – claude:opus:implementer:implementer – shell_pid=90780 – Audit scope field added, validation relaxed for codebase-wide WPs, 30 tests passing

@@ -26,21 +26,21 @@
 | T015 | Update `rewrite_agent_shims()` for new generator output | WP03 | |
 | T016 | Write migration to regenerate all agent command files | WP03 | |
 | T017 | Write tests verifying direct commands across agent surfaces | WP03 | |
-| T018 | Add `scope` field to WP_FIELD_ORDER in frontmatter.py | WP04 | |
-| T019 | Relax ownership validation for codebase-wide scope | WP04 | |
-| T020 | Define audit template target paths | WP04 | [P] |
-| T021 | Add finalize-time validation for template/doc coverage | WP04 | |
-| T022 | Write tests for audit scope validation | WP04 | |
-| T023 | Create occurrence classification template step | WP05 | |
-| T024 | Create post-edit verification template step | WP05 | [P] |
-| T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [P] |
-| T026 | Write tests for occurrence classification guardrails | WP05 | |
-| T027 | Replace broken progress formula in `agent_utils/status.py` | WP06 | [P] |
-| T028 | Replace broken progress formulas in `cli/commands/agent/tasks.py` | WP06 | [P] |
-| T029 | Update scanner to pre-compute `weighted_percentage` | WP06 | |
-| T030 | Update dashboard JS to read pre-computed progress | WP06 | |
-| T031 | Update `next_cmd.py` via runtime engine weighted progress | WP06 | |
-| T032 | Write tests for weighted progress across surfaces | WP06 | |
+| T018 | Add `scope` field to WP_FIELD_ORDER in frontmatter.py | WP04 | | [D] |
+| T019 | Relax ownership validation for codebase-wide scope | WP04 | | [D] |
+| T020 | Define audit template target paths | WP04 | [D] |
+| T021 | Add finalize-time validation for template/doc coverage | WP04 | | [D] |
+| T022 | Write tests for audit scope validation | WP04 | | [D] |
+| T023 | Create occurrence classification template step | WP05 | | [D] |
+| T024 | Create post-edit verification template step | WP05 | [D] |
+| T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [D] |
+| T026 | Write tests for occurrence classification guardrails | WP05 | | [D] |
+| T027 | Replace broken progress formula in `agent_utils/status.py` | WP06 | [D] |
+| T028 | Replace broken progress formulas in `cli/commands/agent/tasks.py` | WP06 | [D] |
+| T029 | Update scanner to pre-compute `weighted_percentage` | WP06 | | [D] |
+| T030 | Update dashboard JS to read pre-computed progress | WP06 | | [D] |
+| T031 | Update `next_cmd.py` via runtime engine weighted progress | WP06 | | [D] |
+| T032 | Write tests for weighted progress across surfaces | WP06 | | [D] |
 
 ## Execution Order and Dependencies
 
@@ -125,10 +125,10 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: None
 **Estimated prompt size**: ~350 lines
 
-- [ ] T023 Create occurrence classification template step for cutover/rename WP mission templates (WP05)
-- [ ] T024 Create post-edit verification template step with grep-based confirmation (WP05)
-- [ ] T025 Add optional `context_filter` parameter to `apply_text_replacements()` in skill_update.py (WP05)
-- [ ] T026 Write tests for occurrence classification guardrail enforcement (WP05)
+- [x] T023 Create occurrence classification template step for cutover/rename WP mission templates (WP05)
+- [x] T024 Create post-edit verification template step with grep-based confirmation (WP05)
+- [x] T025 Add optional `context_filter` parameter to `apply_text_replacements()` in skill_update.py (WP05)
+- [x] T026 Write tests for occurrence classification guardrail enforcement (WP05)
 
 ### WP06: Canonical Progress Reporting
 

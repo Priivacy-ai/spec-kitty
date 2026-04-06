@@ -11,7 +11,12 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-067-runtime-recovery-and-audit-safety
+base_commit: 3d2111f0a8ae6f38cc87624d0da7a2f93d012fad
+created_at: '2026-04-06T18:52:26.103154+00:00'
 subtasks: [T027, T028, T029, T030, T031, T032]
+shell_pid: "88313"
+agent: "claude:opus:implementer:implementer"
 history:
 - timestamp: '2026-04-06T18:43:32+00:00'
   event: created
@@ -269,3 +274,7 @@ Callsite 8 (`merge/state.py:102` — `completed_wps / wp_order * 100`) is intent
 - Check that backward-compat fields (done_count, by_lane) are preserved in all outputs
 - Test with a real mission that has WPs in various lanes
 - Verify #443 is closed or cross-referenced when this WP ships
+
+## Activity Log
+
+- 2026-04-06T18:52:26Z – claude:opus:implementer:implementer – shell_pid=88313 – Started implementation via action command
