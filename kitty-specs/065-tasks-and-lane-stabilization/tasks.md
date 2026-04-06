@@ -164,7 +164,7 @@ Add pipe-table row parsing and mutation to `mark-status` so it can update task s
 
 ### Dependencies
 
-Depends on WP01 (shared `tasks.py` ownership) and WP05 (shared tasks template ownership). WP04 modifies `mark_status` in `tasks.py` and task-format instructions in the template; WP01 and WP05 must complete their changes to these files first.
+Depends on WP01, WP05. WP01 owns `tasks.py` (shared file); WP05 owns the tasks template (shared file). WP04 modifies `mark_status` in `tasks.py` and task-format instructions in the template; WP01 and WP05 must complete their changes to these files first.
 
 ### Risks
 

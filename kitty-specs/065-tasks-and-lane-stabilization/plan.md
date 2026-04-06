@@ -73,11 +73,24 @@ tests/
 │   └── test_tasks_canonical_cleanup.py       # WP01: tasks.py finalize tests
 ├── tasks/
 │   └── test_finalize_tasks_json_output_unit.py  # WP01: JSON output schema tests
+├── core/
+│   ├── test_dependency_parser.py             # WP01: shared parser tests
+│   └── test_paths.py                         # WP05: require_explicit_feature tests
 ├── lanes/
-│   ├── test_compute.py                       # WP02+WP03: lane computation tests
-│   └── test_models.py                        # WP02+WP03: model serialization tests
+│   ├── test_compute.py                       # WP03: lane computation tests
+│   ├── test_models.py                        # WP03: model serialization tests
+│   └── test_collapse_report.py               # WP03: collapse report tests
+├── ownership/
+│   ├── test_inference.py                     # WP02: ownership inference tests
+│   └── test_validation.py                    # WP02: glob validation tests
+├── context/
+│   ├── test_middleware.py                    # WP05: middleware error message tests
+│   └── test_store.py                         # WP05: store error message tests
+├── shims/
+│   └── test_generator.py                     # WP05: shim template tests
 └── git_ops/
-    └── test_atomic_status_commits_unit.py    # WP04: mark-status tests
+    ├── test_atomic_status_commits_unit.py    # WP04: mark-status tests
+    └── test_mark_status_pipe_table.py        # WP04: pipe-table mutation tests
 ```
 
 ---
@@ -538,23 +551,26 @@ msg = (
 ```
 WP01 (dependency/frontmatter truth)
   ↑ no deps — can start immediately
+  owns: tasks.py (finalize_tasks function), mission.py, dependency_parser.py
 
 WP02 (lane materialization correctness)
   ↑ no deps — can start immediately
-  ↑ (WP01 changes finalize-tasks which calls compute_lanes,
-     but WP02 changes are in lanes/compute.py, disjoint files)
+  owns: lanes/compute.py, ownership/inference.py, ownership/validation.py
 
 WP03 (parallelism preservation)
-  ↑ depends on WP02 (builds on lane computation changes)
+  ↑ depends on WP02 (builds on lane computation changes, shares compute.py)
+  owns: lanes/models.py, lanes/compute.py (shared with WP02, sequenced by dep)
 
 WP04 (task-state compatibility)
-  ↑ no deps — can start immediately
+  ↑ depends on WP01 (shared tasks.py) and WP05 (shared tasks template)
+  owns: test files only; modifies tasks.py mark_status + tasks template under WP01/WP05 ownership
 
 WP05 (command ergonomics)
   ↑ no deps — can start immediately
+  owns: context/middleware.py, context/store.py, shims/generator.py, core/paths.py, tasks template
 ```
 
-**Parallelism**: WP01, WP02, WP04, WP05 can run in parallel. WP03 depends on WP02.
+**Parallelism**: WP01, WP02, WP05 can run in parallel (Phase 1). WP03 and WP04 can run in parallel with each other in Phase 2 (WP03 after WP02; WP04 after WP01+WP05).
 
 ## Risk Assessment
 

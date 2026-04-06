@@ -3,6 +3,7 @@ work_package_id: WP04
 title: Mutable Task-State Compatibility
 dependencies:
 - WP01
+- WP05
 requirement_refs:
 - FR-010
 planning_base_branch: main
