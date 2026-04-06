@@ -105,14 +105,14 @@ Rename 3 commands, 2 error codes, and `--feature` → `--mission` parameter. Rem
 
 Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. Update transport payload. Update fresh-install CREATE TABLE schema in `queue.py`. Insert compatibility gate at body sync chokepoints.
 
-- [ ] T026: Rename `NamespaceRef` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
-- [ ] T027: Rename `BodyUploadTask` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
-- [ ] T028: Update `_build_request_body()` in body_transport.py to emit canonical payload
-- [ ] T029: Insert compatibility gate at `enqueue()` and `push_content()` chokepoints
-- [ ] T030: Create SQLite queue schema migration (`ALTER TABLE RENAME COLUMN`)
-- [ ] T031: Register migration in upgrade chain
-- [ ] T032: Test queue migration with populated queue — zero task loss (FR-020)
-- [ ] T033: Update `_BODY_QUEUE_SCHEMA` in `queue.py` so fresh installs create `mission_slug`/`mission_type` columns
+- [x] T026: Rename `NamespaceRef` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
+- [x] T027: Rename `BodyUploadTask` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
+- [x] T028: Update `_build_request_body()` in body_transport.py to emit canonical payload
+- [x] T029: Insert compatibility gate at `enqueue()` and `push_content()` chokepoints
+- [x] T030: Create SQLite queue schema migration (`ALTER TABLE RENAME COLUMN`)
+- [x] T031: Register migration in upgrade chain
+- [x] T032: Test queue migration with populated queue — zero task loss (FR-020)
+- [x] T033: Update `_BODY_QUEUE_SCHEMA` in `queue.py` so fresh installs create `mission_slug`/`mission_type` columns
 
 **Requirement refs**: FR-010, FR-011, FR-012, FR-014, FR-020
 
