@@ -62,10 +62,42 @@ _TEMPLATES_DIR = (
     / "command-templates"
 )
 
+_REPO_ROOT = Path(__file__).parent.parent.parent
+_ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
+    _REPO_ROOT / "src",
+    _REPO_ROOT / "tests",
+    _REPO_ROOT / "docs",
+    _REPO_ROOT / "architecture",
+    _REPO_ROOT / "research",
+    _REPO_ROOT / "AGENTS.md",
+    _REPO_ROOT / "README.md",
+    _REPO_ROOT / "CHANGELOG.md",
+)
+_FORBIDDEN_HOME_LITERAL = "/Users/" + "robe" + "rt/"
+
 
 def _template_content(command: str) -> str:
     """Read and return the content of a command template file."""
     return (_TEMPLATES_DIR / f"{command}.md").read_text(encoding="utf-8")
+
+
+def _active_codebase_files() -> list[Path]:
+    """Return text files from the active codebase surface.
+
+    `kitty-specs/` is intentionally excluded because the user wants to preserve
+    historical artifacts there.
+    """
+    files: list[Path] = []
+    for path in _ACTIVE_CODEBASE_PATHS:
+        if path.is_file():
+            files.append(path)
+            continue
+        files.extend(
+            candidate
+            for candidate in path.rglob("*")
+            if candidate.is_file() and "__pycache__" not in candidate.parts and candidate.suffix != ".pyc"
+        )
+    return files
 
 
 # ---------------------------------------------------------------------------
@@ -135,11 +167,27 @@ def test_no_dev_specific_feature_slugs(command: str) -> None:
 def test_no_absolute_user_paths(command: str) -> None:
     """Templates must not contain absolute paths tied to a specific machine."""
     content = _template_content(command)
+    assert _FORBIDDEN_HOME_LITERAL not in content, (
+        f"{command}.md contains a forbidden user-specific home path literal"
+    )
     assert re.search(r"/Users/[^/]+/", content) is None, (
         f"{command}.md contains macOS absolute user path '/Users/<user>/'"
     )
     assert re.search(r"/home/[^/]+/", content) is None, (
         f"{command}.md contains Linux absolute user path '/home/<user>/'"
+    )
+
+
+def test_no_user_specific_home_literal_in_active_codebase() -> None:
+    """The active codebase must never ship a forbidden user-specific home path."""
+    offenders = [
+        path.relative_to(_REPO_ROOT).as_posix()
+        for path in _active_codebase_files()
+        if _FORBIDDEN_HOME_LITERAL in path.read_text(encoding="utf-8", errors="ignore")
+    ]
+    assert offenders == [], (
+        "Found forbidden user-specific home path literal in active codebase files: "
+        + ", ".join(offenders)
     )
 
 
