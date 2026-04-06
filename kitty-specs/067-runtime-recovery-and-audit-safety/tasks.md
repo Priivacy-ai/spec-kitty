@@ -67,12 +67,12 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: None
 **Estimated prompt size**: ~450 lines
 
-- [ ] T001 Wire MergeState lifecycle into `_run_lane_based_merge()` — create/load at entry, save after each WP, skip completed (WP01)
-- [ ] T002 Restructure state file preservation — exempt state.json from `cleanup_merge_workspace()` rmtree, `clear_state()` only after full success (WP01)
-- [ ] T003 Add event_id dedup guard in `_mark_wp_merged_done()` before emitting done transitions (WP01)
-- [ ] T004 Re-enable resume/abort CLI path — replace disabled error at merge.py:359-361 with MergeState-based logic (WP01)
-- [ ] T005 Add retry tolerance — macOS FSEvents inter-worktree-removal delay, skip missing worktrees/branches (WP01)
-- [ ] T006 Write tests for interrupted merge/retry recovery behavior (WP01)
+- [x] T001 Wire MergeState lifecycle into `_run_lane_based_merge()` — create/load at entry, save after each WP, skip completed (WP01)
+- [x] T002 Restructure state file preservation — exempt state.json from `cleanup_merge_workspace()` rmtree, `clear_state()` only after full success (WP01)
+- [x] T003 Add event_id dedup guard in `_mark_wp_merged_done()` before emitting done transitions (WP01)
+- [x] T004 Re-enable resume/abort CLI path — replace disabled error at merge.py:359-361 with MergeState-based logic (WP01)
+- [x] T005 Add retry tolerance — macOS FSEvents inter-worktree-removal delay, skip missing worktrees/branches (WP01)
+- [x] T006 Write tests for interrupted merge/retry recovery behavior (WP01)
 
 ### WP02: Implementation Crash Recovery
 
