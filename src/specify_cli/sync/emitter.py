@@ -18,6 +18,7 @@ from rich.console import Console
 from .clock import LamportClock
 from .config import SyncConfig
 from .queue import OfflineQueue
+from specify_cli.core.contract_gate import validate_outbound_payload
 
 if TYPE_CHECKING:
     from .auth import AuthClient
@@ -149,7 +150,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "retry_count": lambda v: isinstance(v, int) and v >= 0,
         },
     },
-    "FeatureCreated": {
+    "MissionCreated": {
         "required": {"feature_slug", "feature_number", "target_branch", "wp_count"},
         "validators": {
             "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
@@ -159,7 +160,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "created_at": lambda v: _is_datetime_string(v),
         },
     },
-    "FeatureCompleted": {
+    "MissionClosed": {
         "required": {"feature_slug", "total_wps"},
         "validators": {
             "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -260,7 +261,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Feature", "Mission", "MissionDossier"})
+VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Mission", "MissionDossier"})
 
 
 class ConnectionStatus:
@@ -421,7 +422,7 @@ class EventEmitter:
             causation_id=causation_id,
         )
 
-    def emit_feature_created(
+    def emit_mission_created(
         self,
         feature_slug: str,
         feature_number: str,
@@ -430,7 +431,7 @@ class EventEmitter:
         created_at: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit FeatureCreated event (FR-011)."""
+        """Emit MissionCreated event (FR-011)."""
         payload: dict[str, Any] = {
             "feature_slug": feature_slug,
             "feature_number": feature_number,
@@ -440,14 +441,14 @@ class EventEmitter:
         if created_at is not None:
             payload["created_at"] = created_at
         return self._emit(
-            event_type="FeatureCreated",
+            event_type="MissionCreated",
             aggregate_id=feature_slug,
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
         )
 
-    def emit_feature_completed(
+    def emit_mission_closed(
         self,
         feature_slug: str,
         total_wps: int,
@@ -455,7 +456,7 @@ class EventEmitter:
         total_duration: str | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit FeatureCompleted event (FR-012)."""
+        """Emit MissionClosed event (FR-012)."""
         payload: dict[str, Any] = {
             "feature_slug": feature_slug,
             "total_wps": total_wps,
@@ -465,9 +466,9 @@ class EventEmitter:
         if total_duration is not None:
             payload["total_duration"] = total_duration
         return self._emit(
-            event_type="FeatureCompleted",
+            event_type="MissionClosed",
             aggregate_id=feature_slug,
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
         )
@@ -517,7 +518,7 @@ class EventEmitter:
             payload["agent_id"] = agent_id
 
         aggregate_id = wp_id if wp_id is not None else "error"
-        aggregate_type = "WorkPackage" if wp_id is not None else "Feature"
+        aggregate_type = "WorkPackage" if wp_id is not None else "Mission"
         return self._emit(
             event_type="ErrorLogged",
             aggregate_id=aggregate_id,
@@ -606,6 +607,8 @@ class EventEmitter:
                 "event_type": event_type,
                 "aggregate_id": aggregate_id,
                 "aggregate_type": aggregate_type,
+                "schema_version": "3.0.0",
+                "build_id": identity.build_id or "",
                 "payload": payload,
                 "node_id": self.clock.node_id,
                 "lamport_clock": clock_value,
@@ -622,6 +625,13 @@ class EventEmitter:
 
             # Validate event structure and payload
             if not self._validate_event(event):
+                return None
+
+            # Contract gate: validate envelope against upstream contract
+            try:
+                validate_outbound_payload(event, "envelope")
+            except Exception as gate_err:
+                _console.print(f"[yellow]Warning: Envelope contract gate failed: {gate_err}[/yellow]")
                 return None
 
             # Check project_uuid: if missing, queue only (no WebSocket send)

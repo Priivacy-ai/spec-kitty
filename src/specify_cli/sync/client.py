@@ -13,6 +13,7 @@ from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
+from specify_cli.core.contract_gate import validate_outbound_payload
 
 
 class ConnectionStatus:
@@ -235,6 +236,9 @@ class WebSocketClient:
         """
         if not self.connected or not self.ws:
             raise ConnectionError("Not connected to server")
+
+        # Contract gate: validate envelope before WebSocket send
+        validate_outbound_payload(event, "envelope")
 
         try:
             await self.ws.send(json.dumps(event))

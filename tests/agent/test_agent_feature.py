@@ -54,7 +54,7 @@ class TestBranchContextCommand:
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
-    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -111,7 +111,7 @@ class TestCreateFeatureCommand:
         assert meta["mission_type"] == "software-dev"
         assert meta["target_branch"] == "main"
 
-    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -251,7 +251,7 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
-    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -283,7 +283,7 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
-    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")

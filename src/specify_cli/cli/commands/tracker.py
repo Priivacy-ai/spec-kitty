@@ -357,6 +357,7 @@ def _bind_saas(
         "slug": identity.project_slug,
         "node_id": identity.node_id,
         "repo_slug": identity.repo_slug,
+        "build_id": identity.build_id,
     }
 
     # Dispatch to facade (TrackerServiceError propagates to _run_or_exit)

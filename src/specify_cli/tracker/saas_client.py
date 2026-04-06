@@ -15,6 +15,7 @@ import httpx
 
 from specify_cli.sync.auth import AuthClient, CredentialStore
 from specify_cli.sync.config import SyncConfig
+from specify_cli.core.contract_gate import validate_outbound_payload
 
 
 class SaaSTrackerClientError(RuntimeError):
@@ -490,6 +491,7 @@ class SaaSTrackerClient:
         project_identity: dict[str, Any],
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/bind-resolve/ -- resolve identity to bind candidates."""
+        validate_outbound_payload(project_identity, "tracker_bind")
         payload: dict[str, Any] = {
             "provider": provider,
             "project_identity": project_identity,
@@ -511,6 +513,7 @@ class SaaSTrackerClient:
         idempotency_key: str | None = None,
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/bind-confirm/ -- confirm bind selection."""
+        validate_outbound_payload(project_identity, "tracker_bind")
         key = idempotency_key or str(uuid.uuid4())
         payload: dict[str, Any] = {
             "provider": provider,
@@ -533,6 +536,7 @@ class SaaSTrackerClient:
         project_identity: dict[str, Any],
     ) -> dict[str, Any]:
         """POST /api/v1/tracker/bind-validate/ -- validate binding ref."""
+        validate_outbound_payload(project_identity, "tracker_bind")
         payload: dict[str, Any] = {
             "provider": provider,
             "binding_ref": binding_ref,

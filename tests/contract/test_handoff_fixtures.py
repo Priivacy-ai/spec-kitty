@@ -70,10 +70,10 @@ FIXTURE_EVENTS = [
         "lamport_clock": 5,
         "causation_id": None,
     },
-    # 4. FeatureCreated (from fixture_02)
+    # 4. MissionCreated (from fixture_02)
     {
         "event_id": "01JMBYA1B2C3D4E5F6G7H8J9KC",
-        "event_type": "FeatureCreated",
+        "event_type": "MissionCreated",
         "aggregate_id": "040-next-feature",
         "payload": {
             "feature_slug": "040-next-feature",
@@ -87,10 +87,10 @@ FIXTURE_EVENTS = [
         "lamport_clock": 12,
         "causation_id": None,
     },
-    # 5. FeatureCompleted
+    # 5. MissionClosed
     {
         "event_id": "01JMBYE6F7G8H9J0K1W2M3NBDQ",
-        "event_type": "FeatureCompleted",
+        "event_type": "MissionClosed",
         "aggregate_id": "039-cli-2x-readiness",
         "payload": {
             "feature_slug": "039-cli-2x-readiness",
@@ -216,8 +216,8 @@ class TestEventTypeCoverage:
             "WPStatusChanged",
             "WPCreated",
             "WPAssigned",
-            "FeatureCreated",
-            "FeatureCompleted",
+            "MissionCreated",
+            "MissionClosed",
             "HistoryAdded",
             "ErrorLogged",
             "DependencyResolved",
@@ -232,8 +232,8 @@ class TestEventTypeCoverage:
             "WPStatusChanged",
             "WPCreated",
             "WPAssigned",
-            "FeatureCreated",
-            "FeatureCompleted",
+            "MissionCreated",
+            "MissionClosed",
             "HistoryAdded",
             "ErrorLogged",
             "DependencyResolved",

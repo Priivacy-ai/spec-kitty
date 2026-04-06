@@ -232,7 +232,7 @@ def emit_wp_assigned(
     return event
 
 
-def emit_feature_created(
+def emit_mission_created(
     feature_slug: str,
     feature_number: str,
     target_branch: str,
@@ -240,9 +240,9 @@ def emit_feature_created(
     created_at: str | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Emit FeatureCreated event via singleton."""
+    """Emit MissionCreated event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
-    event = get_emitter().emit_feature_created(
+    event = get_emitter().emit_mission_created(
         feature_slug=feature_slug,
         feature_number=feature_number,
         target_branch=target_branch,
@@ -256,16 +256,20 @@ def emit_feature_created(
     return event
 
 
-def emit_feature_completed(
+# Backward-compatible alias (callers migrating from Feature→Mission naming)
+emit_feature_created = emit_mission_created
+
+
+def emit_mission_closed(
     feature_slug: str,
     total_wps: int,
     completed_at: str | None = None,
     total_duration: str | None = None,
     causation_id: str | None = None,
 ) -> dict[str, Any] | None:
-    """Emit FeatureCompleted event via singleton."""
+    """Emit MissionClosed event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
-    event = get_emitter().emit_feature_completed(
+    event = get_emitter().emit_mission_closed(
         feature_slug=feature_slug,
         total_wps=total_wps,
         completed_at=completed_at,
@@ -276,6 +280,10 @@ def emit_feature_completed(
         _publish_event_via_sync_daemon(event, repo_root)
         _request_dashboard_sync(repo_root)
     return event
+
+
+# Backward-compatible alias (callers migrating from Feature→Mission naming)
+emit_feature_completed = emit_mission_closed
 
 
 def emit_history_added(

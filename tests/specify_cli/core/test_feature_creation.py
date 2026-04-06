@@ -70,7 +70,7 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "test-feature")
@@ -113,7 +113,7 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=5),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "my-feature")
@@ -210,7 +210,7 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "test-feature", target_branch="2.x")
@@ -231,7 +231,7 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=2),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "my-feature")
@@ -256,7 +256,7 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=3),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "docs-feature", mission="documentation")
@@ -277,7 +277,7 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "basic-feature")
@@ -300,7 +300,7 @@ def test_feature_number_zero_padded(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=42),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "padded-test")

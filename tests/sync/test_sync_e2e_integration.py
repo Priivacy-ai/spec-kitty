@@ -475,7 +475,7 @@ class TestNoDuplicateEmissions:
         # Simulate finalize-tasks batch with causation chain
         causation_id = emitter.generate_causation_id()
 
-        emitter.emit_feature_created(
+        emitter.emit_mission_created(
             feature_slug="032-identity-aware",
             feature_number="032",
             target_branch="main",
@@ -492,7 +492,7 @@ class TestNoDuplicateEmissions:
                 causation_id=causation_id,
             )
 
-        # Should be exactly 4 events (1 FeatureCreated + 3 WPCreated)
+        # Should be exactly 4 events (1 MissionCreated + 3 WPCreated)
         assert mock_queue.size() == 4
 
         events = mock_queue.drain_queue()
@@ -536,8 +536,8 @@ class TestFullWorkflowIntegration:
 
         causation_id = emitter.generate_causation_id()
 
-        # 1. Feature created (use valid feature_slug pattern: ###-slug-name)
-        emitter.emit_feature_created(
+        # 1. Mission created (use valid feature_slug pattern: ###-slug-name)
+        emitter.emit_mission_created(
             feature_slug="001-test-feature",
             feature_number="001",
             target_branch="main",
@@ -570,8 +570,8 @@ class TestFullWorkflowIntegration:
         # 6. Accept (for_review -> done)
         emitter.emit_wp_status_changed("WP01", "for_review", "done")
 
-        # 7. Feature completed (use valid feature_slug pattern: ###-slug-name)
-        emitter.emit_feature_completed(
+        # 7. Mission closed (use valid feature_slug pattern: ###-slug-name)
+        emitter.emit_mission_closed(
             feature_slug="001-test-feature",
             total_wps=1,
         )
@@ -587,13 +587,13 @@ class TestFullWorkflowIntegration:
         # Verify event types in order
         event_types = [e["event_type"] for e in events]
         assert event_types == [
-            "FeatureCreated",
+            "MissionCreated",
             "WPCreated",
             "WPAssigned",
             "WPStatusChanged",
             "WPStatusChanged",
             "WPStatusChanged",
-            "FeatureCompleted",
+            "MissionClosed",
         ]
 
     def test_events_queued_when_offline(

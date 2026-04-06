@@ -20,7 +20,7 @@ from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.worktree import get_next_feature_number
 from specify_cli.git import safe_commit
-from specify_cli.sync.events import emit_feature_created
+from specify_cli.sync.events import emit_mission_created
 
 
 class FeatureCreationError(RuntimeError):
@@ -319,7 +319,7 @@ def create_feature_core(
     # 8. Event emission (fire-and-forget)
     # ------------------------------------------------------------------
     with contextlib.suppress(Exception):
-        emit_feature_created(
+        emit_mission_created(
             feature_slug=feature_slug_formatted,
             feature_number=f"{feature_number:03d}",
             target_branch=planning_branch,

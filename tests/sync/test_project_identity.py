@@ -46,11 +46,12 @@ class TestProjectIdentity:
         assert identity.is_complete is False
 
     def test_is_complete_all_set(self) -> None:
-        """is_complete returns True when all fields are set."""
+        """is_complete returns True when all fields are set (including build_id)."""
         identity = ProjectIdentity(
             project_uuid=UUID("12345678-1234-5678-1234-567812345678"),
             project_slug="my-project",
             node_id="abcd12345678",
+            build_id="build-001",
         )
         assert identity.is_complete is True
 
@@ -82,6 +83,7 @@ class TestProjectIdentity:
             project_uuid=uuid,
             project_slug="my-project",
             node_id="abcd12345678",
+            build_id="build-001",
         )
         result = identity.to_dict()
 
@@ -89,6 +91,7 @@ class TestProjectIdentity:
             "uuid": "12345678-1234-5678-1234-567812345678",
             "slug": "my-project",
             "node_id": "abcd12345678",
+            "build_id": "build-001",
         }
 
     def test_to_dict_with_none(self) -> None:
@@ -100,6 +103,7 @@ class TestProjectIdentity:
             "uuid": None,
             "slug": None,
             "node_id": None,
+            "build_id": None,
         }
 
     def test_from_dict(self) -> None:

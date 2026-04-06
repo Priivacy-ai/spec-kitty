@@ -174,8 +174,8 @@ class TestMultiEventBatch:
         """Simulates finalize-tasks: 1 FeatureCreated + N WPCreated events."""
         causation_id = emitter.generate_causation_id()
 
-        # Emit FeatureCreated
-        fc = emitter.emit_feature_created(
+        # Emit MissionCreated
+        fc = emitter.emit_mission_created(
             feature_slug="028-cli-event-emission-sync",
             feature_number="028",
             target_branch="main",

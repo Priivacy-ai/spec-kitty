@@ -118,7 +118,7 @@ class TestFinalizeTasksEmitsBatch:
         causation_id = emitter.generate_causation_id()
 
         # Emit FeatureCreated
-        fc = emitter.emit_feature_created(
+        fc = emitter.emit_mission_created(
             feature_slug="028-cli-event-emission-sync",
             feature_number="028",
             target_branch="main",
@@ -126,7 +126,7 @@ class TestFinalizeTasksEmitsBatch:
             causation_id=causation_id,
         )
         assert fc is not None
-        assert fc["event_type"] == "FeatureCreated"
+        assert fc["event_type"] == "MissionCreated"
 
         # Emit 7 WPCreated events
         for i in range(1, 8):
@@ -153,7 +153,7 @@ class TestGitMetadataInBatchEvents:
 
     def test_feature_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """FeatureCreated event includes git metadata fields."""
-        event = emitter.emit_feature_created(
+        event = emitter.emit_mission_created(
             feature_slug="033-observability",
             feature_number="033",
             target_branch="main",
@@ -351,7 +351,7 @@ class TestIdentityInjection:
 
     def test_feature_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """FeatureCreated event includes project_uuid."""
-        event = emitter.emit_feature_created(
+        event = emitter.emit_mission_created(
             feature_slug="032-identity-aware",
             feature_number="032",
             target_branch="main",

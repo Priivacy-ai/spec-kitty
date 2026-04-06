@@ -260,12 +260,12 @@ class TestOtherPayloads:
         assert results[0].valid is False
         assert any("title" in e for e in results[0].errors)
 
-    def test_feature_created_valid(self):
-        """FeatureCreated with valid payload passes."""
+    def test_mission_created_valid(self):
+        """MissionCreated with valid payload passes."""
         event = _make_valid_event(
-            event_type="FeatureCreated",
+            event_type="MissionCreated",
             aggregate_id="039-test-feature",
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload={
                 "feature_slug": "039-test-feature",
                 "feature_number": "039",
@@ -276,12 +276,12 @@ class TestOtherPayloads:
         results = diagnose_events([event])
         assert results[0].valid is True
 
-    def test_feature_created_invalid_slug_format(self):
-        """FeatureCreated with invalid feature_slug format fails."""
+    def test_mission_created_invalid_slug_format(self):
+        """MissionCreated with invalid feature_slug format fails."""
         event = _make_valid_event(
-            event_type="FeatureCreated",
+            event_type="MissionCreated",
             aggregate_id="bad",
-            aggregate_type="Feature",
+            aggregate_type="Mission",
             payload={
                 "feature_slug": "BAD FORMAT",
                 "feature_number": "039",

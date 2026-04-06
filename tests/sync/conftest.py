@@ -55,6 +55,7 @@ def mock_identity() -> ProjectIdentity:
         project_uuid=uuid4(),
         project_slug="test-project",
         node_id="test-node-123",
+        build_id="test-build-id-0000-0000-000000000001",
     )
 
 
