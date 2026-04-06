@@ -9,6 +9,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T016, T017, T018, T019, T020, T021]
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "13562"
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
@@ -331,3 +333,7 @@ This WP depends on WP02 because WP02 adds the `LaneComputationError` exception, 
 - The key behavioral change is in Rule 3: surface matches no longer collapse WPs with disjoint ownership. Verify by reading `test_disjoint_ownership_preserves_parallelism`.
 - Check that `_are_disjoint` correctly handles the edge case where one WP has no manifest in `code_manifests` (should not skip the merge in that case — absence of proof is not proof of disjointness).
 - Run compute_lanes on existing features to verify C-005 (no regressions for mid-implementation features).
+
+## Activity Log
+
+- 2026-04-06T14:34:25Z – claude:sonnet:implementer:implementer – shell_pid=13562 – Started implementation via action command
