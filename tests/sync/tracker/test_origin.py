@@ -527,7 +527,7 @@ class TestBindMissionOrigin:
 
 
 class TestStartMissionFromTicket:
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_full_flow(
         self,
         mock_create: MagicMock,
@@ -572,16 +572,16 @@ class TestStartMissionFromTicket:
             target_branch=None,
         )
 
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_creation_failure_raises(
         self,
         mock_create: MagicMock,
         tmp_path: Path,
     ) -> None:
-        """FeatureCreationError -> OriginBindingError."""
-        from specify_cli.core.mission_creation import FeatureCreationError
+        """MissionCreationError -> OriginBindingError."""
+        from specify_cli.core.mission_creation import MissionCreationError
 
-        mock_create.side_effect = FeatureCreationError("Slug already exists")
+        mock_create.side_effect = MissionCreationError("Slug already exists")
         candidate = _make_candidate()
 
         with pytest.raises(OriginBindingError, match="Slug already exists"):
@@ -593,7 +593,7 @@ class TestStartMissionFromTicket:
                 "team-uuid",
             )
 
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_slug_derivation(
         self,
         mock_create: MagicMock,
@@ -621,12 +621,12 @@ class TestStartMissionFromTicket:
                 client=client,
             )
 
-        # Verify create_feature_core was called with the derived slug
+        # Verify create_mission_core was called with the derived slug
         mock_create.assert_called_once()
         call_args = mock_create.call_args
         assert call_args[0][1] == "web-123"
 
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_bind_failure_after_creation_raises(
         self,
         mock_create: MagicMock,

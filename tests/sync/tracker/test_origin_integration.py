@@ -281,7 +281,7 @@ class TestSearchConfirmBindFlow:
 class TestStartMissionFromTicket:
     """Integration test for the full orchestration function."""
 
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_full_flow_returns_result(
         self,
@@ -291,10 +291,10 @@ class TestStartMissionFromTicket:
         feature_dir_with_meta: Path,
         mock_client: SaaSTrackerClient,
     ) -> None:
-        """Mock create_feature_core + httpx -> real bind -> result."""
+        """Mock create_mission_core + httpx -> real bind -> result."""
         mock_http = _setup_mock_http(mock_http_cls)
 
-        # create_feature_core returns a result pointing at our feature dir
+        # create_mission_core returns a result pointing at our feature dir
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir_with_meta,
             mission_slug="061-test-feature",
@@ -333,7 +333,7 @@ class TestStartMissionFromTicket:
         )
         assert "origin_ticket" in disk_meta
 
-        # Verify create_feature_core was called with derived slug
+        # Verify create_mission_core was called with derived slug
         mock_create.assert_called_once_with(
             repo_with_tracker,
             "web-123",
@@ -430,16 +430,16 @@ class TestErrorPropagation:
                 client=mock_client,
             )
 
-    @patch("specify_cli.core.mission_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_creation_failure_propagates(
         self,
         mock_create: MagicMock,
         repo_with_tracker: Path,
     ) -> None:
-        """FeatureCreationError -> OriginBindingError."""
-        from specify_cli.core.mission_creation import FeatureCreationError
+        """MissionCreationError -> OriginBindingError."""
+        from specify_cli.core.mission_creation import MissionCreationError
 
-        mock_create.side_effect = FeatureCreationError(
+        mock_create.side_effect = MissionCreationError(
             "Feature slug 'web-123' already exists",
         )
         candidate = _make_candidate()
