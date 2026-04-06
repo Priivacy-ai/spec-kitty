@@ -134,6 +134,8 @@ A remote-facing path (sync, tracker, body upload) attempts to send a payload. Th
 | FR-019 | Newly scaffolded mission metadata (`kitty-specs/*/meta.json`) must use canonical field names: `mission_slug`, `mission_number`, and `mission_type`. The legacy field names `feature_slug`, `feature_number`, and `mission` must not appear in newly written metadata. This applies to the `create-feature` / `agent mission create` scaffolding path and any other code that writes `meta.json`. Existing legacy metadata is handled by migration (FR-014); new writes have no exemption. | Draft |
 | FR-020 | Pending body upload tasks already queued in the body upload queue must survive schema migration without data loss. Migration must either drain and replay pending uploads before schema changes, or perform an in-place schema migration that preserves all queued tasks and rewrites their namespace fields to canonical terms. Acceptance criterion: a test with a populated queue containing legacy-schema rows must demonstrate zero task loss after migration, with all namespace fields rewritten to canonical terms. | Draft |
 | FR-021 | `spec-kitty-orchestrator` (`Priivacy-ai/spec-kitty-orchestrator`) is a known external consumer and must be updated as a release dependency. Production rollout of the orchestrator API rename is blocked until consumer updates are ready and validated against the renamed contract. | Draft |
+| FR-022 | The `--feature` CLI parameter on all orchestrator API commands must be renamed to `--mission`. The `--feature` flag must not be accepted on any live command. This applies to all 8 commands that accept a mission slug. | Draft |
+| FR-023 | The compatibility gate must load validation rules from a vendored machine-readable contract artifact derived from the upstream spec-kitty-events 3.0.0 and spec-kitty-saas contracts. The gate must not use hand-maintained constants or inline field lists. If upstream evolves, the vendored artifact is updated from the authoritative source. | Draft |
 
 ### FR-004 Detail: Orchestrator API Command Name Mapping
 
@@ -153,6 +155,16 @@ Commands already using neutral names (no rename needed): `contract-version`, `li
 | `FEATURE_NOT_READY` | `MISSION_NOT_READY` | Not all WPs done (for accept-mission) |
 
 Error codes already using neutral names (no rename needed): `USAGE_ERROR`, `POLICY_METADATA_REQUIRED`, `POLICY_VALIDATION_FAILED`, `WP_NOT_FOUND`, `TRANSITION_REJECTED`, `WP_ALREADY_CLAIMED`, `PREFLIGHT_FAILED`, `CONTRACT_VERSION_MISMATCH`, `UNSUPPORTED_STRATEGY`.
+
+### FR-022 Detail: CLI Parameter Rename
+
+All 8 orchestrator API commands currently accept the mission slug via `--feature`. After cutover:
+
+| Old Flag | New Flag | Scope |
+|----------|----------|-------|
+| `--feature` | `--mission` | All 8 commands: `mission-state`, `list-ready`, `start-implementation`, `start-review`, `transition`, `append-history`, `accept-mission`, `merge-mission` |
+
+The `--feature` flag must not be accepted on any live command.
 
 ### FR-004 Detail: Payload Field Mapping
 
@@ -238,7 +250,7 @@ The cutover is not shippable until:
 ## Scope Boundary
 
 **In scope:**
-- All 21 functional requirements above (FR-001 through FR-021)
+- All 23 functional requirements above (FR-001 through FR-023)
 - Shape-based upstream conformance tests
 - Migration code for legacy local state
 - Central compatibility gate

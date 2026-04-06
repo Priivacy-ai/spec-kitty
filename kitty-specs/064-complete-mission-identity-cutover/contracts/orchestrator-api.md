@@ -10,9 +10,9 @@
 
 | Command | Purpose | Key Parameters |
 |---------|---------|---------------|
-| `mission-state` | Query mission status and WP lanes | `--feature` (mission slug), `--policy` |
-| `accept-mission` | Mark all WPs done, accept mission | `--feature` (mission slug), `--policy` |
-| `merge-mission` | Merge mission worktrees to target branch | `--feature` (mission slug), `--strategy`, `--policy` |
+| `mission-state` | Query mission status and WP lanes | `--mission` (mission slug), `--policy` |
+| `accept-mission` | Mark all WPs done, accept mission | `--mission` (mission slug), `--policy` |
+| `merge-mission` | Merge mission worktrees to target branch | `--mission` (mission slug), `--strategy`, `--policy` |
 
 ### Unchanged Commands
 
@@ -24,6 +24,14 @@
 | `start-review` | Start reviewing a WP |
 | `transition` | Transition a WP between lanes |
 | `append-history` | Append audit history entry |
+
+### CLI Parameter Rename
+
+All 8 commands currently use `--feature` as the CLI flag for the mission slug. After cutover, this parameter must be renamed to `--mission` across all commands. The `--feature` flag must not be accepted on any live command.
+
+| Old Flag | New Flag | Scope |
+|----------|----------|-------|
+| `--feature` | `--mission` | All 8 commands that accept a mission slug |
 
 ## Error Codes
 

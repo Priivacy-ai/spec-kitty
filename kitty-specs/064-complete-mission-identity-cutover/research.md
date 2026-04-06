@@ -52,7 +52,7 @@ A function call at each chokepoint is simpler and more auditable than decorators
 
 **Gate behavior**: Validate that the payload/envelope conforms to the 3.0.0 contract shape. On non-conformance, raise a clear error and block the side effect. No silent correction.
 
-**Policy derivation**: The gate's validation rules must be derived from the upstream spec-kitty-events 3.0.0 cutover artifact shape, stored as a schema constant. Not hand-maintained field lists.
+**Policy derivation**: The gate must load its validation rules from a vendored machine-readable contract artifact (`contracts/upstream-3.0.0-shape.json`), which is derived from the upstream spec-kitty-events 3.0.0 and spec-kitty-saas contracts. The gate must NOT use hand-maintained field lists or local constants. At runtime, the gate loads this JSON artifact and enforces its `required_fields`, `forbidden_fields`, `allowed`/`forbidden` enumerations. If the artifact drifts from upstream, the fix is to update the artifact from the authoritative source, not to patch the gate code.
 
 **Alternatives considered**:
 - Decorator on each remote-facing function: Rejected because it hides control flow and is harder to audit. Some chokepoints (like `_emit()`) are methods, not standalone functions.

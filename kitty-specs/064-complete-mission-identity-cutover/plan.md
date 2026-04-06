@@ -107,15 +107,15 @@ tests/
 ### Phase A: Foundation (Independent, parallelizable)
 
 **A1: Compatibility Gate**
+- Vendor the machine-readable contract artifact `contracts/upstream-3.0.0-shape.json` into the package (e.g., `src/specify_cli/core/upstream_contract.json`) so it is loadable at runtime
 - Create `src/specify_cli/core/contract_gate.py`
 - Implement `validate_outbound_payload(payload: dict, context: str) -> None`
-- Validation rules derived from upstream 3.0.0 contract shape:
-  - Reject payloads containing `feature_slug`, `feature_number`, `mission_key` keys
-  - Reject `aggregate_type: "Feature"`
-  - Require `build_id` and `schema_version` on event envelopes
+- Gate must load validation rules from the vendored `upstream-3.0.0-shape.json` artifact at runtime, NOT from hand-maintained constants
+- Validation enforces `required_fields`, `forbidden_fields`, and `allowed`/`forbidden` enumerations from the artifact
 - Raise `ContractViolationError` with diagnostic message on failure
 - Insert at 6 chokepoints (see research.md Decision 3)
 - Unit tests for all validation rules + pass-through behavior
+- If upstream contract evolves, the fix is to update the vendored artifact from the authoritative source, not to patch gate code
 
 **A2: meta.json Canonical Writes**
 - Update the create-feature/create-mission scaffolding path to write canonical fields:
@@ -181,10 +181,12 @@ tests/
 **C1: Orchestrator API Rename**
 - Rename 3 commands: `feature-state` → `mission-state`, `accept-feature` → `accept-mission`, `merge-feature` → `merge-mission`
 - Rename 2 error codes: `FEATURE_NOT_FOUND` → `MISSION_NOT_FOUND`, `FEATURE_NOT_READY` → `MISSION_NOT_READY`
+- Rename CLI parameter: `--feature` → `--mission` on all 8 commands that accept a mission slug (FR-022)
 - Remove `feature_slug` from all 8 command response payloads (already handled by B4 identity_aliases removal, but verify)
 - Update internal function names: `feature_state()` → `mission_state()`, `accept_feature()` → `accept_mission()`, `merge_feature()` → `merge_mission()`
-- Update all tests referencing old command names and error codes
-- Integration tests verifying old command names fail as unknown
+- Update internal parameter names: `feature: str` → `mission: str` across all command functions
+- Update all tests referencing old command names, parameter names, and error codes
+- Integration tests verifying old command names fail as unknown and `--feature` flag is not accepted
 
 **C2: Body Sync Migration**
 - Rename `NamespaceRef` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`

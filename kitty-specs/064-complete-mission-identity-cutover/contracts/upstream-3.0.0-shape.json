@@ -1,0 +1,41 @@
+{
+  "_comment": "Machine-readable contract shape derived from spec-kitty-events @ 5b8e6dc and spec-kitty-saas @ 3a0e4af. The compatibility gate MUST load and enforce this artifact, not hand-maintained constants.",
+  "_source_events_commit": "5b8e6dc",
+  "_source_saas_commit": "3a0e4af",
+  "_schema_version": "3.0.0",
+  "envelope": {
+    "required_fields": ["schema_version", "build_id", "aggregate_type", "event_type"],
+    "forbidden_fields": ["feature_slug", "feature_number"],
+    "aggregate_type": {
+      "allowed": ["Mission"],
+      "forbidden": ["Feature"]
+    },
+    "schema_version": {
+      "value": "3.0.0"
+    }
+  },
+  "payload": {
+    "mission_scoped": {
+      "required_fields": ["mission_slug", "mission_number", "mission_type"],
+      "forbidden_fields": ["feature_slug", "feature_number", "feature_type"]
+    }
+  },
+  "body_sync": {
+    "required_fields": ["project_uuid", "mission_slug", "target_branch", "mission_type", "manifest_version"],
+    "forbidden_fields": ["feature_slug", "mission_key"]
+  },
+  "tracker_bind": {
+    "required_fields": ["uuid", "slug", "node_id", "repo_slug", "build_id"],
+    "forbidden_fields": []
+  },
+  "orchestrator_api": {
+    "allowed_commands": ["contract-version", "mission-state", "list-ready", "start-implementation", "start-review", "transition", "append-history", "accept-mission", "merge-mission"],
+    "forbidden_commands": ["feature-state", "accept-feature", "merge-feature"],
+    "allowed_error_codes": ["USAGE_ERROR", "POLICY_METADATA_REQUIRED", "POLICY_VALIDATION_FAILED", "MISSION_NOT_FOUND", "WP_NOT_FOUND", "TRANSITION_REJECTED", "WP_ALREADY_CLAIMED", "MISSION_NOT_READY", "PREFLIGHT_FAILED", "CONTRACT_VERSION_MISMATCH", "UNSUPPORTED_STRATEGY"],
+    "forbidden_error_codes": ["FEATURE_NOT_FOUND", "FEATURE_NOT_READY"],
+    "forbidden_payload_fields": ["feature_slug"],
+    "required_payload_fields": ["mission_slug"],
+    "allowed_cli_flags": ["--mission"],
+    "forbidden_cli_flags": ["--feature"]
+  }
+}
