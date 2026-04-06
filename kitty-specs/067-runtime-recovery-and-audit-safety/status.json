@@ -1,7 +1,7 @@
 {
-  "event_count": 32,
-  "last_event_id": "01KNJ332VV1C21BJ2SP88ZSK0Q",
-  "materialized_at": "2026-04-06T19:07:41.820000+00:00",
+  "event_count": 35,
+  "last_event_id": "01KNJ341H8T9VXQRZBKQ3FNBPG",
+  "materialized_at": "2026-04-06T19:08:13.224921+00:00",
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "summary": {
     "approved": 3,
@@ -9,9 +9,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 2,
-    "planned": 1
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -22,11 +22,11 @@
       "last_transition_at": "2026-04-06T19:07:15.493055+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNJ25PPRTAJ6SBE9DGMQ5G1H",
-      "last_transition_at": "2026-04-06T18:51:39.096201+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KNJ334BR699HTEE2FA4S7M3Q",
+      "last_transition_at": "2026-04-06T19:07:43.352704+00:00"
     },
     "WP03": {
       "actor": "claude:opus:reviewer:reviewer",
@@ -50,11 +50,11 @@
       "last_transition_at": "2026-04-06T19:05:27.114515+00:00"
     },
     "WP06": {
-      "actor": "claude:opus:implementer:implementer",
-      "force_count": 4,
-      "lane": "in_progress",
-      "last_event_id": "01KNJ309EZYMCSW8SQJ1W354G2",
-      "last_transition_at": "2026-04-06T19:06:10.271995+00:00"
+      "actor": "user",
+      "force_count": 5,
+      "lane": "for_review",
+      "last_event_id": "01KNJ341H8T9VXQRZBKQ3FNBPG",
+      "last_transition_at": "2026-04-06T19:08:13.224389+00:00"
     }
   }
 }
