@@ -364,15 +364,17 @@ def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> No
     assert payload["remove_worktree"] is False
 
 
-def test_merge_rejects_resume_and_abort(monkeypatch, tmp_path: Path) -> None:
+def test_merge_resume_without_state_errors(monkeypatch, tmp_path: Path) -> None:
+    """Resume with no existing merge state should error (not crash)."""
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
     (repo_root / ".git").mkdir()
     monkeypatch.setattr(merge_module, "find_repo_root", lambda: repo_root)
     monkeypatch.setattr(merge_module, "_enforce_git_preflight", lambda *_args, **_kwargs: None)
     result = runner.invoke(cli_app, ["merge", "--resume"])
+    # Resume without existing state should fail (but no longer with old "removed" error)
     assert result.exit_code == 1
-    assert "Resume/abort merge flows were removed" in result.stdout
+    assert "Resume/abort merge flows were removed" not in result.stdout
 
 
 def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
