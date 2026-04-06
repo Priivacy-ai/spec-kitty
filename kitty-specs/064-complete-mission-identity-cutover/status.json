@@ -1,17 +1,17 @@
 {
-  "event_count": 47,
+  "event_count": 48,
   "feature_slug": "064-complete-mission-identity-cutover",
-  "last_event_id": "01KNGW36V4DQTESN3BHW0Y3483",
-  "materialized_at": "2026-04-06T07:46:11.428911+00:00",
+  "last_event_id": "01KNGW6E1AJY3V03D8BZWFP1HM",
+  "materialized_at": "2026-04-06T07:47:57.098821+00:00",
   "mission_slug": "064-complete-mission-identity-cutover",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "planned": 4
   },
   "work_packages": {
@@ -44,11 +44,11 @@
       "last_transition_at": "2026-04-06T07:35:06.972555+00:00"
     },
     "WP05": {
-      "actor": "opencode:gpt-5.4:python-reviewer:reviewer",
-      "force_count": 5,
-      "lane": "in_progress",
-      "last_event_id": "01KNGW36V4DQTESN3BHW0Y3483",
-      "last_transition_at": "2026-04-06T07:46:11.428432+00:00"
+      "actor": "user",
+      "force_count": 6,
+      "lane": "approved",
+      "last_event_id": "01KNGW6E1AJY3V03D8BZWFP1HM",
+      "last_transition_at": "2026-04-06T07:47:57.098077+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
