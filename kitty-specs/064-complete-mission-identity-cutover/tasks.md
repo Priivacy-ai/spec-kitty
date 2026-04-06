@@ -125,14 +125,14 @@ Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. 
 Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and WebSocket chokepoints. Audit event paths for `build_id` preservation. Rename FeatureCreated/FeatureCompleted event surfaces. Update vendored event model with `build_id` and `schema_version`.
 
 - [ ] T033: Add `build_id` to tracker bind `project_identity` dict in `tracker.py`
-- [ ] T034: Insert gate at `SaaSTrackerClient._request()` chokepoint
-- [ ] T035: Insert gate at `EventEmitter._emit()`, `batch_sync()`, `WebSocketClient.send_event()` chokepoints
-- [ ] T036: Audit event emission paths for `build_id` presence and fix gaps
-- [ ] T037: Audit event serialization/deserialization for `build_id` preservation through queue/replay
-- [ ] T038: Verify `aggregate_type` is `"Mission"` everywhere (never `"Feature"`)
-- [ ] T039: Update tracker integration tests
-- [ ] T040: Rename `FeatureCreated`/`FeatureCompleted` helpers and event types in `events.py` and `emitter.py`
-- [ ] T041: Add `build_id` and `schema_version` fields to vendored event model in `spec_kitty_events/models.py`
+- [x] T034: Insert gate at `SaaSTrackerClient._request()` chokepoint
+- [x] T035: Insert gate at `EventEmitter._emit()`, `batch_sync()`, `WebSocketClient.send_event()` chokepoints
+- [x] T036: Audit event emission paths for `build_id` presence and fix gaps
+- [x] T037: Audit event serialization/deserialization for `build_id` preservation through queue/replay
+- [x] T038: Verify `aggregate_type` is `"Mission"` everywhere (never `"Feature"`)
+- [x] T039: Update tracker integration tests
+- [x] T040: Rename `FeatureCreated`/`FeatureCompleted` helpers and event types in `events.py` and `emitter.py`
+- [x] T041: Add `build_id` and `schema_version` fields to vendored event model in `spec_kitty_events/models.py`
 
 **Requirement refs**: FR-002, FR-005, FR-006, FR-007, FR-008, FR-009, FR-012, FR-018
 
