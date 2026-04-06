@@ -94,8 +94,9 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 | FR-007 | If an executable WP cannot be assigned to a lane (missing ownership manifest, unresolvable conflict), lane computation fails with a diagnostic error naming the specific WP and the reason. | Proposed |
 | FR-008 | Lane computation emits a collapse report when WPs that are independent in the dependency graph are merged into the same lane. The report names the merging rule and the specific files, globs, or surfaces that triggered the merge. | Proposed |
 | FR-009 | Surface-heuristic lane merging (Rule 3) is refined so that broad keyword matches (e.g., "sidebar" matching "app-shell") do not collapse WPs with disjoint owned files. | Proposed |
-| FR-010 | `mark-status` supports both checkbox-style (`- [ ] T001`) and pipe-table (`| T001 | ... | [P] |`) task row formats for backward compatibility with existing generated artifacts. | Proposed |
-| FR-010a | If task generation is standardized to a single format going forward, `mark-status` still supports the legacy format so existing `tasks.md` files remain editable without regeneration. | Proposed |
+| FR-010 | `mark-status` supports both checkbox-style (`- [ ] T001`) and pipe-table (`| T001 | ... | [P] |`) task row formats. Checkbox is the canonical emitted format; pipe-table is a backward-compatible input/mutation format for existing artifacts. | Proposed |
+| FR-010a | New `tasks.md` generation (via `/spec-kitty.tasks`) emits checkbox format exclusively. Existing pipe-table `tasks.md` files remain editable by `mark-status` without migration. | Proposed |
+| FR-010b | No user-facing format-selection feature is added. No mutation command rewrites existing pipe-table files to checkbox format. | Proposed |
 | FR-011 | All generated slash-command prompts and command examples across the tasks/action surface — including `context resolve`, `check-prerequisites`, `finalize-tasks`, `mark-status`, and any other `spec-kitty agent` subcommand that requires mission context — include the `--mission <slug>` parameter explicitly. | Proposed |
 | FR-012 | Error messages for missing mission context use the same flag name as the CLI parameter (`--mission`), not alternative names like `--feature`. | Proposed |
 | FR-013 | The `require_explicit_feature()` error message includes a concrete example using the first available mission slug from `kitty-specs/`, formatted as a complete copy-pasteable command. | Proposed |
@@ -169,7 +170,7 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 - The bullet-list dependency format in tasks.md is the primary format LLMs generate; inline format is secondary but must remain supported
 - Surface-heuristic merging (Rule 3) can be made less aggressive without breaking existing valid lane assignments
-- `mark-status` must support both pipe-table and checkbox formats for backward compatibility; generation may be standardized going forward but the mutator must handle both
+- Checkbox is the canonical emitted format for `tasks.md`; pipe-table is a backward-compatible input format. `mark-status` supports both. No format-selection feature or automatic migration is added in this mission
 - Planning-artifact WPs (`execution_mode: planning_artifact`) are intentionally excluded from lane assignment by the existing execution model; this mission does not change that model, only makes the exclusion visible and diagnostic
 
 ## Success Criteria
