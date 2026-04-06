@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.tasks.conftest import create_mission_fast
+
 pytestmark = pytest.mark.git_repo
 
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
@@ -51,15 +53,8 @@ def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None
 
 def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     """Test that setup-plan command works in main repo and commits plan.md."""
-    # First create a mission
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "plan-test",
-        "--json",
-    )
+    # Setup: create mission in-process (not the test target)
+    create_mission_fast(test_project, "plan-test")
 
     feature_dir = test_project / "kitty-specs" / "001-plan-test"
 
@@ -103,14 +98,8 @@ def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_c
     """setup-plan with explicit --mission returns deterministic context fields."""
     import json
 
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "plan-explicit-test",
-        "--json",
-    )
+    # Setup: create mission in-process
+    create_mission_fast(test_project, "plan-explicit-test")
 
     mission_slug = "001-plan-explicit-test"
     feature_dir = test_project / "kitty-specs" / mission_slug
@@ -144,22 +133,9 @@ def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run
     """setup-plan without explicit context returns candidate missions and remediation."""
     import json
 
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "feature-a",
-        "--json",
-    )
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "feature-b",
-        "--json",
-    )
+    # Setup: create two missions in-process
+    create_mission_fast(test_project, "feature-a", number=1)
+    create_mission_fast(test_project, "feature-b", number=2)
 
     result = run_cli(
         test_project,
@@ -179,14 +155,8 @@ def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_c
     """setup-plan should fail when spec.md is missing for an explicit mission."""
     import json
 
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "missing-spec",
-        "--json",
-    )
+    # Setup: create mission in-process, then remove spec.md
+    create_mission_fast(test_project, "missing-spec")
     mission_slug = "001-missing-spec"
     feature_dir = test_project / "kitty-specs" / mission_slug
     spec_file = feature_dir / "spec.md"
@@ -218,16 +188,8 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
         encoding="utf-8"
     )
 
-    # Step 1: Create mission (specify phase)
-    result = run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "full-workflow-test",
-        "--json",
-    )
-    assert result.returncode == 0, "Mission creation failed"
+    # Step 1: Create mission in-process (not the test target for this test)
+    create_mission_fast(test_project, "full-workflow-test")
 
     feature_dir = test_project / "kitty-specs" / "001-full-workflow-test"
     assert feature_dir.exists(), "Feature directory not created"
@@ -425,15 +387,8 @@ Test work package content.
 
 def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     """Test that check-prerequisites command works when run from main repo."""
-    # Create a mission first
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "prereq-test",
-        "--json",
-    )
+    # Setup: create mission in-process
+    create_mission_fast(test_project, "prereq-test")
 
     # Run check-prerequisites from main repo
     result = run_cli(
@@ -460,22 +415,9 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     """check-prerequisites should fail with remediation when feature context is ambiguous."""
     import json
 
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "ambiguous-a",
-        "--json",
-    )
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "ambiguous-b",
-        "--json",
-    )
+    # Setup: create two missions in-process
+    create_mission_fast(test_project, "ambiguous-a", number=1)
+    create_mission_fast(test_project, "ambiguous-b", number=2)
 
     result = run_cli(
         test_project,
@@ -499,22 +441,9 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
     """finalize-tasks should fail with remediation when feature context is ambiguous."""
     import json
 
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "ambiguous-finalize-a",
-        "--json",
-    )
-    run_cli(
-        test_project,
-        "agent",
-        "mission",
-        "create",
-        "ambiguous-finalize-b",
-        "--json",
-    )
+    # Setup: create two missions in-process
+    create_mission_fast(test_project, "ambiguous-finalize-a", number=1)
+    create_mission_fast(test_project, "ambiguous-finalize-b", number=2)
 
     result = run_cli(
         test_project,
