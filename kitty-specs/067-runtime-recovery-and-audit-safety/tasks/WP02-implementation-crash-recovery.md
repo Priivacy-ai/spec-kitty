@@ -250,3 +250,4 @@ Existing building blocks:
 ## Activity Log
 
 - 2026-04-06T19:07:43Z – claude:opus:implementer:implementer – shell_pid=31463 – Started implementation via action command
+- 2026-04-06T19:18:14Z – claude:opus:implementer:implementer – shell_pid=31463 – Crash recovery with --recover flag, worktree+status reconciliation, 16 tests all passing
