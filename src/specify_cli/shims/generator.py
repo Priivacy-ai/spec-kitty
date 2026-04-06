@@ -1,14 +1,14 @@
-"""Generate thin 3-line shim markdown files for all configured agents.
+"""Generate thin command markdown files for all configured agents.
 
 Each generated file contains exactly:
   1. A version marker comment.
   2. An invariant instruction line.
   3. A prohibition line.
-  4. A CLI call that passes all arguments through.
+  4. A direct canonical CLI call that passes all arguments through.
 
-No workflow logic is embedded in shim files.  All resolution and
-dispatch logic lives in the CLI (see :mod:`specify_cli.shims.entrypoints`
-and :mod:`specify_cli.cli.commands.shim`).
+No workflow logic is embedded in command files.  Each file calls the
+canonical ``spec-kitty`` CLI command directly -- there is no intermediate
+shim dispatch layer.
 """
 
 from __future__ import annotations
@@ -50,13 +50,42 @@ def _get_arg_placeholder(agent_key: str) -> str:
     return AGENT_ARG_PLACEHOLDERS.get(agent_key, _DEFAULT_ARG_PLACEHOLDER)
 
 
-def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -> str:
-    """Return the shim markdown body with version marker.
+def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> str:
+    """Map a CLI-driven command verb to its canonical ``spec-kitty`` invocation.
 
-    The format is invariant across all skills and agents except for the
-    ``arg_placeholder`` substitution.  The first line is always a
-    ``<!-- spec-kitty-command-version: X.Y.Z -->`` marker so migrations
-    and doctor checks can detect stale files.
+    Args:
+        command:         Skill verb, e.g. ``"implement"``.
+        agent_name:      Agent key, e.g. ``"claude"``.
+        arg_placeholder: Runtime variable name, e.g. ``"$ARGUMENTS"``.
+
+    Returns:
+        A single-line canonical CLI command string.
+    """
+    _COMMAND_MAP: dict[str, str] = {
+        "implement": "spec-kitty agent action implement {args} --agent {agent}",
+        "review": "spec-kitty agent action review {args} --agent {agent}",
+        "accept": "spec-kitty agent mission accept {args}",
+        "status": "spec-kitty agent tasks status {args}",
+        "merge": "spec-kitty merge {args}",
+        "dashboard": "spec-kitty dashboard {args}",
+        "tasks-finalize": "spec-kitty agent mission finalize-tasks {args}",
+    }
+    template = _COMMAND_MAP.get(command)
+    if template is None:
+        raise ValueError(
+            f"Unknown CLI-driven command '{command}'. "
+            f"Expected one of: {', '.join(sorted(_COMMAND_MAP))}."
+        )
+    return template.format(args=arg_placeholder, agent=agent_name)
+
+
+def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -> str:
+    """Return the command markdown body with version marker.
+
+    Each generated file calls a canonical ``spec-kitty`` CLI command
+    directly -- there is no intermediate shim dispatch layer.  The first
+    line is always a ``<!-- spec-kitty-command-version: X.Y.Z -->`` marker
+    so migrations and doctor checks can detect stale files.
 
     Args:
         command:         Skill verb, e.g. ``"implement"``.
@@ -67,13 +96,14 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
         A multi-line string ready to write as a ``.md`` file.
     """
     version = _get_cli_version()
+    cli_call = _canonical_command(command, agent_name, arg_placeholder)
     return (
         f"<!-- spec-kitty-command-version: {version} -->\n"
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, or prompt contents.\n"
         "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
         "\n"
-        f'`spec-kitty agent shim {command} --agent {agent_name} --raw-args "{arg_placeholder}"`\n'
+        f"`{cli_call}`\n"
     )
 
 

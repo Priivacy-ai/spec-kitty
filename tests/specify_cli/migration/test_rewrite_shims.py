@@ -77,7 +77,8 @@ class TestRewriteAgentShims:
             shim_file = claude_dir / f"spec-kitty.{command}.md"
             assert shim_file.exists(), f"CLI shim missing: {command}"
             content = shim_file.read_text()
-            assert "spec-kitty agent shim" in content
+            assert "spec-kitty" in content
+            assert "agent shim" not in content
 
     def test_prompt_templates_are_full(self, tmp_path: Path) -> None:
         """T063-1: Prompt-driven command files are full templates, not thin shims."""
@@ -151,8 +152,9 @@ class TestRewriteAgentShims:
 
         rewrite_agent_shims(tmp_path)
 
-        # File should now be a thin shim
+        # File should now contain a direct canonical command
         new_content = legacy_file.read_text()
-        assert "spec-kitty agent shim" in new_content
+        assert "spec-kitty" in new_content
+        assert "agent shim" not in new_content
         # Old content should be gone
         assert "Do this" not in new_content
