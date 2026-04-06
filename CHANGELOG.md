@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a5] - 2026-04-06
+
+### Fixed
+
+- **Dependency parsing in finalize-tasks** — new shared parser (`core/dependency_parser.py`) recognizes inline, colon-header, and bullet-list dependency formats. Both `agent mission finalize-tasks` and `agent tasks finalize-tasks` use the same parser. Non-empty disagreement between tasks.md and WP frontmatter triggers a diagnostic error instead of silently overwriting (#406).
+- **validate-only is genuinely non-mutating** — all file writes gated behind `if not validate_only`. JSON output reports `would_modify`/`unchanged`/`preserved` without touching disk (#417).
+- **Lane computation completeness** — every executable WP must appear in `lanes.json` or lane computation fails with a diagnostic error. Missing ownership manifests are a hard failure. Planning-artifact WPs surfaced in diagnostic summary. Zero-match globs and `src/**` fallback emit warnings (#422).
+- **Parallelism collapse reporting** — new `CollapseReport` records every union-find merge with rule name and evidence. Rule 3 (surface heuristics) now gated on `_are_disjoint()` — WPs with provably disjoint owned files are not collapsed by keyword matches alone (#423).
+- **Pipe-table mark-status support** — column-aware parser recognizes `[P]` in Parallel column (not corrupted), updates Status column or appends one. Checkbox format remains canonical for new generation (#438).
+- **Agent command guidance** — all error messages, shim templates, and command-template examples now use `--mission` consistently. Five `require_explicit_feature()` callers fixed from `--feature` to `--mission`. Error messages include complete copy-pasteable example commands (#434).
+- **Full --feature → --mission sweep** — 12 typer.Option declarations, 4 argparse declarations, 11 error messages, and 5 docstrings updated. `--mission` is the primary displayed flag name; `--feature` retained as hidden backward-compatibility alias (#448).
+
+### Added
+
+- `src/specify_cli/core/dependency_parser.py` — canonical shared dependency parser
+- `CollapseEvent` and `CollapseReport` data models in `lanes/models.py`
+- `LaneComputationError` exception for diagnostic lane failures
+- `validate_glob_matches()` in ownership validation
+- `planning_artifact_wps` field on `LanesManifest`
+- Charter regression vigilance rules for `--mission` terminology canon
+
 ## [3.1.0a4] - 2026-04-06
 
 ### Fixed
