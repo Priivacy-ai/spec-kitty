@@ -158,3 +158,4 @@ All 8 command functions have `feature: str = typer.Option(..., "--feature", ...)
 ## Activity Log
 
 - 2026-04-06T07:20:29Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=74089 – Started implementation via action command
+- 2026-04-06T07:33:13Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=74089 – Ready for review: orchestrator API hard cutover complete. All 8 alias calls removed, identity_aliases.py deleted, 3 commands renamed, 2 error codes renamed, --mission flag on all 8 commands, contract gate inserted, 78 tests passing.
