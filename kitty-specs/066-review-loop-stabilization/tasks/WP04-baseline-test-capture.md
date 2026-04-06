@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-066-review-loop-stabilization
+base_commit: 4dbb05e1ae46b17dad6ae64402cfb2861107f268
+created_at: '2026-04-06T16:42:33.087254+00:00'
 subtasks:
 - T017
 - T018
@@ -16,6 +19,7 @@ subtasks:
 - T021
 - T022
 - T023
+shell_pid: '48037'
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
