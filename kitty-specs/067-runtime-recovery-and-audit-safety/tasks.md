@@ -96,12 +96,12 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: None
 **Estimated prompt size**: ~500 lines
 
-- [ ] T012 Rewrite `generate_shim_content()` to emit direct canonical CLI commands per command type (WP03)
-- [ ] T013 Add `"accept"` to ActionName Literal in execution_context.py for backward compatibility (WP03)
-- [ ] T014 Delete shim runtime files: entrypoints.py, models.py, shim.py; remove CLI registration (WP03)
-- [ ] T015 Update `rewrite_agent_shims()` in migration/rewrite_shims.py for new generator output (WP03)
-- [ ] T016 Write migration to regenerate all existing agent command files across configured agents (WP03)
-- [ ] T017 Write tests verifying direct commands in .claude/, .codex/, .opencode/ (C-003) (WP03)
+- [x] T012 Rewrite `generate_shim_content()` to emit direct canonical CLI commands per command type (WP03)
+- [x] T013 Add `"accept"` to ActionName Literal in execution_context.py for backward compatibility (WP03)
+- [x] T014 Delete shim runtime files: entrypoints.py, models.py, shim.py; remove CLI registration (WP03)
+- [x] T015 Update `rewrite_agent_shims()` in migration/rewrite_shims.py for new generator output (WP03)
+- [x] T016 Write migration to regenerate all existing agent command files across configured agents (WP03)
+- [x] T017 Write tests verifying direct commands in .claude/, .codex/, .opencode/ (C-003) (WP03)
 
 ### WP04: Audit-Mode WP Scope Relaxation
 
