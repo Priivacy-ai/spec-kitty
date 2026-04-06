@@ -47,7 +47,7 @@ runner = CliRunner()
 def _append_status_event(
     feature_dir: Path,
     *,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: Lane,
     to_lane: Lane,
@@ -56,7 +56,7 @@ def _append_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{wp_id}-{to_lane.value}-{time.time_ns()}",
-            mission_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             from_lane=from_lane,
             to_lane=to_lane,
@@ -89,7 +89,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
-        lambda repo_root, feature_slug: (repo_root, "main"),
+        lambda repo_root, mission_slug: (repo_root, "main"),
     )
     return repo_root
 
@@ -269,7 +269,7 @@ Test content.
         )
         return repo
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="research")
     def test_root_tasks_md_does_not_block_review(
         self,
         _mock_mission: Mock,
@@ -295,7 +295,7 @@ Test content.
         # Validate should pass (tasks.md should be filtered)
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             force=False,
         )
@@ -303,7 +303,7 @@ Test content.
         assert is_valid is True, f"Root tasks.md should not block review. Guidance: {guidance}"
         assert guidance == []
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="research")
     def test_status_events_jsonl_does_not_block_review(
         self,
         _mock_mission: Mock,
@@ -318,14 +318,14 @@ Test content.
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             force=False,
         )
 
         assert is_valid is True, f"status.events.jsonl should be filtered. Guidance: {guidance}"
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="research")
     def test_status_json_does_not_block_review(
         self,
         _mock_mission: Mock,
@@ -340,14 +340,14 @@ Test content.
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             force=False,
         )
 
         assert is_valid is True, f"status.json should be filtered. Guidance: {guidance}"
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="research")
     def test_real_research_artifact_still_blocks_review(
         self,
         _mock_mission: Mock,
@@ -361,7 +361,7 @@ Test content.
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             force=False,
         )
@@ -369,7 +369,7 @@ Test content.
         assert is_valid is False, "Real research artifacts should still block review"
         assert any("uncommitted" in g.lower() for g in guidance)
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="research")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="research")
     def test_all_auto_artifacts_together_do_not_block(
         self,
         _mock_mission: Mock,
@@ -385,7 +385,7 @@ Test content.
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=git_repo,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             force=False,
         )
@@ -442,7 +442,7 @@ Test content.
         (feature_dir / "meta.json").write_text(json.dumps(meta))
         _append_status_event(
             feature_dir,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.IN_PROGRESS,
@@ -458,7 +458,7 @@ Test content.
         return repo
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_task_commits_status_artifacts(
         self,
         mock_slug: Mock,
@@ -517,7 +517,7 @@ Test content.
             assert "WP01" in committed_files, f"WP file should be in commit. Files: {committed_files}"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_task_holds_feature_lock_through_safe_commit(
         self,
         mock_slug: Mock,
@@ -532,8 +532,8 @@ Test content.
         lock_state = {"held": False}
 
         @contextmanager
-        def tracking_lock(repo_root: Path, feature_slug: str):  # type: ignore[no-untyped-def]
-            del repo_root, feature_slug
+        def tracking_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-def]
+            del repo_root, mission_slug
             lock_state["held"] = True
             try:
                 yield
@@ -555,7 +555,7 @@ Test content.
         assert result.exit_code == 0, result.stdout
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_task_uses_existing_event_and_updates_metadata(
         self,
         mock_slug: Mock,
@@ -571,7 +571,7 @@ Test content.
         wp_path = feature_dir / "tasks" / "WP01-test.md"
         _append_status_event(
             feature_dir,
-            feature_slug="017-test-feature",
+            mission_slug="017-test-feature",
             wp_id="WP01",
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
@@ -621,7 +621,7 @@ Test content.
         )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_task_warns_when_auto_commit_returns_false(
         self,
         mock_slug: Mock,
@@ -688,7 +688,7 @@ class TestMarkStatusAtomicCommit:
         return repo
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_mark_status_commits_under_lock_and_reports_missing_tasks(
         self,
@@ -708,8 +708,8 @@ class TestMarkStatusAtomicCommit:
         lock_state = {"held": False}
 
         @contextmanager
-        def tracking_lock(repo_root: Path, feature_slug: str):  # type: ignore[no-untyped-def]
-            del repo_root, feature_slug
+        def tracking_lock(repo_root: Path, mission_slug: str):  # type: ignore[no-untyped-def]
+            del repo_root, mission_slug
             lock_state["held"] = True
             try:
                 yield
@@ -747,7 +747,7 @@ class TestMarkStatusAtomicCommit:
         )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_mark_status_fails_when_no_task_ids_match(
         self,
@@ -774,7 +774,7 @@ class TestMarkStatusAtomicCommit:
         assert "No task IDs found in tasks.md: T999" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_mark_status_warns_when_auto_commit_returns_false(
         self,
@@ -809,7 +809,7 @@ class TestMarkStatusAtomicCommit:
         )
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_mark_status_warns_when_auto_commit_raises(
         self,
@@ -848,8 +848,8 @@ def test_workflow_review_holds_feature_lock_through_safe_commit(
     workflow_repo: Path,
 ) -> None:
     """workflow review should hold the feature lock across WP write and commit."""
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",))
@@ -884,7 +884,7 @@ Test content.
         "event_id": "01JTEST00000000000000000003",
         "evidence": None,
         "execution_mode": "direct_repo",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "force": False,
         "from_lane": "planned",
         "reason": None,
@@ -897,8 +897,8 @@ Test content.
     lock_state = {"held": False}
 
     @contextmanager
-    def tracking_lock(repo_root: Path, locked_feature_slug: str):  # type: ignore[no-untyped-def]
-        del repo_root, locked_feature_slug
+    def tracking_lock(repo_root: Path, locked_mission_slug: str):  # type: ignore[no-untyped-def]
+        del repo_root, locked_mission_slug
         lock_state["held"] = True
         try:
             yield
@@ -914,7 +914,7 @@ Test content.
         with patch("specify_cli.cli.commands.agent.workflow.safe_commit", side_effect=fake_safe_commit):
             result = CliRunner().invoke(
                 workflow.app,
-                ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+                ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
             )
 
     assert result.exit_code == 0, result.stdout

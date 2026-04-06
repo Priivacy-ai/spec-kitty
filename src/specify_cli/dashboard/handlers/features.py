@@ -52,10 +52,10 @@ class FeatureHandler(DashboardHandler):
             active_feature = resolve_active_feature(project_path)
 
             if active_feature:
-                feature_mission_key = active_feature.get('meta', {}).get('mission', 'software-dev')
+                feature_mission_type = active_feature.get('meta', {}).get('mission', 'software-dev')
                 try:
                     kittify_dir = project_path / ".kittify"
-                    mission = get_mission_by_name(feature_mission_key, kittify_dir)
+                    mission = get_mission_by_name(feature_mission_type, kittify_dir)
                     mission_context = {
                         'name': mission.name,
                         'domain': mission.config.domain,
@@ -68,10 +68,10 @@ class FeatureHandler(DashboardHandler):
                 except MissionError:
                     # Fallback: show feature name with unknown mission
                     mission_context = {
-                        'name': f"Unknown ({feature_mission_key})",
+                        'name': f"Unknown ({feature_mission_type})",
                         'domain': 'unknown',
                         'version': '',
-                        'slug': feature_mission_key,
+                        'slug': feature_mission_type,
                         'description': '',
                         'path': '',
                         'feature': active_feature.get('name', ''),

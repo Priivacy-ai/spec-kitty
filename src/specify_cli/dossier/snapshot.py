@@ -99,7 +99,7 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
 
     # 5. Create snapshot
     return MissionDossierSnapshot(
-        feature_slug=dossier.feature_slug,
+        mission_slug=dossier.mission_slug,
         total_artifacts=len(sorted_artifacts),
         required_artifacts=len(required_artifacts),
         required_present=required_present,
@@ -133,13 +133,13 @@ def compute_snapshot(dossier: MissionDossier) -> MissionDossierSnapshot:
 def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
     """Persist snapshot to JSON file.
 
-    File location: {feature_dir}/.kittify/dossiers/{feature_slug}/snapshot-latest.json
+    File location: {feature_dir}/.kittify/dossiers/{mission_slug}/snapshot-latest.json
 
     Args:
         snapshot: MissionDossierSnapshot to persist
         feature_dir: Root directory of feature (Path object)
     """
-    dossier_dir = feature_dir / ".kittify" / "dossiers" / snapshot.feature_slug
+    dossier_dir = feature_dir / ".kittify" / "dossiers" / snapshot.mission_slug
     dossier_dir.mkdir(parents=True, exist_ok=True)
 
     snapshot_file = dossier_dir / "snapshot-latest.json"
@@ -147,17 +147,17 @@ def save_snapshot(snapshot: MissionDossierSnapshot, feature_dir: Path) -> None:
         json.dump(snapshot.model_dump(), f, indent=2, default=str)
 
 
-def load_snapshot(feature_dir: Path, feature_slug: str) -> MissionDossierSnapshot | None:
+def load_snapshot(feature_dir: Path, mission_slug: str) -> MissionDossierSnapshot | None:
     """Load snapshot from JSON file.
 
     Args:
         feature_dir: Root directory of feature (Path object)
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
 
     Returns:
         MissionDossierSnapshot or None if not found
     """
-    snapshot_file = feature_dir / ".kittify" / "dossiers" / feature_slug / "snapshot-latest.json"
+    snapshot_file = feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json"
     if not snapshot_file.exists():
         return None
 
@@ -166,14 +166,14 @@ def load_snapshot(feature_dir: Path, feature_slug: str) -> MissionDossierSnapsho
     return MissionDossierSnapshot(**data)
 
 
-def get_latest_snapshot(feature_dir: Path, feature_slug: str) -> MissionDossierSnapshot | None:
+def get_latest_snapshot(feature_dir: Path, mission_slug: str) -> MissionDossierSnapshot | None:
     """Get most recent snapshot (convenience alias).
 
     Args:
         feature_dir: Root directory of feature (Path object)
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
 
     Returns:
         MissionDossierSnapshot or None if not found
     """
-    return load_snapshot(feature_dir, feature_slug)
+    return load_snapshot(feature_dir, mission_slug)

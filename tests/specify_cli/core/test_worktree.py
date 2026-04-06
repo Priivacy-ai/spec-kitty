@@ -26,14 +26,14 @@ from specify_cli.ownership.models import ExecutionMode
 def _make_frontmatter(
     execution_mode: str = "code_change",
     wp_id: str = "WP01",
-    feature_slug: str = "test-feature",
+    mission_slug: str = "test-feature",
     owned_files: list[str] | None = None,
 ) -> dict:
     return {
         "work_package_id": wp_id,
         "execution_mode": execution_mode,
         "owned_files": owned_files or [],
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
     }
 
 

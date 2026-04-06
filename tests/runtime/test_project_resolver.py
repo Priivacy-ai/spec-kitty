@@ -41,8 +41,8 @@ def test_resolve_worktree_awareness(tmp_path):
     """resolve_worktree_aware_feature_dir uses worktree path when CWD is inside a worktree."""
     # Arrange
     repo_root = tmp_path / "spec-kitty"
-    feature_slug = "004-modular-code-refactoring"
-    worktree = repo_root / ".worktrees" / feature_slug / "kitty-specs" / feature_slug / "tasks"
+    mission_slug = "004-modular-code-refactoring"
+    worktree = repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug / "tasks"
     worktree.mkdir(parents=True)
 
     cwd_inside = worktree / "doing"
@@ -52,10 +52,10 @@ def test_resolve_worktree_awareness(tmp_path):
     assert cwd_inside.exists(), "CWD inside worktree must exist"
 
     # Act
-    resolved = resolve_worktree_aware_feature_dir(repo_root, feature_slug, cwd=cwd_inside)
+    resolved = resolve_worktree_aware_feature_dir(repo_root, mission_slug, cwd=cwd_inside)
 
     # Assert
-    assert resolved == repo_root / ".worktrees" / feature_slug / "kitty-specs" / feature_slug
+    assert resolved == repo_root / ".worktrees" / mission_slug / "kitty-specs" / mission_slug
 
     repo_root.mkdir(exist_ok=True)
     fallback = resolve_worktree_aware_feature_dir(repo_root, "999-new-feature")

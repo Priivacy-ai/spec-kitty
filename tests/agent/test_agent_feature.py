@@ -897,7 +897,7 @@ class TestSetupPlanCommand:
         assert result.exit_code == 0
         output = json.loads(result.stdout)
         assert output["result"] == "success"
-        assert output["feature_slug"] == "001-test"
+        assert output["mission_slug"] == "001-test"
         assert "plan_file" in output
         assert "feature_dir" in output
         assert output["spec_file"] == str(feature_dir / "spec.md")
@@ -1015,7 +1015,7 @@ class TestSetupPlanCommand:
         first_line = result.stdout.strip().split('\n')[0]
         output = json.loads(first_line)
         assert output["error_code"] == "SPEC_FILE_MISSING"
-        assert output["feature_slug"] == "001-test"
+        assert output["mission_slug"] == "001-test"
         assert output["spec_file"] == str((feature_dir / "spec.md").resolve())
         assert "Restore the missing spec file" in "\n".join(output["remediation"])
 

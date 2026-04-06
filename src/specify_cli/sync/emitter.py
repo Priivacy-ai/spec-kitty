@@ -127,16 +127,16 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
             "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
             "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
             "actor": lambda v: isinstance(v, str) if v is not None else True,
-            "feature_slug": lambda v: _is_nullable_string(v),
+            "mission_slug": lambda v: _is_nullable_string(v),
             "policy_metadata": lambda v: v is None or isinstance(v, dict),
         },
     },
     "WPCreated": {
-        "required": {"wp_id", "title", "feature_slug"},
+        "required": {"wp_id", "title", "mission_slug"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
             "title": lambda v: isinstance(v, str) and len(v) >= 1,
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "dependencies": lambda v: isinstance(v, list)
             and all(isinstance(item, str) and _WP_ID_PATTERN.match(item) for item in v),
         },
@@ -151,19 +151,19 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionCreated": {
-        "required": {"feature_slug", "feature_number", "target_branch", "wp_count"},
+        "required": {"mission_slug", "mission_number", "target_branch", "wp_count"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
-            "feature_number": lambda v: isinstance(v, str) and bool(_FEATURE_NUMBER_PATTERN.match(v)),
+            "mission_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
+            "mission_number": lambda v: isinstance(v, str) and bool(_FEATURE_NUMBER_PATTERN.match(v)),
             "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
             "wp_count": lambda v: isinstance(v, int) and v >= 0,
             "created_at": lambda v: _is_datetime_string(v),
         },
     },
     "MissionClosed": {
-        "required": {"feature_slug", "total_wps"},
+        "required": {"mission_slug", "total_wps"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "total_wps": lambda v: isinstance(v, int) and v >= 0,
             "completed_at": lambda v: _is_datetime_string(v),
             "total_duration": lambda v: _is_nullable_string(v),
@@ -198,9 +198,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     },
     # WP04: Dossier events
     "MissionDossierArtifactIndexed": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
+        "required": {"mission_slug", "artifact_key", "artifact_class", "relative_path", "content_hash_sha256", "size_bytes", "required_status"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
             "relative_path": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -212,9 +212,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierArtifactMissing": {
-        "required": {"feature_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
+        "required": {"mission_slug", "artifact_key", "artifact_class", "expected_path_pattern", "reason_code", "blocking"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_key": lambda v: isinstance(v, str) and len(v) >= 1,
             "artifact_class": lambda v: v in {"input", "workflow", "output", "evidence", "policy", "runtime", "other"},
             "expected_path_pattern": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -224,9 +224,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierSnapshotComputed": {
-        "required": {"feature_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
+        "required": {"mission_slug", "parity_hash_sha256", "artifact_counts", "completeness_status", "snapshot_id"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "parity_hash_sha256": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "artifact_counts": lambda v: isinstance(v, dict),
             "completeness_status": lambda v: v in {"complete", "incomplete", "unknown"},
@@ -234,9 +234,9 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionDossierParityDriftDetected": {
-        "required": {"feature_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
+        "required": {"mission_slug", "local_parity_hash", "baseline_parity_hash", "severity"},
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "mission_slug": lambda v: isinstance(v, str) and len(v) >= 1,
             "local_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "baseline_parity_hash": lambda v: isinstance(v, str) and bool(re.match(r"^[a-f0-9]{64}$", v)),
             "missing_in_local": lambda v: isinstance(v, list),
@@ -246,11 +246,11 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
     },
     "MissionOriginBound": {
         "required": {
-            "feature_slug", "provider", "external_issue_id",
+            "mission_slug", "provider", "external_issue_id",
             "external_issue_key", "external_issue_url", "title",
         },
         "validators": {
-            "feature_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
+            "mission_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
             "provider": lambda v: v in {"jira", "linear"},
             "external_issue_id": lambda v: isinstance(v, str) and len(v) >= 1,
             "external_issue_key": lambda v: isinstance(v, str) and len(v) >= 1,
@@ -355,7 +355,7 @@ class EventEmitter:
         from_lane: str,
         to_lane: str,
         actor: str = "user",
-        feature_slug: str | None = None,
+        mission_slug: str | None = None,
         causation_id: str | None = None,
         policy_metadata: dict | None = None,
     ) -> dict[str, Any] | None:
@@ -365,7 +365,7 @@ class EventEmitter:
             "from_lane": from_lane,
             "to_lane": to_lane,
             "actor": actor,
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "policy_metadata": policy_metadata,
         }
         return self._emit(
@@ -380,7 +380,7 @@ class EventEmitter:
         self,
         wp_id: str,
         title: str,
-        feature_slug: str,
+        mission_slug: str,
         dependencies: list[str] | None = None,
         causation_id: str | None = None,
     ) -> dict[str, Any] | None:
@@ -389,7 +389,7 @@ class EventEmitter:
             "wp_id": wp_id,
             "title": title,
             "dependencies": dependencies or [],
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
         }
         return self._emit(
             event_type="WPCreated",
@@ -424,8 +424,8 @@ class EventEmitter:
 
     def emit_mission_created(
         self,
-        feature_slug: str,
-        feature_number: str,
+        mission_slug: str,
+        mission_number: str,
         target_branch: str,
         wp_count: int,
         created_at: str | None = None,
@@ -433,8 +433,8 @@ class EventEmitter:
     ) -> dict[str, Any] | None:
         """Emit MissionCreated event (FR-011)."""
         payload: dict[str, Any] = {
-            "feature_slug": feature_slug,
-            "feature_number": feature_number,
+            "mission_slug": mission_slug,
+            "mission_number": mission_number,
             "target_branch": target_branch,
             "wp_count": wp_count,
         }
@@ -442,7 +442,7 @@ class EventEmitter:
             payload["created_at"] = created_at
         return self._emit(
             event_type="MissionCreated",
-            aggregate_id=feature_slug,
+            aggregate_id=mission_slug,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -450,7 +450,7 @@ class EventEmitter:
 
     def emit_mission_closed(
         self,
-        feature_slug: str,
+        mission_slug: str,
         total_wps: int,
         completed_at: str | None = None,
         total_duration: str | None = None,
@@ -458,7 +458,7 @@ class EventEmitter:
     ) -> dict[str, Any] | None:
         """Emit MissionClosed event (FR-012)."""
         payload: dict[str, Any] = {
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "total_wps": total_wps,
         }
         if completed_at is not None:
@@ -467,7 +467,7 @@ class EventEmitter:
             payload["total_duration"] = total_duration
         return self._emit(
             event_type="MissionClosed",
-            aggregate_id=feature_slug,
+            aggregate_id=mission_slug,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -550,7 +550,7 @@ class EventEmitter:
 
     def emit_mission_origin_bound(
         self,
-        feature_slug: str,
+        mission_slug: str,
         provider: str,
         external_issue_id: str,
         external_issue_key: str,
@@ -560,7 +560,7 @@ class EventEmitter:
     ) -> dict[str, Any] | None:
         """Emit MissionOriginBound event (observational telemetry only)."""
         payload: dict[str, Any] = {
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "provider": provider,
             "external_issue_id": external_issue_id,
             "external_issue_key": external_issue_key,
@@ -569,7 +569,7 @@ class EventEmitter:
         }
         return self._emit(
             event_type="MissionOriginBound",
-            aggregate_id=feature_slug,
+            aggregate_id=mission_slug,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,

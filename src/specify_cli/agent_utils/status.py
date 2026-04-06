@@ -21,14 +21,14 @@ from specify_cli.tasks_support import extract_scalar, split_frontmatter
 console = Console()
 
 
-def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
+def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
     """Display kanban status board for work packages in a feature.
 
     This function can be called directly by agents to get a beautiful
     status display without running a CLI command.
 
     Args:
-        feature_slug: Feature slug (e.g., "012-documentation-mission").
+        mission_slug: Feature slug (e.g., "012-documentation-mission").
                      If None, attempts to auto-detect from current directory.
 
     Returns:
@@ -46,10 +46,10 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
             console.print("[red]Error:[/red] Not in a spec-kitty project")
             return {"error": "Not in a spec-kitty project"}
 
-        # feature_slug is required; no auto-detection
-        if not feature_slug:
+        # mission_slug is required; no auto-detection
+        if not mission_slug:
             msg = (
-                "feature_slug is required. "
+                "mission_slug is required. "
                 "Pass it explicitly: show_kanban_status('057-my-feature')"
             )
             console.print(f"[red]Error:[/red] {msg}")
@@ -59,7 +59,7 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         main_repo_root = get_main_repo_root(repo_root)
 
         # Locate feature directory
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
@@ -142,13 +142,13 @@ def show_kanban_status(feature_slug: Optional[str] = None) -> dict:
         parallel_info = _analyze_parallelization(work_packages, done_wp_ids)
 
         # Display the status board
-        _display_status_board(feature_slug, work_packages, by_lane, total, done_count,
+        _display_status_board(mission_slug, work_packages, by_lane, total, done_count,
                             in_progress, planned_count, progress_pct, parallel_info)
 
         # Return structured data
         lane_counts = Counter(wp["lane"] for wp in work_packages)
         return {
-            "feature": feature_slug,
+            "feature": mission_slug,
             "total_wps": total,
             "by_lane": dict(lane_counts),
             "work_packages": work_packages,
@@ -232,14 +232,14 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     }
 
 
-def _display_status_board(feature_slug: str, work_packages: list, by_lane: dict,
+def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
                          total: int, done_count: int, in_progress: int,
                          planned_count: int, progress_pct: float, parallel_info: dict) -> None:
     """Display the rich-formatted status board."""
     # Create title panel
     title_text = Text()
     title_text.append(f"📊 Work Package Status: ", style="bold cyan")
-    title_text.append(feature_slug, style="bold white")
+    title_text.append(mission_slug, style="bold white")
 
     console.print()
     console.print(Panel(title_text, border_style="cyan"))

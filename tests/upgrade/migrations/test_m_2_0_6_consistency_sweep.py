@@ -89,7 +89,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
     (feature_dir / "status.json").write_text(
         json.dumps(
             {
-                "feature_slug": "",
+                "mission_slug": "",
                 "event_count": 0,
                 "work_packages": {},
                 "summary": dict.fromkeys(CANONICAL_LANES, 0),
@@ -149,7 +149,7 @@ def test_apply_quarantines_unreadable_planned_only_event_log(
             {
                 "feature_number": "001",
                 "slug": "001-corrupt-events",
-                "feature_slug": "001-corrupt-events",
+                "mission_slug": "001-corrupt-events",
                 "mission": "software-dev",
                 "target_branch": "main",
                 "created_at": "2026-01-01T00:00:00+00:00",

@@ -22,7 +22,7 @@ def locate_project_root(start: Path | None = None) -> Path | None:
     return None
 
 
-def resolve_template_path(project_root: Path, mission_key: str, template_subpath: str | Path) -> Path | None:
+def resolve_template_path(project_root: Path, mission_type: str, template_subpath: str | Path) -> Path | None:
     """Resolve a template path through a 5-tier precedence chain.
 
     Resolution order:
@@ -34,7 +34,7 @@ def resolve_template_path(project_root: Path, mission_key: str, template_subpath
 
     Args:
         project_root: Root of the user project containing ``.kittify/``.
-        mission_key: Mission key (e.g. ``"software-dev"``).
+        mission_type: Mission key (e.g. ``"software-dev"``).
         template_subpath: Relative template path (e.g. ``"spec-template.md"``).
 
     Returns:
@@ -45,7 +45,7 @@ def resolve_template_path(project_root: Path, mission_key: str, template_subpath
     subpath = Path(template_subpath)
     candidates = [
         # 1. Project mission-specific
-        project_root / ".kittify" / "missions" / mission_key / "templates" / subpath,
+        project_root / ".kittify" / "missions" / mission_type / "templates" / subpath,
         # 2. Project generic
         project_root / ".kittify" / "templates" / subpath,
     ]
@@ -53,7 +53,7 @@ def resolve_template_path(project_root: Path, mission_key: str, template_subpath
     # 3. Global mission-specific + 4. Global generic
     try:
         global_home = get_kittify_home()
-        candidates.append(global_home / "missions" / mission_key / "templates" / subpath)
+        candidates.append(global_home / "missions" / mission_type / "templates" / subpath)
         candidates.append(global_home / "templates" / subpath)
     except RuntimeError:
         pass
@@ -69,7 +69,7 @@ def resolve_template_path(project_root: Path, mission_key: str, template_subpath
 
 def resolve_worktree_aware_feature_dir(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     cwd: Path | None = None,
     console: ConsoleType = None,
 ) -> Path:
@@ -79,23 +79,23 @@ def resolve_worktree_aware_feature_dir(
 
     parts = current_dir.parts
     for idx, part in enumerate(parts):
-        if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == feature_slug:
+        if part == ".worktrees" and idx + 1 < len(parts) and parts[idx + 1] == mission_slug:
             worktree_root = Path(*parts[: idx + 2])
-            feature_dir = worktree_root / "kitty-specs" / feature_slug
+            feature_dir = worktree_root / "kitty-specs" / mission_slug
             resolved_console.print(f"[green]✓[/green] Using worktree location: {feature_dir}")
             return feature_dir
 
-    worktree_path = repo_root / ".worktrees" / feature_slug
+    worktree_path = repo_root / ".worktrees" / mission_slug
     if worktree_path.exists():
-        feature_dir = worktree_path / "kitty-specs" / feature_slug
+        feature_dir = worktree_path / "kitty-specs" / mission_slug
         resolved_console.print(f"[green]✓[/green] Found worktree, using: {feature_dir}")
         resolved_console.print(f"[yellow]Tip:[/yellow] Run commands from {worktree_path} for better isolation")
         return feature_dir
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     resolved_console.print(f"[yellow]⚠[/yellow] No worktree found, using root location: {feature_dir}")
     resolved_console.print(
-        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{feature_slug} {feature_slug}"  # noqa: E501
+        f"[yellow]Tip:[/yellow] Consider creating a worktree with: git worktree add .worktrees/{mission_slug} {mission_slug}"  # noqa: E501
     )
     return feature_dir
 

@@ -27,12 +27,12 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 def _mark_wp_merged_done(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     target_branch: str,
 ) -> None:
     """Record merge-complete state for a merged WP using canonical status events."""
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     wp_path = None
     for candidate in sorted((feature_dir / "tasks").glob(f"{wp_id}*.md")):
         wp_path = candidate
@@ -76,7 +76,7 @@ def _mark_wp_merged_done(
         try:
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 wp_id=wp_id,
                 to_lane="approved",
                 actor="merge",
@@ -102,7 +102,7 @@ def _mark_wp_merged_done(
     try:
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="done",
             actor="merge",
@@ -138,11 +138,11 @@ def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     raise typer.Exit(1)
 
 
-def _extract_feature_slug(branch_name: str) -> str | None:
+def _extract_mission_slug(branch_name: str) -> str | None:
     """Infer a feature slug from a feature, mission, or lane branch name."""
-    from specify_cli.lanes.branch_naming import parse_feature_slug_from_branch
+    from specify_cli.lanes.branch_naming import parse_mission_slug_from_branch
 
-    parsed = parse_feature_slug_from_branch(branch_name)
+    parsed = parse_mission_slug_from_branch(branch_name)
     if parsed:
         return parsed
 
@@ -152,7 +152,7 @@ def _extract_feature_slug(branch_name: str) -> str | None:
     return None
 
 
-def _resolve_feature_slug(repo_root: Path, mission_slug: str | None) -> str | None:
+def _resolve_mission_slug(repo_root: Path, mission_slug: str | None) -> str | None:
     if mission_slug:
         return mission_slug
 
@@ -164,22 +164,22 @@ def _resolve_feature_slug(repo_root: Path, mission_slug: str | None) -> str | No
     )
     if retcode != 0:
         return None
-    return _extract_feature_slug(current_branch.strip())
+    return _extract_mission_slug(current_branch.strip())
 
 
 def _resolve_target_branch(
     repo_root: Path,
-    feature_slug: str | None,
+    mission_slug: str | None,
     explicit_target: str | None,
 ) -> tuple[str, str | None]:
     """Resolve target branch and its provenance."""
     if explicit_target is not None:
         return explicit_target, "flag"
 
-    if feature_slug:
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+    if mission_slug:
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         if feature_dir.exists():
-            return get_feature_target_branch(repo_root, feature_slug), "meta.json"
+            return get_feature_target_branch(repo_root, mission_slug), "meta.json"
 
     from specify_cli.core.git_ops import resolve_primary_branch
 
@@ -188,7 +188,7 @@ def _resolve_target_branch(
 
 def _validate_target_branch(
     repo_root: Path,
-    feature_slug: str | None,
+    mission_slug: str | None,
     target_branch: str,
     target_source: str | None,
     *,
@@ -212,15 +212,15 @@ def _validate_target_branch(
     if ret_remote == 0:
         return
 
-    if target_source == "meta.json" and feature_slug:
+    if target_source == "meta.json" and mission_slug:
         error_msg = (
             f"Target branch '{target_branch}' (from meta.json) does not exist locally "
-            f"or on origin. Check kitty-specs/{feature_slug}/meta.json."
+            f"or on origin. Check kitty-specs/{mission_slug}/meta.json."
         )
-    elif target_source == "primary_branch" and feature_slug:
+    elif target_source == "primary_branch" and mission_slug:
         error_msg = (
             f"Target branch '{target_branch}' (resolved as primary branch) does not exist "
-            f"locally or on origin. Check kitty-specs/{feature_slug}/meta.json."
+            f"locally or on origin. Check kitty-specs/{mission_slug}/meta.json."
         )
     else:
         error_msg = (
@@ -236,7 +236,7 @@ def _validate_target_branch(
 
 def _run_lane_based_merge(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     *,
     push: bool,
     delete_branch: bool,
@@ -250,12 +250,12 @@ def _run_lane_based_merge(
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
     main_repo = get_main_repo_root(repo_root)
-    feature_dir = main_repo / "kitty-specs" / feature_slug
+    feature_dir = main_repo / "kitty-specs" / mission_slug
     lanes_manifest = require_lanes_json(feature_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
 
-    console.print(f"[bold]Lane-based merge for {feature_slug}[/bold]")
+    console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
 
@@ -263,7 +263,7 @@ def _run_lane_based_merge(
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     gate_eval = evaluate_merge_gates(
         feature_dir,
-        feature_slug,
+        mission_slug,
         all_wp_ids,
         policy.merge_gates,
         main_repo,
@@ -282,7 +282,7 @@ def _run_lane_based_merge(
         raise typer.Exit(1)
 
     for lane in lanes_manifest.lanes:
-        lane_result = merge_lane_to_mission(main_repo, feature_slug, lane.lane_id, lanes_manifest)
+        lane_result = merge_lane_to_mission(main_repo, mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
@@ -290,7 +290,7 @@ def _run_lane_based_merge(
                 console.print(f"  [red]✗[/red] {lane.lane_id}: {error}")
             raise typer.Exit(1)
 
-    mission_result = merge_mission_to_target(main_repo, feature_slug, lanes_manifest)
+    mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest)
     if not mission_result.success:
         for error in mission_result.errors:
             console.print(f"[red]Error:[/red] {error}")
@@ -302,7 +302,7 @@ def _run_lane_based_merge(
 
     for lane in lanes_manifest.lanes:
         for wp_id in lane.wp_ids:
-            _mark_wp_merged_done(main_repo, feature_slug, wp_id, lanes_manifest.target_branch)
+            _mark_wp_merged_done(main_repo, mission_slug, wp_id, lanes_manifest.target_branch)
 
     if push and has_remote(main_repo):
         run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
@@ -310,7 +310,7 @@ def _run_lane_based_merge(
 
     if remove_worktree:
         for lane in lanes_manifest.lanes:
-            wt_path = main_repo / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            wt_path = main_repo / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],
@@ -322,7 +322,7 @@ def _run_lane_based_merge(
     if delete_branch:
         for lane in lanes_manifest.lanes:
             run_command(
-                ["git", "branch", "-D", lane_branch_name(feature_slug, lane.lane_id)],
+                ["git", "branch", "-D", lane_branch_name(mission_slug, lane.lane_id)],
                 cwd=main_repo,
                 check_return=False,
             )
@@ -369,7 +369,7 @@ def merge(
     _enforce_git_preflight(repo_root, json_output=json_output)
 
     mission_slug = (mission or feature or "").strip() or None
-    resolved_feature = _resolve_feature_slug(repo_root, mission_slug)
+    resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
     resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_feature, target_branch)
     _validate_target_branch(
         repo_root,
@@ -411,7 +411,7 @@ def merge(
 
         payload: dict[str, object] = {
             "spec_kitty_version": SPEC_KITTY_VERSION,
-            "feature_slug": resolved_feature,
+            "mission_slug": resolved_feature,
             "target_branch": resolved_target_branch,
             "delete_branch": delete_branch,
             "remove_worktree": remove_worktree,
@@ -432,7 +432,7 @@ def merge(
     try:
         _run_lane_based_merge(
             repo_root=repo_root,
-            feature_slug=resolved_feature,
+            mission_slug=resolved_feature,
             push=push,
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,

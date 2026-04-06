@@ -76,8 +76,8 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         result = create_feature_core(tmp_path, "test-feature")
 
     assert isinstance(result, FeatureCreationResult)
-    assert result.feature_slug == "001-test-feature"
-    assert result.feature_number == "001"
+    assert result.mission_slug == "001-test-feature"
+    assert result.mission_number == "001"
     assert result.target_branch == "main"
     assert result.current_branch == "main"
     assert result.feature_dir == tmp_path / "kitty-specs" / "001-test-feature"
@@ -305,5 +305,5 @@ def test_feature_number_zero_padded(tmp_path: Path) -> None:
     ):
         result = create_feature_core(tmp_path, "padded-test")
 
-    assert result.feature_number == "042"
-    assert result.feature_slug == "042-padded-test"
+    assert result.mission_number == "042"
+    assert result.mission_slug == "042-padded-test"

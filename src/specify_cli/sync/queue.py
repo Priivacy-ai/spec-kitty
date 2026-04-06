@@ -25,11 +25,11 @@ DEFAULT_MAX_QUEUE_SIZE = 100_000
 # row.  This prevents high-volume instrumentation from flooding the queue.
 COALESCEABLE_EVENT_TYPES: dict[str, list[str]] = {
     # project_uuid scopes the key so events from different repos/branches
-    # sharing the same feature_slug+artifact_key never collide.
-    "MissionDossierArtifactIndexed": ["project_uuid", "feature_slug", "artifact_key"],
+    # sharing the same mission_slug+artifact_key never collide.
+    "MissionDossierArtifactIndexed": ["project_uuid", "mission_slug", "artifact_key"],
     # Snapshot IDs are regenerated on each scan, so coalesce by project+feature
     # to keep only the latest snapshot queued for a given dossier.
-    "MissionDossierSnapshotComputed": ["project_uuid", "feature_slug"],
+    "MissionDossierSnapshotComputed": ["project_uuid", "mission_slug"],
 }
 
 
@@ -220,7 +220,7 @@ CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project
 
 
 def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
-    """Rename legacy columns feature_slug -> mission_slug, mission_key -> mission_type.
+    """Rename legacy columns mission_slug -> mission_slug, mission_type -> mission_type.
 
     Idempotent: skips if columns are already renamed or if the table does not exist.
     SQLite ALTER TABLE RENAME COLUMN requires SQLite 3.25.0+ (Python 3.11+ bundles 3.39+).
@@ -234,16 +234,16 @@ def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
     col_cursor = conn.execute("PRAGMA table_info(body_upload_queue)")
     columns = {row[1] for row in col_cursor}
 
-    if "feature_slug" not in columns and "mission_key" not in columns:
+    if "mission_slug" not in columns and "mission_type" not in columns:
         return  # Already migrated
 
-    if "feature_slug" in columns:
+    if "mission_slug" in columns:
         conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN feature_slug TO mission_slug"
+            "ALTER TABLE body_upload_queue RENAME COLUMN mission_slug TO mission_slug"
         )
-    if "mission_key" in columns:
+    if "mission_type" in columns:
         conn.execute(
-            "ALTER TABLE body_upload_queue RENAME COLUMN mission_key TO mission_type"
+            "ALTER TABLE body_upload_queue RENAME COLUMN mission_type TO mission_type"
         )
     conn.commit()
 

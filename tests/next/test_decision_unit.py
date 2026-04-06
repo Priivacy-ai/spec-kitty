@@ -99,7 +99,7 @@ def feature_with_tasks(feature_dir: Path) -> Path:
 
 def _advance_runtime_to_step(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     target_step_id: str,
     agent: str = "test-agent",
 ) -> None:
@@ -110,11 +110,11 @@ def _advance_runtime_to_step(
     """
     from specify_cli.next.runtime_bridge import get_or_start_run
 
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_type
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
     from spec_kitty_runtime.engine import _read_snapshot
@@ -147,17 +147,17 @@ def _advance_runtime_to_step(
 
 def _complete_all_steps(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
     from specify_cli.next.runtime_bridge import get_or_start_run
 
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_type
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
 

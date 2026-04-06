@@ -12,20 +12,20 @@ class TestPolicyAuditEvent:
     def test_create_event(self):
         event = create_audit_event(
             event_type="risk_override",
-            feature_slug="010-feat",
+            mission_slug="010-feat",
             actor="claude",
             reason="Operator approved high-risk parallelization",
             details={"risk_score": 0.8, "threshold": 0.6},
         )
         assert event.event_type == "risk_override"
-        assert event.feature_slug == "010-feat"
+        assert event.mission_slug == "010-feat"
         assert event.event_id  # ULID generated
         assert event.at  # Timestamp generated
 
     def test_round_trip_json(self):
         event = create_audit_event(
             event_type="merge_gate_override",
-            feature_slug="010-feat",
+            mission_slug="010-feat",
             actor="robert",
             reason="Manual override",
         )

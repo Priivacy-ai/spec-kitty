@@ -112,8 +112,8 @@ def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_c
         "--json",
     )
 
-    feature_slug = "001-plan-explicit-test"
-    feature_dir = test_project / "kitty-specs" / feature_slug
+    mission_slug = "001-plan-explicit-test"
+    feature_dir = test_project / "kitty-specs" / mission_slug
 
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
@@ -128,14 +128,14 @@ def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_c
         "feature",
         "setup-plan",
         "--feature",
-        feature_slug,
+        mission_slug,
         "--json",
     )
 
     assert result.returncode == 0, f"setup-plan failed: {result.stderr}"
     payload = json.loads(result.stdout)
     assert payload["result"] == "success"
-    assert payload["feature_slug"] == feature_slug
+    assert payload["mission_slug"] == mission_slug
     assert payload["feature_dir"] == str(feature_dir)
     assert payload["spec_file"] == str(feature_dir / "spec.md")
     assert payload["plan_file"] == str(feature_dir / "plan.md")
@@ -187,8 +187,8 @@ def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_c
         "missing-spec",
         "--json",
     )
-    feature_slug = "001-missing-spec"
-    feature_dir = test_project / "kitty-specs" / feature_slug
+    mission_slug = "001-missing-spec"
+    feature_dir = test_project / "kitty-specs" / mission_slug
     spec_file = feature_dir / "spec.md"
     spec_file.unlink()
 
@@ -198,14 +198,14 @@ def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_c
         "feature",
         "setup-plan",
         "--feature",
-        feature_slug,
+        mission_slug,
         "--json",
     )
 
     assert result.returncode != 0, "setup-plan should fail when spec.md is missing"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "SPEC_FILE_MISSING"
-    assert payload["feature_slug"] == feature_slug
+    assert payload["mission_slug"] == mission_slug
     assert payload["spec_file"] == str(spec_file.resolve())
 
 def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> None:

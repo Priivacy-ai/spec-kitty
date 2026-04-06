@@ -62,7 +62,7 @@ from acceptance_support import (  # noqa: E402
     ArtifactEncodingError,
     choose_mode,
     collect_feature_summary,
-    detect_feature_slug,
+    detect_mission_slug,
     normalize_feature_encoding,
     perform_acceptance,
 )
@@ -118,12 +118,12 @@ def stage_update(
     feature_dir = wp.path.parent.parent
     from_lane = _derive_current_lane(feature_dir, wp_id)
 
-    feature_slug = feature_dir.name
+    mission_slug = feature_dir.name
     canonical_from = resolve_lane_alias(from_lane)
     canonical_to = resolve_lane_alias(target_lane)
     event = StatusEvent(
         event_id=_generate_ulid(),
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(canonical_from),
         to_lane=Lane(canonical_to),
@@ -453,7 +453,7 @@ def rollback_command(args: argparse.Namespace) -> None:
 def _resolve_feature(repo_root: Path, requested: Optional[str]) -> str:
     if requested:
         return requested
-    return detect_feature_slug(repo_root)
+    return detect_mission_slug(repo_root)
 
 
 def _summary_to_text(summary: AcceptanceSummary) -> List[str]:
@@ -655,7 +655,7 @@ def merge_command(args: argparse.Namespace) -> None:
     elif current_branch and current_branch != "HEAD":
         feature = current_branch
     else:
-        feature = detect_feature_slug(find_repo_root(), cwd=repo_root)
+        feature = detect_mission_slug(find_repo_root(), cwd=repo_root)
 
     # Resolve target branch dynamically if not specified
     if args.target is None:

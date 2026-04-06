@@ -40,7 +40,7 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
-    feature_slug: str = "034-parity-test",
+    mission_slug: str = "034-parity-test",
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -54,7 +54,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -256,7 +256,7 @@ class TestSaasFanOutNoOp:
         try:
             event = emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-parity-test",
+                mission_slug="034-parity-test",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="parity-agent",

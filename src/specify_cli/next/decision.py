@@ -288,7 +288,7 @@ def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
 
 def decide_next(
     agent: str,
-    feature_slug: str,
+    mission_slug: str,
     result: str,
     repo_root: Path,
 ) -> Decision:
@@ -307,7 +307,7 @@ def decide_next(
     """
     from specify_cli.next.runtime_bridge import decide_next_via_runtime
 
-    return decide_next_via_runtime(agent, feature_slug, result, repo_root)
+    return decide_next_via_runtime(agent, mission_slug, result, repo_root)
 
 
 # ---------------------------------------------------------------------------
@@ -317,7 +317,7 @@ def decide_next(
 
 def _state_to_action(
     state: str,
-    feature_slug: str,
+    mission_slug: str,
     feature_dir: Path,
     repo_root: Path,
     mission_name: str,
@@ -340,13 +340,13 @@ def _state_to_action(
             review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
             if review_wp:
                 workspace_path = str(
-                    resolve_workspace_for_wp(repo_root, feature_slug, review_wp).worktree_path
+                    resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path
                 )
                 return "review", review_wp, workspace_path
             return None, None, None
 
         workspace_path = str(
-            resolve_workspace_for_wp(repo_root, feature_slug, wp_id).worktree_path
+            resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path
         )
         return "implement", wp_id, workspace_path
 
@@ -355,7 +355,7 @@ def _state_to_action(
         wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
         if wp_id is not None:
             workspace_path = str(
-                resolve_workspace_for_wp(repo_root, feature_slug, wp_id).worktree_path
+                resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path
             )
             return "review", wp_id, workspace_path
         # Fall through to generic template resolution below
@@ -408,11 +408,11 @@ def _state_to_action(
 def _build_prompt_safe(
     action: str,
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str | None,
     agent: str,
     repo_root: Path,
-    mission_key: str,
+    mission_type: str,
 ) -> str | None:
     """Build prompt, returning None on failure instead of raising."""
     try:
@@ -421,11 +421,11 @@ def _build_prompt_safe(
         _, prompt_path = build_prompt(
             action=action,
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             agent=agent,
             repo_root=repo_root,
-            mission_key=mission_key,
+            mission_type=mission_type,
         )
         return str(prompt_path)
     except Exception:

@@ -165,7 +165,7 @@ def compute_weighted_progress(
 def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
     """Materialise snapshot, compute progress, and write ``progress.json``.
 
-    Writes to ``derived_dir / <feature_slug> / progress.json`` atomically
+    Writes to ``derived_dir / <mission_slug> / progress.json`` atomically
     (write-to-temp then ``os.replace``). The output directory is created
     if it does not exist.
 
@@ -175,10 +175,10 @@ def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
         derived_dir: Root directory for derived artefacts.
     """
     snapshot = materialize(feature_dir)
-    feature_slug = snapshot.mission_slug or feature_dir.name
+    mission_slug = snapshot.mission_slug or feature_dir.name
     result = compute_weighted_progress(snapshot)
 
-    output_dir = derived_dir / feature_slug
+    output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)
 
     json_str = json.dumps(result.to_dict(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"

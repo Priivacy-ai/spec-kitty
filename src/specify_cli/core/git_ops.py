@@ -322,7 +322,7 @@ def resolve_primary_branch(repo_root: Path) -> str:
 
 
 def resolve_target_branch(
-    feature_slug: str,
+    mission_slug: str,
     repo_path: Path,
     current_branch: str | None = None,
     respect_current: bool = True,
@@ -334,7 +334,7 @@ def resolve_target_branch(
     to main/master without explicit permission.
 
     Args:
-        feature_slug: Feature identifier (e.g., "038-v0-15-0-quality-bugfix-release")
+        mission_slug: Feature identifier (e.g., "038-v0-15-0-quality-bugfix-release")
         repo_path: Repository root path
         current_branch: User's current branch (auto-detected if None)
         respect_current: If True, stay on current branch (default behavior)
@@ -359,7 +359,7 @@ def resolve_target_branch(
             raise RuntimeError("Could not determine current branch")
 
     # Read target branch from meta.json
-    meta_file = repo_path / "kitty-specs" / feature_slug / "meta.json"
+    meta_file = repo_path / "kitty-specs" / mission_slug / "meta.json"
     fallback = resolve_primary_branch(repo_path)
     target = fallback
     if meta_file.exists():

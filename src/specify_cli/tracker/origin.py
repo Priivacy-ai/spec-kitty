@@ -232,7 +232,7 @@ def bind_mission_origin(
         actual_client.bind_mission_origin(
             provider,
             project_slug,
-            feature_slug=mission_slug,
+            mission_slug=mission_slug,
             external_issue_id=candidate.external_issue_id,
             external_issue_key=candidate.external_issue_key,
             external_issue_url=candidate.url,
@@ -263,7 +263,7 @@ def bind_mission_origin(
 
         emitter = get_emitter()
         emitter.emit_mission_origin_bound(
-            feature_slug=mission_slug,
+            mission_slug=mission_slug,
             provider=provider,
             external_issue_id=candidate.external_issue_id,
             external_issue_key=candidate.external_issue_key,
@@ -289,7 +289,7 @@ def start_mission_from_ticket(
     provider: str,
     resource_type: str,
     resource_id: str,
-    mission_key: str = "software-dev",
+    mission_type: str = "software-dev",
     *,
     client: SaaSTrackerClient | None = None,
 ) -> MissionFromTicketResult:
@@ -307,7 +307,7 @@ def start_mission_from_ticket(
         Resource type.
     resource_id:
         Resource identifier.
-    mission_key:
+    mission_type:
         Mission key (default ``"software-dev"``).
     client:
         Optional injected client for testability.
@@ -336,7 +336,7 @@ def start_mission_from_ticket(
         creation_result = create_feature_core(
             repo_root,
             slug,
-            mission=mission_key,
+            mission=mission_type,
             target_branch=None,
         )
     except FeatureCreationError as exc:
@@ -360,7 +360,7 @@ def start_mission_from_ticket(
 
     return MissionFromTicketResult(
         feature_dir=creation_result.feature_dir,
-        feature_slug=creation_result.feature_slug,
+        mission_slug=creation_result.mission_slug,
         origin_ticket=origin_ticket,
         event_emitted=event_emitted,
     )

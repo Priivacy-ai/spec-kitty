@@ -4,7 +4,7 @@ Public API
 ----------
 - ``MissionContext`` -- Frozen dataclass binding project/mission/WP identity.
 - ``ContextToken`` -- Lightweight reference to a persisted context file.
-- ``resolve_context`` -- Build context from explicit wp_code + feature_slug.
+- ``resolve_context`` -- Build context from explicit wp_code + mission_slug.
 - ``resolve_or_load`` -- Load from token or resolve from arguments.
 - ``load_context`` -- Load a persisted context by token.
 - ``save_context`` -- Persist a MissionContext to disk.

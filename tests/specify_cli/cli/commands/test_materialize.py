@@ -18,7 +18,7 @@ from specify_cli.status.store import append_event
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -27,7 +27,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -40,15 +40,15 @@ def _make_event(
 
 def _setup_feature(
     tmp_path: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_lanes: dict[str, str],
 ) -> Path:
     """Create a feature directory with event log for the given WP lanes."""
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     for idx, (wp_id, lane) in enumerate(wp_lanes.items()):
         event_id = f"01TEST{idx:020d}"
-        event = _make_event(feature_slug, wp_id, "planned", lane, event_id)
+        event = _make_event(mission_slug, wp_id, "planned", lane, event_id)
         append_event(feature_dir, event)
     return feature_dir
 
@@ -99,18 +99,18 @@ def test_materialize_all_features_via_function(tmp_path):
     from specify_cli.status.views import write_derived_views
     from specify_cli.status.progress import generate_progress_json
 
-    feature_slugs = ["003-alpha", "003-beta"]
-    for slug in feature_slugs:
+    mission_slugs = ["003-alpha", "003-beta"]
+    for slug in mission_slugs:
         _setup_feature(tmp_path, slug, {"WP01": "done"})
 
     derived_dir = tmp_path / ".kittify" / "derived"
 
-    for slug in feature_slugs:
+    for slug in mission_slugs:
         feature_dir = tmp_path / "kitty-specs" / slug
         write_derived_views(feature_dir, derived_dir)
         generate_progress_json(feature_dir, derived_dir)
 
-    for slug in feature_slugs:
+    for slug in mission_slugs:
         assert (derived_dir / slug / "status.json").exists()
         assert (derived_dir / slug / "board-summary.json").exists()
         assert (derived_dir / slug / "progress.json").exists()

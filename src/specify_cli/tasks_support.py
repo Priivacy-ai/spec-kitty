@@ -292,7 +292,7 @@ class WorkPackage:
     @property
     def lane(self) -> Optional[str]:
         from specify_cli.status.lane_reader import get_wp_lane
-        # WP files are at kitty-specs/<feature_slug>/tasks/WP01.md
+        # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
         feature_dir = self.path.parent.parent
         wp_id = extract_scalar(self.frontmatter, "work_package_id") or self.path.stem.split("-")[0]

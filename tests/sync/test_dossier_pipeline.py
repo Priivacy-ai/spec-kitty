@@ -53,9 +53,9 @@ def _make_dossier(
     artifacts: list[ArtifactRef] | None = None,
 ) -> MissionDossier:
     return MissionDossier(
-        mission_slug="software-dev",
+        mission_type="software-dev",
         mission_run_id="test-run-id",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         feature_dir="/tmp/feature",
         artifacts=artifacts or [],
     )

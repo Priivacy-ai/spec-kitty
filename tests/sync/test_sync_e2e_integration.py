@@ -476,8 +476,8 @@ class TestNoDuplicateEmissions:
         causation_id = emitter.generate_causation_id()
 
         emitter.emit_mission_created(
-            feature_slug="032-identity-aware",
-            feature_number="032",
+            mission_slug="032-identity-aware",
+            mission_number="032",
             target_branch="main",
             wp_count=3,
             causation_id=causation_id,
@@ -487,7 +487,7 @@ class TestNoDuplicateEmissions:
             emitter.emit_wp_created(
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
-                feature_slug="032-identity-aware",
+                mission_slug="032-identity-aware",
                 dependencies=[f"WP{i-1:02d}"] if i > 1 else [],
                 causation_id=causation_id,
             )
@@ -536,20 +536,20 @@ class TestFullWorkflowIntegration:
 
         causation_id = emitter.generate_causation_id()
 
-        # 1. Mission created (use valid feature_slug pattern: ###-slug-name)
+        # 1. Mission created (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_mission_created(
-            feature_slug="001-test-feature",
-            feature_number="001",
+            mission_slug="001-test-feature",
+            mission_number="001",
             target_branch="main",
             wp_count=1,
             causation_id=causation_id,
         )
 
-        # 2. WP created (use valid feature_slug pattern: ###-slug-name)
+        # 2. WP created (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_wp_created(
             wp_id="WP01",
             title="Test Work Package",
-            feature_slug="001-test-feature",
+            mission_slug="001-test-feature",
             dependencies=[],
             causation_id=causation_id,
         )
@@ -570,9 +570,9 @@ class TestFullWorkflowIntegration:
         # 6. Accept (for_review -> done)
         emitter.emit_wp_status_changed("WP01", "for_review", "done")
 
-        # 7. Mission closed (use valid feature_slug pattern: ###-slug-name)
+        # 7. Mission closed (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_mission_closed(
-            feature_slug="001-test-feature",
+            mission_slug="001-test-feature",
             total_wps=1,
         )
 
@@ -681,7 +681,7 @@ class TestEventPayloadValidation:
             from_lane="planned",
             to_lane="in_progress",
             actor="claude-opus",
-            feature_slug="test-feature",
+            mission_slug="test-feature",
         )
 
         # Required fields
@@ -697,7 +697,7 @@ class TestEventPayloadValidation:
         assert payload["from_lane"] == "planned"
         assert payload["to_lane"] == "in_progress"
         assert payload["actor"] == "claude-opus"
-        assert payload["feature_slug"] == "test-feature"
+        assert payload["mission_slug"] == "test-feature"
 
     def test_event_id_is_ulid(
         self, temp_repo: Path, mock_queue: OfflineQueue, tmp_path: Path

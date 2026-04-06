@@ -18,7 +18,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "mission_id": "057-canonical-context-architecture-cleanup",
         "work_package_id": "WP01",
         "wp_code": "WP01",
-        "feature_slug": "057-canonical-context-architecture-cleanup",
+        "mission_slug": "057-canonical-context-architecture-cleanup",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
         "authoritative_ref": "kitty/mission-057-canonical-context-architecture-cleanup-lane-a",
@@ -42,7 +42,7 @@ class TestMissionContextCreation:
         assert ctx.mission_id == "057-canonical-context-architecture-cleanup"
         assert ctx.work_package_id == "WP01"
         assert ctx.wp_code == "WP01"
-        assert ctx.feature_slug == "057-canonical-context-architecture-cleanup"
+        assert ctx.mission_slug == "057-canonical-context-architecture-cleanup"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == "/tmp/repo"
         assert ctx.authoritative_ref == "kitty/mission-057-canonical-context-architecture-cleanup-lane-a"
@@ -128,7 +128,7 @@ class TestMissionContextSerialization:
             "mission_id",
             "work_package_id",
             "wp_code",
-            "feature_slug",
+            "mission_slug",
             "target_branch",
             "authoritative_repo",
             "authoritative_ref",

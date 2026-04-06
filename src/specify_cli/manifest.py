@@ -12,16 +12,16 @@ import subprocess
 class FileManifest:
     """Manages the expected file manifest for spec-kitty missions.
 
-    The mission context must be provided explicitly via *mission_key*.
+    The mission context must be provided explicitly via *mission_type*.
     There is no project-level fallback -- callers should resolve the
     mission from feature-level ``meta.json`` before constructing a
     manifest.
     """
 
-    def __init__(self, kittify_dir: Path, *, mission_key: Optional[str] = None):
+    def __init__(self, kittify_dir: Path, *, mission_type: Optional[str] = None):
         self.kittify_dir = kittify_dir
         self.mission_dir = (
-            kittify_dir / "missions" / mission_key if mission_key else None
+            kittify_dir / "missions" / mission_type if mission_type else None
         )
 
     def get_expected_files(self) -> Dict[str, List[str]]:

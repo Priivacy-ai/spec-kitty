@@ -46,7 +46,7 @@ from specify_cli.cli.commands.init import register_init_command
 from specify_cli.core.project_resolver import locate_project_root
 
 
-def activate_mission(project_path: Path, mission_key: str, mission_display: str, console: Console) -> str:
+def activate_mission(project_path: Path, mission_type: str, mission_display: str, console: Console) -> str:
     """
     DEPRECATED: No-op function for backwards compatibility.
 
@@ -57,7 +57,7 @@ def activate_mission(project_path: Path, mission_key: str, mission_display: str,
     # Just verify the mission directory exists
     kittify_root = project_path / ".kittify"
     missions_dir = kittify_root / "missions"
-    mission_path = missions_dir / mission_key
+    mission_path = missions_dir / mission_type
 
     if mission_path.exists():
         return f"{mission_display} (per-feature selection)"

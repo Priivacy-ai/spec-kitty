@@ -207,16 +207,16 @@ class TestWPStatusChanged:
         assert event is not None
         assert event["payload"]["actor"] == "claude-opus"
 
-    def test_feature_slug_optional(self, emitter: EventEmitter, temp_queue):
-        """feature_slug is optional and nullable."""
+    def test_mission_slug_optional(self, emitter: EventEmitter, temp_queue):
+        """mission_slug is optional and nullable."""
         event = emitter.emit_wp_status_changed(
             "WP01",
             "planned",
             "in_progress",
-            feature_slug="028-sync",
+            mission_slug="028-sync",
         )
         assert event is not None
-        assert event["payload"]["feature_slug"] == "028-sync"
+        assert event["payload"]["mission_slug"] == "028-sync"
 
     def test_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue):
         """Event is queued when no WebSocket connected (SC-006)."""
@@ -239,14 +239,14 @@ class TestWPCreated:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Implement sync",
-            feature_slug="028-sync",
+            mission_slug="028-sync",
         )
         assert event is not None
         assert event["event_type"] == "WPCreated"
         assert event["aggregate_type"] == "WorkPackage"
         assert event["payload"]["wp_id"] == "WP01"
         assert event["payload"]["title"] == "Implement sync"
-        assert event["payload"]["feature_slug"] == "028-sync"
+        assert event["payload"]["mission_slug"] == "028-sync"
 
     def test_dependencies_default_empty(self, emitter: EventEmitter, temp_queue):
         """Dependencies defaults to empty list."""
@@ -307,8 +307,8 @@ class TestMissionCreated:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """MissionCreated event has correct structure."""
         event = emitter.emit_mission_created(
-            feature_slug="028-cli-event-emission-sync",
-            feature_number="028",
+            mission_slug="028-cli-event-emission-sync",
+            mission_number="028",
             target_branch="main",
             wp_count=7,
         )
@@ -337,7 +337,7 @@ class TestMissionClosed:
     def test_basic_emission(self, emitter: EventEmitter, temp_queue):
         """MissionClosed event has correct structure."""
         event = emitter.emit_mission_closed(
-            feature_slug="028-sync",
+            mission_slug="028-sync",
             total_wps=7,
         )
         assert event is not None
@@ -489,8 +489,8 @@ class TestValidation:
         event = emitter.emit_wp_created("WP01", "", "028-sync")
         assert event is None
 
-    def test_invalid_feature_slug_returns_none(self, emitter: EventEmitter, temp_queue):
-        """Invalid feature_slug format for MissionCreated causes validation failure."""
+    def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
+        """Invalid mission_slug format for MissionCreated causes validation failure."""
         event = emitter.emit_mission_created("NoNumbers", "abc", "main", 5)
         assert event is None
 
@@ -691,7 +691,7 @@ class TestOfflineReplayCompatibility:
                 "from_lane": "planned",
                 "to_lane": "in_progress",
                 "actor": "user",
-                "feature_slug": None,
+                "mission_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
             "node_id": "test123",
@@ -723,7 +723,7 @@ class TestOfflineReplayCompatibility:
                 "from_lane": "planned",
                 "to_lane": "in_progress",
                 "actor": "user",
-                "feature_slug": None,
+                "mission_slug": None,
             },
             "timestamp": "2026-02-07T12:00:00+00:00",
             "node_id": "test123",

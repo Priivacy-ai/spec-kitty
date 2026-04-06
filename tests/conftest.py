@@ -292,8 +292,8 @@ def temp_repo(tmp_path: Path) -> Iterator[Path]:
 
 @pytest.fixture()
 def feature_repo(temp_repo: Path) -> Path:
-    feature_slug = "001-demo-feature"
-    feature_dir = temp_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-demo-feature"
+    feature_dir = temp_repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "tasks").mkdir(exist_ok=True)
     (feature_dir / "spec.md").write_text("Spec content", encoding="utf-8")
@@ -302,13 +302,13 @@ def feature_repo(temp_repo: Path) -> Path:
     (feature_dir / "quickstart.md").write_text("Quickstart", encoding="utf-8")
     (feature_dir / "data-model.md").write_text("Data model", encoding="utf-8")
     (feature_dir / "research.md").write_text("Research", encoding="utf-8")
-    write_wp(temp_repo, feature_slug, "planned", "WP01")
+    write_wp(temp_repo, mission_slug, "planned", "WP01")
     # Bootstrap event log with planned status for WP01
     import json
     from datetime import datetime, UTC
     event = {
         "event_id": "01TESTFIXTUREWP01",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "wp_id": "WP01",
         "from_lane": "planned",
         "to_lane": "planned",
@@ -328,7 +328,7 @@ def feature_repo(temp_repo: Path) -> Path:
 
 
 @pytest.fixture()
-def feature_slug() -> str:
+def mission_slug() -> str:
     return "001-demo-feature"
 
 
@@ -348,11 +348,11 @@ def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
     run(["git", "commit", "-m", "initial"], cwd=repo)
     run(["git", "branch", "-M", "main"], cwd=repo)
 
-    feature_slug = "002-feature"
-    run(["git", "checkout", "-b", feature_slug], cwd=repo)
+    mission_slug = "002-feature"
+    run(["git", "checkout", "-b", mission_slug], cwd=repo)
     feature_file = repo / "FEATURE.txt"
     feature_file.write_text("feature work", encoding="utf-8")
-    feature_dir = repo / "kitty-specs" / feature_slug
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
     (feature_dir / "meta.json").write_text("{}\n", encoding="utf-8")
     run(["git", "add", "FEATURE.txt", "kitty-specs"], cwd=repo)
@@ -360,11 +360,11 @@ def merge_repo(temp_repo: Path) -> tuple[Path, Path, str]:
 
     run(["git", "checkout", "main"], cwd=repo)
 
-    worktree_dir = repo / ".worktrees" / feature_slug
+    worktree_dir = repo / ".worktrees" / mission_slug
     worktree_dir.parent.mkdir(exist_ok=True)
-    run(["git", "worktree", "add", str(worktree_dir), feature_slug], cwd=repo)
+    run(["git", "worktree", "add", str(worktree_dir), mission_slug], cwd=repo)
 
-    return repo, worktree_dir, feature_slug
+    return repo, worktree_dir, mission_slug
 
 
 @pytest.fixture
@@ -438,8 +438,8 @@ def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, st
     run(["git", "branch", "-M", "main"], cwd=repo)
 
     # Create feature with WP tasks
-    feature_slug = "017-conflict-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "017-conflict-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -448,7 +448,7 @@ def conflicting_wps_repo(tmp_path: Path) -> tuple[Path, list[tuple[Path, str, st
     # Create 3 WPs that all modify shared.txt
     for wp_num in [1, 2, 3]:
         wp_id = f"WP{wp_num:02d}"
-        branch_name = f"{feature_slug}-{wp_id}"
+        branch_name = f"{mission_slug}-{wp_id}"
 
         # Create WP task file
         wp_file = tasks_dir / f"{wp_id}.md"
@@ -493,7 +493,7 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     simulating a stale workspace that needs syncing.
 
     Returns:
-        Dictionary with 'repo_root', 'main_branch', 'worktree_path', 'feature_slug' keys
+        Dictionary with 'repo_root', 'main_branch', 'worktree_path', 'mission_slug' keys
     """
     repo = tmp_path / "repo"
     repo.mkdir()
@@ -508,9 +508,9 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
     run(["git", "branch", "-M", "main"], cwd=repo)
 
     # Create lane branch and worktree
-    feature_slug = "018-stale-test"
-    branch_name = f"kitty/mission-{feature_slug}-lane-a"
-    worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
+    mission_slug = "018-stale-test"
+    branch_name = f"kitty/mission-{mission_slug}-lane-a"
+    worktree_dir = repo / ".worktrees" / f"{mission_slug}-lane-a"
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
     # Make commit in worktree
@@ -528,7 +528,7 @@ def git_stale_workspace(tmp_path: Path) -> dict[str, Path | str]:
         "repo_root": repo,
         "main_branch": "main",
         "worktree_path": worktree_dir,
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "branch_name": branch_name,
     }
 
@@ -554,8 +554,8 @@ def dirty_worktree_repo(tmp_path: Path) -> tuple[Path, Path]:
     run(["git", "branch", "-M", "main"], cwd=repo)
 
     # Create feature with WP tasks
-    feature_slug = "019-dirty-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "019-dirty-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -573,8 +573,8 @@ dependencies: []
     )
 
     # Create worktree
-    branch_name = f"kitty/mission-{feature_slug}-lane-a"
-    worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
+    branch_name = f"kitty/mission-{mission_slug}-lane-a"
+    worktree_dir = repo / ".worktrees" / f"{mission_slug}-lane-a"
     run(["git", "worktree", "add", str(worktree_dir), "-b", branch_name], cwd=repo)
 
     # Make commit

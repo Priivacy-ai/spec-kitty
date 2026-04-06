@@ -26,12 +26,12 @@ def kittify_project(tmp_path: Path) -> Path:
     return tmp_path
 
 
-def _lane_manifest(feature_slug: str = "001-feature") -> LanesManifest:
+def _lane_manifest(mission_slug: str = "001-feature") -> LanesManifest:
     return LanesManifest(
         version=1,
-        feature_slug=feature_slug,
-        mission_id=f"mission-{feature_slug}",
-        mission_branch=f"kitty/mission-{feature_slug}",
+        mission_slug=mission_slug,
+        mission_id=f"mission-{mission_slug}",
+        mission_branch=f"kitty/mission-{mission_slug}",
         target_branch="main",
         lanes=[
             ExecutionLane(
@@ -51,7 +51,7 @@ def _lane_manifest(feature_slug: str = "001-feature") -> LanesManifest:
 def _context(*, current_wp: str = "WP02") -> WorkspaceContext:
     return WorkspaceContext(
         wp_id=current_wp,
-        feature_slug="001-feature",
+        mission_slug="001-feature",
         worktree_path=".worktrees/001-feature-lane-a",
         branch_name="kitty/mission-001-feature-lane-a",
         base_branch="kitty/mission-001-feature",
@@ -103,7 +103,7 @@ class TestContextIndexAndResolution:
 
         second = WorkspaceContext(
             wp_id="WP03",
-            feature_slug="001-feature",
+            mission_slug="001-feature",
             worktree_path=".worktrees/001-feature-lane-b",
             branch_name="kitty/mission-001-feature-lane-b",
             base_branch="kitty/mission-001-feature",

@@ -109,8 +109,8 @@ def test_exclude_from_git_index_non_git_repo(tmp_path: Path) -> None:
 _PATCH_PRIMARY = "specify_cli.core.git_ops.resolve_primary_branch"
 
 
-def _write_meta(repo: Path, feature_slug: str, data: dict[str, str]) -> None:
-    feature_dir = repo / "kitty-specs" / feature_slug
+def _write_meta(repo: Path, mission_slug: str, data: dict[str, str]) -> None:
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(json.dumps(data), encoding="utf-8")
 

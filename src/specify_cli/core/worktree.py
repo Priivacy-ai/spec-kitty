@@ -128,9 +128,9 @@ def create_wp_workspace(
     if mode == ExecutionMode.PLANNING_ARTIFACT:
         owned_files: list[str] = wp_frontmatter.get("owned_files") or []
         wp_code = wp_frontmatter.get("work_package_id", "")
-        feature_slug = wp_frontmatter.get("feature_slug", "")
+        mission_slug = wp_frontmatter.get("mission_slug", "")
         return create_planning_workspace(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_code=wp_code,
             owned_files=list(owned_files) if isinstance(owned_files, (list, tuple)) else [],
             repo_root=repo_root,
@@ -210,7 +210,7 @@ def get_next_feature_number(repo_root: Path) -> int:
 
 def create_feature_worktree(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     feature_number: int | None = None
 ) -> tuple[Path, Path]:
     """Create workspace (git worktree) for feature development.
@@ -220,7 +220,7 @@ def create_feature_worktree(
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature identifier (e.g., "test-feature")
+        mission_slug: Feature identifier (e.g., "test-feature")
         feature_number: Optional feature number (auto-detected if None)
 
     Returns:
@@ -241,7 +241,7 @@ def create_feature_worktree(
         feature_number = get_next_feature_number(repo_root)
 
     # Format: 001-test-feature
-    branch_name = f"{feature_number:03d}-{feature_slug}"
+    branch_name = f"{feature_number:03d}-{mission_slug}"
 
     # Create worktree at .worktrees/001-test-feature
     worktree_path = repo_root / WORKTREES_DIR / branch_name

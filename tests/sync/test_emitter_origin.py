@@ -24,7 +24,7 @@ class TestMissionOriginBoundValidPayload:
     def test_valid_payload_produces_event(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """A complete, valid payload produces a non-None event."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -33,7 +33,7 @@ class TestMissionOriginBoundValidPayload:
         )
         assert event is not None
         assert event["event_type"] == "MissionOriginBound"
-        assert event["payload"]["feature_slug"] == "061-ticket-first-mission-origin-binding"
+        assert event["payload"]["mission_slug"] == "061-ticket-first-mission-origin-binding"
         assert event["payload"]["provider"] == "jira"
         assert event["payload"]["external_issue_id"] == "10042"
         assert event["payload"]["external_issue_key"] == "PROJ-123"
@@ -43,7 +43,7 @@ class TestMissionOriginBoundValidPayload:
     def test_linear_provider_accepted(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Provider 'linear' is accepted."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="linear",
             external_issue_id="abc-123",
             external_issue_key="ENG-42",
@@ -61,7 +61,7 @@ class TestMissionOriginBoundMissingFields:
         """Omitting provider causes validation failure (returns None)."""
         # Call _emit directly to bypass the method's explicit signature
         payload = {
-            "feature_slug": "061-ticket-first-mission-origin-binding",
+            "mission_slug": "061-ticket-first-mission-origin-binding",
             # "provider" intentionally missing
             "external_issue_id": "10042",
             "external_issue_key": "PROJ-123",
@@ -80,7 +80,7 @@ class TestMissionOriginBoundMissingFields:
     def test_missing_title_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Omitting title causes validation failure."""
         payload = {
-            "feature_slug": "061-ticket-first-mission-origin-binding",
+            "mission_slug": "061-ticket-first-mission-origin-binding",
             "provider": "jira",
             "external_issue_id": "10042",
             "external_issue_key": "PROJ-123",
@@ -98,7 +98,7 @@ class TestMissionOriginBoundMissingFields:
     def test_missing_external_issue_id_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Omitting external_issue_id causes validation failure."""
         payload = {
-            "feature_slug": "061-ticket-first-mission-origin-binding",
+            "mission_slug": "061-ticket-first-mission-origin-binding",
             "provider": "jira",
             # "external_issue_id" intentionally missing
             "external_issue_key": "PROJ-123",
@@ -117,10 +117,10 @@ class TestMissionOriginBoundMissingFields:
 class TestMissionOriginBoundInvalidValues:
     """Invalid field values are rejected by validators."""
 
-    def test_invalid_feature_slug_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        r"""feature_slug not matching ^\d{3}-[a-z0-9-]+$ is rejected."""
+    def test_invalid_mission_slug_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        r"""mission_slug not matching ^\d{3}-[a-z0-9-]+$ is rejected."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="bad-slug",  # Missing 3-digit prefix
+            mission_slug="bad-slug",  # Missing 3-digit prefix
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -133,7 +133,7 @@ class TestMissionOriginBoundInvalidValues:
     def test_invalid_provider_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Provider 'github' is not in the allowed set {jira, linear}."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="github",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -146,7 +146,7 @@ class TestMissionOriginBoundInvalidValues:
     def test_empty_title_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Empty string title fails len(v) >= 1 validator."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -159,7 +159,7 @@ class TestMissionOriginBoundInvalidValues:
     def test_empty_external_issue_key_rejected(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Empty external_issue_key is rejected."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="",
@@ -179,7 +179,7 @@ class TestMissionOriginBoundEventRouting:
     def test_event_queued_in_offline_queue(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """With no WebSocket, event is queued in offline queue."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -192,7 +192,7 @@ class TestMissionOriginBoundEventRouting:
     def test_aggregate_type_is_mission(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """aggregate_type must be 'Mission'."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -202,11 +202,11 @@ class TestMissionOriginBoundEventRouting:
         assert event is not None
         assert event["aggregate_type"] == "Mission"
 
-    def test_aggregate_id_is_feature_slug(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """aggregate_id must be the feature_slug value."""
+    def test_aggregate_id_is_mission_slug(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """aggregate_id must be the mission_slug value."""
         slug = "061-ticket-first-mission-origin-binding"
         event = emitter.emit_mission_origin_bound(
-            feature_slug=slug,
+            mission_slug=slug,
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -220,7 +220,7 @@ class TestMissionOriginBoundEventRouting:
         """causation_id provided to the method appears in the event."""
         causation = emitter.generate_causation_id()
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="linear",
             external_issue_id="abc-123",
             external_issue_key="ENG-42",
@@ -234,7 +234,7 @@ class TestMissionOriginBoundEventRouting:
     def test_causation_id_none_by_default(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """Without causation_id, the field is None."""
         event = emitter.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -255,7 +255,7 @@ class TestMissionOriginBoundEventRouting:
 
         em = EventEmitter(clock=clock, config=config, queue=temp_queue, _auth=auth, ws_client=None)
         event = em.emit_mission_origin_bound(
-            feature_slug="061-ticket-first-mission-origin-binding",
+            mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",

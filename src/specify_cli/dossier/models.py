@@ -34,7 +34,7 @@ class ArtifactRef(BaseModel):
         indexed_at: When this artifact was indexed (UTC)
 
     Uniqueness Constraint:
-        (feature_slug, artifact_key) is unique per dossier
+        (mission_slug, artifact_key) is unique per dossier
     """
 
     # Identity
@@ -163,9 +163,9 @@ class MissionDossier(BaseModel):
     and completeness tracking.
 
     Attributes:
-        mission_slug: Mission type (e.g., 'software-dev')
+        mission_type: Mission type (e.g., 'software-dev')
         mission_run_id: UUID or feature run identifier
-        feature_slug: Feature identifier (e.g., '042-local-mission-dossier')
+        mission_slug: Mission identifier (e.g., '042-local-mission-dossier')
         feature_dir: Absolute path to feature directory
         artifacts: All indexed artifacts
         manifest: Loaded manifest for this mission type (None if not found)
@@ -175,7 +175,7 @@ class MissionDossier(BaseModel):
     """
 
     # Identity
-    mission_slug: str = Field(
+    mission_type: str = Field(
         ...,
         description="e.g., 'software-dev'",
     )
@@ -183,7 +183,7 @@ class MissionDossier(BaseModel):
         ...,
         description="UUID or feature run identifier",
     )
-    feature_slug: str = Field(
+    mission_slug: str = Field(
         ...,
         description="e.g., '042-local-mission-dossier'",
     )
@@ -271,7 +271,7 @@ class MissionDossierSnapshot(BaseModel):
     detecting changes and validating consistency across systems.
 
     Attributes:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         snapshot_id: Unique snapshot ID (UUID)
         total_artifacts: Total number of indexed artifacts
         required_artifacts: Count of required artifacts
@@ -287,7 +287,7 @@ class MissionDossierSnapshot(BaseModel):
     """
 
     # Identity
-    feature_slug: str = Field(
+    mission_slug: str = Field(
         ...,
         description="Feature identifier (e.g., '042-local-mission-dossier')",
     )

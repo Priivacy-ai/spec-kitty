@@ -91,15 +91,15 @@ class TestTrackerBindRequiredFields:
 class TestTrackerBindForbiddenFields:
     """Validate that feature-era fields are absent."""
 
-    def test_does_not_contain_feature_slug(self):
+    def test_does_not_contain_mission_slug(self):
         identity = _make_project_identity()
         payload = _build_tracker_bind_payload(identity)
-        assert "feature_slug" not in payload
+        assert "mission_slug" not in payload
 
-    def test_does_not_contain_feature_number(self):
+    def test_does_not_contain_mission_number(self):
         identity = _make_project_identity()
         payload = _build_tracker_bind_payload(identity)
-        assert "feature_number" not in payload
+        assert "mission_number" not in payload
 
     def test_does_not_contain_feature_type(self):
         identity = _make_project_identity()

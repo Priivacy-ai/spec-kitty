@@ -10,7 +10,7 @@ pytestmark = pytest.mark.git_repo
 runner = CliRunner()
 
 
-def test_feature_slug_with_spaces_rejected():
+def test_mission_slug_with_spaces_rejected():
     """Feature slugs with spaces should be rejected."""
     # Arrange
     slug = "Invalid Feature Name"
@@ -25,7 +25,7 @@ def test_feature_slug_with_spaces_rejected():
     assert "examples:" in output.lower() or "example" in output.lower(), "Should show examples"
 
 
-def test_feature_slug_with_underscores_rejected():
+def test_mission_slug_with_underscores_rejected():
     """Feature slugs with underscores should be rejected."""
     # Arrange
     slug = "user_authentication"
@@ -38,7 +38,7 @@ def test_feature_slug_with_underscores_rejected():
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_feature_slug_starting_with_number_rejected():
+def test_mission_slug_starting_with_number_rejected():
     """Feature slugs must start with a letter."""
     # Arrange
     slug = "123-test-feature"
@@ -51,7 +51,7 @@ def test_feature_slug_starting_with_number_rejected():
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_feature_slug_with_uppercase_rejected():
+def test_mission_slug_with_uppercase_rejected():
     """Feature slugs must be lowercase only."""
     # Arrange
     slug = "UserAuth"

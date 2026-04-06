@@ -116,14 +116,14 @@ def test_specify_creates_explicit_target_branch(tmp_path):
     # Run spec-kitty specify (uses CLI, which invokes the template)
     # Note: This would normally need agent interaction, so we'll create manually
     # following the template pattern
-    feature_slug = "001-test-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     # Create meta.json following the updated template
     meta = {
         "feature_number": "001",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "Test Feature",
         "mission": "software-dev",
         "source_description": "Test feature",
@@ -153,13 +153,13 @@ def test_specify_target_branch_not_null(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "002-test-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "002-test-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "002",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "Test Feature",
         "mission": "software-dev",
         "source_description": "Test feature",
@@ -187,13 +187,13 @@ def test_specify_vcs_not_null(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "003-test-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "003-test-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "003",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "Test Feature",
         "mission": "software-dev",
         "source_description": "Test feature",
@@ -227,13 +227,13 @@ def test_specify_all_required_fields_present(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "004-complete-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "004-complete-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "004",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "Complete Test",
         "mission": "software-dev",
         "source_description": "Test all fields",
@@ -280,14 +280,14 @@ def test_specify_dual_branch_feature_can_override(tmp_path):
     # Create 2.x branch
     subprocess.run(["git", "branch", "2.x"], cwd=repo, check=True, capture_output=True)
 
-    feature_slug = "025-saas-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "025-saas-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     # Create meta.json with target_branch: "2.x" (user override)
     meta = {
         "feature_number": "025",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "SaaS Feature",
         "mission": "software-dev",
         "source_description": "SaaS-only feature",
@@ -317,13 +317,13 @@ def test_get_feature_target_branch_reads_explicit_value(tmp_path):
     repo = init_test_repo(tmp_path)
 
     # Create feature with explicit target_branch
-    feature_slug = "005-explicit-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "005-explicit-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "005",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "created_at": "2026-01-29T00:00:00Z",
         "target_branch": "custom-branch",  # Non-standard value
         "vcs": "git",
@@ -332,7 +332,7 @@ def test_get_feature_target_branch_reads_explicit_value(tmp_path):
     meta_file.write_text(json.dumps(meta, indent=2) + "\n")
 
     # Read value using function
-    target = get_feature_target_branch(repo, feature_slug)
+    target = get_feature_target_branch(repo, mission_slug)
 
     # Should return explicit value, not default
     assert target == "custom-branch", "Should read explicit target_branch value"
@@ -350,13 +350,13 @@ def test_legacy_features_still_work_with_default(tmp_path):
     repo = init_test_repo(tmp_path)
 
     # Create legacy feature WITHOUT target_branch (pre-0.13.8 style)
-    feature_slug = "006-legacy-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "006-legacy-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "006",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "created_at": "2026-01-29T00:00:00Z",
         # NO target_branch field (legacy)
         # NO vcs field (legacy)
@@ -365,7 +365,7 @@ def test_legacy_features_still_work_with_default(tmp_path):
     meta_file.write_text(json.dumps(meta, indent=2) + "\n")
 
     # Should return safe default
-    target = get_feature_target_branch(repo, feature_slug)
+    target = get_feature_target_branch(repo, mission_slug)
 
     assert target == "main", "Legacy features should default to 'main'"
 
@@ -381,13 +381,13 @@ def test_explicit_fields_prevent_ambiguity(tmp_path):
 
     # Create two features with different targets
     for feature_num, target in [("007", "main"), ("008", "2.x")]:
-        feature_slug = f"{feature_num}-feature"  # 007-feature, 008-feature
-        feature_dir = repo / "kitty-specs" / feature_slug
+        mission_slug = f"{feature_num}-feature"  # 007-feature, 008-feature
+        feature_dir = repo / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
 
         meta = {
             "feature_number": feature_num,
-            "slug": feature_slug,
+            "slug": mission_slug,
             "created_at": "2026-01-29T00:00:00Z",
             "target_branch": target,  # EXPLICIT
             "vcs": "git",
@@ -422,13 +422,13 @@ def test_json_schema_validation(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "009-schema-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "009-schema-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     meta = {
         "feature_number": "009",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "friendly_name": "Schema Test",
         "mission": "software-dev",
         "source_description": "Test schema",
@@ -467,14 +467,14 @@ def test_explicit_fields_in_git_history(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "010-git-test"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "010-git-test"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
 
     # Create initial meta.json
     meta = {
         "feature_number": "010",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "created_at": "2026-01-29T00:00:00Z",
         "target_branch": "main",
         "vcs": "git",
@@ -578,15 +578,15 @@ def test_explicit_fields_survive_roundtrip(tmp_path):
     """
     repo = init_test_repo(tmp_path)
 
-    feature_slug = "013-roundtrip"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "013-roundtrip"
+    feature_dir = repo / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     meta_file = feature_dir / "meta.json"
 
     # Write with explicit fields
     meta_v1 = {
         "feature_number": "013",
-        "slug": feature_slug,
+        "slug": mission_slug,
         "created_at": "2026-01-29T00:00:00Z",
         "target_branch": "main",
         "vcs": "git",

@@ -5,7 +5,7 @@ from specify_cli.lanes.branch_naming import (
     is_mission_branch,
     lane_branch_name,
     mission_branch_name,
-    parse_feature_slug_from_branch,
+    parse_mission_slug_from_branch,
     parse_lane_id_from_branch,
 )
 
@@ -55,16 +55,16 @@ class TestIsLaneBranch:
 
 class TestParseFeatureSlug:
     def test_from_mission_branch(self):
-        assert parse_feature_slug_from_branch("kitty/mission-057-feat") == "057-feat"
+        assert parse_mission_slug_from_branch("kitty/mission-057-feat") == "057-feat"
 
     def test_from_lane_branch(self):
-        assert parse_feature_slug_from_branch("kitty/mission-057-feat-lane-a") == "057-feat"
+        assert parse_mission_slug_from_branch("kitty/mission-057-feat-lane-a") == "057-feat"
 
     def test_from_regular_branch(self):
-        assert parse_feature_slug_from_branch("main") is None
+        assert parse_mission_slug_from_branch("main") is None
 
     def test_from_nonmission_feature_branch(self):
-        assert parse_feature_slug_from_branch("057-feat") is None
+        assert parse_mission_slug_from_branch("057-feat") is None
 
 
 class TestParseLaneId:

@@ -1,7 +1,7 @@
 """Unit tests for agent task helper functions (2.x contract).
 
 Extracted from test_tasks.py during test-detection-remediation.
-These test active 2.x helpers: _find_feature_slug and status lane alias resolution.
+These test active 2.x helpers: _find_mission_slug and status lane alias resolution.
 """
 
 from __future__ import annotations
@@ -39,26 +39,26 @@ runner = CliRunner()
 
 
 class TestFindFeatureSlug:
-    """Tests for _find_feature_slug helper."""
+    """Tests for _find_mission_slug helper."""
 
     def test_find_with_explicit_slug(self, tmp_path: Path):
-        """_find_feature_slug returns explicit slug when provided.
+        """_find_mission_slug returns explicit slug when provided.
 
-        After WP02 removed heuristic detection, _find_feature_slug requires
+        After WP02 removed heuristic detection, _find_mission_slug requires
         an explicit slug.  No cwd scanning or git branch parsing is performed.
         """
-        from specify_cli.cli.commands.agent.tasks import _find_feature_slug
+        from specify_cli.cli.commands.agent.tasks import _find_mission_slug
 
-        slug = _find_feature_slug(explicit_feature="008-test-feature")
+        slug = _find_mission_slug(explicit_feature="008-test-feature")
         assert slug == "008-test-feature"
 
     def test_find_raises_on_missing_slug(self):
-        """_find_feature_slug raises typer.Exit when no explicit slug is given."""
-        from specify_cli.cli.commands.agent.tasks import _find_feature_slug
+        """_find_mission_slug raises typer.Exit when no explicit slug is given."""
+        from specify_cli.cli.commands.agent.tasks import _find_mission_slug
         from click.exceptions import Exit
 
         with pytest.raises(Exit):
-            _find_feature_slug(explicit_feature=None)
+            _find_mission_slug(explicit_feature=None)
 
 
 class TestStatusInProgressLane:
@@ -71,7 +71,7 @@ class TestStatusInProgressLane:
 
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_in_progress_wp_appears_in_json_output(
         self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock, tmp_path: Path
     ):
@@ -126,7 +126,7 @@ class TestStatusInProgressLane:
     @patch("specify_cli.core.stale_detection.check_doing_wps_for_staleness", return_value={})
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_in_progress_wp_appears_in_rich_output(
         self, mock_slug: Mock, mock_root: Mock, mock_branch: Mock,
         mock_stale: Mock, tmp_path: Path

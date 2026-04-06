@@ -42,7 +42,7 @@ def _minimal_meta() -> dict[str, Any]:
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -53,7 +53,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -93,7 +93,7 @@ def _write_wp_file(
 
 def _setup_feature(
     tmp_path: Path,
-    feature_slug: str = "099-test-feature",
+    mission_slug: str = "099-test-feature",
     wp_ids: list[str] | None = None,
     *,
     all_done: bool = True,
@@ -109,15 +109,15 @@ def _setup_feature(
     if wp_ids is None:
         wp_ids = ["WP01", "WP02"]
 
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     tasks_dir = feature_dir / "tasks"
 
     # Write meta.json
     meta = _minimal_meta()
-    meta["mission_number"] = feature_slug.split("-")[0]
-    meta["slug"] = feature_slug
-    meta["mission_slug"] = feature_slug
+    meta["mission_number"] = mission_slug.split("-")[0]
+    meta["slug"] = mission_slug
+    meta["mission_slug"] = mission_slug
     meta_path = feature_dir / "meta.json"
     meta_path.write_text(
         json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
@@ -162,7 +162,7 @@ def _setup_feature(
             for from_l, to_l in transitions:
                 counter += 1
                 event = _make_event(
-                    feature_slug,
+                    mission_slug,
                     wp_id,
                     from_l,
                     to_l,
@@ -395,12 +395,12 @@ class TestOrchestratorParity:
         # Setup two identical features
         feature_std = _setup_feature(
             tmp_path / "standard",
-            feature_slug="099-test-standard",
+            mission_slug="099-test-standard",
             all_done=True,
         )
         feature_orch = _setup_feature(
             tmp_path / "orchestrator",
-            feature_slug="099-test-orchestrator",
+            mission_slug="099-test-orchestrator",
             all_done=True,
         )
 
@@ -571,7 +571,7 @@ class TestEndToEndCanonicalAcceptance:
         """
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-e2e-test",
+            mission_slug="099-e2e-test",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,
@@ -626,7 +626,7 @@ class TestEndToEndCanonicalAcceptance:
         """Acceptance reads canonical state, never falls back to Activity Log."""
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-no-fallback",
+            mission_slug="099-no-fallback",
             wp_ids=["WP01"],
             all_done=True,
             include_events=True,
@@ -669,7 +669,7 @@ class TestCorruptedCompatibilityViews:
         """Deleting Activity Log from WP files does not affect acceptance."""
         _setup_feature(
             tmp_path,
-            feature_slug="099-corrupted-log",
+            mission_slug="099-corrupted-log",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -698,7 +698,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-bad-frontmatter",
+            mission_slug="099-bad-frontmatter",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -745,7 +745,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-bad-tasks-md",
+            mission_slug="099-bad-tasks-md",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -787,7 +787,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-all-corrupted",
+            mission_slug="099-all-corrupted",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,

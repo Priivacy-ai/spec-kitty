@@ -93,9 +93,9 @@ def create_dossier_from_feature(
         )
 
     return MissionDossier(
-        mission_slug=mission_slug,
+        mission_type=mission_slug,
         mission_run_id=str(uuid.uuid4()),
-        feature_slug="test-feature",
+        mission_slug="test-feature",
         feature_dir=str(feature_dir),
         artifacts=artifacts,
         manifest={"test": "manifest"},
@@ -210,9 +210,9 @@ class TestOrderIndependence:
         # Create dossier with shuffled artifacts
         shuffled_artifacts = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_slug,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
+            mission_slug=dossier1.mission_slug,
             feature_dir=dossier1.feature_dir,
             artifacts=shuffled_artifacts,
             manifest=dossier1.manifest,
@@ -236,9 +236,9 @@ class TestOrderIndependence:
                 dossier_original.artifacts, len(dossier_original.artifacts)
             )
             dossier_shuffled = MissionDossier(
-                mission_slug=dossier_original.mission_slug,
+                mission_type=dossier_original.mission_slug,
                 mission_run_id=dossier_original.mission_run_id,
-                feature_slug=dossier_original.feature_slug,
+                mission_slug=dossier_original.mission_slug,
                 feature_dir=dossier_original.feature_dir,
                 artifacts=shuffled_artifacts,
                 manifest=dossier_original.manifest,
@@ -260,9 +260,9 @@ class TestOrderIndependence:
         # Create snapshot with shuffled artifacts
         shuffled_artifacts = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_slug,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
+            mission_slug=dossier1.mission_slug,
             feature_dir=dossier1.feature_dir,
             artifacts=shuffled_artifacts,
             manifest=dossier1.manifest,
@@ -284,9 +284,9 @@ class TestOrderIndependence:
         for _ in range(5):
             shuffled = random.sample(base_dossier.artifacts, len(base_dossier.artifacts))
             dossier = MissionDossier(
-                mission_slug=base_dossier.mission_slug,
+                mission_type=base_dossier.mission_slug,
                 mission_run_id=base_dossier.mission_run_id,
-                feature_slug=base_dossier.feature_slug,
+                mission_slug=base_dossier.mission_slug,
                 feature_dir=base_dossier.feature_dir,
                 artifacts=shuffled,
                 manifest=base_dossier.manifest,
@@ -696,9 +696,9 @@ class TestDeterminismIntegration:
         # Compute snapshot 2 (shuffled order)
         shuffled = random.sample(dossier1.artifacts, len(dossier1.artifacts))
         dossier2 = MissionDossier(
-            mission_slug=dossier1.mission_slug,
+            mission_type=dossier1.mission_slug,
             mission_run_id=dossier1.mission_run_id,
-            feature_slug=dossier1.feature_slug,
+            mission_slug=dossier1.mission_slug,
             feature_dir=dossier1.feature_dir,
             artifacts=shuffled,
             manifest=dossier1.manifest,

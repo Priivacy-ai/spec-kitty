@@ -65,11 +65,11 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     }
 
     # Resolve mission from feature-level meta.json when available
-    mission_key: str | None = None
+    mission_type: str | None = None
     if feature_dir is not None:
-        mission_key = _resolve_mission_from_feature(feature_dir)
+        mission_type = _resolve_mission_from_feature(feature_dir)
 
-    manifest = FileManifest(kittify_dir, mission_key=mission_key)
+    manifest = FileManifest(kittify_dir, mission_type=mission_type)
     worktree_status = WorktreeStatus(repo_root)
 
     try:
@@ -89,7 +89,7 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     diagnostics["in_worktree"] = ".worktrees" in str(Path.cwd())
     worktrees_dir = project_dir / ".worktrees"
     diagnostics["worktrees_exist"] = worktrees_dir.exists()
-    diagnostics["active_mission"] = mission_key or "no feature context"
+    diagnostics["active_mission"] = mission_type or "no feature context"
 
     file_check = manifest.check_files()
     expected_files = manifest.get_expected_files()
@@ -109,11 +109,11 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
     diagnostics["worktree_overview"] = worktree_summary
 
     diagnostics["all_features"] = []
-    for feature_slug in worktree_status.get_all_features():
-        feature_status = worktree_status.get_feature_status(feature_slug)
+    for mission_slug in worktree_status.get_all_features():
+        feature_status = worktree_status.get_feature_status(mission_slug)
         diagnostics["all_features"].append(
             {
-                "name": feature_slug,
+                "name": mission_slug,
                 "state": feature_status["state"],
                 "branch_exists": feature_status["branch_exists"],
                 "branch_merged": feature_status["branch_merged"],
@@ -125,16 +125,16 @@ def run_diagnostics(project_dir: Path, *, feature_dir: Path | None = None) -> Di
         )
 
     try:
-        # feature_slug from provided feature_dir only; no auto-detection
+        # mission_slug from provided feature_dir only; no auto-detection
         if feature_dir is not None:
-            feature_slug: str | None = feature_dir.name
+            mission_slug: str | None = feature_dir.name
         else:
-            feature_slug = None
-        if feature_slug:
-            feature_status = worktree_status.get_feature_status(feature_slug.strip())
+            mission_slug = None
+        if mission_slug:
+            feature_status = worktree_status.get_feature_status(mission_slug.strip())
             diagnostics["current_feature"] = {
                 "detected": True,
-                "name": feature_slug.strip(),
+                "name": mission_slug.strip(),
                 "state": feature_status["state"],
                 "branch_exists": feature_status["branch_exists"],
                 "branch_merged": feature_status["branch_merged"],

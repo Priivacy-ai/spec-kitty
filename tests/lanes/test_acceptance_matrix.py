@@ -23,7 +23,7 @@ class TestAcceptanceCriterion:
 class TestAcceptanceMatrix:
     def test_verdict_all_pass(self):
         m = AcceptanceMatrix(
-            feature_slug="test",
+            mission_slug="test",
             criteria=[
                 AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail="pass"),
             ],
@@ -32,7 +32,7 @@ class TestAcceptanceMatrix:
 
     def test_verdict_any_fail(self):
         m = AcceptanceMatrix(
-            feature_slug="test",
+            mission_slug="test",
             criteria=[
                 AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail="pass"),
                 AcceptanceCriterion("AC-02", "Test", "manual_qa", pass_fail="fail"),
@@ -42,7 +42,7 @@ class TestAcceptanceMatrix:
 
     def test_verdict_pending(self):
         m = AcceptanceMatrix(
-            feature_slug="test",
+            mission_slug="test",
             criteria=[
                 AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail="pass"),
                 AcceptanceCriterion("AC-02", "Test", "manual_qa", pass_fail="pending"),
@@ -52,7 +52,7 @@ class TestAcceptanceMatrix:
 
     def test_verdict_invariant_still_present(self):
         m = AcceptanceMatrix(
-            feature_slug="test",
+            mission_slug="test",
             criteria=[
                 AcceptanceCriterion("AC-01", "Test", "automated_test", pass_fail="pass"),
             ],
@@ -63,14 +63,14 @@ class TestAcceptanceMatrix:
         assert m.overall_verdict == "fail"
 
     def test_empty_matrix_pending(self):
-        m = AcceptanceMatrix(feature_slug="test")
+        m = AcceptanceMatrix(mission_slug="test")
         assert m.overall_verdict == "pending"
 
 
 class TestPersistence:
     def test_round_trip(self, tmp_path):
         matrix = AcceptanceMatrix(
-            feature_slug="010-feat",
+            mission_slug="010-feat",
             criteria=[
                 AcceptanceCriterion("AC-01", "Test passes", "automated_test", pass_fail="pass"),
             ],
@@ -82,7 +82,7 @@ class TestPersistence:
         write_acceptance_matrix(tmp_path, matrix)
         restored = read_acceptance_matrix(tmp_path)
         assert restored is not None
-        assert restored.feature_slug == "010-feat"
+        assert restored.mission_slug == "010-feat"
         assert len(restored.criteria) == 1
         assert len(restored.negative_invariants) == 1
         assert restored.overall_verdict == "pass"
@@ -116,7 +116,7 @@ class TestManualEvidence:
 
     def test_matrix_level_validation(self):
         m = AcceptanceMatrix(
-            feature_slug="test",
+            mission_slug="test",
             criteria=[
                 AcceptanceCriterion("AC-01", "Auto", "automated_test"),
                 AcceptanceCriterion("AC-02", "Manual", "manual_qa"),  # Missing evidence

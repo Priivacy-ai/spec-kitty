@@ -148,7 +148,7 @@ def test_valid_tracker_bind_passes() -> None:
 
 
 def test_unknown_context_is_noop() -> None:
-    payload = {"feature_slug": "legacy-value"}
+    payload = {"mission_slug": "legacy-value"}
     original = dict(payload)
 
     assert validate_outbound_payload(payload, "future_surface") is None
@@ -160,7 +160,7 @@ def test_payload_context_rejects_forbidden_fields() -> None:
     bad = {"feature_slug": "064-leaky", "mission_slug": "064-ok", "mission_number": "064", "mission_type": "software-dev"}
     with pytest.raises(ContractViolationError) as exc_info:
         validate_outbound_payload(bad, "payload")
-    assert "feature_slug" in str(exc_info.value)
+    assert "mission_slug" in str(exc_info.value)
 
 
 def test_payload_context_requires_mission_fields() -> None:

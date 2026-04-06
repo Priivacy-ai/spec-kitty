@@ -84,7 +84,7 @@ def _classify_wp_ids(
 
 def bootstrap_canonical_state(
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     *,
     dry_run: bool = False,
 ) -> BootstrapResult:
@@ -100,7 +100,7 @@ def bootstrap_canonical_state(
 
     Args:
         feature_dir: Path to the kitty-specs feature directory.
-        feature_slug: Feature identifier (e.g. ``"060-feature-name"``).
+        mission_slug: Feature identifier (e.g. ``"060-feature-name"``).
         dry_run: If ``True``, report what would happen without mutating
             any files.
 
@@ -135,7 +135,7 @@ def bootstrap_canonical_state(
     for wp_id in wps_to_seed:
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane="planned",
             actor="finalize-tasks",

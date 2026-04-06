@@ -78,9 +78,9 @@ class Indexer:
 
         # Build MissionDossier
         dossier = MissionDossier(
-            mission_slug=mission_type,
+            mission_type=mission_type,
             mission_run_id=str(uuid.uuid4()),
-            feature_slug=self._extract_feature_slug(feature_dir),
+            mission_slug=self._extract_mission_slug(feature_dir),
             feature_dir=str(feature_dir),
             artifacts=self.artifacts,
             manifest=manifest.model_dump() if manifest else None,
@@ -396,7 +396,7 @@ class Indexer:
         # Default to optional
         return "optional"
 
-    def _extract_feature_slug(self, feature_dir: Path) -> str:
+    def _extract_mission_slug(self, feature_dir: Path) -> str:
         """Extract feature slug from feature directory path.
 
         Assumes directory name follows pattern: {number}-{name} (e.g., 042-dossier)

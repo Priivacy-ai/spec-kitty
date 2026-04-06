@@ -25,9 +25,9 @@ MODULE = "specify_cli.cli.commands.agent.mission"
 CORE_MODULE = "specify_cli.core.mission_creation"
 
 
-def _setup_feature(tmp_path: Path, feature_slug: str = "060-test-feature") -> Path:
+def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:
     """Create a minimal feature directory with spec.md, tasks.md, and WP files."""
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -60,7 +60,7 @@ def _setup_feature(tmp_path: Path, feature_slug: str = "060-test-feature") -> Pa
 
     # meta.json for event emission
     meta = feature_dir / "meta.json"
-    meta.write_text(json.dumps({"feature_slug": feature_slug}), encoding="utf-8")
+    meta.write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
 
     return feature_dir
 
@@ -78,9 +78,9 @@ def _make_bootstrap_result(
 
 
 # Common set of patches needed to run finalize_tasks without real git/filesystem
-def _common_patches(tmp_path: Path, feature_slug: str = "060-test-feature"):
+def _common_patches(tmp_path: Path, mission_slug: str = "060-test-feature"):
     """Return a dict of patch targets -> mock values for finalize_tasks."""
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     return {
         f"{MODULE}.locate_project_root": MagicMock(return_value=tmp_path),
         f"{MODULE}._find_feature_directory": MagicMock(return_value=feature_dir),
@@ -109,10 +109,10 @@ class TestFinalizeTasksCallsBootstrap:
 
     def test_bootstrap_called_after_dependency_parsing(self, tmp_path: Path) -> None:
         """Verify bootstrap_canonical_state is called during finalize-tasks."""
-        feature_slug = "060-test-feature"
-        _setup_feature(tmp_path, feature_slug)
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
 
-        patches = _common_patches(tmp_path, feature_slug)
+        patches = _common_patches(tmp_path, mission_slug)
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
@@ -125,7 +125,7 @@ class TestFinalizeTasksCallsBootstrap:
 
         try:
             finalize_tasks(
-                feature=feature_slug,
+                feature=mission_slug,
                 json_output=True,
                 validate_only=False,
             )
@@ -136,8 +136,8 @@ class TestFinalizeTasksCallsBootstrap:
                 p.stop()
 
         mock_bootstrap.assert_called_once_with(
-            tmp_path / "kitty-specs" / feature_slug,
-            feature_slug,
+            tmp_path / "kitty-specs" / mission_slug,
+            mission_slug,
             dry_run=False,
         )
 
@@ -147,10 +147,10 @@ class TestValidateOnlyDryRun:
 
     def test_validate_only_uses_dry_run(self, tmp_path: Path) -> None:
         """Verify --validate-only passes dry_run=True to bootstrap."""
-        feature_slug = "060-test-feature"
-        _setup_feature(tmp_path, feature_slug)
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
 
-        patches = _common_patches(tmp_path, feature_slug)
+        patches = _common_patches(tmp_path, mission_slug)
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
@@ -162,7 +162,7 @@ class TestValidateOnlyDryRun:
 
         try:
             finalize_tasks(
-                feature=feature_slug,
+                feature=mission_slug,
                 json_output=True,
                 validate_only=True,
             )
@@ -173,8 +173,8 @@ class TestValidateOnlyDryRun:
                 p.stop()
 
         mock_bootstrap.assert_called_once_with(
-            tmp_path / "kitty-specs" / feature_slug,
-            feature_slug,
+            tmp_path / "kitty-specs" / mission_slug,
+            mission_slug,
             dry_run=True,
         )
 
@@ -184,10 +184,10 @@ class TestValidateOnlyDryRun:
         capsys: pytest.CaptureFixture[str],
     ) -> None:
         """Non-JSON validate-only output should include bootstrap dry-run stats."""
-        feature_slug = "060-test-feature"
-        _setup_feature(tmp_path, feature_slug)
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
 
-        patches = _common_patches(tmp_path, feature_slug)
+        patches = _common_patches(tmp_path, mission_slug)
         patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
             return_value=_make_bootstrap_result(total=2, seeded=1, existing=1)
         )
@@ -200,7 +200,7 @@ class TestValidateOnlyDryRun:
 
         try:
             finalize_tasks(
-                feature=feature_slug,
+                feature=mission_slug,
                 json_output=False,
                 validate_only=True,
             )
@@ -220,10 +220,10 @@ class TestBootstrapStatsInJson:
 
     def test_json_output_includes_bootstrap_stats(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Verify JSON output contains bootstrap key with correct counts."""
-        feature_slug = "060-test-feature"
-        _setup_feature(tmp_path, feature_slug)
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
 
-        patches = _common_patches(tmp_path, feature_slug)
+        patches = _common_patches(tmp_path, mission_slug)
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result(total=2, seeded=1, existing=1))
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
@@ -235,7 +235,7 @@ class TestBootstrapStatsInJson:
 
         try:
             finalize_tasks(
-                feature=feature_slug,
+                feature=mission_slug,
                 json_output=True,
                 validate_only=False,
             )
@@ -263,10 +263,10 @@ class TestBootstrapStatsInJson:
 
     def test_validate_only_json_includes_bootstrap(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Verify --validate-only JSON output also contains bootstrap stats."""
-        feature_slug = "060-test-feature"
-        _setup_feature(tmp_path, feature_slug)
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
 
-        patches = _common_patches(tmp_path, feature_slug)
+        patches = _common_patches(tmp_path, mission_slug)
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result(total=3, seeded=3, existing=0))
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
@@ -278,7 +278,7 @@ class TestBootstrapStatsInJson:
 
         try:
             finalize_tasks(
-                feature=feature_slug,
+                feature=mission_slug,
                 json_output=True,
                 validate_only=True,
             )

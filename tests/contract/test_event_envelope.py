@@ -63,8 +63,8 @@ class TestMissionCreatedEnvelope:
     def test_schema_version_is_3_0_0(self, canonical_envelope_fields):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
@@ -74,8 +74,8 @@ class TestMissionCreatedEnvelope:
     def test_build_id_present_and_nonempty(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
@@ -86,8 +86,8 @@ class TestMissionCreatedEnvelope:
     def test_aggregate_type_is_mission(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
@@ -97,8 +97,8 @@ class TestMissionCreatedEnvelope:
     def test_aggregate_type_is_not_feature(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
@@ -108,47 +108,47 @@ class TestMissionCreatedEnvelope:
     def test_event_type_is_mission_created(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
         assert event is not None
         assert event["event_type"] == "MissionCreated"
 
-    def test_no_feature_slug_in_envelope(self, forbidden_envelope_fields):
-        """feature_slug must NOT be a top-level key in the event envelope."""
+    def test_no_mission_slug_in_envelope(self, forbidden_envelope_fields):
+        """mission_slug must NOT be a top-level key in the event envelope."""
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
         assert event is not None
-        # feature_slug lives in the payload, not the envelope top level
+        # mission_slug lives in the payload, not the envelope top level
         for forbidden_field in forbidden_envelope_fields:
-            assert forbidden_field not in event or forbidden_field == "feature_slug" and event.get(forbidden_field) is None, (
+            assert forbidden_field not in event or forbidden_field == "mission_slug" and event.get(forbidden_field) is None, (
                 f"Forbidden field '{forbidden_field}' found at envelope top level"
             )
 
-    def test_no_feature_number_in_envelope(self, forbidden_envelope_fields):
-        """feature_number must NOT be a top-level key in the event envelope."""
+    def test_no_mission_number_in_envelope(self, forbidden_envelope_fields):
+        """mission_number must NOT be a top-level key in the event envelope."""
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
         assert event is not None
-        assert "feature_number" not in event, "feature_number must not be a top-level envelope key"
+        assert "mission_number" not in event, "mission_number must not be a top-level envelope key"
 
     def test_all_required_envelope_fields_present(self, canonical_envelope_fields):
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
-            feature_slug="064-test-mission",
-            feature_number="064",
+            mission_slug="064-test-mission",
+            mission_number="064",
             target_branch="main",
             wp_count=3,
         )
@@ -163,7 +163,7 @@ class TestMissionClosedEnvelope:
     def test_schema_version_is_3_0_0(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
-            feature_slug="064-test-mission",
+            mission_slug="064-test-mission",
             total_wps=5,
         )
         assert event is not None
@@ -172,7 +172,7 @@ class TestMissionClosedEnvelope:
     def test_aggregate_type_is_mission(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
-            feature_slug="064-test-mission",
+            mission_slug="064-test-mission",
             total_wps=5,
         )
         assert event is not None
@@ -181,7 +181,7 @@ class TestMissionClosedEnvelope:
     def test_build_id_present(self):
         emitter = _make_emitter()
         event = emitter.emit_mission_closed(
-            feature_slug="064-test-mission",
+            mission_slug="064-test-mission",
             total_wps=5,
         )
         assert event is not None

@@ -24,7 +24,7 @@ from specify_cli.status.doctor import (
 pytestmark = pytest.mark.fast
 
 def _create_events_file(
-    feature_dir: Path, wp_states: dict[str, str], timestamp: str, feature_slug: str = "034-test"
+    feature_dir: Path, wp_states: dict[str, str], timestamp: str, mission_slug: str = "034-test"
 ) -> None:
     """Create a minimal status.events.jsonl matching the given WP states.
 
@@ -36,7 +36,7 @@ def _create_events_file(
             json.dumps(
                 {
                     "event_id": f"01EVT{wp_id}",
-                    "feature_slug": feature_slug,
+                    "mission_slug": mission_slug,
                     "wp_id": wp_id,
                     "from_lane": "planned",
                     "to_lane": lane,
@@ -123,7 +123,7 @@ class TestDoctorResult:
     """Tests for the DoctorResult dataclass."""
 
     def test_healthy_result(self):
-        result = DoctorResult(feature_slug="034-test")
+        result = DoctorResult(mission_slug="034-test")
         assert result.is_healthy is True
         assert result.has_errors is False
         assert result.has_warnings is False
@@ -131,7 +131,7 @@ class TestDoctorResult:
 
     def test_result_with_warnings(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -148,7 +148,7 @@ class TestDoctorResult:
 
     def test_result_with_errors(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.ERROR,
@@ -164,7 +164,7 @@ class TestDoctorResult:
 
     def test_result_with_mixed_severity(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -187,7 +187,7 @@ class TestDoctorResult:
 
     def test_findings_by_category(self):
         result = DoctorResult(
-            feature_slug="034-test",
+            mission_slug="034-test",
             findings=[
                 Finding(
                     severity=Severity.WARNING,
@@ -611,7 +611,7 @@ class TestRunDoctor:
         with pytest.raises(FileNotFoundError, match="does not exist"):
             run_doctor(
                 feature_dir=nonexistent,
-                feature_slug="034-test",
+                mission_slug="034-test",
                 repo_root=tmp_path,
             )
 
@@ -622,11 +622,11 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is True
-        assert result.feature_slug == "034-test"
+        assert result.mission_slug == "034-test"
 
     def test_healthy_feature_with_active_wps(self, tmp_path: Path):
         """Active WPs within thresholds, no worktrees -> healthy."""
@@ -635,7 +635,7 @@ class TestRunDoctor:
 
         recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": recent,
             "event_count": 2,
             "last_event_id": "01ABC",
@@ -656,7 +656,7 @@ class TestRunDoctor:
             json.dumps(
                 {
                     "event_id": "01AAA",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "planned",
                     "to_lane": "claimed",
@@ -669,7 +669,7 @@ class TestRunDoctor:
             json.dumps(
                 {
                     "event_id": "01ABC",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "claimed",
                     "to_lane": "in_progress",
@@ -684,7 +684,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is True
@@ -696,7 +696,7 @@ class TestRunDoctor:
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01ABC",
@@ -717,7 +717,7 @@ class TestRunDoctor:
             json.dumps(
                 {
                     "event_id": "01ABC",
-                    "feature_slug": "034-test",
+                    "mission_slug": "034-test",
                     "wp_id": "WP01",
                     "from_lane": "planned",
                     "to_lane": "claimed",
@@ -732,7 +732,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
         )
@@ -751,7 +751,7 @@ class TestRunDoctor:
         (worktrees_dir / "034-test-lane-a").mkdir()
 
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": "2026-01-01T00:00:00Z",
             "event_count": 1,
             "last_event_id": "01ABC",
@@ -771,7 +771,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         assert result.is_healthy is False
@@ -788,7 +788,7 @@ class TestRunDoctor:
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 2,
             "last_event_id": "01ABC",
@@ -815,7 +815,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
             stale_in_progress_days=7,
@@ -833,7 +833,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
         )
         # snapshot is None because JSON is corrupt and no events exist
@@ -847,7 +847,7 @@ class TestRunDoctor:
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         event = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "claimed",
@@ -861,7 +861,7 @@ class TestRunDoctor:
 
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             repo_root=tmp_path,
             stale_claimed_days=7,
         )
@@ -893,7 +893,7 @@ class TestDoctorCLI:
 
         recent = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": recent,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
@@ -971,7 +971,7 @@ class TestDoctorCLI:
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
@@ -1017,7 +1017,7 @@ class TestDoctorCLI:
 
         old = (datetime.now(UTC) - timedelta(days=10)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": old,
             "event_count": 1,
             "last_event_id": "01EVTWP01",
@@ -1099,7 +1099,7 @@ class TestDoctorCLI:
         # 2 days ago - below default 7-day threshold but above custom 1-day
         two_days_ago = (datetime.now(UTC) - timedelta(days=2)).isoformat()
         status_data = {
-            "feature_slug": "034-test",
+            "mission_slug": "034-test",
             "materialized_at": two_days_ago,
             "event_count": 1,
             "last_event_id": "01EVTWP01",

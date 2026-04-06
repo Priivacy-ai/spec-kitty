@@ -75,19 +75,19 @@ def _setup_repo(
 def _setup_feature(
     tmp_path: Path,
     *,
-    feature_slug: str = "061-add-clerk-auth",
+    mission_slug: str = "061-add-clerk-auth",
     provider: str = "linear",
     project_slug: str = "acme-web",
 ) -> Path:
     """Create a repo with a feature directory containing meta.json."""
     repo_root = _setup_repo(tmp_path, provider=provider, project_slug=project_slug)
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     meta = {
         "mission_number": "061",
-        "slug": feature_slug,
-        "mission_slug": feature_slug,
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
         "friendly_name": "add clerk auth",
         "mission_type": "software-dev",
         "target_branch": "main",
@@ -497,7 +497,7 @@ class TestBindMissionOrigin:
             )
 
         mock_emitter.emit_mission_origin_bound.assert_called_once_with(
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
             provider="linear",
             external_issue_id="issue-uuid-1",
             external_issue_key="WEB-123",
@@ -539,7 +539,7 @@ class TestStartMissionFromTicket:
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
         )
 
         # Mock the SaaS client to allow bind to succeed
@@ -561,7 +561,7 @@ class TestStartMissionFromTicket:
 
         assert isinstance(result, MissionFromTicketResult)
         assert result.feature_dir == feature_dir
-        assert result.feature_slug == "061-add-clerk-auth"
+        assert result.mission_slug == "061-add-clerk-auth"
         assert result.origin_ticket["provider"] == "linear"
         assert result.event_emitted is True
 
@@ -604,7 +604,7 @@ class TestStartMissionFromTicket:
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
         )
 
         candidate = _make_candidate(key="WEB-123")
@@ -635,12 +635,12 @@ class TestStartMissionFromTicket:
         """Bind failure after creation: OriginBindingError propagates."""
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="061-web-123",
+            mission_slug="061-web-123",
         )
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-web-123",
+            mission_slug="061-web-123",
         )
         candidate = _make_candidate()
         client = MagicMock()

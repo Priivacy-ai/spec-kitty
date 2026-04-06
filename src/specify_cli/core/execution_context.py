@@ -40,7 +40,7 @@ class ActionContextError(RuntimeError):
 @dataclass
 class ActionContext:
     action: str
-    feature_slug: str
+    mission_slug: str
     feature_dir: str
     target_branch: str
     detection_method: str
@@ -58,7 +58,7 @@ class ActionContext:
         return asdict(self)
 
 
-def _resolve_feature_slug(
+def _resolve_mission_slug(
     repo_root: Path,
     *,
     feature: str | None,
@@ -84,14 +84,14 @@ def _resolve_feature_slug(
     return slug, feature_dir
 
 
-def _tasks_commands(feature_slug: str) -> dict[str, str]:
+def _tasks_commands(mission_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (
             "spec-kitty agent mission check-prerequisites "
-            f"--json --paths-only --include-tasks --feature {feature_slug}"
+            f"--json --paths-only --include-tasks --feature {mission_slug}"
         ),
         "finalize_tasks": (
-            f"spec-kitty agent mission finalize-tasks --feature {feature_slug} --json"
+            f"spec-kitty agent mission finalize-tasks --feature {mission_slug} --json"
         ),
     }
 
@@ -169,16 +169,16 @@ def resolve_action_context(
             f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
         )
 
-    feature_slug, feature_dir = _resolve_feature_slug(repo_root, feature=feature, cwd=cwd, env=env)
-    target_branch = get_feature_target_branch(repo_root, feature_slug)
+    mission_slug, feature_dir = _resolve_mission_slug(repo_root, feature=feature, cwd=cwd, env=env)
+    target_branch = get_feature_target_branch(repo_root, mission_slug)
 
     context = ActionContext(
         action=action,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         feature_dir=str(feature_dir),
         target_branch=target_branch,
         detection_method="explicit",
-        commands=_tasks_commands(feature_slug),
+        commands=_tasks_commands(mission_slug),
     )
 
     if action in {"tasks", "tasks_outline", "tasks_packages", "tasks_finalize"}:
@@ -188,11 +188,11 @@ def resolve_action_context(
     if normalized_wp_id is None:
         raise ActionContextError(
             "WORK_PACKAGE_UNRESOLVED",
-            f"No work package available for action '{action}' in feature {feature_slug}.",
+            f"No work package available for action '{action}' in feature {mission_slug}.",
         )
 
     try:
-        wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+        wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
     except Exception as exc:
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
@@ -209,7 +209,7 @@ def resolve_action_context(
     except Exception:
         _ec_raw_lane = "planned"
     lane = resolve_lane_alias(_ec_raw_lane)
-    workspace = resolve_workspace_for_wp(repo_root, feature_slug, normalized_wp_id)
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
 
     context.wp_id = normalized_wp_id
     context.wp_file = str(wp.path)

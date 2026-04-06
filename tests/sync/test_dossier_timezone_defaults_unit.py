@@ -37,16 +37,16 @@ def _sample_artifact() -> ArtifactRef:
 def test_models_default_factories_use_timezone_aware_datetimes() -> None:
     artifact = _sample_artifact()
     dossier = MissionDossier(
-        mission_slug="software-dev",
+        mission_type="software-dev",
         mission_run_id="run-1",
-        feature_slug="042-sample",
+        mission_slug="042-sample",
         feature_dir="/tmp/feature",
         artifacts=[artifact],
         latest_snapshot=None,
         manifest=None,
     )
     snapshot = MissionDossierSnapshot(
-        feature_slug="042-sample",
+        mission_slug="042-sample",
         parity_hash_sha256="b" * 64,
     )
 
@@ -58,9 +58,9 @@ def test_models_default_factories_use_timezone_aware_datetimes() -> None:
 
 def test_compute_snapshot_sets_timezone_aware_timestamp() -> None:
     dossier = MissionDossier(
-        mission_slug="software-dev",
+        mission_type="software-dev",
         mission_run_id="run-2",
-        feature_slug="042-snapshot",
+        mission_slug="042-snapshot",
         feature_dir="/tmp/feature",
         artifacts=[_sample_artifact()],
         latest_snapshot=None,
@@ -91,7 +91,7 @@ def test_indexer_uses_timezone_aware_timestamps_for_updates_and_missing(tmp_path
 
 def test_capture_baseline_uses_timezone_aware_timestamp(tmp_path: Path) -> None:
     snapshot = MissionDossierSnapshot(
-        feature_slug="042-baseline",
+        mission_slug="042-baseline",
         parity_hash_sha256="c" * 64,
     )
     identity = ProjectIdentity(
@@ -101,12 +101,12 @@ def test_capture_baseline_uses_timezone_aware_timestamp(tmp_path: Path) -> None:
     )
 
     baseline = capture_baseline(
-        feature_slug="042-baseline",
+        mission_slug="042-baseline",
         current_snapshot=snapshot,
         repo_root=tmp_path,
         project_identity=identity,
         target_branch="main",
-        mission_key="software-dev",
+        mission_type="software-dev",
         manifest_version="1",
     )
 

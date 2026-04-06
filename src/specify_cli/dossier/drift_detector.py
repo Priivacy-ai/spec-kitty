@@ -43,17 +43,17 @@ class BaselineKey:
     Attributes:
         project_uuid: Project identifier (from sync/project_identity.py)
         node_id: Machine ID (from sync/project_identity.py)
-        feature_slug: Feature identifier (e.g., "042-local-mission-dossier")
+        mission_slug: Feature identifier (e.g., "042-local-mission-dossier")
         target_branch: Target branch (e.g., "main", "2.x")
-        mission_key: Mission type (e.g., "software-dev")
+        mission_type: Mission type (e.g., "software-dev")
         manifest_version: Manifest schema version (e.g., "1")
     """
 
     project_uuid: str
     node_id: str
-    feature_slug: str
+    mission_slug: str
     target_branch: str
-    mission_key: str
+    mission_type: str
     manifest_version: str
 
     def to_dict(self) -> dict:
@@ -65,9 +65,9 @@ class BaselineKey:
         return {
             "project_uuid": self.project_uuid,
             "node_id": self.node_id,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "target_branch": self.target_branch,
-            "mission_key": self.mission_key,
+            "mission_type": self.mission_type,
             "manifest_version": self.manifest_version,
         }
 
@@ -97,9 +97,9 @@ class BaselineKey:
         return (
             self.project_uuid == other.project_uuid
             and self.node_id == other.node_id
-            and self.feature_slug == other.feature_slug
+            and self.mission_slug == other.mission_slug
             and self.target_branch == other.target_branch
-            and self.mission_key == other.mission_key
+            and self.mission_type == other.mission_type
             and self.manifest_version == other.manifest_version
         )
 
@@ -167,9 +167,9 @@ class BaselineSnapshot:
 
 
 def compute_baseline_key(
-    feature_slug: str,
+    mission_slug: str,
     target_branch: str,
-    mission_key: str,
+    mission_type: str,
     manifest_version: str,
     project_identity: ProjectIdentity,
 ) -> BaselineKey:
@@ -179,9 +179,9 @@ def compute_baseline_key(
     the baseline scope.
 
     Args:
-        feature_slug: Feature identifier (e.g., "042-local-mission-dossier")
+        mission_slug: Feature identifier (e.g., "042-local-mission-dossier")
         target_branch: Target branch (e.g., "main", "2.x")
-        mission_key: Mission type (e.g., "software-dev")
+        mission_type: Mission type (e.g., "software-dev")
         manifest_version: Manifest schema version (e.g., "1")
         project_identity: ProjectIdentity with project_uuid and node_id
 
@@ -191,24 +191,24 @@ def compute_baseline_key(
     return BaselineKey(
         project_uuid=str(project_identity.project_uuid),
         node_id=project_identity.node_id or "unknown",
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
-        mission_key=mission_key,
+        mission_type=mission_type,
         manifest_version=manifest_version,
     )
 
 
-def save_baseline(feature_slug: str, baseline: BaselineSnapshot, repo_root: Path) -> None:
+def save_baseline(mission_slug: str, baseline: BaselineSnapshot, repo_root: Path) -> None:
     """Persist baseline to JSON file.
 
-    File location: {repo_root}/.kittify/dossiers/{feature_slug}/parity-baseline.json
+    File location: {repo_root}/.kittify/dossiers/{mission_slug}/parity-baseline.json
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         baseline: BaselineSnapshot to persist
         repo_root: Repository root path
     """
-    baseline_dir = repo_root / ".kittify" / "dossiers" / feature_slug
+    baseline_dir = repo_root / ".kittify" / "dossiers" / mission_slug
     baseline_dir.mkdir(parents=True, exist_ok=True)
 
     baseline_file = baseline_dir / "parity-baseline.json"
@@ -218,19 +218,19 @@ def save_baseline(feature_slug: str, baseline: BaselineSnapshot, repo_root: Path
     logger.info(f"Baseline saved to {baseline_file}")
 
 
-def load_baseline(feature_slug: str, repo_root: Path) -> BaselineSnapshot | None:
+def load_baseline(mission_slug: str, repo_root: Path) -> BaselineSnapshot | None:
     """Load baseline from JSON file.
 
-    File location: {repo_root}/.kittify/dossiers/{feature_slug}/parity-baseline.json
+    File location: {repo_root}/.kittify/dossiers/{mission_slug}/parity-baseline.json
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         repo_root: Repository root path
 
     Returns:
         BaselineSnapshot if file exists and is valid, None otherwise.
     """
-    baseline_file = repo_root / ".kittify" / "dossiers" / feature_slug / "parity-baseline.json"
+    baseline_file = repo_root / ".kittify" / "dossiers" / mission_slug / "parity-baseline.json"
     if not baseline_file.exists():
         logger.debug(f"No baseline file found at {baseline_file}")
         return None
@@ -274,12 +274,12 @@ def accept_baseline(
                 diffs.append("project_uuid")
             if loaded_baseline.baseline_key.node_id != current_key.node_id:
                 diffs.append("node_id")
-            if loaded_baseline.baseline_key.feature_slug != current_key.feature_slug:
-                diffs.append("feature_slug")
+            if loaded_baseline.baseline_key.mission_slug != current_key.mission_slug:
+                diffs.append("mission_slug")
             if loaded_baseline.baseline_key.target_branch != current_key.target_branch:
                 diffs.append("target_branch")
-            if loaded_baseline.baseline_key.mission_key != current_key.mission_key:
-                diffs.append("mission_key")
+            if loaded_baseline.baseline_key.mission_type != current_key.mission_type:
+                diffs.append("mission_type")
             if loaded_baseline.baseline_key.manifest_version != current_key.manifest_version:
                 diffs.append("manifest_version")
 
@@ -291,12 +291,12 @@ def accept_baseline(
 
 
 def detect_drift(
-    feature_slug: str,
+    mission_slug: str,
     current_snapshot: MissionDossierSnapshot,
     repo_root: Path,
     project_identity: ProjectIdentity,
     target_branch: str,
-    mission_key: str,
+    mission_type: str,
     manifest_version: str,
 ) -> tuple[bool, dict | None]:
     """Detect parity drift by comparing current snapshot against baseline.
@@ -305,12 +305,12 @@ def detect_drift(
     or baseline key is rejected.
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         current_snapshot: Current MissionDossierSnapshot
         repo_root: Repository root path
         project_identity: ProjectIdentity with project_uuid and node_id
         target_branch: Target branch (e.g., "main", "2.x")
-        mission_key: Mission type (e.g., "software-dev")
+        mission_type: Mission type (e.g., "software-dev")
         manifest_version: Manifest schema version (e.g., "1")
 
     Returns:
@@ -320,17 +320,17 @@ def detect_drift(
     """
     # Compute current baseline key
     current_key = compute_baseline_key(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
-        mission_key=mission_key,
+        mission_type=mission_type,
         manifest_version=manifest_version,
         project_identity=project_identity,
     )
 
     # Load stored baseline
-    stored_baseline = load_baseline(feature_slug, repo_root)
+    stored_baseline = load_baseline(mission_slug, repo_root)
     if not stored_baseline:
-        logger.debug(f"No baseline available for {feature_slug}")
+        logger.debug(f"No baseline available for {mission_slug}")
         return False, None
 
     # Accept baseline (validate key match)
@@ -344,11 +344,11 @@ def detect_drift(
     baseline_hash = stored_baseline.parity_hash_sha256
 
     if current_hash == baseline_hash:
-        logger.debug(f"No parity drift detected for {feature_slug}")
+        logger.debug(f"No parity drift detected for {mission_slug}")
         return False, None
 
     # Drift detected
-    logger.warning(f"Parity drift detected for {feature_slug}: {baseline_hash[:8]}... -> {current_hash[:8]}...")
+    logger.warning(f"Parity drift detected for {mission_slug}: {baseline_hash[:8]}... -> {current_hash[:8]}...")
 
     # Compute severity based on completeness status changes
     severity = "warning"
@@ -371,12 +371,12 @@ def detect_drift(
 
 
 async def emit_drift_if_detected(
-    feature_slug: str,
+    mission_slug: str,
     current_snapshot: MissionDossierSnapshot,
     repo_root: Path,
     project_identity: ProjectIdentity,
     target_branch: str,
-    mission_key: str,
+    mission_type: str,
     manifest_version: str,
     actor: str | None = None,  # noqa: ARG001
 ) -> dict | None:
@@ -385,12 +385,12 @@ async def emit_drift_if_detected(
     Conditional emission: event only emitted if has_drift=True and baseline accepted.
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         current_snapshot: Current MissionDossierSnapshot
         repo_root: Repository root path
         project_identity: ProjectIdentity with project_uuid and node_id
         target_branch: Target branch
-        mission_key: Mission type
+        mission_type: Mission type
         manifest_version: Manifest schema version
         actor: Optional actor identifier
 
@@ -398,12 +398,12 @@ async def emit_drift_if_detected(
         Event dict if drift emitted, None otherwise.
     """
     has_drift, drift_info = detect_drift(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         current_snapshot=current_snapshot,
         repo_root=repo_root,
         project_identity=project_identity,
         target_branch=target_branch,
-        mission_key=mission_key,
+        mission_type=mission_type,
         manifest_version=manifest_version,
     )
 
@@ -412,7 +412,7 @@ async def emit_drift_if_detected(
 
     # Emit ParityDriftDetected event
     event = emit_parity_drift_detected(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         local_parity_hash=drift_info["local_parity_hash"],
         baseline_parity_hash=drift_info["baseline_parity_hash"],
         missing_in_local=drift_info["missing_in_local"],
@@ -425,12 +425,12 @@ async def emit_drift_if_detected(
 
 
 def capture_baseline(
-    feature_slug: str,
+    mission_slug: str,
     current_snapshot: MissionDossierSnapshot,
     repo_root: Path,
     project_identity: ProjectIdentity,
     target_branch: str,
-    mission_key: str,
+    mission_type: str,
     manifest_version: str,
 ) -> BaselineSnapshot:
     """Capture current snapshot as new baseline.
@@ -439,21 +439,21 @@ def capture_baseline(
     This is a manual operation (not automatic) to prevent unintended baseline drift.
 
     Args:
-        feature_slug: Feature identifier
+        mission_slug: Feature identifier
         current_snapshot: Current MissionDossierSnapshot to capture as baseline
         repo_root: Repository root path
         project_identity: ProjectIdentity with project_uuid and node_id
         target_branch: Target branch
-        mission_key: Mission type
+        mission_type: Mission type
         manifest_version: Manifest schema version
 
     Returns:
         BaselineSnapshot that was captured and saved.
     """
     current_key = compute_baseline_key(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
-        mission_key=mission_key,
+        mission_type=mission_type,
         manifest_version=manifest_version,
         project_identity=project_identity,
     )
@@ -466,6 +466,6 @@ def capture_baseline(
         captured_by=project_identity.node_id or "unknown",
     )
 
-    save_baseline(feature_slug, baseline, repo_root)
-    logger.info(f"Baseline captured for {feature_slug} (hash: {baseline.parity_hash_sha256[:8]}...)")
+    save_baseline(mission_slug, baseline, repo_root)
+    logger.info(f"Baseline captured for {mission_slug} (hash: {baseline.parity_hash_sha256[:8]}...)")
     return baseline

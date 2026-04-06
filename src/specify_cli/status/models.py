@@ -182,7 +182,7 @@ class StatusEvent:
         evidence_data = data.get("evidence")
         return cls(
             event_id=data["event_id"],
-            mission_slug=data.get("mission_slug") or data.get("feature_slug", ""),
+            mission_slug=data.get("mission_slug") or data.get("mission_slug", ""),
             wp_id=data["wp_id"],
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
@@ -223,7 +223,7 @@ class StatusSnapshot:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
-        mission_slug = data.get("mission_slug") or data.get("feature_slug")
+        mission_slug = data.get("mission_slug") or data.get("mission_slug")
         if mission_slug is None:
             raise KeyError("mission_slug")
         return cls(

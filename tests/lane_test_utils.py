@@ -25,7 +25,7 @@ def write_single_lane_manifest(
         feature_dir,
         LanesManifest(
             version=1,
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             mission_id=mission_id or feature_dir.name,
             mission_branch=f"kitty/mission-{feature_dir.name}",
             target_branch=target_branch,
@@ -45,11 +45,11 @@ def write_single_lane_manifest(
     )
 
 
-def lane_worktree_path(repo_root: Path, feature_slug: str, lane_id: str = "lane-a") -> Path:
+def lane_worktree_path(repo_root: Path, mission_slug: str, lane_id: str = "lane-a") -> Path:
     """Return the lane worktree path for a feature."""
-    return repo_root / ".worktrees" / f"{feature_slug}-{lane_id}"
+    return repo_root / ".worktrees" / f"{mission_slug}-{lane_id}"
 
 
-def lane_branch_name(feature_slug: str, lane_id: str = "lane-a") -> str:
+def lane_branch_name(mission_slug: str, lane_id: str = "lane-a") -> str:
     """Return the lane branch name for a feature."""
-    return f"kitty/mission-{feature_slug}-{lane_id}"
+    return f"kitty/mission-{mission_slug}-{lane_id}"

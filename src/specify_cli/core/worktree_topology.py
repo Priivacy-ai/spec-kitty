@@ -38,7 +38,7 @@ class WPTopologyEntry:
 class FeatureTopology:
     """Lane topology for a feature."""
 
-    feature_slug: str
+    mission_slug: str
     target_branch: str
     mission_branch: str
     entries: list[WPTopologyEntry] = field(default_factory=list)
@@ -92,14 +92,14 @@ def _count_commits_ahead(worktree_path: Path, base_branch: str) -> int:
     return 0
 
 
-def materialize_worktree_topology(repo_root: Path, feature_slug: str) -> FeatureTopology:
+def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import require_lanes_json
 
     main_repo_root = get_main_repo_root(repo_root)
-    target_branch = get_feature_target_branch(main_repo_root, feature_slug)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    target_branch = get_feature_target_branch(main_repo_root, mission_slug)
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
     lanes_manifest = require_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
 
@@ -114,7 +114,7 @@ def materialize_worktree_topology(repo_root: Path, feature_slug: str) -> Feature
         if lane_entry is None:
             raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
 
-        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         worktree_exists = workspace.exists
         commits_ahead = 0
         if worktree_exists:
@@ -125,7 +125,7 @@ def materialize_worktree_topology(repo_root: Path, feature_slug: str) -> Feature
                 wp_id=wp_id,
                 lane_id=lane_entry.lane_id,
                 lane_wp_ids=list(lane_entry.wp_ids),
-                branch_name=lane_branch_name(feature_slug, lane_entry.lane_id),
+                branch_name=lane_branch_name(mission_slug, lane_entry.lane_id),
                 base_branch=lanes_manifest.mission_branch,
                 dependencies=graph.get(wp_id, []),
                 lane=_read_canonical_lane_or_default(feature_dir, wp_id),
@@ -135,7 +135,7 @@ def materialize_worktree_topology(repo_root: Path, feature_slug: str) -> Feature
         )
 
     return FeatureTopology(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
         mission_branch=lanes_manifest.mission_branch,
         entries=entries,
@@ -164,7 +164,7 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
         entries_json.append(entry_data)
 
     payload = {
-        "feature": topology.feature_slug,
+        "feature": topology.mission_slug,
         "target_branch": topology.target_branch,
         "mission_branch": topology.mission_branch,
         "current_wp": current_wp_id,
@@ -194,7 +194,7 @@ def render_topology_text(topology: FeatureTopology, current_wp_id: str) -> list[
     lines.append("╔" + "═" * 78 + "╗")
     lines.append("║  LANE WORKTREE TOPOLOGY" + " " * 54 + "║")
     lines.append("╠" + "═" * 78 + "╣")
-    lines.append(f"║  Feature: {topology.feature_slug:<66} ║")
+    lines.append(f"║  Feature: {topology.mission_slug:<66} ║")
     lines.append(f"║  Target:  {topology.target_branch:<66} ║")
     lines.append(f"║  Mission: {topology.mission_branch:<66} ║")
     lines.append("║" + " " * 78 + "║")

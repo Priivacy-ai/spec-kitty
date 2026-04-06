@@ -240,7 +240,7 @@ def get_main_repo_root(current_path: Path) -> Path:
     return current_path.resolve()
 
 
-def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
+def get_feature_target_branch(repo_root: Path, mission_slug: str) -> str:
     """Get target branch for a feature by reading meta.json directly.
 
     Reads the ``target_branch`` field from ``kitty-specs/<slug>/meta.json``.
@@ -249,7 +249,7 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
 
     Args:
         repo_root: Repository root path (may be worktree — resolved to main).
-        feature_slug: Feature slug (e.g., "025-cli-event-log-integration").
+        mission_slug: Feature slug (e.g., "025-cli-event-log-integration").
 
     Returns:
         Target branch name (e.g., ``"main"`` or ``"2.x"``).
@@ -257,7 +257,7 @@ def get_feature_target_branch(repo_root: Path, feature_slug: str) -> str:
     from specify_cli.core.git_ops import resolve_primary_branch
 
     main_root = get_main_repo_root(repo_root)
-    meta_file = main_root / "kitty-specs" / feature_slug / "meta.json"
+    meta_file = main_root / "kitty-specs" / mission_slug / "meta.json"
     fallback = resolve_primary_branch(main_root)
 
     if not meta_file.exists():

@@ -27,7 +27,7 @@ pytestmark = pytest.mark.fast
 _VALID_META_BASE = {
     "feature_number": "001",
     "slug": "001-test",
-    "feature_slug": "001-test",
+    "mission_slug": "001-test",
     "friendly_name": "Test",
     "mission": "documentation",
     "target_branch": "main",

@@ -42,7 +42,7 @@ def _make_valid_event(**overrides) -> dict:
             "from_lane": "planned",
             "to_lane": "in_progress",
             "actor": "test-agent",
-            "feature_slug": "039-test",
+            "mission_slug": "039-test",
         },
         "timestamp": datetime.now(UTC).isoformat(),
         "node_id": "test-node",
@@ -240,7 +240,7 @@ class TestOtherPayloads:
             payload={
                 "wp_id": "WP01",
                 "title": "First work package",
-                "feature_slug": "039-test",
+                "mission_slug": "039-test",
                 "dependencies": [],
             },
         )
@@ -253,7 +253,7 @@ class TestOtherPayloads:
             event_type="WPCreated",
             payload={
                 "wp_id": "WP01",
-                "feature_slug": "039-test",
+                "mission_slug": "039-test",
             },
         )
         results = diagnose_events([event])
@@ -267,8 +267,8 @@ class TestOtherPayloads:
             aggregate_id="039-test-feature",
             aggregate_type="Mission",
             payload={
-                "feature_slug": "039-test-feature",
-                "feature_number": "039",
+                "mission_slug": "039-test-feature",
+                "mission_number": "039",
                 "target_branch": "main",
                 "wp_count": 5,
             },
@@ -277,21 +277,21 @@ class TestOtherPayloads:
         assert results[0].valid is True
 
     def test_mission_created_invalid_slug_format(self):
-        """MissionCreated with invalid feature_slug format fails."""
+        """MissionCreated with invalid mission_slug format fails."""
         event = _make_valid_event(
             event_type="MissionCreated",
             aggregate_id="bad",
             aggregate_type="Mission",
             payload={
-                "feature_slug": "BAD FORMAT",
-                "feature_number": "039",
+                "mission_slug": "BAD FORMAT",
+                "mission_number": "039",
                 "target_branch": "main",
                 "wp_count": 5,
             },
         )
         results = diagnose_events([event])
         assert results[0].valid is False
-        assert any("feature_slug" in e for e in results[0].errors)
+        assert any("mission_slug" in e for e in results[0].errors)
 
 
 # ---------------------------------------------------------------------------

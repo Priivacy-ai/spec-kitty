@@ -93,7 +93,7 @@ def _detect_owned_files(
                 # Found matching context — try to read WP frontmatter for owned_files.
                 from specify_cli.frontmatter import read_frontmatter
 
-                feature_dir = repo_root / "kitty-specs" / ctx.feature_slug
+                feature_dir = repo_root / "kitty-specs" / ctx.mission_slug
                 tasks_dir = feature_dir / "tasks"
                 wp_id = ctx.current_wp or ctx.wp_id
                 for wp_file in tasks_dir.glob(f"{wp_id}*.md"):

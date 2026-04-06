@@ -56,16 +56,16 @@ def _git_common_dir(repo_root: Path) -> Path:
     return resolved
 
 
-def feature_status_lock_path(repo_root: Path, feature_slug: str) -> Path:
+def feature_status_lock_path(repo_root: Path, mission_slug: str) -> Path:
     """Return the per-feature lock file path under the git common dir."""
     common_dir = _git_common_dir(repo_root)
-    return common_dir / "spec-kitty-locks" / f"{feature_slug}.status.lock"
+    return common_dir / "spec-kitty-locks" / f"{mission_slug}.status.lock"
 
 
 @contextmanager
 def feature_status_lock(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     *,
     timeout: float = -1,
 ) -> Iterator[Path]:
@@ -75,7 +75,7 @@ def feature_status_lock(
     same lock file. Locking is re-entrant within a single thread so callers can
     safely wrap a larger transaction around helpers that also acquire the lock.
     """
-    lock_path = feature_status_lock_path(repo_root, feature_slug)
+    lock_path = feature_status_lock_path(repo_root, mission_slug)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
 
     held_locks = _get_thread_locks()
@@ -96,7 +96,7 @@ def feature_status_lock(
         lock.acquire()
     except Timeout as exc:
         raise FeatureStatusLockTimeout(
-            f"Timed out acquiring feature status lock for {feature_slug}: {lock_path}"
+            f"Timed out acquiring feature status lock for {mission_slug}: {lock_path}"
         ) from exc
 
     held_locks[lock_key] = (lock, 1)

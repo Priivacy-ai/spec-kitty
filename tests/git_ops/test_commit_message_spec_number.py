@@ -16,9 +16,9 @@ def test_spec_number_extraction():
         ("999", "999"),  # Edge case: just a number
     ]
 
-    for feature_slug, expected_spec in test_cases:
-        spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
-        assert spec_number == expected_spec, f"Failed for {feature_slug}"
+    for mission_slug, expected_spec in test_cases:
+        spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
+        assert spec_number == expected_spec, f"Failed for {mission_slug}"
 
 
 def test_commit_message_includes_spec_number(tmp_path: Path, monkeypatch):
@@ -72,12 +72,12 @@ Test content.
         patch("subprocess.run", side_effect=mock_subprocess_run),
         patch("specify_cli.cli.commands.agent.tasks.locate_project_root", return_value=tmp_path),
         patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root", return_value=tmp_path),
-        patch("specify_cli.cli.commands.agent.tasks._find_feature_slug", return_value="014-test-feature"),
+        patch("specify_cli.cli.commands.agent.tasks._find_mission_slug", return_value="014-test-feature"),
     ):
         # This would normally call move_task, but we can't easily test the CLI
         # Instead, verify the logic directly
-        feature_slug = "014-test-feature"
-        spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
+        mission_slug = "014-test-feature"
+        spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
         task_id = "WP01"
         target_lane = "doing"
         agent_name = "test-agent"
@@ -89,8 +89,8 @@ Test content.
 
 def test_mark_status_includes_spec_number():
     """Verify mark-status commit messages include spec number."""
-    feature_slug = "014-test-feature"
-    spec_number = feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
+    mission_slug = "014-test-feature"
+    spec_number = mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
 
     # Single task
     task_id = "T001"

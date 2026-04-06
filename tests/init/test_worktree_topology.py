@@ -20,12 +20,12 @@ from specify_cli.lanes.persistence import write_lanes_json
 pytestmark = pytest.mark.fast
 
 
-def _manifest(feature_slug: str = "002-feature") -> LanesManifest:
+def _manifest(mission_slug: str = "002-feature") -> LanesManifest:
     return LanesManifest(
         version=1,
-        feature_slug=feature_slug,
-        mission_id=f"mission-{feature_slug}",
-        mission_branch=f"kitty/mission-{feature_slug}",
+        mission_slug=mission_slug,
+        mission_id=f"mission-{mission_slug}",
+        mission_branch=f"kitty/mission-{mission_slug}",
         target_branch="main",
         lanes=[
             ExecutionLane(
@@ -68,7 +68,7 @@ class TestWPTopologyEntry:
 class TestFeatureTopology:
     def test_has_stacking_when_lane_is_shared(self) -> None:
         topology = FeatureTopology(
-            feature_slug="002-feature",
+            mission_slug="002-feature",
             target_branch="main",
             mission_branch="kitty/mission-002-feature",
             entries=[
@@ -88,7 +88,7 @@ class TestFeatureTopology:
 class TestRenderTopologyJson:
     def test_json_markers_and_payload(self) -> None:
         topology = FeatureTopology(
-            feature_slug="002-feature",
+            mission_slug="002-feature",
             target_branch="main",
             mission_branch="kitty/mission-002-feature",
             entries=[
@@ -126,7 +126,7 @@ class TestRenderTopologyJson:
 class TestRenderTopologyText:
     def test_box_structure(self) -> None:
         topology = FeatureTopology(
-            feature_slug="002-feature",
+            mission_slug="002-feature",
             target_branch="main",
             mission_branch="kitty/mission-002-feature",
             entries=[
@@ -149,11 +149,11 @@ class TestRenderTopologyText:
 class TestMaterializeWorktreeTopology:
     def test_materialize_from_manifest_and_context(self, tmp_path: Path) -> None:
         repo_root = tmp_path
-        feature_slug = "002-feature"
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        mission_slug = "002-feature"
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text(
-            json.dumps({"feature_number": "002", "feature_slug": feature_slug, "target_branch": "main"}),
+            json.dumps({"feature_number": "002", "mission_slug": mission_slug, "target_branch": "main"}),
             encoding="utf-8",
         )
         tasks_dir = feature_dir / "tasks"
@@ -161,20 +161,20 @@ class TestMaterializeWorktreeTopology:
         (tasks_dir / "WP01-core.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n")
         (tasks_dir / "WP02-api.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n")
         (tasks_dir / "WP03-docs.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP02]\n---\n")
-        write_lanes_json(feature_dir, _manifest(feature_slug))
+        write_lanes_json(feature_dir, _manifest(mission_slug))
 
-        worktree = repo_root / ".worktrees" / f"{feature_slug}-lane-a"
+        worktree = repo_root / ".worktrees" / f"{mission_slug}-lane-a"
         worktree.mkdir(parents=True)
         (repo_root / ".git").mkdir()
         (repo_root / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)
-        (repo_root / ".kittify" / "workspaces" / f"{feature_slug}-lane-a.json").write_text(
+        (repo_root / ".kittify" / "workspaces" / f"{mission_slug}-lane-a.json").write_text(
             json.dumps(
                 {
                     "wp_id": "WP02",
-                    "feature_slug": feature_slug,
-                    "worktree_path": f".worktrees/{feature_slug}-lane-a",
-                    "branch_name": f"kitty/mission-{feature_slug}-lane-a",
-                    "base_branch": f"kitty/mission-{feature_slug}",
+                    "mission_slug": mission_slug,
+                    "worktree_path": f".worktrees/{mission_slug}-lane-a",
+                    "branch_name": f"kitty/mission-{mission_slug}-lane-a",
+                    "base_branch": f"kitty/mission-{mission_slug}",
                     "base_commit": "abc123",
                     "dependencies": ["WP01"],
                     "created_at": "2026-01-25T12:00:00Z",
@@ -188,9 +188,9 @@ class TestMaterializeWorktreeTopology:
             encoding="utf-8",
         )
 
-        topology = materialize_worktree_topology(repo_root, feature_slug)
+        topology = materialize_worktree_topology(repo_root, mission_slug)
 
-        assert topology.mission_branch == f"kitty/mission-{feature_slug}"
+        assert topology.mission_branch == f"kitty/mission-{mission_slug}"
         assert [entry.wp_id for entry in topology.entries] == ["WP01", "WP02", "WP03"]
         assert topology.get_entry("WP01").lane_id == "lane-a"
         assert topology.get_entry("WP03").lane_id == "lane-b"

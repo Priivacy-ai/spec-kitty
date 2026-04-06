@@ -1,7 +1,7 @@
 """Shape conformance tests for orchestrator-api responses against 3.0.0 contract.
 
 Tests that CLI command output uses mission-era naming (mission_slug not
-feature_slug), returns correct error codes, and rejects legacy commands/flags.
+mission_slug), returns correct error codes, and rejects legacy commands/flags.
 
 Run: python -m pytest tests/contract/test_orchestrator_api.py -v
 """
@@ -86,7 +86,7 @@ class TestMissionStateResponse:
         assert "mission_slug" in data, "Response must contain 'mission_slug'"
         assert data["mission_slug"] == "099-test-mission"
 
-    def test_response_does_not_contain_feature_slug(self, tmp_path, orchestrator_api_contract):
+    def test_response_does_not_contain_mission_slug(self, tmp_path, orchestrator_api_contract):
         repo_root, _ = _make_mission(tmp_path)
         envelope, _ = _invoke(["mission-state", "--mission", "099-test-mission"], repo_root)
 

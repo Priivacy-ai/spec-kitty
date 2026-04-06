@@ -25,7 +25,7 @@ def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
             {
                 "feature_number": slug.split("-", 1)[0],
                 "slug": slug,
-                "feature_slug": slug,
+                "mission_slug": slug,
                 "friendly_name": "Test Feature",
                 "mission": "software-dev",
                 "target_branch": target_branch,

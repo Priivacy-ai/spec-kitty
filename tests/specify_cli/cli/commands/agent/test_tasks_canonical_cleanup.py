@@ -49,12 +49,12 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     append_event(feature_dir, event)
 
 
-def _build_minimal_feature(tmp_path: Path, feature_slug: str = "060-test") -> Path:
+def _build_minimal_feature(tmp_path: Path, mission_slug: str = "060-test") -> Path:
     """Create minimal feature structure with tasks.md and one WP file.
 
     Returns feature_dir.
     """
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     (tmp_path / ".kittify").mkdir(exist_ok=True)
@@ -77,9 +77,9 @@ def _build_minimal_feature(tmp_path: Path, feature_slug: str = "060-test") -> Pa
     return feature_dir
 
 
-def _build_wp_file(tmp_path: Path, feature_slug: str, wp_id: str, lane: str = "planned") -> Path:
+def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str, lane: str = "planned") -> Path:
     """Build a single WP file and return the feature_dir."""
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True, exist_ok=True)
     (tmp_path / ".kittify").mkdir(exist_ok=True)
@@ -109,7 +109,7 @@ class TestFinalizeTasksBootstrap:
 
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.bootstrap_canonical_state")
     def test_finalize_calls_bootstrap(
         self,
@@ -120,11 +120,11 @@ class TestFinalizeTasksBootstrap:
         tmp_path: Path,
     ):
         """finalize-tasks invokes bootstrap_canonical_state after dependency parsing."""
-        feature_slug = "060-test"
-        feature_dir = _build_minimal_feature(tmp_path, feature_slug)
+        mission_slug = "060-test"
+        feature_dir = _build_minimal_feature(tmp_path, mission_slug)
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
 
         # Mock bootstrap return value
@@ -137,12 +137,12 @@ class TestFinalizeTasksBootstrap:
             wp_details={"WP01": "initialized", "WP02": "initialized"},
         )
 
-        result = runner.invoke(app, ["finalize-tasks", "--feature", feature_slug, "--json"])
+        result = runner.invoke(app, ["finalize-tasks", "--feature", mission_slug, "--json"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         # bootstrap was called
         mock_bootstrap.assert_called_once_with(
-            feature_dir, feature_slug, dry_run=False
+            feature_dir, mission_slug, dry_run=False
         )
 
         # JSON output includes bootstrap stats
@@ -153,7 +153,7 @@ class TestFinalizeTasksBootstrap:
 
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.bootstrap_canonical_state")
     def test_finalize_validate_only_passes_dry_run(
         self,
@@ -164,11 +164,11 @@ class TestFinalizeTasksBootstrap:
         tmp_path: Path,
     ):
         """--validate-only passes dry_run=True to bootstrap."""
-        feature_slug = "060-test"
-        _build_minimal_feature(tmp_path, feature_slug)
+        mission_slug = "060-test"
+        _build_minimal_feature(tmp_path, mission_slug)
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
 
         from specify_cli.status.bootstrap import BootstrapResult
@@ -178,12 +178,12 @@ class TestFinalizeTasksBootstrap:
         )
 
         result = runner.invoke(
-            app, ["finalize-tasks", "--feature", feature_slug, "--json", "--validate-only"]
+            app, ["finalize-tasks", "--feature", mission_slug, "--json", "--validate-only"]
         )
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         mock_bootstrap.assert_called_once_with(
-            ANY, feature_slug, dry_run=True
+            ANY, mission_slug, dry_run=True
         )
 
 
@@ -203,7 +203,7 @@ class TestBodyNotesNoLane:
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     def test_move_task_body_note_no_lane(
         self,
@@ -220,11 +220,11 @@ class TestBodyNotesNoLane:
         tmp_path: Path,
     ):
         """move_task history entry must not contain 'lane='."""
-        feature_slug = "060-test"
-        feature_dir = _build_wp_file(tmp_path, feature_slug, "WP01", "claimed")
+        mission_slug = "060-test"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "claimed")
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
         mock_unchecked.return_value = []
         mock_review_valid.return_value = (True, [])
@@ -235,7 +235,7 @@ class TestBodyNotesNoLane:
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
         mock_wp = WorkPackage(
-            feature=feature_slug,
+            feature=mission_slug,
             path=wp_file,
             current_lane="claimed",
             relative_subpath=Path("tasks/WP01-test.md"),
@@ -262,7 +262,7 @@ class TestBodyNotesNoLane:
                 "move-task", "WP01",
                 "--to", "in_progress",
                 "--agent", "testbot",
-                "--feature", feature_slug,
+                "--feature", mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",
@@ -279,7 +279,7 @@ class TestBodyNotesNoLane:
     @patch("specify_cli.cli.commands.agent.tasks.emit_history_added")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     def test_add_history_body_note_no_lane(
         self,
@@ -291,11 +291,11 @@ class TestBodyNotesNoLane:
         tmp_path: Path,
     ):
         """add_history entry must not contain 'lane='."""
-        feature_slug = "060-test"
-        feature_dir = _build_wp_file(tmp_path, feature_slug, "WP01", "in_progress")
+        mission_slug = "060-test"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "in_progress")
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
 
         # Seed canonical event for add_history's lane lookup
@@ -304,7 +304,7 @@ class TestBodyNotesNoLane:
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
         mock_wp = WorkPackage(
-            feature=feature_slug,
+            feature=mission_slug,
             path=wp_file,
             current_lane="in_progress",
             relative_subpath=Path("tasks/WP01-test.md"),
@@ -320,7 +320,7 @@ class TestBodyNotesNoLane:
                 "add-history", "WP01",
                 "--note", "Implementation progressing",
                 "--agent", "testbot",
-                "--feature", feature_slug,
+                "--feature", mission_slug,
                 "--json",
             ],
         )
@@ -348,7 +348,7 @@ class TestMoveTaskHardFail:
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     def test_move_task_hard_fails_no_canonical_event(
         self,
@@ -363,11 +363,11 @@ class TestMoveTaskHardFail:
         tmp_path: Path,
     ):
         """move_task exits with error when WP has no canonical status events."""
-        feature_slug = "060-test"
-        feature_dir = _build_wp_file(tmp_path, feature_slug, "WP01", "planned")
+        mission_slug = "060-test"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "planned")
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
         mock_unchecked.return_value = []
         mock_review_valid.return_value = (True, [])
@@ -380,7 +380,7 @@ class TestMoveTaskHardFail:
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
         mock_wp = WorkPackage(
-            feature=feature_slug,
+            feature=mission_slug,
             path=wp_file,
             current_lane="planned",
             relative_subpath=Path("tasks/WP01-test.md"),
@@ -396,7 +396,7 @@ class TestMoveTaskHardFail:
                 "move-task", "WP01",
                 "--to", "claimed",
                 "--agent", "testbot",
-                "--feature", feature_slug,
+                "--feature", mission_slug,
                 "--force",
                 "--json",
             ],
@@ -420,7 +420,7 @@ class TestMoveTaskHardFail:
     @patch("specify_cli.cli.commands.agent.tasks._check_unchecked_subtasks")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks.locate_work_package")
     def test_move_task_succeeds_with_canonical_event(
         self,
@@ -437,11 +437,11 @@ class TestMoveTaskHardFail:
         tmp_path: Path,
     ):
         """move_task succeeds when WP has canonical event."""
-        feature_slug = "060-test"
-        feature_dir = _build_wp_file(tmp_path, feature_slug, "WP01", "planned")
+        mission_slug = "060-test"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01", "planned")
 
         mock_root.return_value = tmp_path
-        mock_slug.return_value = feature_slug
+        mock_slug.return_value = mission_slug
         mock_branch.return_value = (tmp_path, "main")
         mock_unchecked.return_value = []
         mock_review_valid.return_value = (True, [])
@@ -458,7 +458,7 @@ class TestMoveTaskHardFail:
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
         mock_wp = WorkPackage(
-            feature=feature_slug,
+            feature=mission_slug,
             path=wp_file,
             current_lane="planned",
             relative_subpath=Path("tasks/WP01-test.md"),
@@ -477,7 +477,7 @@ class TestMoveTaskHardFail:
                 "move-task", "WP01",
                 "--to", "claimed",
                 "--agent", "testbot",
-                "--feature", feature_slug,
+                "--feature", mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",

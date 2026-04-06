@@ -31,7 +31,7 @@ def test_build_baseline_feature_meta_replaces_blank_fields(
         existing_meta={
             "feature_number": "",
             "slug": "",
-            "feature_slug": "",
+            "mission_slug": "",
             "friendly_name": "",
             "mission": "",
             "target_branch": "",
@@ -41,7 +41,7 @@ def test_build_baseline_feature_meta_replaces_blank_fields(
 
     assert meta["feature_number"] == "023"
     assert meta["slug"] == "023-repair-me"
-    assert meta["feature_slug"] == "023-repair-me"
+    assert meta["mission_slug"] == "023-repair-me"
     assert meta["friendly_name"] == "repair me"
     assert meta["mission"] == "software-dev"
     assert meta["target_branch"] == "2.x"

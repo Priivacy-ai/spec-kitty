@@ -87,28 +87,28 @@ class TestReadWPContent:
 
 class TestWriteToTemp:
     def test_creates_file(self) -> None:
-        path = _write_to_temp("implement", "WP01", "test content", agent="claude", feature_slug="042-feat")
+        path = _write_to_temp("implement", "WP01", "test content", agent="claude", mission_slug="042-feat")
         assert path.exists()
         assert path.read_text(encoding="utf-8") == "test content"
         path.unlink()  # cleanup
 
     def test_filename_includes_action_and_wp(self) -> None:
-        path = _write_to_temp("review", "WP02", "content", agent="codex", feature_slug="042-feat")
+        path = _write_to_temp("review", "WP02", "content", agent="codex", mission_slug="042-feat")
         assert "review" in path.name
         assert "WP02" in path.name
         path.unlink()
 
     def test_filename_without_wp(self) -> None:
-        path = _write_to_temp("specify", None, "content", agent="claude", feature_slug="042-feat")
+        path = _write_to_temp("specify", None, "content", agent="claude", mission_slug="042-feat")
         assert "specify" in path.name
         assert "WP" not in path.name
         path.unlink()
 
     def test_filename_includes_agent_and_feature(self) -> None:
         """Different agents/features produce different filenames (no collisions)."""
-        p1 = _write_to_temp("implement", "WP01", "a", agent="claude", feature_slug="042-feat")
-        p2 = _write_to_temp("implement", "WP01", "b", agent="codex", feature_slug="042-feat")
-        p3 = _write_to_temp("implement", "WP01", "c", agent="claude", feature_slug="043-other")
+        p1 = _write_to_temp("implement", "WP01", "a", agent="claude", mission_slug="042-feat")
+        p2 = _write_to_temp("implement", "WP01", "b", agent="codex", mission_slug="042-feat")
+        p3 = _write_to_temp("implement", "WP01", "c", agent="claude", mission_slug="043-other")
         assert p1 != p2
         assert p1 != p3
         assert p2 != p3
@@ -131,11 +131,11 @@ class TestBuildPromptWP:
         text, path = build_prompt(
             action="implement",
             feature_dir=feature_with_wp,
-            feature_slug="042-test-feature",
+            mission_slug="042-test-feature",
             wp_id="WP01",
             agent="claude",
             repo_root=repo_root,
-            mission_key="software-dev",
+            mission_type="software-dev",
         )
         assert "IMPLEMENT" in text
         assert "WP01" in text
@@ -152,11 +152,11 @@ class TestBuildPromptWP:
         text, path = build_prompt(
             action="review",
             feature_dir=feature_with_wp,
-            feature_slug="042-test-feature",
+            mission_slug="042-test-feature",
             wp_id="WP01",
             agent="codex",
             repo_root=repo_root,
-            mission_key="software-dev",
+            mission_type="software-dev",
         )
         assert "REVIEW" in text
         assert "WP01" in text
@@ -195,11 +195,11 @@ class TestBuildPromptTemplate:
         text, path = build_prompt(
             action="specify",
             feature_dir=feature_with_wp,
-            feature_slug="042-test-feature",
+            mission_slug="042-test-feature",
             wp_id=None,
             agent="claude",
             repo_root=repo_root,
-            mission_key="software-dev",
+            mission_type="software-dev",
         )
         assert "042-test-feature" in text
         assert "claude" in text
@@ -270,11 +270,11 @@ references:
         first_text, first_path = build_prompt(
             action="specify",
             feature_dir=feature_with_wp,
-            feature_slug="042-test-feature",
+            mission_slug="042-test-feature",
             wp_id=None,
             agent="claude",
             repo_root=repo_root,
-            mission_key="software-dev",
+            mission_type="software-dev",
         )
         assert "Charter Context (Bootstrap):" in first_text
         first_path.unlink()
@@ -282,11 +282,11 @@ references:
         second_text, second_path = build_prompt(
             action="specify",
             feature_dir=feature_with_wp,
-            feature_slug="042-test-feature",
+            mission_slug="042-test-feature",
             wp_id=None,
             agent="claude",
             repo_root=repo_root,
-            mission_key="software-dev",
+            mission_type="software-dev",
         )
         assert "Governance:" in second_text
         second_path.unlink()

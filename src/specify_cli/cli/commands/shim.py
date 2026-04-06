@@ -94,7 +94,7 @@ def _run(
             print(json.dumps({"success": True, "context": ctx.to_dict()}, indent=2))
         else:
             console.print(f"[green]✓[/green] {command} context resolved: {ctx.token}")
-            console.print(f"  Feature: {ctx.feature_slug}")
+            console.print(f"  Feature: {ctx.mission_slug}")
             console.print(f"  WP:      {ctx.wp_code}")
             console.print(f"  Agent:   {ctx.created_by}")
 

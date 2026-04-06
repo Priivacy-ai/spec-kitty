@@ -22,7 +22,7 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
-    feature_slug: str = "034-feature-name",
+    mission_slug: str = "034-feature-name",
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -36,7 +36,7 @@ def _make_event(
     """Helper to build StatusEvent with sensible defaults."""
     return StatusEvent(
         event_id=event_id,
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,

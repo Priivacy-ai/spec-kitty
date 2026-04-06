@@ -254,7 +254,7 @@ def check_wp_staleness(
 
 def find_worktree_for_wp(
     main_repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
 ) -> Path | None:
     """
@@ -262,13 +262,13 @@ def find_worktree_for_wp(
 
     Args:
         main_repo_root: Root of the main repository
-        feature_slug: Feature slug (e.g., "001-my-feature")
+        mission_slug: Feature slug (e.g., "001-my-feature")
         wp_id: Work package ID (e.g., "WP01")
 
     Returns:
         Path to worktree if found, None otherwise
     """
-    resolved = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+    resolved = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
     if resolved.exists:
         return resolved.worktree_path
 
@@ -277,7 +277,7 @@ def find_worktree_for_wp(
 
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     doing_wps: list[dict],
     threshold_minutes: int = 10,
 ) -> dict[str, StaleCheckResult]:
@@ -286,7 +286,7 @@ def check_doing_wps_for_staleness(
 
     Args:
         main_repo_root: Root of the main repository
-        feature_slug: Feature slug
+        mission_slug: Feature slug
         doing_wps: List of WP dicts with at least 'id' key
         threshold_minutes: Minutes of inactivity threshold
 
@@ -300,7 +300,7 @@ def check_doing_wps_for_staleness(
         if not wp_id:
             continue
 
-        worktree_path = find_worktree_for_wp(main_repo_root, feature_slug, wp_id)
+        worktree_path = find_worktree_for_wp(main_repo_root, mission_slug, wp_id)
 
         if worktree_path:
             result = check_wp_staleness(wp_id, worktree_path, threshold_minutes)

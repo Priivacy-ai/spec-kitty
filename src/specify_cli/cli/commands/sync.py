@@ -150,7 +150,7 @@ def _detect_workspace_context() -> tuple[Path, str | None]:
     """Detect current workspace and feature context.
 
     Returns:
-        Tuple of (workspace_path, feature_slug)
+        Tuple of (workspace_path, mission_slug)
         If not in a workspace, returns (cwd, None)
     """
     cwd = Path.cwd()
@@ -327,9 +327,9 @@ def sync_workspace(
     console.print()
 
     # Detect workspace context
-    workspace_path, feature_slug = _detect_workspace_context()
+    workspace_path, mission_slug = _detect_workspace_context()
 
-    if feature_slug is None:
+    if mission_slug is None:
         console.print("[yellow]⚠ Not in a recognized workspace[/yellow]")
         console.print("Run this command from a worktree directory:")
         console.print("  cd .worktrees/<feature>-lane-a/")

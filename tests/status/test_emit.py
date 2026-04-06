@@ -283,7 +283,7 @@ class TestEmitStatusTransition:
         """Basic transition from planned to claimed persists and returns event."""
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="claude-opus",
@@ -308,7 +308,7 @@ class TestEmitStatusTransition:
         """Snapshot file is written after successful emit."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="claude-opus",
@@ -323,7 +323,7 @@ class TestEmitStatusTransition:
         """Multiple transitions chain correctly, deriving from_lane."""
         e1 = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -333,7 +333,7 @@ class TestEmitStatusTransition:
 
         e2 = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="agent-1",
@@ -343,7 +343,7 @@ class TestEmitStatusTransition:
 
         e3 = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="agent-1",
@@ -360,7 +360,7 @@ class TestEmitStatusTransition:
         # First move to claimed
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -368,7 +368,7 @@ class TestEmitStatusTransition:
         # Now use 'doing' alias
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="doing",
             actor="agent-1",
@@ -382,7 +382,7 @@ class TestEmitStatusTransition:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="agent-1",
@@ -397,7 +397,7 @@ class TestEmitStatusTransition:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="invalid_lane",
                 actor="agent-1",
@@ -407,7 +407,7 @@ class TestEmitStatusTransition:
         """Non-default execution_mode is recorded in event."""
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -419,14 +419,14 @@ class TestEmitStatusTransition:
         """Events for different WPs are independent."""
         e1 = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         )
         e2 = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-2",
@@ -454,7 +454,7 @@ class TestForceTransitions:
         """Force allows normally-illegal transitions (e.g. planned -> done)."""
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -470,7 +470,7 @@ class TestForceTransitions:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="",
@@ -483,7 +483,7 @@ class TestForceTransitions:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="admin",
@@ -496,7 +496,7 @@ class TestForceTransitions:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="imaginary",
                 actor="admin",
@@ -509,7 +509,7 @@ class TestForceTransitions:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",
                 actor="",
@@ -524,7 +524,7 @@ class TestForceTransitions:
         # First force to done
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -534,7 +534,7 @@ class TestForceTransitions:
         # Force back to in_progress
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="admin",
@@ -548,7 +548,7 @@ class TestForceTransitions:
         """Force to done bypasses evidence requirement."""
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="done",
             actor="admin",
@@ -570,21 +570,21 @@ class TestDoneEvidence:
         # Move through the pipeline to get to for_review
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -593,7 +593,7 @@ class TestDoneEvidence:
         with pytest.raises(TransitionError, match="evidence"):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
@@ -605,21 +605,21 @@ class TestDoneEvidence:
         """Transition to done with valid evidence succeeds."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -627,7 +627,7 @@ class TestDoneEvidence:
 
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="done",
             actor="reviewer",
@@ -642,21 +642,21 @@ class TestDoneEvidence:
         """Transition to done with malformed evidence is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -665,7 +665,7 @@ class TestDoneEvidence:
         with pytest.raises(TransitionError, match="review.reviewer"):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="done",
                 actor="reviewer",
@@ -783,21 +783,21 @@ class TestPhase1CompatibilityBridge:
 
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="in_progress",
             actor="agent-1",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="for_review",
             actor="agent-1",
@@ -824,7 +824,7 @@ class TestPhase1CompatibilityBridge:
         with pytest.raises(TypeError, match="feature_dir/mission_dir"):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="claimed",
             )
@@ -888,7 +888,7 @@ class TestSaasFanOut:
             from_lane="claimed",
             to_lane="in_progress",
             actor="test-actor",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             policy_metadata=None,
         )
 
@@ -927,7 +927,7 @@ class TestSaasFanOut:
         ):
             event = emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
@@ -949,7 +949,7 @@ class TestPipelineOrder:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="done",  # illegal from planned
                 actor="agent-1",
@@ -970,7 +970,7 @@ class TestPipelineOrder:
         ):
             event = emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 to_lane="claimed",
                 actor="agent-1",
@@ -1011,21 +1011,21 @@ class TestReviewRefGuard:
         """for_review -> in_progress without review_ref is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -1034,7 +1034,7 @@ class TestReviewRefGuard:
         with pytest.raises(TransitionError, match="review_ref"):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="in_progress",
                 actor="reviewer",
@@ -1046,21 +1046,21 @@ class TestReviewRefGuard:
         """for_review -> in_progress with review_ref succeeds."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="for_review",
             actor="a",
@@ -1068,7 +1068,7 @@ class TestReviewRefGuard:
 
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="reviewer",
@@ -1091,14 +1091,14 @@ class TestReasonGuard:
         """in_progress -> planned without reason is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -1107,7 +1107,7 @@ class TestReasonGuard:
         with pytest.raises(TransitionError, match="reason"):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="034-test",
+                mission_slug="034-test",
                 wp_id="WP01",
                 to_lane="planned",
                 actor="a",
@@ -1117,14 +1117,14 @@ class TestReasonGuard:
         """in_progress -> planned with reason succeeds."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="claimed",
             actor="a",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="a",
@@ -1132,7 +1132,7 @@ class TestReasonGuard:
 
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test",
+            mission_slug="034-test",
             wp_id="WP01",
             to_lane="planned",
             actor="a",

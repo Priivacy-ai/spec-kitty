@@ -33,7 +33,7 @@ from specify_cli.core.paths import (
     get_feature_target_branch,
     require_explicit_feature,
 )
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
@@ -127,7 +127,7 @@ console = Console()
 
 def _ensure_target_branch_checked_out(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     json_output: bool,
 ) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
@@ -145,7 +145,7 @@ def _ensure_target_branch_checked_out(
         raise RuntimeError("Detached HEAD — checkout a branch before continuing")
 
     # Resolve branch routing (unified logic, no auto-checkout)
-    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
+    resolution = resolve_target_branch(mission_slug, main_repo_root, current_branch, respect_current=True)
 
     # Show consistent branch banner
     if not json_output:
@@ -164,7 +164,7 @@ def _ensure_target_branch_checked_out(
     return main_repo_root, resolution.current
 
 
-def _find_feature_slug(explicit_feature: str | None = None) -> str:
+def _find_mission_slug(explicit_feature: str | None = None) -> str:
     """Require an explicit feature slug (no auto-detection).
 
     Args:
@@ -245,13 +245,13 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
 def _persist_review_feedback(
     *,
     main_repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     task_id: str,
     feedback_source: Path,
 ) -> tuple[Path, str]:
     """Persist review feedback in git common-dir and return pointer."""
     git_common_dir = _resolve_git_common_dir(main_repo_root)
-    feedback_dir = git_common_dir / "spec-kitty" / "feedback" / feature_slug / task_id
+    feedback_dir = git_common_dir / "spec-kitty" / "feedback" / mission_slug / task_id
     feedback_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -261,13 +261,13 @@ def _persist_review_feedback(
     persisted_path = feedback_dir / filename
 
     shutil.copy2(feedback_source, persisted_path)
-    pointer = f"feedback://{feature_slug}/{task_id}/{filename}"
+    pointer = f"feedback://{mission_slug}/{task_id}/{filename}"
     return persisted_path, pointer
 
 
 def _check_unchecked_subtasks(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     force: bool
 ) -> list[str]:
@@ -275,7 +275,7 @@ def _check_unchecked_subtasks(
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
+        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         force: If True, only warn; if False, fail on unchecked tasks
 
@@ -287,7 +287,7 @@ def _check_unchecked_subtasks(
     """
     # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
     tasks_md = feature_dir / "tasks.md"
 
     if not tasks_md.exists():
@@ -323,7 +323,7 @@ def _check_unchecked_subtasks(
 
 def _check_dependent_warnings(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     target_lane: str,
     json_mode: bool
@@ -332,7 +332,7 @@ def _check_dependent_warnings(
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
+        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         target_lane: Target lane being moved to
         json_mode: If True, suppress Rich console output
@@ -347,7 +347,7 @@ def _check_dependent_warnings(
 
     # Use planning repo root to resolve kitty-specs/ (main branch is authoritative)
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
     # Build dependency graph
     try:
@@ -388,14 +388,14 @@ def _check_dependent_warnings(
             continue
 
     if incomplete:
-        current_workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+        current_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         console.print(f"\n[yellow]⚠️  Dependency Alert[/yellow]")
         console.print(f"{', '.join(incomplete)} depend on {wp_id} (not yet done)")
         console.print("\nIf changes are requested during review:")
         console.print("  1. Notify dependent WP agents")
         console.print("  2. Dependent workspaces may need to incorporate your changes")
         for dep in incomplete:
-            dep_workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, dep)
+            dep_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, dep)
             if dep_workspace.branch_name == current_workspace.branch_name:
                 console.print(
                     f"     {dep}: shares {current_workspace.branch_name} "
@@ -411,7 +411,7 @@ def _check_dependent_warnings(
 def _behind_commits_touch_only_planning_artifacts(
     worktree_path: Path,
     check_branch: str,
-    feature_slug: str,
+    mission_slug: str,
 ) -> bool:
     """Return True when upstream commits only touch planning/status files.
 
@@ -452,7 +452,7 @@ def _behind_commits_touch_only_planning_artifacts(
         return True
 
     allowed_prefixes = (
-        f"kitty-specs/{feature_slug}/",
+        f"kitty-specs/{mission_slug}/",
         ".kittify/workspaces/",
     )
     allowed_exact_paths = {
@@ -467,7 +467,7 @@ def _behind_commits_touch_only_planning_artifacts(
 
 def _validate_ready_for_review(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     force: bool
 ) -> Tuple[bool, List[str]]:
@@ -479,7 +479,7 @@ def _validate_ready_for_review(
 
     Args:
         repo_root: Repository root path (could be main or worktree)
-        feature_slug: Feature slug (e.g., "010-lane-only-runtime")
+        mission_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         force: If True, skip validation (return success)
 
@@ -493,10 +493,10 @@ def _validate_ready_for_review(
 
     guidance: List[str] = []
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
     # Detect mission type from feature's meta.json
-    mission_key = get_feature_mission_key(feature_dir)
+    mission_type = get_mission_type(feature_dir)
 
     # Check 1: Uncommitted research artifacts in planning repo (applies to ALL missions)
     # Research artifacts live in kitty-specs/ which is in the planning repo, not worktrees
@@ -543,8 +543,8 @@ def _validate_ready_for_review(
             guidance.append("")
             guidance.append("You must commit these before moving to for_review:")
             guidance.append(f"  cd {main_repo_root}")
-            guidance.append(f"  git add kitty-specs/{feature_slug}/")
-            if mission_key == "research":
+            guidance.append(f"  git add kitty-specs/{mission_slug}/")
+            if mission_type == "research":
                 guidance.append(f"  git commit -m \"research({wp_id}): <describe your research outputs>\"")
             else:
                 guidance.append(f"  git commit -m \"docs({wp_id}): <describe your changes>\"")
@@ -553,8 +553,8 @@ def _validate_ready_for_review(
             return False, guidance
 
     # Check 2: For software-dev missions, check worktree for implementation commits
-    if mission_key == "software-dev":
-        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, wp_id)
+    if mission_type == "software-dev":
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         worktree_path = workspace.worktree_path
 
         if worktree_path.exists():
@@ -608,7 +608,7 @@ def _validate_ready_for_review(
 
             # Check if the lane worktree is behind the branch it is expected to
             # track. In the lane-only model this is usually the mission branch.
-            target_branch = get_feature_target_branch(repo_root, feature_slug)
+            target_branch = get_feature_target_branch(repo_root, mission_slug)
 
             # Resolve actual base: workspace context tracks the real base branch
             check_branch = (
@@ -638,7 +638,7 @@ def _validate_ready_for_review(
                 if not _behind_commits_touch_only_planning_artifacts(
                     worktree_path,
                     check_branch,
-                    feature_slug,
+                    mission_slug,
                 ):
                     guidance.append(f"{check_branch} branch has new commits not in this worktree!")
                     guidance.append("")
@@ -754,7 +754,7 @@ def _validate_ready_for_review(
 
 def _wp_branch_merged_into_target(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     target_branch: str,
 ) -> tuple[bool, str]:
@@ -763,7 +763,7 @@ def _wp_branch_merged_into_target(
     Returns:
         (is_merged, message)
     """
-    workspace = resolve_workspace_for_wp(repo_root, feature_slug, wp_id)
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     wp_branch = workspace.branch_name
 
     branch_exists = subprocess.run(
@@ -882,10 +882,10 @@ def move_task(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure we operate on the target branch for this feature
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Informational: Let user know we're using planning repo's kitty-specs
         cwd = Path.cwd().resolve()
@@ -900,15 +900,15 @@ def move_task(
                         break
                     current = current.parent
 
-                if worktree_kitty and (worktree_kitty / feature_slug / "tasks").exists():
+                if worktree_kitty and (worktree_kitty / mission_slug / "tasks").exists():
                     console.print(
                         f"[dim]Note: Using planning repo's kitty-specs/ on {target_branch} (worktree copy ignored)[/dim]"
                     )
 
         # Load work package first (needed for current_lane check)
-        wp = locate_work_package(repo_root, feature_slug, task_id)
+        wp = locate_work_package(repo_root, mission_slug, task_id)
         # Lane is event-log-only; read from canonical event log not frontmatter
-        _mt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        _mt_feature_dir = main_repo_root / "kitty-specs" / mission_slug
         try:
             from specify_cli.status.store import read_events as _mt_read_events
             from specify_cli.status.reducer import reduce as _mt_reduce
@@ -984,14 +984,14 @@ def move_task(
 
             _, review_feedback_pointer = _persist_review_feedback(
                 main_repo_root=main_repo_root,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 task_id=task_id,
                 feedback_source=resolved_feedback_source,
             )
 
         # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
         if target_lane in ("for_review", "approved", "done") and not force:
-            unchecked = _check_unchecked_subtasks(repo_root, feature_slug, task_id, force)
+            unchecked = _check_unchecked_subtasks(repo_root, mission_slug, task_id, force)
             if unchecked:
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
                 for task in unchecked:
@@ -1007,7 +1007,7 @@ def move_task(
         # Validate uncommitted changes when moving to for_review/approved/done
         # This catches the bug where agents edit artifacts but forget to commit
         if target_lane in ("for_review", "approved", "done"):
-            is_valid, guidance = _validate_ready_for_review(repo_root, feature_slug, task_id, force)
+            is_valid, guidance = _validate_ready_for_review(repo_root, mission_slug, task_id, force)
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
                 error_msg += "\n".join(guidance)
@@ -1023,7 +1023,7 @@ def move_task(
         if target_lane == "done":
             merged, merge_msg = _wp_branch_merged_into_target(
                 repo_root=main_repo_root,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 wp_id=task_id,
                 target_branch=target_branch,
             )
@@ -1094,7 +1094,7 @@ def move_task(
         canonical_lane = resolve_lane_alias(target_lane)
 
         # Determine feature_dir for the event store
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         # Keep force semantics strict: only user-requested --force should bypass guards.
         emit_force = force
@@ -1119,7 +1119,7 @@ def move_task(
         if not emit_force:
             transition_targets = _lane_targets_for_emit(old_lane, canonical_lane)
 
-        with feature_status_lock(main_repo_root, feature_slug):
+        with feature_status_lock(main_repo_root, mission_slug):
             event = None
             current_event_lane = None
             for existing_event in reversed(read_events(feature_dir)):
@@ -1129,14 +1129,14 @@ def move_task(
             if current_event_lane is None:
                 # No canonical state for this WP — finalize-tasks must be run first
                 raise RuntimeError(
-                    f"WP {task_id} has no canonical status in feature {feature_slug}. "
-                    f"Run `spec-kitty agent mission finalize-tasks --feature {feature_slug}` to initialize."
+                    f"WP {task_id} has no canonical status in feature {mission_slug}. "
+                    f"Run `spec-kitty agent mission finalize-tasks --feature {mission_slug}` to initialize."
                 )
 
             for target in transition_targets:
                 event = emit_status_transition(
                     feature_dir=feature_dir,
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     wp_id=task_id,
                     to_lane=target,
                     actor=actor,
@@ -1195,7 +1195,7 @@ def move_task(
 
             file_written = False
             if auto_commit:
-                spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+                spec_number = mission_slug.split('-')[0] if '-' in mission_slug else mission_slug
 
                 commit_msg = f"chore: Move {task_id} to {target_lane} on spec {spec_number}"
                 if agent_name != "unknown":
@@ -1251,7 +1251,7 @@ def move_task(
         )
 
         # Check for dependent WP warnings when moving to for_review (T083)
-        _check_dependent_warnings(repo_root, feature_slug, task_id, target_lane, json_output)
+        _check_dependent_warnings(repo_root, mission_slug, task_id, target_lane, json_output)
 
     except Exception as e:
         # Emit ErrorLogged event (T016)
@@ -1316,13 +1316,13 @@ def mark_status(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
         # Ensure we operate on the target branch for this feature
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
         tasks_md = feature_dir / "tasks.md"
 
-        with feature_status_lock(main_repo_root, feature_slug):
+        with feature_status_lock(main_repo_root, mission_slug):
             if not tasks_md.exists():
                 _output_error(json_output, f"tasks.md not found: {tasks_md}")
                 raise typer.Exit(1)
@@ -1364,8 +1364,8 @@ def mark_status(
             if auto_commit:
                 import subprocess
 
-                # Extract spec number from feature_slug (e.g., "014" from "014-feature-name")
-                spec_number = feature_slug.split('-')[0] if '-' in feature_slug else feature_slug
+                # Extract spec number from mission_slug (e.g., "014" from "014-feature-name")
+                spec_number = mission_slug.split('-')[0] if '-' in mission_slug else mission_slug
 
                 # Build commit message
                 if len(updated_tasks) == 1:
@@ -1414,7 +1414,7 @@ def mark_status(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir, feature_slug, repo_root,
+                feature_dir, mission_slug, repo_root,
             )
         except Exception:
             pass
@@ -1472,19 +1472,19 @@ def list_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure we operate on the target branch for this feature
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Find all task files
-        tasks_dir = main_repo_root / "kitty-specs" / feature_slug / "tasks"
+        tasks_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks"
         if not tasks_dir.exists():
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
         # Load canonical lanes from event log
-        _lt_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        _lt_feature_dir = main_repo_root / "kitty-specs" / mission_slug
         try:
             from specify_cli.status.store import read_events as _lt_read_events
             from specify_cli.status.reducer import reduce as _lt_reduce
@@ -1561,13 +1561,13 @@ def add_history(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure we operate on the target branch for this feature
-        _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, task_id)
+        wp = locate_work_package(repo_root, mission_slug, task_id)
 
         # Build history entry
         timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -1646,10 +1646,10 @@ def finalize_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
         # Ensure we operate on the target branch for this feature
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
         tasks_md = feature_dir / "tasks.md"
         tasks_dir = feature_dir / "tasks"
 
@@ -1729,14 +1729,14 @@ def finalize_tasks(
 
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
-            feature_dir, feature_slug, dry_run=validate_only
+            feature_dir, mission_slug, dry_run=validate_only
         )
 
         result = {
             "result": "success",
             "updated": updated_count,
             "dependencies": dependencies_map,
-            "feature": feature_slug,
+            "feature": mission_slug,
             "bootstrap": {
                 "total_wps": bootstrap_result.total_wps,
                 "already_initialized": bootstrap_result.already_initialized,
@@ -1831,11 +1831,11 @@ def map_requirements(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
         main_repo_root, _ = _ensure_target_branch_checked_out(
-            repo_root, feature_slug, json_output
+            repo_root, mission_slug, json_output
         )
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
             _output_error(json_output, f"Feature directory not found: {feature_dir}")
@@ -2038,7 +2038,7 @@ def map_requirements(
                     written_files.append(wp_file.resolve())
             if written_files:
                 spec_number = (
-                    feature_slug.split("-")[0] if "-" in feature_slug else feature_slug
+                    mission_slug.split("-")[0] if "-" in mission_slug else mission_slug
                 )
                 commit_msg = (
                     f"chore: Map requirements for "
@@ -2107,13 +2107,13 @@ def validate_workflow(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure we operate on the target branch for this feature
-        _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Load work package
-        wp = locate_work_package(repo_root, feature_slug, task_id)
+        wp = locate_work_package(repo_root, mission_slug, task_id)
 
         # Validation checks
         errors = []
@@ -2126,7 +2126,7 @@ def validate_workflow(
                 errors.append(f"Missing required field: {field}")
 
         # Get lane from event log (canonical source)
-        _vw_feature_dir = repo_root / "kitty-specs" / feature_slug
+        _vw_feature_dir = repo_root / "kitty-specs" / mission_slug
         try:
             from specify_cli.status.store import read_events as _vw_read_events
             from specify_cli.status.reducer import reduce as _vw_reduce
@@ -2230,13 +2230,13 @@ def status(
             raise typer.Exit(1)
 
         # Auto-detect or use provided feature slug
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure we operate on the target branch for this feature
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
+        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
         # Locate feature directory
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
             console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
@@ -2298,7 +2298,7 @@ def status(
             doing_wps = [wp for wp in work_packages if wp["lane"] == "in_progress"]
             stale_results = check_doing_wps_for_staleness(
                 main_repo_root=main_repo_root,
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 doing_wps=doing_wps,
                 threshold_minutes=stale_threshold,
             )
@@ -2315,7 +2315,7 @@ def status(
             stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
             auto_commit_enabled = get_auto_commit_default(main_repo_root)
             result = {
-                "feature": feature_slug,
+                "feature": mission_slug,
                 "total_wps": len(work_packages),
                 "by_lane": dict(lane_counts),
                 "work_packages": work_packages,
@@ -2341,7 +2341,7 @@ def status(
 
         stale_results = check_doing_wps_for_staleness(
             main_repo_root=main_repo_root,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             doing_wps=by_lane["in_progress"],
             threshold_minutes=stale_threshold,
         )
@@ -2376,7 +2376,7 @@ def status(
         # Create title panel
         title_text = Text()
         title_text.append(f"📊 Work Package Status: ", style="bold cyan")
-        title_text.append(feature_slug, style="bold white")
+        title_text.append(mission_slug, style="bold white")
 
         console.print()
         console.print(Panel(title_text, border_style="cyan"))
@@ -2508,7 +2508,7 @@ def status(
 
         # Next action hint — always show so agents know what to do
         console.print("[bold]▶ Next action:[/bold]")
-        console.print(f"  [cyan]spec-kitty next --agent <your-name> --feature {feature_slug}[/cyan]")
+        console.print(f"  [cyan]spec-kitty next --agent <your-name> --feature {mission_slug}[/cyan]")
         console.print("[dim]  This command tells you exactly what to do next based on the dependency graph.[/dim]")
         console.print()
 
@@ -2540,9 +2540,9 @@ def list_dependents(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
-        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, feature_slug, json_output)
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        mission_slug = _find_mission_slug(explicit_feature=feature)
+        main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
             _output_error(json_output, f"Feature directory not found: {feature_dir}")
@@ -2554,7 +2554,7 @@ def list_dependents(
 
         # Also get this WP's own dependencies for context
         try:
-            wp = locate_work_package(repo_root, feature_slug, wp_id)
+            wp = locate_work_package(repo_root, mission_slug, wp_id)
             own_deps_raw = extract_scalar(wp.frontmatter, "dependencies")
             # Handle both list and string formats
             if isinstance(own_deps_raw, list):

@@ -26,7 +26,7 @@ def create_meta_json(feature_dir: Path, vcs: str = "git") -> Path:
     feature_dir.mkdir(parents=True, exist_ok=True)
     meta_content = {
         "feature_number": feature_dir.name.split("-")[0],
-        "feature_slug": feature_dir.name,
+        "mission_slug": feature_dir.name,
         "created_at": "2026-01-17T00:00:00Z",
         "friendly_name": feature_dir.name,
         "mission": "software-dev",
@@ -44,7 +44,7 @@ def create_lanes_json(feature_dir: Path, wp_ids: tuple[str, ...] = ("WP01",)) ->
         feature_dir,
         LanesManifest(
             version=1,
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             mission_id=f"mission-{feature_dir.name}",
             mission_branch=f"kitty/mission-{feature_dir.name}",
             target_branch="main",

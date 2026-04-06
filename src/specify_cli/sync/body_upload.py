@@ -207,7 +207,7 @@ def prepare_body_uploads(
 
 def log_upload_outcomes(
     outcomes: list[UploadOutcome],
-    feature_slug: str,
+    mission_slug: str,
     log: logging.Logger | None = None,
 ) -> None:
     """Log per-artifact upload outcomes with summary.
@@ -224,7 +224,7 @@ def log_upload_outcomes(
 
     log.info(
         "Body upload results for %s: %s",
-        feature_slug,
+        mission_slug,
         ", ".join(f"{k}={v}" for k, v in sorted(by_status.items())),
     )
 

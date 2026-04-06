@@ -240,7 +240,7 @@ def _iter_work_packages(repo_root: Path, feature: str) -> Iterable[WorkPackage]:
             )
 
 
-def detect_feature_slug(
+def detect_mission_slug(
     repo_root: Path,
     *,
     explicit_feature: Optional[str] = None,
@@ -781,7 +781,7 @@ __all__ = [
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",
-    "detect_feature_slug",
+    "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
 ]

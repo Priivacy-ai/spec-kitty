@@ -63,7 +63,7 @@ def _make_feature(tmp_path: Path, slug: str, wps: list[str] | None = None) -> Pa
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
-    meta = {"feature_slug": slug, "title": f"Feature {slug}"}
+    meta = {"mission_slug": slug, "title": f"Feature {slug}"}
     with open(feature_dir / "meta.json", "w") as fh:
         json.dump(meta, fh, indent=2)
 

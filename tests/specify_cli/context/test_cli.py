@@ -17,7 +17,7 @@ from specify_cli.cli.commands.context import app
 # ---------------------------------------------------------------------------
 
 
-def _make_project(tmp_path: Path, *, feature_slug: str = "057-test-feature", wp_code: str = "WP01") -> Path:
+def _make_project(tmp_path: Path, *, mission_slug: str = "057-test-feature", wp_code: str = "WP01") -> Path:
     """Create a minimal spec-kitty project tree for CLI tests."""
     # .kittify/config.yaml
     kittify_dir = tmp_path / ".kittify"
@@ -28,11 +28,11 @@ def _make_project(tmp_path: Path, *, feature_slug: str = "057-test-feature", wp_
     )
 
     # kitty-specs/<slug>/meta.json
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     meta = {
-        "feature_slug": feature_slug,
-        "mission_id": feature_slug,
+        "mission_slug": mission_slug,
+        "mission_id": mission_slug,
         "target_branch": "main",
     }
     (feature_dir / "meta.json").write_text(
@@ -92,7 +92,7 @@ class TestMissionResolveCommand:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["wp_code"] == "WP01"
-        assert data["feature_slug"] == "057-test-feature"
+        assert data["mission_slug"] == "057-test-feature"
         assert data["token"].startswith("ctx-")
         assert data["target_branch"] == "main"
 
@@ -198,7 +198,7 @@ class TestMissionShowCommand:
         data = json.loads(result.output)
         assert data["token"] == token
         assert data["wp_code"] == "WP01"
-        assert data["feature_slug"] == "057-test-feature"
+        assert data["mission_slug"] == "057-test-feature"
 
     def test_show_invalid_token_fails(self, tmp_path: Path) -> None:
         """show with an invalid token exits non-zero with an error."""

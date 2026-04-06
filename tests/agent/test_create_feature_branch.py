@@ -42,13 +42,13 @@ def _setup_kittify(repo: Path) -> None:
     (repo / "kitty-specs").mkdir(exist_ok=True)
 
 
-def _read_meta(repo: Path, feature_slug: str) -> dict:
+def _read_meta(repo: Path, mission_slug: str) -> dict:
     """Read and return meta.json for a feature."""
-    meta_file = repo / "kitty-specs" / feature_slug / "meta.json"
+    meta_file = repo / "kitty-specs" / mission_slug / "meta.json"
     return json.loads(meta_file.read_text(encoding="utf-8"))
 
 
-def _get_feature_slugs(repo: Path) -> list[str]:
+def _get_mission_slugs(repo: Path) -> list[str]:
     """Get list of feature directory names from kitty-specs/."""
     kitty_specs = repo / "kitty-specs"
     return sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
@@ -76,7 +76,7 @@ def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
     result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"
@@ -104,7 +104,7 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
     result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"
@@ -127,7 +127,7 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "main"
@@ -150,7 +150,7 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "master"
@@ -173,7 +173,7 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
     result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "v3-next"
@@ -196,7 +196,7 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
     result = runner.invoke(app, ["create-feature", "test-feature", "--json", "--target-branch", "2.x"])
 
     assert result.exit_code == 0, f"Command failed: {result.output}"
-    slugs = _get_feature_slugs(repo)
+    slugs = _get_mission_slugs(repo)
     assert len(slugs) == 1
     meta = _read_meta(repo, slugs[0])
     assert meta["target_branch"] == "2.x"

@@ -83,8 +83,8 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
 
     (repo / ".kittify").mkdir()
 
-    feature_slug = "001-test-feature"
-    feature_dir = repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
@@ -102,7 +102,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
         review_feedback=feedback_pointer,
     )
 
-    workspace = repo / ".worktrees" / f"{feature_slug}-lane-a"
+    workspace = repo / ".worktrees" / f"{mission_slug}-lane-a"
     workspace.mkdir(parents=True, exist_ok=True)
 
     subprocess.run(["git", "add", "."], cwd=repo, check=True, capture_output=True)
@@ -222,15 +222,15 @@ def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_
     )
 
     # Seed event log so review command can read lane=for_review from canonical source
-    feature_slug = "001-test-feature"
-    events_file = repo / "kitty-specs" / feature_slug / "status.events.jsonl"
+    mission_slug = "001-test-feature"
+    events_file = repo / "kitty-specs" / mission_slug / "status.events.jsonl"
     _seed_event = {
         "actor": "test-agent",
         "at": "2026-01-01T00:00:00+00:00",
         "event_id": "01JTEST00000000000000000002",
         "evidence": None,
         "execution_mode": "direct_repo",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "force": False,
         "from_lane": "planned",
         "reason": None,

@@ -17,7 +17,7 @@ class TestCreatePlanningWorkspace:
     def test_returns_repo_root(self, tmp_path: Path) -> None:
         """Returns repo_root directly."""
         result = create_planning_workspace(
-            feature_slug="057-test",
+            mission_slug="057-test",
             wp_code="WP01",
             owned_files=["kitty-specs/057-test/spec.md"],
             repo_root=tmp_path,
@@ -27,7 +27,7 @@ class TestCreatePlanningWorkspace:
     def test_empty_owned_files(self, tmp_path: Path) -> None:
         """Works with an empty owned_files list."""
         result = create_planning_workspace(
-            feature_slug="057-test",
+            mission_slug="057-test",
             wp_code="WP01",
             owned_files=[],
             repo_root=tmp_path,
@@ -39,7 +39,7 @@ class TestCreatePlanningWorkspace:
         missing = tmp_path / "does-not-exist"
         with pytest.raises(ValueError, match="repo_root does not exist"):
             create_planning_workspace(
-                feature_slug="057-test",
+                mission_slug="057-test",
                 wp_code="WP01",
                 owned_files=[],
                 repo_root=missing,
@@ -49,7 +49,7 @@ class TestCreatePlanningWorkspace:
         """No additional directories are created inside repo_root."""
         before = set(tmp_path.iterdir())
         create_planning_workspace(
-            feature_slug="057-test",
+            mission_slug="057-test",
             wp_code="WP01",
             owned_files=[],
             repo_root=tmp_path,

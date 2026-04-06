@@ -26,9 +26,9 @@ _OLD_SCHEMA = """
 CREATE TABLE body_upload_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_uuid TEXT NOT NULL,
-    feature_slug TEXT NOT NULL,
+    mission_slug TEXT NOT NULL,
     target_branch TEXT NOT NULL,
-    mission_key TEXT NOT NULL,
+    mission_type TEXT NOT NULL,
     manifest_version TEXT NOT NULL,
     artifact_path TEXT NOT NULL,
     content_hash TEXT NOT NULL,
@@ -39,7 +39,7 @@ CREATE TABLE body_upload_queue (
     next_attempt_at REAL NOT NULL DEFAULT 0.0,
     created_at REAL NOT NULL,
     last_error TEXT,
-    UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
+    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash)
 );
 """
 
@@ -53,9 +53,9 @@ def _get_columns(conn: sqlite3.Connection, table: str) -> set[str]:
 def _insert_old_row(
     conn: sqlite3.Connection,
     project_uuid: str = "uuid-1",
-    feature_slug: str = "047-feat",
+    mission_slug: str = "047-feat",
     target_branch: str = "main",
-    mission_key: str = "software-dev",
+    mission_type: str = "software-dev",
     manifest_version: str = "1",
     artifact_path: str = "spec.md",
     content_hash: str = "abc123",
@@ -65,15 +65,15 @@ def _insert_old_row(
     """Insert a row using the old column names."""
     conn.execute(
         """INSERT INTO body_upload_queue
-           (project_uuid, feature_slug, target_branch, mission_key,
+           (project_uuid, mission_slug, target_branch, mission_type,
             manifest_version, artifact_path, content_hash, hash_algorithm,
             content_body, size_bytes, retry_count, next_attempt_at, created_at)
            VALUES (?, ?, ?, ?, ?, ?, ?, 'sha256', ?, ?, 0, 0.0, 1000.0)""",
         (
             project_uuid,
-            feature_slug,
+            mission_slug,
             target_branch,
-            mission_key,
+            mission_type,
             manifest_version,
             artifact_path,
             content_hash,
@@ -94,14 +94,14 @@ class TestBodyQueueColumnMigration:
         conn.executescript(_OLD_SCHEMA)
 
         # Insert 3 rows with different data
-        _insert_old_row(conn, feature_slug="feat-a", mission_key="sw-dev", artifact_path="spec.md", content_hash="h1")
-        _insert_old_row(conn, feature_slug="feat-b", mission_key="research", artifact_path="plan.md", content_hash="h2")
-        _insert_old_row(conn, feature_slug="feat-c", mission_key="doc", artifact_path="tasks.md", content_hash="h3")
+        _insert_old_row(conn, mission_slug="feat-a", mission_type="sw-dev", artifact_path="spec.md", content_hash="h1")
+        _insert_old_row(conn, mission_slug="feat-b", mission_type="research", artifact_path="plan.md", content_hash="h2")
+        _insert_old_row(conn, mission_slug="feat-c", mission_type="doc", artifact_path="tasks.md", content_hash="h3")
 
         # Verify old columns exist
         columns_before = _get_columns(conn, "body_upload_queue")
-        assert "feature_slug" in columns_before
-        assert "mission_key" in columns_before
+        assert "mission_slug" in columns_before
+        assert "mission_type" in columns_before
 
         # Run migration
         _migrate_body_queue_column_rename(conn)
@@ -224,11 +224,11 @@ class TestEnsureBodyQueueSchemaWithLegacyDB:
     """Test that ensure_body_queue_schema handles existing DBs with old columns."""
 
     def test_legacy_db_migrated_on_schema_ensure(self, tmp_path: Path) -> None:
-        """Old DB with feature_slug/mission_key gets migrated when schema is ensured."""
+        """Old DB with mission_slug/mission_type gets migrated when schema is ensured."""
         db = tmp_path / "test.db"
         conn = sqlite3.connect(db)
         conn.executescript(_OLD_SCHEMA)
-        _insert_old_row(conn, feature_slug="my-feat", mission_key="my-type")
+        _insert_old_row(conn, mission_slug="my-feat", mission_type="my-type")
 
         # This is the real entrypoint called during queue init
         ensure_body_queue_schema(conn)

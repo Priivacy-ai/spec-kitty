@@ -108,7 +108,7 @@ ACTION REQUIRED: Replace the content
         )
 
         with pytest.raises(PlanValidationError) as exc_info:
-            validate_plan_filled(plan_path, feature_slug="001-test-feature", strict=True)
+            validate_plan_filled(plan_path, mission_slug="001-test-feature", strict=True)
 
         assert "appears to be unfilled" in str(exc_info.value)
         assert "template markers" in str(exc_info.value)
@@ -184,7 +184,7 @@ backend/
         )
 
         # Should not raise any errors
-        validate_plan_filled(plan_path, feature_slug="002-realtime-chat", strict=True)
+        validate_plan_filled(plan_path, mission_slug="002-realtime-chat", strict=True)
 
 
 def test_validate_plan_with_partial_markers():

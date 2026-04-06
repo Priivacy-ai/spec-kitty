@@ -77,7 +77,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
-        lambda repo_root, feature_slug: (repo_root, "main"),
+        lambda repo_root, mission_slug: (repo_root, "main"),
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.workflow.safe_commit",
@@ -87,8 +87,8 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 
 
 def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -99,7 +99,7 @@ def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 1
@@ -109,8 +109,8 @@ def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
 
 
 def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -121,7 +121,7 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 0
@@ -140,8 +140,8 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     Extracted from tests/legacy/specify_cli/test_workflow_auto_moves.py.
     """
     # Arrange
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -152,7 +152,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     _seed_wp_lane(feature_dir, "WP01", "planned")
 
     # Pre-create workspace so implement skips worktree creation (which needs real git)
-    workspace = lane_worktree_path(workflow_repo, feature_slug)
+    workspace = lane_worktree_path(workflow_repo, mission_slug)
     workspace.mkdir(parents=True)
 
     # Assumption check
@@ -162,7 +162,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -180,8 +180,8 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     Extracted from tests/legacy/specify_cli/test_workflow_auto_moves.py.
     """
     # Arrange
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -198,7 +198,7 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", feature_slug, "--agent", "claude"],
+        ["review", "WP01", "--feature", mission_slug, "--agent", "claude"],
     )
 
     # Assert
@@ -209,8 +209,8 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
 
 def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path) -> None:
     """Review should read the existing canonical event lane before claiming the WP."""
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -220,7 +220,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 
     emit_status_transition(
         feature_dir=feature_dir,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id="WP01",
         to_lane="for_review",
         actor="system",
@@ -231,7 +231,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -247,10 +247,10 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> tuple[Path, str]:
     """Shared setup for implement prompt-content tests.
 
-    Returns (wp_path, feature_slug).
+    Returns (wp_path, mission_slug).
     """
-    feature_slug = "001-test-feature"
-    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    mission_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
     write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -260,9 +260,9 @@ def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> t
     # Seed canonical state so implement doesn't hard-fail (no frontmatter fallback)
     _seed_wp_lane(feature_dir, "WP01", lane)
     # Pre-create workspace so implement skips real git worktree creation
-    workspace = lane_worktree_path(workflow_repo, feature_slug)
+    workspace = lane_worktree_path(workflow_repo, mission_slug)
     workspace.mkdir(parents=True, exist_ok=True)
-    return wp_path, feature_slug
+    return wp_path, mission_slug
 
 
 def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -> None:
@@ -271,7 +271,7 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
     Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
     """
     # Arrange
-    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+    wp_path, mission_slug = _setup_implement_fixture(workflow_repo)
 
     # Assumption check
     assert not (Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md").exists() or True
@@ -279,7 +279,7 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -301,12 +301,12 @@ def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Pat
     Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
     """
     # Arrange
-    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+    wp_path, mission_slug = _setup_implement_fixture(workflow_repo)
 
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -324,12 +324,12 @@ def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
     Extracted from tests/legacy/unit/agent/test_workflow_instructions.py.
     """
     # Arrange
-    wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+    wp_path, mission_slug = _setup_implement_fixture(workflow_repo)
 
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert

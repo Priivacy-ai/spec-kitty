@@ -139,7 +139,7 @@ class TestMissionState:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "feature_slug" not in data["data"]
+        assert "mission_slug" not in data["data"]
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
         assert wps["WP01"]["lane"] == "claimed"
@@ -545,7 +545,7 @@ class TestAcceptMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "feature_slug" not in data["data"]
+        assert "mission_slug" not in data["data"]
         assert data["data"]["accepted"] is True
 
         # Verify meta.json was written
@@ -641,7 +641,7 @@ class TestMergeMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "feature_slug" not in data["data"]
+        assert "mission_slug" not in data["data"]
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"

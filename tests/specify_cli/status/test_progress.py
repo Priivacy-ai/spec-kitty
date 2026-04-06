@@ -26,7 +26,7 @@ from specify_cli.status.store import append_event
 
 
 def _make_snapshot(
-    feature_slug: str,
+    mission_slug: str,
     wp_lanes: dict[str, str],
 ) -> StatusSnapshot:
     """Build a StatusSnapshot directly from a WP->lane mapping."""
@@ -45,7 +45,7 @@ def _make_snapshot(
         summary[lane] = summary.get(lane, 0) + 1
 
     return StatusSnapshot(
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         materialized_at="2026-01-01T00:00:00+00:00",
         event_count=len(wp_lanes),
         last_event_id=None,
@@ -55,7 +55,7 @@ def _make_snapshot(
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -64,7 +64,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),

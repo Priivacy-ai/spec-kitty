@@ -75,18 +75,18 @@ def validate_encoding(
 
     # Validate single feature
     try:
-        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
+    feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
 
     if not feature_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Validating encoding for feature:[/cyan] {feature_slug}")
+    console.print(f"[cyan]Validating encoding for feature:[/cyan] {mission_slug}")
     console.print()
 
     issues, fixed = _validate_feature_dir(feature_dir, fix=fix, backup=backup)

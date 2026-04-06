@@ -82,7 +82,7 @@ class TestEventLogAbsent:
         with pytest.raises(CanonicalStatusNotFoundError, match="finalize-tasks"):
             get_wp_lane(feature_dir, "WP01")
 
-    def test_get_wp_lane_error_includes_feature_slug(self, tmp_path: Path) -> None:
+    def test_get_wp_lane_error_includes_mission_slug(self, tmp_path: Path) -> None:
         feature_dir = _make_feature_dir(tmp_path, slug="060-my-feature")
         with pytest.raises(CanonicalStatusNotFoundError, match="060-my-feature"):
             get_wp_lane(feature_dir, "WP01")
@@ -307,7 +307,7 @@ class TestMergePreflightHardFail:
         with pytest.raises(CanonicalStatusNotFoundError):
             _mark_wp_merged_done(
                 repo_root=tmp_path,
-                feature_slug=feature_dir.name,
+                mission_slug=feature_dir.name,
                 wp_id="WP01",
                 target_branch="main",
             )

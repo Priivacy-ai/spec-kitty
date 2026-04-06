@@ -297,7 +297,7 @@ class TestStartMissionFromTicket:
         # create_feature_core returns a result pointing at our feature dir
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir_with_meta,
-            feature_slug="061-test-feature",
+            mission_slug="061-test-feature",
         )
 
         # Bind succeeds via httpx
@@ -322,7 +322,7 @@ class TestStartMissionFromTicket:
             )
 
         assert isinstance(result, MissionFromTicketResult)
-        assert result.feature_slug == "061-test-feature"
+        assert result.mission_slug == "061-test-feature"
         assert result.event_emitted is True
         assert result.origin_ticket["provider"] == "linear"
         assert result.origin_ticket["external_issue_key"] == "WEB-123"
@@ -710,7 +710,7 @@ class TestOfflineEventQueuing:
 
         event = origin_events[0]
         payload = event["payload"]
-        assert payload["feature_slug"] == "061-test-feature"
+        assert payload["mission_slug"] == "061-test-feature"
         assert payload["provider"] == "linear"
         assert payload["external_issue_id"] == "issue-uuid-1"
         assert payload["external_issue_key"] == "WEB-123"

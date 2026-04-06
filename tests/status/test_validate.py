@@ -32,7 +32,7 @@ from specify_cli.status.validate import (
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
-    feature_slug: str = "034-test-feature",
+    mission_slug: str = "034-test-feature",
     wp_id: str = "WP01",
     from_lane: str = "planned",
     to_lane: str = "claimed",
@@ -48,7 +48,7 @@ def _make_event(
     """Build a valid event dict with optional overrides."""
     event: dict = {
         "event_id": event_id,
-        "mission_slug": feature_slug,
+        "mission_slug": mission_slug,
         "wp_id": wp_id,
         "from_lane": from_lane,
         "to_lane": to_lane,

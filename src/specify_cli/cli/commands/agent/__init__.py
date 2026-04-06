@@ -28,7 +28,7 @@ app.add_typer(shim_module.app, name="shim")
 
 @app.command(name="check-prerequisites", hidden=True)
 def check_prerequisites_alias(
-    feature_slug: Annotated[
+    mission_slug: Annotated[
         str | None,
         typer.Option("--feature", help="Mission slug (legacy flag name)")
     ] = None,
@@ -42,7 +42,7 @@ def check_prerequisites_alias(
 ) -> None:
     """Deprecated compatibility alias forwarding to agent mission check-prerequisites."""
     mission.check_prerequisites(
-        feature=feature_slug,
+        feature=mission_slug,
         json_output=json_output,
         paths_only=paths_only,
         include_tasks=include_tasks,

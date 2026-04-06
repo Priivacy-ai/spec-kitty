@@ -17,7 +17,7 @@ Pipeline order (critical -- do not reorder):
     4. Create StatusEvent with ULID event_id
     5. store.append_event(feature_dir, event)
     6. reducer.materialize(feature_dir)
-    7. _saas_fan_out(event, feature_slug, repo_root)
+    7. _saas_fan_out(event, mission_slug, repo_root)
     8. Return the event
 """
 
@@ -235,7 +235,7 @@ def _legacy_alias_collapses_to_current_lane(
 
 def emit_status_transition(
     feature_dir: Path | None = None,
-    feature_slug: str | None = None,
+    _legacy_mission_slug: str | None = None,
     wp_id: str | None = None,
     to_lane: str | None = None,
     actor: str | None = None,
@@ -263,7 +263,7 @@ def emit_status_transition(
 
     Args:
         feature_dir: Path to the kitty-specs feature directory.
-        feature_slug: Feature identifier (e.g. "034-feature-name").
+        mission_slug: Feature identifier (e.g. "034-feature-name").
         wp_id: Work package identifier (e.g. "WP01").
         to_lane: Target lane (canonical or alias).
         actor: Identity of the actor performing the transition.
@@ -286,9 +286,9 @@ def emit_status_transition(
         specify_cli.status.store.StoreError: If the event log is corrupted.
     """
     feature_dir = feature_dir or mission_dir
-    feature_slug = feature_slug or mission_slug
-    if feature_dir is None or feature_slug is None or wp_id is None or to_lane is None or actor is None:
-        raise TypeError("emit_status_transition requires feature_dir/mission_dir, feature_slug/mission_slug, wp_id, to_lane, and actor")
+    mission_slug = mission_slug or _legacy_mission_slug
+    if feature_dir is None or mission_slug is None or wp_id is None or to_lane is None or actor is None:
+        raise TypeError("emit_status_transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
 
     raw_to_lane = to_lane.strip().lower()
 
@@ -311,13 +311,13 @@ def emit_status_transition(
             "Collapsing legacy alias %s to existing lane %s for %s/%s",
             to_lane,
             resolved_lane,
-            feature_slug,
+            mission_slug,
             wp_id,
         )
         _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
         return StatusEvent(
             event_id=_generate_ulid(),
-            mission_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             from_lane=Lane(from_lane),
             to_lane=Lane(resolved_lane),
@@ -355,7 +355,7 @@ def emit_status_transition(
     # Step 4: Create StatusEvent with ULID event_id
     event = StatusEvent(
         event_id=_generate_ulid(),
-        mission_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(resolved_lane),
@@ -384,7 +384,7 @@ def emit_status_transition(
     _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
 
     # Step 7: SaaS fan-out (never blocks canonical persistence)
-    _saas_fan_out(event, feature_slug, repo_root, policy_metadata=policy_metadata)
+    _saas_fan_out(event, mission_slug, repo_root, policy_metadata=policy_metadata)
 
     # Step 8: Dossier sync (fire-and-forget, never blocks)
     if repo_root is not None:
@@ -395,7 +395,7 @@ def emit_status_transition(
 
             trigger_feature_dossier_sync_if_enabled(
                 feature_dir,
-                feature_slug,
+                mission_slug,
                 repo_root,
             )
         except Exception:
@@ -407,7 +407,7 @@ def emit_status_transition(
 
 def _saas_fan_out(
     event: StatusEvent,
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path | None,
     *,
     policy_metadata: dict | None = None,
@@ -426,7 +426,7 @@ def _saas_fan_out(
             from_lane=str(event.from_lane),
             to_lane=str(event.to_lane),
             actor=event.actor,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             policy_metadata=policy_metadata,
         )
     except ImportError:
