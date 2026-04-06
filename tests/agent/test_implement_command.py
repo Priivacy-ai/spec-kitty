@@ -159,6 +159,31 @@ class TestImplementCommand:
         assert payload["branch"] == "kitty/mission-010-feature-lane-a"
         assert payload["lane_id"] == "lane-a"
 
+    def test_implement_json_error_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP01-setup.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+
+        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
+            "specify_cli.cli.commands.implement.detect_feature_context",
+            return_value=("010", "010-feature"),
+        ), patch(
+            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+            return_value="main",
+        ), patch(
+            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+        ):
+            with pytest.raises(typer.Exit):
+                implement("WP01", feature="010-feature", json_output=True)
+
+        payload = json.loads(capsys.readouterr().out.strip())
+        assert payload["status"] == "error"
+        assert payload["wp_id"] == "WP01"
+        assert payload["error"] != "implement command failed"
+        assert "lanes.json is required" in payload["error"]
+
     def test_implement_creates_lane_workspace(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)

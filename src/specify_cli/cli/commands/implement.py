@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 from datetime import datetime, timezone
+from io import StringIO
 from pathlib import Path
 
 import typer
@@ -51,8 +52,12 @@ def _json_safe_output(func):
     def wrapper(*args, **kwargs):
         json_output = bool(kwargs.get("json_output", False))
         previous_quiet = console.quiet
+        previous_file = console.file
+        capture_buffer: StringIO | None = None
         if json_output:
-            console.quiet = True
+            capture_buffer = StringIO()
+            console.file = capture_buffer
+            console.quiet = False
 
         wp_id = kwargs.get("wp_id")
         if wp_id is None and args:
@@ -62,7 +67,13 @@ def _json_safe_output(func):
             return func(*args, **kwargs)
         except typer.Exit as exc:
             if json_output and getattr(exc, "exit_code", 1):
-                payload = {"status": "error", "error": "implement command failed"}
+                lines = [
+                    line.rstrip()
+                    for line in (capture_buffer.getvalue() if capture_buffer else "").splitlines()
+                    if line.strip()
+                ]
+                summary = "\n".join(lines[-20:]).strip() if lines else "implement command failed"
+                payload = {"status": "error", "error": summary or "implement command failed"}
                 if wp_id:
                     payload["wp_id"] = str(wp_id)
                 print(json.dumps(payload))
@@ -76,6 +87,7 @@ def _json_safe_output(func):
             raise typer.Exit(1)
         finally:
             console.quiet = previous_quiet
+            console.file = previous_file
 
     return wrapper
 
