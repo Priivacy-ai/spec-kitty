@@ -330,11 +330,14 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
         except Exception:
             pass
 
+    flag_name = flag.split()[0]  # e.g., "--mission"
     msg = (
         f"Mission slug is required. Provide it explicitly: {flag}\n"
         "No auto-detection is performed (branch scanning / env vars removed).\n"
         f"{available}"
-        f"Example: spec-kitty ... {flag.split()[0]} {example_slug}"
+        f"Example:\n"
+        f"  spec-kitty agent context resolve --action tasks {flag_name} {example_slug} --json\n"
+        f"  spec-kitty agent mission finalize-tasks {flag_name} {example_slug} --json"
     )
     raise ValueError(msg)
 

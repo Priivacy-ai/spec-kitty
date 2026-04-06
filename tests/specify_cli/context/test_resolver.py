@@ -298,7 +298,7 @@ class TestResolveOrLoad:
 
     def test_missing_mission_slug_raises(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path)
-        with pytest.raises(MissingArgumentError, match="--feature"):
+        with pytest.raises(MissingArgumentError, match="--mission"):
             resolve_or_load(
                 token=None,
                 wp_code="WP01",
@@ -309,7 +309,7 @@ class TestResolveOrLoad:
 
     def test_both_missing_raises(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path)
-        with pytest.raises(MissingArgumentError, match="--wp.*--feature"):
+        with pytest.raises(MissingArgumentError, match="--wp.*--mission"):
             resolve_or_load(
                 token=None,
                 wp_code=None,
