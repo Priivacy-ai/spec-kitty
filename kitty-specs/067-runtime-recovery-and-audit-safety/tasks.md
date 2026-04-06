@@ -82,11 +82,11 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: WP01
 **Estimated prompt size**: ~400 lines
 
-- [ ] T007 Build recovery scan — detect orphaned branches matching mission pattern, cross-reference workspace contexts and status events (WP02)
-- [ ] T008 Implement worktree reconciliation — `git worktree add <path> <existing-branch>` without `-b` flag (WP02)
-- [ ] T009 Implement status reconciliation — emit missing lane transitions based on branch state (WP02)
-- [ ] T010 Add `--recover` flag to implement CLI command with full recovery orchestration (WP02)
-- [ ] T011 Write tests for crash recovery scenarios (branch exists, worktree missing, etc.) (WP02)
+- [x] T007 Build recovery scan — detect orphaned branches matching mission pattern, cross-reference workspace contexts and status events (WP02)
+- [x] T008 Implement worktree reconciliation — `git worktree add <path> <existing-branch>` without `-b` flag (WP02)
+- [x] T009 Implement status reconciliation — emit missing lane transitions based on branch state (WP02)
+- [x] T010 Add `--recover` flag to implement CLI command with full recovery orchestration (WP02)
+- [x] T011 Write tests for crash recovery scenarios (branch exists, worktree missing, etc.) (WP02)
 
 ### WP03: Canonical Execution Surface Cleanup
 
