@@ -14,11 +14,11 @@
 | T004 | Rewrite _persist_review_feedback() in tasks.py — create ReviewCycleArtifact | WP01 | | [D] |
 | T005 | Update _resolve_review_feedback_pointer() — dual resolution (legacy + new) | WP01 | | [D] |
 | T006 | Write tests for artifact CRUD, frontmatter round-trip, pointer resolution | WP01 | | [D] |
-| T007 | Create fix_prompt.py with generate_fix_prompt() | WP02 | |
-| T008 | Implement fix-prompt template rendering | WP02 | |
-| T009 | Add fix-mode detection in workflow.py implement path | WP02 | |
-| T010 | Implement mode switching — fix-prompt vs full-prompt | WP02 | |
-| T011 | Write tests for fix-prompt generation, sizing, end-to-end flow | WP02 | |
+| T007 | Create fix_prompt.py with generate_fix_prompt() | WP02 | | [D] |
+| T008 | Implement fix-prompt template rendering | WP02 | | [D] |
+| T009 | Add fix-mode detection in workflow.py implement path | WP02 | | [D] |
+| T010 | Implement mode switching — fix-prompt vs full-prompt | WP02 | | [D] |
+| T011 | Write tests for fix-prompt generation, sizing, end-to-end flow | WP02 | | [D] |
 | T012 | Create dirty_classifier.py with classify_dirty_paths() | WP03 | [D] |
 | T013 | Implement classification rules — blocking vs benign path patterns | WP03 | [D] |
 | T014 | Update _validate_ready_for_review() — use classifier, only block on blocking | WP03 | [D] |
