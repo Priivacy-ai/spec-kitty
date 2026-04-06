@@ -295,3 +295,4 @@ WP04 does not own these files in its frontmatter — it modifies them under the 
 - 2026-04-06T14:42:16Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Started implementation via action command
 - 2026-04-06T14:46:20Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Ready for review: pipe-table mark-status support implemented with 30 tests, checkbox format standardized in tasks template
 - 2026-04-06T14:46:40Z – claude:opus:reviewer:reviewer – shell_pid=15460 – Started review via action command
+- 2026-04-06T14:48:16Z – claude:opus:reviewer:reviewer – shell_pid=15460 – Review passed: All 8 acceptance criteria met. Column-aware pipe-table parsing correctly preserves [P] in Parallel column. Checkbox detection precedes pipe-table as canonical first. 54/54 tests pass (30 new + 24 existing, zero regression). Template clearly distinguishes Subtask Index reference table from per-WP tracking rows. No auto-migration or format-selection features added.
