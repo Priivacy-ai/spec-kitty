@@ -1,7 +1,7 @@
 """End-to-end CLI smoke test for the full spec-kitty workflow.
 
 Exercises the complete sequence:
-  create-feature -> setup-plan -> finalize-tasks -> implement -> move-task
+  mission create -> mission setup-plan -> mission finalize-tasks -> implement -> move-task
 
 This test creates a fresh temporary git repo, runs each CLI command via
 subprocess, and verifies that intermediate artifacts exist at each step.
@@ -26,22 +26,22 @@ class TestFullCLIWorkflow:
     """Exercise the complete spec-kitty CLI workflow end-to-end."""
 
     def test_create_feature(self, e2e_project: Path, run_cli) -> None:
-        """Step 1: create-feature produces feature directory and spec.md."""
+        """Step 1: mission create produces a mission directory and spec.md."""
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create",
             "smoke-test",
             "--json",
         )
         assert result.returncode == 0, (
-            f"create-feature failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
+            f"mission create failed (rc={result.returncode}):\nstdout: {result.stdout}\nstderr: {result.stderr}"
         )
 
         output = json.loads(result.stdout)
         assert output["result"] == "success"
-        assert "smoke-test" in output["feature"]
+        assert "smoke-test" in output["mission_slug"]
 
         feature_dir = Path(output["feature_dir"])
         assert feature_dir.exists(), f"Feature dir missing: {feature_dir}"
@@ -59,23 +59,23 @@ class TestFullCLIWorkflow:
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create",
             "plan-smoke",
             "--json",
         )
-        assert result.returncode == 0, f"create-feature failed: {result.stderr}"
+        assert result.returncode == 0, f"mission create failed: {result.stderr}"
         output = json.loads(result.stdout)
         feature_dir = Path(output["feature_dir"])
-        mission_slug = output["feature"]
+        mission_slug = output["mission_slug"]
 
         # Run setup-plan
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
-            "--feature",
+            "--mission",
             mission_slug,
             "--json",
         )
@@ -88,7 +88,7 @@ class TestFullCLIWorkflow:
         assert plan_file.stat().st_size > 0, "plan.md is empty"
 
     def test_full_workflow_sequence(self, e2e_project: Path, run_cli) -> None:
-        """Full create-feature -> setup-plan -> finalize-tasks -> implement -> move-task.
+        """Full mission create -> setup-plan -> finalize-tasks -> implement -> move-task.
 
         This is the main smoke test exercising the complete workflow
         that a developer/agent would follow.
@@ -99,16 +99,16 @@ class TestFullCLIWorkflow:
         result = run_cli(
             repo,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create",
             "full-e2e",
             "--json",
         )
-        assert result.returncode == 0, f"create-feature failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
+        assert result.returncode == 0, f"mission create failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
         create_output = json.loads(result.stdout)
         assert create_output["result"] == "success"
 
-        mission_slug = create_output["feature"]
+        mission_slug = create_output["mission_slug"]
         feature_dir = Path(create_output["feature_dir"])
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
@@ -117,9 +117,9 @@ class TestFullCLIWorkflow:
         result = run_cli(
             repo,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
-            "--feature",
+            "--mission",
             mission_slug,
             "--json",
         )
@@ -197,8 +197,9 @@ Create a hello module.
         import json as json_mod
 
         meta_content = {
-            "feature_number": "001",
+            "mission_number": "001",
             "mission_slug": mission_slug,
+            "mission_type": "software-dev",
             "created_at": "2026-02-12T00:00:00Z",
             "vcs": "git",
         }
@@ -226,9 +227,9 @@ Create a hello module.
         result = run_cli(
             repo,
             "agent",
-            "feature",
+            "mission",
             "finalize-tasks",
-            "--feature",
+            "--mission",
             mission_slug,
             "--json",
         )
@@ -319,7 +320,7 @@ Create a hello module.
             "WP01",
             "--to",
             "for_review",
-            "--feature",
+            "--mission",
             mission_slug,
             "--json",
         )
@@ -357,12 +358,12 @@ class TestWorkflowEdgeCases:
     """Edge case tests for the CLI workflow."""
 
     def test_create_feature_rejects_bad_slug(self, e2e_project: Path, run_cli) -> None:
-        """create-feature rejects non-kebab-case slugs."""
+        """mission create rejects non-kebab-case slugs."""
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
-            "create-feature",
+            "mission",
+            "create",
             "Bad_Slug",
             "--json",
         )
@@ -379,7 +380,7 @@ class TestWorkflowEdgeCases:
         result = run_cli(
             e2e_project,
             "agent",
-            "feature",
+            "mission",
             "setup-plan",
             "--json",
         )

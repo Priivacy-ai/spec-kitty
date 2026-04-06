@@ -84,15 +84,15 @@ class TestBodySyncRequiredFields:
 class TestBodySyncForbiddenFields:
     """Validate that forbidden legacy fields are absent."""
 
-    def test_does_not_contain_mission_slug(self, forbidden_body_sync_fields):
+    def test_does_not_contain_feature_slug(self, forbidden_body_sync_fields):
         task = _make_body_upload_task()
         body = _build_request_body(task)
-        assert "mission_slug" not in body, "mission_slug is forbidden in body sync payload"
+        assert "feature_slug" not in body, "feature_slug is forbidden in body sync payload"
 
-    def test_does_not_contain_mission_type(self, forbidden_body_sync_fields):
+    def test_does_not_contain_mission_key(self, forbidden_body_sync_fields):
         task = _make_body_upload_task()
         body = _build_request_body(task)
-        assert "mission_type" not in body, "mission_type is forbidden in body sync payload"
+        assert "mission_key" not in body, "mission_key is forbidden in body sync payload"
 
     def test_no_forbidden_fields_present(self, forbidden_body_sync_fields):
         """No field from the contract's forbidden_fields may appear."""

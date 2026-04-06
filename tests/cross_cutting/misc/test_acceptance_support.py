@@ -34,7 +34,7 @@ def test_detect_mission_slug_prefers_explicit(
 
 def test_detect_mission_slug_raises_without_explicit(feature_repo: Path, mission_slug: str) -> None:
     # Without explicit_feature, must raise AcceptanceError (auto-detection removed)
-    with pytest.raises(acc.AcceptanceError, match="Feature slug is required"):
+    with pytest.raises(acc.AcceptanceError, match="Mission slug is required"):
         acc.detect_mission_slug(feature_repo)
 
 

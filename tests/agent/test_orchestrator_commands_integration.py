@@ -139,7 +139,6 @@ class TestMissionState:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "mission_slug" not in data["data"]
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
         assert wps["WP01"]["lane"] == "claimed"
@@ -466,8 +465,8 @@ class TestTransition:
         assert data["error_code"] == "POLICY_METADATA_REQUIRED"
 
     def test_transition_passes_review_handoff_flags_to_status_emit(self, tmp_path):
-        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, _ = _make_mission(tmp_path, "099-test-feature")
+        mission_slug = "099-test-feature"
 
         emit_mock = MagicMock()
         with patch(
@@ -481,7 +480,7 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "for_review",
                     "--actor", "claude",
@@ -497,8 +496,8 @@ class TestTransition:
         assert kwargs["implementation_evidence_present"] is True
 
     def test_transition_passes_done_evidence_to_status_emit(self, tmp_path):
-        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, _ = _make_mission(tmp_path, "099-test-feature")
+        mission_slug = "099-test-feature"
 
         emit_mock = MagicMock()
         with patch(
@@ -512,7 +511,7 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "done",
                     "--actor", "reviewer",
@@ -533,8 +532,8 @@ class TestTransition:
         }
 
     def test_transition_rejects_invalid_evidence_json(self, tmp_path):
-        repo_root, _ = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, _ = _make_mission(tmp_path, "099-test-feature")
+        mission_slug = "099-test-feature"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -544,7 +543,7 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "done",
                     "--actor", "reviewer",
@@ -636,7 +635,6 @@ class TestAcceptMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "mission_slug" not in data["data"]
         assert data["data"]["accepted"] is True
 
         # Verify meta.json was written
@@ -732,7 +730,6 @@ class TestMergeMission:
         data = json.loads(result.output)
         assert data["success"] is True
         assert data["data"]["mission_slug"] == mission_slug
-        assert "mission_slug" not in data["data"]
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"

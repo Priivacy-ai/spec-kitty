@@ -914,7 +914,7 @@ Test content.
         with patch("specify_cli.cli.commands.agent.workflow.safe_commit", side_effect=fake_safe_commit):
             result = CliRunner().invoke(
                 workflow.app,
-                ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+                ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
             )
 
     assert result.exit_code == 0, result.stdout

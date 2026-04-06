@@ -23,11 +23,11 @@ def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
     feature_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
-                "feature_number": slug.split("-", 1)[0],
+                "mission_number": slug.split("-", 1)[0],
                 "slug": slug,
                 "mission_slug": slug,
                 "friendly_name": "Test Feature",
-                "mission": "software-dev",
+                "mission_type": "software-dev",
                 "target_branch": target_branch,
                 "created_at": "2026-03-20T00:00:00+00:00",
             }
