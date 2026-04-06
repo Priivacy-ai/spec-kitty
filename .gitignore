@@ -132,3 +132,4 @@ tmp/**
 pytest-of-*/
 .kittify/missions/__pycache__/
 .spec-kitty/
+.agent/

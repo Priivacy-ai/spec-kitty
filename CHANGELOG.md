@@ -9,6 +9,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a6] - 2026-04-06
+
+### Added
+
+- **Review loop stabilization (mission 066)** — new `src/specify_cli/review/` module with 6 submodules:
+  - `artifacts.py` — persisted review-cycle artifacts at `kitty-specs/<mission>/tasks/<WP-slug>/review-cycle-{N}.md` with YAML frontmatter. Replaces ephemeral `.git/spec-kitty/feedback/` storage. Backward-compatible `feedback://` pointer resolution retained (#432, #433).
+  - `fix_prompt.py` — focused fix-mode prompt generation from review-cycle artifacts. Rejected WPs get ~40-line targeted prompts instead of replaying 400-500 line full WP prompts (#430).
+  - `dirty_classifier.py` — dirty-state classification for review handoff. Partitions `git status --porcelain` output into blocking (WP-owned files) vs benign (status artifacts, other WP files, metadata). External reviewers no longer need `--force` for unrelated dirtiness (#439).
+  - `baseline.py` — baseline test capture at implement time via `pytest --junitxml` + JUnit XML parsing. Review prompts include "Baseline Context" section distinguishing pre-existing failures from regressions. Configurable `review.test_command` for non-pytest projects (#444).
+  - `lock.py` — concurrent review serialization via `.spec-kitty/review-lock.json`. Stale lock detection via PID check. Opt-in env-var isolation for projects that configure `review.concurrent_isolation` in config.yaml (#440).
+  - `arbiter.py` — structured arbiter checklist with 5 standard rationale categories (pre-existing failure, wrong context, cross-scope, infra/environmental, custom). Override detection on forward `--force` from planned after rejection event. Decisions persisted in review-cycle artifact frontmatter (#441).
+- **147 new tests** across the review module (avg 93% coverage, range 91-99%)
+- **Implement-review skill update** — parallel sprint pattern, merge/conflict resolution guide, dead-code detection warning, post-merge validation steps
+- **Tasks template handoff** — `/spec-kitty.tasks` now offers to invoke `/spec-kitty-implement-review` skill at completion for automated full-sprint execution
+
+### Fixed
+
+- **ReviewLock wired into live command path** — `ReviewLock.acquire()` called in `workflow.py review()` after workspace resolution; `ReviewLock.release()` called in `tasks.py move-task` on review completion
+- **Removed dead `wp_prompt_path` parameter** from `generate_fix_prompt()` and all callers
+
 ## [3.1.0a5] - 2026-04-06
 
 ### Fixed
