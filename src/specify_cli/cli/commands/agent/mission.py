@@ -41,6 +41,7 @@ from specify_cli.core.worktree import (
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.ownership import infer_ownership, validate_ownership
+from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
@@ -1414,6 +1415,8 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
 
+        all_ownership_warnings: list[str] = []
+
         for wp_file in wp_files:
             # Extract WP ID from filename
             wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
@@ -1494,7 +1497,8 @@ def finalize_tasks(
             # Ownership manifest: infer missing fields, write to frontmatter
             if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
                 wp_raw_content = wp_file.read_text(encoding="utf-8")
-                ownership, _ownership_warnings = infer_ownership(wp_raw_content, mission_slug)
+                ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
+                all_ownership_warnings.extend(infer_warnings)
                 if not frontmatter.get("execution_mode"):
                     changed_fields["execution_mode"] = str(ownership.execution_mode)
                     frontmatter["execution_mode"] = str(ownership.execution_mode)
@@ -1554,6 +1558,13 @@ def finalize_tasks(
                         console.print(f"  - {err}")
                 raise typer.Exit(1)
 
+            # Soft check: warn when owned_files globs match zero files (T013)
+            glob_warnings = validate_glob_matches(wp_manifests, repo_root)  # type: ignore[arg-type]
+            all_ownership_warnings.extend(glob_warnings)
+            if not json_output:
+                for warning in glob_warnings:
+                    console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
+
         # Prepare metadata for event emission
         mission_slug = feature_dir.name
         meta_path = feature_dir / "meta.json"
@@ -1601,6 +1612,7 @@ def finalize_tasks(
                     "computed": True,
                     "count": len(lanes_manifest_dry.lanes),
                     "lane_ids": [l.lane_id for l in lanes_manifest_dry.lanes],
+                    "planning_artifact_wps": lanes_manifest_dry.planning_artifact_wps,
                 }
 
             if json_output:
@@ -1616,6 +1628,7 @@ def finalize_tasks(
                         "updated_wp_count": updated_count,
                         "bootstrap": bootstrap_stats,
                         "lanes": lanes_stats,
+                        "ownership_warnings": all_ownership_warnings,
                         "message": "All validations passed. Run without --validate-only to commit.",
                     }
                 )
@@ -1830,7 +1843,9 @@ def finalize_tasks(
                         "computed": lanes_manifest is not None,
                         "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
                         "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_manifest else [],
+                        "planning_artifact_wps": lanes_manifest.planning_artifact_wps if lanes_manifest else [],
                     },
+                    "ownership_warnings": all_ownership_warnings,
                 }
             )
 
