@@ -68,12 +68,12 @@ Rename `feature_creation.py` → `mission_creation.py` and `feature_metadata.py`
 
 Rename `agent/feature.py` → `agent/mission.py`. Remove `identity_aliases.py` usage from 6 non-orchestrator files (19 call sites). Does NOT touch `orchestrator_api/commands.py` — that is WP04's scope.
 
-- [ ] T013: `git mv` agent/feature.py → agent/mission.py + update tasks.py import
-- [ ] T014: Update 35+ test imports for agent/mission.py
-- [ ] T015: Remove `identity_aliases` import + calls from `status/models.py`, `status/progress.py`, `status/views.py`
-- [ ] T016: Remove `identity_aliases` import + calls from `next/decision.py`, `cli/commands/materialize.py`
-- [ ] T017: Remove `identity_aliases` import + 4 calls from `cli/commands/agent/status.py`
-- [ ] T018: Verify outputs still contain `mission_slug` (not `feature_slug`)
+- [x] T013: `git mv` agent/feature.py → agent/mission.py + update tasks.py import
+- [x] T014: Update 35+ test imports for agent/mission.py
+- [x] T015: Remove `identity_aliases` import + calls from `status/models.py`, `status/progress.py`, `status/views.py`
+- [x] T016: Remove `identity_aliases` import + calls from `next/decision.py`, `cli/commands/materialize.py`
+- [x] T017: Remove `identity_aliases` import + 4 calls from `cli/commands/agent/status.py`
+- [x] T018: Verify outputs still contain `mission_slug` (not `feature_slug`)
 
 **Requirement refs**: FR-003, FR-016
 
