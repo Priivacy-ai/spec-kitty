@@ -15,11 +15,11 @@
 | T004 | Re-enable resume/abort CLI path | WP01 | | [D] |
 | T005 | Add retry tolerance (FSEvents delay, missing worktrees/branches) | WP01 | [D] |
 | T006 | Write tests for merge recovery | WP01 | | [D] |
-| T007 | Build recovery scan for orphaned branches and workspace contexts | WP02 | |
-| T008 | Implement worktree reconciliation from surviving branches | WP02 | |
-| T009 | Implement status reconciliation for missing lane transitions | WP02 | [P] |
-| T010 | Add `--recover` flag to implement CLI command | WP02 | |
-| T011 | Write tests for crash recovery scenarios | WP02 | |
+| T007 | Build recovery scan for orphaned branches and workspace contexts | WP02 | | [D] |
+| T008 | Implement worktree reconciliation from surviving branches | WP02 | | [D] |
+| T009 | Implement status reconciliation for missing lane transitions | WP02 | [D] |
+| T010 | Add `--recover` flag to implement CLI command | WP02 | | [D] |
+| T011 | Write tests for crash recovery scenarios | WP02 | | [D] |
 | T012 | Rewrite `generate_shim_content()` for direct canonical commands | WP03 | | [D] |
 | T013 | Add `"accept"` to ActionName Literal | WP03 | [D] |
 | T014 | Delete shim runtime files and CLI registration | WP03 | | [D] |
