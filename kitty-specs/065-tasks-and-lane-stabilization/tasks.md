@@ -127,12 +127,12 @@ Refine the lane computation algorithm so that surface-heuristic merging (Rule 3)
 
 ### Included Subtasks
 
-- [ ] T016 Add CollapseReport data model to lanes/models.py
-- [ ] T017 Record collapse events during union-find rules
-- [ ] T018 Refine Rule 3 — gate surface heuristic on non-disjoint ownership
-- [ ] T019 Count independent-WP collapses in report
-- [ ] T020 Wire collapse report into finalize-tasks and compute_lanes output
-- [ ] T021 Write regression tests for WP03
+- [x] T016 Add CollapseReport data model to lanes/models.py
+- [x] T017 Record collapse events during union-find rules
+- [x] T018 Refine Rule 3 — gate surface heuristic on non-disjoint ownership
+- [x] T019 Count independent-WP collapses in report
+- [x] T020 Wire collapse report into finalize-tasks and compute_lanes output
+- [x] T021 Write regression tests for WP03
 
 ### Dependencies
 
