@@ -62,7 +62,7 @@ class TestGenerateFixPromptSingleFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -74,7 +74,7 @@ class TestGenerateFixPromptSingleFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -89,7 +89,7 @@ class TestGenerateFixPromptSingleFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -102,7 +102,7 @@ class TestGenerateFixPromptSingleFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -128,7 +128,7 @@ class TestGenerateFixPromptMultipleFiles:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -148,7 +148,7 @@ class TestGenerateFixPromptMultipleFiles:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -170,7 +170,7 @@ class TestGenerateFixPromptWithLineRange:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -186,7 +186,7 @@ class TestGenerateFixPromptWithLineRange:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -202,7 +202,7 @@ class TestGenerateFixPromptWithLineRange:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -223,7 +223,7 @@ class TestGenerateFixPromptWithoutLineRange:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -240,7 +240,7 @@ class TestGenerateFixPromptWithoutLineRange:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -268,7 +268,7 @@ class TestFixPromptSizeVsOriginal:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -289,7 +289,7 @@ class TestGenerateFixPromptMissingFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -304,7 +304,7 @@ class TestGenerateFixPromptMissingFile:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -320,7 +320,7 @@ class TestFixPromptIncludesReproductionCommand:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -332,7 +332,7 @@ class TestFixPromptIncludesReproductionCommand:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )
@@ -344,7 +344,7 @@ class TestFixPromptIncludesReproductionCommand:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
+
             mission_slug="066-review-loop-stabilization",
             wp_id="WP01",
         )

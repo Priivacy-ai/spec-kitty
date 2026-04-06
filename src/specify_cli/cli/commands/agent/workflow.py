@@ -641,7 +641,6 @@ def implement(
                     _fix_prompt_text = _generate_fix_prompt(
                         artifact=_latest_artifact,
                         worktree_path=workspace_path,
-                        wp_prompt_path=wp.path,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                     )
@@ -1195,6 +1194,19 @@ def review(
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
+
+        # Concurrent review isolation: acquire review lock or apply env-var isolation
+        from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
+
+        isolation_config = _get_isolation_config(main_repo_root)
+        if isolation_config and isolation_config.get("strategy") == "env_var":
+            _apply_env_var_isolation(isolation_config, agent or "unknown", normalized_wp_id)
+        else:
+            try:
+                ReviewLock.acquire(Path(workspace_path), normalized_wp_id, agent or "unknown")
+            except ReviewLockError as e:
+                print(f"[red]{e}[/red]")
+                raise typer.Exit(1)
 
         # Ensure workspace exists (attach to the real branch if needed).
         if not workspace.exists:

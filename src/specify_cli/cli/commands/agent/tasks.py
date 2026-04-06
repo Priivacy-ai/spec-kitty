@@ -1345,6 +1345,15 @@ def move_task(
             else:
                 wp.path.write_text(updated_doc, encoding="utf-8")
 
+        # Release review lock when review completes (approved or rejected back to planned)
+        if old_lane in ("for_review", "in_progress") and target_lane in ("approved", "planned"):
+            try:
+                from specify_cli.review.lock import ReviewLock
+                _lock_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, task_id)
+                ReviewLock.release(Path(_lock_workspace.worktree_path))
+            except Exception:
+                pass  # Lock may not exist (review started before WP05 landed)
+
         # Output result
         result = {
             "result": "success",

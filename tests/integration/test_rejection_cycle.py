@@ -246,7 +246,7 @@ class TestModeSwitchProducesFixPrompt:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01-some-title.md",
+
             mission_slug="066-test-mission",
             wp_id="WP01",
         )
@@ -273,7 +273,6 @@ class TestModeSwitchProducesFixPrompt:
         prompt = generate_fix_prompt(
             artifact=artifact,
             worktree_path=tmp_path,
-            wp_prompt_path=tmp_path / "WP01.md",
             mission_slug="066-test-mission",
             wp_id="WP01",
         )

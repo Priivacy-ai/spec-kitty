@@ -12,7 +12,6 @@ Usage:
     prompt = generate_fix_prompt(
         artifact=artifact,
         worktree_path=workspace_path,
-        wp_prompt_path=wp_file,
         mission_slug="066-review-loop-stabilization",
         wp_id="WP01",
     )
@@ -116,7 +115,6 @@ def _extract_snippet(
 def generate_fix_prompt(
     artifact: ReviewCycleArtifact,
     worktree_path: Path,
-    wp_prompt_path: Path,
     mission_slug: str,
     wp_id: str,
 ) -> str:
@@ -129,8 +127,6 @@ def generate_fix_prompt(
     Args:
         artifact: The review-cycle artifact from the prior rejection.
         worktree_path: Root of the execution worktree (for reading source files).
-        wp_prompt_path: Path to the original WP markdown file (unused in the
-            output — included for API symmetry / future extensions).
         mission_slug: Mission identifier, e.g. "066-review-loop-stabilization".
         wp_id: Normalized work package ID, e.g. "WP01".
 
