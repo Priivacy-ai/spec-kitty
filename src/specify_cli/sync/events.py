@@ -256,9 +256,6 @@ def emit_mission_created(
     return event
 
 
-# Backward-compatible alias (callers migrating from Feature→Mission naming)
-emit_feature_created = emit_mission_created
-
 
 def emit_mission_closed(
     feature_slug: str,
@@ -281,9 +278,6 @@ def emit_mission_closed(
         _request_dashboard_sync(repo_root)
     return event
 
-
-# Backward-compatible alias (callers migrating from Feature→Mission naming)
-emit_feature_completed = emit_mission_closed
 
 
 def emit_history_added(

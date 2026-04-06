@@ -25,8 +25,6 @@ from .events import (
     emit_wp_assigned,
     emit_mission_created,
     emit_mission_closed,
-    emit_feature_created,  # backward-compatible alias for emit_mission_created
-    emit_feature_completed,  # backward-compatible alias for emit_mission_closed
     emit_history_added,
     emit_error_logged,
     emit_dependency_resolved,
@@ -100,8 +98,6 @@ __all__ = [
     "emit_wp_assigned",
     "emit_mission_created",
     "emit_mission_closed",
-    "emit_feature_created",
-    "emit_feature_completed",
     "emit_history_added",
     "emit_error_logged",
     "emit_dependency_resolved",

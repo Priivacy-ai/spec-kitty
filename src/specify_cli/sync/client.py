@@ -5,6 +5,7 @@ import json
 import random
 from contextlib import suppress
 from collections.abc import Callable
+from typing import Any
 import websockets
 from websockets import ConnectionClosed
 
@@ -13,6 +14,7 @@ from specify_cli.sync.feature_flags import (
     is_saas_sync_enabled,
     saas_sync_disabled_message,
 )
+from specify_cli.sync.project_identity import ProjectIdentity
 from specify_cli.core.contract_gate import validate_outbound_payload
 
 
@@ -48,6 +50,7 @@ class WebSocketClient:
         server_url: str,
         token: str | None = None,
         auth_client: AuthClient | None = None,
+        project_identity: ProjectIdentity | None = None,
     ):
         """
         Initialize WebSocket client.
@@ -56,6 +59,7 @@ class WebSocketClient:
             server_url: Server URL (e.g., wss://spec-kitty-dev.fly.dev)
             token: Direct token (deprecated, for backward compatibility)
             auth_client: AuthClient instance for automatic token management
+            project_identity: ProjectIdentity for build_id in heartbeats
 
         Note:
             If auth_client is provided, it will be used to obtain tokens.
@@ -65,6 +69,7 @@ class WebSocketClient:
         self.server_url = server_url
         self._direct_token = token
         self._auth_client = auth_client
+        self._project_identity = project_identity
         self.ws: websockets.ClientConnection | None = None
         self.connected = False
         self.status = ConnectionStatus.OFFLINE
@@ -298,8 +303,10 @@ class WebSocketClient:
             await self.message_handler(data)
 
     async def _handle_ping(self, data: dict):
-        """Respond to server ping"""
-        pong = {"type": "pong", "timestamp": data.get("timestamp")}
+        """Respond to server ping with build_id for identity correlation."""
+        pong: dict[str, Any] = {"type": "pong", "timestamp": data.get("timestamp")}
+        if self._project_identity is not None and self._project_identity.build_id:
+            pong["build_id"] = self._project_identity.build_id
         await self.ws.send(json.dumps(pong))
 
     def set_message_handler(self, handler: Callable):
