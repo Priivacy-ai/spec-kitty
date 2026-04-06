@@ -1,7 +1,7 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KNHV2BVN5XWDW34J7A38ZXNF",
-  "materialized_at": "2026-04-06T16:47:29.654053+00:00",
+  "event_count": 20,
+  "last_event_id": "01KNHV2VH1BXZ7DMJD39DNR62X",
+  "materialized_at": "2026-04-06T16:47:45.698186+00:00",
   "mission_slug": "066-review-loop-stabilization",
   "summary": {
     "approved": 0,
@@ -9,8 +9,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 4,
+    "for_review": 0,
+    "in_progress": 5,
     "planned": 1
   },
   "work_packages": {
@@ -43,11 +43,11 @@
       "last_transition_at": "2026-04-06T16:42:33.297254+00:00"
     },
     "WP05": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KNHV2BVN5XWDW34J7A38ZXNF",
-      "last_transition_at": "2026-04-06T16:47:29.653712+00:00"
+      "actor": "claude:opus-4-6:reviewer:reviewer",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KNHV2VH1BXZ7DMJD39DNR62X",
+      "last_transition_at": "2026-04-06T16:47:45.697870+00:00"
     },
     "WP06": {
       "actor": "claude:sonnet-4-6:implementer:implementer",

@@ -18,8 +18,8 @@ subtasks:
 - T027
 - T028
 - T029
-shell_pid: "48083"
-agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "49299"
+agent: "claude:opus-4-6:reviewer:reviewer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -303,3 +303,4 @@ Multiple review agents pointed at the same lane worktree attempted to run Django
 
 - 2026-04-06T16:42:35Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48083 – Started implementation via action command
 - 2026-04-06T16:47:29Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48083 – Ready for review: ReviewLock with acquire/release/stale-detection implemented, opt-in env-var isolation config, 19 tests passing at 95% coverage
+- 2026-04-06T16:47:45Z – claude:opus-4-6:reviewer:reviewer – shell_pid=49299 – Started review via action command
