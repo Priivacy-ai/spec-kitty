@@ -63,15 +63,15 @@ Fix the `finalize-tasks` pipeline so it (a) parses both inline and bullet-list d
 
 ### Included Subtasks
 
-- [ ] T001 Extract shared dependency parser into reusable module
-- [ ] T002 Add bullet-list dependency format recognition
-- [ ] T003 Wire both finalize-tasks entry points to shared parser
-- [ ] T004 Implement disagree-loud on non-empty dependency conflict
-- [ ] T005 Fix set_scalar type mismatch — use FrontmatterManager for list fields
-- [ ] T006 Gate all mutations on validate_only flag
-- [ ] T007 Implement validate-only mutation report
-- [ ] T008 Implement accurate per-WP mutation reporting
-- [ ] T009 Write regression tests for WP01
+- [x] T001 Extract shared dependency parser into reusable module
+- [x] T002 Add bullet-list dependency format recognition
+- [x] T003 Wire both finalize-tasks entry points to shared parser
+- [x] T004 Implement disagree-loud on non-empty dependency conflict
+- [x] T005 Fix set_scalar type mismatch — use FrontmatterManager for list fields
+- [x] T006 Gate all mutations on validate_only flag
+- [x] T007 Implement validate-only mutation report
+- [x] T008 Implement accurate per-WP mutation reporting
+- [x] T009 Write regression tests for WP01
 
 ### Dependencies
 
