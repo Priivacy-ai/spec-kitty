@@ -8,12 +8,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Create review module scaffold (__init__.py, artifacts.py with dataclasses) | WP01 | |
-| T002 | Implement ReviewCycleArtifact write() — YAML frontmatter + markdown body | WP01 | |
-| T003 | Implement from_file() and latest() — parse artifacts, find highest cycle | WP01 | |
-| T004 | Rewrite _persist_review_feedback() in tasks.py — create ReviewCycleArtifact | WP01 | |
-| T005 | Update _resolve_review_feedback_pointer() — dual resolution (legacy + new) | WP01 | |
-| T006 | Write tests for artifact CRUD, frontmatter round-trip, pointer resolution | WP01 | |
+| T001 | Create review module scaffold (__init__.py, artifacts.py with dataclasses) | WP01 | | [D] |
+| T002 | Implement ReviewCycleArtifact write() — YAML frontmatter + markdown body | WP01 | | [D] |
+| T003 | Implement from_file() and latest() — parse artifacts, find highest cycle | WP01 | | [D] |
+| T004 | Rewrite _persist_review_feedback() in tasks.py — create ReviewCycleArtifact | WP01 | | [D] |
+| T005 | Update _resolve_review_feedback_pointer() — dual resolution (legacy + new) | WP01 | | [D] |
+| T006 | Write tests for artifact CRUD, frontmatter round-trip, pointer resolution | WP01 | | [D] |
 | T007 | Create fix_prompt.py with generate_fix_prompt() | WP02 | |
 | T008 | Implement fix-prompt template rendering | WP02 | |
 | T009 | Add fix-mode detection in workflow.py implement path | WP02 | |
