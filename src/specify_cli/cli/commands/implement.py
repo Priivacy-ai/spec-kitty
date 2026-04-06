@@ -16,7 +16,7 @@ from typing_extensions import Annotated
 from specify_cli.cli import StepTracker
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
-from specify_cli.feature_metadata import set_vcs_lock
+from specify_cli.mission_metadata import set_vcs_lock
 from specify_cli.frontmatter import update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
@@ -94,10 +94,7 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
 
     match = _re.match(r"^(\d{3})-", slug)
     if not match:
-        console.print(
-            f"[red]Error:[/red] Invalid feature slug format: {slug}\n"
-            "Expected format: ###-feature-name (for example, 010-lane-only-runtime)"
-        )
+        console.print(f"[red]Error:[/red] Invalid feature slug format: {slug}\nExpected format: ###-feature-name (for example, 010-lane-only-runtime)")
         raise typer.Exit(1)
 
     return match.group(1), slug
@@ -111,9 +108,7 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
 
     normalized_wp_id = wp_id.strip().upper()
     if not _WP_ID_RE.fullmatch(normalized_wp_id):
-        raise FileNotFoundError(
-            f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01)."
-        )
+        raise FileNotFoundError(f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01).")
 
     wp_name_re = re.compile(rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$", re.IGNORECASE)
     wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
@@ -180,9 +175,7 @@ def _ensure_planning_artifacts_committed_git(
         console.print(f"  {file_path}")
 
     if current_branch != planning_branch:
-        console.print(
-            f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}."
-        )
+        console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}.")
         console.print(f"Current branch: {current_branch}")
         raise typer.Exit(1)
 
@@ -207,10 +200,7 @@ def _ensure_planning_artifacts_committed_git(
         console.print(result.stderr)
         raise typer.Exit(1)
 
-    commit_msg = (
-        f"chore: planning artifacts for {feature_slug}\n\n"
-        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
-    )
+    commit_msg = f"chore: planning artifacts for {feature_slug}\n\nAuto-committed by spec-kitty before creating the lane worktree for {wp_id}"
     result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
         cwd=repo_root,
@@ -374,9 +364,7 @@ def implement(
                 else:
                     console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
             else:
-                console.print(
-                    f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]"
-                )
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
 
             try:
                 emit_wp_status_changed(

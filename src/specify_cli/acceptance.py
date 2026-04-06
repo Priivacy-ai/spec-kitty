@@ -26,7 +26,7 @@ from .tasks_support import (
     split_frontmatter,
 )
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
-from specify_cli.feature_metadata import load_meta, record_acceptance, write_meta
+from specify_cli.mission_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
@@ -45,10 +45,7 @@ class ArtifactEncodingError(AcceptanceError):
     def __init__(self, path: Path, error: UnicodeDecodeError):
         byte = error.object[error.start : error.start + 1]
         byte_display = f"0x{byte[0]:02x}" if byte else "unknown"
-        message = (
-            f"Invalid UTF-8 encoding in {path}: byte {byte_display} at offset {error.start}. "
-            "Run with --normalize-encoding to fix automatically."
-        )
+        message = f"Invalid UTF-8 encoding in {path}: byte {byte_display} at offset {error.start}. Run with --normalize-encoding to fix automatically."
         super().__init__(message)
         self.path = path
         self.error = error
@@ -90,11 +87,7 @@ class AcceptanceSummary:
     def all_done(self) -> bool:
         """True when all WPs are approved or done (no WPs still in progress or review)."""
         return not (
-            self.lanes.get("planned")
-            or self.lanes.get("claimed")
-            or self.lanes.get("doing")
-            or self.lanes.get("in_progress")
-            or self.lanes.get("for_review")
+            self.lanes.get("planned") or self.lanes.get("claimed") or self.lanes.get("doing") or self.lanes.get("in_progress") or self.lanes.get("for_review")
         )
 
     @property
@@ -419,16 +412,12 @@ def collect_feature_summary(
         branch = None
 
     try:
-        worktree_root = Path(
-            run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()
-        ).resolve()
+        worktree_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=repo_root, check=True).stdout.strip()).resolve()
     except TaskCliError:
         worktree_root = repo_root
 
     try:
-        git_common_dir = Path(
-            run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()
-        ).resolve()
+        git_common_dir = Path(run_git(["rev-parse", "--git-common-dir"], cwd=repo_root, check=True).stdout.strip()).resolve()
         primary_repo_root = git_common_dir.parent
     except TaskCliError:
         primary_repo_root = repo_root
@@ -527,10 +516,7 @@ def collect_feature_summary(
             if wp_snapshot is None:
                 activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
             elif wp_snapshot.get("lane") not in {"approved", "done"}:
-                activity_issues.append(
-                    f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', "
-                    f"expected 'approved' or 'done'"
-                )
+                activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'approved' or 'done'")
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")
     needs_clarification = _check_needs_clarification(
@@ -567,6 +553,7 @@ def collect_feature_summary(
     # Lane-based acceptance gates
     try:
         from specify_cli.lanes.persistence import read_lanes_json
+
         lanes_manifest = read_lanes_json(feature_dir)
     except Exception:
         lanes_manifest = None
@@ -574,10 +561,7 @@ def collect_feature_summary(
     if lanes_manifest is not None:
         # Gate: must be on mission branch
         if branch and branch != lanes_manifest.mission_branch:
-            activity_issues.append(
-                f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, "
-                f"not {branch}"
-            )
+            activity_issues.append(f"Acceptance must run on mission branch {lanes_manifest.mission_branch}, not {branch}")
 
         # Gate: acceptance matrix must exist when lanes.json exists
         from specify_cli.acceptance_matrix import (
@@ -586,17 +570,16 @@ def collect_feature_summary(
             validate_matrix_evidence,
             write_acceptance_matrix,
         )
+
         acc_matrix = read_acceptance_matrix(feature_dir)
         if acc_matrix is None:
-            activity_issues.append(
-                "Acceptance matrix (acceptance-matrix.json) is required for "
-                "lane-based features but was not found"
-            )
+            activity_issues.append("Acceptance matrix (acceptance-matrix.json) is required for lane-based features but was not found")
         else:
             # Run negative invariant enforcement (not just read stored verdict)
             if acc_matrix.negative_invariants:
                 acc_matrix.negative_invariants = enforce_negative_invariants(
-                    repo_root, acc_matrix.negative_invariants,
+                    repo_root,
+                    acc_matrix.negative_invariants,
                 )
                 write_acceptance_matrix(feature_dir, acc_matrix)
 
@@ -608,15 +591,9 @@ def collect_feature_summary(
             # Block on fail or pending
             verdict = acc_matrix.overall_verdict
             if verdict == "fail":
-                activity_issues.append(
-                    "Acceptance matrix verdict is 'fail' — "
-                    "negative invariants or criteria not satisfied"
-                )
+                activity_issues.append("Acceptance matrix verdict is 'fail' — negative invariants or criteria not satisfied")
             elif verdict == "pending":
-                activity_issues.append(
-                    "Acceptance matrix verdict is 'pending' — "
-                    "criteria or invariants have not been verified"
-                )
+                activity_issues.append("Acceptance matrix verdict is 'pending' — criteria or invariants have not been verified")
 
     return AcceptanceSummary(
         feature=feature,
@@ -727,22 +704,23 @@ def perform_acceptance(
     # Determine whether `branch` is the integration/target branch itself.
     # If so, merge and branch-deletion guidance is nonsensical and dangerous
     # (e.g. "git merge main" or "git branch -d main" when already on main).
-    _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset({
-        "main", "master", "develop", "development", "2.x", "3.x",
-    })
+    _WELL_KNOWN_INTEGRATION_BRANCHES = frozenset(
+        {
+            "main",
+            "master",
+            "develop",
+            "development",
+            "2.x",
+            "3.x",
+        }
+    )
     _meta = load_meta(summary.feature_dir)
     _target_branch = (_meta or {}).get("target_branch")
-    _is_integration_branch = (
-        branch == _target_branch
-        or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
-    )
+    _is_integration_branch = branch == _target_branch or (_target_branch is None and branch in _WELL_KNOWN_INTEGRATION_BRANCHES)
 
     if mode == "pr":
         if _is_integration_branch:
-            instructions.append(
-                f"Acceptance recorded on integration branch `{branch}`. "
-                "Push and open a pull request if needed."
-            )
+            instructions.append(f"Acceptance recorded on integration branch `{branch}`. Push and open a pull request if needed.")
         else:
             instructions.extend(
                 [
@@ -754,9 +732,7 @@ def perform_acceptance(
             )
     elif mode == "local":
         if _is_integration_branch:
-            instructions.append(
-                f"Acceptance recorded directly on `{branch}`. No merge needed."
-            )
+            instructions.append(f"Acceptance recorded directly on `{branch}`. No merge needed.")
         else:
             instructions.extend(
                 [
@@ -769,9 +745,7 @@ def perform_acceptance(
         instructions.append("All checks passed. Proceed with your manual acceptance workflow.")
 
     if summary.worktree_root != summary.primary_repo_root:
-        cleanup_instructions.append(
-            f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`"
-        )
+        cleanup_instructions.append(f"After merging, remove the worktree: `git worktree remove {summary.worktree_root}`")
     if not _is_integration_branch:
         cleanup_instructions.append(f"Delete the feature branch when done: `git branch -d {branch}`")
 

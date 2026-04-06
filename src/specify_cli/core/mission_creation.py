@@ -211,29 +211,20 @@ def create_feature_core(
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
     if is_worktree_context(cwd):
-        raise FeatureCreationError(
-            "Cannot create features from inside a worktree. "
-            "Run from the project root checkout."
-        )
+        raise FeatureCreationError("Cannot create features from inside a worktree. Run from the project root checkout.")
 
     resolved_root = repo_root
     if resolved_root is None:
         resolved_root = locate_project_root()
     if resolved_root is None:
-        raise FeatureCreationError(
-            "Could not locate project root. Run from within spec-kitty repository."
-        )
+        raise FeatureCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     if not is_git_repo(resolved_root):
-        raise FeatureCreationError(
-            "Not in a git repository. Feature creation requires git."
-        )
+        raise FeatureCreationError("Not in a git repository. Feature creation requires git.")
 
     current_branch = get_current_branch(resolved_root)
     if not current_branch or current_branch == "HEAD":
-        raise FeatureCreationError(
-            "Must be on a branch to create features (detached HEAD detected)."
-        )
+        raise FeatureCreationError("Must be on a branch to create features (detached HEAD detected).")
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch
@@ -292,15 +283,15 @@ def create_feature_core(
         with contextlib.suppress(json.JSONDecodeError, OSError):
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
-    meta.setdefault("feature_number", f"{feature_number:03d}")
+    meta.setdefault("mission_number", f"{feature_number:03d}")
     meta.setdefault("slug", feature_slug_formatted)
-    meta.setdefault("feature_slug", feature_slug_formatted)
+    meta.setdefault("mission_slug", feature_slug_formatted)
     meta.setdefault("friendly_name", feature_slug.replace("-", " ").strip())
-    meta.setdefault("mission", mission or "software-dev")
+    meta.setdefault("mission_type", mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
 
-    from specify_cli.feature_metadata import set_documentation_state, write_meta
+    from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
     with contextlib.suppress(Exception):
@@ -310,7 +301,7 @@ def create_feature_core(
     # 7. Documentation state (if applicable)
     # ------------------------------------------------------------------
     if mission == "documentation":
-        meta.setdefault("mission", "documentation")
+        meta.setdefault("mission_type", "documentation")
         if "documentation_state" not in meta:
             doc_state: dict[str, Any] = {
                 "iteration_mode": "initial",
@@ -342,7 +333,9 @@ def create_feature_core(
         )
 
         trigger_feature_dossier_sync_if_enabled(
-            feature_dir, feature_slug_formatted, resolved_root,
+            feature_dir,
+            feature_slug_formatted,
+            resolved_root,
         )
 
     # ------------------------------------------------------------------

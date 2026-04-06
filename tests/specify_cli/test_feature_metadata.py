@@ -1,4 +1,4 @@
-"""Comprehensive unit tests for specify_cli.feature_metadata."""
+"""Comprehensive unit tests for specify_cli.mission_metadata."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.feature_metadata import (
+from specify_cli.mission_metadata import (
     HISTORY_CAP,
     REQUIRED_FIELDS,
     finalize_merge,
@@ -33,11 +33,11 @@ from specify_cli.feature_metadata import (
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
     return {
-        "feature_number": "051",
+        "mission_number": "051",
         "slug": "051-canonical-state-authority",
-        "feature_slug": "051-canonical-state-authority",
+        "mission_slug": "051-canonical-state-authority",
         "friendly_name": "Canonical State Authority",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-03-18T00:00:00+00:00",
     }
@@ -97,12 +97,12 @@ class TestValidateMeta:
         errors = validate_meta(_minimal_meta())
         assert errors == []
 
-    def test_missing_feature_number(self) -> None:
+    def test_missing_mission_number(self) -> None:
         meta = _minimal_meta()
-        del meta["feature_number"]
+        del meta["mission_number"]
         errors = validate_meta(meta)
         assert len(errors) == 1
-        assert "feature_number" in errors[0]
+        assert "mission_number" in errors[0]
 
     def test_empty_field_is_error(self) -> None:
         meta = _minimal_meta()
@@ -112,9 +112,9 @@ class TestValidateMeta:
 
     def test_missing_multiple_required_fields(self) -> None:
         meta = _minimal_meta()
-        del meta["feature_number"]
+        del meta["mission_number"]
         del meta["slug"]
-        del meta["mission"]
+        del meta["mission_type"]
         errors = validate_meta(meta)
         assert len(errors) == 3
 
@@ -127,11 +127,11 @@ class TestValidateMeta:
 
     def test_required_fields_constant(self) -> None:
         expected = {
-            "feature_number",
+            "mission_number",
             "slug",
-            "feature_slug",
+            "mission_slug",
             "friendly_name",
-            "mission",
+            "mission_type",
             "target_branch",
             "created_at",
         }
@@ -184,7 +184,7 @@ class TestWriteMeta:
 
     def test_invalid_meta_raises_valueerror(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
-        del meta["feature_number"]
+        del meta["mission_number"]
 
         # Pre-create a valid file to check it is preserved
         _write_meta_file(tmp_path, _minimal_meta())
@@ -194,11 +194,11 @@ class TestWriteMeta:
 
         # Original file should be unchanged
         original = json.loads((tmp_path / "meta.json").read_text(encoding="utf-8"))
-        assert original["feature_number"] == "051"
+        assert original["mission_number"] == "051"
 
     def test_write_meta_validate_false_skips_validation(self, tmp_path: Path) -> None:
         """write_meta(validate=False) succeeds with minimal meta lacking required fields."""
-        minimal = {"mission": "documentation"}
+        minimal = {"mission_type": "documentation"}
         write_meta(tmp_path, minimal, validate=False)
 
         meta_path = tmp_path / "meta.json"
@@ -216,7 +216,7 @@ class TestWriteMeta:
 
     def test_write_meta_validate_false_still_formats_correctly(self, tmp_path: Path) -> None:
         """write_meta(validate=False) produces sorted keys and trailing newline."""
-        meta = {"zzz": "last", "aaa": "first", "mission": "documentation"}
+        meta = {"zzz": "last", "aaa": "first", "mission_type": "documentation"}
         write_meta(tmp_path, meta, validate=False)
 
         content = (tmp_path / "meta.json").read_text(encoding="utf-8")
@@ -226,7 +226,7 @@ class TestWriteMeta:
 
     def test_write_meta_validate_true_rejects_minimal(self, tmp_path: Path) -> None:
         """write_meta(validate=True) (default) rejects meta missing required fields."""
-        minimal = {"mission": "documentation"}
+        minimal = {"mission_type": "documentation"}
         with pytest.raises(ValueError, match="Invalid meta.json"):
             write_meta(tmp_path, minimal)
 
@@ -367,8 +367,7 @@ class TestRecordAcceptance:
     def test_bounded_history_cap(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
         meta["acceptance_history"] = [
-            {"accepted_at": f"2026-01-{i:02d}T00:00:00+00:00", "accepted_by": f"agent{i}", "acceptance_mode": "auto"}
-            for i in range(1, HISTORY_CAP + 1)
+            {"accepted_at": f"2026-01-{i:02d}T00:00:00+00:00", "accepted_by": f"agent{i}", "acceptance_mode": "auto"} for i in range(1, HISTORY_CAP + 1)
         ]
         assert len(meta["acceptance_history"]) == HISTORY_CAP
         _write_meta_file(tmp_path, meta)
@@ -448,10 +447,7 @@ class TestRecordMerge:
 
     def test_bounded_merge_history(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
-        meta["merge_history"] = [
-            {"merged_at": f"2026-01-{i:02d}T00:00:00+00:00", "merged_by": f"agent{i}"}
-            for i in range(1, HISTORY_CAP + 1)
-        ]
+        meta["merge_history"] = [{"merged_at": f"2026-01-{i:02d}T00:00:00+00:00", "merged_by": f"agent{i}"} for i in range(1, HISTORY_CAP + 1)]
         _write_meta_file(tmp_path, meta)
 
         result = record_merge(
@@ -731,7 +727,7 @@ class TestVcsLockStandardFormat:
         data = load_meta(tmp_path)
         assert data is not None
         assert data["custom_field"] == "should survive"
-        assert data["feature_number"] == "051"
+        assert data["mission_number"] == "051"
 
 
 class TestRecordMergeBoundedHistory:
@@ -824,7 +820,7 @@ class TestFeatureCreationTrailingNewline:
         assert content.endswith(b"\n")
         # Must be valid JSON
         parsed = json.loads(content)
-        assert parsed["feature_number"] == "051"
+        assert parsed["mission_number"] == "051"
 
     def test_feature_creation_with_documentation_state(self, tmp_path: Path) -> None:
         """set_documentation_state() after write_meta() keeps trailing newline."""
@@ -860,7 +856,7 @@ class TestFeatureCreationTrailingNewline:
 class TestMergeToleranceMalformedMeta:
     """Verify _prepare_merge_metadata and _finalize_merge_metadata tolerate
     malformed meta.json without raising, preserving the old error-tolerance
-    that existed before the migration to feature_metadata.py.
+    that existed before the migration to mission_metadata.py.
 
     The merge operation itself must not fail due to metadata issues -- these
     functions are called AFTER git merge has already succeeded.
@@ -978,17 +974,17 @@ class TestCompatibilityWrappers:
     """Verify upgrade/feature_meta.py wrappers delegate to feature_metadata."""
 
     def test_write_feature_meta_delegates_to_write_meta(self, tmp_path: Path) -> None:
-        """write_feature_meta() wrapper delegates to feature_metadata.write_meta()."""
+        """write_feature_meta() wrapper delegates to mission_metadata.write_meta()."""
         from specify_cli.upgrade.feature_meta import write_feature_meta
 
         feature_dir = tmp_path / "001-test"
         feature_dir.mkdir()
         meta = {
-            "feature_number": "001",
+            "mission_number": "001",
             "slug": "001-test",
-            "feature_slug": "001-test",
+            "mission_slug": "001-test",
             "friendly_name": "Test",
-            "mission": "software-dev",
+            "mission_type": "software-dev",
             "target_branch": "main",
             "created_at": "2026-01-01T00:00:00+00:00",
         }
@@ -1001,18 +997,18 @@ class TestCompatibilityWrappers:
         parsed = json.loads(content)
         assert list(parsed.keys()) == sorted(parsed.keys())
         # All fields present
-        assert parsed["feature_number"] == "001"
+        assert parsed["mission_number"] == "001"
 
     def test_load_feature_meta_delegates_to_load_meta(self, tmp_path: Path) -> None:
-        """load_feature_meta() wrapper delegates to feature_metadata.load_meta()."""
+        """load_feature_meta() wrapper delegates to mission_metadata.load_meta()."""
         from specify_cli.upgrade.feature_meta import load_feature_meta
 
         feature_dir = tmp_path / "001-test"
         feature_dir.mkdir()
-        (feature_dir / "meta.json").write_text('{"feature_number": "001"}', encoding="utf-8")
+        (feature_dir / "meta.json").write_text('{"mission_number": "001"}', encoding="utf-8")
 
         result = load_feature_meta(feature_dir)
-        assert result == {"feature_number": "001"}
+        assert result == {"mission_number": "001"}
 
     def test_load_feature_meta_returns_none_when_missing(self, tmp_path: Path) -> None:
         """load_feature_meta() returns None when meta.json does not exist."""
@@ -1036,12 +1032,12 @@ class TestCompatibilityWrappers:
         feature_dir = tmp_path / "partial"
         feature_dir.mkdir()
         # Partial meta missing many required fields -- old code accepted this
-        partial_meta = {"mission": "software-dev"}
+        partial_meta = {"mission_type": "software-dev"}
         write_feature_meta(feature_dir, partial_meta)
 
         content = (feature_dir / "meta.json").read_text(encoding="utf-8")
         parsed = json.loads(content)
-        assert parsed == {"mission": "software-dev"}
+        assert parsed == {"mission_type": "software-dev"}
 
     def test_migration_import_path_still_works(self) -> None:
         """The import path used by m_2_0_6_consistency_sweep.py still resolves."""

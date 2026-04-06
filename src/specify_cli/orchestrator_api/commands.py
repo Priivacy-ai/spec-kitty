@@ -79,12 +79,14 @@ class _JSONErrorGroup(TyperGroup):
 
     def _emit_error(self, message: str) -> None:
         """Emit a USAGE_ERROR JSON envelope to stdout."""
-        _emit(make_envelope(
-            command="unknown",
-            success=False,
-            data={"message": message},
-            error_code="USAGE_ERROR",
-        ))
+        _emit(
+            make_envelope(
+                command="unknown",
+                success=False,
+                data={"message": message},
+                error_code="USAGE_ERROR",
+            )
+        )
 
     def make_context(self, info_name, args, parent=None, **extra):
         """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
@@ -471,11 +473,13 @@ def feature_state(
     envelope = make_envelope(
         command="feature-state",
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "summary": snapshot.summary,
-            "work_packages": work_packages,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "summary": snapshot.summary,
+                "work_packages": work_packages,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -515,10 +519,7 @@ def list_ready(
             continue
 
         # Check all dependencies are done
-        all_deps_done = all(
-            wp_states.get(dep, {}).get("lane") == "done"
-            for dep in deps
-        )
+        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
 
         ready_wps.append(
             {
@@ -534,10 +535,12 @@ def list_ready(
     envelope = make_envelope(
         command="list-ready",
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "ready_work_packages": ready_wps,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "ready_work_packages": ready_wps,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -664,16 +667,18 @@ def start_implementation(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane_reported,
-            "to_lane": "in_progress",
-            "workspace_path": workspace_path,
-            "prompt_path": prompt_path,
-            "policy_metadata_recorded": True,
-            "no_op": no_op,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "wp_id": wp,
+                "from_lane": from_lane_reported,
+                "to_lane": "in_progress",
+                "workspace_path": workspace_path,
+                "prompt_path": prompt_path,
+                "policy_metadata_recorded": True,
+                "no_op": no_op,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -746,14 +751,16 @@ def start_review(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane,
-            "to_lane": "in_progress",
-            "prompt_path": prompt_path,
-            "policy_metadata_recorded": True,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "wp_id": wp,
+                "from_lane": from_lane,
+                "to_lane": "in_progress",
+                "prompt_path": prompt_path,
+                "policy_metadata_recorded": True,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -842,13 +849,15 @@ def transition(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane,
-            "to_lane": to_lane,
-            "policy_metadata_recorded": policy_dict is not None,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "wp_id": wp,
+                "from_lane": from_lane,
+                "to_lane": to_lane,
+                "policy_metadata_recorded": policy_dict is not None,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -904,11 +913,13 @@ def append_history(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "history_entry_id": entry_id,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "wp_id": wp,
+                "history_entry_id": entry_id,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -938,11 +949,7 @@ def accept_feature(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"
-    ]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
     if incomplete:
         _fail(
             cmd,
@@ -953,7 +960,7 @@ def accept_feature(
         return
 
     # Write acceptance record via centralized metadata writer
-    from specify_cli.feature_metadata import record_acceptance
+    from specify_cli.mission_metadata import record_acceptance
 
     accepted_at = datetime.now(timezone.utc).isoformat()
     record_acceptance(
@@ -965,12 +972,14 @@ def accept_feature(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "accepted": True,
-            "mode": "auto",
-            "accepted_at": accepted_at,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "accepted": True,
+                "mode": "auto",
+                "accepted_at": accepted_at,
+            }
+        ),
     )
     _emit(envelope)
 
@@ -1044,13 +1053,15 @@ def merge_feature(
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "merged": True,
-            "target_branch": preflight.target_branch,
-            "strategy": strategy,
-            "worktree_removed": False,
-        }),
+        data=with_tracked_mission_slug_aliases(
+            {
+                "feature_slug": feature,
+                "merged": True,
+                "target_branch": preflight.target_branch,
+                "strategy": strategy,
+                "worktree_removed": False,
+            }
+        ),
     )
     _emit(envelope)
 

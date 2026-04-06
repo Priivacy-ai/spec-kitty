@@ -31,7 +31,7 @@ from typing import Any
 
 import ulid as _ulid_mod
 
-from specify_cli.feature_metadata import load_meta
+from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
 
 from .models import (
@@ -49,6 +49,7 @@ from . import reducer as _reducer
 logger = logging.getLogger(__name__)
 
 _LEGACY_LANE_FIELD = "lane"
+
 
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
@@ -96,23 +97,12 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
     """
     review_data = evidence.get("review")
     if not isinstance(review_data, dict):
-        raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
-        )
+        raise TransitionError("Moving to done requires evidence with review.reviewer review.verdict, and review.reference")
     reviewer = review_data.get("reviewer")
     verdict = review_data.get("verdict")
     reference = review_data.get("reference")
-    if (
-        not reviewer
-        or not verdict
-        or not reference
-        or not str(reference).strip()
-    ):
-        raise TransitionError(
-            "Moving to done requires evidence with review.reviewer "
-            "review.verdict, and review.reference"
-        )
+    if not reviewer or not verdict or not reference or not str(reference).strip():
+        raise TransitionError("Moving to done requires evidence with review.reviewer review.verdict, and review.reference")
 
     review_approval = ReviewApproval(
         reviewer=reviewer,
@@ -120,12 +110,8 @@ def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
         reference=str(reference),
     )
 
-    repos = [
-        RepoEvidence(**r) for r in evidence.get("repos", [])
-    ]
-    verification = [
-        VerificationResult(**v) for v in evidence.get("verification", [])
-    ]
+    repos = [RepoEvidence(**r) for r in evidence.get("repos", [])]
+    verification = [VerificationResult(**v) for v in evidence.get("verification", [])]
 
     return DoneEvidence(
         review=review_approval,
@@ -188,11 +174,7 @@ def _find_wp_file(feature_dir: Path, wp_id: str) -> Path | None:
         return None
 
     wp_pattern = re.compile(rf"^{re.escape(wp_id)}(?:[-_.]|\.md$)")
-    matches = [
-        path
-        for path in tasks_dir.glob("*.md")
-        if path.name.lower() != "readme.md" and wp_pattern.match(path.name)
-    ]
+    matches = [path for path in tasks_dir.glob("*.md") if path.name.lower() != "readme.md" and wp_pattern.match(path.name)]
     if len(matches) != 1:
         if len(matches) > 1:
             logger.warning(
@@ -306,10 +288,7 @@ def emit_status_transition(
     feature_dir = feature_dir or mission_dir
     feature_slug = feature_slug or mission_slug
     if feature_dir is None or feature_slug is None or wp_id is None or to_lane is None or actor is None:
-        raise TypeError(
-            "emit_status_transition requires feature_dir/mission_dir, "
-            "feature_slug/mission_slug, wp_id, to_lane, and actor"
-        )
+        raise TypeError("emit_status_transition requires feature_dir/mission_dir, feature_slug/mission_slug, wp_id, to_lane, and actor")
 
     raw_to_lane = to_lane.strip().lower()
 
@@ -322,20 +301,10 @@ def emit_status_transition(
     if workspace_context is None:
         context_root = repo_root if repo_root is not None else feature_dir
         workspace_context = f"{execution_mode}:{context_root}"
-    if (
-        subtasks_complete is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
+    if subtasks_complete is None and from_lane == "in_progress" and resolved_lane == "for_review":
         subtasks_complete = _infer_subtasks_complete(feature_dir, wp_id)
-    if (
-        implementation_evidence_present is None
-        and from_lane == "in_progress"
-        and resolved_lane == "for_review"
-    ):
-        implementation_evidence_present = _infer_implementation_evidence(
-            feature_dir, wp_id
-        )
+    if implementation_evidence_present is None and from_lane == "in_progress" and resolved_lane == "for_review":
+        implementation_evidence_present = _infer_implementation_evidence(feature_dir, wp_id)
 
     if _legacy_alias_collapses_to_current_lane(raw_to_lane, resolved_lane, from_lane):
         logger.info(
@@ -408,8 +377,7 @@ def emit_status_transition(
         _reducer.materialize(feature_dir)
     except Exception:
         logger.warning(
-            "Materialization failed after event %s was persisted; "
-            "run 'status materialize' to recover",
+            "Materialization failed after event %s was persisted; run 'status materialize' to recover",
             event.event_id,
         )
 
@@ -426,7 +394,9 @@ def emit_status_transition(
             )
 
             trigger_feature_dossier_sync_if_enabled(
-                feature_dir, feature_slug, repo_root,
+                feature_dir,
+                feature_slug,
+                repo_root,
             )
         except Exception:
             pass  # Never block status transitions
