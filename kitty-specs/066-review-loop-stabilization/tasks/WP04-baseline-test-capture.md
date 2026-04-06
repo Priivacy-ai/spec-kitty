@@ -19,8 +19,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: "48037"
-agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "51798"
+agent: "claude:opus-4-6:reviewer:reviewer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -329,3 +329,4 @@ This WP modifies `workflow.py` in two places:
 
 - 2026-04-06T16:42:33Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48037 – Started implementation via action command
 - 2026-04-06T16:49:35Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48037 – Ready for review: baseline test capture implemented with JUnit XML parsing, diff_baseline, workflow.py hooks, and 91% test coverage (30 tests)
+- 2026-04-06T16:50:13Z – claude:opus-4-6:reviewer:reviewer – shell_pid=51798 – Started review via action command
