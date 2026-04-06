@@ -43,8 +43,8 @@ This command uses spec-kitty CLI.
 """
     (commands_dir / "test-command.md").write_text(command_content)
 
-    # Test: Get referenced scripts — pass mission_key explicitly
-    manifest = FileManifest(kittify_dir, mission_key="software-dev")
+    # Test: Get referenced scripts — pass mission_type explicitly
+    manifest = FileManifest(kittify_dir, mission_type="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     # Assert: CLI commands should NOT be treated as scripts
@@ -83,8 +83,8 @@ sh: .kittify/scripts/helper.sh
 """
     (commands_dir / "test-command.md").write_text(command_content)
 
-    # Test — pass mission_key explicitly
-    manifest = FileManifest(kittify_dir, mission_key="software-dev")
+    # Test — pass mission_type explicitly
+    manifest = FileManifest(kittify_dir, mission_type="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     # Assert: Actual scripts SHOULD be included (platform-specific)
@@ -126,7 +126,7 @@ ps: python -c "print('test')"
 """
     (commands_dir / "python-cmd.md").write_text(command_content2)
 
-    manifest = FileManifest(kittify_dir, mission_key="software-dev")
+    manifest = FileManifest(kittify_dir, mission_type="software-dev")
     scripts = manifest._get_referenced_scripts()
 
     assert "git" not in scripts
@@ -150,8 +150,8 @@ def test_manifest_no_active_mission_attribute(tmp_path: Path):
     )
 
 
-def test_manifest_without_mission_key_has_no_mission_dir(tmp_path: Path):
-    """When no mission_key is provided, mission_dir should be None."""
+def test_manifest_without_mission_type_has_no_mission_dir(tmp_path: Path):
+    """When no mission_type is provided, mission_dir should be None."""
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
 
@@ -159,10 +159,10 @@ def test_manifest_without_mission_key_has_no_mission_dir(tmp_path: Path):
     assert manifest.mission_dir is None
 
 
-def test_manifest_with_explicit_mission_key(tmp_path: Path):
-    """When mission_key is provided, mission_dir should point to that mission."""
+def test_manifest_with_explicit_mission_type(tmp_path: Path):
+    """When mission_type is provided, mission_dir should point to that mission."""
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir()
 
-    manifest = FileManifest(kittify_dir, mission_key="research")
+    manifest = FileManifest(kittify_dir, mission_type="research")
     assert manifest.mission_dir == kittify_dir / "missions" / "research"

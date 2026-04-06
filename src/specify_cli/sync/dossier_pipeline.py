@@ -82,7 +82,7 @@ def sync_feature_dossier(
         if artifact.is_present:
             try:
                 result = emit_artifact_indexed(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     artifact_key=artifact.artifact_key,
                     artifact_class=artifact.artifact_class,
                     relative_path=artifact.relative_path,
@@ -104,7 +104,7 @@ def sync_feature_dossier(
                 from specify_cli.dossier.events import emit_artifact_missing
 
                 result = emit_artifact_missing(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     artifact_key=artifact.artifact_key,
                     artifact_class=artifact.artifact_class,
                     expected_path_pattern=artifact.relative_path,
@@ -128,7 +128,7 @@ def sync_feature_dossier(
         dossier.latest_snapshot = snapshot.model_dump(mode="json")
 
         result = emit_snapshot_computed(
-            feature_slug=namespace_ref.feature_slug,
+            mission_slug=namespace_ref.mission_slug,
             parity_hash_sha256=snapshot.parity_hash_sha256,
             total_artifacts=snapshot.total_artifacts,
             required_artifacts=snapshot.required_artifacts,
@@ -148,17 +148,17 @@ def sync_feature_dossier(
     if snapshot is not None and repo_root is not None and project_identity is not None:
         try:
             has_drift, drift_info = detect_drift(
-                feature_slug=namespace_ref.feature_slug,
+                mission_slug=namespace_ref.mission_slug,
                 current_snapshot=snapshot,
                 repo_root=repo_root,
                 project_identity=project_identity,
                 target_branch=namespace_ref.target_branch,
-                mission_key=namespace_ref.mission_key,
+                mission_type=namespace_ref.mission_type,
                 manifest_version=namespace_ref.manifest_version,
             )
             if has_drift and drift_info is not None:
                 result = emit_parity_drift_detected(
-                    feature_slug=namespace_ref.feature_slug,
+                    mission_slug=namespace_ref.mission_slug,
                     local_parity_hash=drift_info["local_parity_hash"],
                     baseline_parity_hash=drift_info["baseline_parity_hash"],
                     missing_in_local=drift_info["missing_in_local"],
@@ -188,14 +188,14 @@ def sync_feature_dossier(
 
     # Per-artifact result logging (FR-012)
     if body_outcomes:
-        log_upload_outcomes(body_outcomes, namespace_ref.feature_slug, logger)
+        log_upload_outcomes(body_outcomes, namespace_ref.mission_slug, logger)
 
     # Summary logging
     queued = sum(1 for o in body_outcomes if o.status == UploadStatus.QUEUED)
     skipped = sum(1 for o in body_outcomes if o.status == UploadStatus.SKIPPED)
     logger.info(
         "Dossier sync for %s: %d events emitted, %d bodies queued, %d skipped",
-        namespace_ref.feature_slug, events_emitted, queued, skipped,
+        namespace_ref.mission_slug, events_emitted, queued, skipped,
     )
 
     return DossierSyncResult(
@@ -208,7 +208,7 @@ def sync_feature_dossier(
 
 def trigger_feature_dossier_sync_if_enabled(
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path,
     mission_type: str = "software-dev",
     step_id: str | None = None,
@@ -224,7 +224,7 @@ def trigger_feature_dossier_sync_if_enabled(
             return None
 
         from specify_cli.core.paths import get_feature_target_branch
-        from specify_cli.mission import get_feature_mission_key
+        from specify_cli.mission import get_mission_type
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
         from specify_cli.sync.project_identity import ensure_identity
         from specify_cli.sync.runtime import get_runtime
@@ -235,15 +235,15 @@ def trigger_feature_dossier_sync_if_enabled(
             logger.warning("No project UUID; skipping dossier sync")
             return None
 
-        target_branch = get_feature_target_branch(repo_root, feature_slug)
-        resolved_mission = get_feature_mission_key(feature_dir) or mission_type
+        target_branch = get_feature_target_branch(repo_root, mission_slug)
+        resolved_mission = get_mission_type(feature_dir) or mission_type
         manifest_version = resolve_manifest_version(resolved_mission)
 
         namespace_ref = NamespaceRef.from_context(
             identity=identity,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch=target_branch,
-            mission_key=resolved_mission,
+            mission_type=resolved_mission,
             manifest_version=manifest_version,
         )
 
@@ -263,5 +263,5 @@ def trigger_feature_dossier_sync_if_enabled(
             project_identity=identity,
         )
     except Exception as e:
-        logger.warning("Dossier sync failed for %s: %s", feature_slug, e)
+        logger.warning("Dossier sync failed for %s: %s", mission_slug, e)
         return None

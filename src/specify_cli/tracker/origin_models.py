@@ -53,6 +53,6 @@ class MissionFromTicketResult:
     """
 
     feature_dir: Path
-    feature_slug: str
+    mission_slug: str
     origin_ticket: dict[str, str]
     event_emitted: bool

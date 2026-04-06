@@ -24,9 +24,9 @@ class TestParseRawArgs:
         result = _parse_raw_args("WP03 --feature 057-cleanup")
         assert result["wp_code"] == "WP03"
 
-    def test_extracts_feature_slug(self) -> None:
+    def test_extracts_mission_slug(self) -> None:
         result = _parse_raw_args("WP01 --feature 057-canonical-context")
-        assert result["feature_slug"] == "057-canonical-context"
+        assert result["mission_slug"] == "057-canonical-context"
 
     def test_wp_code_case_normalised(self) -> None:
         result = _parse_raw_args("wp05")
@@ -38,12 +38,12 @@ class TestParseRawArgs:
 
     def test_missing_feature_returns_none(self) -> None:
         result = _parse_raw_args("WP01")
-        assert result["feature_slug"] is None
+        assert result["mission_slug"] is None
 
     def test_empty_string(self) -> None:
         result = _parse_raw_args("")
         assert result["wp_code"] is None
-        assert result["feature_slug"] is None
+        assert result["mission_slug"] is None
 
     def test_first_wp_wins(self) -> None:
         result = _parse_raw_args("WP01 WP02 WP03")
@@ -66,7 +66,7 @@ def _make_mock_context(**kwargs) -> MissionContext:
         "mission_id": "057-test",
         "work_package_id": "WP01",
         "wp_code": "WP01",
-        "feature_slug": "057-test",
+        "mission_slug": "057-test",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
         "authoritative_ref": "kitty/mission-057-test-lane-a",
@@ -107,7 +107,7 @@ class TestShimDispatch:
             mock_resolve.assert_called_once_with(
                 token="ctx-01EXISTING",
                 wp_code=None,
-                feature_slug=None,
+                mission_slug=None,
                 agent="claude",
                 repo_root=tmp_path,
             )
@@ -129,7 +129,7 @@ class TestShimDispatch:
             mock_resolve.assert_called_once_with(
                 token=None,
                 wp_code="WP03",
-                feature_slug="057-canonical-context",
+                mission_slug="057-canonical-context",
                 agent="codex",
                 repo_root=tmp_path,
             )

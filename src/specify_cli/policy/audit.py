@@ -4,7 +4,7 @@ Policy overrides (risk, commit guard, merge gate) are feature-level or
 merge-level actions that do not map to WP lane transitions. They are
 stored in a dedicated append-only JSONL file at:
 
-    kitty-specs/{feature_slug}/policy-audit.jsonl
+    kitty-specs/{mission_slug}/policy-audit.jsonl
 
 This log is read-only evidence for governance. It does not drive state.
 """
@@ -34,7 +34,7 @@ class PolicyAuditEvent:
 
     event_id: str
     event_type: str  # "risk_override" | "commit_guard_override" | "merge_gate_override"
-    feature_slug: str
+    mission_slug: str
     actor: str
     reason: str
     details: dict[str, Any]
@@ -51,7 +51,7 @@ class PolicyAuditEvent:
 
 def create_audit_event(
     event_type: str,
-    feature_slug: str,
+    mission_slug: str,
     actor: str,
     reason: str,
     details: dict[str, Any] | None = None,
@@ -60,7 +60,7 @@ def create_audit_event(
     return PolicyAuditEvent(
         event_id=_generate_ulid(),
         event_type=event_type,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         actor=actor,
         reason=reason,
         details=details or {},

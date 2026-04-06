@@ -10,7 +10,7 @@ are free of dev-specific content that would break consumer projects:
   - No YAML frontmatter blocks (the asset generator adds its own)
   - Planning-workflow templates use "project root checkout" terminology
   - tasks.md contains WP ownership metadata guidance fields
-  - All templates include --feature guidance
+  - All templates include --mission guidance
 
 WP06: T026
 """
@@ -133,7 +133,7 @@ def test_template_minimum_length(command: str) -> None:
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_057_feature_slug(command: str) -> None:
+def test_no_057_mission_slug(command: str) -> None:
     """Templates must not contain the 057- development slug."""
     content = _template_content(command)
     assert "057-" not in content, (
@@ -142,7 +142,7 @@ def test_no_057_feature_slug(command: str) -> None:
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_dev_specific_feature_slugs(command: str) -> None:
+def test_no_dev_specific_mission_slugs(command: str) -> None:
     """Templates must not contain the 057- or 058- dev-time feature slugs.
 
     The 057- and 058- slugs are development artifacts that leaked from source
@@ -279,17 +279,17 @@ def test_no_yaml_frontmatter(command: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T026-h: --feature guidance present
+# T026-h: --mission guidance present
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
 def test_has_feature_flag_guidance(command: str) -> None:
-    """Every template must include a note about passing --feature <slug>."""
+    """Every template must include a note about passing --mission <slug>."""
     content = _template_content(command)
-    assert "--feature" in content, (
-        f"{command}.md missing '--feature' guidance - add: "
-        f"'In repos with multiple features, always pass `--feature <slug>` to "
+    assert "--mission" in content, (
+        f"{command}.md missing '--mission' guidance - add: "
+        f"'In repos with multiple missions, always pass `--mission <slug>` to "
         f"every spec-kitty command.'"
     )
 

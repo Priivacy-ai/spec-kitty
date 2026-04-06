@@ -35,12 +35,12 @@ def _make_git_repo(path):
     )
 
 
-def _make_manifest(feature_slug="010-feat", target_branch="main"):
+def _make_manifest(mission_slug="010-feat", target_branch="main"):
     return LanesManifest(
         version=1,
-        feature_slug=feature_slug,
-        mission_id=feature_slug,
-        mission_branch=f"kitty/mission-{feature_slug}",
+        mission_slug=mission_slug,
+        mission_id=mission_slug,
+        mission_branch=f"kitty/mission-{mission_slug}",
         target_branch=target_branch,
         lanes=[
             ExecutionLane(

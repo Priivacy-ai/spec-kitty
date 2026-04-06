@@ -41,7 +41,7 @@ class GateResult:
 class MergeGateEvaluation:
     """Combined result of all gate evaluations."""
 
-    feature_slug: str
+    mission_slug: str
     evaluated_at: str
     gates: list[GateResult] = field(default_factory=list)
 
@@ -59,7 +59,7 @@ class MergeGateEvaluation:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "evaluated_at": self.evaluated_at,
             "overall_pass": self.overall_pass,
             "gates": [
@@ -77,7 +77,7 @@ class MergeGateEvaluation:
 
 def evaluate_merge_gates(
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_ids: list[str],
     policy: MergeGateConfig,
     repo_root: Path,
@@ -85,8 +85,8 @@ def evaluate_merge_gates(
     """Evaluate all merge gates for a feature.
 
     Args:
-        feature_dir: Path to kitty-specs/{feature_slug}/.
-        feature_slug: Feature identifier.
+        feature_dir: Path to kitty-specs/{mission_slug}/.
+        mission_slug: Feature identifier.
         wp_ids: WP IDs being merged.
         policy: Merge gate configuration.
         repo_root: Repository root.
@@ -95,7 +95,7 @@ def evaluate_merge_gates(
         MergeGateEvaluation with per-gate results.
     """
     evaluation = MergeGateEvaluation(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         evaluated_at=datetime.now(timezone.utc).isoformat(),
     )
 

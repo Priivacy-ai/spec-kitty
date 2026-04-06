@@ -40,16 +40,16 @@ class TestBaselineKey:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert key.project_uuid == "550e8400-e29b-41d4-a716-446655440000"
         assert key.node_id == "abcdef123456"
-        assert key.feature_slug == "042-local-mission-dossier"
+        assert key.mission_slug == "042-local-mission-dossier"
         assert key.target_branch == "2.x"
-        assert key.mission_key == "software-dev"
+        assert key.mission_type == "software-dev"
         assert key.manifest_version == "1"
 
     def test_baseline_key_to_dict(self):
@@ -57,17 +57,17 @@ class TestBaselineKey:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         d = key.to_dict()
         assert d["project_uuid"] == "550e8400-e29b-41d4-a716-446655440000"
         assert d["node_id"] == "abcdef123456"
-        assert d["feature_slug"] == "042-local-mission-dossier"
+        assert d["mission_slug"] == "042-local-mission-dossier"
         assert d["target_branch"] == "2.x"
-        assert d["mission_key"] == "software-dev"
+        assert d["mission_type"] == "software-dev"
         assert d["manifest_version"] == "1"
 
     def test_baseline_key_compute_hash(self):
@@ -75,9 +75,9 @@ class TestBaselineKey:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         hash_val = key.compute_hash()
@@ -90,17 +90,17 @@ class TestBaselineKey:
         key1 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         key2 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert key1.compute_hash() == key2.compute_hash()
@@ -110,17 +110,17 @@ class TestBaselineKey:
         key1 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         key2 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440001",  # Different UUID
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert key1.compute_hash() != key2.compute_hash()
@@ -130,17 +130,17 @@ class TestBaselineKey:
         key1 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         key2 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert key1 == key2
@@ -150,17 +150,17 @@ class TestBaselineKey:
         key1 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         key2 = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="main",  # Different branch
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert key1 != key2
@@ -174,9 +174,9 @@ class TestBaselineSnapshot:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -194,9 +194,9 @@ class TestBaselineSnapshot:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -220,9 +220,9 @@ class TestBaselineSnapshot:
             "baseline_key": {
                 "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
                 "node_id": "abcdef123456",
-                "feature_slug": "042-local-mission-dossier",
+                "mission_slug": "042-local-mission-dossier",
                 "target_branch": "2.x",
-                "mission_key": "software-dev",
+                "mission_type": "software-dev",
                 "manifest_version": "1",
             },
             "baseline_key_hash": "baseline_hash",
@@ -240,9 +240,9 @@ class TestBaselineSnapshot:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot1 = BaselineSnapshot(
@@ -263,13 +263,13 @@ class TestBaselinePersistence:
     """Test baseline persistence to JSON file."""
 
     def test_save_baseline_creates_directory(self, tmp_path):
-        """save_baseline() creates .kittify/dossiers/{feature_slug}/ directory."""
+        """save_baseline() creates .kittify/dossiers/{mission_slug}/ directory."""
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -294,9 +294,9 @@ class TestBaselinePersistence:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -317,16 +317,16 @@ class TestBaselinePersistence:
         with open(baseline_file) as f:
             data = json.load(f)
         assert data["parity_hash_sha256"] == "a" * 64
-        assert data["baseline_key"]["feature_slug"] == "042-local-mission-dossier"
+        assert data["baseline_key"]["mission_slug"] == "042-local-mission-dossier"
 
     def test_load_baseline_reads_json(self, tmp_path):
         """load_baseline() reads file without errors."""
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -340,7 +340,7 @@ class TestBaselinePersistence:
         loaded = load_baseline("042-local-mission-dossier", tmp_path)
         assert loaded is not None
         assert loaded.parity_hash_sha256 == "a" * 64
-        assert loaded.baseline_key.feature_slug == "042-local-mission-dossier"
+        assert loaded.baseline_key.mission_slug == "042-local-mission-dossier"
 
     def test_load_baseline_missing_file_returns_none(self, tmp_path):
         """load_baseline() returns None if file not found."""
@@ -352,9 +352,9 @@ class TestBaselinePersistence:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot1 = BaselineSnapshot(
@@ -379,9 +379,9 @@ class TestBaselineAcceptance:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -394,9 +394,9 @@ class TestBaselineAcceptance:
         current_key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         accepted, reason = accept_baseline(snapshot, current_key)
@@ -408,9 +408,9 @@ class TestBaselineAcceptance:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -423,9 +423,9 @@ class TestBaselineAcceptance:
         current_key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440001",  # Different
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         accepted, reason = accept_baseline(snapshot, current_key)
@@ -437,9 +437,9 @@ class TestBaselineAcceptance:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -452,9 +452,9 @@ class TestBaselineAcceptance:
         current_key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="main",  # Different branch
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         accepted, reason = accept_baseline(snapshot, current_key)
@@ -466,9 +466,9 @@ class TestBaselineAcceptance:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -481,9 +481,9 @@ class TestBaselineAcceptance:
         current_key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="2",  # Different version
         )
         accepted, reason = accept_baseline(snapshot, current_key)
@@ -495,9 +495,9 @@ class TestBaselineAcceptance:
         key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="abcdef123456",
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         snapshot = BaselineSnapshot(
@@ -510,9 +510,9 @@ class TestBaselineAcceptance:
         current_key = BaselineKey(
             project_uuid="550e8400-e29b-41d4-a716-446655440000",
             node_id="different_node",  # Different machine
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         accepted, reason = accept_baseline(snapshot, current_key)
@@ -533,9 +533,9 @@ class TestDriftDetection:
         key = BaselineKey(
             project_uuid=str(project_identity.project_uuid),
             node_id=project_identity.node_id,
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         baseline = BaselineSnapshot(
@@ -548,16 +548,16 @@ class TestDriftDetection:
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
 
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         has_drift, drift_info = detect_drift(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert has_drift is False
@@ -573,9 +573,9 @@ class TestDriftDetection:
         key = BaselineKey(
             project_uuid=str(project_identity.project_uuid),
             node_id=project_identity.node_id,
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         baseline = BaselineSnapshot(
@@ -588,16 +588,16 @@ class TestDriftDetection:
         save_baseline("042-local-mission-dossier", baseline, tmp_path)
 
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="b" * 64,  # Different hash
         )
         has_drift, drift_info = detect_drift(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert has_drift is True
@@ -613,16 +613,16 @@ class TestDriftDetection:
             node_id="abcdef123456",
         )
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         has_drift, drift_info = detect_drift(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert has_drift is False
@@ -639,9 +639,9 @@ class TestDriftDetection:
         old_key = BaselineKey(
             project_uuid=str(project_identity.project_uuid),
             node_id=project_identity.node_id,
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="main",  # Old branch
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         baseline = BaselineSnapshot(
@@ -655,16 +655,16 @@ class TestDriftDetection:
 
         # Snapshot with different hash but new branch
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="b" * 64,
         )
         has_drift, drift_info = detect_drift(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",  # New branch
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         # Should return no drift because baseline is rejected
@@ -683,16 +683,16 @@ class TestCaptureBaseline:
             node_id="abcdef123456",
         )
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         baseline = capture_baseline(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert baseline is not None
@@ -707,16 +707,16 @@ class TestCaptureBaseline:
             node_id="abcdef123456",
         )
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         capture_baseline(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         baseline_file = (
@@ -736,16 +736,16 @@ class TestCaptureBaseline:
             node_id="abcdef123456",
         )
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         baseline = capture_baseline(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         expected_hash = baseline.baseline_key.compute_hash()
@@ -759,17 +759,17 @@ class TestCaptureBaseline:
             node_id="abcdef123456",
         )
         snapshot = MissionDossierSnapshot(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
         before = datetime.utcnow()
         baseline = capture_baseline(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
             repo_root=tmp_path,
             project_identity=project_identity,
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         after = datetime.utcnow()
@@ -787,15 +787,15 @@ class TestComputeBaselineKey:
             node_id="abcdef123456",
         )
         key = compute_baseline_key(
-            feature_slug="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
             project_identity=project_identity,
         )
         assert key.project_uuid == str(project_identity.project_uuid)
         assert key.node_id == project_identity.node_id
-        assert key.feature_slug == "042-local-mission-dossier"
+        assert key.mission_slug == "042-local-mission-dossier"
         assert key.target_branch == "2.x"
-        assert key.mission_key == "software-dev"
+        assert key.mission_type == "software-dev"
         assert key.manifest_version == "1"

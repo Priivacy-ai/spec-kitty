@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.git_ops import resolve_primary_branch
-from specify_cli.feature_metadata import load_meta, write_meta
+from specify_cli.mission_metadata import load_meta, write_meta
 
 _BRANCH_PATTERNS = (
     re.compile(r"(?im)^\*\*target branch\*\*:\s*`?([^\n`]+)`?\s*$"),
@@ -92,7 +92,7 @@ def infer_mission(
 ) -> str:
     """Infer a feature mission when ``meta.json`` is missing."""
     if existing_meta:
-        mission = str(existing_meta.get("mission", "")).strip()
+        mission = str(existing_meta.get("mission_type", "")).strip()
         if mission:
             return mission
 
@@ -107,11 +107,7 @@ def infer_created_at(
     now: datetime | None = None,
 ) -> str:
     """Infer a stable ``created_at`` timestamp from the earliest file mtime."""
-    timestamps = [
-        path.stat().st_mtime
-        for path in feature_dir.rglob("*")
-        if path.is_file()
-    ]
+    timestamps = [path.stat().st_mtime for path in feature_dir.rglob("*") if path.is_file()]
     if feature_dir.exists():
         timestamps.append(feature_dir.stat().st_mtime)
 
@@ -135,17 +131,17 @@ def build_baseline_feature_meta(
 
     _set_if_blank(
         meta,
-        "feature_number",
+        "mission_number",
         feature_number if feature_number.isdigit() else "",
     )
     _set_if_blank(meta, "slug", feature_slug)
-    _set_if_blank(meta, "feature_slug", feature_slug)
+    _set_if_blank(meta, "mission_slug", feature_slug)
     _set_if_blank(
         meta,
         "friendly_name",
         slug_tail.replace("-", " ").strip() or feature_slug,
     )
-    _set_if_blank(meta, "mission", infer_mission(feature_dir, existing_meta=meta))
+    _set_if_blank(meta, "mission_type", infer_mission(feature_dir, existing_meta=meta))
     _set_if_blank(
         meta,
         "target_branch",

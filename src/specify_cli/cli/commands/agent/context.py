@@ -29,25 +29,25 @@ console = Console()
 
 
 def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
-    """Find the feature directory from an explicit feature slug.
+    """Find the mission directory from an explicit mission slug.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
-        explicit_feature: Feature slug from --feature flag (required)
+        explicit_feature: Mission slug provided explicitly (required)
 
     Returns:
-        Path to feature directory
+        Path to mission directory
 
     Raises:
         ValueError: If feature slug is not provided or directory doesn't exist
     """
-    slug = require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    slug = require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     feature_dir = repo_root / "kitty-specs" / slug
     if not feature_dir.exists():
         raise ValueError(
-            f"Feature directory not found: {feature_dir}. "
-            f"Check that '{slug}' is the correct feature slug."
+            f"Mission directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct mission slug."
         )
     return feature_dir
 
@@ -64,7 +64,7 @@ def resolve_context(
             ),
         ),
     ],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
     wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
@@ -97,7 +97,7 @@ def resolve_context(
             print(json.dumps({"success": True, **context.to_dict()}, indent=2))
         else:
             console.print(f"[green]✓[/green] Resolved {action} context")
-            console.print(f"  Feature: {context.feature_slug} ({context.detection_method})")
+            console.print(f"  Mission: {context.mission_slug} ({context.detection_method})")
             console.print(f"  Target branch: {context.target_branch}")
             if context.wp_id:
                 console.print(f"  Work package: {context.wp_id} ({context.lane})")

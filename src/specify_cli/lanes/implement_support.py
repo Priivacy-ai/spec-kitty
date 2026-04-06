@@ -32,7 +32,7 @@ class LaneWorkspaceResult:
 
 def create_lane_workspace(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     wp_file: Path,
     lanes_manifest: LanesManifest,
@@ -49,7 +49,7 @@ def create_lane_workspace(
 
     Args:
         repo_root: Repository root.
-        feature_slug: Feature slug.
+        mission_slug: Feature slug.
         wp_id: Work package ID.
         wp_file: Path to the WP markdown file (for frontmatter updates).
         lanes_manifest: The computed lanes manifest.
@@ -61,7 +61,7 @@ def create_lane_workspace(
     """
     workspace_path, branch_name = allocate_lane_worktree(
         repo_root=repo_root,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         lanes_manifest=lanes_manifest,
     )
@@ -86,7 +86,7 @@ def create_lane_workspace(
 
     if is_reuse:
         # Reuse — refresh context to reflect the new active WP.
-        context_name = f"{feature_slug}-{lane_id}"
+        context_name = f"{mission_slug}-{lane_id}"
         existing_ctx = load_context(repo_root, context_name)
         if existing_ctx is not None:
             existing_ctx.wp_id = wp_id
@@ -108,7 +108,7 @@ def create_lane_workspace(
 
         context = WorkspaceContext(
             wp_id=wp_id,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             worktree_path=str(workspace_path.relative_to(repo_root)),
             branch_name=branch_name,
             base_branch=base_branch,

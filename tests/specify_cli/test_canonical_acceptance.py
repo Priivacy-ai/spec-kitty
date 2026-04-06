@@ -17,7 +17,7 @@ from unittest.mock import patch
 import pytest
 
 from specify_cli.acceptance import collect_feature_summary
-from specify_cli.feature_metadata import load_meta, record_acceptance
+from specify_cli.mission_metadata import load_meta, record_acceptance
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import append_event
@@ -31,18 +31,18 @@ from specify_cli.status.store import append_event
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
     return {
-        "feature_number": "099",
+        "mission_number": "099",
         "slug": "099-test-feature",
-        "feature_slug": "099-test-feature",
+        "mission_slug": "099-test-feature",
         "friendly_name": "Test Feature",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-03-18T00:00:00+00:00",
     }
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -53,7 +53,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -80,24 +80,12 @@ def _write_wp_file(
     tasks_dir.mkdir(parents=True, exist_ok=True)
     wp_path = tasks_dir / f"{wp_id}.md"
 
-    fm = (
-        f"---\n"
-        f'work_package_id: "{wp_id}"\n'
-        f'title: "{title}"\n'
-        f'lane: "{lane}"\n'
-        f'agent: "{agent}"\n'
-        f'assignee: "{assignee}"\n'
-        f'shell_pid: "{shell_pid}"\n'
-        f"---\n"
-    )
+    fm = f'---\nwork_package_id: "{wp_id}"\ntitle: "{title}"\nlane: "{lane}"\nagent: "{agent}"\nassignee: "{assignee}"\nshell_pid: "{shell_pid}"\n---\n'
 
     body = f"\n# {title}\n\nSome description.\n"
     if include_activity_log:
         log_lane = activity_log_lane or lane
-        body += (
-            f"\n## Activity Log\n\n"
-            f"- 2026-03-18T12:00:00Z -- {agent} -- lane={log_lane} -- Started work\n"
-        )
+        body += f"\n## Activity Log\n\n- 2026-03-18T12:00:00Z -- {agent} -- lane={log_lane} -- Started work\n"
 
     wp_path.write_text(fm + body, encoding="utf-8")
     return wp_path
@@ -105,7 +93,7 @@ def _write_wp_file(
 
 def _setup_feature(
     tmp_path: Path,
-    feature_slug: str = "099-test-feature",
+    mission_slug: str = "099-test-feature",
     wp_ids: list[str] | None = None,
     *,
     all_done: bool = True,
@@ -121,15 +109,15 @@ def _setup_feature(
     if wp_ids is None:
         wp_ids = ["WP01", "WP02"]
 
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     tasks_dir = feature_dir / "tasks"
 
     # Write meta.json
     meta = _minimal_meta()
-    meta["feature_number"] = feature_slug.split("-")[0]
-    meta["slug"] = feature_slug
-    meta["feature_slug"] = feature_slug
+    meta["mission_number"] = mission_slug.split("-")[0]
+    meta["slug"] = mission_slug
+    meta["mission_slug"] = mission_slug
     meta_path = feature_dir / "meta.json"
     meta_path.write_text(
         json.dumps(meta, indent=2, ensure_ascii=False, sort_keys=True) + "\n",
@@ -138,9 +126,7 @@ def _setup_feature(
 
     # Write required artifacts
     for artifact in ["spec.md", "plan.md", "tasks.md"]:
-        (feature_dir / artifact).write_text(
-            f"# {artifact}\n\n- [x] All tasks done\n", encoding="utf-8"
-        )
+        (feature_dir / artifact).write_text(f"# {artifact}\n\n- [x] All tasks done\n", encoding="utf-8")
 
     # Determine per-WP lanes
     if wp_lanes is None:
@@ -176,7 +162,7 @@ def _setup_feature(
             for from_l, to_l in transitions:
                 counter += 1
                 event = _make_event(
-                    feature_slug,
+                    mission_slug,
                     wp_id,
                     from_l,
                     to_l,
@@ -213,8 +199,7 @@ class TestCanonicalStateAuthority:
         )
 
         # Mock git calls to avoid needing a real repo
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -223,9 +208,7 @@ class TestCanonicalStateAuthority:
             )
 
         # Activity issues should be empty -- canonical state says all done
-        assert summary.activity_issues == [], (
-            f"Expected no activity issues, got: {summary.activity_issues}"
-        )
+        assert summary.activity_issues == [], f"Expected no activity issues, got: {summary.activity_issues}"
         assert summary.all_done
 
     def test_all_done_uses_canonical_lane_not_frontmatter(self, tmp_path: Path) -> None:
@@ -259,8 +242,7 @@ class TestCanonicalStateAuthority:
                 activity_log_lane="for_review",
             )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -269,18 +251,11 @@ class TestCanonicalStateAuthority:
             )
 
         # Canonical state says done => lanes["done"] should have both WPs
-        assert summary.all_done, (
-            f"all_done should be True when canonical state is done. "
-            f"lanes={summary.lanes}, activity_issues={summary.activity_issues}"
-        )
+        assert summary.all_done, f"all_done should be True when canonical state is done. lanes={summary.lanes}, activity_issues={summary.activity_issues}"
         assert "WP01" in summary.lanes.get("done", [])
         assert "WP02" in summary.lanes.get("done", [])
-        assert summary.lanes.get("for_review", []) == [], (
-            f"for_review lane should be empty, got: {summary.lanes.get('for_review')}"
-        )
-        assert summary.activity_issues == [], (
-            f"Expected no activity issues, got: {summary.activity_issues}"
-        )
+        assert summary.lanes.get("for_review", []) == [], f"for_review lane should be empty, got: {summary.lanes.get('for_review')}"
+        assert summary.activity_issues == [], f"Expected no activity issues, got: {summary.activity_issues}"
 
     def test_acceptance_fails_despite_falsified_activity_log(self, tmp_path: Path) -> None:
         """Activity Log says 'done' but canonical state says 'for_review'.
@@ -299,8 +274,7 @@ class TestCanonicalStateAuthority:
             },
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -309,10 +283,9 @@ class TestCanonicalStateAuthority:
             )
 
         # Should have an activity issue for WP02
-        assert any(
-            "WP02" in issue and "for_review" in issue
-            for issue in summary.activity_issues
-        ), f"Expected canonical lane mismatch for WP02, got: {summary.activity_issues}"
+        assert any("WP02" in issue and "for_review" in issue for issue in summary.activity_issues), (
+            f"Expected canonical lane mismatch for WP02, got: {summary.activity_issues}"
+        )
 
     def test_acceptance_fails_with_missing_event_log(self, tmp_path: Path) -> None:
         """No status.events.jsonl -- explicit error, not Activity Log fallback."""
@@ -323,8 +296,7 @@ class TestCanonicalStateAuthority:
             include_activity_log=True,
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             with pytest.raises(CanonicalStatusNotFoundError, match="Canonical status not found"):
                 collect_feature_summary(
@@ -343,22 +315,27 @@ class TestCanonicalStateAuthority:
         )
 
         # Write events only for WP01
-        for i, (from_l, to_l) in enumerate([
-            ("planned", "claimed"),
-            ("claimed", "in_progress"),
-            ("in_progress", "for_review"),
-            ("for_review", "approved"),
-            ("approved", "done"),
-        ], start=1):
+        for i, (from_l, to_l) in enumerate(
+            [
+                ("planned", "claimed"),
+                ("claimed", "in_progress"),
+                ("in_progress", "for_review"),
+                ("for_review", "approved"),
+                ("approved", "done"),
+            ],
+            start=1,
+        ):
             event = _make_event(
-                "099-test-feature", "WP01", from_l, to_l,
+                "099-test-feature",
+                "WP01",
+                from_l,
+                to_l,
                 event_id=f"01TESTWP01{i:020d}",
                 at=f"2026-03-18T{12 + i:02d}:00:00+00:00",
             )
             append_event(feature_dir, event)
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -367,16 +344,12 @@ class TestCanonicalStateAuthority:
             )
 
         # WP02 should be flagged as missing canonical state
-        assert any(
-            "WP02" in issue and "no canonical state" in issue
-            for issue in summary.activity_issues
-        ), f"Expected WP02 missing state error, got: {summary.activity_issues}"
+        assert any("WP02" in issue and "no canonical state" in issue for issue in summary.activity_issues), (
+            f"Expected WP02 missing state error, got: {summary.activity_issues}"
+        )
 
         # WP01 should be fine (canonical state says done)
-        assert not any(
-            "WP01" in issue
-            for issue in summary.activity_issues
-        ), f"WP01 should not have issues, got: {summary.activity_issues}"
+        assert not any("WP01" in issue for issue in summary.activity_issues), f"WP01 should not have issues, got: {summary.activity_issues}"
 
     def test_acceptance_fails_with_empty_event_log(self, tmp_path: Path) -> None:
         """Empty status.events.jsonl triggers feature-level error.
@@ -396,8 +369,7 @@ class TestCanonicalStateAuthority:
         events_file = feature_dir / "status.events.jsonl"
         events_file.write_text("", encoding="utf-8")
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -406,19 +378,13 @@ class TestCanonicalStateAuthority:
             )
 
         # Should have the feature-level error, not per-WP messages
-        assert any(
-            "No canonical state found" in issue
-            for issue in summary.activity_issues
-        ), f"Expected feature-level 'No canonical state found' error, got: {summary.activity_issues}"
+        assert any("No canonical state found" in issue for issue in summary.activity_issues), (
+            f"Expected feature-level 'No canonical state found' error, got: {summary.activity_issues}"
+        )
 
         # Verify it's the feature-level message (mentions feature name), not per-WP
-        feature_level_errors = [
-            issue for issue in summary.activity_issues
-            if "No canonical state found for feature" in issue
-        ]
-        assert len(feature_level_errors) >= 1, (
-            f"Expected at least one feature-level error, got: {summary.activity_issues}"
-        )
+        feature_level_errors = [issue for issue in summary.activity_issues if "No canonical state found for feature" in issue]
+        assert len(feature_level_errors) >= 1, f"Expected at least one feature-level error, got: {summary.activity_issues}"
 
 
 class TestOrchestratorParity:
@@ -429,12 +395,12 @@ class TestOrchestratorParity:
         # Setup two identical features
         feature_std = _setup_feature(
             tmp_path / "standard",
-            feature_slug="099-test-standard",
+            mission_slug="099-test-standard",
             all_done=True,
         )
         feature_orch = _setup_feature(
             tmp_path / "orchestrator",
-            feature_slug="099-test-orchestrator",
+            mission_slug="099-test-orchestrator",
             all_done=True,
         )
 
@@ -462,7 +428,10 @@ class TestOrchestratorParity:
 
         # Both should have the same structural fields
         acceptance_fields = {
-            "accepted_at", "accepted_by", "acceptance_mode", "acceptance_history",
+            "accepted_at",
+            "accepted_by",
+            "acceptance_mode",
+            "acceptance_history",
         }
         for field in acceptance_fields:
             assert field in meta_std, f"Standard meta missing field: {field}"
@@ -596,13 +565,13 @@ class TestEndToEndCanonicalAcceptance:
         Validates SC-001 through SC-005 by running the full acceptance flow
         and verifying that:
         1. Canonical state (materialize) determines lane status
-        2. record_acceptance() writes through feature_metadata.py
+        2. record_acceptance() writes through mission_metadata.py
         3. meta.json has standard format (sorted keys, trailing newline)
         4. acceptance_history is populated
         """
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-e2e-test",
+            mission_slug="099-e2e-test",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,
@@ -610,8 +579,7 @@ class TestEndToEndCanonicalAcceptance:
         )
 
         # Step 1: Verify canonical state reports all done
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -619,12 +587,8 @@ class TestEndToEndCanonicalAcceptance:
                 strict_metadata=False,
             )
 
-        assert summary.all_done, (
-            f"Expected all_done=True, got lanes={summary.lanes}"
-        )
-        assert summary.activity_issues == [], (
-            f"Expected no activity issues, got: {summary.activity_issues}"
-        )
+        assert summary.all_done, f"Expected all_done=True, got lanes={summary.lanes}"
+        assert summary.activity_issues == [], f"Expected no activity issues, got: {summary.activity_issues}"
 
         # Step 2: Run record_acceptance() through the single writer
         record_acceptance(
@@ -662,15 +626,14 @@ class TestEndToEndCanonicalAcceptance:
         """Acceptance reads canonical state, never falls back to Activity Log."""
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-no-fallback",
+            mission_slug="099-no-fallback",
             wp_ids=["WP01"],
             all_done=True,
             include_events=True,
             include_activity_log=False,  # No Activity Log at all
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -706,15 +669,14 @@ class TestCorruptedCompatibilityViews:
         """Deleting Activity Log from WP files does not affect acceptance."""
         _setup_feature(
             tmp_path,
-            feature_slug="099-corrupted-log",
+            mission_slug="099-corrupted-log",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
             include_activity_log=False,  # Activity Log deliberately absent
         )
 
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -736,7 +698,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-bad-frontmatter",
+            mission_slug="099-bad-frontmatter",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -757,13 +719,10 @@ class TestCorruptedCompatibilityViews:
         # materialize() reads from event log, not frontmatter
         snapshot = raw_materialize(feature_dir)
         for wp_id in ["WP01", "WP02"]:
-            assert snapshot.work_packages[wp_id]["lane"] == "done", (
-                f"{wp_id}: materialize() should return 'done' regardless of frontmatter"
-            )
+            assert snapshot.work_packages[wp_id]["lane"] == "done", f"{wp_id}: materialize() should return 'done' regardless of frontmatter"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -771,15 +730,10 @@ class TestCorruptedCompatibilityViews:
                 strict_metadata=False,
             )
 
-        assert summary.all_done, (
-            f"all_done should be True (canonical overrides frontmatter), "
-            f"lanes={summary.lanes}"
-        )
+        assert summary.all_done, f"all_done should be True (canonical overrides frontmatter), lanes={summary.lanes}"
         assert "WP01" in summary.lanes.get("done", [])
         assert "WP02" in summary.lanes.get("done", [])
-        assert summary.lanes.get("planned", []) == [], (
-            f"planned lane should be empty, got: {summary.lanes.get('planned')}"
-        )
+        assert summary.lanes.get("planned", []) == [], f"planned lane should be empty, got: {summary.lanes.get('planned')}"
 
     def test_corrupted_tasks_md_status_no_effect(self, tmp_path: Path) -> None:
         """Wrong/missing tasks.md status block does not affect canonical state.
@@ -791,7 +745,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-bad-tasks-md",
+            mission_slug="099-bad-tasks-md",
             wp_ids=["WP01", "WP02"],
             all_done=True,
             include_events=True,
@@ -801,12 +755,7 @@ class TestCorruptedCompatibilityViews:
         # Corrupt tasks.md: write garbage status block
         tasks_md = feature_dir / "tasks.md"
         tasks_md.write_text(
-            "# Tasks\n\n"
-            "## Status\n"
-            "| WP | Lane |\n"
-            "| WP01 | CORRUPTED |\n"
-            "| WP02 | NONEXISTENT_LANE |\n"
-            "\n- [x] All tasks done\n",
+            "# Tasks\n\n## Status\n| WP | Lane |\n| WP01 | CORRUPTED |\n| WP02 | NONEXISTENT_LANE |\n\n- [x] All tasks done\n",
             encoding="utf-8",
         )
 
@@ -816,8 +765,7 @@ class TestCorruptedCompatibilityViews:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -839,7 +787,7 @@ class TestCorruptedCompatibilityViews:
 
         feature_dir = _setup_feature(
             tmp_path,
-            feature_slug="099-all-corrupted",
+            mission_slug="099-all-corrupted",
             wp_ids=["WP01", "WP02", "WP03"],
             all_done=True,
             include_events=True,
@@ -857,9 +805,7 @@ class TestCorruptedCompatibilityViews:
             )
 
         # Corrupt tasks.md completely
-        (feature_dir / "tasks.md").write_text(
-            "TOTALLY CORRUPTED FILE\n- [x] done\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("TOTALLY CORRUPTED FILE\n- [x] done\n", encoding="utf-8")
 
         # Canonical state should be unaffected
         snapshot = raw_materialize(feature_dir)
@@ -867,8 +813,7 @@ class TestCorruptedCompatibilityViews:
             assert snapshot.work_packages[wp_id]["lane"] == "done"
 
         # Acceptance should still pass
-        with patch("specify_cli.acceptance.run_git") as mock_git, \
-             patch("specify_cli.acceptance.git_status_lines", return_value=[]):
+        with patch("specify_cli.acceptance.run_git") as mock_git, patch("specify_cli.acceptance.git_status_lines", return_value=[]):
             mock_git.return_value.stdout = "main\n"
             summary = collect_feature_summary(
                 tmp_path,
@@ -876,12 +821,6 @@ class TestCorruptedCompatibilityViews:
                 strict_metadata=False,
             )
 
-        assert summary.all_done, (
-            f"all_done should be True despite all views corrupted, "
-            f"lanes={summary.lanes}"
-        )
+        assert summary.all_done, f"all_done should be True despite all views corrupted, lanes={summary.lanes}"
         assert summary.activity_issues == []
-        assert all(
-            wp_id in summary.lanes.get("done", [])
-            for wp_id in ["WP01", "WP02", "WP03"]
-        )
+        assert all(wp_id in summary.lanes.get("done", []) for wp_id in ["WP01", "WP02", "WP03"])

@@ -174,10 +174,10 @@ class TestMultiEventBatch:
         """Simulates finalize-tasks: 1 FeatureCreated + N WPCreated events."""
         causation_id = emitter.generate_causation_id()
 
-        # Emit FeatureCreated
-        fc = emitter.emit_feature_created(
-            feature_slug="028-cli-event-emission-sync",
-            feature_number="028",
+        # Emit MissionCreated
+        fc = emitter.emit_mission_created(
+            mission_slug="028-cli-event-emission-sync",
+            mission_number="028",
             target_branch="main",
             wp_count=3,
             causation_id=causation_id,
@@ -189,7 +189,7 @@ class TestMultiEventBatch:
             wp = emitter.emit_wp_created(
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
-                feature_slug="028-cli-event-emission-sync",
+                mission_slug="028-cli-event-emission-sync",
                 causation_id=causation_id,
             )
             assert wp is not None

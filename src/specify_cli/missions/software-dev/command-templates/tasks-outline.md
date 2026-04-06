@@ -28,7 +28,7 @@ break work into clear pieces, and write detailed guidance.
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
 
 ## User Input
 

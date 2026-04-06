@@ -21,7 +21,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, get_depend
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.paths import require_explicit_feature
 from specify_cli.git import safe_commit
-from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.transitions import resolve_lane_alias
@@ -132,15 +132,15 @@ def _is_missing_canonical_status_error(exc: BaseException) -> bool:
     return _CANONICAL_STATUS_NOT_FOUND in str(exc).lower()
 
 
-def _missing_canonical_status_message(wp_id: str, feature_slug: str) -> str:
+def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
     """Return a consistent hard-fail message for missing canonical status."""
     return (
         f"WP {wp_id} has no canonical status. "
-        f"Run `spec-kitty agent mission finalize-tasks --feature {feature_slug}` to initialize."
+        f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
     )
 
 
-def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tuple[Path, str]:
+def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
     """Resolve branch context without auto-checkout (respects user's current branch).
 
     Returns the planning repo root and the user's current branch.
@@ -157,7 +157,7 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
         raise typer.Exit(1)
 
     # Resolve branch routing (unified logic, no auto-checkout)
-    resolution = resolve_target_branch(feature_slug, main_repo_root, current_branch, respect_current=True)
+    resolution = resolve_target_branch(mission_slug, main_repo_root, current_branch, respect_current=True)
 
     # Show consistent branch banner
     if not resolution.should_notify:
@@ -171,20 +171,20 @@ def _ensure_target_branch_checked_out(repo_root: Path, feature_slug: str) -> tup
     return main_repo_root, resolution.current
 
 
-def _find_feature_slug(explicit_feature: str | None = None) -> str:
+def _find_mission_slug(explicit_feature: str | None = None) -> str:
     """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Feature slug provided via --feature flag.
+        explicit_feature: Mission slug provided explicitly.
 
     Returns:
-        Feature slug (e.g., "008-unified-python-cli")
+        Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
         typer.Exit: If feature slug is not provided.
     """
     try:
-        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+        return require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
@@ -213,12 +213,12 @@ def _normalize_wp_id(wp_arg: str) -> str:
 
 
 
-def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
+def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
     """Find the first WP file with lane: "planned".
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug
+        mission_slug: Feature slug
 
     Returns:
         WP ID of first planned task, or None if not found
@@ -230,22 +230,22 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
     # Check if we're in a worktree - if so, use worktree's kitty-specs
     if is_worktree_context(cwd):
         # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / feature_slug).exists():
-            tasks_dir = cwd / "kitty-specs" / feature_slug / "tasks"
+        if (cwd / "kitty-specs" / mission_slug).exists():
+            tasks_dir = cwd / "kitty-specs" / mission_slug / "tasks"
         else:
             # Walk up to find kitty-specs
             current = cwd
             while current != current.parent:
-                if (current / "kitty-specs" / feature_slug).exists():
-                    tasks_dir = current / "kitty-specs" / feature_slug / "tasks"
+                if (current / "kitty-specs" / mission_slug).exists():
+                    tasks_dir = current / "kitty-specs" / mission_slug / "tasks"
                     break
                 current = current.parent
             else:
                 # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+                tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
     else:
         # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+        tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
 
     if not tasks_dir.exists():
         return None
@@ -283,7 +283,7 @@ def _find_first_planned_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
@@ -306,28 +306,28 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
 
         # Determine which WP to implement
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first planned WP
-            normalized_wp_id = _find_first_planned_wp(repo_root, feature_slug)
+            normalized_wp_id = _find_first_planned_wp(repo_root, mission_slug)
             if not normalized_wp_id:
                 print("Error: No planned work packages found. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
 
         # Find WP file to read dependencies
         try:
-            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
-                print(f"Error: {_missing_canonical_status_message(normalized_wp_id, feature_slug)}")
+                print(f"Error: {_missing_canonical_status_message(normalized_wp_id, mission_slug)}")
                 raise typer.Exit(1)
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
@@ -335,7 +335,7 @@ def implement(
             print(f"Error locating work package: {e}")
             raise typer.Exit(1)
 
-        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
 
         # Ensure workspace exists (delegate to top-level implement for creation)
@@ -351,7 +351,7 @@ def implement(
             try:
                 top_level_implement(
                     wp_id=normalized_wp_id,
-                    feature=feature_slug,
+                    feature=mission_slug,
                     json_output=False
                 )
             except typer.Exit:
@@ -361,7 +361,7 @@ def implement(
                 print(f"Error creating worktree: {e}")
                 raise typer.Exit(1)
 
-            workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
             workspace_path = workspace.worktree_path
             if not workspace.exists:
                 print(
@@ -372,17 +372,17 @@ def implement(
 
         # Load work package
         try:
-            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
                 raise RuntimeError(
-                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
+                    _missing_canonical_status_message(normalized_wp_id, mission_slug)
                 ) from e
             raise
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
-        _wf_feature_dir = repo_root / "kitty-specs" / feature_slug
+        _wf_feature_dir = repo_root / "kitty-specs" / mission_slug
         from specify_cli.status.lane_reader import get_wp_lane as _wf_get_wp_lane
         from specify_cli.status.store import read_events as _wf_read_events
         from specify_cli.status.reducer import reduce as _wf_reduce
@@ -394,7 +394,7 @@ def implement(
             and normalized_wp_id in _wf_snapshot.work_packages
         )
         if not _wf_has_canonical:
-            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
         if current_lane == "in_progress":
@@ -427,21 +427,21 @@ def implement(
             # Must follow allowed transitions: planned→claimed→in_progress
             try:
                 from specify_cli.status.emit import emit_status_transition
-                _impl_feature_dir = main_repo_root / "kitty-specs" / feature_slug
+                _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
 
                 if current_lane == "planned" or current_lane == "canceled":
                     # Two-step: planned→claimed, claimed→in_progress
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
-                        feature_slug=feature_slug,
+                        mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane="claimed",
                         actor=_actor,
                     )
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
-                        feature_slug=feature_slug,
+                        mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane="in_progress",
                         actor=_actor,
@@ -449,7 +449,7 @@ def implement(
                 elif current_lane == "claimed":
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
-                        feature_slug=feature_slug,
+                        mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane="in_progress",
                         actor=_actor,
@@ -458,7 +458,7 @@ def implement(
                     # Re-implementing after review — force back to in_progress
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
-                        feature_slug=feature_slug,
+                        mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                         to_lane="in_progress",
                         actor=_actor,
@@ -511,21 +511,21 @@ def implement(
                     trigger_feature_dossier_sync_if_enabled,
                 )
 
-                _impl_feature_dir = repo_root / "kitty-specs" / feature_slug
+                _impl_feature_dir = repo_root / "kitty-specs" / mission_slug
                 trigger_feature_dossier_sync_if_enabled(
-                    _impl_feature_dir, feature_slug, repo_root,
+                    _impl_feature_dir, mission_slug, repo_root,
                 )
             except Exception:
                 pass
 
             # Reload to get updated content
-            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to doing.")
 
         # Check review feedback from canonical event log (review_ref stored in events)
         # Also check frontmatter review_feedback/review_status as fallback
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         has_feedback = False
         review_feedback_ref = None
         review_feedback_file = None
@@ -559,10 +559,10 @@ def implement(
             review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
 
         # Detect mission type and get deliverables_path for research missions
-        mission_key = get_feature_mission_key(feature_dir)
+        mission_type = get_mission_type(feature_dir)
         deliverables_path = None
-        if mission_key == "research":
-            deliverables_path = get_deliverables_path(feature_dir, feature_slug)
+        if mission_type == "research":
+            deliverables_path = get_deliverables_path(feature_dir, mission_slug)
 
         # Build full prompt content for file
         lines = []
@@ -606,7 +606,7 @@ def implement(
             from specify_cli.core.worktree_topology import (
                 materialize_worktree_topology, render_topology_json,
             )
-            topology = materialize_worktree_topology(repo_root, feature_slug)
+            topology = materialize_worktree_topology(repo_root, mission_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
                 lines.append("")
@@ -637,9 +637,9 @@ def implement(
         lines.append(f"   # All implementation work happens in this workspace")
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
-        lines.append("📚 SHARED FEATURE ARTIFACTS:")
-        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{feature_slug}/")
-        lines.append("   Use this lane workspace for code/tests; do not expect shared feature artifacts here")
+        lines.append("📚 SHARED MISSION ARTIFACTS:")
+        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/")
+        lines.append("   Use this lane workspace for code/tests; do not expect shared mission artifacts here")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
@@ -663,7 +663,7 @@ def implement(
             lines.append("")
 
         # Research mission: Show deliverables path prominently
-        if mission_key == "research" and deliverables_path:
+        if mission_type == "research" and deliverables_path:
             lines.append("╔" + "=" * 78 + "╗")
             lines.append("║  🔬 RESEARCH MISSION - TWO ARTIFACT TYPES                                 ║")
             lines.append("╠" + "=" * 78 + "╣")
@@ -735,7 +735,7 @@ def implement(
                 print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
             else:
                 print("⚠️  Has review feedback - but no review_feedback reference is set")
-        if mission_key == "research" and deliverables_path:
+        if mission_type == "research" and deliverables_path:
             print(f"🔬 Research deliverables: {deliverables_path}")
             print(f"   (NOT in kitty-specs/ - those are planning artifacts)")
         print()
@@ -756,7 +756,7 @@ def implement(
 def _resolve_review_context(
     workspace_path: Path,
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     wp_frontmatter: str,
 ) -> dict:
@@ -794,7 +794,7 @@ def _resolve_review_context(
     # Build candidate base branches
     candidates: list[str] = []
 
-    workspace = resolve_workspace_for_wp(repo_root, feature_slug, wp_id)
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     if workspace.context and workspace.context.base_branch:
         candidates.append(workspace.context.base_branch)
 
@@ -805,7 +805,7 @@ def _resolve_review_context(
         if dep_content:
             dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
             for dep_id in dep_ids:
-                dep_workspace = resolve_workspace_for_wp(repo_root, feature_slug, dep_id)
+                dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
                 if dep_workspace.branch_name != branch:
                     candidates.append(dep_workspace.branch_name)
 
@@ -847,12 +847,12 @@ def _resolve_review_context(
     return ctx
 
 
-def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[str]:
+def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
     """Find the first WP file with lane: "for_review".
 
     Args:
         repo_root: Repository root path
-        feature_slug: Feature slug
+        mission_slug: Feature slug
 
     Returns:
         WP ID of first for_review task, or None if not found
@@ -864,22 +864,22 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
     # Check if we're in a worktree - if so, use worktree's kitty-specs
     if is_worktree_context(cwd):
         # We're in a worktree, look for kitty-specs relative to cwd
-        if (cwd / "kitty-specs" / feature_slug).exists():
-            tasks_dir = cwd / "kitty-specs" / feature_slug / "tasks"
+        if (cwd / "kitty-specs" / mission_slug).exists():
+            tasks_dir = cwd / "kitty-specs" / mission_slug / "tasks"
         else:
             # Walk up to find kitty-specs
             current = cwd
             while current != current.parent:
-                if (current / "kitty-specs" / feature_slug).exists():
-                    tasks_dir = current / "kitty-specs" / feature_slug / "tasks"
+                if (current / "kitty-specs" / mission_slug).exists():
+                    tasks_dir = current / "kitty-specs" / mission_slug / "tasks"
                     break
                 current = current.parent
             else:
                 # Fallback to repo_root
-                tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+                tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
     else:
         # We're in main repo
-        tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+        tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
 
     if not tasks_dir.exists():
         return None
@@ -917,7 +917,7 @@ def _find_first_for_review_wp(repo_root: Path, feature_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -939,36 +939,36 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
-        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, feature_slug)
+        main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug)
 
         # Determine which WP to review
         if wp_id:
             normalized_wp_id = _normalize_wp_id(wp_id)
         else:
             # Auto-detect first for_review WP
-            normalized_wp_id = _find_first_for_review_wp(repo_root, feature_slug)
+            normalized_wp_id = _find_first_for_review_wp(repo_root, mission_slug)
             if not normalized_wp_id:
                 print("Error: No work packages ready for review. Specify a WP ID explicitly.")
                 raise typer.Exit(1)
 
         # Load work package
         try:
-            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
                 raise RuntimeError(
-                    _missing_canonical_status_message(normalized_wp_id, feature_slug)
+                    _missing_canonical_status_message(normalized_wp_id, mission_slug)
                 ) from e
             raise
 
         # Move to "doing" lane if not already there.
         # Explicit WP review requests must target for_review (or already-claimed doing).
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
         from specify_cli.status.lane_reader import get_wp_lane as _rv_get_wp_lane
         from specify_cli.status.store import read_events as _rv_read_events
         from specify_cli.status.reducer import reduce as _rv_reduce
@@ -980,7 +980,7 @@ def review(
             and normalized_wp_id in _rv_snapshot.work_packages
         )
         if not _rv_has_canonical:
-            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, feature_slug))
+            raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
         if current_lane not in {"for_review", "doing"}:
@@ -1006,11 +1006,11 @@ def review(
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
-            with feature_status_lock(main_repo_root, feature_slug):
+            with feature_status_lock(main_repo_root, mission_slug):
                 # Emit the actual for_review -> in_progress transition
                 emit_status_transition(
                     feature_dir=feature_dir,
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                     wp_id=normalized_wp_id,
                     to_lane="in_progress",
                     actor=agent,
@@ -1057,11 +1057,11 @@ def review(
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
 
             # Reload to get updated content
-            wp = locate_work_package(repo_root, feature_slug, normalized_wp_id)
+            wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
 
-        workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
 
         # Ensure workspace exists (attach to the real branch if needed).
@@ -1098,16 +1098,16 @@ def review(
                 print(f"Warning: Could not create workspace: {result.stderr}")
             else:
                 print(f"✓ Created workspace: {workspace_path}")
-                workspace = resolve_workspace_for_wp(main_repo_root, feature_slug, normalized_wp_id)
+                workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
 
         # Resolve git context (branch name, base branch, commit count)
         review_ctx = _resolve_review_context(
-            workspace_path, main_repo_root, feature_slug, normalized_wp_id, wp.frontmatter
+            workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter
         )
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         graph = build_dependency_graph(feature_dir)
         dependents = get_dependents(normalized_wp_id, graph)
         if dependents:
@@ -1181,7 +1181,7 @@ def review(
             from specify_cli.core.worktree_topology import (
                 materialize_worktree_topology, render_topology_json,
             )
-            topology = materialize_worktree_topology(repo_root, feature_slug)
+            topology = materialize_worktree_topology(repo_root, mission_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
                 lines.append("")
@@ -1228,9 +1228,9 @@ def review(
         lines.append(f"   # Read code, run tests, check against requirements")
         lines.append(f"   # When done, return to repo root: cd {repo_root}")
         lines.append("")
-        lines.append("📚 SHARED FEATURE ARTIFACTS:")
-        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{feature_slug}/")
-        lines.append("   Use this lane workspace for code/tests; do not expect shared feature artifacts here")
+        lines.append("📚 SHARED MISSION ARTIFACTS:")
+        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/")
+        lines.append("   Use this lane workspace for code/tests; do not expect shared mission artifacts here")
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")

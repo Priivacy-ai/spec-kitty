@@ -92,7 +92,7 @@ def _print_acceptance_result(result: AcceptanceResult) -> None:
             console.print(f"  - {note}")
 
 
-def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
+def _emit_acceptance_events(mission_slug: str, wp_ids: List[str]) -> None:
     """Emit done transitions for accepted WPs.
 
     Acceptance transitions WPs from approved → done (not for_review → done).
@@ -107,7 +107,7 @@ def _emit_acceptance_events(feature_slug: str, wp_ids: List[str]) -> None:
                 from_lane="approved",
                 to_lane="done",
                 actor="user",
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
             )
         except Exception as exc:
             console.print(
@@ -120,12 +120,6 @@ def accept(
         None,
         "--mission",
         help="Mission slug to accept",
-    ),
-    feature: Optional[str] = typer.Option(
-        None,
-        "--feature",
-        help="Legacy alias for --mission; auto-detected by default",
-        hidden=True,
     ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
@@ -159,9 +153,8 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        requested_mission = mission or feature
-        feature_slug = require_explicit_feature(
-            requested_mission,
+        mission_slug = require_explicit_feature(
+            mission,
             command_hint="--mission <slug>",
         )
     except ValueError as exc:
@@ -174,7 +167,7 @@ def accept(
             console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
     if not json_output:
-        tracker.complete("detect", feature_slug)
+        tracker.complete("detect", mission_slug)
 
     requested_mode = (mode or "auto").lower()
     actual_mode = choose_mode(requested_mode, repo_root)
@@ -189,7 +182,7 @@ def accept(
     try:
         summary = collect_feature_summary(
             repo_root,
-            feature_slug,
+            mission_slug,
             strict_metadata=not lenient,
         )
     except AcceptanceError as exc:
@@ -252,7 +245,7 @@ def accept(
         raise typer.Exit(1)
 
     # Move approved WPs to done. Acceptance transitions approved → done.
-    _emit_acceptance_events(feature_slug, result.summary.lanes.get("approved", []))
+    _emit_acceptance_events(mission_slug, result.summary.lanes.get("approved", []))
 
     if json_output:
         print(json.dumps(result.to_dict(), indent=2))

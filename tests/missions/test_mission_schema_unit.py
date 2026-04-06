@@ -15,7 +15,7 @@ from specify_cli.mission import (
     MissionError,
     MissionNotFoundError,
     discover_missions,
-    get_feature_mission_key,
+    get_mission_type,
     get_mission_for_feature,
 )
 
@@ -210,32 +210,32 @@ def feature_with_invalid_mission(tmp_path: Path, sample_kittify_dir: Path) -> Pa
 
 
 class TestGetFeatureMissionKey:
-    """Tests for get_feature_mission_key() helper function."""
+    """Tests for get_mission_type() helper function."""
 
     def test_returns_mission_from_meta_json(self, feature_with_mission: Path) -> None:
         """Should extract mission key from meta.json."""
-        assert get_feature_mission_key(feature_with_mission) == "software-dev"
+        assert get_mission_type(feature_with_mission) == "software-dev"
 
     def test_returns_research_mission(self, feature_with_research_mission: Path) -> None:
         """Should extract research mission key."""
-        assert get_feature_mission_key(feature_with_research_mission) == "research"
+        assert get_mission_type(feature_with_research_mission) == "research"
 
     def test_defaults_to_software_dev_when_no_mission_field(self, legacy_feature: Path) -> None:
         """Should default to software-dev when mission field is missing."""
-        assert get_feature_mission_key(legacy_feature) == "software-dev"
+        assert get_mission_type(legacy_feature) == "software-dev"
 
     def test_defaults_to_software_dev_when_no_meta_json(self, tmp_path: Path) -> None:
         """Should default to software-dev when meta.json doesn't exist."""
         empty_feature = tmp_path / "kitty-specs" / "empty"
         empty_feature.mkdir(parents=True)
-        assert get_feature_mission_key(empty_feature) == "software-dev"
+        assert get_mission_type(empty_feature) == "software-dev"
 
     def test_defaults_to_software_dev_on_invalid_json(self, tmp_path: Path) -> None:
         """Should default to software-dev when meta.json is invalid JSON."""
         feature_dir = tmp_path / "kitty-specs" / "bad-json"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text("{ invalid json }")
-        assert get_feature_mission_key(feature_dir) == "software-dev"
+        assert get_mission_type(feature_dir) == "software-dev"
 
 
 class TestGetMissionForFeature:

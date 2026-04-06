@@ -160,10 +160,10 @@ class APIHandler(DashboardHandler):
         """Route dossier API requests to appropriate endpoints.
 
         Routes:
-        - /api/dossier/overview?feature={slug} -> GET overview
-        - /api/dossier/artifacts?feature={slug}&class={class}&... -> GET list
-        - /api/dossier/artifacts/{artifact_key}?feature={slug} -> GET detail
-        - /api/dossier/snapshots/export?feature={slug} -> GET export
+        - /api/dossier/overview?feature={mission_slug} -> GET overview
+        - /api/dossier/artifacts?feature={mission_slug}&class={class}&... -> GET list
+        - /api/dossier/artifacts/{artifact_key}?feature={mission_slug} -> GET detail
+        - /api/dossier/snapshots/export?feature={mission_slug} -> GET export
         """
         import urllib.parse
         from specify_cli.dossier.api import DossierAPIHandler
@@ -172,9 +172,9 @@ class APIHandler(DashboardHandler):
         path = parsed.path
         query = urllib.parse.parse_qs(parsed.query)
 
-        # Extract feature_slug from query params
-        feature_slug = query.get('feature', [None])[0]
-        if not feature_slug:
+        # Extract mission_slug from query params
+        mission_slug = query.get('feature', [None])[0]
+        if not mission_slug:
             self.send_response(400)
             self.send_header('Content-type', 'application/json')
             self.end_headers()
@@ -188,7 +188,7 @@ class APIHandler(DashboardHandler):
 
             # Route to appropriate endpoint
             if path == '/api/dossier/overview':
-                response = handler.handle_dossier_overview(feature_slug)
+                response = handler.handle_dossier_overview(mission_slug)
             elif path == '/api/dossier/artifacts':
                 # Extract filters from query
                 filters = {}
@@ -200,13 +200,13 @@ class APIHandler(DashboardHandler):
                     filters['step_id'] = query['step_id'][0]
                 if 'required_only' in query:
                     filters['required_only'] = query['required_only'][0]
-                response = handler.handle_dossier_artifacts(feature_slug, **filters)
+                response = handler.handle_dossier_artifacts(mission_slug, **filters)
             elif path.startswith('/api/dossier/artifacts/'):
                 # Extract artifact_key from path
                 artifact_key = path.split('/api/dossier/artifacts/')[-1]
-                response = handler.handle_dossier_artifact_detail(feature_slug, artifact_key)
+                response = handler.handle_dossier_artifact_detail(mission_slug, artifact_key)
             elif path == '/api/dossier/snapshots/export':
-                response = handler.handle_dossier_snapshot_export(feature_slug)
+                response = handler.handle_dossier_snapshot_export(mission_slug)
             else:
                 self.send_response(404)
                 self.send_header('Content-type', 'application/json')

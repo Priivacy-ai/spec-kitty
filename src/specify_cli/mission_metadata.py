@@ -1,7 +1,7 @@
 """Single metadata writer API for all meta.json operations.
 
 This module is the canonical entry point for reading, validating, and writing
-feature metadata (``meta.json``).  All mutation helpers go through
+mission metadata (``meta.json``).  All mutation helpers go through
 :func:`write_meta`, which enforces validation, a standard serialization
 format, and atomic writes.
 
@@ -28,19 +28,19 @@ from specify_cli.core.atomic import atomic_write
 # ---------------------------------------------------------------------------
 
 
-class FeatureMetaRequired(TypedDict):
+class MissionMetaRequired(TypedDict):
     """Required fields -- always present in a valid meta.json."""
 
-    feature_number: str
+    mission_number: str
     slug: str
-    feature_slug: str
+    mission_slug: str
     friendly_name: str
-    mission: str
+    mission_type: str
     target_branch: str
     created_at: str
 
 
-class FeatureMetaOptional(TypedDict, total=False):
+class MissionMetaOptional(TypedDict, total=False):
     """Optional fields -- present only after specific operations."""
 
     vcs: str
@@ -68,7 +68,7 @@ class FeatureMetaOptional(TypedDict, total=False):
 # Constants
 # ---------------------------------------------------------------------------
 
-REQUIRED_FIELDS: frozenset[str] = frozenset(FeatureMetaRequired.__annotations__)
+REQUIRED_FIELDS: frozenset[str] = frozenset(MissionMetaRequired.__annotations__)
 HISTORY_CAP: int = 20
 
 

@@ -26,7 +26,7 @@ from specify_cli.status.store import append_event
 
 
 def _make_snapshot(
-    feature_slug: str,
+    mission_slug: str,
     wp_lanes: dict[str, str],
 ) -> StatusSnapshot:
     """Build a StatusSnapshot directly from a WP->lane mapping."""
@@ -45,7 +45,7 @@ def _make_snapshot(
         summary[lane] = summary.get(lane, 0) + 1
 
     return StatusSnapshot(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         materialized_at="2026-01-01T00:00:00+00:00",
         event_count=len(wp_lanes),
         last_event_id=None,
@@ -55,7 +55,7 @@ def _make_snapshot(
 
 
 def _make_event(
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     from_lane: str,
     to_lane: str,
@@ -64,7 +64,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -261,9 +261,23 @@ def test_result_is_json_serialisable():
     result = compute_weighted_progress(snapshot)
     json_str = json.dumps(result.to_dict())
     parsed = json.loads(json_str)
-    assert parsed["feature_slug"] == "test-feature"
+    assert parsed["mission_slug"] == "test-feature"
     assert "percentage" in parsed
     assert "per_wp" in parsed
+
+
+def test_progress_result_to_dict_uses_mission_slug_key():
+    result = ProgressResult(
+        mission_slug="064-complete-mission-identity-cutover",
+        percentage=12.5,
+        done_count=1,
+        total_count=4,
+        per_lane_counts={"claimed": 1},
+        per_wp=[],
+    )
+
+    payload = result.to_dict()
+    assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
 
 
 # ---------------------------------------------------------------------------
@@ -286,7 +300,7 @@ def test_generate_progress_json_writes_file(tmp_path):
     progress_file = derived_dir / "001-test-feature" / "progress.json"
     assert progress_file.exists()
     data = json.loads(progress_file.read_text())
-    assert data["feature_slug"] == "001-test-feature"
+    assert data["mission_slug"] == "001-test-feature"
     assert data["percentage"] == pytest.approx(100.0)
 
 
@@ -303,3 +317,28 @@ def test_generate_progress_json_empty_feature(tmp_path):
     data = json.loads(progress_file.read_text())
     assert data["percentage"] == 0.0
     assert data["total_count"] == 0
+
+
+def test_generate_progress_json_falls_back_to_feature_dir_name_when_snapshot_slug_empty(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+):
+    from specify_cli import status as status_pkg
+
+    feature_dir = tmp_path / "kitty-specs" / "064-complete-mission-identity-cutover"
+    feature_dir.mkdir(parents=True)
+    derived_dir = tmp_path / ".kittify" / "derived"
+
+    snapshot = StatusSnapshot(
+        mission_slug="",
+        materialized_at="2026-01-01T00:00:00+00:00",
+        event_count=0,
+        last_event_id=None,
+        work_packages={},
+        summary={lane.value: 0 for lane in Lane},
+    )
+    monkeypatch.setattr(status_pkg.progress, "materialize", lambda _: snapshot)
+
+    generate_progress_json(feature_dir, derived_dir)
+
+    progress_file = derived_dir / "064-complete-mission-identity-cutover" / "progress.json"
+    assert progress_file.exists()

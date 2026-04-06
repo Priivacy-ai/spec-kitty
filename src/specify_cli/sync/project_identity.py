@@ -42,14 +42,16 @@ class ProjectIdentity:
     project_slug: str | None = None
     node_id: str | None = None
     repo_slug: str | None = None
+    build_id: str | None = None
 
     @property
     def is_complete(self) -> bool:
         """Check if all identity fields are populated.
 
         Note: repo_slug is optional and not required for completeness.
+        build_id is required for completeness (FR-009).
         """
-        return all([self.project_uuid, self.project_slug, self.node_id])
+        return all([self.project_uuid, self.project_slug, self.node_id, self.build_id])
 
     def with_defaults(self, repo_root: Path) -> ProjectIdentity:
         """Return new instance with missing fields filled with generated values.
@@ -67,19 +69,21 @@ class ProjectIdentity:
             project_slug=self.project_slug or derive_project_slug(repo_root),
             node_id=self.node_id or generate_node_id(),
             repo_slug=self.repo_slug,
+            build_id=self.build_id or generate_build_id(),
         )
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to dictionary for YAML persistence.
 
         Returns:
-            Dictionary with 'uuid', 'slug', and 'node_id' keys.
+            Dictionary with 'uuid', 'slug', 'node_id', and 'build_id' keys.
             Includes 'repo_slug' only if not None.
         """
         d: dict[str, Any] = {
             "uuid": str(self.project_uuid) if self.project_uuid else None,
             "slug": self.project_slug,
             "node_id": self.node_id,
+            "build_id": self.build_id,
         }
         if self.repo_slug is not None:
             d["repo_slug"] = self.repo_slug
@@ -90,7 +94,7 @@ class ProjectIdentity:
         """Deserialize from dictionary.
 
         Args:
-            data: Dictionary with optional 'uuid', 'slug', 'node_id', 'repo_slug' keys
+            data: Dictionary with optional 'uuid', 'slug', 'node_id', 'repo_slug', 'build_id' keys
 
         Returns:
             ProjectIdentity instance
@@ -101,6 +105,7 @@ class ProjectIdentity:
             project_slug=data.get("slug"),
             node_id=data.get("node_id"),
             repo_slug=data.get("repo_slug"),
+            build_id=data.get("build_id"),
         )
 
 
@@ -111,6 +116,15 @@ def generate_project_uuid() -> UUID:
         Randomly generated UUID4
     """
     return uuid4()
+
+
+def generate_build_id() -> str:
+    """Generate a new UUID4 string for build identification (FR-009).
+
+    Returns:
+        UUID4 string for use as build_id in upstream contracts
+    """
+    return str(uuid4())
 
 
 def derive_project_slug(repo_root: Path) -> str:

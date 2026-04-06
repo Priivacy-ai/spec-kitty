@@ -15,7 +15,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
-from specify_cli.mission import get_feature_mission_key
+from specify_cli.mission import get_mission_type
 from specify_cli.plan_validation import PlanValidationError, validate_plan_filled
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -55,25 +55,25 @@ def research(
 
     tracker.start("feature")
     try:
-        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
     except ValueError as exc:
         tracker.error("feature", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
+    feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     # Get mission from feature's meta.json (not project-level default)
-    mission_key = get_feature_mission_key(feature_dir)
-    mission_display = MISSION_CHOICES.get(mission_key, mission_key)
+    mission_type = get_mission_type(feature_dir)
+    mission_display = MISSION_CHOICES.get(mission_type, mission_type)
     tracker.complete("feature", f"{feature_dir} ({mission_display})")
 
     # Validate that plan.md has been filled out before proceeding
     plan_path = feature_dir / "plan.md"
     try:
-        validate_plan_filled(plan_path, feature_slug=feature_slug, strict=True)
+        validate_plan_filled(plan_path, mission_slug=mission_slug, strict=True)
     except PlanValidationError as exc:
         console.print(tracker.render())
         console.print()
@@ -91,7 +91,7 @@ def research(
     def _copy_asset(step_key: str, label: str, relative_path: Path, template_name: Path) -> None:
         tracker.start(step_key)
         dest_path = feature_dir / relative_path
-        template_path = resolve_template_path(project_root, mission_key, template_name)
+        template_path = resolve_template_path(project_root, mission_type, template_name)
 
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
@@ -122,7 +122,7 @@ def research(
     csv_errors: list[str] = []
     for dest_rel, template_rel in csv_targets:
         dest_path = feature_dir / dest_rel
-        template_path = resolve_template_path(project_root, mission_key, template_rel)
+        template_path = resolve_template_path(project_root, mission_type, template_rel)
         dest_path.parent.mkdir(parents=True, exist_ok=True)
         try:
             if dest_path.exists() and not force:
@@ -157,7 +157,7 @@ def research(
         )
 
         trigger_feature_dossier_sync_if_enabled(
-            feature_dir, feature_slug, repo_root,
+            feature_dir, mission_slug, repo_root,
         )
     except Exception:
         pass

@@ -82,15 +82,15 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
     return ExecutionMode.CODE_CHANGE
 
 
-def infer_owned_files(wp_content: str, feature_slug: str) -> list[str]:
+def infer_owned_files(wp_content: str, mission_slug: str) -> list[str]:
     """Infer owned_files glob patterns from WP body text.
 
-    For planning_artifact WPs: defaults to ``kitty-specs/<feature_slug>/**``.
+    For planning_artifact WPs: defaults to ``kitty-specs/<mission_slug>/**``.
     For code_change WPs: extracts path prefixes found in the WP body.
 
     Args:
         wp_content: Full text of the WP prompt file.
-        feature_slug: Feature slug (e.g. ``"057-canonical-context-architecture-cleanup"``).
+        mission_slug: Feature slug (e.g. ``"057-canonical-context-architecture-cleanup"``).
 
     Returns:
         Deduplicated list of glob patterns.
@@ -98,7 +98,7 @@ def infer_owned_files(wp_content: str, feature_slug: str) -> list[str]:
     execution_mode = infer_execution_mode(wp_content, [])
 
     if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
-        return [f"kitty-specs/{feature_slug}/**"]
+        return [f"kitty-specs/{mission_slug}/**"]
 
     # Extract path tokens mentioned in the WP
     found_paths = set(_PATH_PATTERN.findall(wp_content))
@@ -180,12 +180,12 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
     return "/".join(common) + "/"
 
 
-def infer_ownership(wp_content: str, feature_slug: str, wp_files: list[str] | None = None) -> OwnershipManifest:
+def infer_ownership(wp_content: str, mission_slug: str, wp_files: list[str] | None = None) -> OwnershipManifest:
     """Convenience function: infer a complete OwnershipManifest from WP content.
 
     Args:
         wp_content: Full text of the WP prompt file.
-        feature_slug: Feature slug string.
+        mission_slug: Feature slug string.
         wp_files: Optional explicit list of file paths.
 
     Returns:
@@ -195,7 +195,7 @@ def infer_ownership(wp_content: str, feature_slug: str, wp_files: list[str] | No
 
     files = wp_files or []
     execution_mode = infer_execution_mode(wp_content, files)
-    owned_files = infer_owned_files(wp_content, feature_slug)
+    owned_files = infer_owned_files(wp_content, mission_slug)
     authoritative_surface = infer_authoritative_surface(owned_files)
 
     return OwnershipManifest(

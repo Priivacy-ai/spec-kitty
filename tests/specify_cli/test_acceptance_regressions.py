@@ -41,7 +41,7 @@ _FEATURE_SLUG = "099-test-feature"
 
 def _create_test_feature(
     tmp_path: Path,
-    feature_slug: str = _FEATURE_SLUG,
+    mission_slug: str = _FEATURE_SLUG,
     *,
     malformed_events: str | None = None,
 ) -> Tuple[Path, Path]:
@@ -67,17 +67,17 @@ def _create_test_feature(
         capture_output=True,
     )
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     # meta.json
     meta = {
-        "feature_number": "099",
-        "slug": feature_slug,
-        "feature_slug": feature_slug,
+        "mission_number": "099",
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
         "friendly_name": "Test Feature",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-01-01T00:00:00Z",
     }
@@ -111,7 +111,7 @@ def _create_test_feature(
         now = datetime.now(timezone.utc).isoformat()
         event = StatusEvent(
             event_id=str(ULID()),
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.DONE,
@@ -435,7 +435,7 @@ def test_copy_parity_between_acceptance_modules() -> None:
     # Function signature parity for key functions (validates re-exports match)
     parity_functions = [
         "collect_feature_summary",
-        "detect_feature_slug",
+        "detect_mission_slug",
         "perform_acceptance",
         "choose_mode",
     ]

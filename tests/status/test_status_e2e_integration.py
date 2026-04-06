@@ -27,10 +27,10 @@ pytestmark = pytest.mark.git_repo
 
 # ── Helpers ──────────────────────────────────────────────────────
 
-def _setup_feature(tmp_path: Path, feature_slug: str = "099-test") -> Path:
+def _setup_feature(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     """Create a minimal feature directory."""
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -67,24 +67,24 @@ class TestE2EFullPipeline:
 
         # Emit transitions for WP01 through the lifecycle
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="in_progress", actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="for_review", actor="agent-1",
             repo_root=repo_root,
         )
 
         # Emit a transition for WP02
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP02", to_lane="claimed", actor="agent-2",
             repo_root=repo_root,
         )
@@ -127,7 +127,7 @@ class TestE2EEmitInvalidTransition:
         # planned -> for_review is not a legal transition
         with pytest.raises(TransitionError) as exc_info:
             emit_status_transition(
-                feature_dir=feature_dir, feature_slug=slug,
+                feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="for_review", actor="agent-1",
                 repo_root=repo_root,
             )
@@ -149,7 +149,7 @@ class TestE2EEmitInvalidTransition:
 
         # Valid transition
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -157,7 +157,7 @@ class TestE2EEmitInvalidTransition:
         # Invalid transition (claimed -> done is not allowed)
         with pytest.raises(TransitionError):
             emit_status_transition(
-                feature_dir=feature_dir, feature_slug=slug,
+                feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="done", actor="agent-1",
                 repo_root=repo_root,
             )
@@ -178,7 +178,7 @@ class TestE2EEmitForceTransition:
 
         # planned -> done is illegal normally
         event = emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="done", actor="admin",
             force=True,
             reason="Emergency closure for abandoned work",
@@ -201,7 +201,7 @@ class TestE2EEmitForceTransition:
 
         with pytest.raises(TransitionError) as exc_info:
             emit_status_transition(
-                feature_dir=feature_dir, feature_slug=slug,
+                feature_dir=feature_dir, mission_slug=slug,
                 wp_id="WP01", to_lane="done", actor="admin",
                 force=True,
                 # No reason provided
@@ -220,7 +220,7 @@ class TestE2EJsonOutputFormat:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -239,7 +239,7 @@ class TestE2EJsonOutputFormat:
         assert keys == sorted(keys)
 
         # Check structure
-        assert "feature_slug" in parsed
+        assert "mission_slug" in parsed
         assert "materialized_at" in parsed
         assert "event_count" in parsed
         assert "work_packages" in parsed
@@ -263,12 +263,12 @@ class TestE2EMaterializeIdempotent:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP02", to_lane="claimed", actor="agent-2",
             repo_root=repo_root,
         )

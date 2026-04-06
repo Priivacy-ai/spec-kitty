@@ -118,22 +118,22 @@ class TestFinalizeTasksEmitsBatch:
         causation_id = emitter.generate_causation_id()
 
         # Emit FeatureCreated
-        fc = emitter.emit_feature_created(
-            feature_slug="028-cli-event-emission-sync",
-            feature_number="028",
+        fc = emitter.emit_mission_created(
+            mission_slug="028-cli-event-emission-sync",
+            mission_number="028",
             target_branch="main",
             wp_count=7,
             causation_id=causation_id,
         )
         assert fc is not None
-        assert fc["event_type"] == "FeatureCreated"
+        assert fc["event_type"] == "MissionCreated"
 
         # Emit 7 WPCreated events
         for i in range(1, 8):
             wp = emitter.emit_wp_created(
                 wp_id=f"WP{i:02d}",
                 title=f"Work Package {i}",
-                feature_slug="028-cli-event-emission-sync",
+                mission_slug="028-cli-event-emission-sync",
                 dependencies=([f"WP{i - 1:02d}"] if i > 1 else []),
                 causation_id=causation_id,
             )
@@ -153,9 +153,9 @@ class TestGitMetadataInBatchEvents:
 
     def test_feature_created_includes_git_metadata(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """FeatureCreated event includes git metadata fields."""
-        event = emitter.emit_feature_created(
-            feature_slug="033-observability",
-            feature_number="033",
+        event = emitter.emit_mission_created(
+            mission_slug="033-observability",
+            mission_number="033",
             target_branch="main",
             wp_count=4,
         )
@@ -169,7 +169,7 @@ class TestGitMetadataInBatchEvents:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Test WP",
-            feature_slug="033-observability",
+            mission_slug="033-observability",
         )
         assert event is not None
         assert event["git_branch"] == "test-branch"
@@ -351,9 +351,9 @@ class TestIdentityInjection:
 
     def test_feature_created_includes_identity(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """FeatureCreated event includes project_uuid."""
-        event = emitter.emit_feature_created(
-            feature_slug="032-identity-aware",
-            feature_number="032",
+        event = emitter.emit_mission_created(
+            mission_slug="032-identity-aware",
+            mission_number="032",
             target_branch="main",
             wp_count=5,
         )
@@ -366,7 +366,7 @@ class TestIdentityInjection:
         event = emitter.emit_wp_created(
             wp_id="WP01",
             title="Test WP",
-            feature_slug="032-identity-aware",
+            mission_slug="032-identity-aware",
         )
         assert event is not None
         assert "project_uuid" in event
@@ -517,7 +517,7 @@ class TestPolicyMetadataPassthrough:
             from_lane="planned",
             to_lane="claimed",
             actor="claude",
-            feature_slug="099-test-feature",
+            mission_slug="099-test-feature",
             policy_metadata=policy,
         )
         assert event is not None

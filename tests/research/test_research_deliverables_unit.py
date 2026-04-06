@@ -63,8 +63,8 @@ class TestGetDeliverablesPath:
         result = get_deliverables_path(feature_dir)
         assert result is None
 
-    def test_uses_feature_slug_for_default_when_provided(self, tmp_path: Path) -> None:
-        """Should use provided feature_slug for default path generation."""
+    def test_uses_mission_slug_for_default_when_provided(self, tmp_path: Path) -> None:
+        """Should use provided mission_slug for default path generation."""
         import sys
         sys.path.insert(0, str(Path.cwd() / "src"))
 
@@ -74,7 +74,7 @@ class TestGetDeliverablesPath:
         feature_dir.mkdir(parents=True)
         # No meta.json - should use provided slug
 
-        result = get_deliverables_path(feature_dir, feature_slug="002-analysis")
+        result = get_deliverables_path(feature_dir, mission_slug="002-analysis")
         assert result == "docs/research/002-analysis/"
 
     def test_handles_missing_meta_json(self, tmp_path: Path) -> None:

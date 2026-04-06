@@ -39,7 +39,7 @@
 
 **Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create or reuse the execution workspace for that WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 
-**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -58,7 +58,7 @@ spec-kitty agent context resolve --action tasks --json
 ```
 
 Treat the resolver JSON as canonical for:
-- `feature_slug`
+- `mission_slug`
 - `feature_dir`
 - `current_branch`
 - `target_branch`
@@ -149,7 +149,7 @@ Prompts do not rediscover feature context. Commands do.
    - WRONG (do not create): `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
    - WRONG (do not create): `/tasks/`, `tasks/`, or any path not under feature_dir
    - Use `artifact_dirs.tasks_dir` when available.
-   - Do **not** shell out with `mkdir -p`; `create-feature` already creates `tasks/` in normal flow.
+   - Do **not** shell out with `mkdir -p`; `create` already creates `tasks/` in normal flow.
    - If `tasks/` is missing unexpectedly, report the mismatch instead of improvising shell directory setup.
    - For each work package:
      - Derive a kebab-case slug from the title; filename: `WPxx-slug.md`
@@ -188,7 +188,7 @@ Prompts do not rediscover feature context. Commands do.
 
    **CRITICAL**: Run this command from repo root:
    ```bash
-   spec-kitty agent mission finalize-tasks --json --feature <feature-slug>
+   spec-kitty agent mission finalize-tasks --json --mission <mission-slug>
    ```
 
    This step is MANDATORY. Without it:
@@ -392,11 +392,11 @@ frontmatter. Use `--replace` to overwrite a WP's refs (e.g., to correct a bad ma
 
 Resolve the feature slug from explicit user direction, current branch, or current directory path.
 
-If ambiguous, run `check-prerequisites` once without `--feature`, parse the JSON candidate list, and select one explicit feature slug.
+If ambiguous, run `check-prerequisites` once without `--mission`, parse the JSON candidate list, and select one explicit mission slug.
 
 ### Step 2: Setup
 
-Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --feature <feature-slug>` and capture `feature_dir`.
+Run `spec-kitty agent mission check-prerequisites --json --paths-only --include-tasks --mission <mission-slug>` and capture `feature_dir`.
 
 ### Step 3: Load Design Documents
 

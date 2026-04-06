@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a4] - 2026-04-06
+
+### Fixed
+
+- **Mission-era host surface cleanup** — removed remaining feature-era host command references from shipped templates, agent-facing prompts, and smoke-test scaffolding so new missions no longer regenerate `create-feature`, `feature_slug`, or `--feature` guidance on canonical paths.
+- **Runtime mission metadata normalization** — mission resolution now prefers canonical `mission_type` metadata and rehydrates mission identity consistently in diagnostics, verification, and rebuild-state migrations.
+- **Release-readiness regressions after host cutover** — updated cross-cutting, orchestrator, parity, body-sync, gitignore-isolation, and e2e smoke coverage to validate the mission-era CLI and contract instead of the removed feature-era host surface.
+
 ## [3.1.0a3] - 2026-04-05
 
 ### Fixed

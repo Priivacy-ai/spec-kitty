@@ -1,6 +1,6 @@
 """Read and write lanes.json for a feature directory.
 
-The lanes.json file lives at kitty-specs/{feature_slug}/lanes.json
+The lanes.json file lives at kitty-specs/{mission_slug}/lanes.json
 and is the sole persistence location for lane assignments.
 
 Read is fail-closed: a corrupt or malformed lanes.json raises
@@ -34,7 +34,7 @@ def write_lanes_json(feature_dir: Path, manifest: LanesManifest) -> Path:
     Uses write-to-temp + rename to prevent truncated files on crash.
 
     Args:
-        feature_dir: Path to kitty-specs/{feature_slug}/.
+        feature_dir: Path to kitty-specs/{mission_slug}/.
         manifest: The LanesManifest to persist.
 
     Returns:
@@ -67,7 +67,7 @@ def read_lanes_json(feature_dir: Path) -> LanesManifest | None:
     prevents silent fallback to legacy no-lanes mode.
 
     Args:
-        feature_dir: Path to kitty-specs/{feature_slug}/.
+        feature_dir: Path to kitty-specs/{mission_slug}/.
 
     Returns:
         A LanesManifest if the file exists, None if absent.

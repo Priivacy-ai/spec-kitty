@@ -25,10 +25,15 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
     Returns the mission string or ``None`` when no meta.json exists.
     """
     try:
-        from .feature_metadata import load_meta
+        from .mission_metadata import load_meta
         meta = load_meta(feature_dir)
         if meta:
-            return meta.get("mission")
+            mission_type = str(meta.get("mission_type", "")).strip()
+            if mission_type:
+                return mission_type
+            legacy_mission = str(meta.get("mission", "")).strip()
+            if legacy_mission:
+                return legacy_mission
     except Exception:
         pass
     return None
@@ -81,17 +86,17 @@ def run_enhanced_verify(
     }
 
     # Resolve mission from feature-level meta.json when available
-    mission_key: Optional[str] = None
+    mission_type: Optional[str] = None
     if feature_dir is not None:
-        mission_key = _resolve_mission_from_feature(feature_dir)
+        mission_type = _resolve_mission_from_feature(feature_dir)
     elif feature:
         candidate = project_root / "kitty-specs" / feature
         if candidate.is_dir():
-            mission_key = _resolve_mission_from_feature(candidate)
+            mission_type = _resolve_mission_from_feature(candidate)
 
     # Initialize helpers
     kittify_dir = project_root / ".kittify"
-    manifest = FileManifest(kittify_dir, mission_key=mission_key)
+    manifest = FileManifest(kittify_dir, mission_type=mission_type)
     worktree_status = WorktreeStatus(repo_root)
 
     # 1. Environment Information
@@ -116,7 +121,7 @@ def run_enhanced_verify(
         "project_root": str(project_root),
         "in_worktree": in_worktree,
         "current_branch": current_branch,
-        "active_mission": mission_key or "no feature context"
+        "active_mission": mission_type or "no feature context"
     }
 
     if not json_output:
@@ -150,7 +155,7 @@ def run_enhanced_verify(
         total_missing = len(file_check["missing"])
 
         output_data["file_integrity"] = {
-            "active_mission": mission_key or "no feature context",
+            "active_mission": mission_type or "no feature context",
             "total_expected": total_expected,
             "total_present": total_present,
             "total_missing": total_missing,
@@ -169,7 +174,7 @@ def run_enhanced_verify(
 
         if not json_output:
             console.print("\n[cyan]2. Mission File Integrity[/cyan]")
-            console.print(f"   Active mission: {mission_key or 'no feature context'}")
+            console.print(f"   Active mission: {mission_type or 'no feature context'}")
 
             if total_missing == 0:
                 console.print(f"   [green]✓[/green] All {total_expected} expected files present")
@@ -201,20 +206,20 @@ def run_enhanced_verify(
     try:
         if not feature:
             raise ValueError("No --feature provided; skipping feature analysis.")
-        feature_slug = feature.strip()
+        mission_slug = feature.strip()
 
         output_data["feature_detection"] = {
             "detected": True,
-            "feature": feature_slug
+            "feature": mission_slug
         }
 
         # Get detailed status for this feature
-        feature_status = worktree_status.get_feature_status(feature_slug)
+        feature_status = worktree_status.get_feature_status(mission_slug)
         output_data["feature_analysis"] = feature_status
 
         if not json_output:
             console.print("\n[cyan]4. Current Feature Status[/cyan]")
-            console.print(f"   Feature: {feature_slug}")
+            console.print(f"   Feature: {mission_slug}")
             console.print(f"   State: {feature_status['state'].upper()}")
 
             # Status indicators
@@ -429,7 +434,7 @@ def run_enhanced_verify(
 
     if output_data.get("feature_analysis", {}).get("state") == "in_development":
         if not output_data["feature_analysis"].get("worktree_exists"):
-            observations.append(f"Feature {feature_slug} has no worktree but has development artifacts")
+            observations.append(f"Feature {mission_slug} has no worktree but has development artifacts")
 
     if total_missing > 0 and check_files:
         observations.append(f"Mission integrity: {total_missing} expected files not found")

@@ -31,7 +31,7 @@ def test_execution_lane_from_dict_defaults():
 def test_lanes_manifest_round_trip():
     manifest = LanesManifest(
         version=1,
-        feature_slug="057-feat",
+        mission_slug="057-feat",
         mission_id="01HXYZ_ULID",
         mission_branch="kitty/mission-057-feat",
         target_branch="main",
@@ -59,7 +59,7 @@ def test_lanes_manifest_round_trip():
     data = manifest.to_dict()
     restored = LanesManifest.from_dict(data)
     assert restored.version == manifest.version
-    assert restored.feature_slug == manifest.feature_slug
+    assert restored.mission_slug == manifest.mission_slug
     assert restored.mission_id == "01HXYZ_ULID"
     assert restored.mission_branch == manifest.mission_branch
     assert len(restored.lanes) == 2
@@ -68,10 +68,10 @@ def test_lanes_manifest_round_trip():
 
 
 def test_lanes_manifest_from_dict_missing_mission_id_falls_back():
-    """If lanes.json was written before mission_id was added, fall back to feature_slug."""
+    """If lanes.json was written before mission_id was added, fall back to mission_slug."""
     data = {
         "version": 1,
-        "feature_slug": "old-feature",
+        "mission_slug": "old-feature",
         "mission_branch": "kitty/mission-old-feature",
         "target_branch": "main",
         "lanes": [],
@@ -85,7 +85,7 @@ def test_lanes_manifest_from_dict_missing_mission_id_falls_back():
 def test_lane_for_wp():
     manifest = LanesManifest(
         version=1,
-        feature_slug="test",
+        mission_slug="test",
         mission_id="test",
         mission_branch="kitty/mission-test",
         target_branch="main",
@@ -119,7 +119,7 @@ def test_lane_for_wp():
 def test_parallel_groups():
     manifest = LanesManifest(
         version=1,
-        feature_slug="test",
+        mission_slug="test",
         mission_id="test",
         mission_branch="kitty/mission-test",
         target_branch="main",

@@ -1,10 +1,10 @@
 """Branch naming conventions for mission and lane branches.
 
-Mission branch: kitty/mission-{feature_slug}
-Lane branch:    kitty/mission-{feature_slug}-{lane_id}
+Mission branch: kitty/mission-{mission_slug}
+Lane branch:    kitty/mission-{mission_slug}-{lane_id}
 
 Both use the kitty/ namespace prefix for visual grouping in git.
-Branch names use feature_slug (human-readable) rather than mission_id
+Branch names use mission_slug (human-readable) rather than mission_id
 (ULID) because branches are a human-facing surface.
 """
 
@@ -17,20 +17,20 @@ _MISSION_RE = re.compile(r"^kitty/mission-(.+)$")
 _LANE_RE = re.compile(r"^kitty/mission-(.+)-(lane-[a-z])$")
 
 
-def mission_branch_name(feature_slug: str) -> str:
+def mission_branch_name(mission_slug: str) -> str:
     """Return the mission integration branch name.
 
     Example: mission_branch_name("057-my-feature") -> "kitty/mission-057-my-feature"
     """
-    return f"{_MISSION_PREFIX}{feature_slug}"
+    return f"{_MISSION_PREFIX}{mission_slug}"
 
 
-def lane_branch_name(feature_slug: str, lane_id: str) -> str:
+def lane_branch_name(mission_slug: str, lane_id: str) -> str:
     """Return a lane branch name.
 
     Example: lane_branch_name("057-my-feature", "lane-a") -> "kitty/mission-057-my-feature-lane-a"
     """
-    return f"{_MISSION_PREFIX}{feature_slug}-{lane_id}"
+    return f"{_MISSION_PREFIX}{mission_slug}-{lane_id}"
 
 
 def is_mission_branch(branch_name: str) -> bool:
@@ -50,8 +50,8 @@ def is_lane_branch(branch_name: str) -> bool:
     return _LANE_RE.match(branch_name) is not None
 
 
-def parse_feature_slug_from_branch(branch_name: str) -> str | None:
-    """Extract feature_slug from a mission or lane branch name.
+def parse_mission_slug_from_branch(branch_name: str) -> str | None:
+    """Extract mission_slug from a mission or lane branch name.
 
     Returns None if the branch doesn't match either pattern.
     """

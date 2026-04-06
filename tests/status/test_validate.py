@@ -32,7 +32,7 @@ from specify_cli.status.validate import (
 def _make_event(
     *,
     event_id: str = "01HXYZ0123456789ABCDEFGHJK",
-    feature_slug: str = "034-test-feature",
+    mission_slug: str = "034-test-feature",
     wp_id: str = "WP01",
     from_lane: str = "planned",
     to_lane: str = "claimed",
@@ -48,7 +48,7 @@ def _make_event(
     """Build a valid event dict with optional overrides."""
     event: dict = {
         "event_id": event_id,
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "wp_id": wp_id,
         "from_lane": from_lane,
         "to_lane": to_lane,
@@ -130,6 +130,12 @@ class TestValidateEventSchema:
         findings = validate_event_schema(event)
         assert any("Missing required field: event_id" in f for f in findings)
         assert any("Missing required field: wp_id" in f for f in findings)
+
+    def test_missing_mission_slug(self):
+        event = _make_event()
+        del event["mission_slug"]
+        findings = validate_event_schema(event)
+        assert any("Missing required field: mission_slug" in f for f in findings)
 
     def test_invalid_event_id_format(self):
         event = _make_event(event_id="not-a-ulid")

@@ -23,10 +23,10 @@ class MissionContext:
 
     token: str  # Opaque ULID: "ctx-01HV..."
     project_uuid: str  # From .kittify/config.yaml project.uuid
-    mission_id: str  # From meta.json (currently feature_slug)
+    mission_id: str  # From meta.json (currently mission_slug)
     work_package_id: str  # From WP frontmatter (immutable internal ID)
     wp_code: str  # Display alias: "WP03"
-    feature_slug: str  # Display alias: "057-canonical-context..."
+    mission_slug: str  # Display alias: "057-canonical-context..."
     target_branch: str  # From meta.json
     authoritative_repo: str  # Absolute path to repo root
     authoritative_ref: str | None  # Git ref for code_change WPs; None for planning_artifact
@@ -44,7 +44,7 @@ class MissionContext:
             "mission_id": self.mission_id,
             "work_package_id": self.work_package_id,
             "wp_code": self.wp_code,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "target_branch": self.target_branch,
             "authoritative_repo": self.authoritative_repo,
             "authoritative_ref": self.authoritative_ref,
@@ -64,7 +64,7 @@ class MissionContext:
             mission_id=data["mission_id"],
             work_package_id=data["work_package_id"],
             wp_code=data["wp_code"],
-            feature_slug=data["feature_slug"],
+            mission_slug=data["mission_slug"],
             target_branch=data["target_branch"],
             authoritative_repo=data["authoritative_repo"],
             authoritative_ref=data.get("authoritative_ref"),

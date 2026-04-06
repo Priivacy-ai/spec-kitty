@@ -87,7 +87,7 @@ def _make_legacy_project(
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        meta = {"feature_slug": slug, "title": f"Feature {slug}"}
+        meta = {"mission_slug": slug, "title": f"Feature {slug}"}
         (feature_dir / "meta.json").write_text(
             json.dumps(meta, indent=2), encoding="utf-8"
         )
@@ -263,7 +263,7 @@ class TestRollbackOnOwnershipFailure:
             ],
         )
 
-        def _failing_ownership(feature_dir: Path, feature_slug: str) -> None:
+        def _failing_ownership(feature_dir: Path, mission_slug: str) -> None:
             raise RuntimeError("Simulated ownership failure")
 
         with patch("specify_cli.migration.backfill_ownership.backfill_ownership", side_effect=_failing_ownership):

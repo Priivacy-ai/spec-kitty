@@ -772,7 +772,7 @@ class TestDossierHTTPAPI:
         """Verify load_snapshot() has correct argument order.
 
         P0 bug fix: Arguments were reversed, causing 500 errors.
-        Correct signature: load_snapshot(feature_dir, feature_slug)
+        Correct signature: load_snapshot(feature_dir, mission_slug)
         """
         from inspect import signature
         from specify_cli.dossier.snapshot import load_snapshot
@@ -781,8 +781,8 @@ class TestDossierHTTPAPI:
         sig = signature(load_snapshot)
         params = list(sig.parameters.keys())
 
-        # First param should be feature_dir, second should be feature_slug
+        # First param should be feature_dir, second should be mission_slug
         assert len(params) >= 2
         assert params[0] == "feature_dir"
-        assert params[1] == "feature_slug"
+        assert params[1] == "mission_slug"
 

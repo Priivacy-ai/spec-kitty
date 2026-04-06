@@ -27,12 +27,12 @@ pytestmark = pytest.mark.git_repo
 
 def _setup_feature(
     tmp_path: Path,
-    feature_slug: str = "099-test",
+    mission_slug: str = "099-test",
     phase: int = 1,
 ) -> Path:
     """Create a feature directory with WP files and meta.json."""
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -97,7 +97,7 @@ class TestReadCutoverStatusJsonIsAuthority:
 
         # Emit transition
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -125,7 +125,7 @@ class TestReadCutoverMaterializeRegeneratesViews:
 
         # Emit transitions for WP01
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -162,7 +162,7 @@ class TestPhase2ValidateFailsOnDrift:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -187,7 +187,7 @@ class TestPhase2ValidateFailsOnDrift:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )
@@ -211,7 +211,7 @@ class TestPhase2ValidateFailsOnDrift:
         repo_root = feature_dir.parent.parent
 
         emit_status_transition(
-            feature_dir=feature_dir, feature_slug=slug,
+            feature_dir=feature_dir, mission_slug=slug,
             wp_id="WP01", to_lane="claimed", actor="agent-1",
             repo_root=repo_root,
         )

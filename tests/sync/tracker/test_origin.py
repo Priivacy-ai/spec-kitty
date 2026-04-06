@@ -75,21 +75,21 @@ def _setup_repo(
 def _setup_feature(
     tmp_path: Path,
     *,
-    feature_slug: str = "061-add-clerk-auth",
+    mission_slug: str = "061-add-clerk-auth",
     provider: str = "linear",
     project_slug: str = "acme-web",
 ) -> Path:
     """Create a repo with a feature directory containing meta.json."""
     repo_root = _setup_repo(tmp_path, provider=provider, project_slug=project_slug)
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     meta = {
-        "feature_number": "061",
-        "slug": feature_slug,
-        "feature_slug": feature_slug,
+        "mission_number": "061",
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
         "friendly_name": "add clerk auth",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-04-01T00:00:00+00:00",
     }
@@ -154,9 +154,7 @@ class TestDeriveSlugFromTicket:
         assert slug == "fix-the-login-page-bug"
 
     def test_title_truncated_to_five_words(self) -> None:
-        candidate = _make_candidate(
-            key="", title="one two three four five six seven"
-        )
+        candidate = _make_candidate(key="", title="one two three four five six seven")
         slug = _derive_slug_from_ticket(candidate)
         assert slug == "one-two-three-four-five"
 
@@ -179,7 +177,9 @@ class TestSearchOriginCandidates:
         client.search_issues.return_value = _make_search_response()
 
         result = search_origin_candidates(
-            repo_root, query_text="Clerk auth", client=client,
+            repo_root,
+            query_text="Clerk auth",
+            client=client,
         )
 
         assert isinstance(result, SearchOriginResult)
@@ -192,8 +192,11 @@ class TestSearchOriginCandidates:
         assert result.query_used == "Clerk auth"
 
         client.search_issues.assert_called_once_with(
-            "linear", "acme-web",
-            query_text="Clerk auth", query_key=None, limit=10,
+            "linear",
+            "acme-web",
+            query_text="Clerk auth",
+            query_key=None,
+            limit=10,
         )
 
     def test_key_search_returns_exact_match(self, tmp_path: Path) -> None:
@@ -214,7 +217,9 @@ class TestSearchOriginCandidates:
         )
 
         result = search_origin_candidates(
-            repo_root, query_key="IAM-42", client=client,
+            repo_root,
+            query_key="IAM-42",
+            client=client,
         )
 
         assert len(result.candidates) == 1
@@ -228,7 +233,9 @@ class TestSearchOriginCandidates:
         client.search_issues.return_value = _make_search_response(candidates=[])
 
         result = search_origin_candidates(
-            repo_root, query_text="nonexistent", client=client,
+            repo_root,
+            query_text="nonexistent",
+            client=client,
         )
 
         assert result.candidates == []
@@ -237,9 +244,7 @@ class TestSearchOriginCandidates:
         """Scenario 4: SaaS returns user_action_required -> OriginBindingError."""
         repo_root = _setup_repo(tmp_path)
         client = MagicMock()
-        client.search_issues.side_effect = SaaSTrackerClientError(
-            "Missing user link (action required -- check the Spec Kitty dashboard)"
-        )
+        client.search_issues.side_effect = SaaSTrackerClientError("Missing user link (action required -- check the Spec Kitty dashboard)")
 
         with pytest.raises(OriginBindingError, match="Missing user link"):
             search_origin_candidates(repo_root, query_text="test", client=client)
@@ -274,8 +279,11 @@ class TestSearchOriginCandidates:
         )
 
         client.search_issues.assert_called_once_with(
-            "linear", "acme-web",
-            query_text="some text", query_key="WEB-123", limit=10,
+            "linear",
+            "acme-web",
+            query_text="some text",
+            query_key="WEB-123",
+            limit=10,
         )
 
 
@@ -300,7 +308,11 @@ class TestBindMissionOrigin:
             mock_get_emitter.return_value = mock_emitter
 
             result, emitted = bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
@@ -318,36 +330,36 @@ class TestBindMissionOrigin:
         mock_emitter.emit_mission_origin_bound.assert_called_once()
 
     def test_saas_first_ordering_saas_fails_no_local_write(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """MOST CRITICAL TEST: SaaS fails -> meta.json NOT written."""
         feature_dir = _setup_feature(tmp_path)
         candidate = _make_candidate()
         client = MagicMock()
-        client.bind_mission_origin.side_effect = SaaSTrackerClientError(
-            "409 Conflict: different origin already bound"
-        )
+        client.bind_mission_origin.side_effect = SaaSTrackerClientError("409 Conflict: different origin already bound")
 
         # Read meta before the call
-        meta_before = json.loads(
-            (feature_dir / "meta.json").read_text(encoding="utf-8")
-        )
+        meta_before = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert "origin_ticket" not in meta_before
 
         with pytest.raises(OriginBindingError, match="409 Conflict"):
             bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
         # Verify meta.json was NOT modified
-        meta_after = json.loads(
-            (feature_dir / "meta.json").read_text(encoding="utf-8")
-        )
+        meta_after = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
         assert "origin_ticket" not in meta_after
 
     def test_saas_first_ordering_set_origin_ticket_not_called(
-        self, tmp_path: Path,
+        self,
+        tmp_path: Path,
     ) -> None:
         """Verify set_origin_ticket is NOT called when SaaS fails."""
         feature_dir = _setup_feature(tmp_path)
@@ -356,13 +368,15 @@ class TestBindMissionOrigin:
         client.bind_mission_origin.side_effect = SaaSTrackerClientError("fail")
 
         with (
-            patch(
-                "specify_cli.tracker.origin.set_origin_ticket"
-            ) as mock_set_origin,
+            patch("specify_cli.tracker.origin.set_origin_ticket") as mock_set_origin,
             pytest.raises(OriginBindingError),
         ):
             bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
@@ -380,11 +394,19 @@ class TestBindMissionOrigin:
 
         with patch("specify_cli.sync.events.get_emitter"):
             result1, _ = bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
             result2, _ = bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
@@ -403,20 +425,25 @@ class TestBindMissionOrigin:
 
         with patch("specify_cli.sync.events.get_emitter"):
             bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
         # Second bind with different origin -> 409
         different_candidate = _make_candidate(key="WEB-999", issue_id="diff-uuid")
-        client.bind_mission_origin.side_effect = SaaSTrackerClientError(
-            "409: different origin already bound for this mission"
-        )
+        client.bind_mission_origin.side_effect = SaaSTrackerClientError("409: different origin already bound for this mission")
 
         with pytest.raises(OriginBindingError, match="409"):
             bind_mission_origin(
-                feature_dir, different_candidate,
-                "linear", "linear_team", "team-uuid",
+                feature_dir,
+                different_candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
@@ -429,7 +456,11 @@ class TestBindMissionOrigin:
 
         with patch("specify_cli.sync.events.get_emitter"):
             result, _ = bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
@@ -457,12 +488,16 @@ class TestBindMissionOrigin:
             mock_get_emitter.return_value = mock_emitter
 
             bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
         mock_emitter.emit_mission_origin_bound.assert_called_once_with(
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
             provider="linear",
             external_issue_id="issue-uuid-1",
             external_issue_key="WEB-123",
@@ -478,7 +513,11 @@ class TestBindMissionOrigin:
 
         with pytest.raises(OriginBindingError, match="No meta.json"):
             bind_mission_origin(
-                feature_dir, candidate, "linear", "linear_team", "team-uuid",
+                feature_dir,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
             )
 
 
@@ -488,7 +527,7 @@ class TestBindMissionOrigin:
 
 
 class TestStartMissionFromTicket:
-    @patch("specify_cli.core.feature_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_full_flow(
         self,
         mock_create: MagicMock,
@@ -500,7 +539,7 @@ class TestStartMissionFromTicket:
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
         )
 
         # Mock the SaaS client to allow bind to succeed
@@ -512,45 +551,60 @@ class TestStartMissionFromTicket:
 
         with patch("specify_cli.sync.events.get_emitter"):
             result = start_mission_from_ticket(
-                tmp_path, candidate, "linear", "linear_team", "team-uuid",
+                tmp_path,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
         assert isinstance(result, MissionFromTicketResult)
         assert result.feature_dir == feature_dir
-        assert result.feature_slug == "061-add-clerk-auth"
+        assert result.mission_slug == "061-add-clerk-auth"
         assert result.origin_ticket["provider"] == "linear"
         assert result.event_emitted is True
 
         mock_create.assert_called_once_with(
-            tmp_path, "web-123", mission="software-dev", target_branch=None,
+            tmp_path,
+            "web-123",
+            mission="software-dev",
+            target_branch=None,
         )
 
-    @patch("specify_cli.core.feature_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_creation_failure_raises(
-        self, mock_create: MagicMock, tmp_path: Path,
+        self,
+        mock_create: MagicMock,
+        tmp_path: Path,
     ) -> None:
-        """FeatureCreationError -> OriginBindingError."""
-        from specify_cli.core.feature_creation import FeatureCreationError
+        """MissionCreationError -> OriginBindingError."""
+        from specify_cli.core.mission_creation import MissionCreationError
 
-        mock_create.side_effect = FeatureCreationError("Slug already exists")
+        mock_create.side_effect = MissionCreationError("Slug already exists")
         candidate = _make_candidate()
 
         with pytest.raises(OriginBindingError, match="Slug already exists"):
             start_mission_from_ticket(
-                tmp_path, candidate, "linear", "linear_team", "team-uuid",
+                tmp_path,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
             )
 
-    @patch("specify_cli.core.feature_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_slug_derivation(
-        self, mock_create: MagicMock, tmp_path: Path,
+        self,
+        mock_create: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """'WEB-123' -> feature slug contains 'web-123'."""
         feature_dir = _setup_feature(tmp_path)
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-add-clerk-auth",
+            mission_slug="061-add-clerk-auth",
         )
 
         candidate = _make_candidate(key="WEB-123")
@@ -559,36 +613,45 @@ class TestStartMissionFromTicket:
 
         with patch("specify_cli.sync.events.get_emitter"):
             start_mission_from_ticket(
-                tmp_path, candidate, "linear", "linear_team", "team-uuid",
+                tmp_path,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )
 
-        # Verify create_feature_core was called with the derived slug
+        # Verify create_mission_core was called with the derived slug
         mock_create.assert_called_once()
         call_args = mock_create.call_args
         assert call_args[0][1] == "web-123"
 
-    @patch("specify_cli.core.feature_creation.create_feature_core")
+    @patch("specify_cli.core.mission_creation.create_mission_core")
     def test_bind_failure_after_creation_raises(
-        self, mock_create: MagicMock, tmp_path: Path,
+        self,
+        mock_create: MagicMock,
+        tmp_path: Path,
     ) -> None:
         """Bind failure after creation: OriginBindingError propagates."""
         feature_dir = _setup_feature(
-            tmp_path, feature_slug="061-web-123",
+            tmp_path,
+            mission_slug="061-web-123",
         )
 
         mock_create.return_value = MagicMock(
             feature_dir=feature_dir,
-            feature_slug="061-web-123",
+            mission_slug="061-web-123",
         )
         candidate = _make_candidate()
         client = MagicMock()
-        client.bind_mission_origin.side_effect = SaaSTrackerClientError(
-            "SaaS bind failed"
-        )
+        client.bind_mission_origin.side_effect = SaaSTrackerClientError("SaaS bind failed")
 
         with pytest.raises(OriginBindingError, match="SaaS bind failed"):
             start_mission_from_ticket(
-                tmp_path, candidate, "linear", "linear_team", "team-uuid",
+                tmp_path,
+                candidate,
+                "linear",
+                "linear_team",
+                "team-uuid",
                 client=client,
             )

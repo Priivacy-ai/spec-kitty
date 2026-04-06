@@ -1,4 +1,4 @@
-"""Tests for set_origin_ticket() in specify_cli.feature_metadata."""
+"""Tests for set_origin_ticket() in specify_cli.mission_metadata."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from typing import Any
 
 import pytest
 
-from specify_cli.feature_metadata import load_meta, set_origin_ticket
+from specify_cli.mission_metadata import load_meta, set_origin_ticket
 
 
 # ---------------------------------------------------------------------------
@@ -19,11 +19,11 @@ from specify_cli.feature_metadata import load_meta, set_origin_ticket
 def _minimal_meta() -> dict[str, Any]:
     """Return a minimal valid meta dict with all required fields."""
     return {
-        "feature_number": "061",
+        "mission_number": "061",
         "slug": "061-ticket-first",
-        "feature_slug": "061-ticket-first",
+        "mission_slug": "061-ticket-first",
         "friendly_name": "Ticket First Mission",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-04-01T00:00:00+00:00",
     }
@@ -69,7 +69,7 @@ class TestSetOriginTicketHappyPath:
         assert "origin_ticket" in result
         assert result["origin_ticket"] == origin
         # All original fields still present
-        assert result["feature_number"] == "061"
+        assert result["mission_number"] == "061"
 
     def test_preserves_existing_fields(self, tmp_path: Path) -> None:
         meta = _minimal_meta()

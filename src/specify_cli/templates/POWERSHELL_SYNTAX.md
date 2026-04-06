@@ -43,7 +43,7 @@ git branch --show-current
 Spec-kitty uses a Python CLI that works across all platforms:
 
 **Common commands:**
-- `spec-kitty agent mission create-feature <slug>` - Create a new feature
+- `spec-kitty agent mission create <slug>` - Create a new mission
 - `spec-kitty verify-setup` - Check environment and paths
 - `spec-kitty agent action implement <WPID> --agent <name>` - Start implementing a work package
 - `spec-kitty agent action review <WPID> --agent <name>` - Start reviewing a work package

@@ -327,8 +327,8 @@ class Mission:
         if project_dir is not None:
             from specify_cli.runtime.resolver import resolve_command
 
-            mission_key = self.path.name  # e.g. "software-dev"
-            result = resolve_command(command_name, project_dir, mission=mission_key)
+            mission_type = self.path.name  # e.g. "software-dev"
+            result = resolve_command(command_name, project_dir, mission=mission_type)
             return result.path
 
         command_path = self.command_templates_dir / command_name
@@ -539,7 +539,7 @@ def get_mission_by_name(mission_name: str, kittify_dir: Optional[Path] = None) -
 # =============================================================================
 
 
-def get_feature_mission_key(feature_dir: Path) -> str:
+def get_mission_type(feature_dir: Path) -> str:
     """Extract mission key from feature's meta.json, defaulting to software-dev.
 
     This is a helper function for reading the mission field from a feature's
@@ -557,12 +557,18 @@ def get_feature_mission_key(feature_dir: Path) -> str:
     try:
         with open(meta_file, 'r', encoding='utf-8') as f:
             meta = json.load(f)
-        return meta.get("mission", "software-dev")
+        mission_type = str(meta.get("mission_type", "")).strip()
+        if mission_type:
+            return mission_type
+        legacy_mission = str(meta.get("mission", "")).strip()
+        if legacy_mission:
+            return legacy_mission
+        return "software-dev"
     except (json.JSONDecodeError, OSError):
         return "software-dev"
 
 
-def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None) -> Optional[str]:
+def get_deliverables_path(feature_dir: Path, mission_slug: Optional[str] = None) -> Optional[str]:
     """Extract deliverables_path from feature's meta.json.
 
     For research missions, deliverables go in a separate location from
@@ -571,7 +577,7 @@ def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None)
 
     Args:
         feature_dir: Path to the feature directory (kitty-specs/<feature>/)
-        feature_slug: Feature slug for default path generation (optional)
+        mission_slug: Feature slug for default path generation (optional)
 
     Returns:
         Deliverables path string if configured, or a default path for research
@@ -596,15 +602,15 @@ def get_deliverables_path(feature_dir: Path, feature_slug: Optional[str] = None)
             mission = meta.get("mission", "software-dev")
             if mission == "research":
                 # Generate default path using slug from meta or directory name
-                slug = meta.get("slug") or feature_slug or feature_dir.name
+                slug = meta.get("slug") or mission_slug or feature_dir.name
                 return f"docs/research/{slug}/"
         except (json.JSONDecodeError, OSError):
             pass
 
-    # If no meta.json but feature_slug provided, check mission from directory structure
+    # If no meta.json but mission_slug provided, check mission from directory structure
     # and provide default for research missions
-    if feature_slug:
-        return f"docs/research/{feature_slug}/"
+    if mission_slug:
+        return f"docs/research/{mission_slug}/"
 
     return None
 
@@ -659,7 +665,7 @@ def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = No
         MissionNotFoundError: If feature meta.json not found and no default available
     """
     # Get the mission key from meta.json
-    mission_key = get_feature_mission_key(feature_dir)
+    mission_type = get_mission_type(feature_dir)
 
     # Find project root if not provided
     if project_root is None:
@@ -681,11 +687,11 @@ def get_mission_for_feature(feature_dir: Path, project_root: Optional[Path] = No
 
     # Try to load the specified mission
     try:
-        return get_mission_by_name(mission_key, kittify_dir)
+        return get_mission_by_name(mission_type, kittify_dir)
     except MissionNotFoundError:
         # Fall back to software-dev with warning
         warnings.warn(
-            f"Mission '{mission_key}' not found for feature {feature_dir.name}, "
+            f"Mission '{mission_type}' not found for feature {feature_dir.name}, "
             f"using software-dev as default",
             stacklevel=2
         )

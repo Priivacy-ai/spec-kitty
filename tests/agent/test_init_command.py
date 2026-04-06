@@ -28,8 +28,8 @@ def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console, list[str]]
     def fake_show_banner():  # noqa: D401
         outputs.append("banner")
 
-    def fake_activate(project_path: Path, mission_key: str, mission_display: str, _console: Console) -> str:
-        outputs.append(f"activate:{mission_key}")
+    def fake_activate(project_path: Path, mission_type: str, mission_display: str, _console: Console) -> str:
+        outputs.append(f"activate:{mission_type}")
         return mission_display
 
     def fake_ensure_scripts(path: Path, tracker=None):  # noqa: D401

@@ -48,7 +48,7 @@ def _write_event(feature_dir: Path, wp_id: str, to_lane: str, from_lane: str = "
     """Append a single status event to the feature's event log."""
     event = StatusEvent(
         event_id=f"01TEST{wp_id}{to_lane.upper()[:4]}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -82,7 +82,7 @@ class TestEventLogAbsent:
         with pytest.raises(CanonicalStatusNotFoundError, match="finalize-tasks"):
             get_wp_lane(feature_dir, "WP01")
 
-    def test_get_wp_lane_error_includes_feature_slug(self, tmp_path: Path) -> None:
+    def test_get_wp_lane_error_includes_mission_slug(self, tmp_path: Path) -> None:
         feature_dir = _make_feature_dir(tmp_path, slug="060-my-feature")
         with pytest.raises(CanonicalStatusNotFoundError, match="060-my-feature"):
             get_wp_lane(feature_dir, "WP01")
@@ -217,7 +217,7 @@ class TestEventLogExistsWPHasState:
         # Write a planned->planned event (bootstrap)
         event = StatusEvent(
             event_id="01TESTBOOTWP01",
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.PLANNED,
@@ -244,7 +244,7 @@ class TestEventLogExistsWPHasState:
         # done requires evidence — write raw event
         event = StatusEvent(
             event_id="01TESTDONEWP01",
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             wp_id="WP01",
             from_lane=Lane.APPROVED,
             to_lane=Lane.DONE,
@@ -307,7 +307,7 @@ class TestMergePreflightHardFail:
         with pytest.raises(CanonicalStatusNotFoundError):
             _mark_wp_merged_done(
                 repo_root=tmp_path,
-                feature_slug=feature_dir.name,
+                mission_slug=feature_dir.name,
                 wp_id="WP01",
                 target_branch="main",
             )

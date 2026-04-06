@@ -17,7 +17,7 @@ def _set_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
         feature_dir,
         StatusEvent(
             event_id=f"TEST{wp_id}{lane.upper()}0000000000000000"[:26],
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             wp_id=wp_id,
             from_lane=Lane.PLANNED,
             to_lane=Lane(lane),

@@ -13,7 +13,7 @@ from specify_cli.lanes.persistence import (
 def _make_manifest() -> LanesManifest:
     return LanesManifest(
         version=1,
-        feature_slug="010-feature",
+        mission_slug="010-feature",
         mission_id="01HTEST_ULID",
         mission_branch="kitty/mission-010-feature",
         target_branch="main",
@@ -40,7 +40,7 @@ def test_write_and_read(tmp_path):
 
     restored = read_lanes_json(tmp_path)
     assert restored is not None
-    assert restored.feature_slug == "010-feature"
+    assert restored.mission_slug == "010-feature"
     assert len(restored.lanes) == 1
     assert restored.lanes[0].wp_ids == ("WP01", "WP02")
 

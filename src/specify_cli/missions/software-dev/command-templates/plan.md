@@ -18,7 +18,7 @@
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**In repos with multiple features, always pass `--feature <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -54,13 +54,13 @@ spec-kitty charter context --action plan --json
 This command runs in the **project root checkout**, not in a worktree.
 
 - Resolve branch context from deterministic JSON output, not from `meta.json` inspection:
-  - Run `spec-kitty agent mission setup-plan --feature <feature-slug> --json`
+  - Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json`
   - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
   - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
-- Planning artifacts live in `kitty-specs/###-feature/`
+- Planning artifacts live in `kitty-specs/###-mission/`
 - The plan template is committed to the target branch after generation
 
-**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
+**Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
 
 ## Planning Interrogation (mandatory)
 
@@ -95,15 +95,15 @@ Planning requirements (scale to complexity):
    - If any planning questions remain unanswered or the user has not confirmed the **Engineering Alignment** summary, stay in the one-question cadence, capture the user's response, update your internal table, and end with `WAITING_FOR_PLANNING_INPUT`. Do **not** surface the table. Do **not** run the setup command yet.
    - Once every planning question has a concrete answer and the alignment summary is confirmed by the user, continue.
 
-2. **Resolve feature context deterministically** (CRITICAL - prevents wrong feature selection):
-   - Prefer an explicit feature slug from user direction or from the current directory path (`kitty-specs/<feature-slug>/...`)
-   - If you do not yet have an explicit feature slug, run `spec-kitty agent mission setup-plan --json` once without `--feature`
+2. **Resolve mission context deterministically** (CRITICAL - prevents wrong mission selection):
+   - Prefer an explicit mission slug from user direction or from the current directory path (`kitty-specs/<mission-slug>/...`)
+   - If you do not yet have an explicit mission slug, run `spec-kitty agent mission setup-plan --json` once without `--mission`
    - If that call succeeds, treat its JSON as the canonical setup payload and skip step 3
-   - If that call returns an ambiguity error with `available_features`, stop and resolve one explicit feature slug before continuing
+   - If that call returns an ambiguity error with `available_missions`, stop and resolve one explicit mission slug before continuing
 
-3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --feature <feature-slug> --json` from the repository root and parse JSON for:
+3. **Setup**: If step 2 did not already return a successful setup payload, run `spec-kitty agent mission setup-plan --mission <mission-slug> --json` from the repository root and parse JSON for:
    - `result`: "success" or error message
-   - `feature_slug`: Resolved feature slug
+   - `mission_slug`: Resolved feature slug
    - `spec_file`: Absolute path to resolved spec.md
    - `plan_file`: Absolute path to the created plan.md
    - `feature_dir`: Absolute path to the feature directory
@@ -121,7 +121,7 @@ Planning requirements (scale to complexity):
    **Example**:
    ```bash
    # If detected feature is 020-my-feature:
-   spec-kitty agent mission setup-plan --feature 020-my-feature --json
+   spec-kitty agent mission setup-plan --mission 020-my-feature --json
    ```
 
    **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.

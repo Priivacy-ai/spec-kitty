@@ -65,7 +65,7 @@ def feature_dir_with_events(feature_dir: Path) -> Path:
     """Feature directory pre-populated with a valid events file."""
     event = {
         "event_id": "01HXYZ0000000000000000TEST",
-        "feature_slug": "034-test-feature",
+        "mission_slug": "034-test-feature",
         "wp_id": "WP01",
         "from_lane": "planned",
         "to_lane": "claimed",
@@ -85,12 +85,12 @@ def feature_dir_with_events(feature_dir: Path) -> Path:
     return feature_dir
 
 
-def _patch_detection(tmp_path: Path, feature_slug: str = "034-test-feature"):
+def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-feature"):
     """Return a dictionary of patches for repo root lookup.
 
-    After WP02 removed heuristic detection, detect_feature_slug no longer exists
-    on the status module.  All CLI invocations pass --feature explicitly, so
-    _find_feature_slug delegates to require_explicit_feature (no mock needed).
+    After WP02 removed heuristic detection, detect_mission_slug no longer exists
+    on the status module. All CLI invocations pass --mission explicitly, so
+    _find_mission_slug delegates to require_explicit_feature (no mock needed).
     """
     return {
         "locate_project_root": patch(
@@ -133,7 +133,7 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -164,7 +164,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -191,7 +191,7 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -230,7 +230,7 @@ class TestEmitCommand:
                         to_lane,
                         "--actor",
                         "test-agent",
-                        "--feature",
+                        "--mission",
                         "034-test-feature",
                     ],
                 )
@@ -259,7 +259,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     json.dumps(evidence),
@@ -289,7 +289,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     "not valid json",
@@ -317,7 +317,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     "{bad",
@@ -347,7 +347,7 @@ class TestEmitCommand:
                     "in_progress",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--force",
                     "--reason",
@@ -378,7 +378,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -403,7 +403,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -412,7 +412,6 @@ class TestMaterializeCommand:
         assert result.exit_code == 0, f"stdout: {result.output}"
         data = _extract_json(result.output)
         assert "mission_slug" in data
-        assert "feature_slug" in data
         assert "event_count" in data
         assert "work_packages" in data
         assert "summary" in data
@@ -439,7 +438,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--mission", "034-test-feature",
                 ],
             )
 
@@ -458,7 +457,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -478,7 +477,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -493,7 +492,7 @@ class TestMaterializeCommand:
         events = [
             {
                 "event_id": "01HXYZ0000000000000000AAA1",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-feature",
                 "wp_id": "WP01",
                 "from_lane": "planned",
                 "to_lane": "claimed",
@@ -507,7 +506,7 @@ class TestMaterializeCommand:
             },
             {
                 "event_id": "01HXYZ0000000000000000AAA2",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-feature",
                 "wp_id": "WP01",
                 "from_lane": "claimed",
                 "to_lane": "in_progress",
@@ -521,7 +520,7 @@ class TestMaterializeCommand:
             },
             {
                 "event_id": "01HXYZ0000000000000000AAA3",
-                "feature_slug": "034-test-feature",
+                "mission_slug": "034-test-feature",
                 "wp_id": "WP02",
                 "from_lane": "planned",
                 "to_lane": "claimed",
@@ -548,7 +547,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -590,7 +589,7 @@ class TestEmitThenMaterialize:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -607,7 +606,7 @@ class TestEmitThenMaterialize:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],

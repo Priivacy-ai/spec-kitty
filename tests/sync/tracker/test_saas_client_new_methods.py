@@ -70,6 +70,17 @@ def client(mock_credential_store: MagicMock, mock_sync_config: MagicMock) -> Saa
     )
 
 
+def _valid_identity() -> dict[str, Any]:
+    """Return a valid project_identity dict that passes contract gate."""
+    return {
+        "uuid": str(uuid.uuid4()),
+        "slug": "my-project",
+        "node_id": "a1b2c3d4e5f6",
+        "repo_slug": "acme/widgets",
+        "build_id": str(uuid.uuid4()),
+    }
+
+
 # ---------------------------------------------------------------------------
 # resources()
 # ---------------------------------------------------------------------------
@@ -131,7 +142,7 @@ class TestBindResolve:
             },
         )
 
-        identity = {"org": "acme", "repo": "widgets"}
+        identity = _valid_identity()
         result = client.bind_resolve("github", identity)
 
         assert len(result["candidates"]) == 1
@@ -141,7 +152,7 @@ class TestBindResolve:
         assert args[0] == "POST"
         assert "/api/v1/tracker/bind-resolve/" in args[1]
         assert kwargs["json"]["provider"] == "github"
-        assert kwargs["json"]["project_identity"] == {"org": "acme", "repo": "widgets"}
+        assert kwargs["json"]["project_identity"] == identity
 
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_bind_resolve_empty_candidates(
@@ -152,7 +163,7 @@ class TestBindResolve:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
         mock_http.request.return_value = _make_response(200, {"candidates": []})
 
-        result = client.bind_resolve("jira", {"key": "PROJ"})
+        result = client.bind_resolve("jira", _valid_identity())
 
         assert result == {"candidates": []}
 
@@ -174,7 +185,7 @@ class TestBindConfirm:
             200, {"binding_ref": "bind-123", "status": "confirmed"}
         )
 
-        identity = {"org": "acme", "repo": "widgets"}
+        identity = _valid_identity()
         result = client.bind_confirm("github", "tok-abc", identity)
 
         assert result["binding_ref"] == "bind-123"
@@ -198,7 +209,7 @@ class TestBindConfirm:
             200, {"binding_ref": "bind-123"}
         )
 
-        client.bind_confirm("github", "tok-abc", {"org": "acme"})
+        client.bind_confirm("github", "tok-abc", _valid_identity())
 
         _, kwargs = mock_http.request.call_args
         idem_key = kwargs["headers"]["Idempotency-Key"]
@@ -217,7 +228,7 @@ class TestBindConfirm:
         )
 
         client.bind_confirm(
-            "github", "tok-abc", {"org": "acme"}, idempotency_key="custom-key-456"
+            "github", "tok-abc", _valid_identity(), idempotency_key="custom-key-456"
         )
 
         _, kwargs = mock_http.request.call_args
@@ -241,7 +252,7 @@ class TestBindValidate:
             200, {"valid": True, "binding_ref": "bind-123"}
         )
 
-        identity = {"org": "acme", "repo": "widgets"}
+        identity = _valid_identity()
         result = client.bind_validate("github", "bind-123", identity)
 
         assert result["valid"] is True
@@ -266,7 +277,7 @@ class TestBindValidate:
             {"valid": False, "binding_ref": "bind-bad", "reason": "binding expired"},
         )
 
-        result = client.bind_validate("jira", "bind-bad", {"key": "PROJ"})
+        result = client.bind_validate("jira", "bind-bad", _valid_identity())
 
         assert result["valid"] is False
         assert result["reason"] == "binding expired"

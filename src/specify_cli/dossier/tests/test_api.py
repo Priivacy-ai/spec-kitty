@@ -101,9 +101,9 @@ def sample_artifacts():
 def sample_dossier(sample_artifacts):
     """Create a sample MissionDossier."""
     return MissionDossier(
-        mission_slug="software-dev",
+        mission_type="software-dev",
         mission_run_id="test-run",
-        feature_slug="042-local-mission-dossier",
+        mission_type="042-local-mission-dossier",
         feature_dir="/tmp/kitty-specs/042-local-mission-dossier",
         artifacts=sample_artifacts,
         manifest={"required": ["input.spec.main", "output.tasks.per_wp", "policy.manifest"]},
@@ -117,7 +117,7 @@ def sample_dossier(sample_artifacts):
 def sample_snapshot():
     """Create a sample MissionDossierSnapshot."""
     return MissionDossierSnapshot(
-        feature_slug="042-local-mission-dossier",
+        mission_slug="042-local-mission-dossier",
         snapshot_id="snap-001",
         total_artifacts=4,
         required_artifacts=3,
@@ -154,7 +154,7 @@ class TestDossierOverviewEndpoint:
             response = handler.handle_dossier_overview("042-local-mission-dossier")
 
             assert isinstance(response, DossierOverviewResponse)
-            assert response.feature_slug == "042-local-mission-dossier"
+            assert response.mission_slug == "042-local-mission-dossier"
             assert response.completeness_status == "incomplete"
             assert response.parity_hash_sha256 == "e" * 64
             assert response.missing_required_count == 1
@@ -203,7 +203,7 @@ class TestDossierOverviewEndpoint:
             json_str = response.json()
             parsed = json.loads(json_str)
 
-            assert parsed["feature_slug"] == "042-local-mission-dossier"
+            assert parsed["mission_slug"] == "042-local-mission-dossier"
             assert parsed["completeness_status"] == "incomplete"
 
 
@@ -431,7 +431,7 @@ class TestDossierSnapshotExportEndpoint:
             )
 
             assert isinstance(response, SnapshotExportResponse)
-            assert response.feature_slug == "042-local-mission-dossier"
+            assert response.mission_slug == "042-local-mission-dossier"
             assert response.snapshot_id == "snap-001"
 
     def test_export_all_fields_present(self, handler, sample_snapshot):
@@ -443,7 +443,7 @@ class TestDossierSnapshotExportEndpoint:
                 "042-local-mission-dossier"
             )
 
-            assert response.feature_slug is not None
+            assert response.mission_slug is not None
             assert response.snapshot_id is not None
             assert response.total_artifacts is not None
             assert response.required_artifacts is not None
@@ -492,7 +492,7 @@ class TestDossierSnapshotExportEndpoint:
             json_str = response.json()
             parsed = json.loads(json_str)
 
-            assert parsed["feature_slug"] == "042-local-mission-dossier"
+            assert parsed["mission_slug"] == "042-local-mission-dossier"
             assert parsed["snapshot_id"] == "snap-001"
             assert "2026-" in parsed["computed_at"]  # ISO timestamp
 

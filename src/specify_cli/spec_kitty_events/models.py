@@ -79,6 +79,14 @@ class Event(BaseModel):
         description="Event ID of the parent event (26-char ULID or UUID accepted, None for root events)",
         json_schema_extra={"pattern": _EVENT_ID_PATTERN},
     )
+    build_id: str = Field(
+        default="",
+        description="Build identifier from ProjectIdentity (FR-007, FR-009). Empty string for migration compat.",
+    )
+    schema_version: str = Field(
+        default="3.0.0",
+        description="Contract schema version (FR-007). Defaults to 3.0.0.",
+    )
 
     @field_validator("event_id", "causation_id", mode="before")
     @classmethod

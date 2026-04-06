@@ -19,7 +19,7 @@ from unittest.mock import patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.fast
 
@@ -74,27 +74,27 @@ def _patch_context(
     """Return a context-manager stack that patches the infrastructure helpers."""
     return (
         patch(
-            "specify_cli.cli.commands.agent.feature.locate_project_root",
+            "specify_cli.cli.commands.agent.mission.locate_project_root",
             return_value=tmp_path,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature._find_feature_directory",
+            "specify_cli.cli.commands.agent.mission._find_feature_directory",
             return_value=feature_dir,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature._show_branch_context",
+            "specify_cli.cli.commands.agent.mission._show_branch_context",
             return_value=(None, "main"),
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.safe_commit",
+            "specify_cli.cli.commands.agent.mission.safe_commit",
             return_value=commit_success,
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.run_command",
+            "specify_cli.cli.commands.agent.mission.run_command",
             side_effect=_make_run_command(git_status_out),
         ),
         patch(
-            "specify_cli.cli.commands.agent.feature.get_emitter",
+            "specify_cli.cli.commands.agent.mission.get_emitter",
         ),
     )
 
@@ -128,12 +128,12 @@ class TestFinalizeTasks:
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -161,12 +161,12 @@ class TestFinalizeTasks:
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -189,12 +189,12 @@ class TestFinalizeTasks:
 
         # Act — git status returns empty output (nothing to commit)
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -217,12 +217,12 @@ class TestFinalizeTasks:
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 
@@ -256,12 +256,12 @@ class TestFinalizeTasks:
 
         # Act
         with (
-            patch("specify_cli.cli.commands.agent.feature.locate_project_root", return_value=tmp_path),
-            patch("specify_cli.cli.commands.agent.feature._find_feature_directory", return_value=feature_dir),
-            patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main")),
-            patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True),
-            patch("specify_cli.cli.commands.agent.feature.run_command", side_effect=_make_run_command("M tasks.md")),
-            patch("specify_cli.cli.commands.agent.feature.get_emitter"),
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
         ):
             result = runner.invoke(app, ["finalize-tasks", "--json"])
 

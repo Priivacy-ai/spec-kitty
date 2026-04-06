@@ -116,16 +116,16 @@ def _write_wp(
 
 def _create_legacy_feature(
     project_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wps: list[tuple[str, str]],  # [(wp_id, lane), ...]
 ) -> Path:
     """Create a legacy feature with WPs in various lanes."""
-    feature_dir = project_root / "kitty-specs" / feature_slug
+    feature_dir = project_root / "kitty-specs" / mission_slug
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     meta = {
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "mission": "software-dev",
         "target_branch": "main",
         "created_at": "2026-01-01T00:00:00+00:00",
@@ -272,7 +272,7 @@ class TestMigrationIdempotency:
         # Create a live (non-migration) event
         live_event = StatusEvent(
             event_id="01ABCDEF0000000000000000AA",
-            feature_slug="006-idempotent",
+            mission_slug="006-idempotent",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -306,7 +306,7 @@ class TestMigrationIdempotency:
         # Write a migration-style event first
         migration_event = StatusEvent(
             event_id="01AAAAAAAAAAAAAAAAAAAAAABB",
-            feature_slug="007-no-loss",
+            mission_slug="007-no-loss",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.PLANNED,
@@ -353,7 +353,7 @@ class TestMultiFeatureMigration:
         for r in results:
             status = _result_status(r)
             assert status in ("migrated", "skipped"), (
-                f"Feature {r.feature_slug} has unexpected status: {status}"
+                f"Feature {r.mission_slug} has unexpected status: {status}"
             )
 
     def test_done_wps_are_in_done_lane_post_migration(self, tmp_path: Path) -> None:
@@ -410,7 +410,7 @@ class TestMigrationErrorPaths:
         feature_dir = tmp_path / "kitty-specs" / "017-no-tasks"
         feature_dir.mkdir(parents=True)
         (feature_dir / "meta.json").write_text(
-            json.dumps({"feature_slug": "017-no-tasks", "target_branch": "main"}),
+            json.dumps({"mission_slug": "017-no-tasks", "target_branch": "main"}),
             encoding="utf-8",
         )
         # No tasks/ directory
@@ -428,7 +428,7 @@ class TestMigrationErrorPaths:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir()
         (feature_dir / "meta.json").write_text(
-            json.dumps({"feature_slug": "018-no-wps", "target_branch": "main"}),
+            json.dumps({"mission_slug": "018-no-wps", "target_branch": "main"}),
             encoding="utf-8",
         )
         # tasks/ dir exists but empty

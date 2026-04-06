@@ -48,7 +48,7 @@ class Finding:
 class DoctorResult:
     """Aggregate result of all health checks."""
 
-    feature_slug: str
+    mission_slug: str
     findings: list[Finding] = field(default_factory=list)
 
     @property
@@ -69,7 +69,7 @@ class DoctorResult:
 
 def _load_or_reduce_snapshot(
     feature_dir: Path,
-    _feature_slug: str,
+    _mission_slug: str,
 ) -> dict[str, Any] | None:
     """Load snapshot from status.json or reduce from events.
 
@@ -164,7 +164,7 @@ def check_stale_claims(
 
 def check_orphan_workspaces(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     snapshot: dict[str, Any],
 ) -> list[Finding]:
     """Detect orphan worktrees for completed/canceled features."""
@@ -186,7 +186,7 @@ def check_orphan_workspaces(
     if not worktrees_dir.exists():
         return findings
 
-    feature_pattern = f"{feature_slug}-lane-*"
+    feature_pattern = f"{mission_slug}-lane-*"
     orphan_dirs = list(worktrees_dir.glob(feature_pattern))
 
     for orphan_dir in orphan_dirs:
@@ -198,7 +198,7 @@ def check_orphan_workspaces(
                     wp_id=None,
                     message=(
                         f"Worktree '{orphan_dir.name}' exists but all WPs in "
-                        f"'{feature_slug}' are terminal "
+                        f"'{mission_slug}' are terminal "
                         f"({', '.join(sorted(terminal_lanes))}). "
                         f"Path: {orphan_dir}"
                     ),
@@ -270,7 +270,7 @@ def check_drift(feature_dir: Path) -> list[Finding]:
 
 def run_doctor(
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     repo_root: Path,
     *,
     stale_claimed_days: int = 7,
@@ -283,7 +283,7 @@ def run_doctor(
 
     Args:
         feature_dir: Path to the feature's kitty-specs directory.
-        feature_slug: Feature identifier (e.g., "034-feature-name").
+        mission_slug: Feature identifier (e.g., "034-feature-name").
         repo_root: Path to the repository root.
         stale_claimed_days: Days before a claimed WP is flagged as stale.
         stale_in_progress_days: Days before an in_progress WP is flagged.
@@ -297,10 +297,10 @@ def run_doctor(
     if not feature_dir.exists():
         raise FileNotFoundError(f"Feature directory does not exist: {feature_dir}")
 
-    result = DoctorResult(feature_slug=feature_slug)
+    result = DoctorResult(mission_slug=mission_slug)
 
     # Load snapshot (from status.json or reduce from events)
-    snapshot = _load_or_reduce_snapshot(feature_dir, feature_slug)
+    snapshot = _load_or_reduce_snapshot(feature_dir, mission_slug)
 
     if snapshot:
         result.findings.extend(
@@ -311,7 +311,7 @@ def run_doctor(
                 in_progress_threshold_days=stale_in_progress_days,
             )
         )
-        result.findings.extend(check_orphan_workspaces(repo_root, feature_slug, snapshot))
+        result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
 
     return result

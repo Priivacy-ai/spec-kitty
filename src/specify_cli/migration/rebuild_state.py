@@ -235,7 +235,7 @@ def _enrich_event_identity(
     feature_slug: str,
     wp_id_map: dict[str, str],
 ) -> tuple[dict[str, Any], bool]:
-    """Backfill mission_id / work_package_id fields if absent.
+    """Backfill mission_slug / work_package_id fields if absent.
 
     Returns (enriched_dict, was_modified).
     """
@@ -247,8 +247,8 @@ def _enrich_event_identity(
         evt["work_package_id"] = wp_id_map[wp_code]
         changed = True
 
-    if "feature_slug" not in evt:
-        evt["feature_slug"] = feature_slug
+    if "mission_slug" not in evt:
+        evt["mission_slug"] = feature_slug
         changed = True
 
     return evt, changed
@@ -308,7 +308,7 @@ def _build_chain(
         ts = _make_migration_timestamp(migration_timestamp, offset_seconds=offset)
         evt: dict[str, Any] = {
             "event_id": _generate_ulid(),
-            "feature_slug": feature_slug,
+            "mission_slug": feature_slug,
             "wp_id": wp_code,
             "from_lane": from_lane,
             "to_lane": to_lane,
@@ -501,7 +501,7 @@ def rebuild_event_log(  # noqa: C901
             work_package_id = wp_id_map.get(wp_code, "")
             corrective_evt: dict[str, Any] = {
                 "event_id": _generate_ulid(),
-                "feature_slug": feature_slug,
+                "mission_slug": feature_slug,
                 "wp_id": wp_code,
                 "from_lane": log_lane,
                 "to_lane": auth_lane,

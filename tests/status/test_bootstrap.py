@@ -31,11 +31,11 @@ def _write_wp_file(tasks_dir: Path, wp_id: str, title: str = "Test WP") -> Path:
     return wp_file
 
 
-def _write_event(feature_dir: Path, wp_id: str, feature_slug: str = "test-feature") -> None:
+def _write_event(feature_dir: Path, wp_id: str, mission_slug: str = "test-feature") -> None:
     """Append a minimal planned event to the JSONL log."""
     event = {
         "event_id": f"01TEST{wp_id}00000000000000",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "wp_id": wp_id,
         "from_lane": "planned",
         "to_lane": "planned",

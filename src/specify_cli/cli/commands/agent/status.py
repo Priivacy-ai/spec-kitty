@@ -17,7 +17,6 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
@@ -33,11 +32,11 @@ app = typer.Typer(
 console = Console()
 
 
-def _find_feature_slug(explicit_feature: str | None = None) -> str:
-    """Require an explicit mission slug (legacy ``--feature`` name).
+def _find_mission_slug(explicit_feature: str | None = None) -> str:
+    """Require an explicit mission slug.
 
     Args:
-        explicit_feature: Mission slug provided via the legacy ``--feature`` flag.
+        explicit_feature: Mission slug provided explicitly.
 
     Returns:
         Mission slug (e.g., "034-feature-name")
@@ -46,7 +45,7 @@ def _find_feature_slug(explicit_feature: str | None = None) -> str:
         typer.Exit: If the mission slug is not provided.
     """
     try:
-        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+        return require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -71,10 +70,10 @@ def _output_error(json_mode: bool, error_message: str):
 def _resolve_feature_dir(
     explicit_feature: str | None = None,
 ) -> tuple[Path, str, Path]:
-    """Resolve feature directory, mission slug, and repo root.
+    """Resolve mission directory, mission slug, and repo root.
 
     Returns:
-        (feature_dir, feature_slug, repo_root)
+        (feature_dir, mission_slug, repo_root)
 
     Raises:
         typer.Exit: If resolution fails
@@ -86,11 +85,11 @@ def _resolve_feature_dir(
         console.print("[red]Error:[/red] Could not locate project root")
         raise typer.Exit(1)
 
-    feature_slug = _find_feature_slug(explicit_feature=explicit_feature)
+    mission_slug = _find_mission_slug(explicit_feature=explicit_feature)
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
-    return feature_dir, feature_slug, main_repo_root
+    return feature_dir, mission_slug, main_repo_root
 
 
 @app.command()
@@ -98,7 +97,7 @@ def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
@@ -131,10 +130,10 @@ def emit(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve feature slug
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
-        # Construct feature directory
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        # Construct mission directory
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         # Parse evidence JSON if provided
         evidence = None
@@ -158,7 +157,7 @@ def emit(
 
         event = emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             to_lane=to,
             actor=actor,
@@ -207,7 +206,7 @@ def emit(
 
 @app.command()
 def materialize(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -218,7 +217,7 @@ def materialize(
 
     Examples:
         spec-kitty agent status materialize
-        spec-kitty agent status materialize --feature 034-my-feature
+        spec-kitty agent status materialize --mission 034-my-feature
         spec-kitty agent status materialize --json
     """
     try:
@@ -232,10 +231,10 @@ def materialize(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve feature slug
-        feature_slug = _find_feature_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_feature=feature)
 
-        # Construct feature directory
-        feature_dir = main_repo_root / "kitty-specs" / feature_slug
+        # Construct mission directory
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         # Lazy import to avoid circular imports
         from specify_cli.status.reducer import materialize as do_materialize
@@ -252,7 +251,7 @@ def materialize(
             )
             raise typer.Exit(1)
 
-        with feature_status_lock(main_repo_root, feature_slug):
+        with feature_status_lock(main_repo_root, mission_slug):
             # Materialize snapshot from event log
             snapshot = do_materialize(feature_dir)
 
@@ -265,7 +264,7 @@ def materialize(
             event_count = snapshot.event_count
 
             console.print(
-                f"[green]Materialized[/green] {feature_slug}: "
+                f"[green]Materialized[/green] {mission_slug}: "
                 f"{event_count} events -> {wp_count} WPs"
             )
 
@@ -293,7 +292,7 @@ def materialize(
 def doctor(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Mission slug (legacy flag name)"),
+        typer.Option("--mission", help="Mission slug"),
     ] = None,
     stale_claimed: Annotated[
         int,
@@ -322,13 +321,13 @@ def doctor(
 
     Examples:
         spec-kitty agent status doctor
-        spec-kitty agent status doctor --feature 034-my-feature
+        spec-kitty agent status doctor --mission 034-my-feature
         spec-kitty agent status doctor --stale-claimed-days 3 --json
     """
     from specify_cli.runtime.doctor import run_global_checks
     from specify_cli.status.doctor import run_doctor
 
-    feature_dir, feature_slug, repo_root = _resolve_feature_dir(feature)
+    feature_dir, mission_slug, repo_root = _resolve_feature_dir(feature)
 
     # Run global runtime checks BEFORE project-specific checks
     global_checks = run_global_checks(project_dir=repo_root)
@@ -337,7 +336,7 @@ def doctor(
     try:
         result = run_doctor(
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             repo_root=repo_root,
             stale_claimed_days=stale_claimed,
             stale_in_progress_days=stale_in_progress,
@@ -355,7 +354,7 @@ def doctor(
 
     if json_output:
         report = {
-            "feature_slug": result.feature_slug,
+            "mission_slug": result.mission_slug,
             "healthy": overall_healthy,
             "global_runtime": [
                 {
@@ -377,7 +376,7 @@ def doctor(
                 for f in result.findings
             ],
         }
-        console.print_json(json.dumps(with_tracked_mission_slug_aliases(report)))
+        console.print_json(json.dumps(report))
     else:
         # Global Runtime section
         console.print("\n[bold]Global Runtime:[/bold]")
@@ -394,7 +393,7 @@ def doctor(
             console.print(f"  [{color}]{icon}[/{color}] {check.message}")
 
         # Project-specific section
-        console.print(f"\n[bold]Mission Status: {result.feature_slug}[/bold]")
+        console.print(f"\n[bold]Mission Status: {result.mission_slug}[/bold]")
         if result.is_healthy:
             console.print(
                 f"  [green]Healthy[/green]"
@@ -434,8 +433,8 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
     """Convert a MigrationResult to a JSON-serializable dict."""
     return {
         "features": [
-            with_tracked_mission_slug_aliases({
-                "feature_slug": f.feature_slug,
+            {
+                "mission_slug": f.mission_slug,
                 "status": f.status,
                 "wp_count": len(f.wp_details),
                 "wp_details": [
@@ -448,7 +447,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
                     for wp in f.wp_details
                 ],
                 "error": f.error,
-            })
+            }
             for f in result.features
         ],
         "summary": {
@@ -481,7 +480,7 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
         aliases = sum(1 for wp in f.wp_details if wp.alias_resolved)
         notes = f.error or ""
         table.add_row(
-            f.feature_slug,
+            f.mission_slug,
             _status_style(f.status),
             str(len(f.wp_details)),
             str(aliases),
@@ -505,7 +504,7 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 def migrate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Single mission slug to migrate (legacy flag name)"),
+        typer.Option("--mission", "-f", help="Single mission slug to migrate"),
     ] = None,
     all_features: Annotated[
         bool,
@@ -554,7 +553,7 @@ def migrate(
 def validate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)"),
+        typer.Option("--mission", help="Mission slug (required in multi-mission repos)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -571,7 +570,7 @@ def validate(
 
     Examples:
         spec-kitty agent status validate
-        spec-kitty agent status validate --feature 034-my-feature
+        spec-kitty agent status validate --mission 034-my-feature
         spec-kitty agent status validate --json
     """
     from specify_cli.status.reducer import reduce
@@ -584,7 +583,7 @@ def validate(
         validate_transition_legality,
     )
 
-    feature_slug = _find_feature_slug(explicit_feature=feature)
+    mission_slug = _find_mission_slug(explicit_feature=feature)
 
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
@@ -596,10 +595,10 @@ def validate(
         raise typer.Exit(1)
 
     main_repo_root = get_main_repo_root(repo_root)
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
+    feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
     if not feature_dir.exists():
-        msg = f"Feature directory not found: {feature_dir}"
+        msg = f"Mission directory not found: {feature_dir}"
         if json_output:
             print(json.dumps({"error": msg}))
         else:
@@ -614,19 +613,19 @@ def validate(
         if json_output:
             print(
                 json.dumps(
-                    with_tracked_mission_slug_aliases({
-                        "feature_slug": feature_slug,
+                    {
+                        "mission_slug": mission_slug,
                         "passed": True,
                         "errors": [],
                         "warnings": [],
                         "error_count": 0,
                         "warning_count": 0,
-                    })
+                    }
                 )
             )
         else:
             console.print(
-                f"[green]Status Validation: {feature_slug}[/green]"
+                f"[green]Status Validation: {mission_slug}[/green]"
             )
             console.print("No events to validate.")
             console.print("[green]Result: PASS[/green]")
@@ -645,19 +644,19 @@ def validate(
     if json_output:
         print(
             json.dumps(
-                with_tracked_mission_slug_aliases({
-                    "feature_slug": feature_slug,
+                {
+                    "mission_slug": mission_slug,
                     "passed": result.passed,
                     "errors": result.errors,
                     "warnings": result.warnings,
                     "error_count": len(result.errors),
                     "warning_count": len(result.warnings),
-                })
+                }
             )
         )
     else:
         console.print(
-            f"\n[bold]Status Validation: {feature_slug}[/bold]"
+            f"\n[bold]Status Validation: {mission_slug}[/bold]"
         )
         console.print("-" * 50)
 
@@ -693,7 +692,7 @@ def validate(
 def reconcile(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Mission slug (legacy flag name; required in multi-mission repos)"),
+        typer.Option("--mission", "-f", help="Mission slug (required in multi-mission repos)"),
     ] = None,
     dry_run: Annotated[
         bool,
@@ -716,7 +715,7 @@ def reconcile(
     event log integrity.
 
     Examples:
-        spec-kitty agent status validate --feature 034-feature-name
+        spec-kitty agent status validate --mission 034-feature-name
     """
     msg = (
         "The reconcile command has been removed. "

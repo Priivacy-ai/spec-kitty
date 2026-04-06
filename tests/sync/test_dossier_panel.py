@@ -23,13 +23,13 @@ class TestDossierPanelInitialization:
         """Test panel initializes with valid feature slug."""
         # This is more of a JavaScript test, but we can verify
         # the expected API structure would be correct
-        feature_slug = "042-test-feature"
+        mission_slug = "042-test-feature"
 
         # API structure expected by dossier-panel.js
         api_base = "/api/dossier"
-        expected_overview_url = f"{api_base}/overview?feature={feature_slug}"
+        expected_overview_url = f"{api_base}/overview?feature={mission_slug}"
 
-        assert feature_slug in expected_overview_url
+        assert mission_slug in expected_overview_url
         assert api_base in expected_overview_url
 
     def test_dossier_panel_container_id(self):
@@ -44,7 +44,7 @@ class TestDossierAPIResponses:
     def test_overview_response_structure(self):
         """Test overview endpoint response structure."""
         overview = {
-            "feature_slug": "042-feature",
+            "mission_slug": "042-feature",
             "completeness_status": "complete",
             "parity_hash_sha256": "abc123def456" * 5,  # 60 chars
             "artifact_counts": {
@@ -60,7 +60,7 @@ class TestDossierAPIResponses:
         }
 
         # Verify structure
-        assert overview["feature_slug"] == "042-feature"
+        assert overview["mission_slug"] == "042-feature"
         assert overview["completeness_status"] in ["complete", "incomplete", "unknown"]
         assert len(overview["artifact_counts"]) == 6
         assert overview["missing_required_count"] >= 0

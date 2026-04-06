@@ -31,7 +31,7 @@ FIXTURE_EVENTS = [
             "from_lane": "planned",
             "to_lane": "in_progress",
             "actor": "claude-agent",
-            "feature_slug": "039-cli-2x-readiness",
+            "mission_slug": "039-cli-2x-readiness",
         },
         "timestamp": "2026-02-12T10:00:00+00:00",
         "node_id": "a1b2c3d4e5f6",
@@ -46,7 +46,7 @@ FIXTURE_EVENTS = [
         "payload": {
             "wp_id": "WP10",
             "title": "End-to-end integration test suite",
-            "feature_slug": "039-cli-2x-readiness",
+            "mission_slug": "039-cli-2x-readiness",
             "dependencies": ["WP02", "WP03"],
         },
         "timestamp": "2026-02-12T11:01:00+00:00",
@@ -70,14 +70,14 @@ FIXTURE_EVENTS = [
         "lamport_clock": 5,
         "causation_id": None,
     },
-    # 4. FeatureCreated (from fixture_02)
+    # 4. MissionCreated (from fixture_02)
     {
         "event_id": "01JMBYA1B2C3D4E5F6G7H8J9KC",
-        "event_type": "FeatureCreated",
+        "event_type": "MissionCreated",
         "aggregate_id": "040-next-feature",
         "payload": {
-            "feature_slug": "040-next-feature",
-            "feature_number": "040",
+            "mission_slug": "040-next-feature",
+            "mission_number": "040",
             "target_branch": "main",
             "wp_count": 5,
             "created_at": "2026-02-12T11:02:00+00:00",
@@ -87,13 +87,13 @@ FIXTURE_EVENTS = [
         "lamport_clock": 12,
         "causation_id": None,
     },
-    # 5. FeatureCompleted
+    # 5. MissionClosed
     {
         "event_id": "01JMBYE6F7G8H9J0K1W2M3NBDQ",
-        "event_type": "FeatureCompleted",
+        "event_type": "MissionClosed",
         "aggregate_id": "039-cli-2x-readiness",
         "payload": {
-            "feature_slug": "039-cli-2x-readiness",
+            "mission_slug": "039-cli-2x-readiness",
             "total_wps": 9,
             "completed_at": "2026-02-12T18:00:00+00:00",
             "total_duration": "8h 30m",
@@ -216,8 +216,8 @@ class TestEventTypeCoverage:
             "WPStatusChanged",
             "WPCreated",
             "WPAssigned",
-            "FeatureCreated",
-            "FeatureCompleted",
+            "MissionCreated",
+            "MissionClosed",
             "HistoryAdded",
             "ErrorLogged",
             "DependencyResolved",
@@ -232,8 +232,8 @@ class TestEventTypeCoverage:
             "WPStatusChanged",
             "WPCreated",
             "WPAssigned",
-            "FeatureCreated",
-            "FeatureCompleted",
+            "MissionCreated",
+            "MissionClosed",
             "HistoryAdded",
             "ErrorLogged",
             "DependencyResolved",

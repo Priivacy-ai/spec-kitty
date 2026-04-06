@@ -1,7 +1,7 @@
 """Materialize command — regenerate all derived views from the event log.
 
 Derived views (status.json, board-summary.json, progress.json) are
-output-only artefacts stored under ``.kittify/derived/<feature_slug>/``.
+output-only artefacts stored under ``.kittify/derived/<mission_slug>/``.
 This command forces full regeneration for one or all features, which is
 useful for CI pipelines, debugging, and external SaaS consumers.
 """
@@ -15,7 +15,6 @@ from typing import Annotated, Any
 import typer
 from rich.console import Console
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.core.paths import locate_project_root
 
 console = Console()
@@ -83,11 +82,11 @@ def materialize(
             files_written += ["status.json", "board-summary.json"]
             generate_progress_json(feature_dir, derived_dir)
             files_written.append("progress.json")
-            processed.append(with_tracked_mission_slug_aliases({
-                "feature_slug": slug,
+            processed.append({
+                "mission_slug": slug,
                 "files_written": files_written,
                 "timestamp": datetime.now(UTC).isoformat(),
-            }))
+            })
         except Exception as exc:  # noqa: BLE001
             errors.append(f"{slug}: {exc}")
 
@@ -105,7 +104,7 @@ def materialize(
             console.print("[dim]No features materialised.[/dim]")
         else:
             for entry in processed:
-                slug = entry["feature_slug"]
+                slug = entry.get("mission_slug") or entry.get("mission_slug")
                 files = ", ".join(entry["files_written"])
                 console.print(f"[green]OK[/green] {slug} — {files}")
         if errors:

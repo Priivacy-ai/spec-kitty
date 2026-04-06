@@ -27,33 +27,33 @@ class TestNamespaceRef:
     def test_valid_construction(self) -> None:
         ns = NamespaceRef(
             project_uuid="abc-123",
-            feature_slug="047-feature",
+            mission_slug="047-feature",
             target_branch="main",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert ns.project_uuid == "abc-123"
-        assert ns.feature_slug == "047-feature"
+        assert ns.mission_slug == "047-feature"
         assert ns.target_branch == "main"
-        assert ns.mission_key == "software-dev"
+        assert ns.mission_type == "software-dev"
         assert ns.manifest_version == "1"
 
     @pytest.mark.parametrize(
         "field",
         [
             "project_uuid",
-            "feature_slug",
+            "mission_slug",
             "target_branch",
-            "mission_key",
+            "mission_type",
             "manifest_version",
         ],
     )
     def test_empty_field_raises(self, field: str) -> None:
         kwargs = {
             "project_uuid": "uuid",
-            "feature_slug": "slug",
+            "mission_slug": "slug",
             "target_branch": "main",
-            "mission_key": "software-dev",
+            "mission_type": "software-dev",
             "manifest_version": "1",
         }
         kwargs[field] = ""
@@ -64,18 +64,18 @@ class TestNamespaceRef:
         "field",
         [
             "project_uuid",
-            "feature_slug",
+            "mission_slug",
             "target_branch",
-            "mission_key",
+            "mission_type",
             "manifest_version",
         ],
     )
     def test_whitespace_only_field_raises(self, field: str) -> None:
         kwargs = {
             "project_uuid": "uuid",
-            "feature_slug": "slug",
+            "mission_slug": "slug",
             "target_branch": "main",
-            "mission_key": "software-dev",
+            "mission_type": "software-dev",
             "manifest_version": "1",
         }
         kwargs[field] = "   "
@@ -85,25 +85,25 @@ class TestNamespaceRef:
     def test_to_dict(self) -> None:
         ns = NamespaceRef(
             project_uuid="abc-123",
-            feature_slug="047-feature",
+            mission_slug="047-feature",
             target_branch="2.x",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="2",
         )
         assert ns.to_dict() == {
             "project_uuid": "abc-123",
-            "feature_slug": "047-feature",
+            "mission_slug": "047-feature",
             "target_branch": "2.x",
-            "mission_key": "software-dev",
+            "mission_type": "software-dev",
             "manifest_version": "2",
         }
 
     def test_dedupe_key(self) -> None:
         ns = NamespaceRef(
             project_uuid="uuid-1",
-            feature_slug="feat",
+            mission_slug="feat",
             target_branch="main",
-            mission_key="sw",
+            mission_type="sw",
             manifest_version="1",
         )
         key = ns.dedupe_key("spec.md", "sha256abc")
@@ -112,9 +112,9 @@ class TestNamespaceRef:
     def test_dedupe_key_deterministic(self) -> None:
         ns = NamespaceRef(
             project_uuid="u",
-            feature_slug="f",
+            mission_slug="f",
             target_branch="b",
-            mission_key="m",
+            mission_type="m",
             manifest_version="v",
         )
         assert ns.dedupe_key("a.md", "h1") == ns.dedupe_key("a.md", "h1")
@@ -122,9 +122,9 @@ class TestNamespaceRef:
     def test_frozen(self) -> None:
         ns = NamespaceRef(
             project_uuid="u",
-            feature_slug="f",
+            mission_slug="f",
             target_branch="b",
-            mission_key="m",
+            mission_type="m",
             manifest_version="v",
         )
         with pytest.raises(dataclasses.FrozenInstanceError):
@@ -141,22 +141,22 @@ class TestNamespaceRefFromContext:
         identity = self._make_identity(UUID("12345678-1234-5678-1234-567812345678"))
         ns = NamespaceRef.from_context(
             identity=identity,
-            feature_slug="047-feat",
+            mission_slug="047-feat",
             target_branch="main",
-            mission_key="software-dev",
+            mission_type="software-dev",
             manifest_version="1",
         )
         assert ns.project_uuid == "12345678-1234-5678-1234-567812345678"
-        assert ns.feature_slug == "047-feat"
+        assert ns.mission_slug == "047-feat"
 
     def test_none_uuid_raises(self) -> None:
         identity = self._make_identity(None)
         with pytest.raises(ValueError, match="project_uuid is required"):
             NamespaceRef.from_context(
                 identity=identity,
-                feature_slug="feat",
+                mission_slug="feat",
                 target_branch="main",
-                mission_key="sw",
+                mission_type="sw",
                 manifest_version="1",
             )
 

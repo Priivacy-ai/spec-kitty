@@ -18,7 +18,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     canonical_lane = _lane_alias.get(lane, lane)
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -47,7 +47,14 @@ def _make_feature(repo_root: Path, slug: str, *, target_branch: str = "main") ->
     feature_dir = repo_root / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": "software-dev", "target_branch": target_branch}),
+        json.dumps(
+            {
+                "mission_number": slug.split("-", 1)[0],
+                "mission_slug": slug,
+                "mission_type": "software-dev",
+                "target_branch": target_branch,
+            }
+        ),
         encoding="utf-8",
     )
     (feature_dir / "tasks").mkdir()
@@ -70,7 +77,7 @@ def _write_lanes(feature_dir: Path, *lane_defs: tuple[str, tuple[str, ...]]) -> 
         feature_dir,
         LanesManifest(
             version=1,
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             mission_id=f"mission-{feature_dir.name}",
             mission_branch=f"kitty/mission-{feature_dir.name}",
             target_branch="main",
@@ -96,17 +103,15 @@ def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatc
     monkeypatch.setenv("SPECIFY_REPO_ROOT", str(repo_root))
     monkeypatch.chdir(repo_root)
 
-    # context.app has a single command (resolve) exposed directly (no subcommand prefix)
-    # --feature is required since auto-detection was removed
-    result = CliRunner().invoke(context.app, ["--action", "tasks", "--feature", "002-second", "--json"])
+    result = CliRunner().invoke(context.app, ["--action", "tasks", "--mission", "002-second", "--json"])
 
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["success"] is True
-    assert payload["feature_slug"] == "002-second"
+    assert payload["mission_slug"] == "002-second"
     assert payload["target_branch"] == "2.x"
-    assert payload["commands"]["check_prerequisites"].endswith("--feature 002-second")
-    assert payload["commands"]["finalize_tasks"].endswith("--feature 002-second --json")
+    assert payload["commands"]["check_prerequisites"].endswith("--mission 002-second")
+    assert payload["commands"]["finalize_tasks"].endswith("--mission 002-second --json")
 
 
 def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatch) -> None:
@@ -126,7 +131,7 @@ def test_context_resolve_implement_auto_resolves_base(tmp_path: Path, monkeypatc
     # context.app has a single command (resolve) exposed directly (no subcommand prefix)
     result = CliRunner().invoke(
         context.app,
-        ["--action", "implement", "--feature", "021-context-test", "--agent", "codex", "--json"],
+        ["--action", "implement", "--mission", "021-context-test", "--agent", "codex", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -155,7 +160,7 @@ def test_context_resolve_canonicalizes_doing_lane_when_selecting_wp(
     # context.app has a single command (resolve) exposed directly (no subcommand prefix)
     result = CliRunner().invoke(
         context.app,
-        ["--action", "implement", "--feature", "021-context-test", "--json"],
+        ["--action", "implement", "--mission", "021-context-test", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -179,7 +184,7 @@ def test_context_resolve_review_returns_approve_command(tmp_path: Path, monkeypa
     # context.app has a single command (resolve) exposed directly (no subcommand prefix)
     result = CliRunner().invoke(
         context.app,
-        ["--action", "review", "--feature", "021-context-test", "--agent", "codex", "--json"],
+        ["--action", "review", "--mission", "021-context-test", "--agent", "codex", "--json"],
     )
 
     assert result.exit_code == 0, result.stdout

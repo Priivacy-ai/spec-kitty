@@ -14,18 +14,18 @@ import pytest
 pytestmark = pytest.mark.git_repo
 
 def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None:
-    """Test that create-feature command works in main without creating worktree."""
-    # Run create-feature command
+    """Test that create command works in main without creating worktree."""
+    # Run create command
     result = run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "test-planning-workflow",
         "--json",
     )
 
-    assert result.returncode == 0, f"create-feature failed: {result.stderr}"
+    assert result.returncode == 0, f"create failed: {result.stderr}"
 
     # Verify feature directory created in main repo
     feature_dir = test_project / "kitty-specs" / "001-test-planning-workflow"
@@ -51,12 +51,12 @@ def test_create_feature_in_main_no_worktree(test_project: Path, run_cli) -> None
 
 def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     """Test that setup-plan command works in main repo and commits plan.md."""
-    # First create a feature
+    # First create a mission
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "plan-test",
         "--json",
     )
@@ -76,9 +76,9 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "setup-plan",
-        "--feature",
+        "--mission",
         "001-plan-test",
         "--json",
     )
@@ -100,63 +100,63 @@ def test_setup_plan_in_main(test_project: Path, run_cli) -> None:
     assert "plan" in log_result.stdout.lower(), "plan.md should be committed to main"
 
 def test_setup_plan_explicit_feature_reports_spec_path(test_project: Path, run_cli) -> None:
-    """setup-plan with explicit --feature returns deterministic context fields."""
+    """setup-plan with explicit --mission returns deterministic context fields."""
     import json
 
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "plan-explicit-test",
         "--json",
     )
 
-    feature_slug = "001-plan-explicit-test"
-    feature_dir = test_project / "kitty-specs" / feature_slug
+    mission_slug = "001-plan-explicit-test"
+    feature_dir = test_project / "kitty-specs" / mission_slug
 
     plan_template_dir = test_project / ".kittify" / "templates"
     plan_template_dir.mkdir(parents=True, exist_ok=True)
     (plan_template_dir / "plan-template.md").write_text(
-        "# Implementation Plan\n\nExplicit feature flow.\n",
+        "# Implementation Plan\n\nExplicit mission flow.\n",
         encoding="utf-8",
     )
 
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "setup-plan",
-        "--feature",
-        feature_slug,
+        "--mission",
+        mission_slug,
         "--json",
     )
 
     assert result.returncode == 0, f"setup-plan failed: {result.stderr}"
     payload = json.loads(result.stdout)
     assert payload["result"] == "success"
-    assert payload["feature_slug"] == feature_slug
+    assert payload["mission_slug"] == mission_slug
     assert payload["feature_dir"] == str(feature_dir)
     assert payload["spec_file"] == str(feature_dir / "spec.md")
     assert payload["plan_file"] == str(feature_dir / "plan.md")
 
 def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run_cli) -> None:
-    """setup-plan without explicit context returns candidate features and remediation."""
+    """setup-plan without explicit context returns candidate missions and remediation."""
     import json
 
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "feature-a",
         "--json",
     )
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "feature-b",
         "--json",
     )
@@ -164,48 +164,48 @@ def test_setup_plan_ambiguous_context_returns_candidates(test_project: Path, run
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "setup-plan",
         "--json",
     )
 
-    assert result.returncode != 0, "setup-plan should fail without explicit feature in ambiguous context"
+    assert result.returncode != 0, "setup-plan should fail without explicit mission in ambiguous context"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "PLAN_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "--feature" in payload["example_command"]
+    assert len(payload["available_missions"]) >= 2
+    assert "--mission" in payload["example_command"]
 
 def test_setup_plan_missing_spec_reports_absolute_path(test_project: Path, run_cli) -> None:
-    """setup-plan should fail when spec.md is missing for an explicit feature."""
+    """setup-plan should fail when spec.md is missing for an explicit mission."""
     import json
 
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "missing-spec",
         "--json",
     )
-    feature_slug = "001-missing-spec"
-    feature_dir = test_project / "kitty-specs" / feature_slug
+    mission_slug = "001-missing-spec"
+    feature_dir = test_project / "kitty-specs" / mission_slug
     spec_file = feature_dir / "spec.md"
     spec_file.unlink()
 
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "setup-plan",
-        "--feature",
-        feature_slug,
+        "--mission",
+        mission_slug,
         "--json",
     )
 
     assert result.returncode != 0, "setup-plan should fail when spec.md is missing"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "SPEC_FILE_MISSING"
-    assert payload["feature_slug"] == feature_slug
+    assert payload["mission_slug"] == mission_slug
     assert payload["spec_file"] == str(spec_file.resolve())
 
 def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> None:
@@ -218,16 +218,16 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
         encoding="utf-8"
     )
 
-    # Step 1: Create feature (specify phase)
+    # Step 1: Create mission (specify phase)
     result = run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "full-workflow-test",
         "--json",
     )
-    assert result.returncode == 0, "Feature creation failed"
+    assert result.returncode == 0, "Mission creation failed"
 
     feature_dir = test_project / "kitty-specs" / "001-full-workflow-test"
     assert feature_dir.exists(), "Feature directory not created"
@@ -237,9 +237,9 @@ def test_full_planning_workflow_no_worktrees(test_project: Path, run_cli) -> Non
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "setup-plan",
-        "--feature",
+        "--mission",
         "001-full-workflow-test",
         "--json",
     )
@@ -357,9 +357,9 @@ Test work package content.
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "finalize-tasks",
-        "--feature",
+        "--mission",
         "001-full-workflow-test",
         "--json",
     )
@@ -425,12 +425,12 @@ Test work package content.
 
 def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     """Test that check-prerequisites command works when run from main repo."""
-    # Create a feature first
+    # Create a mission first
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "prereq-test",
         "--json",
     )
@@ -439,16 +439,16 @@ def test_check_prerequisites_works_in_main(test_project: Path, run_cli) -> None:
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "check-prerequisites",
-        "--feature",
+        "--mission",
         "001-prereq-test",
         "--json",
     )
 
     assert result.returncode == 0, f"check-prerequisites failed: {result.stderr}"
 
-    # Should find the latest feature and validate its structure
+    # Should find the latest mission and validate its structure
     import json
     output = json.loads(result.stdout)
     assert output["valid"] is True, "Feature structure should be valid"
@@ -463,16 +463,16 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "ambiguous-a",
         "--json",
     )
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "ambiguous-b",
         "--json",
     )
@@ -480,18 +480,18 @@ def test_check_prerequisites_ambiguous_context_returns_candidates(
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "check-prerequisites",
         "--json",
         "--paths-only",
         "--include-tasks",
     )
 
-    assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
+    assert result.returncode != 0, "Ambiguous mission context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "--feature" in payload["example_command"]
+    assert len(payload["available_missions"]) >= 2
+    assert "--mission" in payload["example_command"]
 
 def test_finalize_tasks_ambiguous_context_returns_candidates(
     test_project: Path, run_cli
@@ -502,16 +502,16 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "ambiguous-finalize-a",
         "--json",
     )
     run_cli(
         test_project,
         "agent",
-        "feature",
-        "create-feature",
+        "mission",
+        "create",
         "ambiguous-finalize-b",
         "--json",
     )
@@ -519,13 +519,13 @@ def test_finalize_tasks_ambiguous_context_returns_candidates(
     result = run_cli(
         test_project,
         "agent",
-        "feature",
+        "mission",
         "finalize-tasks",
         "--json",
     )
 
-    assert result.returncode != 0, "Ambiguous feature context should fail without --feature"
+    assert result.returncode != 0, "Ambiguous mission context should fail without --mission"
     payload = json.loads(result.stdout.strip().split("\n")[0])
     assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-    assert len(payload["available_features"]) >= 2
-    assert "finalize-tasks --feature" in payload["example_command"]
+    assert len(payload["available_missions"]) >= 2
+    assert "finalize-tasks --mission" in payload["example_command"]

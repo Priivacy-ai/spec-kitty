@@ -1,7 +1,7 @@
 # Spec Kitty Charter
 
 > Created: 2026-01-27
-> Version: 1.0.0
+> Version: 1.1.0
 
 ## Purpose
 
@@ -133,78 +133,33 @@ This charter captures the technical standards, architectural principles, and dev
 
 ---
 
-## Architecture: Two-Branch Release Strategy
+## Architecture: Branch and Release Strategy
 
-### 1.x vs 2.x Branch Strategy
+### Current Branch Strategy (3.x)
 
-**Branch Purpose:**
-- **1.x branch** - Stable local-only CLI tool (maintenance mode)
-- **2.x branch** - SaaS transformation with event sourcing and sync protocol (active development)
+**Active development** happens on `main`. The current version is **3.x** (3.1.0a3+).
 
-### 1.x Branch (Maintenance Mode)
+**Branch layout:**
+- **`main`** — Active development. All new features, bug fixes, and releases target `main`.
+- **`remotes/origin/1.x-maintenance`** — Historical. The 1.x local-only CLI is in maintenance mode. Only security and critical bug fixes are accepted.
 
-**Status:** Maintenance-only after initial v1.0.0 release
+The former `2.x` branch was merged into `main` when the SaaS transformation reached maturity. There is no separate `2.x` branch.
 
-**Characteristics:**
-- YAML activity logs (existing system)
-- No event sourcing or sync protocol
-- No spec-kitty-events dependency
-- Local-only operation
+### Release Versioning
 
-**Allowed changes:**
-- Security fixes
-- Critical bug fixes
-- Documentation updates
+- **3.x** — Current active version. Event sourcing, sync protocol, mission identity model, spec-kitty-events integration.
+- **1.x** — Historical maintenance branch. YAML activity logs, local-only operation, no spec-kitty-events dependency.
 
-**Forbidden changes:**
-- ❌ New features
-- ❌ Architectural changes
-- ❌ Breaking changes to stable APIs
+### Development Principles
 
-### 2.x Branch (Active Development)
+- All new features target `main`
+- Breaking changes are allowed during pre-release alpha/beta cycles
+- The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
+- Do not hardcode branch names in templates or scaffolding; use the resolved branch context
 
-**Status:** Active SaaS development (no releases until substantially complete)
+### Historical Context
 
-**Characteristics:**
-- Event sourcing with Lamport clocks
-- spec-kitty-events library integration (Git dependency per ADR-11)
-- Sync protocol for CLI ↔ Django communication
-- Distributed state management with CRDT merge rules
-- Greenfield architecture (no 1.x backward compatibility)
-
-**Development principles:**
-- ✅ No 1.x compatibility constraints
-- ✅ Greenfield architectural freedom
-- ✅ Breaking changes allowed (pre-release)
-- ✅ Integration with private dependencies (spec-kitty-events)
-
-### Migration Strategy
-
-**Deferred until 2.x nears completion:**
-- No progressive migration from 1.x → 2.x during development
-- No dual state systems (YAML + events) to maintain
-- Migration tool built when 2.x is proven stable
-
-**When 2.x approaches beta:**
-1. Build migration tool: `spec-kitty migrate-to-2x`
-2. Convert YAML activity logs → event log
-3. User-initiated migration (not automatic)
-
-**Rationale:** Deferred migration is simpler than progressive migration (avoids dual state complexity)
-
-### Communication
-
-**Users:**
-- README badges: "1.x (Maintenance)" vs "2.x (Active Development)"
-- Clear documentation separation
-- GitHub issue tags: `1.x` and `2.x`
-
-**Contributors:**
-- All new features target 2.x branch
-- 1.x PRs limited to security/critical fixes
-- ADRs indicate target branch if applicable
-
-**Details:** See [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md)
+The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.
 
 ---
 

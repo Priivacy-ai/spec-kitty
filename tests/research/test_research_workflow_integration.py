@@ -122,15 +122,15 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     subprocess.run(["git", "commit", "-m", "Init"], cwd=project_dir, check=True, capture_output=True)
 
     # Create a feature so mission current has explicit feature context.
-    feature_slug = "001-research-test"
-    feature_dir = project_dir / "kitty-specs" / feature_slug
+    mission_slug = "001-research-test"
+    feature_dir = project_dir / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
         json.dumps(
             {
                 "feature_number": "001",
-                "slug": feature_slug,
-                "feature_slug": feature_slug,
+                "slug": mission_slug,
+                "mission_slug": mission_slug,
                 "friendly_name": "Research Test",
                 "mission": "research",
                 "target_branch": "main",
@@ -141,7 +141,7 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     )
 
     # Verify research mission active for the explicit feature.
-    result = run_cli(project_dir, "mission", "current", "--feature", feature_slug)
+    result = run_cli(project_dir, "mission", "current", "--feature", mission_slug)
     assert result.returncode == 0
     assert "research" in result.stdout.lower()
 
@@ -220,7 +220,7 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
 
     sys.path.insert(0, str(Path.cwd() / "src"))
 
-    from specify_cli.mission import get_deliverables_path, get_feature_mission_key
+    from specify_cli.mission import get_deliverables_path, get_mission_type
 
     # Create feature structure
     feature_dir = tmp_path / "kitty-specs" / "001-research"
@@ -237,7 +237,7 @@ def test_research_deliverables_separate_from_planning(tmp_path: Path) -> None:
     meta_file.write_text(json.dumps({"mission": "research", "deliverables_path": "docs/research/001-research/"}))
 
     # Verify separation
-    assert get_feature_mission_key(feature_dir) == "research"
+    assert get_mission_type(feature_dir) == "research"
     deliverables = get_deliverables_path(feature_dir)
     assert deliverables == "docs/research/001-research/"
 

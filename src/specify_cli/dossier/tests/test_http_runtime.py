@@ -80,10 +80,10 @@ class TestDossierHTTPRuntime:
         ]
 
         dossier = MissionDossier(
-            feature_slug="042-test-feature",
+            mission_type="042-test-feature",
             feature_dir=str(feature_dir),
             artifacts=artifacts,
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="test-run-001",
         )
 
@@ -100,7 +100,7 @@ class TestDossierHTTPRuntime:
 
         # Verify response is model (not error dict)
         assert isinstance(response, DossierOverviewResponse)
-        assert response.feature_slug == "042-test-feature"
+        assert response.mission_slug == "042-test-feature"
         assert response.completeness_status in ("complete", "incomplete", "unknown")
         assert len(response.parity_hash_sha256) == 64  # SHA256 hex
 
@@ -183,7 +183,7 @@ class TestDossierHTTPRuntime:
 
         # Verify response is model (not error dict)
         assert isinstance(response, SnapshotExportResponse)
-        assert response.feature_slug == "042-test-feature"
+        assert response.mission_slug == "042-test-feature"
         assert response.total_artifacts == 3
         assert response.required_artifacts == 2
         assert response.required_present == 2

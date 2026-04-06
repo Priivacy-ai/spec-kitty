@@ -68,7 +68,7 @@ class MergeState:
     """Persisted state for resumable merge operations."""
 
     mission_id: str  # Per-mission scoping (e.g. "057-feature-name")
-    feature_slug: str  # Display alias for the feature
+    mission_slug: str  # Display alias for the feature
     target_branch: str
     wp_order: list[str]
     completed_wps: list[str] = field(default_factory=list)

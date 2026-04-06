@@ -65,8 +65,8 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 1. Paste into a plain-text buffer first (VS Code, TextEdit in plain mode)
 2. Replace smart quotes and dashes
 3. Verify no � replacement characters appear
-4. Run `spec-kitty validate-encoding --feature <feature-id>` to check
-5. Run `spec-kitty validate-encoding --feature <feature-id> --fix` to auto-repair
+4. Run `spec-kitty validate-encoding --mission <mission-id>` to check
+5. Run `spec-kitty validate-encoding --mission <mission-id> --fix` to auto-repair
 
 **Failure to follow this rule causes the dashboard to render blank pages.**
 
@@ -75,10 +75,10 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 If you accidentally introduce problematic characters:
 ```bash
 # Check for encoding issues
-spec-kitty validate-encoding --feature 001-my-feature
+spec-kitty validate-encoding --mission 001-my-feature
 
 # Automatically fix all issues (creates .bak backups)
-spec-kitty validate-encoding --feature 001-my-feature --fix
+spec-kitty validate-encoding --mission 001-my-feature --fix
 
 # Check all features at once
 spec-kitty validate-encoding --all --fix

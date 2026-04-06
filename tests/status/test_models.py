@@ -193,7 +193,7 @@ class TestStatusEvent:
     def test_from_dict_converts_string_lanes(self) -> None:
         d = {
             "event_id": "01HXYZ0123456789ABCDEFGHJK",
-            "feature_slug": "034-feature",
+            "mission_slug": "034-feature",
             "wp_id": "WP01",
             "from_lane": "planned",
             "to_lane": "claimed",
@@ -214,7 +214,7 @@ class TestStatusEvent:
     def test_force_event_with_reason(self) -> None:
         event = StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",
-            feature_slug="034-feature",
+            mission_slug="034-feature",
             wp_id="WP01",
             from_lane=Lane.DONE,
             to_lane=Lane.IN_PROGRESS,
@@ -231,7 +231,7 @@ class TestStatusEvent:
     def test_review_ref_event(self) -> None:
         event = StatusEvent(
             event_id="01HXYZ0123456789ABCDEFGHJK",
-            feature_slug="034-feature",
+            mission_slug="034-feature",
             wp_id="WP01",
             from_lane=Lane.FOR_REVIEW,
             to_lane=Lane.IN_PROGRESS,
@@ -253,7 +253,7 @@ class TestStatusSnapshot:
     ) -> None:
         d = sample_status_snapshot.to_dict()
         restored = StatusSnapshot.from_dict(d)
-        assert restored.feature_slug == sample_status_snapshot.feature_slug
+        assert restored.mission_slug == sample_status_snapshot.mission_slug
         assert restored.event_count == sample_status_snapshot.event_count
         assert restored.work_packages == sample_status_snapshot.work_packages
         assert restored.summary == sample_status_snapshot.summary
@@ -282,7 +282,7 @@ class TestStatusSnapshot:
 
     def test_empty_snapshot(self) -> None:
         snap = StatusSnapshot(
-            feature_slug="001-test",
+            mission_slug="001-test",
             materialized_at="2026-01-01T00:00:00Z",
             event_count=0,
             last_event_id=None,
@@ -302,3 +302,24 @@ class TestStatusSnapshot:
         assert d["event_count"] == 0
         assert d["last_event_id"] is None
         assert d["work_packages"] == {}
+
+    def test_from_dict_requires_mission_slug(self) -> None:
+        data = {
+            "materialized_at": "2026-01-01T00:00:00Z",
+            "event_count": 0,
+            "last_event_id": None,
+            "work_packages": {},
+            "summary": {
+                "planned": 0,
+                "claimed": 0,
+                "in_progress": 0,
+                "for_review": 0,
+                "approved": 0,
+                "done": 0,
+                "blocked": 0,
+                "canceled": 0,
+            },
+        }
+
+        with pytest.raises(KeyError, match="mission_slug"):
+            StatusSnapshot.from_dict(data)

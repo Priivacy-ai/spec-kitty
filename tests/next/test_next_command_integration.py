@@ -35,8 +35,8 @@ def _init_git_repo(path: Path) -> None:
 
 def _scaffold_project(
     tmp_path: Path,
-    feature_slug: str = "042-test-feature",
-    mission_key: str = "software-dev",
+    mission_slug: str = "042-test-feature",
+    mission_type: str = "software-dev",
 ) -> Path:
     """Scaffold a minimal spec-kitty project with a feature."""
     repo_root = tmp_path / "project"
@@ -48,24 +48,24 @@ def _scaffold_project(
     kittify.mkdir()
 
     # Feature directory
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": mission_key}),
+        json.dumps({"mission_type": mission_type}),
         encoding="utf-8",
     )
 
     return repo_root
 
-def _write_runtime_input_mission(repo_root: Path, mission_key: str) -> None:
+def _write_runtime_input_mission(repo_root: Path, mission_type: str) -> None:
     """Create a runtime-only mission that deterministically requests input."""
-    mission_dir = repo_root / ".kittify" / "overrides" / "missions" / mission_key
+    mission_dir = repo_root / ".kittify" / "overrides" / "missions" / mission_type
     mission_dir.mkdir(parents=True, exist_ok=True)
     (mission_dir / "mission-runtime.yaml").write_text(
         (
             "mission:\n"
-            f"  key: {mission_key}\n"
-            f"  name: {mission_key}\n"
+            f"  key: {mission_type}\n"
+            f"  name: {mission_type}\n"
             "  version: '1.0.0'\n"
             "steps:\n"
             "  - id: collect_input\n"
@@ -91,7 +91,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -119,19 +119,19 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
 
 def _advance_runtime_to_step(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     target_step_id: str,
     agent: str = "test-agent",
 ) -> None:
     """Advance the runtime run past steps until target_step_id is issued."""
     from specify_cli.next.runtime_bridge import get_or_start_run
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_type
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
     from spec_kitty_runtime.engine import _read_snapshot
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
     step_order = [
         "discovery",
@@ -157,17 +157,17 @@ def _advance_runtime_to_step(
 
 def _complete_all_steps(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     agent: str = "test-agent",
 ) -> None:
     """Complete all runtime steps to reach terminal state."""
     from specify_cli.next.runtime_bridge import get_or_start_run
-    from specify_cli.mission import get_feature_mission_key
+    from specify_cli.mission import get_mission_type
     from spec_kitty_runtime import next_step as runtime_next_step, NullEmitter
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    mission_key = get_feature_mission_key(feature_dir)
-    run_ref = get_or_start_run(feature_slug, repo_root, mission_key)
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+    mission_type = get_mission_type(feature_dir)
+    run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
 
     for _ in range(20):
         decision = runtime_next_step(run_ref, agent_id=agent, result="success", emitter=NullEmitter())
@@ -191,7 +191,6 @@ class TestNextCommandJSON:
         d = decision.to_dict()
         assert d["agent"] == "test-agent"
         assert d["mission_slug"] == "042-test-feature"
-        assert d["feature_slug"] == "042-test-feature"
         assert d["mission"] == "software-dev"
         assert "kind" in d
 
@@ -381,8 +380,8 @@ class TestNextCommandKnownBlockedMissions:
     def test_plan_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
             tmp_path,
-            feature_slug="043-plan-feature",
-            mission_key="plan",
+            mission_slug="043-plan-feature",
+            mission_type="plan",
         )
 
         from specify_cli.next.decision import decide_next
@@ -400,8 +399,8 @@ class TestNextCommandKnownBlockedMissions:
     def test_documentation_mission_should_return_runnable_step_when_mapped(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(
             tmp_path,
-            feature_slug="044-docs-feature",
-            mission_key="documentation",
+            mission_slug="044-docs-feature",
+            mission_type="documentation",
         )
 
         from specify_cli.next.decision import decide_next
@@ -429,7 +428,7 @@ class TestNextCommandCLI:
         assert result.exit_code == 0, f"stderr: {result.output}"
         data = json.loads(result.output)
         assert data["agent"] == "test-agent"
-        assert data["feature_slug"] == "042-test-feature"
+        assert data["mission_slug"] == "042-test-feature"
         assert data["mission"] == "software-dev"
         assert "kind" in data
         assert "mission_state" in data
@@ -562,8 +561,8 @@ class TestNextCommandCLI:
 class TestNextCommandAnswerJSON:
     def test_answer_json_single_document(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Successful answer flow emits one JSON document with merged answer fields."""
-        repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
-        _write_runtime_input_mission(repo_root, mission_key="input-mission")
+        repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
+        _write_runtime_input_mission(repo_root, mission_type="input-mission")
         monkeypatch.chdir(repo_root)
 
         # First call creates a real pending decision.
@@ -599,8 +598,8 @@ class TestNextCommandAnswerJSON:
 
     def test_answer_json_never_emits_two_objects(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Regression: stdout must be exactly one JSON document, no trailing object."""
-        repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
-        _write_runtime_input_mission(repo_root, mission_key="input-mission")
+        repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
+        _write_runtime_input_mission(repo_root, mission_type="input-mission")
         monkeypatch.chdir(repo_root)
 
         # First, create a pending decision that can be answered successfully.
@@ -646,8 +645,8 @@ class TestNextCommandAnswerJSON:
 class TestNextCommandDecisionRequired:
     def test_decision_required_has_question_field_in_json(self, tmp_path: Path) -> None:
         """JSON output includes question/options for real runtime decision_required."""
-        repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
-        _write_runtime_input_mission(repo_root, mission_key="input-mission")
+        repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
+        _write_runtime_input_mission(repo_root, mission_type="input-mission")
 
         from specify_cli.next.decision import decide_next
 
@@ -660,8 +659,8 @@ class TestNextCommandDecisionRequired:
 
     def test_decision_required_has_decision_id_field(self, tmp_path: Path) -> None:
         """Decision-required responses include canonical decision_id/input_key fields."""
-        repo_root = _scaffold_project(tmp_path, mission_key="input-mission")
-        _write_runtime_input_mission(repo_root, mission_key="input-mission")
+        repo_root = _scaffold_project(tmp_path, mission_type="input-mission")
+        _write_runtime_input_mission(repo_root, mission_type="input-mission")
 
         from specify_cli.next.decision import decide_next
 

@@ -40,10 +40,10 @@ class TestDetectWorkspaceContext:
         worktree.mkdir(parents=True)
 
         with patch("pathlib.Path.cwd", return_value=worktree):
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == worktree
-            assert feature_slug == "010-test-feature"
+            assert mission_slug == "010-test-feature"
 
     def test_detect_from_git_branch(self, tmp_path):
         """Test detection from git branch name."""
@@ -53,20 +53,20 @@ class TestDetectWorkspaceContext:
                 stdout="kitty/mission-015-vcs-integration-lane-c\n",
             )
 
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == tmp_path
-            assert feature_slug == "015-vcs-integration"
+            assert mission_slug == "015-vcs-integration"
 
     def test_not_in_workspace(self, tmp_path):
         """Test when not in a workspace."""
         with patch("pathlib.Path.cwd", return_value=tmp_path), patch("subprocess.run") as mock_run:
             mock_run.return_value = MagicMock(returncode=0, stdout="main\n")
 
-            workspace_path, feature_slug = _detect_workspace_context()
+            workspace_path, mission_slug = _detect_workspace_context()
 
             assert workspace_path == tmp_path
-            assert feature_slug is None
+            assert mission_slug is None
 
 
 class TestSyncGroupHelp:

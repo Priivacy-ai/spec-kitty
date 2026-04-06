@@ -30,12 +30,12 @@ def _make_event(
     force: bool = False,
     reason: str | None = None,
     review_ref: str | None = None,
-    feature_slug: str = "099-conflict-test",
+    mission_slug: str = "099-conflict-test",
 ) -> StatusEvent:
     """Create a StatusEvent with sensible defaults."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -227,10 +227,10 @@ class TestDeduplicationPreservesDeterminism:
         dup_id = "01GGG00000000000000000001A"
         event1 = _make_event(dup_id, "WP01", "planned", "claimed",
                              "2026-01-15T10:00:00+00:00",
-                             feature_slug="099-dedup-test")
+                             mission_slug="099-dedup-test")
         event2 = _make_event(dup_id, "WP01", "planned", "blocked",
                              "2026-01-15T10:00:01+00:00",
-                             feature_slug="099-dedup-test")
+                             mission_slug="099-dedup-test")
 
         append_event(feature_dir, event1)
         append_event(feature_dir, event2)

@@ -16,10 +16,10 @@ def _lane(lane_id, wp_ids, write_scope, parallel_group=0):
     )
 
 
-def _manifest(lanes, feature_slug="test"):
+def _manifest(lanes, mission_slug="test"):
     return LanesManifest(
-        version=1, feature_slug=feature_slug, mission_id=feature_slug,
-        mission_branch=f"kitty/mission-{feature_slug}",
+        version=1, mission_slug=mission_slug, mission_id=mission_slug,
+        mission_branch=f"kitty/mission-{mission_slug}",
         target_branch="main", lanes=lanes,
         computed_at="2026-04-03T12:00:00Z", computed_from="test",
     )

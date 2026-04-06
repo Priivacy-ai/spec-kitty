@@ -76,16 +76,16 @@ def test_verify_setup_command_runs(monkeypatch, tmp_path: Path) -> None:
 def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_create_feature(feature_slug: str, mission=None, json_output: bool = False):
-        captured["feature_slug"] = feature_slug
+    def fake_create_mission(mission_slug: str, mission=None, json_output: bool = False):
+        captured["mission_slug"] = mission_slug
         captured["mission"] = mission
         captured["json_output"] = json_output
 
-    monkeypatch.setattr(lifecycle_module.agent_feature, "create_feature", fake_create_feature)
+    monkeypatch.setattr(lifecycle_module.agent_feature, "create_mission", fake_create_mission)
 
     result = runner.invoke(cli_app, ["specify", "My Great Feature"])
     assert result.exit_code == 0
-    assert captured["feature_slug"] == "my-great-feature"
+    assert captured["mission_slug"] == "my-great-feature"
     assert captured["mission"] is None
     assert captured["json_output"] is False
 
@@ -135,7 +135,7 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
     feature_dir = project_root / "kitty-specs" / "001-demo-feature"
 
     monkeypatch.setattr(research_module, "find_repo_root", lambda: project_root)
-    monkeypatch.setattr(research_module, "get_feature_mission_key", lambda *_args, **_kwargs: "software-dev")
+    monkeypatch.setattr(research_module, "get_mission_type", lambda *_args, **_kwargs: "software-dev")
     monkeypatch.setattr(
         research_module,
         "resolve_worktree_aware_feature_dir",
@@ -168,14 +168,14 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
             return {"feature": self.feature, "lanes": self.lanes}
 
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
-    # After WP02 removed heuristic detection, detect_feature_slug no longer exists.
+    # After WP02 removed heuristic detection, detect_mission_slug no longer exists.
     # All callers must pass --feature explicitly.
     monkeypatch.setattr(accept_module, "choose_mode", lambda mode, _repo_root: mode)
     monkeypatch.setattr(accept_module, "collect_feature_summary", lambda *args, **kwargs: DummySummary())
 
     result = runner.invoke(
         cli_app,
-        ["accept", "--mode", "checklist", "--json", "--feature", "001-demo-feature", "--allow-fail"],
+        ["accept", "--mode", "checklist", "--json", "--mission", "001-demo-feature", "--allow-fail"],
     )
     assert result.exit_code == 0
     assert result.stdout.lstrip().startswith("{")
@@ -184,11 +184,11 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
 
 
 def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> None:
-    """After WP02 removed heuristic detection, accept without --feature exits 1.
+    """After heuristic detection removal, accept without --mission exits 1.
 
     The old test_accept_json_suppresses_fallback_announcement was testing that
-    detect_feature_slug auto-detection worked.  Now that auto-detection is gone,
-    accept without --feature is an explicit error.
+    detect_mission_slug auto-detection worked.  Now that auto-detection is gone,
+    accept without --mission is an explicit error.
     """
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
@@ -200,11 +200,11 @@ def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> N
         ["accept", "--mode", "checklist", "--json", "--allow-fail"],
     )
 
-    # Must fail because --feature is required
+    # Must fail because --mission is required
     assert result.exit_code == 1
     output = result.stdout
-    assert "error" in output.lower() or "feature" in output.lower(), (
-        f"Expected error about missing feature, got: {output}"
+    assert "error" in output.lower() or "mission" in output.lower(), (
+        f"Expected error about missing mission, got: {output}"
     )
 
 
@@ -231,7 +231,7 @@ def test_merge_dry_run_outputs_lane_payload(monkeypatch, tmp_path: Path) -> None
     )
     assert result.exit_code == 0
     payload = json.loads(result.stdout.strip())
-    assert payload["feature_slug"] == "010-test-feature"
+    assert payload["mission_slug"] == "010-test-feature"
     assert payload["mission_branch"] == "kitty/mission-010-test-feature"
     assert payload["target_branch"] == "main"
     assert payload["lanes"] == [
