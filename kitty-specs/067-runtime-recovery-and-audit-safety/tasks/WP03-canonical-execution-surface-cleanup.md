@@ -274,3 +274,4 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 - 2026-04-06T18:54:00Z – claude:opus:implementer:implementer – shell_pid=89396 – Started implementation via action command
 - 2026-04-06T19:06:24Z – claude:opus:implementer:implementer – shell_pid=89396 – Shim runtime removed, all commands now direct canonical
 - 2026-04-06T19:07:42Z – claude:opus:reviewer:reviewer – shell_pid=31395 – Started review via action command
+- 2026-04-06T19:10:07Z – claude:opus:reviewer:reviewer – shell_pid=31395 – Review passed: All 7 CLI-driven command mappings correct, accept added to ActionName, shim runtime (entrypoints.py, models.py, shim.py) deleted, no dangling imports, migration idempotent, tests verify .claude/.codex/.opencode surfaces (C-003). 190/190 tests pass.
