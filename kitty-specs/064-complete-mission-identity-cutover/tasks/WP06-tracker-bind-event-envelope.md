@@ -3,6 +3,7 @@ work_package_id: WP06
 title: Tracker Bind + Event Envelope Verification
 dependencies: [WP01, WP02]
 requirement_refs:
+- FR-002
 - FR-007
 - FR-008
 - FR-009
