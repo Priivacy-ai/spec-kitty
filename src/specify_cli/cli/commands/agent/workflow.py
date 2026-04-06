@@ -85,13 +85,31 @@ def _resolve_git_common_dir(repo_root: Path) -> Path | None:
 
 
 def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | None:
-    """Resolve a `feedback://` pointer (or legacy absolute path) to a file path."""
+    """Resolve a review feedback pointer to a file path.
+
+    Supports two pointer formats:
+    - ``review-cycle://<mission_slug>/<wp_slug>/review-cycle-N.md``
+      → ``kitty-specs/<mission_slug>/tasks/<wp_slug>/review-cycle-N.md``
+    - ``feedback://<mission_slug>/<task_id>/<filename>``  (legacy)
+      → ``.git/spec-kitty/feedback/<mission_slug>/<task_id>/<filename>``
+
+    Also handles legacy absolute-path strings.
+    Returns None for the sentinel string ``"force-override"`` or any
+    unrecognised / non-existent pointer.
+    """
     value = pointer.strip()
-    if not value:
+    if not value or value == "force-override":
         return None
 
-    if value.startswith("feedback://"):
-        relative = value[len("feedback://") :]
+    if value.startswith("review-cycle://"):
+        relative = value[len("review-cycle://"):]
+        parts = [p for p in relative.split("/") if p]
+        if len(parts) != 3:
+            return None
+        # parts: mission_slug / wp_slug / filename
+        candidate = repo_root / "kitty-specs" / parts[0] / "tasks" / parts[1] / parts[2]
+    elif value.startswith("feedback://"):
+        relative = value[len("feedback://"):]
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
