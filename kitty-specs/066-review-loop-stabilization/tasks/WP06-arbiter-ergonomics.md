@@ -19,8 +19,8 @@ subtasks:
 - T033
 - T034
 - T035
-shell_pid: "51659"
-agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "66549"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -325,3 +325,4 @@ This prevents false triggers on normal claim/re-claim workflows.
 - 2026-04-06T16:49:35Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48129 – Arbiter checklist model, override detection, persistence, kanban visibility — 21 tests passing
 - 2026-04-06T16:49:52Z – claude:opus-4-6:reviewer:reviewer – shell_pid=51659 – Started review via action command
 - 2026-04-06T16:59:20Z – claude:opus-4-6:reviewer:reviewer – shell_pid=51659 – Moved to planned
+- 2026-04-06T16:59:36Z – claude:sonnet-4-6:implementer:implementer – shell_pid=66549 – Started implementation via action command
