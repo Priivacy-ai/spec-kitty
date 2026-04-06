@@ -328,3 +328,4 @@ This WP modifies `workflow.py` in two places:
 ## Activity Log
 
 - 2026-04-06T16:42:33Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48037 – Started implementation via action command
+- 2026-04-06T16:49:35Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48037 – Ready for review: baseline test capture implemented with JUnit XML parsing, diff_baseline, workflow.py hooks, and 91% test coverage (30 tests)
