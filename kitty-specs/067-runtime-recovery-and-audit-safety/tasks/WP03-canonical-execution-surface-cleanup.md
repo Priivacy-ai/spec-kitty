@@ -272,3 +272,4 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 ## Activity Log
 
 - 2026-04-06T18:54:00Z – claude:opus:implementer:implementer – shell_pid=89396 – Started implementation via action command
+- 2026-04-06T19:06:24Z – claude:opus:implementer:implementer – shell_pid=89396 – Shim runtime removed, all commands now direct canonical
