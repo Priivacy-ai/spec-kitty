@@ -302,3 +302,24 @@ class TestStatusSnapshot:
         assert d["event_count"] == 0
         assert d["last_event_id"] is None
         assert d["work_packages"] == {}
+
+    def test_from_dict_requires_mission_slug(self) -> None:
+        data = {
+            "materialized_at": "2026-01-01T00:00:00Z",
+            "event_count": 0,
+            "last_event_id": None,
+            "work_packages": {},
+            "summary": {
+                "planned": 0,
+                "claimed": 0,
+                "in_progress": 0,
+                "for_review": 0,
+                "approved": 0,
+                "done": 0,
+                "blocked": 0,
+                "canceled": 0,
+            },
+        }
+
+        with pytest.raises(KeyError, match="mission_slug"):
+            StatusSnapshot.from_dict(data)

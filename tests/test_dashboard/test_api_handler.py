@@ -187,3 +187,86 @@ class TestFeaturesEndpointErrorHandling:
         assert payload["features"] == []
         assert payload["worktrees_root"] is None
         assert payload["active_worktree"] is not None
+
+
+class TestDossierEndpointRouting:
+    def _make_handler(self, tmp_path, path: str):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler.project_token = "tok"
+        handler.path = path
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+        return api_module, handler
+
+    def test_dossier_endpoint_requires_feature_query_param(self, tmp_path):
+        api_module, handler = self._make_handler(tmp_path, "/api/dossier/overview")
+
+        api_module.APIHandler.handle_dossier(handler, handler.path)
+
+        handler.send_response.assert_called_once_with(400)
+        handler.wfile.seek(0)
+        payload = json.loads(handler.wfile.read().decode("utf-8"))
+        assert payload["error"] == "Missing feature parameter"
+
+    def test_dossier_overview_routes_with_mission_slug(self, tmp_path):
+        api_module, handler = self._make_handler(
+            tmp_path,
+            "/api/dossier/overview?feature=064-complete-mission-identity-cutover",
+        )
+        response = {"overview": "ok"}
+
+        with patch("specify_cli.dossier.api.DossierAPIHandler") as mock_cls:
+            mock_cls.return_value.handle_dossier_overview.return_value = response
+            api_module.APIHandler.handle_dossier(handler, handler.path)
+
+        mock_cls.return_value.handle_dossier_overview.assert_called_once_with(
+            "064-complete-mission-identity-cutover"
+        )
+        handler.send_response.assert_called_once_with(200)
+
+    def test_dossier_artifacts_routes_with_filters(self, tmp_path):
+        api_module, handler = self._make_handler(
+            tmp_path,
+            "/api/dossier/artifacts?feature=064-complete-mission-identity-cutover&class=decision&required_only=true",
+        )
+        response = {"artifacts": []}
+
+        with patch("specify_cli.dossier.api.DossierAPIHandler") as mock_cls:
+            mock_cls.return_value.handle_dossier_artifacts.return_value = response
+            api_module.APIHandler.handle_dossier(handler, handler.path)
+
+        mock_cls.return_value.handle_dossier_artifacts.assert_called_once_with(
+            "064-complete-mission-identity-cutover",
+            **{"class": "decision", "required_only": "true"},
+        )
+        handler.send_response.assert_called_once_with(200)
+
+    def test_dossier_detail_and_export_routes_with_mission_slug(self, tmp_path):
+        api_module, detail_handler = self._make_handler(
+            tmp_path,
+            "/api/dossier/artifacts/artifact-123?feature=064-complete-mission-identity-cutover",
+        )
+        _, export_handler = self._make_handler(
+            tmp_path,
+            "/api/dossier/snapshots/export?feature=064-complete-mission-identity-cutover",
+        )
+
+        with patch("specify_cli.dossier.api.DossierAPIHandler") as mock_cls:
+            mock_cls.return_value.handle_dossier_artifact_detail.return_value = {"artifact": "ok"}
+            mock_cls.return_value.handle_dossier_snapshot_export.return_value = {"export": "ok"}
+
+            api_module.APIHandler.handle_dossier(detail_handler, detail_handler.path)
+            api_module.APIHandler.handle_dossier(export_handler, export_handler.path)
+
+        mock_cls.return_value.handle_dossier_artifact_detail.assert_called_once_with(
+            "064-complete-mission-identity-cutover",
+            "artifact-123",
+        )
+        mock_cls.return_value.handle_dossier_snapshot_export.assert_called_once_with(
+            "064-complete-mission-identity-cutover"
+        )

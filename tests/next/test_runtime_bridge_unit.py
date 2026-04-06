@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -234,6 +235,43 @@ class TestGetOrStartRun:
         index = _load_feature_runs(repo_root)
         assert "042-test-feature" in index
         assert "run_id" in index["042-test-feature"]
+
+
+class TestRuntimeBridgeCompatibilityHelpers:
+    def test_mission_key_for_run_ref_prefers_mission_type(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import _mission_key_for_run_ref
+
+        run_ref = SimpleNamespace(mission_type="software-dev")
+        assert _mission_key_for_run_ref(run_ref, "fallback") == "software-dev"
+
+    def test_mission_key_for_run_ref_falls_back_to_default(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import _mission_key_for_run_ref
+
+        run_ref = SimpleNamespace(mission_type="")
+        assert _mission_key_for_run_ref(run_ref, "fallback") == "fallback"
+
+    def test_build_run_ref_falls_back_when_runtime_uses_mission_type(self, monkeypatch) -> None:
+        import specify_cli.next.runtime_bridge as runtime_bridge
+
+        class FakeRunRef:
+            def __init__(self, *, run_id: str, run_dir: str, mission_type: str | None = None, mission_key: str | None = None):
+                if mission_key is not None:
+                    raise TypeError("legacy mission_key no longer accepted")
+                self.run_id = run_id
+                self.run_dir = run_dir
+                self.mission_type = mission_type
+
+        monkeypatch.setattr(runtime_bridge, "MissionRunRef", FakeRunRef)
+
+        run_ref = runtime_bridge._build_run_ref(
+            run_id="run-123",
+            run_dir="/tmp/run-123",
+            mission_type="software-dev",
+        )
+
+        assert run_ref.run_id == "run-123"
+        assert run_ref.run_dir == "/tmp/run-123"
+        assert run_ref.mission_type == "software-dev"
 
 
 # ---------------------------------------------------------------------------

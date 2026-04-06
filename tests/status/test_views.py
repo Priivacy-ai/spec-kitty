@@ -16,6 +16,7 @@ from specify_cli.status.reducer import materialize
 from specify_cli.status.views import (
     BOARD_SUMMARY_FILENAME,
     generate_status_view,
+    materialize_if_stale,
     write_derived_views,
 )
 
@@ -171,3 +172,28 @@ class TestEmitHasNoLegacyBridge:
         assert "lane:" not in content, (
             "emit_status_transition must not write lane: to WP frontmatter"
         )
+
+
+def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
+    feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from specify_cli.status import views as views_module
+
+    calls: list[tuple[str, Path]] = []
+
+    def _record_write(fd: Path, dd: Path) -> None:
+        calls.append(("write", dd))
+
+    def _record_progress(fd: Path, dd: Path) -> None:
+        calls.append(("progress", dd))
+
+    snapshot = materialize(feature_dir)
+    monkeypatch.setattr(views_module, "write_derived_views", _record_write)
+    monkeypatch.setattr("specify_cli.status.progress.generate_progress_json", _record_progress)
+    monkeypatch.setattr(views_module, "materialize", lambda _: snapshot)
+
+    result = materialize_if_stale(feature_dir, tmp_path)
+
+    expected_derived = tmp_path / ".kittify" / "derived"
+    assert calls == [("write", expected_derived), ("progress", expected_derived)]
+    assert result.mission_slug == snapshot.mission_slug

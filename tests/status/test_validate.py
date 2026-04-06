@@ -131,6 +131,12 @@ class TestValidateEventSchema:
         assert any("Missing required field: event_id" in f for f in findings)
         assert any("Missing required field: wp_id" in f for f in findings)
 
+    def test_missing_mission_slug(self):
+        event = _make_event()
+        del event["mission_slug"]
+        findings = validate_event_schema(event)
+        assert any("Missing required field: mission_slug" in f for f in findings)
+
     def test_invalid_event_id_format(self):
         event = _make_event(event_id="not-a-ulid")
         findings = validate_event_schema(event)
