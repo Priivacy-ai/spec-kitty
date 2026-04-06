@@ -24,6 +24,7 @@ from specify_cli.sync.events import (
 )
 
 from specify_cli.status.emit import emit_status_transition, TransitionError
+from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 
@@ -2579,7 +2580,7 @@ def status(
                 "total_wps": len(work_packages),
                 "by_lane": dict(lane_counts),
                 "work_packages": work_packages,
-                "progress_percentage": round(lane_counts.get("done", 0) / len(work_packages) * 100, 1),
+                "progress_percentage": round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0,
                 "stale_wps": stale_count,
                 "auto_commit": auto_commit_enabled,
             }
@@ -2631,7 +2632,7 @@ def status(
         done_count = len(by_lane["done"])
         in_progress = len(by_lane["in_progress"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
-        progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
+        progress_pct = round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0
 
         # Create title panel
         title_text = Text()

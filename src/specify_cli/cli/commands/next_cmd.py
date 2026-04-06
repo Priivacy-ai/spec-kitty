@@ -196,8 +196,8 @@ def _print_human(decision) -> None:
         total = p.get("total_wps", 0)
         done = p.get("done_wps", 0)
         if total > 0:
-            pct = int(100 * done / total)
-            print(f"  Progress: {done}/{total} WPs done ({pct}%)")
+            pct = int(p.get("weighted_percentage", 0))
+            print(f"  Progress: {pct}% ({done}/{total} done)")
 
     if decision.run_id:
         print(f"  Run ID: {decision.run_id}")
