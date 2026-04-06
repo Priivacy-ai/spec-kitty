@@ -155,3 +155,4 @@ Update imports in all these files (change `agent.feature` → `agent.mission` in
 ## Activity Log
 
 - 2026-04-06T06:37:40Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=57235 – Started implementation via action command
+- 2026-04-06T06:46:34Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=57235 – Ready for review: agent/feature.py renamed to agent/mission.py, alias injection removed from 6 non-orchestrator files (19 call sites), 35+ test imports updated, 147 targeted tests pass
