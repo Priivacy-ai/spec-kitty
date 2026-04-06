@@ -1203,8 +1203,16 @@ def review(
             lines.append("─" * 80)
             lines.append("")
 
-        # Create unique temp file path for review feedback (avoids conflicts between agents)
-        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
+        # Determine the writable in-repo feedback path.
+        # Derive wp_slug from the WP file stem (e.g. "WP03-external-reviewer-handoff").
+        wp_slug = wp.path.stem  # e.g. "WP03-external-reviewer-handoff"
+        sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
+        sub_artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        # Determine the next review cycle number based on existing files.
+        existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
+        next_cycle = len(existing_cycles) + 1
+        review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
 
         # Next steps
         lines.append("=" * 80)
@@ -1217,9 +1225,10 @@ def review(
         )
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Write feedback to: {review_feedback_path}")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
-        lines.append("  3. move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer")
+        lines.append(f"  1. Write feedback to (in-repo, committed with the project):")
+        lines.append(f"     {review_feedback_path}")
+        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
+        lines.append("  3. move-task stores feedback reference in the event log and WP frontmatter")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
@@ -1266,14 +1275,14 @@ def review(
         )
         lines.append("")
         lines.append(f"❌ REQUEST CHANGES (issues found):")
-        lines.append(f"   1. Write feedback:")
+        lines.append(f"   1. Write feedback to the in-repo path (committed with the project):")
         lines.append(f"      cat > {review_feedback_path} <<'EOF'")
         lines.append(f"**Issue 1**: <description and how to fix>")
         lines.append(f"**Issue 2**: <description and how to fix>")
         lines.append(f"EOF")
         lines.append("")
         lines.append(f"   2. Move to planned with feedback:")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
         lines.append("     The Python script handles all file updates automatically.")
@@ -1306,7 +1315,7 @@ def review(
             f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} "
             '--to approved --note "Review passed"'
         )
-        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:
         print(f"Error: {e}")
