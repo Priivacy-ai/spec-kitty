@@ -20,8 +20,8 @@ subtasks:
 - T005
 phase: Phase A - Foundation
 assignee: ''
-agent: ''
-shell_pid: '39186'
+agent: "opencode:gpt-5.4:python-implementer:implementer"
+shell_pid: "39186"
 history:
 - timestamp: '2026-04-06T05:39:39Z'
   agent: system
@@ -169,3 +169,7 @@ The vendored artifact already exists as a planning artifact at `kitty-specs/064-
 - Verify `ContractViolationError` messages are diagnostic enough to locate the offending code
 - Verify no payload mutation occurs
 - Check that the artifact JSON matches `contracts/upstream-3.0.0-shape.json` exactly
+
+## Activity Log
+
+- 2026-04-06T06:03:35Z – opencode:gpt-5.4:python-implementer:implementer – shell_pid=39186 – Started implementation via action command
