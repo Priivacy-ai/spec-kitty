@@ -1,16 +1,16 @@
 {
-  "event_count": 23,
-  "last_event_id": "01KNHV6QAP0X9ED0EX6J1RAG5V",
-  "materialized_at": "2026-04-06T16:49:52.471360+00:00",
+  "event_count": 24,
+  "last_event_id": "01KNHV6XDHY0RMD714T0GTBYRN",
+  "materialized_at": "2026-04-06T16:49:58.706107+00:00",
   "mission_slug": "066-review-loop-stabilization",
   "summary": {
-    "approved": 0,
+    "approved": 1,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 4,
+    "in_progress": 3,
     "planned": 1
   },
   "work_packages": {
@@ -43,11 +43,11 @@
       "last_transition_at": "2026-04-06T16:49:34.903260+00:00"
     },
     "WP05": {
-      "actor": "claude:opus-4-6:reviewer:reviewer",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KNHV2VH1BXZ7DMJD39DNR62X",
-      "last_transition_at": "2026-04-06T16:47:45.697870+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNHV6XDHY0RMD714T0GTBYRN",
+      "last_transition_at": "2026-04-06T16:49:58.705484+00:00"
     },
     "WP06": {
       "actor": "claude:opus-4-6:reviewer:reviewer",
