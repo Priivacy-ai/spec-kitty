@@ -25,6 +25,7 @@ ActionName = Literal[
     "tasks_finalize",
     "implement",
     "review",
+    "accept",
 ]
 ACTION_NAMES: tuple[str, ...] = cast(tuple[str, ...], get_args(ActionName))
 
@@ -181,7 +182,7 @@ def resolve_action_context(
         commands=_tasks_commands(mission_slug),
     )
 
-    if action in {"tasks", "tasks_outline", "tasks_packages", "tasks_finalize"}:
+    if action in {"tasks", "tasks_outline", "tasks_packages", "tasks_finalize", "accept"}:
         return context
 
     normalized_wp_id = _resolve_wp_id(action, feature_dir, wp_id)
