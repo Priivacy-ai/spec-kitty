@@ -29,7 +29,7 @@ def specify(
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
     slug = _slugify_feature_input(feature)
-    agent_feature.create_feature(mission_slug=slug, mission=mission, json_output=json_output)
+    agent_feature.create_mission(mission_slug=slug, mission=mission, json_output=json_output)
 
 
 def plan(

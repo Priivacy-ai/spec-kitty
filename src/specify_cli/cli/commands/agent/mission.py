@@ -407,7 +407,7 @@ def _build_setup_plan_detection_error(
 
     if not candidates:
         payload["error"] = "No missions found in kitty-specs/"
-        payload["remediation"] = "Run /spec-kitty.specify or: spec-kitty agent mission create-feature <name> --json"
+        payload["remediation"] = "Run /spec-kitty.specify or: spec-kitty agent mission create <name> --json"
         return payload
 
     slugs = [str(c["mission_slug"]) for c in candidates]
@@ -493,9 +493,9 @@ def branch_context(
         raise typer.Exit(1)
 
 
-@app.command(name="create-feature")
-def create_feature(
-    mission_slug: Annotated[str, typer.Argument(help="Mission slug (legacy argument name; e.g., 'user-auth')")],
+@app.command(name="create")
+def create_mission(
+    mission_slug: Annotated[str, typer.Argument(help="Mission slug (e.g., 'user-auth')")],
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
@@ -506,7 +506,7 @@ def create_feature(
     Creates mission directory in kitty-specs/ and commits to the current branch.
 
     Examples:
-        spec-kitty agent mission create-feature "new-dashboard" --json
+        spec-kitty agent mission create "new-dashboard" --json
     """
     from specify_cli.core.mission_creation import (
         FeatureCreationError,
@@ -541,7 +541,7 @@ def create_feature(
                 if main_repo is not None:
                     console.print("\n[cyan]Run from the main repository instead:[/cyan]")
                     console.print(f"  cd {main_repo}")
-                    console.print(f"  spec-kitty agent mission create-feature {mission_slug}")
+                    console.print(f"  spec-kitty agent mission create {mission_slug}")
         raise typer.Exit(1) from exc
     except Exception as e:
         if json_output:
@@ -1724,7 +1724,7 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         # Emit WPCreated events (non-blocking)
-        # MissionCreated is emitted earlier during create-feature
+        # MissionCreated is emitted earlier during mission create
         causation_id = get_emitter().generate_causation_id()
 
         for wp in work_packages:
