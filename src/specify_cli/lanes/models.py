@@ -10,7 +10,7 @@ persisted as lanes.json.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -70,6 +70,8 @@ class LanesManifest:
         lanes: Ordered list of execution lanes.
         computed_at: ISO 8601 timestamp of computation.
         computed_from: Description of inputs used (e.g. "dependency_graph+ownership").
+        planning_artifact_wps: WP IDs excluded from lane assignment because they
+            are planning artifacts (execution_mode == planning_artifact).
     """
 
     version: int
@@ -80,6 +82,7 @@ class LanesManifest:
     lanes: list[ExecutionLane]
     computed_at: str
     computed_from: str
+    planning_artifact_wps: list[str] = field(default_factory=list)
 
     def lane_for_wp(self, wp_id: str) -> ExecutionLane | None:
         """Return the lane containing the given WP, or None."""
@@ -105,6 +108,7 @@ class LanesManifest:
             "lanes": [lane.to_dict() for lane in self.lanes],
             "computed_at": self.computed_at,
             "computed_from": self.computed_from,
+            "planning_artifact_wps": self.planning_artifact_wps,
         }
 
     @classmethod
@@ -119,4 +123,5 @@ class LanesManifest:
             lanes=[ExecutionLane.from_dict(lane) for lane in data["lanes"]],
             computed_at=data["computed_at"],
             computed_from=data["computed_from"],
+            planning_artifact_wps=data.get("planning_artifact_wps", []),
         )

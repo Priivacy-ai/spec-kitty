@@ -21,6 +21,13 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
 
+
+class LaneComputationError(Exception):
+    """Raised when lane computation cannot produce a valid lane assignment.
+
+    This is a hard failure — no lanes.json is written when this is raised.
+    """
+
 # Surface taxonomy for conflict detection.
 # If two WPs predict the same surface, they are presumed to overlap.
 SURFACE_TAXONOMY: tuple[str, ...] = (
@@ -170,18 +177,31 @@ def compute_lanes(
     # Collect all WP IDs from the graph.
     all_wp_ids = sorted(dependency_graph.keys())
     if not all_wp_ids:
-        return _empty_manifest(mission_slug, target_branch, resolved_mission_id)
+        return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
 
     # Separate planning artifacts — they don't get lanes.
+    # T011: Fail diagnostically on missing ownership manifests.
+    # T012: Collect planning-artifact WP IDs for diagnostic output.
     code_wp_ids: list[str] = []
+    planning_artifact_wps: list[str] = []
     for wp_id in all_wp_ids:
         manifest = ownership_manifests.get(wp_id)
         if manifest and manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+            planning_artifact_wps.append(wp_id)
             continue
+        if not manifest:
+            raise LaneComputationError(
+                f"Executable WP '{wp_id}' has no ownership manifest. "
+                f"Ensure owned_files and execution_mode are set in WP frontmatter, "
+                f"or run finalize-tasks to infer them."
+            )
         code_wp_ids.append(wp_id)
 
     if not code_wp_ids:
-        return _empty_manifest(mission_slug, target_branch, resolved_mission_id)
+        return _empty_manifest(
+            mission_slug, target_branch, resolved_mission_id,
+            planning_artifact_wps=planning_artifact_wps,
+        )
 
     # Build union-find over code WPs.
     uf = _UnionFind(code_wp_ids)
@@ -217,6 +237,19 @@ def compute_lanes(
 
     # Build lane groups from union-find.
     raw_groups = uf.groups()
+
+    # T010: Assert every executable WP appears in exactly one lane group.
+    assigned_wps: set[str] = set()
+    for group_members in raw_groups.values():
+        assigned_wps.update(group_members)
+
+    missing_wps = set(code_wp_ids) - assigned_wps
+    if missing_wps:
+        raise LaneComputationError(
+            f"Executable WPs not assigned to any lane: {sorted(missing_wps)}. "
+            f"Verify that these WPs appear in the dependency_graph and have "
+            f"ownership manifests in frontmatter."
+        )
 
     # Order WPs within each lane by topological sort.
     lanes: list[ExecutionLane] = []
@@ -305,6 +338,7 @@ def compute_lanes(
         lanes=final_lanes,
         computed_at=datetime.now(timezone.utc).isoformat(),
         computed_from="dependency_graph+ownership",
+        planning_artifact_wps=planning_artifact_wps,
     )
 
 
@@ -336,7 +370,10 @@ def _compute_lane_depths(
 
 
 def _empty_manifest(
-    mission_slug: str, target_branch: str, mission_id: str,
+    mission_slug: str,
+    target_branch: str,
+    mission_id: str,
+    planning_artifact_wps: list[str] | None = None,
 ) -> LanesManifest:
     """Return an empty LanesManifest (no code WPs to lane)."""
     return LanesManifest(
@@ -348,4 +385,5 @@ def _empty_manifest(
         lanes=[],
         computed_at=datetime.now(timezone.utc).isoformat(),
         computed_from="dependency_graph+ownership",
+        planning_artifact_wps=planning_artifact_wps or [],
     )

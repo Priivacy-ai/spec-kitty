@@ -3,6 +3,7 @@
 import pytest
 
 from specify_cli.lanes.compute import (
+    LaneComputationError,
     compute_lanes,
     find_overlap_pairs,
     infer_surfaces,
@@ -343,3 +344,114 @@ class TestInferSurfaces:
         assert "dashboard" in surfaces
         assert "api" in surfaces
         assert "tracker-integration" in surfaces
+
+
+# ---------------------------------------------------------------------------
+# T010: Completeness assertion — all executable WPs appear in lanes
+# ---------------------------------------------------------------------------
+
+
+class TestCompletenessAssertion:
+    def test_all_executable_wps_in_lanes(self):
+        """All 5 code-change WPs must appear in exactly one lane."""
+        graph = {
+            "WP01": [],
+            "WP02": ["WP01"],
+            "WP03": [],
+            "WP04": ["WP03"],
+            "WP05": [],
+        }
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+            "WP03": _manifest(["src/c/**"]),
+            "WP04": _manifest(["src/d/**"]),
+            "WP05": _manifest(["src/e/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        all_in_lanes: set[str] = set()
+        for lane in result.lanes:
+            all_in_lanes.update(lane.wp_ids)
+        assert {"WP01", "WP02", "WP03", "WP04", "WP05"} == all_in_lanes
+
+
+# ---------------------------------------------------------------------------
+# T011: Missing ownership manifest raises LaneComputationError
+# ---------------------------------------------------------------------------
+
+
+class TestMissingManifestError:
+    def test_missing_manifest_raises_error(self):
+        """An executable WP with no ownership manifest must raise LaneComputationError."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            # WP02 has no manifest at all
+        }
+        with pytest.raises(LaneComputationError, match="WP02"):
+            compute_lanes(graph, manifests, "test-feat")
+
+    def test_missing_manifest_error_names_wp(self):
+        """The error message must name the missing WP."""
+        graph = {"WP01": [], "WP99": []}
+        manifests = {"WP01": _manifest(["src/a/**"])}
+        with pytest.raises(LaneComputationError) as exc_info:
+            compute_lanes(graph, manifests, "test-feat")
+        assert "WP99" in str(exc_info.value)
+
+
+# ---------------------------------------------------------------------------
+# T012: Planning-artifact exclusion diagnostic
+# ---------------------------------------------------------------------------
+
+
+class TestPlanningArtifactDiagnostic:
+    def test_planning_artifact_excluded_with_diagnostic(self):
+        """Planning WPs are excluded from lanes and listed in planning_artifact_wps."""
+        graph = {"WP01": [], "WP02": [], "WP03": []}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["kitty-specs/docs/**"], mode="planning_artifact"),
+            "WP03": _manifest(["src/merge/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        # WP02 excluded from lanes
+        all_wp_ids: set[str] = set()
+        for lane in result.lanes:
+            all_wp_ids.update(lane.wp_ids)
+        assert "WP02" not in all_wp_ids
+        # WP02 listed in diagnostic
+        assert "WP02" in result.planning_artifact_wps
+
+    def test_planning_artifact_wps_empty_when_none(self):
+        """When there are no planning artifacts, the list must be empty."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.planning_artifact_wps == []
+
+    def test_all_planning_artifacts_empty_manifest_with_diagnostic(self):
+        """When all WPs are planning artifacts, planning_artifact_wps contains them all."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
+            "WP02": _manifest(["docs/**"], mode="planning_artifact"),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert len(result.lanes) == 0
+        assert set(result.planning_artifact_wps) == {"WP01", "WP02"}
+
+    def test_planning_artifact_wps_in_serialized_dict(self):
+        """planning_artifact_wps must appear in to_dict() output."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["kitty-specs/x/**"], mode="planning_artifact"),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        data = result.to_dict()
+        assert "planning_artifact_wps" in data
+        assert "WP02" in data["planning_artifact_wps"]

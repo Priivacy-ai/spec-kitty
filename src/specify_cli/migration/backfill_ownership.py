@@ -154,7 +154,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             updates["execution_mode"] = str(mode)
 
         if not has_files:
-            owned = infer_owned_files(full_content, feature_slug)
+            owned, _infer_warnings = infer_owned_files(full_content, feature_slug)
             # Prefer git-diff files if available and execution_mode is code_change
             if git_files and updates.get("execution_mode") == "code_change":
                 owned = git_files

@@ -15,7 +15,16 @@ __all__ = [
     "infer_owned_files",
     "infer_authoritative_surface",
     "infer_ownership",
+    "SRC_FALLBACK_GLOB",
+    "SRC_FALLBACK_WARNING",
 ]
+
+# Constant so callers can detect / test the fallback value.
+SRC_FALLBACK_GLOB = "src/**"
+SRC_FALLBACK_WARNING = (
+    "No file paths found in WP body text; using broad fallback 'src/**'. "
+    "Consider adding explicit owned_files to WP frontmatter."
+)
 
 # Patterns that strongly suggest planning artifact deliverables.
 _PLANNING_SIGNALS = [
@@ -82,7 +91,9 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
     return ExecutionMode.CODE_CHANGE
 
 
-def infer_owned_files(wp_content: str, mission_slug: str) -> list[str]:
+def infer_owned_files(
+    wp_content: str, mission_slug: str
+) -> tuple[list[str], list[str]]:
     """Infer owned_files glob patterns from WP body text.
 
     For planning_artifact WPs: defaults to ``kitty-specs/<mission_slug>/**``.
@@ -93,12 +104,14 @@ def infer_owned_files(wp_content: str, mission_slug: str) -> list[str]:
         mission_slug: Feature slug (e.g. ``"057-canonical-context-architecture-cleanup"``).
 
     Returns:
-        Deduplicated list of glob patterns.
+        A 2-tuple of ``(globs, warnings)`` where *globs* is a deduplicated
+        list of glob patterns and *warnings* is a list of human-readable
+        warning strings (may be empty).
     """
     execution_mode = infer_execution_mode(wp_content, [])
 
     if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
-        return [f"kitty-specs/{mission_slug}/**"]
+        return [f"kitty-specs/{mission_slug}/**"], []
 
     # Extract path tokens mentioned in the WP
     found_paths = set(_PATH_PATTERN.findall(wp_content))
@@ -131,11 +144,14 @@ def infer_owned_files(wp_content: str, mission_slug: str) -> list[str]:
             seen_prefixes.add(glob)
             globs.append(glob)
 
-    # Fall back to a broad pattern if we couldn't extract anything specific
+    # Fall back to a broad pattern if we couldn't extract anything specific.
+    # Warn so operators know the scope is synthetic.
+    warnings: list[str] = []
     if not globs:
-        globs = ["src/**"]
+        globs = [SRC_FALLBACK_GLOB]
+        warnings.append(SRC_FALLBACK_WARNING)
 
-    return globs
+    return globs, warnings
 
 
 def infer_authoritative_surface(owned_files: list[str]) -> str:
@@ -180,7 +196,11 @@ def infer_authoritative_surface(owned_files: list[str]) -> str:
     return "/".join(common) + "/"
 
 
-def infer_ownership(wp_content: str, mission_slug: str, wp_files: list[str] | None = None) -> OwnershipManifest:
+def infer_ownership(
+    wp_content: str,
+    mission_slug: str,
+    wp_files: list[str] | None = None,
+) -> tuple[OwnershipManifest, list[str]]:
     """Convenience function: infer a complete OwnershipManifest from WP content.
 
     Args:
@@ -189,17 +209,20 @@ def infer_ownership(wp_content: str, mission_slug: str, wp_files: list[str] | No
         wp_files: Optional explicit list of file paths.
 
     Returns:
-        A best-effort OwnershipManifest.
+        A 2-tuple of ``(manifest, warnings)`` where *manifest* is a
+        best-effort OwnershipManifest and *warnings* is a list of
+        human-readable warning strings (may be empty).
     """
     from specify_cli.ownership.models import OwnershipManifest  # local import avoids circularity
 
     files = wp_files or []
     execution_mode = infer_execution_mode(wp_content, files)
-    owned_files = infer_owned_files(wp_content, mission_slug)
+    owned_files, warnings = infer_owned_files(wp_content, mission_slug)
     authoritative_surface = infer_authoritative_surface(owned_files)
 
-    return OwnershipManifest(
+    manifest = OwnershipManifest(
         execution_mode=execution_mode,
         owned_files=tuple(owned_files),
         authoritative_surface=authoritative_surface,
     )
+    return manifest, warnings

@@ -1494,7 +1494,7 @@ def finalize_tasks(
             # Ownership manifest: infer missing fields, write to frontmatter
             if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
                 wp_raw_content = wp_file.read_text(encoding="utf-8")
-                ownership = infer_ownership(wp_raw_content, mission_slug)
+                ownership, _ownership_warnings = infer_ownership(wp_raw_content, mission_slug)
                 if not frontmatter.get("execution_mode"):
                     changed_fields["execution_mode"] = str(ownership.execution_mode)
                     frontmatter["execution_mode"] = str(ownership.execution_mode)
