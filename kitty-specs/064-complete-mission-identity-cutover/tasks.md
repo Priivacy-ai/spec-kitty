@@ -87,13 +87,13 @@ Rename `agent/feature.py` → `agent/mission.py`. Remove `identity_aliases.py` u
 
 Rename 3 commands, 2 error codes, and `--feature` → `--mission` parameter. Remove remaining alias injection (8 calls). Insert compatibility gate. This is the externally-visible breaking change gated by FR-021.
 
-- [ ] T019: Remove `identity_aliases` import + 8 `with_tracked_mission_slug_aliases()` calls from commands.py
-- [ ] T020: Delete `src/specify_cli/core/identity_aliases.py` (zero consumers remain)
-- [ ] T021: Rename 3 commands: `feature-state` → `mission-state`, `accept-feature` → `accept-mission`, `merge-feature` → `merge-mission`
-- [ ] T022: Rename 2 error codes: `FEATURE_NOT_FOUND` → `MISSION_NOT_FOUND`, `FEATURE_NOT_READY` → `MISSION_NOT_READY`
-- [ ] T023: Rename `--feature` → `--mission` parameter on all 8 commands
-- [ ] T024: Update internal function names, parameter names, insert compatibility gate call
-- [ ] T025: Update tests + add integration test verifying old command names fail as unknown
+- [x] T019: Remove `identity_aliases` import + 8 `with_tracked_mission_slug_aliases()` calls from commands.py
+- [x] T020: Delete `src/specify_cli/core/identity_aliases.py` (zero consumers remain)
+- [x] T021: Rename 3 commands: `feature-state` → `mission-state`, `accept-feature` → `accept-mission`, `merge-feature` → `merge-mission`
+- [x] T022: Rename 2 error codes: `FEATURE_NOT_FOUND` → `MISSION_NOT_FOUND`, `FEATURE_NOT_READY` → `MISSION_NOT_READY`
+- [x] T023: Rename `--feature` → `--mission` parameter on all 8 commands
+- [x] T024: Update internal function names, parameter names, insert compatibility gate call
+- [x] T025: Update tests + add integration test verifying old command names fail as unknown
 
 **Requirement refs**: FR-003, FR-004, FR-012, FR-022
 
