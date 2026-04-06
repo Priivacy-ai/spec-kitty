@@ -179,7 +179,7 @@ Grep-based audit of entire codebase for leaked feature-era surfaces. Fix anythin
 
 Verify external consumer readiness. Document release gate status.
 
-- [ ] T051: Verify Priivacy-ai/spec-kitty-orchestrator#6 status and readiness
-- [ ] T052: Validate updated orchestrator against renamed contract; document release readiness
+- [x] T051: Verify Priivacy-ai/spec-kitty-orchestrator#6 status and readiness
+- [x] T052: Validate updated orchestrator against renamed contract; document release readiness
 
 **Requirement refs**: FR-021
