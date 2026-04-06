@@ -24,8 +24,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: "47944"
-agent: "claude:sonnet-4-6:implementer:implementer"
+shell_pid: "49024"
+agent: "claude:opus-4-6:reviewer:reviewer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -277,3 +277,4 @@ This WP also modifies two functions in existing files (not exclusively owned —
 
 - 2026-04-06T16:42:29Z – claude:sonnet-4-6:implementer:implementer – shell_pid=47944 – Started implementation via action command
 - 2026-04-06T16:46:45Z – claude:sonnet-4-6:implementer:implementer – shell_pid=47944 – Ready for review: persisted review artifact model fully implemented with dual pointer resolution, 12 tests passing, mypy clean
+- 2026-04-06T16:47:01Z – claude:opus-4-6:reviewer:reviewer – shell_pid=49024 – Started review via action command
