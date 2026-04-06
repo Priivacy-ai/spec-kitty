@@ -1157,6 +1157,57 @@ def move_task(
         # Determine feature_dir for the event store
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
+        # --- Arbiter override detection (T032) ---
+        # When a --force move from planned to a forward lane follows a rejection event,
+        # detect this as an arbiter override and persist a structured rationale.
+        try:
+            from specify_cli.review.arbiter import (
+                _is_arbiter_override,
+                create_arbiter_decision,
+                parse_category_from_note,
+                persist_arbiter_decision,
+            )
+
+            if _is_arbiter_override(feature_dir, task_id, old_lane, resolve_lane_alias(target_lane), force):
+                # Derive review_ref from the latest rejection event
+                from specify_cli.status.store import read_events as _arb_read_events
+                _arb_events = _arb_read_events(feature_dir)
+                _arb_wp_events = [e for e in _arb_events if e.wp_id == task_id]
+                _arb_latest = _arb_wp_events[-1] if _arb_wp_events else None
+                _arb_review_ref = _arb_latest.review_ref if _arb_latest else None
+
+                # Parse category and explanation from --note
+                _arb_category, _arb_explanation = parse_category_from_note(note_text)
+                _arb_actor = agent or "operator"
+
+                arbiter_decision = create_arbiter_decision(
+                    arbiter_name=_arb_actor,
+                    category=_arb_category,
+                    explanation=_arb_explanation,
+                )
+                try:
+                    _arb_path = persist_arbiter_decision(
+                        feature_dir=feature_dir,
+                        wp_id=task_id,
+                        review_ref=_arb_review_ref,
+                        decision=arbiter_decision,
+                    )
+                    if not json_output:
+                        console.print(
+                            f"[yellow]Arbiter override recorded:[/yellow] "
+                            f"[bold]{_arb_category}[/bold] — {_arb_explanation}"
+                        )
+                        console.print(f"[dim]  Decision persisted: {_arb_path}[/dim]")
+                except Exception as _arb_err:
+                    if not json_output:
+                        console.print(f"[dim]Warning: Could not persist arbiter decision: {_arb_err}[/dim]")
+
+                # Use the rejection's review_ref for the forward event so history is linked
+                if _arb_review_ref and emit_review_ref is None:
+                    emit_review_ref = _arb_review_ref
+        except ImportError:
+            pass  # review package not available yet
+
         # Keep force semantics strict: only user-requested --force should bypass guards.
         emit_force = force
         if not emit_reason:
@@ -2640,6 +2691,31 @@ def status(
 
         console.print(table)
         console.print()
+
+        # --- Arbiter override history (T034) ---
+        # Peek at review-cycle artifacts to surface any arbiter overrides.
+        try:
+            from specify_cli.review.arbiter import get_arbiter_overrides_for_wp
+
+            arbiter_lines: list[str] = []
+            for wp in work_packages:
+                wp_id_val = wp.get("id") or ""
+                if not wp_id_val:
+                    continue
+                overrides = get_arbiter_overrides_for_wp(feature_dir, wp_id_val)
+                for idx, override in enumerate(overrides, start=1):
+                    cat = override.get("category", "custom")
+                    arbiter_lines.append(
+                        f"  • {wp_id_val} Cycle {idx}: rejected → [yellow]overridden[/yellow] ({cat})"
+                    )
+
+            if arbiter_lines:
+                console.print("[bold yellow]⚖️  Arbiter Override History:[/bold yellow]")
+                for line in arbiter_lines:
+                    console.print(line)
+                console.print()
+        except ImportError:
+            pass  # review package not yet available
 
         # Next steps section
         if by_lane["for_review"]:
