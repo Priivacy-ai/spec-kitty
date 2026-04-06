@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0a7] - 2026-04-06
+
+### Added
+
+- **Runtime recovery and audit safety (mission 067)** -- 6 work packages delivering resilience and audit infrastructure:
+  - **Merge resume recovery (WP01)** -- `spec-kitty merge --resume` recovers from interrupted merges with persistent state tracking in `.kittify/merge-state.json`
+  - **Implementation crash recovery (WP02)** -- `spec-kitty implement --recover` restores execution context after agent crashes, rebuilding worktree state and resuming from last known checkpoint
+  - **Stale-claim doctor checks (WP03)** -- `spec-kitty doctor` detects orphaned claims, stale locks, and zombie worktrees with structured diagnostic output
+  - **Audit-mode scope relaxation (WP04)** -- ownership validation supports `scope: codebase-wide` for audit/cutover WPs; new `validate_audit_coverage()` warns on uncovered audit targets
+  - **Shim-to-canonical migration (WP05)** -- all `spec-kitty agent shim <action>` calls replaced with direct `spec-kitty agent action <action>` across 48 agent command files
+  - **Finalize-tasks audit wiring (WP06)** -- `validate_audit_coverage()` integrated into finalize-tasks ownership validation pipeline as a soft warning check
+
+### Fixed
+
+- **Agent command files** -- regenerated all 48 agent command files to use canonical `spec-kitty agent action` instead of deprecated `spec-kitty agent shim`
+- **Post-merge test regressions** -- fixed 4 stale test assertions after mission 067 merge (implement template content, merge resume behavior, --recover flag default)
+
 ## [3.1.0a6] - 2026-04-06
 
 ### Added
