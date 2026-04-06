@@ -95,11 +95,11 @@
 **Issues**: #439
 **Estimated prompt size**: ~370 lines
 
-- [ ] T012 Create dirty_classifier.py with classify_dirty_paths() (WP03)
-- [ ] T013 Implement classification rules — blocking vs benign path patterns (WP03)
-- [ ] T014 Update _validate_ready_for_review() — use classifier, only block on blocking (WP03)
-- [ ] T015 Update review prompt — surface writable in-repo feedback path (WP03)
-- [ ] T016 Write tests for classification, validation, review prompt path (WP03)
+- [x] T012 Create dirty_classifier.py with classify_dirty_paths() (WP03)
+- [x] T013 Implement classification rules — blocking vs benign path patterns (WP03)
+- [x] T014 Update _validate_ready_for_review() — use classifier, only block on blocking (WP03)
+- [x] T015 Update review prompt — surface writable in-repo feedback path (WP03)
+- [x] T016 Write tests for classification, validation, review prompt path (WP03)
 
 **Implementation sketch**: Create `classify_dirty_paths()` that partitions `git status --porcelain` output. Blocking: WP-owned source files, WP's task file. Benign: status.events.jsonl, status.json, other WPs' task files, metadata. Update `_validate_ready_for_review()` to call classifier. Update review prompt to show in-repo writable path.
 
