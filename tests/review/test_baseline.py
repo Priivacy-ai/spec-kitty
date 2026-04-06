@@ -11,7 +11,7 @@ import pytest
 
 from specify_cli.review.baseline import (
     BaselineTestResult,
-    TestFailure,
+    BaselineFailure,
     _get_test_command,
     _parse_junit_xml,
     capture_baseline,
@@ -46,7 +46,7 @@ SAMPLE_JUNIT_XML = textwrap.dedent("""\
 def _make_baseline(
     wp_id: str = "WP04",
     failed: int = 2,
-    failures: tuple[TestFailure, ...] = (),
+    failures: tuple[BaselineFailure, ...] = (),
     base_branch: str = "main",
     base_commit: str = "abc1234",
 ) -> BaselineTestResult:
@@ -64,8 +64,8 @@ def _make_baseline(
     )
 
 
-def _make_failure(test: str, error: str = "AssertionError", file: str = "tests/foo.py:10") -> TestFailure:
-    return TestFailure(test=test, error=error, file=file)
+def _make_failure(test: str, error: str = "AssertionError", file: str = "tests/foo.py:10") -> BaselineFailure:
+    return BaselineFailure(test=test, error=error, file=file)
 
 
 # ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ class TestBaselineTestResultRoundTrip:
 
     def test_to_dict_from_dict_round_trip(self) -> None:
         failure = _make_failure("a.b.c")
-        assert TestFailure.from_dict(failure.to_dict()) == failure
+        assert BaselineFailure.from_dict(failure.to_dict()) == failure
 
         baseline = _make_baseline(failures=(failure,))
         assert BaselineTestResult.from_dict(baseline.to_dict()) == baseline

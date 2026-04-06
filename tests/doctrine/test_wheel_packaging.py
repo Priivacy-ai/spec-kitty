@@ -2,23 +2,30 @@
 
 from __future__ import annotations
 
-from pathlib import Path
 import subprocess
-import sys
-import tempfile
 import zipfile
+from pathlib import Path
 
 import pytest
+
 pytestmark = pytest.mark.slow
 
 
+# These tests reuse the session-scoped build_artifacts and installed_wheel_venv
+# fixtures from tests/cross_cutting/packaging/conftest.py.
+# They are discovered via conftest.py fixture resolution because pytest
+# collects fixtures from all conftest.py files in the test tree.
+#
+# If these fixtures are NOT found, it means this test file is being run
+# in isolation. Use the fallback fixtures below.
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-def _build_wheel(tmpdir: str) -> Path:
+def _build_wheel_fallback(tmpdir: str) -> Path:
+    """Fallback wheel builder for when conftest fixtures are not available."""
     result = subprocess.run(
-        [sys.executable, "-m", "build", "--wheel", "--outdir", tmpdir],
+        [__import__("sys").executable, "-m", "build", "--wheel", "--outdir", tmpdir],
         cwd=REPO_ROOT,
         capture_output=True,
         text=True,
@@ -33,80 +40,49 @@ def _build_wheel(tmpdir: str) -> Path:
     return wheels[-1]
 
 
-def _venv_paths(venv_dir: Path) -> tuple[Path, Path]:
-    pip = venv_dir / "bin" / "pip"
-    python = venv_dir / "bin" / "python"
-
-    if not pip.exists() or not python.exists():
-        pip = venv_dir / "Scripts" / "pip.exe"
-        python = venv_dir / "Scripts" / "python.exe"
-
-    if not pip.exists() or not python.exists():
-        pytest.skip("Unable to locate venv pip/python executables")
-
-    return pip, python
+@pytest.fixture
+def wheel_path(build_artifacts: dict[str, Path]) -> Path:
+    """Get wheel path from shared session fixture."""
+    return build_artifacts["wheel"]
 
 
-def test_wheel_contains_doctrine_package_data() -> None:
+def test_wheel_contains_doctrine_package_data(wheel_path: Path) -> None:
     """Built wheel should include doctrine code and shipped YAML assets."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        wheel = _build_wheel(tmpdir)
+    with zipfile.ZipFile(wheel_path, "r") as zf:
+        names = set(zf.namelist())
 
-        with zipfile.ZipFile(wheel, "r") as zf:
-            names = set(zf.namelist())
-
-        required_prefixes = [
-            "doctrine/agent_profiles/profile.py",
-            "doctrine/agent_profiles/shipped/implementer.agent.yaml",
-            "doctrine/schemas/agent-profile.schema.yaml",
-            "doctrine/schemas/directive.schema.yaml",
-            "doctrine/directives/shipped/003-decision-documentation-requirement.directive.yaml",
-        ]
-        missing = [path for path in required_prefixes if path not in names]
-        assert not missing, f"Missing doctrine wheel assets: {missing}"
+    required_prefixes = [
+        "doctrine/agent_profiles/profile.py",
+        "doctrine/agent_profiles/shipped/implementer.agent.yaml",
+        "doctrine/schemas/agent-profile.schema.yaml",
+        "doctrine/schemas/directive.schema.yaml",
+        "doctrine/directives/shipped/003-decision-documentation-requirement.directive.yaml",
+    ]
+    missing = [path for path in required_prefixes if path not in names]
+    assert not missing, f"Missing doctrine wheel assets: {missing}"
 
 
-def test_wheel_install_imports_doctrine_and_lists_profiles() -> None:
+def test_wheel_install_imports_doctrine_and_lists_profiles(
+    installed_wheel_venv: dict[str, Path],
+) -> None:
     """Installed wheel should expose doctrine imports and shipped profiles."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        wheel = _build_wheel(tmpdir)
+    python = installed_wheel_venv["python"]
 
-        venv_dir = Path(tmpdir) / "venv"
-        create = subprocess.run(
-            [sys.executable, "-m", "venv", str(venv_dir)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if create.returncode != 0:
-            pytest.skip(f"venv creation failed: {create.stderr}")
+    check = subprocess.run(
+        [
+            str(python),
+            "-c",
+            (
+                "from doctrine.agent_profiles import AgentProfileRepository; "
+                "repo = AgentProfileRepository(project_dir=None); "
+                "profiles = repo.list_all(); "
+                "assert any(p.profile_id == 'implementer' for p in profiles); "
+                "print(len(profiles))"
+            ),
+        ],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
 
-        pip, python = _venv_paths(venv_dir)
-
-        install = subprocess.run(
-            [str(pip), "install", str(wheel)],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if install.returncode != 0:
-            pytest.skip(f"wheel install failed: {install.stderr}")
-
-        check = subprocess.run(
-            [
-                str(python),
-                "-c",
-                (
-                    "from doctrine.agent_profiles import AgentProfileRepository; "
-                    "repo = AgentProfileRepository(project_dir=None); "
-                    "profiles = repo.list_all(); "
-                    "assert any(p.profile_id == 'implementer' for p in profiles); "
-                    "print(len(profiles))"
-                ),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-
-        assert check.returncode == 0, check.stderr
+    assert check.returncode == 0, check.stderr

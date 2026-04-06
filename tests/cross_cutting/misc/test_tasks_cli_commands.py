@@ -256,9 +256,7 @@ def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     assert "WP01" in result.stdout
 
 
-def test_refresh_script_upgrades_legacy_copy(temp_repo: Path) -> None:
-    """OBSOLETE: Bash scripts removed in v0.10.0 Python rewrite."""
-    pytest.skip("Bash scripts were removed in v0.10.0 - test no longer applicable")
+    # test_refresh_script_upgrades_legacy_copy removed — bash scripts deleted in v0.10.0
 
 
 # ============================================================================

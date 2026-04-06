@@ -22,6 +22,7 @@ import pytest
 
 
 @pytest.mark.e2e
+@pytest.mark.slow
 class TestFullCLIWorkflow:
     """Exercise the complete spec-kitty CLI workflow end-to-end."""
 

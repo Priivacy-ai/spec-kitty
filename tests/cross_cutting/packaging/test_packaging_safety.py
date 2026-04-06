@@ -2,52 +2,17 @@
 
 from __future__ import annotations
 
-import subprocess
-import sys
 import tarfile
-import tempfile
 import zipfile
 from pathlib import Path
 
 import pytest
 
 
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
+# build_artifacts fixture comes from conftest.py (session-scoped, shared)
 
 
-def _require_build() -> None:
-    if subprocess.run([sys.executable, "-m", "build", "--help"], capture_output=True, text=True).returncode != 0:
-        pytest.skip("python -m build not available; install build to run packaging tests")
-
-
-@pytest.fixture(scope="session")
-def build_artifacts() -> dict[str, Path]:
-    """Build wheel + sdist in a temp directory and return their paths."""
-    _require_build()
-
-    with tempfile.TemporaryDirectory() as tmpdir:
-        outdir = Path(tmpdir)
-
-        result = subprocess.run(
-            [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
-            cwd=PROJECT_ROOT,
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            pytest.skip(f"Build failed: {result.stderr}")
-
-        wheels = sorted(outdir.glob("spec_kitty_cli-*.whl"))
-        sdists = sorted(outdir.glob("spec_kitty_cli-*.tar.gz"))
-        if not wheels or not sdists:
-            pytest.skip("Build did not produce expected wheel/sdist artifacts")
-
-        yield {
-            "wheel": wheels[-1],
-            "sdist": sdists[-1],
-        }
-
-
+@pytest.mark.slow
 def test_wheel_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
     """Verify wheel doesn't contain .kittify/ paths."""
     wheel_path = build_artifacts["wheel"]
@@ -59,6 +24,7 @@ def test_wheel_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> No
     assert not kittify_files, f"Wheel contains .kittify/ paths (packaging contamination): {kittify_files}"
 
 
+@pytest.mark.slow
 def test_wheel_contains_no_filled_charter(build_artifacts: dict[str, Path]) -> None:
     """Verify wheel doesn't contain a filled charter under memory/."""
     wheel_path = build_artifacts["wheel"]
@@ -75,6 +41,7 @@ def test_wheel_contains_no_filled_charter(build_artifacts: dict[str, Path]) -> N
         )
 
 
+@pytest.mark.slow
 def test_wheel_contains_templates(build_artifacts: dict[str, Path]) -> None:
     """Verify wheel does contain templates and missions."""
     wheel_path = build_artifacts["wheel"]
@@ -89,17 +56,23 @@ def test_wheel_contains_templates(build_artifacts: dict[str, Path]) -> None:
     assert mission_files, "Wheel missing mission files"
 
 
-def test_wheel_contains_only_src_package(build_artifacts: dict[str, Path]) -> None:
-    """Verify wheel only contains specify_cli package files."""
+@pytest.mark.slow
+def test_wheel_contains_only_known_packages(build_artifacts: dict[str, Path]) -> None:
+    """Verify wheel only contains known package directories."""
     wheel_path = build_artifacts["wheel"]
+
+    known_prefixes = ("specify_cli/", "doctrine/", "charter/", "kernel/")
 
     with zipfile.ZipFile(wheel_path) as zf:
         all_files = [f for f in zf.namelist() if ".dist-info/" not in f]
 
     for file_path in all_files:
-        assert file_path.startswith("specify_cli/"), f"File outside package directory: {file_path}"
+        assert any(file_path.startswith(p) for p in known_prefixes), (
+            f"File outside known package directories: {file_path}"
+        )
 
 
+@pytest.mark.slow
 def test_sdist_contains_no_kittify_paths(build_artifacts: dict[str, Path]) -> None:
     """Verify sdist doesn't contain .kittify/ runtime paths."""
     sdist_path = build_artifacts["sdist"]

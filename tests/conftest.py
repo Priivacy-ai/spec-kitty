@@ -227,6 +227,75 @@ def test_venv() -> Path:
     return venv_dir
 
 
+# ---------------------------------------------------------------------------
+# Session-scoped build artifacts — shared across ALL packaging/distribution tests
+# Builds wheel + sdist ONCE per session instead of per-test.
+# ---------------------------------------------------------------------------
+
+def _build_tool_available() -> bool:
+    return subprocess.run(
+        [sys.executable, "-m", "build", "--help"],
+        capture_output=True, text=True,
+    ).returncode == 0
+
+
+@pytest.fixture(scope="session")
+def build_artifacts(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
+    """Build wheel + sdist once per session. Shared by all packaging tests."""
+    if not _build_tool_available():
+        pytest.skip("python -m build not available")
+
+    outdir = tmp_path_factory.mktemp("build")
+    result = subprocess.run(
+        [sys.executable, "-m", "build", "--wheel", "--sdist", "--outdir", str(outdir)],
+        cwd=REPO_ROOT,
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Build failed: {result.stderr}")
+
+    wheels = sorted(outdir.glob("spec_kitty_cli-*.whl"))
+    sdists = sorted(outdir.glob("spec_kitty_cli-*.tar.gz"))
+    if not wheels or not sdists:
+        pytest.skip("Build did not produce expected wheel/sdist artifacts")
+
+    return {"wheel": wheels[-1], "sdist": sdists[-1]}
+
+
+@pytest.fixture(scope="session")
+def installed_wheel_venv(
+    build_artifacts: dict[str, Path],
+    tmp_path_factory: pytest.TempPathFactory,
+) -> dict[str, Path]:
+    """Install the session wheel into a fresh venv. Shared by all install tests."""
+    wheel = build_artifacts["wheel"]
+    venv_dir = tmp_path_factory.mktemp("wheel_venv")
+
+    result = subprocess.run(
+        [sys.executable, "-m", "venv", str(venv_dir)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Failed to create venv: {result.stderr}")
+
+    pip = venv_dir / "bin" / "pip"
+    python = venv_dir / "bin" / "python"
+    if not pip.exists():
+        pip = venv_dir / "Scripts" / "pip.exe"
+        python = venv_dir / "Scripts" / "python.exe"
+    if not pip.exists():
+        pytest.skip("pip not found in venv")
+
+    result = subprocess.run(
+        [str(pip), "install", str(wheel)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        pytest.skip(f"Failed to install wheel: {result.stderr}")
+
+    return {"pip": pip, "python": python, "venv_dir": venv_dir, "wheel": wheel}
+
+
 @pytest.fixture()
 def isolated_env() -> dict[str, str]:
     """Create isolated environment blocking host spec-kitty installation.

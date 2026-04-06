@@ -66,61 +66,15 @@ def _clean_env() -> dict[str, str]:
 
 
 @pytest.fixture(scope="session")
-def wheel_path(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Build wheel once per session.
-
-    Session-scoped to avoid rebuilding for each test.
-    """
-    build_dir = tmp_path_factory.mktemp("build")
-    dist_dir = build_dir / "dist"
-
-    # Build distributions (wheel from sdist, matching release flow)
-    result = subprocess.run(
-        [sys.executable, "-m", "build", "--outdir", str(dist_dir), str(REPO_ROOT)],
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        pytest.fail(f"Wheel build failed: {result.stderr}")
-
-    wheels = list(dist_dir.glob("*.whl"))
-    if not wheels:
-        pytest.fail("No wheel produced by build")
-
-    return wheels[0]
+def wheel_path(build_artifacts: dict[str, Path]) -> Path:
+    """Get wheel from shared session-scoped build (avoids redundant rebuild)."""
+    return build_artifacts["wheel"]
 
 
 @pytest.fixture(scope="session")
-def installed_venv(wheel_path: Path, tmp_path_factory: pytest.TempPathFactory) -> Path:
-    """Create venv with wheel installed (no SPEC_KITTY_TEMPLATE_ROOT).
-
-    Session-scoped to avoid reinstalling for each test.
-    """
-    venv_dir = tmp_path_factory.mktemp("venv")
-
-    # Create venv
-    subprocess.run(
-        [sys.executable, "-m", "venv", str(venv_dir)],
-        check=True,
-        capture_output=True,
-    )
-
-    # Install wheel
-    pip = venv_dir / "bin" / "pip"
-    if not pip.exists():
-        pip = venv_dir / "Scripts" / "pip.exe"
-
-    result = subprocess.run(
-        [str(pip), "install", str(wheel_path)],
-        capture_output=True,
-        text=True,
-    )
-
-    if result.returncode != 0:
-        pytest.fail(f"Wheel install failed: {result.stderr}")
-
-    return venv_dir
+def installed_venv(installed_wheel_venv: dict[str, Path]) -> Path:
+    """Get installed venv from shared session-scoped fixture."""
+    return installed_wheel_venv["venv_dir"]
 
 
 # =============================================================================

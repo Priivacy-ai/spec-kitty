@@ -28,7 +28,7 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
-class TestFailure:
+class BaselineFailure:
     """A single test failure recorded in the baseline."""
 
     test: str   # fully qualified test name
@@ -39,7 +39,7 @@ class TestFailure:
         return {"test": self.test, "error": self.error, "file": self.file}
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "TestFailure":
+    def from_dict(cls, data: dict[str, Any]) -> "BaselineFailure":
         return cls(
             test=data["test"],
             error=data["error"],
@@ -60,7 +60,7 @@ class BaselineTestResult:
     passed: int
     failed: int           # -1 means capture failed (sentinel)
     skipped: int
-    failures: tuple[TestFailure, ...] = field(default_factory=tuple)
+    failures: tuple[BaselineFailure, ...] = field(default_factory=tuple)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -78,7 +78,7 @@ class BaselineTestResult:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> "BaselineTestResult":
-        failures = tuple(TestFailure.from_dict(f) for f in data.get("failures", []))
+        failures = tuple(BaselineFailure.from_dict(f) for f in data.get("failures", []))
         return cls(
             wp_id=data["wp_id"],
             captured_at=data["captured_at"],
@@ -139,7 +139,7 @@ def _get_test_command(repo_root: Path) -> tuple[str, str]:
     return ("pytest --junitxml={output_file}", "junit_xml")
 
 
-def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[TestFailure]]:
+def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[BaselineFailure]]:
     """Parse a JUnit XML file and return (total, passed, failed, skipped, failures).
 
     Handles nested <testsuite> elements via ``root.iter("testcase")``.
@@ -147,7 +147,7 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Tes
     tree = ET.parse(str(junit_xml_path))
     root = tree.getroot()
 
-    failures: list[TestFailure] = []
+    failures: list[BaselineFailure] = []
     total = passed = failed = skipped = 0
 
     for testcase in root.iter("testcase"):
@@ -168,7 +168,7 @@ def _parse_junit_xml(junit_xml_path: Path) -> tuple[int, int, int, int, list[Tes
             test_name = f"{classname}.{name}" if classname else name
             file_attr = testcase.get("file", "unknown") or "unknown"
             line_attr = testcase.get("line", "?") or "?"
-            failures.append(TestFailure(
+            failures.append(BaselineFailure(
                 test=test_name,
                 error=msg,
                 file=f"{file_attr}:{line_attr}",
@@ -338,8 +338,8 @@ def load_baseline(path: Path) -> "BaselineTestResult | None":
 
 def diff_baseline(
     baseline: BaselineTestResult,
-    current_failures: list[TestFailure],
-) -> tuple[list[TestFailure], list[TestFailure], list[str]]:
+    current_failures: list[BaselineFailure],
+) -> tuple[list[BaselineFailure], list[BaselineFailure], list[str]]:
     """Compare baseline failures against current failures.
 
     Args:
@@ -359,8 +359,8 @@ def diff_baseline(
     baseline_test_names = {f.test for f in baseline.failures}
     current_test_names = {f.test for f in current_failures}
 
-    pre_existing: list[TestFailure] = []
-    new_failures: list[TestFailure] = []
+    pre_existing: list[BaselineFailure] = []
+    new_failures: list[BaselineFailure] = []
 
     for failure in current_failures:
         if failure.test in baseline_test_names:
