@@ -39,14 +39,14 @@ _LOCK_FILE = "lock"
 class MergeAmbiguousStateError(Exception):
     """Raised when multiple active merge states exist and no mission_id was given.
 
-    Pass ``--feature <slug>`` (or ``--mission-id <id>``) to disambiguate.
+    Pass ``--mission <slug>`` (or ``--mission-id <id>``) to disambiguate.
     """
 
     def __init__(self, mission_ids: list[str]) -> None:
         self.mission_ids = mission_ids
         ids_formatted = "\n  ".join(mission_ids)
         super().__init__(
-            f"Multiple active merge states found — pass --feature to disambiguate:\n  {ids_formatted}"
+            f"Multiple active merge states found — pass --mission to disambiguate:\n  {ids_formatted}"
         )
 
 

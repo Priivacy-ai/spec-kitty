@@ -27,7 +27,7 @@ def _resolve_feature_dir(
 
     Args:
         project_root: Repository root.
-        feature: Explicit feature slug from --feature flag, or None.
+        feature: Explicit mission slug from --mission flag, or None.
 
     Returns:
         Path to the ``kitty-specs/<slug>`` directory, or ``None`` if not given.
@@ -55,7 +55,7 @@ TOOL_LABELS = [
 
 
 def verify_setup(
-    feature: str | None = typer.Option(None, "--feature", help="Feature slug to verify (auto-detected when omitted)"),
+    feature: str | None = typer.Option(None, "--mission", "--feature", help="Mission slug to verify"),
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
     check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
     check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),
@@ -110,7 +110,7 @@ def verify_setup(
     check_version_compatibility(project_root, "verify")
     cwd = Path.cwd()
 
-    # Detect feature directory from --feature flag or current context
+    # Detect feature directory from --mission flag or current context
     feature_dir = _resolve_feature_dir(project_root, feature)
 
     result = run_enhanced_verify(

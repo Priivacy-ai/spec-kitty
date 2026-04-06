@@ -277,7 +277,7 @@ def resolve_active_feature(
     project_dir: Path,
     features: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
-    """Return None — active feature cannot be auto-detected; requires explicit --feature.
+    """Return None — active feature cannot be auto-detected; requires explicit --mission.
 
     This function is retained for backward-compatible call sites. Without
     auto-detection, we cannot determine the active feature without an explicit
@@ -376,7 +376,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     )
                     kanban_stats["error"] = (
                         f"Event log not found. Run: spec-kitty agent mission "
-                        f"finalize-tasks --feature {feature_dir.name}"
+                        f"finalize-tasks --mission {feature_dir.name}"
                     )
                 except StoreError as exc:
                     logger.warning(
@@ -480,7 +480,7 @@ def _process_wp_file(
             raise CanonicalStatusNotFoundError(
                 f"Canonical status not found for feature "
                 f"'{feature_candidate.name}'. Run 'spec-kitty agent mission "
-                f"finalize-tasks --feature {feature_candidate.name}' to "
+                f"finalize-tasks --mission {feature_candidate.name}' to "
                 f"bootstrap the event log."
             )
 

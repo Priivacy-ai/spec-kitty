@@ -324,7 +324,7 @@ def test_merge_json_dry_run_requires_feature_resolution(monkeypatch, tmp_path: P
 
     assert result.exit_code == 1
     payload = json.loads(result.stdout.strip())
-    assert payload["error"] == "Feature slug could not be resolved. Use --feature <slug>."
+    assert payload["error"] == "Mission slug could not be resolved. Use --mission <slug>."
 
 
 def test_merge_json_dry_run_honors_keep_flags(monkeypatch, tmp_path: Path) -> None:

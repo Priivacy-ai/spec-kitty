@@ -227,7 +227,7 @@ def test_no_feature_no_feature_branch_requires_explicit_feature(monkeypatch, tmp
 
     assert result.exit_code == 1
     payload = _extract_json(result.stdout)
-    assert payload["error"] == "Feature slug could not be resolved. Use --feature <slug>."
+    assert payload["error"] == "Mission slug could not be resolved. Use --mission <slug>."
 
 
 def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:

@@ -3,7 +3,7 @@
 ``shim_dispatch()`` is the single function called by every
 ``spec-kitty agent shim <command>`` subcommand.  It:
 
-1. Parses *raw_args* to extract ``WP##`` codes, ``--mission-run`` / ``--feature`` values, etc.
+1. Parses *raw_args* to extract ``WP##`` codes, ``--mission`` / ``--mission-run`` values, etc.
 2. Loads an existing context if *context_token* is supplied.
 3. Otherwise, resolves a new context from the parsed arguments.
 4. Dispatches to the appropriate workflow handler.
@@ -34,7 +34,7 @@ def _parse_raw_args(raw_args: str) -> dict[str, str | None]:
 
     Looks for:
     - A ``WP##`` code (first match wins).
-    - A ``--mission-run <slug>`` or ``--feature <slug>`` value (``--feature`` is the legacy alias).
+    - A ``--mission <slug>`` or ``--mission-run <slug>`` value (``--feature`` is accepted as a legacy alias).
 
     All other content is silently ignored so that new flags added to
     agent slash commands don't break existing dispatch logic.

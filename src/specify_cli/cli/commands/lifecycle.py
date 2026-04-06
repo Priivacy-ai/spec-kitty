@@ -33,7 +33,7 @@ def specify(
 
 
 def plan(
-    feature: Optional[str] = typer.Option(None, "--feature", help="Feature slug (e.g., 001-user-authentication)"),
+    feature: Optional[str] = typer.Option(None, "--mission", "--feature", help="Mission slug (e.g., 001-user-authentication)"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""

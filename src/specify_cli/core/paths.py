@@ -274,7 +274,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
     """Require an explicit feature slug; raise if not provided.
 
     Replaces heuristic detection.  Every CLI command that needs a feature slug
-    must receive it via ``--feature`` (or equivalent).  No scanning, no env
+    must receive it via ``--mission`` (or equivalent).  No scanning, no env
     var magic, no git branch guessing.
 
     When the feature is missing, scans ``kitty-specs/`` for available features
@@ -330,14 +330,11 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
         except Exception:
             pass
 
-    flag_name = flag.split()[0]  # e.g., "--mission"
     msg = (
         f"Mission slug is required. Provide it explicitly: {flag}\n"
         "No auto-detection is performed (branch scanning / env vars removed).\n"
         f"{available}"
-        f"Example:\n"
-        f"  spec-kitty agent context resolve --action tasks {flag_name} {example_slug} --json\n"
-        f"  spec-kitty agent mission finalize-tasks {flag_name} {example_slug} --json"
+        f"Example: spec-kitty ... {flag.split()[0]} {example_slug}"
     )
     raise ValueError(msg)
 

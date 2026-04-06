@@ -257,7 +257,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
 @require_main_repo
 def implement(
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
-    feature: str = typer.Option(None, "--feature", help="Mission slug (for example, 001-my-feature)"),
+    feature: str = typer.Option(None, "--mission", "--feature", help="Mission slug (for example, 001-my-feature)"),
     auto_commit: Annotated[
         bool | None,
         typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit status and planning changes (default: from project config)"),

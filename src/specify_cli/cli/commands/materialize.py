@@ -23,7 +23,7 @@ console = Console()
 def materialize(
     feature: Annotated[
         str | None,
-        typer.Option("--feature", help="Feature slug to materialise (all if omitted)"),
+        typer.Option("--mission", "--feature", help="Mission slug to materialise (all if omitted)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -32,7 +32,7 @@ def materialize(
 ) -> None:
     """Regenerate all derived views from the canonical event log.
 
-    For each feature (or a single feature when --feature is given),
+    For each feature (or a single feature when --mission is given),
     writes the following files to ``.kittify/derived/<slug>/``:
 
     - ``status.json`` — full StatusSnapshot
@@ -42,7 +42,7 @@ def materialize(
     Examples::
 
         spec-kitty materialize
-        spec-kitty materialize --feature 034-my-feature
+        spec-kitty materialize --mission 034-my-feature
         spec-kitty materialize --json
     """
     from specify_cli.status.views import write_derived_views

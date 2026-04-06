@@ -158,13 +158,13 @@ def list_cmd() -> None:
 
 
 def _detect_current_feature(project_root: Path) -> str | None:
-    """Return None — no auto-detection (requires explicit --feature).
+    """Return None — no auto-detection (requires explicit --mission).
 
     Args:
         project_root: Project root path (unused)
 
     Returns:
-        Always None; caller must provide --feature explicitly.
+        Always None; caller must provide --mission explicitly.
     """
     return None
 
@@ -173,9 +173,10 @@ def _detect_current_feature(project_root: Path) -> str | None:
 def current_cmd(
     feature: str | None = typer.Option(
         None,
+        "--mission",
         "--feature",
         "-f",
-        help="Mission slug (auto-detects from current directory if omitted)",
+        help="Mission slug",
     ),
 ) -> None:
     """Show the active mission type for a mission (auto-detects mission from cwd)."""
