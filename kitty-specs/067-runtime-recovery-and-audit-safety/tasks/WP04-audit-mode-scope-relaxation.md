@@ -216,3 +216,4 @@ WP frontmatter fields are defined in `frontmatter.py:41-58` (`WP_FIELD_ORDER`). 
 ## Activity Log
 
 - 2026-04-06T18:54:42Z – claude:opus:implementer:implementer – shell_pid=90780 – Started implementation via action command
+- 2026-04-06T19:02:18Z – claude:opus:implementer:implementer – shell_pid=90780 – Audit scope field added, validation relaxed for codebase-wide WPs, 30 tests passing
