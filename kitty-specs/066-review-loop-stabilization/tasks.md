@@ -139,12 +139,12 @@
 **Issues**: #440
 **Estimated prompt size**: ~380 lines
 
-- [ ] T024 Create lock.py with ReviewLock dataclass — acquire, release, is_stale (WP05)
-- [ ] T025 Implement stale lock detection — cross-platform PID check (WP05)
-- [ ] T026 Hook lock acquire/release into agent action review (WP05)
-- [ ] T027 Add .spec-kitty/ to .gitignore (WP05)
-- [ ] T028 Implement opt-in env-var isolation config from .kittify/config.yaml (WP05)
-- [ ] T029 Write tests for lock lifecycle, stale detection, concurrent block, config (WP05)
+- [x] T024 Create lock.py with ReviewLock dataclass — acquire, release, is_stale (WP05)
+- [x] T025 Implement stale lock detection — cross-platform PID check (WP05)
+- [x] T026 Hook lock acquire/release into agent action review (WP05)
+- [x] T027 Add .spec-kitty/ to .gitignore (WP05)
+- [x] T028 Implement opt-in env-var isolation config from .kittify/config.yaml (WP05)
+- [x] T029 Write tests for lock lifecycle, stale detection, concurrent block, config (WP05)
 
 **Implementation sketch**: Primary (80% effort): ReviewLock serialization via `.spec-kitty/review-lock.json`. Acquire on review start, release on move-task. Stale detection via `os.kill(pid, 0)`. Optional (20%): read `review.concurrent_isolation` from config for env-var scoping. Add `.spec-kitty/` to `.gitignore`.
 
