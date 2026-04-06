@@ -157,10 +157,10 @@ Add pipe-table row parsing and mutation to `mark-status` so it can update task s
 
 ### Included Subtasks
 
-- [ ] T022 Add pipe-table row detection to mark-status
-- [ ] T023 Implement pipe-table status update logic
-- [ ] T024 Standardize tasks template to checkbox format
-- [ ] T025 Write regression tests for WP04
+- [x] T022 Add pipe-table row detection to mark-status
+- [x] T023 Implement pipe-table status update logic
+- [x] T024 Standardize tasks template to checkbox format
+- [x] T025 Write regression tests for WP04
 
 ### Dependencies
 
