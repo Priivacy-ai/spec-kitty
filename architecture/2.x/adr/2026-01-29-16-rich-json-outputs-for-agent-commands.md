@@ -5,7 +5,7 @@
 | Filename | `2026-01-29-16-rich-json-outputs-for-agent-commands.md` |
 | Status | Accepted |
 | Date | 2026-01-29 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Enhances agent command JSON outputs to prevent confusion when unrelated files are dirty, providing explicit commit confirmation and verification hashes. |
 
 ---

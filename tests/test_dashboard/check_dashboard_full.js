@@ -64,7 +64,7 @@ process.on('SIGTERM', cleanup);
 
     // Take full page screenshot
     await page.screenshot({
-      path: '/Users/robert/Code/spec-kitty/diagnostics_full_screenshot.png',
+      path: 'diagnostics_full_screenshot.png',
       fullPage: true
     });
     console.log('Full page screenshot saved');

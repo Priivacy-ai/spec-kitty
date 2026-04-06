@@ -1375,7 +1375,7 @@ rm gcm-linux_amd64.2.6.1.deb
 
 ## 👥 Maintainers
 
-- Robert Douglass ([@robertDouglass](https://github.com/robertDouglass))
+- Spec Kitty maintainers ([contributors](https://github.com/Priivacy-ai/spec-kitty/graphs/contributors))
 
 ## 💬 Support
 

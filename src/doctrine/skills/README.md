@@ -26,7 +26,7 @@ load a tactic, reading an action index to scope context). Skills should
 > "Skills answer: how do I operate Spec Kitty correctly? Doctrine mission
 > composition answers: how should this team do product work? The compiler
 > is what should bridge those without expanding the visible slash-command
-> surface." — Robert Douglass, PR #305 review
+> surface." — internal design review, PR #305
 
 ## Context Loading Pattern
 

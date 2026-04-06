@@ -5,7 +5,7 @@
 | Filename | `2026-04-04-2-mission-type-mission-and-mission-run-terminology-boundary.md` |
 | Status | Accepted |
 | Date | 2026-04-04 |
-| Deciders | Robert Douglass, Spec Kitty Architecture Team |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Nomenclature consolidation after PR #348 and Doctrine Runtime Activation epic #364 |
 
 ---

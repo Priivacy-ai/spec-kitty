@@ -2457,7 +2457,7 @@ All changes are fully backward compatible:
 - Updated command list in init output to show workflow order and include merge command.
 - Updated `/spec-kitty.accept` description to clarify it verifies (not merges) features.
 - Reordered slash commands documentation to reflect actual execution workflow.
-- Updated maintainers to reflect fork ownership (Robert Douglass).
+- Updated maintainers to reflect fork ownership.
 - Updated all repository references from `spec-kitty/spec-kitty` to `Priivacy-ai/spec-kitty`.
 - Updated installation instructions to use GitHub repository URL instead of local directory.
 

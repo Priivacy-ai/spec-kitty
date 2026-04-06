@@ -5,7 +5,7 @@
 | Filename | `2026-01-29-14-explicit-metadata-fields-over-implicit-defaults.md` |
 | Status | Accepted |
 | Date | 2026-01-29 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Addresses design flaw where implicit defaults in meta.json violated Specification-Driven Development (SDD) principles, making configuration invisible and debugging difficult. |
 
 ---

@@ -5,7 +5,7 @@
 | Filename | `2026-01-29-15-merge-first-suggestion-for-completed-dependencies.md` |
 | Status | Superseded |
 | Date | 2026-01-29 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Enhances ADR-4's auto-merge behavior with proactive guidance when all multi-parent dependencies are completed, preventing auto-merge conflicts by suggesting merge-first workflow. |
 
 > Superseded on 2026-04-05 by

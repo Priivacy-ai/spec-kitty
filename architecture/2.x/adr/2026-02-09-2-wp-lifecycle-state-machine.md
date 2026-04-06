@@ -5,7 +5,7 @@
 | Filename | `2026-02-09-2-wp-lifecycle-state-machine.md` |
 | Status | Superseded |
 | Date | 2026-02-09 |
-| Deciders | Robert Douglass, Planning Team (Feature 012) |
+| Deciders | Spec Kitty Architecture Team, Planning Team (Feature 012) |
 | Technical Story | Feature 012 — Status State Model Remediation (PRD Sections 7, 8) |
 
 ---

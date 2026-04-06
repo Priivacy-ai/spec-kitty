@@ -5,7 +5,7 @@
 | Filename | `2026-04-04-1-tracker-binding-context-is-discovered-not-user-supplied.md` |
 | Status | Accepted |
 | Date | 2026-04-04 |
-| Deciders | Robert Douglass, Spec Kitty Architecture Team |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Tracker project/resource discovery across `spec-kitty`, `spec-kitty-saas`, and `spec-kitty-tracker` |
 
 ---

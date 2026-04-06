@@ -2,8 +2,8 @@
 
 **Status**: Accepted
 **Date**: 2026-03-10
-**Author**: Robert + Codex
-**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty/docs/architecture/adr-connector-auth-binding-separation.md)
+**Author**: Spec Kitty team + Codex
+**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](adr-connector-auth-binding-separation.md)
 
 ## Context
 

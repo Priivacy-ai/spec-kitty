@@ -5,7 +5,7 @@
 | Filename | `2026-01-27-12-two-branch-strategy-for-saas-transformation.md` |
 | Status | Accepted |
 | Date | 2026-01-27 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Spec Kitty is transforming from a local-only CLI tool to a distributed SaaS platform. This requires fundamental architectural changes (event sourcing, sync protocols, distributed state management) that cannot be incrementally added to the existing codebase without significant breaking changes. |
 
 ---

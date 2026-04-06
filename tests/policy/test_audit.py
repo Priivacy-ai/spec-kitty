@@ -26,7 +26,7 @@ class TestPolicyAuditEvent:
         event = create_audit_event(
             event_type="merge_gate_override",
             feature_slug="010-feat",
-            actor="robert",
+            actor="operator",
             reason="Manual override",
         )
         line = event.to_json_line()

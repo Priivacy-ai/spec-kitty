@@ -43,7 +43,7 @@ $ echo 'print("Hello")' | gemini -p "What does this code do?" --output-format js
   "session_id": "b2b90938-611f-4bd0-adf6-829e14549653",
   "error": {
     "type": "Error",
-    "message": "Please set an Auth method in your /Users/robert/.gemini/settings.json...",
+    "message": "Please set an Auth method in your ~/.gemini/settings.json...",
     "code": 41
   }
 }

@@ -214,7 +214,7 @@ Rules:
 - Before merge or Fly promotion, always run and pass the `prod-like` auth preflight.
 - If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
-- Runbook source of truth: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`.
+- Runbook source of truth: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo checkout.
 
 
 ---
