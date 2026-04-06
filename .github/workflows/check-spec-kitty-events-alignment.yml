@@ -18,6 +18,7 @@ jobs:
       # For public spec-kitty -> private spec-kitty-saas comparisons, add
       # SPEC_KITTY_SAAS_READ_TOKEN (repo:read) as a repository secret.
       CROSS_REPO_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' && secrets.SPEC_KITTY_SAAS_READ_TOKEN || github.token }}
+      HAS_SAAS_READ_TOKEN: ${{ secrets.SPEC_KITTY_SAAS_READ_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -52,6 +53,12 @@ jobs:
         id: fetch_saas
         run: |
           set -euo pipefail
+          if [ "${HAS_SAAS_READ_TOKEN}" != "true" ]; then
+            echo "fetched=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::SPEC_KITTY_SAAS_READ_TOKEN is not configured; skipping private cross-repo parity check against ${REPO_OWNER}/spec-kitty-saas."
+            exit 0
+          fi
+
           URL="https://api.github.com/repos/${REPO_OWNER}/spec-kitty-saas/contents/pyproject.toml?ref=main"
           if curl -fsSL \
             -H "Authorization: Bearer ${CROSS_REPO_TOKEN}" \
@@ -61,11 +68,6 @@ jobs:
             echo "fetched=true" >> "$GITHUB_OUTPUT"
           else
             echo "fetched=false" >> "$GITHUB_OUTPUT"
-            if [ "${{ github.event_name }}" = "pull_request" ]; then
-              echo "::warning::Unable to fetch spec-kitty-saas/pyproject.toml from main; skipping parity check for pull_request."
-              echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas to enforce parity in PRs."
-              exit 0
-            fi
             echo "Unable to fetch spec-kitty-saas/pyproject.toml from main."
             echo "Configure SPEC_KITTY_SAAS_READ_TOKEN secret with read access to private repo ${REPO_OWNER}/spec-kitty-saas."
             exit 1

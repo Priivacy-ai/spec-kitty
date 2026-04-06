@@ -178,6 +178,7 @@ def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
     feature_dir: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     from specify_cli.status import views as views_module
+    from specify_cli.status import progress as progress_module
 
     calls: list[tuple[str, Path]] = []
 
@@ -189,7 +190,7 @@ def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
 
     snapshot = materialize(feature_dir)
     monkeypatch.setattr(views_module, "write_derived_views", _record_write)
-    monkeypatch.setattr("specify_cli.status.progress.generate_progress_json", _record_progress)
+    monkeypatch.setattr(progress_module, "generate_progress_json", _record_progress)
     monkeypatch.setattr(views_module, "materialize", lambda _: snapshot)
 
     result = materialize_if_stale(feature_dir, tmp_path)
