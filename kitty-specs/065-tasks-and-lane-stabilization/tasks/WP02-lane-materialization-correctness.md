@@ -278,3 +278,4 @@ No validation checks that extracted glob patterns match real files.
 - 2026-04-06T14:22:07Z – claude:sonnet:implementer:implementer – shell_pid=12061 – Started implementation via action command
 - 2026-04-06T14:24:37Z – claude:sonnet:implementer:implementer – shell_pid=12061 – Fixed: wired validate_glob_matches, ownership warnings, and planning_artifact_wps into JSON output
 - 2026-04-06T14:25:02Z – claude:opus:reviewer:reviewer – shell_pid=12577 – Started review via action command
+- 2026-04-06T14:26:46Z – claude:opus:reviewer:reviewer – shell_pid=12577 – Review passed cycle 2: all 3 wiring gaps fixed — validate_glob_matches called from finalize-tasks, infer_ownership warnings collected in all_ownership_warnings and emitted in JSON output (both validate-only and normal paths), planning_artifact_wps present in lanes_stats dict in both JSON output paths. All 89 relevant tests pass. Original acceptance criteria confirmed.
