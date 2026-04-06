@@ -6,8 +6,8 @@ agents:
   - opencode
   - codex
   selection:
-    preferred_implementer: opencode
-    preferred_reviewer: opencode
+    preferred_implementer: claude
+    preferred_reviewer: claude
   auto_commit: true
 project:
   uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4
