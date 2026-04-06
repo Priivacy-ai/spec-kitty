@@ -1,8 +1,8 @@
 {
-  "event_count": 41,
+  "event_count": 44,
   "feature_slug": "064-complete-mission-identity-cutover",
-  "last_event_id": "01KNGVEXYWJEJEGAR9Y4M4NJ7G",
-  "materialized_at": "2026-04-06T07:35:06.973252+00:00",
+  "last_event_id": "01KNGVZ8M7NTRPHQGR0CZR41WY",
+  "materialized_at": "2026-04-06T07:44:02.183483+00:00",
   "mission_slug": "064-complete-mission-identity-cutover",
   "summary": {
     "approved": 4,
@@ -10,9 +10,9 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
-    "planned": 5
+    "planned": 4
   },
   "work_packages": {
     "WP01": {
@@ -44,11 +44,11 @@
       "last_transition_at": "2026-04-06T07:35:06.972555+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNGNJYNCR9SCCZ8B8QH45Z00",
-      "last_transition_at": "2026-04-06T05:52:27.308500+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNGVZ8M7NTRPHQGR0CZR41WY",
+      "last_transition_at": "2026-04-06T07:44:02.183051+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
