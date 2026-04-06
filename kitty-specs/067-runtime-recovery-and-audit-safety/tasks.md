@@ -26,11 +26,11 @@
 | T015 | Update `rewrite_agent_shims()` for new generator output | WP03 | |
 | T016 | Write migration to regenerate all agent command files | WP03 | |
 | T017 | Write tests verifying direct commands across agent surfaces | WP03 | |
-| T018 | Add `scope` field to WP_FIELD_ORDER in frontmatter.py | WP04 | |
-| T019 | Relax ownership validation for codebase-wide scope | WP04 | |
-| T020 | Define audit template target paths | WP04 | [P] |
-| T021 | Add finalize-time validation for template/doc coverage | WP04 | |
-| T022 | Write tests for audit scope validation | WP04 | |
+| T018 | Add `scope` field to WP_FIELD_ORDER in frontmatter.py | WP04 | | [D] |
+| T019 | Relax ownership validation for codebase-wide scope | WP04 | | [D] |
+| T020 | Define audit template target paths | WP04 | [D] |
+| T021 | Add finalize-time validation for template/doc coverage | WP04 | | [D] |
+| T022 | Write tests for audit scope validation | WP04 | | [D] |
 | T023 | Create occurrence classification template step | WP05 | | [D] |
 | T024 | Create post-edit verification template step | WP05 | [D] |
 | T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [D] |
