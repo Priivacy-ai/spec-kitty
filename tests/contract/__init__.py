@@ -1,1 +1,1 @@
-# Contract tests: validate fixture data against Pydantic models.
+# Contract tests: validate live code paths against upstream 3.0.0 contract shapes.
