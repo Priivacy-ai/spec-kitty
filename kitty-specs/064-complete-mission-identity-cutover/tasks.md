@@ -2,7 +2,7 @@
 
 **Feature**: 064-complete-mission-identity-cutover
 **Date**: 2026-04-06
-**Total Subtasks**: 50
+**Total Subtasks**: 53
 **Work Packages**: 9
 
 ## Dependency Graph
@@ -101,9 +101,9 @@ Rename 3 commands, 2 error codes, and `--feature` → `--mission` parameter. Rem
 
 ### WP05 – Body Sync Migration
 **File**: `tasks/WP05-body-sync-migration.md`
-**Priority**: High | **Dependencies**: WP01 | **Subtasks**: 7
+**Priority**: High | **Dependencies**: WP01 | **Subtasks**: 8
 
-Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. Update transport payload. Insert compatibility gate at body sync chokepoints.
+Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. Update transport payload. Update fresh-install CREATE TABLE schema in `queue.py`. Insert compatibility gate at body sync chokepoints.
 
 - [ ] T026: Rename `NamespaceRef` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
 - [ ] T027: Rename `BodyUploadTask` fields: `feature_slug` → `mission_slug`, `mission_key` → `mission_type`
@@ -112,16 +112,17 @@ Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. 
 - [ ] T030: Create SQLite queue schema migration (`ALTER TABLE RENAME COLUMN`)
 - [ ] T031: Register migration in upgrade chain
 - [ ] T032: Test queue migration with populated queue — zero task loss (FR-020)
+- [ ] T033: Update `_BODY_QUEUE_SCHEMA` in `queue.py` so fresh installs create `mission_slug`/`mission_type` columns
 
-**Requirement refs**: FR-010, FR-011, FR-012, FR-020
+**Requirement refs**: FR-010, FR-011, FR-012, FR-014, FR-020
 
 ---
 
 ### WP06 – Tracker Bind + Event Envelope Verification
 **File**: `tasks/WP06-tracker-bind-event-envelope.md`
-**Priority**: High | **Dependencies**: WP01, WP02 | **Subtasks**: 7
+**Priority**: High | **Dependencies**: WP01, WP02 | **Subtasks**: 9
 
-Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and WebSocket chokepoints. Audit event paths for `build_id` preservation.
+Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and WebSocket chokepoints. Audit event paths for `build_id` preservation. Rename FeatureCreated/FeatureCompleted event surfaces. Update vendored event model with `build_id` and `schema_version`.
 
 - [ ] T033: Add `build_id` to tracker bind `project_identity` dict in `tracker.py`
 - [ ] T034: Insert gate at `SaaSTrackerClient._request()` chokepoint
@@ -130,8 +131,10 @@ Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and
 - [ ] T037: Audit event serialization/deserialization for `build_id` preservation through queue/replay
 - [ ] T038: Verify `aggregate_type` is `"Mission"` everywhere (never `"Feature"`)
 - [ ] T039: Update tracker integration tests
+- [ ] T040: Rename `FeatureCreated`/`FeatureCompleted` helpers and event types in `events.py` and `emitter.py`
+- [ ] T041: Add `build_id` and `schema_version` fields to vendored event model in `spec_kitty_events/models.py`
 
-**Requirement refs**: FR-007, FR-008, FR-009, FR-012, FR-018
+**Requirement refs**: FR-002, FR-005, FR-006, FR-007, FR-008, FR-009, FR-012, FR-018
 
 ---
 
@@ -143,11 +146,11 @@ Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and
 
 Create shape-based assertion tests validating all contract surfaces against upstream 3.0.0 shape.
 
-- [ ] T040: Create `tests/contract/` directory and fixture data from upstream contracts
-- [ ] T041: `test_event_envelope.py` — construct events via live code, assert 3.0.0 shape
-- [ ] T042: `test_orchestrator_api.py` — invoke commands, assert response matches contract
-- [ ] T043: `test_body_sync.py` — construct upload payload, assert canonical fields
-- [ ] T044: `test_tracker_bind.py` — construct bind payload, assert `build_id` present
+- [ ] T042: Create `tests/contract/` directory and fixture data from upstream contracts
+- [ ] T043: `test_event_envelope.py` — construct events via live code, assert 3.0.0 shape
+- [ ] T044: `test_orchestrator_api.py` — invoke commands, assert response matches contract
+- [ ] T045: `test_body_sync.py` — construct upload payload, assert canonical fields
+- [ ] T046: `test_tracker_bind.py` — construct bind payload, assert `build_id` present
 
 **Requirement refs**: NFR-002
 
@@ -159,10 +162,10 @@ Create shape-based assertion tests validating all contract surfaces against upst
 
 Grep-based audit of entire codebase for leaked feature-era surfaces. Fix anything found.
 
-- [ ] T045: Grep `feature_slug` in `src/specify_cli/` excluding upgrade/migration → must be zero
-- [ ] T046: Grep `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `FeatureCreated`, `FeatureCompleted` → must be zero
-- [ ] T047: Grep `aggregate_type.*Feature`, `mission_key` excluding migration → must be zero
-- [ ] T048: Fix any remaining leaks and document audit results
+- [ ] T047: Grep `feature_slug` in `src/specify_cli/` excluding upgrade/migration → must be zero
+- [ ] T048: Grep `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `FeatureCreated`, `FeatureCompleted` → must be zero
+- [ ] T049: Grep `aggregate_type.*Feature`, `mission_key` excluding migration → must be zero
+- [ ] T050: Fix any remaining leaks and document audit results
 
 **Requirement refs**: FR-015, FR-016, FR-017
 
@@ -176,7 +179,7 @@ Grep-based audit of entire codebase for leaked feature-era surfaces. Fix anythin
 
 Verify external consumer readiness. Document release gate status.
 
-- [ ] T049: Verify Priivacy-ai/spec-kitty-orchestrator#6 status and readiness
-- [ ] T050: Validate updated orchestrator against renamed contract; document release readiness
+- [ ] T051: Verify Priivacy-ai/spec-kitty-orchestrator#6 status and readiness
+- [ ] T052: Validate updated orchestrator against renamed contract; document release readiness
 
 **Requirement refs**: FR-021

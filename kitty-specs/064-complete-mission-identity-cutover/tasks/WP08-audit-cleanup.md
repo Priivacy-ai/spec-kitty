@@ -11,10 +11,10 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
-- T045
-- T046
 - T047
 - T048
+- T049
+- T050
 phase: Phase D - Validation
 assignee: ''
 agent: ''
@@ -48,7 +48,7 @@ This is the final verification that the cutover is complete. Previous WPs should
 
 ## Implementation
 
-### T045: Grep Audit — feature_slug
+### T047: Grep Audit — feature_slug
 
 **Purpose**: No live runtime path may reference `feature_slug`.
 
@@ -61,7 +61,7 @@ This is the final verification that the cutover is complete. Previous WPs should
    - **Comment/docstring**: remove or update the comment
 4. Record findings
 
-### T046: Grep Audit — Forbidden Event Types and Error Codes
+### T048: Grep Audit — Forbidden Event Types and Error Codes
 
 **Purpose**: No live path may reference legacy event types or error codes.
 
@@ -71,7 +71,7 @@ This is the final verification that the cutover is complete. Previous WPs should
 3. `grep -rn "create.feature\|create_feature" src/specify_cli/ --include="*.py" | grep -v "upgrade/" | grep -v "migration/"` → check each result
 4. Fix any leaks found
 
-### T047: Grep Audit — aggregate_type and mission_key
+### T049: Grep Audit — aggregate_type and mission_key
 
 **Purpose**: No live path may emit `aggregate_type: "Feature"` or use `mission_key`.
 
@@ -81,7 +81,7 @@ This is the final verification that the cutover is complete. Previous WPs should
 3. `grep -rn "feature_number" src/specify_cli/ --include="*.py" | grep -v "upgrade/" | grep -v "migration/"` → check each result (may appear in meta.json reading for migration)
 4. Fix any leaks found
 
-### T048: Document Audit Results
+### T050: Document Audit Results
 
 **Purpose**: Record the audit outcome for acceptance review.
 

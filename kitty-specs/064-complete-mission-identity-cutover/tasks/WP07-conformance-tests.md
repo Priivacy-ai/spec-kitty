@@ -8,11 +8,11 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
-- T040
-- T041
 - T042
 - T043
 - T044
+- T045
+- T046
 phase: Phase D - Validation
 assignee: ''
 agent: ''
@@ -51,7 +51,7 @@ Expected shapes are derived from:
 
 ## Implementation
 
-### T040: Create Test Directory and Fixtures
+### T042: Create Test Directory and Fixtures
 
 **Purpose**: Set up the contract test infrastructure.
 
@@ -63,7 +63,7 @@ Expected shapes are derived from:
    - `canonical_body_sync_fields`: required body sync fields
    - Load these from `src/specify_cli/core/upstream_contract.json` (the vendored artifact)
 
-### T041: Event Envelope Shape Test
+### T043: Event Envelope Shape Test
 
 **Purpose**: Events constructed via live code must match 3.0.0 envelope shape.
 
@@ -79,7 +79,7 @@ Expected shapes are derived from:
    - `feature_number` is NOT a key in the envelope
 4. Test for each canonical event type if feasible (MissionCreated, MissionClosed, WPStatusChanged at minimum)
 
-### T042: Orchestrator API Response Shape Test
+### T044: Orchestrator API Response Shape Test
 
 **Purpose**: CLI command output must match post-cutover contract.
 
@@ -94,7 +94,7 @@ Expected shapes are derived from:
 5. Invoke `feature-state` → assert unknown command error (exit code != 0)
 6. Invoke `mission-state --feature` → assert unknown option error
 
-### T043: Body Sync Payload Shape Test
+### T045: Body Sync Payload Shape Test
 
 **Purpose**: Upload payload must match canonical body sync contract.
 
@@ -108,7 +108,7 @@ Expected shapes are derived from:
    - Does NOT contain `feature_slug`, `mission_key`
    - All 9 expected fields present per `contracts/body-sync.md`
 
-### T044: Tracker Bind Payload Shape Test
+### T046: Tracker Bind Payload Shape Test
 
 **Purpose**: Bind payload must include build_id.
 

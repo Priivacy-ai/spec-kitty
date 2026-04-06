@@ -19,6 +19,7 @@ subtasks:
 - T030
 - T031
 - T032
+- T033
 phase: Phase C - Contract Cleanup
 assignee: ''
 agent: ''
@@ -33,7 +34,7 @@ owned_files:
 - src/specify_cli/sync/namespace.py
 - src/specify_cli/sync/body_queue.py
 - src/specify_cli/sync/body_transport.py
-- src/specify_cli/sync/offline_queue.py
+- src/specify_cli/sync/queue.py
 - src/specify_cli/upgrade/migration_064*.py
 - tests/specify_cli/sync/test_body_*
 - tests/specify_cli/sync/test_namespace*
@@ -152,9 +153,8 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/body-sync.md` f
 **Purpose**: Migration runs automatically during `spec-kitty upgrade`.
 
 **Steps**:
-1. Find the migration registry (likely in `src/specify_cli/upgrade/` or `src/specify_cli/sync/offline_queue.py`)
+1. Find the migration registry (likely in `src/specify_cli/upgrade/` or `src/specify_cli/sync/queue.py`)
 2. Register the new migration with an appropriate version/order
-3. Ensure `ensure_body_queue_schema()` creates tables with the NEW column names for fresh installs
 
 ### T032: Test Queue Migration with Populated Queue
 
@@ -169,6 +169,27 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/body-sync.md` f
    - Asserts: same number of rows, all data preserved, columns now named mission_slug and mission_type
 2. Write a test for idempotent migration (running twice doesn't error)
 3. Write a test for empty table (migration succeeds on empty queue)
+
+### T033: Update Fresh-Install Schema in queue.py
+
+**Purpose**: Fresh installs must create the body_upload_queue table with canonical column names, not legacy ones.
+
+**Steps**:
+1. In `src/specify_cli/sync/queue.py` (line ~198), the `_BODY_QUEUE_SCHEMA` string contains:
+   ```sql
+   feature_slug TEXT NOT NULL,
+   mission_key TEXT NOT NULL,
+   ```
+2. Change to:
+   ```sql
+   mission_slug TEXT NOT NULL,
+   mission_type TEXT NOT NULL,
+   ```
+3. Search `queue.py` for any other references to `feature_slug` or `mission_key` in SQL strings or column name constants
+4. Update `ensure_body_queue_schema()` or any function that uses `_BODY_QUEUE_SCHEMA` if it references column names
+5. Test: on a fresh temp directory (no existing DB), verify the table is created with `mission_slug` and `mission_type` columns
+
+**Files**: `src/specify_cli/sync/queue.py`
 
 ## Definition of Done
 

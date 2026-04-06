@@ -22,6 +22,8 @@ subtasks:
 - T037
 - T038
 - T039
+- T040
+- T041
 phase: Phase C - Contract Cleanup
 assignee: ''
 agent: ''
@@ -36,8 +38,10 @@ owned_files:
 - src/specify_cli/tracker/saas_client.py
 - src/specify_cli/cli/commands/tracker.py
 - src/specify_cli/sync/emitter.py
+- src/specify_cli/sync/events.py
 - src/specify_cli/sync/batch.py
 - src/specify_cli/sync/client.py
+- src/specify_cli/spec_kitty_events/models.py
 - tests/sync/tracker/**
 ---
 
@@ -154,6 +158,34 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/tracker-bind.md
 3. Add assertion that `build_id` is a non-empty string (UUID format)
 4. Run: `pytest tests/sync/tracker/ -v`
 
+### T040: Rename FeatureCreated / FeatureCompleted Event Surfaces
+
+**Purpose**: The codebase still defines and emits `FeatureCreated` and `FeatureCompleted` event types. These are forbidden on live surfaces (FR-002).
+
+**Steps**:
+1. In `src/specify_cli/sync/events.py` (lines ~243, ~266):
+   - Rename `emit_feature_created()` → `emit_mission_created()` (or verify MissionCreated is already the live emitter and remove the legacy helper)
+   - Rename `emit_feature_completed()` → `emit_mission_closed()` (or remove)
+2. In `src/specify_cli/sync/emitter.py`:
+   - `_PAYLOAD_RULES` dict (lines ~152, ~162): rename keys `"FeatureCreated"` → `"MissionCreated"`, `"FeatureCompleted"` → `"MissionClosed"`
+   - `emit_feature_created()` method (line ~433): rename to `emit_mission_created()`, change `event_type="FeatureCreated"` → `event_type="MissionCreated"`
+   - `emit_feature_completed()` method (line ~458): rename to `emit_mission_closed()`, change `event_type="FeatureCompleted"` → `event_type="MissionClosed"`
+3. Update all callers of these methods across the codebase: `grep -rn "emit_feature_created\|emit_feature_completed" src/`
+4. Verify no `FeatureCreated` or `FeatureCompleted` string remains in active sync paths
+
+### T041: Update Vendored Event Model with build_id and schema_version
+
+**Purpose**: The vendored `spec_kitty_events/models.py` has no `build_id` or `schema_version` fields. The envelope must carry both (FR-007).
+
+**Steps**:
+1. Read `src/specify_cli/spec_kitty_events/models.py` to understand the current Event/Envelope model
+2. Add `build_id: str` field to the envelope/event model
+3. Add `schema_version: str` field to the envelope/event model (default `"3.0.0"`)
+4. Ensure the fields are included in serialization (`.to_dict()`, `.to_json()`, or however the model serializes)
+5. Ensure the fields are read during deserialization (`.from_dict()`, etc.)
+6. Update any model validation to require these fields on construction
+7. Run model-level tests to verify
+
 ## Definition of Done
 
 - [ ] Tracker bind payload includes `build_id`
@@ -162,9 +194,13 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/tracker-bind.md
 - [ ] `build_id` preserved through queue storage and replay
 - [ ] `aggregate_type` is `"Mission"` everywhere
 - [ ] No `FeatureCreated` or `FeatureCompleted` event types in active paths
+- [ ] `emit_feature_created()` / `emit_feature_completed()` renamed or removed from events.py and emitter.py
+- [ ] Vendored event model in `spec_kitty_events/models.py` includes `build_id` and `schema_version`
 - [ ] Tracker integration tests assert `build_id`
+- [ ] `grep -rn "FeatureCreated\|FeatureCompleted" src/specify_cli/sync/` returns zero results
 
 ## Risks
 
 - Gate insertion at `_emit()` may be too strict if some events don't carry all envelope fields — use context-appropriate validation
-- `emit_feature_created()` may already be `emit_mission_created()` — verify before renaming
+- `emit_feature_created()` may coexist with a canonical `emit_mission_created()` — check both events.py and emitter.py for the canonical path before renaming
+- Vendored model changes must not break existing event deserialization — add fields as optional with defaults for backward compatibility during migration

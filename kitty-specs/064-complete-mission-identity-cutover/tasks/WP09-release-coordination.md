@@ -8,8 +8,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
-- T049
-- T050
+- T051
+- T052
 phase: Phase E - Release
 assignee: ''
 agent: ''
@@ -19,7 +19,7 @@ history:
   agent: system
   action: Prompt generated via /spec-kitty.tasks
 authoritative_surface: kitty-specs/064-complete-mission-identity-cutover/
-execution_mode: planning_artifact
+execution_mode: code_change
 owned_files:
 - kitty-specs/064-complete-mission-identity-cutover/release-readiness.md
 ---
@@ -44,7 +44,7 @@ Priivacy-ai/spec-kitty-orchestrator#6 was filed with the complete command/error/
 
 ## Implementation
 
-### T049: Verify Orchestrator Consumer Readiness
+### T051: Verify Orchestrator Consumer Readiness
 
 **Purpose**: Confirm the external consumer is updated.
 
@@ -54,7 +54,7 @@ Priivacy-ai/spec-kitty-orchestrator#6 was filed with the complete command/error/
 3. If not resolved: document what's blocking and flag as a release gate
 4. Check for any other consumers: search for references to `feature-state`, `accept-feature`, `merge-feature` in other Priivacy-ai repos
 
-### T050: Document Release Readiness
+### T052: Document Release Readiness
 
 **Purpose**: Clear go/no-go signal for production rollout.
 
