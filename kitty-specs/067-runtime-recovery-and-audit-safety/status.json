@@ -1,0 +1,60 @@
+{
+  "event_count": 6,
+  "last_event_id": "01KNJ25PQETTMY82RYCXN6KXR4",
+  "materialized_at": "2026-04-06T18:51:39.123259+00:00",
+  "mission_slug": "067-runtime-recovery-and-audit-safety",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 6
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PKRJNBGMTN27J1KVHT6",
+      "last_transition_at": "2026-04-06T18:51:39.000106+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PPRTAJ6SBE9DGMQ5G1H",
+      "last_transition_at": "2026-04-06T18:51:39.096201+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PPWY7628KYDS6C4V6W0",
+      "last_transition_at": "2026-04-06T18:51:39.100972+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PQ35PECVF1MMG1VC0YT",
+      "last_transition_at": "2026-04-06T18:51:39.107068+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PQ933JACZ7ZGR2XWN9Y",
+      "last_transition_at": "2026-04-06T18:51:39.113433+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNJ25PQETTMY82RYCXN6KXR4",
+      "last_transition_at": "2026-04-06T18:51:39.118530+00:00"
+    }
+  }
+}
