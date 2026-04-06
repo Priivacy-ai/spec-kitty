@@ -64,7 +64,7 @@ def resolve_context(
             ),
         ),
     ],
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Feature slug (e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Feature slug (e.g., '020-my-feature')")] = None,
     wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,

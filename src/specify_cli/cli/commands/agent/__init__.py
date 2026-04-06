@@ -13,15 +13,13 @@ app = typer.Typer(
 )
 
 # Register sub-apps for each command module.
-# `mission` / `action` are canonical. `feature` / `workflow` remain compatibility aliases.
+# `mission` and `action` are the canonical command namespaces.
 app.add_typer(config.app, name="config")
 app.add_typer(mission.app, name="mission", help="Mission lifecycle commands for AI agents")
-app.add_typer(mission.app, name="feature", help="Legacy compatibility alias for `agent mission`")
 app.add_typer(tasks.app, name="tasks")
 app.add_typer(context.app, name="context")
 app.add_typer(release.app, name="release")
 app.add_typer(workflow.app, name="action", help="Mission action commands that display prompts and instructions for agents")
-app.add_typer(workflow.app, name="workflow", help="Legacy compatibility alias for `agent action`")
 app.add_typer(status.app, name="status")
 app.add_typer(shim_module.app, name="shim")
 
@@ -30,7 +28,7 @@ app.add_typer(shim_module.app, name="shim")
 def check_prerequisites_alias(
     mission_slug: Annotated[
         str | None,
-        typer.Option("--feature", help="Mission slug (legacy flag name)")
+        typer.Option("--mission", help="Mission slug")
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,

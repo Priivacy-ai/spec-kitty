@@ -324,8 +324,8 @@ def start_mission_from_ticket(
         On creation or binding failure.
     """
     from specify_cli.core.mission_creation import (
-        FeatureCreationError,
-        create_feature_core,
+        MissionCreationError,
+        create_mission_core,
     )
 
     # 1. Derive slug from candidate
@@ -333,13 +333,13 @@ def start_mission_from_ticket(
 
     # 2. Create feature
     try:
-        creation_result = create_feature_core(
+        creation_result = create_mission_core(
             repo_root,
             slug,
             mission=mission_type,
             target_branch=None,
         )
-    except FeatureCreationError as exc:
+    except MissionCreationError as exc:
         raise OriginBindingError(str(exc)) from exc
 
     # 3. Bind origin (SaaS-first, local-second)

@@ -73,10 +73,10 @@ def _with_mission_aliases(payload: dict[str, object]) -> dict[str, object]:
         enriched["feature"] = enriched["mission"]
     if "feature_flag" in enriched and "mission_flag" not in enriched:
         enriched["mission_flag"] = enriched["feature_flag"]
-    if "available_features" in enriched and "available_missions" not in enriched:
-        enriched["available_missions"] = enriched["available_features"]
-    if "available_missions" in enriched and "available_features" not in enriched:
-        enriched["available_features"] = enriched["available_missions"]
+    if "available_missions" in enriched and "available_missions" not in enriched:
+        enriched["available_missions"] = enriched["available_missions"]
+    if "available_missions" in enriched and "available_missions" not in enriched:
+        enriched["available_missions"] = enriched["available_missions"]
 
     return enriched
 
@@ -413,7 +413,7 @@ def _build_setup_plan_detection_error(
     slugs = [str(c["mission_slug"]) for c in candidates]
     n = len(slugs)
     payload["error"] = f"{n} missions found, pass --feature <slug> to disambiguate"
-    payload["available_features"] = slugs
+    payload["available_missions"] = slugs
     payload["available_missions"] = slugs
 
     # One example command so the LLM knows the exact syntax
@@ -509,20 +509,20 @@ def create_mission(
         spec-kitty agent mission create "new-dashboard" --json
     """
     from specify_cli.core.mission_creation import (
-        FeatureCreationError,
-        create_feature_core,
+        MissionCreationError,
+        create_mission_core,
     )
 
     repo_root = locate_project_root()
 
     try:
-        result = create_feature_core(
+        result = create_mission_core(
             repo_root=repo_root,
             mission_slug=mission_slug,
             mission=mission,
             target_branch=target_branch,
         )
-    except FeatureCreationError as exc:
+    except MissionCreationError as exc:
         error_msg = str(exc)
         if json_output:
             _emit_json({"error": error_msg})
@@ -588,7 +588,7 @@ def create_mission(
 
 @app.command(name="check-prerequisites")
 def check_prerequisites(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
@@ -655,7 +655,7 @@ def check_prerequisites(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_features", [])[:10]:
+                for slug in payload.get("available_missions", [])[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
@@ -722,7 +722,7 @@ def check_prerequisites(
 
 @app.command(name="setup-plan")
 def setup_plan(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Scaffold implementation plan template in the project root checkout.
@@ -766,7 +766,7 @@ def setup_plan(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_features", [])[:10]:
+                for slug in payload.get("available_missions", [])[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
@@ -1018,7 +1018,7 @@ def _get_current_branch(repo_root: Path) -> str:
 
 @app.command(name="accept")
 def accept_feature(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
     mode: Annotated[str, typer.Option("--mode", help="Acceptance mode: auto, pr, local, checklist")] = "auto",
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
     lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
@@ -1070,7 +1070,7 @@ def accept_feature(
 
 @app.command(name="merge")
 def merge_feature(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-feature repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
     target: Annotated[Optional[str], typer.Option("--target", help="Target branch to merge into (required in multi-feature repos)")] = None,
     strategy: Annotated[str, typer.Option("--strategy", help="Merge strategy: merge, squash, rebase")] = "merge",
     push: Annotated[bool, typer.Option("--push", help="Push to origin after merging")] = False,
@@ -1145,7 +1145,7 @@ def merge_feature(
 
                 # Re-run command in worktree
                 retry_cmd = ["spec-kitty", "agent", "mission", "merge"]
-                retry_cmd.extend(["--feature", feature])
+                retry_cmd.extend(["--mission", feature])
                 retry_cmd.extend(["--target", target, "--strategy", strategy])
                 if push:
                     retry_cmd.append("--push")
@@ -1194,7 +1194,7 @@ def merge_feature(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; e.g., '020-my-feature')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[
         bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")
@@ -1243,7 +1243,7 @@ def finalize_tasks(
                 _emit_json(payload)
             else:
                 console.print(f"[red]Error:[/red] {payload['error']}")
-                for slug in payload.get("available_features", [])[:10]:
+                for slug in payload.get("available_missions", [])[:10]:
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")

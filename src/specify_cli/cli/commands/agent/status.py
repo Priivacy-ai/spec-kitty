@@ -97,7 +97,7 @@ def emit(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (e.g., claimed, in_progress, for_review, approved, done)")] = ...,
     actor: Annotated[str, typer.Option("--actor", help="Who is making this transition")] = ...,
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     force: Annotated[bool, typer.Option("--force", help="Force transition bypassing guards")] = False,
     reason: Annotated[Optional[str], typer.Option("--reason", help="Reason for forced transition")] = None,
     evidence_json: Annotated[Optional[str], typer.Option("--evidence-json", help="JSON string with done evidence")] = None,
@@ -206,7 +206,7 @@ def emit(
 
 @app.command()
 def materialize(
-    feature: Annotated[Optional[str], typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (legacy flag name; required in multi-mission repos)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Machine-readable JSON output")] = False,
 ) -> None:
     """Rebuild status.json from the canonical event log.
@@ -292,7 +292,7 @@ def materialize(
 def doctor(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Mission slug (legacy flag name)"),
+        typer.Option("--mission", help="Mission slug (legacy flag name)"),
     ] = None,
     stale_claimed: Annotated[
         int,
@@ -504,7 +504,7 @@ def _print_rich_migrate_output(result: Any, *, dry_run: bool) -> None:
 def migrate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Single mission slug to migrate (legacy flag name)"),
+        typer.Option("--mission", "-f", help="Single mission slug to migrate (legacy flag name)"),
     ] = None,
     all_features: Annotated[
         bool,
@@ -553,7 +553,7 @@ def migrate(
 def validate(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", help="Mission slug (legacy flag name; required in multi-mission repos)"),
+        typer.Option("--mission", help="Mission slug (legacy flag name; required in multi-mission repos)"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -692,7 +692,7 @@ def validate(
 def reconcile(
     feature: Annotated[
         Optional[str],
-        typer.Option("--feature", "-f", help="Mission slug (legacy flag name; required in multi-mission repos)"),
+        typer.Option("--mission", "-f", help="Mission slug (legacy flag name; required in multi-mission repos)"),
     ] = None,
     dry_run: Annotated[
         bool,

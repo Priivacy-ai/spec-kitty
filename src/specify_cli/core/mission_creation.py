@@ -1,6 +1,6 @@
 """Reusable feature-creation logic extracted from the CLI command.
 
-This module provides ``create_feature_core()`` -- the programmatic API
+This module provides ``create_mission_core()`` -- the programmatic API
 for creating a new feature directory with all scaffolding.  The CLI
 command ``create_feature()`` is a thin wrapper around this function.
 """
@@ -23,13 +23,13 @@ from specify_cli.git import safe_commit
 from specify_cli.sync.events import emit_mission_created
 
 
-class FeatureCreationError(RuntimeError):
+class MissionCreationError(RuntimeError):
     """Raised when feature creation fails."""
 
 
 @dataclass(slots=True)
-class FeatureCreationResult:
-    """Structured result from ``create_feature_core()``."""
+class MissionCreationResult:
+    """Structured result from ``create_mission_core()``."""
 
     feature_dir: Path
     mission_slug: str
@@ -72,9 +72,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "2.x"
-merge_target_branch: "2.x"
-branch_strategy: "Planning artifacts were generated on 2.x; completed changes must merge back into 2.x."
+planning_base_branch: "main"
+merge_target_branch: "main"
+branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
 subtasks:
   - "T001"
   - "T002"
@@ -133,7 +133,7 @@ def _commit_feature_file(
     """
     current_branch = get_current_branch(repo_root)
     if current_branch is None:
-        raise FeatureCreationError("Not in a git repository")
+        raise MissionCreationError("Not in a git repository")
 
     commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     success = safe_commit(
@@ -151,13 +151,13 @@ def _commit_feature_file(
 # ---------------------------------------------------------------------------
 
 
-def create_feature_core(
+def create_mission_core(
     repo_root: Path | None,
     mission_slug: str,
     *,
     mission: str | None = None,
     target_branch: str | None = None,
-) -> FeatureCreationResult:
+) -> MissionCreationResult:
     """Create a new feature with all scaffolding.
 
     This is the programmatic API for feature creation.  Unlike the CLI
@@ -181,19 +181,19 @@ def create_feature_core(
 
     Returns
     -------
-    FeatureCreationResult
+    MissionCreationResult
         Structured result with all paths and metadata.
 
     Raises
     ------
-    FeatureCreationError
+    MissionCreationError
         On any validation or creation failure.
     """
     # ------------------------------------------------------------------
     # 1. Input validation
     # ------------------------------------------------------------------
     if not KEBAB_CASE_PATTERN.match(mission_slug):
-        raise FeatureCreationError(
+        raise MissionCreationError(
             f"Invalid feature slug '{mission_slug}'. "
             "Must be kebab-case (lowercase letters, numbers, hyphens only)."
             "\n\nValid examples:"
@@ -211,20 +211,20 @@ def create_feature_core(
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
     if is_worktree_context(cwd):
-        raise FeatureCreationError("Cannot create features from inside a worktree. Run from the project root checkout.")
+        raise MissionCreationError("Cannot create features from inside a worktree. Run from the project root checkout.")
 
     resolved_root = repo_root
     if resolved_root is None:
         resolved_root = locate_project_root()
     if resolved_root is None:
-        raise FeatureCreationError("Could not locate project root. Run from within spec-kitty repository.")
+        raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     if not is_git_repo(resolved_root):
-        raise FeatureCreationError("Not in a git repository. Feature creation requires git.")
+        raise MissionCreationError("Not in a git repository. Feature creation requires git.")
 
     current_branch = get_current_branch(resolved_root)
     if not current_branch or current_branch == "HEAD":
-        raise FeatureCreationError("Must be on a branch to create features (detached HEAD detected).")
+        raise MissionCreationError("Must be on a branch to create features (detached HEAD detected).")
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch
@@ -343,7 +343,7 @@ def create_feature_core(
     # ------------------------------------------------------------------
     created_files = [spec_file, meta_file, tasks_readme]
 
-    return FeatureCreationResult(
+    return MissionCreationResult(
         feature_dir=feature_dir,
         mission_slug=mission_slug_formatted,
         mission_number=f"{feature_number:03d}",
