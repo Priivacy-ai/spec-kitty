@@ -65,12 +65,12 @@ def _resolve_mission_slug(
     cwd: Path | None,  # noqa: ARG001 -- kept for signature compatibility
     env: Mapping[str, str] | None,  # noqa: ARG001 -- kept for signature compatibility
 ) -> tuple[str, Path]:
-    """Resolve feature slug and directory from an explicit --feature value.
+    """Resolve mission slug and directory from an explicit --mission value.
 
     Raises ActionContextError if feature is not provided or directory doesn't exist.
     """
     try:
-        slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         raise ActionContextError("FEATURE_CONTEXT_UNRESOLVED", str(exc)) from exc
 
@@ -78,8 +78,8 @@ def _resolve_mission_slug(
     if not feature_dir.exists():
         raise ActionContextError(
             "FEATURE_CONTEXT_UNRESOLVED",
-            f"Feature directory not found: {feature_dir}. "
-            f"Check that '{slug}' is the correct feature slug.",
+            f"Mission directory not found: {feature_dir}. "
+            f"Check that '{slug}' is the correct mission slug.",
         )
     return slug, feature_dir
 
@@ -88,10 +88,10 @@ def _tasks_commands(mission_slug: str) -> dict[str, str]:
     return {
         "check_prerequisites": (
             "spec-kitty agent mission check-prerequisites "
-            f"--json --paths-only --include-tasks --feature {mission_slug}"
+            f"--json --paths-only --include-tasks --mission {mission_slug}"
         ),
         "finalize_tasks": (
-            f"spec-kitty agent mission finalize-tasks --feature {mission_slug} --json"
+            f"spec-kitty agent mission finalize-tasks --mission {mission_slug} --json"
         ),
     }
 

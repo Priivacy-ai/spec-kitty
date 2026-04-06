@@ -1,4 +1,4 @@
-# /spec-kitty.specify - Create Feature Specification
+# /spec-kitty.specify - Create Mission Specification
 
 **Version**: 0.11.0+
 
@@ -18,7 +18,7 @@ cd /path/to/project/root  # Your project root checkout
 
 **Worktrees are created later** during `/spec-kitty.implement`, after task finalization computes execution lanes.
 
-**In repos with multiple features, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
 
 ## User Input
 
@@ -45,7 +45,7 @@ spec-kitty agent mission branch-context --json --target-branch <intended-branch>
 Parse the JSON and, in your next reply, explicitly tell the user:
 
 - Current branch at workflow start: `current_branch`
-- Default planning/base branch if you create the feature right now: `planning_base_branch`
+- Default planning/base branch if you create the mission right now: `planning_base_branch`
 - Final merge target for completed changes: `merge_target_branch`
 - Whether `branch_matches_target` is true or false
 - If that is not the intended landing branch, stop and ask which branch should receive this feature before you run `create`
@@ -100,7 +100,7 @@ Discovery requirements (scale to feature complexity):
 
 ## Mission Selection
 
-After completing discovery and confirming the Intent Summary, determine the appropriate mission for this feature.
+After completing discovery and confirming the Intent Summary, determine the appropriate mission type for this mission run.
 
 ### Available Missions
 
@@ -132,13 +132,13 @@ After completing discovery and confirming the Intent Summary, determine the appr
 
 5. **Handle --mission flag**: If the user provides `--mission <key>` in their command, skip inference and use the specified mission directly.
 
-Store the final mission selection in your notes and include it in the spec output. Do not pass a `--mission` flag to feature creation.
+Store the final mission selection in your notes and include it in the spec output. Do not pass a `--mission-type` flag to mission creation unless the user explicitly overrides the default.
 
 ## Workflow (0.11.0+)
 
 **Planning happens in the project root checkout - NO worktree created!**
 
-1. Creates `kitty-specs/###-feature/spec.md` directly in project root
+1. Creates `kitty-specs/###-mission/spec.md` directly in project root
 2. Automatically commits to target branch
 3. No worktree created during specify
 
@@ -170,7 +170,7 @@ Given that feature description, do this:
    - Only proceed once every discovery question has an explicit answer and the user has acknowledged the Intent Summary.
    - Empty invocation rule: stay in interview mode until you can restate the agreed-upon feature description. Do **not** call the creation command while the description is missing or provisional.
 
-2. When discovery is complete and the intent summary, **title**, and **mission** are confirmed, run the feature creation command from repo root:
+2. When discovery is complete and the intent summary, **title**, and **mission type** are confirmed, run the mission creation command from repo root:
 
    ```bash
    spec-kitty agent mission create "<slug>" --json
@@ -180,7 +180,10 @@ Given that feature description, do this:
 
    The command returns JSON with:
    - `result`: "success" or error message
-   - `feature`: Feature number and slug (e.g., "014-checkout-upsell-flow")
+   - `mission_slug`: Mission number and slug (e.g., "014-checkout-upsell-flow")
+   - `mission_number`: Mission number (e.g., "014")
+   - `mission_type`: Mission type key (for example `software-dev`)
+   - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
    - `feature_dir`: Absolute path to the feature directory inside the main repo
    - `current_branch`: the branch you started from
    - `target_branch` / `base_branch`: deterministic branch contract for downstream commands
@@ -204,10 +207,10 @@ Given that feature description, do this:
    **Do NOT try to read a template file.** The spec structure is defined in this prompt (see sections below). The `create` command scaffolds an initial `spec.md` — read it, then update it following the structure in this prompt.
 
 5. Update `<feature_dir>/meta.json` only when needed:
-   - Keep identity fields from `create` unchanged (`feature_number`, `slug`, `feature_slug`, `created_at`, `target_branch`).
+   - Keep identity fields from `create` unchanged (`mission_number`, `slug`, `mission_slug`, `created_at`, `target_branch`).
    - Keep `target_branch` aligned to the value from `create --json` output. Never hardcode `main`.
    - Ensure `friendly_name` matches the confirmed title.
-   - Ensure `mission` is correct.
+   - Ensure `mission_type` is correct.
    - Optionally add/update `source_description`.
    - Ensure `vcs` exists (`"git"` default).
 
@@ -217,7 +220,7 @@ Given that feature description, do this:
      "mission_number": "042",
      "slug": "my-feature",
      "mission_slug": "042-my-feature",
-     "friendly_name": "My Feature",
+     "friendly_name": "My Mission",
      "mission_type": "software-dev",
      "target_branch": "main",
      "vcs": "git",

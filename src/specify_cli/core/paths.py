@@ -293,7 +293,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
     if feature and feature.strip():
         return feature.strip()
 
-    flag = command_hint or "--feature <slug>"
+    flag = command_hint or "--mission <slug>"
 
     # Scan for available features to include in the error message
     available = ""
@@ -311,7 +311,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
                 listing = "\n".join(f"  - {s}" for s in slugs[:15])
                 if len(slugs) > 15:
                     listing += f"\n  ... and {len(slugs) - 15} more"
-                available = f"\nAvailable features:\n{listing}\n"
+                available = f"\nAvailable missions:\n{listing}\n"
     except Exception:
         pass
 
@@ -331,10 +331,10 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
             pass
 
     msg = (
-        f"Feature slug is required.  Provide it explicitly: {flag}\n"
+        f"Mission slug is required. Provide it explicitly: {flag}\n"
         "No auto-detection is performed (branch scanning / env vars removed).\n"
         f"{available}"
-        f"Example:  spec-kitty ... --feature {example_slug}"
+        f"Example: spec-kitty ... {flag.split()[0]} {example_slug}"
     )
     raise ValueError(msg)
 

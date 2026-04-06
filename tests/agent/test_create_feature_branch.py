@@ -1,4 +1,4 @@
-"""Scope: git_repo integration tests for create_feature() branch recording — real git repos."""
+"""Scope: git_repo integration tests for create() branch recording — real git repos."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def _init_repo(tmp_path: Path, branch_name: str) -> Path:
 
 
 def _setup_kittify(repo: Path) -> None:
-    """Create minimal .kittify structure required by create_feature()."""
+    """Create minimal .kittify structure required by create()."""
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
     (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
@@ -43,25 +43,25 @@ def _setup_kittify(repo: Path) -> None:
 
 
 def _read_meta(repo: Path, mission_slug: str) -> dict:
-    """Read and return meta.json for a feature."""
+    """Read and return meta.json for a mission."""
     meta_file = repo / "kitty-specs" / mission_slug / "meta.json"
     return json.loads(meta_file.read_text(encoding="utf-8"))
 
 
 def _get_mission_slugs(repo: Path) -> list[str]:
-    """Get list of feature directory names from kitty-specs/."""
+    """Get list of mission directory names from kitty-specs/."""
     kitty_specs = repo / "kitty-specs"
     return sorted(d.name for d in kitty_specs.iterdir() if d.is_dir() and not d.name.startswith("."))
 
 
 # ============================================================================
-# create_feature records current branch as target
+# create records current branch as target
 # ============================================================================
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on 2.x records target_branch='2.x' in meta.json."""
+    """create on 2.x records target_branch='2.x' in meta.json."""
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -73,7 +73,7 @@ def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
     assert (repo / ".kittify" / "config.yaml").exists()
     # Act
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -84,7 +84,7 @@ def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
-    """create_feature on 2.x records target_branch='2.x' even when main exists.
+    """create on 2.x records target_branch='2.x' even when main exists.
 
     THIS IS THE CRITICAL REGRESSION TEST.
     """
@@ -101,7 +101,7 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
     assert (repo / ".kittify" / "config.yaml").exists()
     # Act
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -112,7 +112,7 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on main records target_branch='main'."""
+    """create on main records target_branch='main'."""
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -124,7 +124,7 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     assert (repo / ".kittify").exists()
     # Act
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -135,7 +135,7 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on master records target_branch='master'."""
+    """create on master records target_branch='master'."""
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -147,7 +147,7 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     assert (repo / ".kittify").exists()
     # Act
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -158,7 +158,7 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeypatch):
-    """create_feature on v3-next records target_branch='v3-next'."""
+    """create on v3-next records target_branch='v3-next'."""
     # Arrange
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
@@ -170,7 +170,7 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
     assert (repo / ".kittify").exists()
     # Act
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
     # Assert
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -193,7 +193,7 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json", "--target-branch", "2.x"])
+    result = runner.invoke(app, ["create", "test-feature", "--json", "--target-branch", "2.x"])
 
     assert result.exit_code == 0, f"Command failed: {result.output}"
     slugs = _get_mission_slugs(repo)
@@ -204,7 +204,7 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_rejects_detached_head(tmp_path, monkeypatch):
-    """create_feature fails on detached HEAD."""
+    """create fails on detached HEAD."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
 
@@ -215,14 +215,14 @@ def test_create_feature_rejects_detached_head(tmp_path, monkeypatch):
     monkeypatch.chdir(repo)
 
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
 
     assert result.exit_code != 0
 
 
 @pytest.mark.usefixtures("_git_identity")
 def test_create_feature_rejects_worktree(tmp_path, monkeypatch):
-    """create_feature fails when run from inside a worktree."""
+    """create fails when run from inside a worktree."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.agent.mission import app
 
@@ -234,6 +234,6 @@ def test_create_feature_rejects_worktree(tmp_path, monkeypatch):
     monkeypatch.chdir(worktree)
 
     runner = CliRunner()
-    result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+    result = runner.invoke(app, ["create", "test-feature", "--json"])
 
     assert result.exit_code != 0

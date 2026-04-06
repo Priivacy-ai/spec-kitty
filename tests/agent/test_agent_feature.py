@@ -52,7 +52,7 @@ class TestBranchContextCommand:
 
 
 class TestCreateFeatureCommand:
-    """Tests for create-feature command."""
+    """Tests for create command."""
 
     @patch("specify_cli.core.mission_creation.emit_mission_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
@@ -78,13 +78,13 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
         assert result.exit_code == 0, f"Command failed: {result.output}"
         output = json.loads(result.stdout)
         assert output["result"] == "success"
-        assert output["feature"] == "001-test-feature"
+        assert output["mission_slug"] == "001-test-feature"
         assert "feature_dir" in output
         assert output["current_branch"] == "main"
         assert output["target_branch"] == "main"
@@ -135,7 +135,7 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature"])
+        result = runner.invoke(app, ["create", "test-feature"])
 
         # Verify
         assert result.exit_code == 0, f"Command failed: {result.output}"
@@ -154,7 +154,7 @@ class TestCreateFeatureCommand:
         mock_core_locate.return_value = None
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
         assert result.exit_code == 1
@@ -176,7 +176,7 @@ class TestCreateFeatureCommand:
         mock_core_locate.return_value = None
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature"])
+        result = runner.invoke(app, ["create", "test-feature"])
 
         # Verify
         assert result.exit_code == 1
@@ -197,14 +197,14 @@ class TestCreateFeatureCommand:
         mock_is_worktree.return_value = True
         mock_locate.return_value = Path("/tmp/main-repo")
 
-        result = runner.invoke(app, ["create-feature", "test-feature"])
+        result = runner.invoke(app, ["create", "test-feature"])
 
         assert result.exit_code == 1
-        assert "Cannot create features from inside a worktree" in result.stdout
+        assert "Cannot create missions from inside a worktree" in result.stdout
         assert "Run from the main repository instead:" in result.stdout
         assert "cd " in result.stdout
         assert "/main-repo" in result.stdout
-        assert "spec-kitty agent mission create-feature test-feature" in result.stdout
+        assert "spec-kitty agent mission create test-feature" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -220,14 +220,14 @@ class TestCreateFeatureCommand:
         mock_is_worktree.return_value = True
         mock_locate.return_value = None
 
-        result = runner.invoke(app, ["create-feature", "test-feature"])
+        result = runner.invoke(app, ["create", "test-feature"])
 
         assert result.exit_code == 1
-        assert "Cannot create features from inside a worktree" in result.stdout
+        assert "Cannot create missions from inside a worktree" in result.stdout
         assert "Run from the main repository instead:" in result.stdout
         assert "cd " in result.stdout
         assert "/main-repo" in result.stdout
-        assert "spec-kitty agent mission create-feature test-feature" in result.stdout
+        assert "spec-kitty agent mission create test-feature" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
@@ -241,7 +241,7 @@ class TestCreateFeatureCommand:
         mock_is_git.return_value = False
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
         assert result.exit_code == 1
@@ -275,7 +275,7 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify — should succeed, recording "develop" as target_branch
         assert result.exit_code == 0, f"Command failed: {result.output}"
@@ -307,7 +307,7 @@ class TestCreateFeatureCommand:
         (tmp_path / "kitty-specs").mkdir(exist_ok=True)
 
         # Execute
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
         # Verify
         assert result.exit_code == 0, f"Command failed: {result.output}"
@@ -503,7 +503,7 @@ class TestCheckPrerequisitesCommand:
     def test_passes_explicit_feature_to_detection(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
-        """Should pass --feature to detection with strict context fallback disabled."""
+        """Should pass --mission to detection with strict context fallback disabled."""
         mock_locate.return_value = tmp_path
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         mock_find.return_value = feature_dir
@@ -518,7 +518,7 @@ class TestCheckPrerequisitesCommand:
             app,
             [
                 "check-prerequisites",
-                "--feature",
+                "--mission",
                 "001-test",
                 "--json",
                 "--paths-only",
@@ -557,9 +557,9 @@ class TestCheckPrerequisitesCommand:
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert payload["available_features"] == ["001-alpha", "002-beta"]
-        assert "check-prerequisites --feature" in payload["example_command"]
-        assert payload["remediation"] == "Re-run with --feature <slug>"
+        assert payload["available_missions"] == ["001-alpha", "002-beta"]
+        assert "check-prerequisites --mission" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --mission <slug>"
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
@@ -703,13 +703,13 @@ class TestFinalizeTasksCommand:
         mock_locate: Mock,
         tmp_path: Path,
     ):
-        """Should pass --feature to detection with strict context fallback disabled."""
+        """Should pass --mission to detection with strict context fallback disabled."""
         mock_locate.return_value = tmp_path
         mock_show_branch.return_value = (tmp_path, "main")
         feature_dir = tmp_path / "kitty-specs" / "001-test"
         mock_find.return_value = feature_dir
 
-        result = runner.invoke(app, ["finalize-tasks", "--feature", "001-test", "--json"])
+        result = runner.invoke(app, ["finalize-tasks", "--mission", "001-test", "--json"])
 
         # Command exits because tasks/ is missing, but detection should be explicit and strict.
         assert result.exit_code == 1
@@ -740,9 +740,9 @@ class TestFinalizeTasksCommand:
         assert result.exit_code == 1
         payload = json.loads(result.stdout.strip().split("\n")[0])
         assert payload["error_code"] == "FEATURE_CONTEXT_UNRESOLVED"
-        assert payload["available_features"] == ["001-alpha", "002-beta"]
-        assert "finalize-tasks --feature" in payload["example_command"]
-        assert payload["remediation"] == "Re-run with --feature <slug>"
+        assert payload["available_missions"] == ["001-alpha", "002-beta"]
+        assert "finalize-tasks --mission" in payload["example_command"]
+        assert payload["remediation"] == "Re-run with --mission <slug>"
 
     @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
@@ -1008,7 +1008,7 @@ class TestSetupPlanCommand:
         mock_find.return_value = feature_dir
 
         # Execute
-        result = runner.invoke(app, ["setup-plan", "--feature", "001-test", "--json"])
+        result = runner.invoke(app, ["setup-plan", "--mission", "001-test", "--json"])
 
         # Verify
         assert result.exit_code == 1
@@ -1087,14 +1087,14 @@ class TestFindFeatureDirectory:
             _find_feature_directory(tmp_path, tmp_path, explicit_feature=None)
 
     def test_raises_error_when_feature_dir_not_found(self, tmp_path: Path):
-        """Should raise ValueError when the specified feature directory does not exist."""
+        """Should raise ValueError when the specified mission directory does not exist."""
         from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
 
         # Execute & Verify (updated to match centralized error message)
-        with pytest.raises(ValueError, match="Feature directory not found"):
+        with pytest.raises(ValueError, match="Mission directory not found"):
             _find_feature_directory(tmp_path, tmp_path, explicit_feature="001-nonexistent")
 
     def test_raises_error_when_no_explicit_slug_with_multiple_features(self, tmp_path: Path):

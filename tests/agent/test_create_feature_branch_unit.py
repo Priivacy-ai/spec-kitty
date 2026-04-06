@@ -1,4 +1,4 @@
-"""Scope: mock-boundary unit tests for create_feature() target_branch logic — no real git."""
+"""Scope: mock-boundary unit tests for create() target_branch logic — no real git."""
 
 from __future__ import annotations
 
@@ -21,7 +21,7 @@ runner = CliRunner()
 
 
 def _setup_kittify(repo: Path) -> None:
-    """Create minimal .kittify structure required by create_feature()."""
+    """Create minimal .kittify structure required by create()."""
     kittify = repo / ".kittify"
     kittify.mkdir(exist_ok=True)
     (kittify / "config.yaml").write_text("agents:\n  available:\n    - claude\n", encoding="utf-8")
@@ -32,8 +32,8 @@ def _setup_kittify(repo: Path) -> None:
 def _run_create_feature(
     repo: Path, slug: str, current_branch: str, extra_args: list[str] | None = None
 ) -> tuple[Result, dict[str, object] | None]:
-    """Invoke create-feature with mocked git layer and return (result, meta)."""
-    args = ["create-feature", slug, "--json"] + (extra_args or [])
+    """Invoke create with mocked git layer and return (result, meta)."""
+    args = ["create", slug, "--json"] + (extra_args or [])
     with (
         patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=repo),
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=repo),
@@ -159,7 +159,7 @@ def test_create_feature_rejects_worktree_context(tmp_path: Path) -> None:
         patch(f"{_FEATURE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=True),
     ):
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
     assert result.exit_code != 0
 
@@ -173,7 +173,7 @@ def test_create_feature_rejects_detached_head(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=None),
     ):
-        result = runner.invoke(app, ["create-feature", "test-feature", "--json"])
+        result = runner.invoke(app, ["create", "test-feature", "--json"])
 
     assert result.exit_code != 0
 
@@ -182,6 +182,6 @@ def test_create_feature_rejects_invalid_slug(tmp_path: Path) -> None:
     """create_feature exits non-zero for non-kebab-case slugs."""
     _setup_kittify(tmp_path)
     # Slug validation happens before any git checks, so no core patches needed
-    result = runner.invoke(app, ["create-feature", "Invalid_Slug", "--json"])
+    result = runner.invoke(app, ["create", "Invalid_Slug", "--json"])
 
     assert result.exit_code != 0

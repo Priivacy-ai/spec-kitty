@@ -76,7 +76,7 @@ def _collect_status_artifacts(feature_dir: Path) -> list[Path]:
     ``move_task`` or ``workflow review`` transition.
 
     Args:
-        feature_dir: Absolute path to the kitty-specs feature directory.
+        feature_dir: Absolute path to the kitty-specs mission directory.
 
     Returns:
         List of existing artifact paths (may be empty).
@@ -152,12 +152,12 @@ def _ensure_target_branch_checked_out(
         if not resolution.should_notify:
             console.print(
                 f"[bold cyan]Branch:[/bold cyan] {current_branch} "
-                f"(target for this feature)"
+                f"(target for this mission)"
             )
         else:
             console.print(
                 f"[bold yellow]Branch:[/bold yellow] on '{resolution.current}', "
-                f"feature targets '{resolution.target}'"
+                f"mission targets '{resolution.target}'"
             )
 
     # Return current branch (no checkout performed)
@@ -168,16 +168,16 @@ def _find_mission_slug(explicit_feature: str | None = None) -> str:
     """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Feature slug provided via --feature flag.
+        explicit_feature: Mission slug provided explicitly.
 
     Returns:
-        Feature slug (e.g., "008-unified-python-cli")
+        Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
         typer.Exit: If feature slug is not provided.
     """
     try:
-        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+        return require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
@@ -846,7 +846,7 @@ def _list_wp_branch_kitty_specs_changes(worktree_path: Path, base_branch: str) -
 def move_task(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     to: Annotated[str, typer.Option("--to", help="Target lane (planned/doing/for_review/approved/done)")],
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     assignee: Annotated[Optional[str], typer.Option("--assignee", help="Assignee name (sets assignee when moving to doing)")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
@@ -1130,7 +1130,7 @@ def move_task(
                 # No canonical state for this WP — finalize-tasks must be run first
                 raise RuntimeError(
                     f"WP {task_id} has no canonical status in feature {mission_slug}. "
-                    f"Run `spec-kitty agent mission finalize-tasks --feature {mission_slug}` to initialize."
+                    f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
                 )
 
             for target in transition_targets:
@@ -1273,7 +1273,7 @@ def move_task(
 def mark_status(
     task_ids: Annotated[list[str], typer.Argument(help="Task ID(s) - space-separated (e.g., T001 T002 T003)")],
     status: Annotated[str, typer.Option("--status", help="Status: done/pending")],
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     auto_commit: Annotated[Optional[bool], typer.Option("--auto-commit/--no-auto-commit", help="Automatically commit tasks.md changes to target branch (default: from project config)")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
@@ -1290,7 +1290,7 @@ def mark_status(
         spec-kitty agent tasks mark-status T001 T002 T003 --status done
 
         # Many tasks at once:
-        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --feature 001-my-feature
+        spec-kitty agent tasks mark-status T040 T041 T042 T043 T044 T045 --status done --mission 001-my-feature
 
         # With JSON output:
         spec-kitty agent tasks mark-status T001 T002 --status done --json
@@ -1456,7 +1456,7 @@ def mark_status(
 @app.command(name="list-tasks")
 def list_tasks(
     lane: Annotated[Optional[str], typer.Option("--lane", help="Filter by lane")] = None,
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """List tasks with optional lane filtering.
@@ -1544,7 +1544,7 @@ def list_tasks(
 def add_history(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
     note: Annotated[str, typer.Option("--note", help="History note")],
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name")] = None,
     shell_pid: Annotated[Optional[str], typer.Option("--shell-pid", help="Shell PID")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
@@ -1625,7 +1625,7 @@ def add_history(
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[bool, typer.Option("--validate-only", help="Validate without writing changes")] = False,
 ) -> None:
@@ -1636,8 +1636,8 @@ def finalize_tasks(
     field to each WP file's frontmatter.
 
     Examples:
-        spec-kitty agent tasks finalize-tasks --feature 001-my-feature --json
-        spec-kitty agent tasks finalize-tasks --feature 021-my-feature --json
+        spec-kitty agent tasks finalize-tasks --mission 001-my-feature --json
+        spec-kitty agent tasks finalize-tasks --mission 021-my-feature --json
     """
     try:
         # Get repo root and feature slug
@@ -1791,7 +1791,7 @@ def map_requirements(
     ] = False,
     feature: Annotated[
         Optional[str],
-        typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)"),
+        typer.Option("--mission", "--mission-run", help="Mission run slug"),
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     auto_commit: Annotated[
@@ -1838,7 +1838,7 @@ def map_requirements(
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
-            _output_error(json_output, f"Feature directory not found: {feature_dir}")
+            _output_error(json_output, f"Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
 
         spec_md = feature_dir / "spec.md"
@@ -2092,7 +2092,7 @@ def map_requirements(
 @app.command(name="validate-workflow")
 def validate_workflow(
     task_id: Annotated[str, typer.Argument(help="Task ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Validate task metadata structure and workflow consistency.
@@ -2192,7 +2192,7 @@ def validate_workflow(
 def status(
     feature: Annotated[
         Optional[str],
-        typer.Option("--mission", "--mission-run", "-f", help="Mission run slug (--feature is the legacy alias)")
+        typer.Option("--mission", "--mission-run", "-f", help="Mission run slug")
     ] = None,
     json_output: Annotated[
         bool,
@@ -2213,7 +2213,7 @@ def status(
 
     Example:
         spec-kitty agent tasks status
-        spec-kitty agent tasks status --feature 012-documentation-mission
+        spec-kitty agent tasks status --mission 012-documentation-mission
         spec-kitty agent tasks status --json
         spec-kitty agent tasks status --stale-threshold 15
     """
@@ -2235,11 +2235,11 @@ def status(
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
 
-        # Locate feature directory
+        # Locate mission directory
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
-            console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
+            console.print(f"[red]Error:[/red] Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
 
         tasks_dir = feature_dir / "tasks"
@@ -2508,7 +2508,7 @@ def status(
 
         # Next action hint — always show so agents know what to do
         console.print("[bold]▶ Next action:[/bold]")
-        console.print(f"  [cyan]spec-kitty next --agent <your-name> --feature {mission_slug}[/cyan]")
+        console.print(f"  [cyan]spec-kitty next --agent <your-name> --mission {mission_slug}[/cyan]")
         console.print("[dim]  This command tells you exactly what to do next based on the dependency graph.[/dim]")
         console.print()
 
@@ -2520,7 +2520,7 @@ def status(
 @app.command(name="list-dependents")
 def list_dependents(
     wp_id: Annotated[str, typer.Argument(help="Work package ID (e.g., WP01)")],
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Find all WPs that depend on a given WP (downstream dependents).
@@ -2532,7 +2532,7 @@ def list_dependents(
 
     Examples:
         spec-kitty agent tasks list-dependents WP13
-        spec-kitty agent tasks list-dependents WP01 --feature 001-my-feature --json
+        spec-kitty agent tasks list-dependents WP01 --mission 001-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -2545,7 +2545,7 @@ def list_dependents(
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
         if not feature_dir.exists():
-            _output_error(json_output, f"Feature directory not found: {feature_dir}")
+            _output_error(json_output, f"Mission directory not found: {feature_dir}")
             raise typer.Exit(1)
 
         # Build dependency graph and find dependents

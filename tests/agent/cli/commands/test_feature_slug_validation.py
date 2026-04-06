@@ -17,7 +17,7 @@ def test_mission_slug_with_spaces_rejected():
     # Assumption check
     assert " " in slug
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with spaces"
     output = result.stdout
@@ -32,7 +32,7 @@ def test_mission_slug_with_underscores_rejected():
     # Assumption check
     assert "_" in slug
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with underscores"
     assert "kebab-case" in result.stdout.lower()
@@ -45,7 +45,7 @@ def test_mission_slug_starting_with_number_rejected():
     # Assumption check
     assert slug[0].isdigit()
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug starting with number"
     assert "kebab-case" in result.stdout.lower()
@@ -58,7 +58,7 @@ def test_mission_slug_with_uppercase_rejected():
     # Assumption check
     assert any(c.isupper() for c in slug)
     # Act
-    result = runner.invoke(app, ["create-feature", slug, "--json"])
+    result = runner.invoke(app, ["create", slug, "--json"])
     # Assert
     assert result.exit_code != 0, "Should reject slug with uppercase"
     assert "lowercase" in result.stdout.lower()
@@ -84,7 +84,7 @@ def test_valid_kebab_case_slugs_accepted(tmp_path, monkeypatch):
     assert all("-" not in s or s.replace("-", "").replace("0123456789", "").isalpha() or True for s in valid_slugs)
     # Act / Assert
     for slug in valid_slugs:
-        result = runner.invoke(app, ["create-feature", slug, "--json"])
+        result = runner.invoke(app, ["create", slug, "--json"])
         assert result.exit_code == 0, f"Valid slug '{slug}' should be accepted. Output: {result.stdout}"
 
 

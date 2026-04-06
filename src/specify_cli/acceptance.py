@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Acceptance workflow utilities for Spec Kitty features."""
+"""Acceptance workflow utilities for Spec Kitty missions."""
 
 from __future__ import annotations
 
@@ -248,23 +248,23 @@ def detect_mission_slug(
     cwd: Optional[Path] = None,  # noqa: ARG001 -- kept for signature compat
     announce_fallback: bool = True,  # noqa: ARG001 -- kept for signature compat
 ) -> str:
-    """Require an explicit feature slug; no auto-detection.
+    """Require an explicit mission slug; no auto-detection.
 
     Args:
         repo_root: Repository root path (unused — kept for signature compatibility)
-        explicit_feature: Feature slug to use (required).
+        explicit_feature: Mission slug to use (required).
         env: Unused; kept for backward-compatible call sites.
         cwd: Unused; kept for backward-compatible call sites.
         announce_fallback: Unused; kept for backward-compatible call sites.
 
     Returns:
-        Feature slug (e.g., "020-my-feature")
+        Mission slug (e.g., "020-my-feature")
 
     Raises:
         AcceptanceError: If no explicit feature slug is provided.
     """
     try:
-        return _require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+        return _require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:
         raise AcceptanceError(str(e)) from e
 
@@ -401,7 +401,7 @@ def collect_feature_summary(
     feature_dir = repo_root / "kitty-specs" / feature
     tasks_dir = feature_dir / "tasks"
     if not feature_dir.exists():
-        raise AcceptanceError(f"Feature directory not found: {feature_dir}")
+        raise AcceptanceError(f"Mission directory not found: {feature_dir}")
 
     branch: Optional[str] = None
     try:

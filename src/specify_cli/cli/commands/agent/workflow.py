@@ -136,7 +136,7 @@ def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
     """Return a consistent hard-fail message for missing canonical status."""
     return (
         f"WP {wp_id} has no canonical status. "
-        f"Run `spec-kitty agent mission finalize-tasks --feature {mission_slug}` to initialize."
+        f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
     )
 
 
@@ -175,16 +175,16 @@ def _find_mission_slug(explicit_feature: str | None = None) -> str:
     """Require an explicit feature slug (no auto-detection).
 
     Args:
-        explicit_feature: Feature slug provided via --feature flag.
+        explicit_feature: Mission slug provided explicitly.
 
     Returns:
-        Feature slug (e.g., "008-unified-python-cli")
+        Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
         typer.Exit: If feature slug is not provided.
     """
     try:
-        return require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+        return require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     except ValueError as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
@@ -283,7 +283,7 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
@@ -917,7 +917,7 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug (--feature is the legacy alias)")] = None,
+    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.

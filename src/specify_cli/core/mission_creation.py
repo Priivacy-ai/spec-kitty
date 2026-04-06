@@ -1,8 +1,8 @@
-"""Reusable feature-creation logic extracted from the CLI command.
+"""Reusable mission-creation logic extracted from the CLI command.
 
 This module provides ``create_mission_core()`` -- the programmatic API
-for creating a new feature directory with all scaffolding.  The CLI
-command ``create_feature()`` is a thin wrapper around this function.
+for creating a new mission directory with all scaffolding. The CLI
+command ``create()`` is a thin wrapper around this function.
 """
 
 from __future__ import annotations
@@ -24,7 +24,7 @@ from specify_cli.sync.events import emit_mission_created
 
 
 class MissionCreationError(RuntimeError):
-    """Raised when feature creation fails."""
+    """Raised when mission creation fails."""
 
 
 @dataclass(slots=True)
@@ -216,7 +216,7 @@ def create_mission_core(
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
     if is_worktree_context(cwd):
-        raise MissionCreationError("Cannot create features from inside a worktree. Run from the project root checkout.")
+        raise MissionCreationError("Cannot create missions from inside a worktree. Run from the project root checkout.")
 
     resolved_root = repo_root
     if resolved_root is None:
@@ -225,11 +225,11 @@ def create_mission_core(
         raise MissionCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     if not is_git_repo(resolved_root):
-        raise MissionCreationError("Not in a git repository. Feature creation requires git.")
+        raise MissionCreationError("Not in a git repository. Mission creation requires git.")
 
     current_branch = get_current_branch(resolved_root)
     if not current_branch or current_branch == "HEAD":
-        raise MissionCreationError("Must be on a branch to create features (detached HEAD detected).")
+        raise MissionCreationError("Must be on a branch to create missions (detached HEAD detected).")
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch

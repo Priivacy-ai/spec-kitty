@@ -22,7 +22,7 @@ from specify_cli.mission import (
 
 app = typer.Typer(
     name="mission",
-    help="View available Spec Kitty mission types. A mission type is the reusable blueprint selected when a mission is created. Legacy create-feature surfaces may still use feature wording.",
+    help="View available Spec Kitty mission types. A mission type is the reusable blueprint selected when a mission is created.",
     no_args_is_help=True,
 )
 
@@ -175,7 +175,7 @@ def current_cmd(
         None,
         "--feature",
         "-f",
-        help="Mission slug (legacy flag name; auto-detects from current directory if omitted)",
+        help="Mission slug (auto-detects from current directory if omitted)",
     ),
 ) -> None:
     """Show the active mission type for a mission (auto-detects mission from cwd)."""
@@ -188,7 +188,7 @@ def current_cmd(
     if not mission_slug:
         console.print(
             "[yellow]No active feature detected.[/yellow]\n"
-            "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
+            "\nUse [cyan]--mission <slug>[/cyan] to specify one, "
             "or run from within a feature worktree."
         )
         # Optionally list available missions

@@ -121,12 +121,6 @@ def accept(
         "--mission",
         help="Mission slug to accept",
     ),
-    feature: Optional[str] = typer.Option(
-        None,
-        "--feature",
-        help="Legacy alias for --mission; auto-detected by default",
-        hidden=True,
-    ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -159,9 +153,8 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        requested_mission = mission or feature
         mission_slug = require_explicit_feature(
-            requested_mission,
+            mission,
             command_hint="--mission <slug>",
         )
     except ValueError as exc:

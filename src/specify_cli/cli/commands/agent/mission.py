@@ -60,25 +60,8 @@ def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
 
 
 def _with_mission_aliases(payload: dict[str, object]) -> dict[str, object]:
-    """Expose canonical mission nouns while preserving legacy feature aliases."""
-    enriched = dict(payload)
-
-    if "mission_slug" in enriched and "mission_slug" not in enriched:
-        enriched["mission_slug"] = enriched["mission_slug"]
-    if "mission_slug" in enriched and "mission_slug" not in enriched:
-        enriched["mission_slug"] = enriched["mission_slug"]
-    if "feature" in enriched and "mission" not in enriched:
-        enriched["mission"] = enriched["feature"]
-    if "mission" in enriched and "feature" not in enriched:
-        enriched["feature"] = enriched["mission"]
-    if "feature_flag" in enriched and "mission_flag" not in enriched:
-        enriched["mission_flag"] = enriched["feature_flag"]
-    if "available_missions" in enriched and "available_missions" not in enriched:
-        enriched["available_missions"] = enriched["available_missions"]
-    if "available_missions" in enriched and "available_missions" not in enriched:
-        enriched["available_missions"] = enriched["available_missions"]
-
-    return enriched
+    """Return canonical mission nouns only on live JSON surfaces."""
+    return dict(payload)
 
 
 def _emit_json(payload: dict[str, object]) -> None:
@@ -227,7 +210,7 @@ def _show_branch_context(
 
 
 def _resolve_planning_branch(repo_root: Path, feature_dir: Path) -> str:
-    """Resolve planning branch for a feature directory.
+    """Resolve planning branch for a mission directory.
 
     Compatibility shim for tests and callers that patch this helper directly.
     """
@@ -288,7 +271,7 @@ def _commit_to_branch(
         mission_slug: Feature slug (e.g., "001-my-feature")
         artifact_type: Type of artifact ("spec", "plan", "tasks")
         repo_root: Repository root path (ensures commits go to planning repo, not worktree)
-        target_branch: Branch feature targets (for informational messages only)
+        target_branch: Branch the mission targets (for informational messages only)
         json_output: If True, suppress Rich console output
 
     Raises:
@@ -336,23 +319,23 @@ def _find_feature_directory(
     cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
-    """Find the feature directory from an explicit feature slug.
+    """Find the mission directory from an explicit mission slug.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
-        explicit_feature: Feature slug from --feature flag (required)
+        explicit_feature: Mission slug provided explicitly (required)
 
     Returns:
-        Path to feature directory
+        Path to mission directory
 
     Raises:
         ValueError: If feature slug is not provided or directory doesn't exist
     """
-    slug = require_explicit_feature(explicit_feature, command_hint="--feature <slug>")
+    slug = require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
     feature_dir = repo_root / "kitty-specs" / slug
     if not feature_dir.exists():
-        raise ValueError(f"Feature directory not found: {feature_dir}. Check that '{slug}' is the correct feature slug.")
+        raise ValueError(f"Mission directory not found: {feature_dir}. Check that '{slug}' is the correct mission slug.")
     return feature_dir
 
 
@@ -371,7 +354,6 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
         candidates.append(
             {
                 "mission_slug": feature_dir.name,
-                "mission_slug": feature_dir.name,
                 "feature_dir": str(feature_dir.resolve()),
                 "spec_file": str(spec_file.resolve()),
                 "spec_exists": spec_file.exists(),
@@ -383,7 +365,7 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
 def _build_setup_plan_detection_error(
     repo_root: Path,
     base_error: str,
-    feature_flag: str | None,
+    mission_flag: str | None,
     *,
     error_code: str = "PLAN_CONTEXT_UNRESOLVED",
     command_name: str = "setup-plan",
@@ -401,7 +383,7 @@ def _build_setup_plan_detection_error(
 
     payload: dict[str, object] = {
         "error_code": error_code,
-        "feature_flag": feature_flag,
+        "mission_flag": mission_flag,
         "spec_kitty_version": SPEC_KITTY_VERSION,
     }
 
@@ -412,14 +394,13 @@ def _build_setup_plan_detection_error(
 
     slugs = [str(c["mission_slug"]) for c in candidates]
     n = len(slugs)
-    payload["error"] = f"{n} missions found, pass --feature <slug> to disambiguate"
-    payload["available_missions"] = slugs
+    payload["error"] = f"{n} missions found, pass --mission <slug> to disambiguate"
     payload["available_missions"] = slugs
 
     # One example command so the LLM knows the exact syntax
     args_suffix = f" {' '.join(command_args)}" if command_args else ""
-    payload["example_command"] = f"spec-kitty agent mission {command_name} --feature {slugs[0]}{args_suffix}"
-    payload["remediation"] = f"Re-run with --feature <slug>"
+    payload["example_command"] = f"spec-kitty agent mission {command_name} --mission {slugs[0]}{args_suffix}"
+    payload["remediation"] = "Re-run with --mission <slug>"
     return payload
 
 
@@ -563,8 +544,11 @@ def create_mission(
         tasks_readme = feature_dir / "tasks" / "README.md"
         create_payload: dict[str, object] = {
             "result": "success",
-            "mission": result.mission_slug,
             "mission_slug": result.mission_slug,
+            "mission_number": result.mission_number,
+            "mission_type": str(result.meta.get("mission_type", result.meta.get("mission", ""))),
+            "slug": str(result.meta.get("slug", "")),
+            "friendly_name": str(result.meta.get("friendly_name", "")),
             "feature_dir": str(feature_dir),
             "spec_file": str(spec_file),
             "meta_file": str(meta_file),
@@ -603,7 +587,7 @@ def check_prerequisites(
 
     Examples:
         spec-kitty agent mission check-prerequisites --json
-        spec-kitty agent mission check-prerequisites --feature 020-my-feature --paths-only --json
+        spec-kitty agent mission check-prerequisites --mission 020-my-feature --paths-only --json
     """
     try:
         if require_tasks and not include_tasks:
@@ -732,7 +716,7 @@ def setup_plan(
 
     Examples:
         spec-kitty agent mission setup-plan --json
-        spec-kitty agent mission setup-plan --feature 020-my-feature --json
+        spec-kitty agent mission setup-plan --mission 020-my-feature --json
     """
     try:
         repo_root = locate_project_root()
@@ -788,7 +772,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    f"Or select another mission explicitly: spec-kitty agent mission setup-plan --feature <mission-slug> --json",
+                    f"Or select another mission explicitly: spec-kitty agent mission setup-plan --mission <mission-slug> --json",
                 ],
             }
             if json_output:
@@ -1091,7 +1075,7 @@ def merge_feature(
 
     Auto-retry logic:
     If current branch doesn't match feature pattern and auto-retry is enabled,
-    it retries only when --feature is provided so worktree selection is deterministic.
+    it retries only when --mission is provided so worktree selection is deterministic.
 
     Delegates to existing tasks_cli.py merge implementation.
 
@@ -1131,13 +1115,13 @@ def merge_feature(
 
             if not is_feature_branch:
                 if not feature:
-                    raise RuntimeError(f"Not on feature branch ({current_branch}). Auto-retry requires --feature to choose a deterministic worktree.")
+                    raise RuntimeError(f"Not on mission branch ({current_branch}). Auto-retry requires --mission to choose a deterministic worktree.")
 
                 retry_worktree = _find_feature_worktree(repo_root, feature)
                 if not retry_worktree:
-                    raise RuntimeError(f"Could not find worktree for feature {feature} under {repo_root / '.worktrees'}.")
+                    raise RuntimeError(f"Could not find worktree for mission {feature} under {repo_root / '.worktrees'}.")
 
-                console.print(f"[yellow]Auto-retry:[/yellow] Not on feature branch ({current_branch}). Running merge in {retry_worktree.name}")
+                console.print(f"[yellow]Auto-retry:[/yellow] Not on mission branch ({current_branch}). Running merge in {retry_worktree.name}")
 
                 # Set env var to prevent infinite recursion
                 env = os.environ.copy()
@@ -1209,8 +1193,8 @@ def finalize_tasks(
     dependency cycles) without making any changes or committing.
 
     Examples:
-        spec-kitty agent mission finalize-tasks --feature 020-my-feature --json
-        spec-kitty agent mission finalize-tasks --feature 020-my-feature --validate-only --json
+        spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
+        spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
     """
     try:
         repo_root = locate_project_root()
