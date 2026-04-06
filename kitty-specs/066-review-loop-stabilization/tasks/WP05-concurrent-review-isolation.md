@@ -18,7 +18,8 @@ subtasks:
 - T027
 - T028
 - T029
-shell_pid: '48083'
+shell_pid: "48083"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -297,3 +298,7 @@ Multiple review agents pointed at the same lane worktree attempted to run Django
 - Verify lock file is always cleaned up, even on exceptions (try/finally)
 - Check that the error message is actionable (includes agent name, WP ID, PID, start time)
 - Verify env-var isolation only activates with explicit config (never auto-detected)
+
+## Activity Log
+
+- 2026-04-06T16:42:35Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48083 – Started implementation via action command
