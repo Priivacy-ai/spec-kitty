@@ -9,12 +9,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|----------|
-| T001 | Wire MergeState lifecycle into `_run_lane_based_merge()` | WP01 | |
-| T002 | Restructure state file preservation in cleanup | WP01 | |
-| T003 | Add event_id dedup guard in `_mark_wp_merged_done()` | WP01 | [P] |
-| T004 | Re-enable resume/abort CLI path | WP01 | |
-| T005 | Add retry tolerance (FSEvents delay, missing worktrees/branches) | WP01 | [P] |
-| T006 | Write tests for merge recovery | WP01 | |
+| T001 | Wire MergeState lifecycle into `_run_lane_based_merge()` | WP01 | | [D] |
+| T002 | Restructure state file preservation in cleanup | WP01 | | [D] |
+| T003 | Add event_id dedup guard in `_mark_wp_merged_done()` | WP01 | [D] |
+| T004 | Re-enable resume/abort CLI path | WP01 | | [D] |
+| T005 | Add retry tolerance (FSEvents delay, missing worktrees/branches) | WP01 | [D] |
+| T006 | Write tests for merge recovery | WP01 | | [D] |
 | T007 | Build recovery scan for orphaned branches and workspace contexts | WP02 | |
 | T008 | Implement worktree reconciliation from surviving branches | WP02 | |
 | T009 | Implement status reconciliation for missing lane transitions | WP02 | [P] |
