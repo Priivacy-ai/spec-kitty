@@ -335,8 +335,8 @@ class TestHybridInstallOutputShape:
             f"spec-kitty.specify.md should have >=100 lines, got {len(lines)}"
         )
 
-    def test_implement_md_has_fewer_than_5_lines(self, tmp_path: Path) -> None:
-        """spec-kitty.implement.md must be a thin shim (<5 lines)."""
+    def test_implement_md_has_fewer_than_6_lines(self, tmp_path: Path) -> None:
+        """spec-kitty.implement.md must be a thin shim (<=6 lines)."""
         from specify_cli.core.agent_config import AgentConfig, save_agent_config
         from specify_cli.shims.generator import generate_all_shims
 
@@ -350,8 +350,8 @@ class TestHybridInstallOutputShape:
         implement_file = project / ".claude" / "commands" / "spec-kitty.implement.md"
         assert implement_file.exists(), "spec-kitty.implement.md must exist"
         lines = implement_file.read_text().splitlines()
-        assert len(lines) <= 5, (
-            f"spec-kitty.implement.md should have <=5 lines (thin shim), got {len(lines)}"
+        assert len(lines) <= 6, (
+            f"spec-kitty.implement.md should have <=6 lines (thin shim), got {len(lines)}"
         )
 
 

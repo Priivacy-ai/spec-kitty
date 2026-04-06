@@ -267,7 +267,7 @@ class TestResolveOrLoad:
 
     def test_raises_when_only_mission_slug_missing(self, tmp_path: Path) -> None:
         _setup_project(tmp_path)
-        with pytest.raises(MissingArgumentError, match="--feature"):
+        with pytest.raises(MissingArgumentError, match="--mission"):
             resolve_or_load(
                 token=None,
                 wp_code="WP01",
