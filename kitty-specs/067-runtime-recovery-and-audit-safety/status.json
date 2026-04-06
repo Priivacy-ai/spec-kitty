@@ -1,16 +1,16 @@
 {
-  "event_count": 25,
-  "last_event_id": "01KNJ2YDJQ8X9HJZ8Y8EPGCK8Q",
-  "materialized_at": "2026-04-06T19:05:08.951969+00:00",
+  "event_count": 26,
+  "last_event_id": "01KNJ2YZAAYB5N81M2VC25Z255",
+  "materialized_at": "2026-04-06T19:05:27.115099+00:00",
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 4,
+    "in_progress": 3,
     "planned": 1
   },
   "work_packages": {
@@ -43,11 +43,11 @@
       "last_transition_at": "2026-04-06T19:05:08.951581+00:00"
     },
     "WP05": {
-      "actor": "claude:opus:reviewer:reviewer",
-      "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNJ2VE37RQVR8CFJABGHAHZY",
-      "last_transition_at": "2026-04-06T19:03:31.175555+00:00"
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KNJ2YZAAYB5N81M2VC25Z255",
+      "last_transition_at": "2026-04-06T19:05:27.114515+00:00"
     },
     "WP06": {
       "actor": "claude:opus:reviewer:reviewer",
