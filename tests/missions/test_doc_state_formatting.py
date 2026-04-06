@@ -38,7 +38,7 @@ _VALID_META_BASE: dict = {
     "slug": "001-test",
     "mission_slug": "001-test",
     "friendly_name": "Test",
-    "mission": "documentation",
+    "mission_type": "documentation",
     "target_branch": "main",
     "created_at": "2026-01-01T00:00:00+00:00",
 }
@@ -203,7 +203,7 @@ class TestEnsureDocumentationStateFormat:
 
     def test_skips_non_doc_mission(self, tmp_path: Path) -> None:
         """Non-documentation missions are not modified."""
-        meta_file = _write_meta(tmp_path, extra={"mission": "software-dev"})
+        meta_file = _write_meta(tmp_path, extra={"mission_type": "software-dev"})
         content_before = meta_file.read_text()
         ensure_documentation_state(meta_file)
         content_after = meta_file.read_text()
@@ -312,7 +312,7 @@ class TestTolerantWriteWithMinimalMeta:
         """set_iteration_mode works with a meta.json lacking required top-level fields."""
         meta_file = tmp_path / "meta.json"
         meta_file.write_text(
-            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
         )
         set_iteration_mode(meta_file, "initial")
         parsed = json.loads(meta_file.read_text())
@@ -322,7 +322,7 @@ class TestTolerantWriteWithMinimalMeta:
         """write_documentation_state works with a meta.json lacking top-level fields."""
         meta_file = tmp_path / "meta.json"
         meta_file.write_text(
-            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
         )
         state = {
             "iteration_mode": "initial",
@@ -340,7 +340,7 @@ class TestTolerantWriteWithMinimalMeta:
         """ensure_documentation_state works with a meta.json lacking top-level fields."""
         meta_file = tmp_path / "meta.json"
         meta_file.write_text(
-            json.dumps({"mission": "documentation"}, indent=2) + "\n"
+            json.dumps({"mission_type": "documentation"}, indent=2) + "\n"
         )
         ensure_documentation_state(meta_file)
         parsed = json.loads(meta_file.read_text())

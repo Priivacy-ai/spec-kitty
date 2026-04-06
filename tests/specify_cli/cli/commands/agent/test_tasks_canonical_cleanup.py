@@ -137,7 +137,7 @@ class TestFinalizeTasksBootstrap:
             wp_details={"WP01": "initialized", "WP02": "initialized"},
         )
 
-        result = runner.invoke(app, ["finalize-tasks", "--feature", mission_slug, "--json"])
+        result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         # bootstrap was called
@@ -178,7 +178,7 @@ class TestFinalizeTasksBootstrap:
         )
 
         result = runner.invoke(
-            app, ["finalize-tasks", "--feature", mission_slug, "--json", "--validate-only"]
+            app, ["finalize-tasks", "--mission", mission_slug, "--json", "--validate-only"]
         )
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
@@ -262,7 +262,7 @@ class TestBodyNotesNoLane:
                 "move-task", "WP01",
                 "--to", "in_progress",
                 "--agent", "testbot",
-                "--feature", mission_slug,
+                "--mission", mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",
@@ -320,7 +320,7 @@ class TestBodyNotesNoLane:
                 "add-history", "WP01",
                 "--note", "Implementation progressing",
                 "--agent", "testbot",
-                "--feature", mission_slug,
+                "--mission", mission_slug,
                 "--json",
             ],
         )
@@ -396,7 +396,7 @@ class TestMoveTaskHardFail:
                 "move-task", "WP01",
                 "--to", "claimed",
                 "--agent", "testbot",
-                "--feature", mission_slug,
+                "--mission", mission_slug,
                 "--force",
                 "--json",
             ],
@@ -477,7 +477,7 @@ class TestMoveTaskHardFail:
                 "move-task", "WP01",
                 "--to", "claimed",
                 "--agent", "testbot",
-                "--feature", mission_slug,
+                "--mission", mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",

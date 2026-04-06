@@ -29,7 +29,7 @@ _VALID_META_BASE = {
     "slug": "001-test",
     "mission_slug": "001-test",
     "friendly_name": "Test",
-    "mission": "documentation",
+    "mission_type": "documentation",
     "target_branch": "main",
     "created_at": "2026-01-01T00:00:00+00:00",
 }
@@ -134,7 +134,7 @@ def test_ensure_state_for_old_feature(tmp_path):
 # Test non-documentation missions unaffected
 def test_read_state_for_non_doc_mission(tmp_path):
     """Test returns None for non-documentation missions."""
-    meta_file = _write_meta(tmp_path, extra={"mission": "software-dev"})
+    meta_file = _write_meta(tmp_path, extra={"mission_type": "software-dev"})
 
     state = read_documentation_state(meta_file)
     assert state is None
@@ -142,7 +142,7 @@ def test_read_state_for_non_doc_mission(tmp_path):
 
 def test_ensure_state_ignores_non_doc_mission(tmp_path):
     """Test ensure_state ignores non-documentation missions."""
-    meta_file = _write_meta(tmp_path, extra={"mission": "software-dev"})
+    meta_file = _write_meta(tmp_path, extra={"mission_type": "software-dev"})
 
     ensure_documentation_state(meta_file)
 
@@ -350,6 +350,6 @@ def test_original_fields_preserved_after_state_update(tmp_path):
 
     # Original fields should still exist
     assert meta["feature_number"] == "012"
-    assert meta["mission"] == "documentation"
+    assert meta["mission_type"] == "documentation"
     assert meta["created_at"] == "2026-01-01T00:00:00+00:00"
     assert meta["custom_field"] == "custom_value"

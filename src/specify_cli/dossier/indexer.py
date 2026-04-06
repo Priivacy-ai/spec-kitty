@@ -302,7 +302,7 @@ class Indexer:
             return []  # No manifest, can't detect missing
 
         # Load manifest to access ExpectedArtifactSpec objects
-        manifest = self.manifest_registry.load_manifest(dossier.mission_slug)
+        manifest = self.manifest_registry.load_manifest(dossier.mission_type)
         if not manifest:
             return []
 

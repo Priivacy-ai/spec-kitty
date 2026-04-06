@@ -28,7 +28,7 @@ def test_alias_forwards_to_feature_command() -> None:
             app,
             [
                 "check-prerequisites",
-                "--feature",
+                "--mission",
                 "001-test",
                 "--json",
                 "--paths-only",

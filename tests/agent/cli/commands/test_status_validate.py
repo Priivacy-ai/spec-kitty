@@ -140,7 +140,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(app, ["validate", "--feature", mission_slug])
+        result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 0
         assert "PASS" in result.output
 
@@ -171,7 +171,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(app, ["validate", "--feature", mission_slug])
+        result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 1
         assert "FAIL" in result.output
 
@@ -202,7 +202,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(app, ["validate", "--feature", mission_slug])
+        result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 1
 
 
@@ -234,7 +234,7 @@ class TestValidateCommand:
         mock_main_root.return_value = tmp_path
 
         result = runner.invoke(
-            app, ["validate", "--feature", mission_slug, "--json"]
+            app, ["validate", "--mission", mission_slug, "--json"]
         )
         assert result.exit_code == 0
 
@@ -274,7 +274,7 @@ class TestValidateCommand:
         mock_main_root.return_value = tmp_path
 
         result = runner.invoke(
-            app, ["validate", "--feature", mission_slug, "--json"]
+            app, ["validate", "--mission", mission_slug, "--json"]
         )
         assert result.exit_code == 1
 
@@ -303,7 +303,7 @@ class TestValidateCommand:
         mock_locate.return_value = tmp_path
         mock_main_root.return_value = tmp_path
 
-        result = runner.invoke(app, ["validate", "--feature", mission_slug])
+        result = runner.invoke(app, ["validate", "--mission", mission_slug])
         assert result.exit_code == 0
 
     @patch("specify_cli.cli.commands.agent.status.locate_project_root")
@@ -327,7 +327,7 @@ class TestValidateCommand:
         mock_main_root.return_value = tmp_path
 
         result = runner.invoke(
-            app, ["validate", "--feature", mission_slug, "--json"]
+            app, ["validate", "--mission", mission_slug, "--json"]
         )
         assert result.exit_code == 0
         data = json.loads(result.output)

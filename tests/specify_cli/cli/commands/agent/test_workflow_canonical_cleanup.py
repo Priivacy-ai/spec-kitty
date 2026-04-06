@@ -121,7 +121,7 @@ class TestImplementBodyNoteLaneFree:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -153,7 +153,7 @@ class TestImplementBodyNoteLaneFree:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -189,7 +189,7 @@ class TestReviewBodyNoteLaneFree:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -227,7 +227,7 @@ class TestImplementHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -258,7 +258,7 @@ class TestImplementHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -284,7 +284,7 @@ class TestImplementHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"
@@ -310,7 +310,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -335,7 +335,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -358,7 +358,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"

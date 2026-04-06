@@ -99,7 +99,7 @@ def test_workflow_review_rejects_planned_lane(workflow_repo: Path) -> None:
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 1
@@ -121,7 +121,7 @@ def test_workflow_review_accepts_for_review_lane(workflow_repo: Path) -> None:
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 0
@@ -162,7 +162,7 @@ def test_workflow_implement_moves_planned_to_doing(workflow_repo: Path) -> None:
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -198,7 +198,7 @@ def test_workflow_review_tracks_reviewer_agent_name(workflow_repo: Path) -> None
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", mission_slug, "--agent", "claude"],
+        ["review", "WP01", "--mission", mission_slug, "--agent", "claude"],
     )
 
     # Assert
@@ -231,7 +231,7 @@ def test_workflow_review_uses_existing_canonical_event_lane(workflow_repo: Path)
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 0, result.stdout
@@ -298,7 +298,7 @@ def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -325,7 +325,7 @@ def test_implement_prompt_includes_commit_message_conventions(workflow_repo: Pat
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -348,7 +348,7 @@ def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
     # Act
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", mission_slug, "--agent", "test-agent"],
     )
 
     # Assert
@@ -360,33 +360,33 @@ def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
     assert "3." in content
 
 
-def test_implement_prompt_points_to_shared_feature_artifacts(workflow_repo: Path) -> None:
+def test_implement_prompt_points_to_shared_mission_artifacts(workflow_repo: Path) -> None:
     _wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
 
     result = CliRunner().invoke(
         workflow.app,
-        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+        ["implement", "WP01", "--mission", feature_slug, "--agent", "test-agent"],
     )
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
     content = prompt_file.read_text(encoding="utf-8")
-    assert "📚 SHARED FEATURE ARTIFACTS:" in content
+    assert "📚 SHARED MISSION ARTIFACTS:" in content
     assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
-    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in content
+    assert "Use this lane workspace for code/tests; do not expect shared mission artifacts here" in content
 
 
-def test_review_prompt_points_to_shared_feature_artifacts(workflow_repo: Path) -> None:
+def test_review_prompt_points_to_shared_mission_artifacts(workflow_repo: Path) -> None:
     _wp_path, feature_slug = _setup_review_fixture(workflow_repo)
 
     result = CliRunner().invoke(
         workflow.app,
-        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+        ["review", "WP01", "--mission", feature_slug, "--agent", "test-reviewer"],
     )
 
     assert result.exit_code == 0, result.stdout
     prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"
     content = prompt_file.read_text(encoding="utf-8")
-    assert "📚 SHARED FEATURE ARTIFACTS:" in content
+    assert "📚 SHARED MISSION ARTIFACTS:" in content
     assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
-    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in content
+    assert "Use this lane workspace for code/tests; do not expect shared mission artifacts here" in content

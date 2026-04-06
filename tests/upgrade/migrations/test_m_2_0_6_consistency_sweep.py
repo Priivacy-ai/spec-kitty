@@ -116,7 +116,7 @@ def test_apply_repairs_feature_state_and_legacy_prompt_refs(
 
     meta = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "2.x"
-    assert meta["mission"] == "software-dev"
+    assert meta["mission_type"] == "software-dev"
 
     wp_text = (tasks_dir / "WP01-upgrade.md").read_text(encoding="utf-8")
     assert 'lane: "doing"' not in wp_text
@@ -150,7 +150,7 @@ def test_apply_quarantines_unreadable_planned_only_event_log(
                 "feature_number": "001",
                 "slug": "001-corrupt-events",
                 "mission_slug": "001-corrupt-events",
-                "mission": "software-dev",
+                "mission_type": "software-dev",
                 "target_branch": "main",
                 "created_at": "2026-01-01T00:00:00+00:00",
             }

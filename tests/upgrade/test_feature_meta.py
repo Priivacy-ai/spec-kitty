@@ -29,21 +29,21 @@ def test_build_baseline_feature_meta_replaces_blank_fields(
         feature_dir,
         repo_root,
         existing_meta={
-            "feature_number": "",
+            "mission_number": "",
             "slug": "",
             "mission_slug": "",
             "friendly_name": "",
-            "mission": "",
+            "mission_type": "",
             "target_branch": "",
             "created_at": "",
         },
     )
 
-    assert meta["feature_number"] == "023"
+    assert meta["mission_number"] == "023"
     assert meta["slug"] == "023-repair-me"
     assert meta["mission_slug"] == "023-repair-me"
     assert meta["friendly_name"] == "repair me"
-    assert meta["mission"] == "software-dev"
+    assert meta["mission_type"] == "software-dev"
     assert meta["target_branch"] == "2.x"
     assert meta["created_at"]
 

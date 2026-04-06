@@ -89,7 +89,7 @@ def _patch_detection(tmp_path: Path, mission_slug: str = "034-test-feature"):
     """Return a dictionary of patches for repo root lookup.
 
     After WP02 removed heuristic detection, detect_mission_slug no longer exists
-    on the status module.  All CLI invocations pass --feature explicitly, so
+    on the status module. All CLI invocations pass --mission explicitly, so
     _find_mission_slug delegates to require_explicit_feature (no mock needed).
     """
     return {
@@ -133,7 +133,7 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -164,7 +164,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -191,7 +191,7 @@ class TestEmitCommand:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -230,7 +230,7 @@ class TestEmitCommand:
                         to_lane,
                         "--actor",
                         "test-agent",
-                        "--feature",
+                        "--mission",
                         "034-test-feature",
                     ],
                 )
@@ -259,7 +259,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     json.dumps(evidence),
@@ -289,7 +289,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     "not valid json",
@@ -317,7 +317,7 @@ class TestEmitCommand:
                     "done",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--evidence-json",
                     "{bad",
@@ -347,7 +347,7 @@ class TestEmitCommand:
                     "in_progress",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--force",
                     "--reason",
@@ -378,7 +378,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -403,7 +403,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -438,7 +438,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature", "034-test-feature",
+                    "--mission", "034-test-feature",
                 ],
             )
 
@@ -457,7 +457,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                 ],
             )
@@ -477,7 +477,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -547,7 +547,7 @@ class TestMaterializeCommand:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -589,7 +589,7 @@ class TestEmitThenMaterialize:
                     "claimed",
                     "--actor",
                     "test-agent",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],
@@ -606,7 +606,7 @@ class TestEmitThenMaterialize:
                 app,
                 [
                     "materialize",
-                    "--feature",
+                    "--mission",
                     "034-test-feature",
                     "--json",
                 ],

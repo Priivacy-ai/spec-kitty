@@ -160,7 +160,7 @@ def test_payload_context_rejects_forbidden_fields() -> None:
     bad = {"feature_slug": "064-leaky", "mission_slug": "064-ok", "mission_number": "064", "mission_type": "software-dev"}
     with pytest.raises(ContractViolationError) as exc_info:
         validate_outbound_payload(bad, "payload")
-    assert "mission_slug" in str(exc_info.value)
+    assert "feature_slug" in str(exc_info.value)
 
 
 def test_payload_context_requires_mission_fields() -> None:
