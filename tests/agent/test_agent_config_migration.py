@@ -119,11 +119,11 @@ class TestMigrationRespectsConfig:
 
         # opencode should be updated (configured)
         opencode_content = opencode_implement.read_text()
-        assert "scroll to the BOTTOM" in opencode_content
+        assert "/spec-kitty.implement" in opencode_content
 
         # claude should NOT be updated (not configured)
         claude_content = claude_implement.read_text()
-        assert "scroll to the BOTTOM" not in claude_content
+        assert "/spec-kitty.implement" not in claude_content
         assert "Old claude" in claude_content
 
     def test_migration_skips_missing_directories(self, mock_project_with_config):
@@ -275,7 +275,7 @@ class TestLegacyProjectSupport:
             agent_implement = tmp_path / agent_dir / subdir / "spec-kitty.implement.md"
             if agent_implement.exists():
                 content = agent_implement.read_text()
-                assert "scroll to the BOTTOM" in content
+                assert "/spec-kitty.implement" in content
 
 
 class TestDryRunBehavior:
