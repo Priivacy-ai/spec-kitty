@@ -110,9 +110,9 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 4. The `{ARGS}` and `{AGENT}` placeholders are replaced by the `arg_placeholder` and `agent_name` parameters.
 
 **Validation**:
-- [ ] `generate_shim_content("implement", "claude", "$ARGUMENTS")` produces `spec-kitty agent action implement $ARGUMENTS --agent claude`
-- [ ] `generate_shim_content("accept", "claude", "$ARGUMENTS")` produces `spec-kitty agent mission accept $ARGUMENTS`
-- [ ] All 7 CLI-driven commands produce correct canonical calls
+- [x] `generate_shim_content("implement", "claude", "$ARGUMENTS")` produces `spec-kitty agent action implement $ARGUMENTS --agent claude`
+- [x] `generate_shim_content("accept", "claude", "$ARGUMENTS")` produces `spec-kitty agent mission accept $ARGUMENTS`
+- [x] All 7 CLI-driven commands produce correct canonical calls
 
 ### T013: Add `"accept"` to ActionName Literal
 
@@ -140,9 +140,9 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 3. Update `ACTION_NAMES` tuple (line 29) — this is auto-derived from `get_args(ActionName)`, so no manual change needed.
 
 **Validation**:
-- [ ] `"accept"` is in `ACTION_NAMES`
-- [ ] `resolve_action_context()` with action="accept" does not crash
-- [ ] Backward compatibility: existing action resolution for implement/review still works
+- [x] `"accept"` is in `ACTION_NAMES`
+- [x] `resolve_action_context()` with action="accept" does not crash
+- [x] Backward compatibility: existing action resolution for implement/review still works
 
 ### T014: Delete Shim Runtime Files
 
@@ -175,10 +175,10 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
    ```
 
 **Validation**:
-- [ ] `entrypoints.py`, `models.py`, `shim.py` are deleted
-- [ ] `__init__.py` exports are updated (no import errors)
-- [ ] `agent shim` CLI subcommand no longer registered
-- [ ] No dangling imports reference deleted modules
+- [x] `entrypoints.py`, `models.py`, `shim.py` are deleted
+- [x] `__init__.py` exports are updated (no import errors)
+- [x] `agent shim` CLI subcommand no longer registered
+- [x] No dangling imports reference deleted modules
 
 ### T015: Update `rewrite_agent_shims()` for New Generator
 
@@ -198,9 +198,9 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 3. Verify the function still handles all 12 agent directories correctly via `get_agent_dirs_for_project()`.
 
 **Validation**:
-- [ ] `rewrite_agent_shims()` produces direct-command files (not `agent shim` calls)
-- [ ] No references to deleted modules
-- [ ] All configured agents are processed
+- [x] `rewrite_agent_shims()` produces direct-command files (not `agent shim` calls)
+- [x] No references to deleted modules
+- [x] All configured agents are processed
 
 ### T016: Write Migration to Regenerate Agent Files
 
@@ -225,9 +225,9 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
    - Projects with custom/manual command files (preserve files not matching `spec-kitty.*` pattern)
 
 **Validation**:
-- [ ] Migration rewrites existing shim files to direct commands
-- [ ] Migration runs idempotently (can be applied multiple times)
-- [ ] Unconfigured agents are skipped
+- [x] Migration rewrites existing shim files to direct commands
+- [x] Migration runs idempotently (can be applied multiple times)
+- [x] Unconfigured agents are skipped
 
 ### T017: Write Tests for Direct Command Surfaces
 
