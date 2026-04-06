@@ -97,12 +97,12 @@ Ensure lane computation produces a lane assignment for every executable WP, fail
 
 ### Included Subtasks
 
-- [ ] T010 Assert all executable WPs appear in lane assignment
-- [ ] T011 Fail diagnostically on executable WPs missing ownership manifests
-- [ ] T012 Add planning-artifact exclusion diagnostic to output
-- [ ] T013 Add glob-match validation warning for zero-match owned_files
-- [ ] T014 Add warning for src/** fallback in ownership inference
-- [ ] T015 Write regression tests for WP02
+- [x] T010 Assert all executable WPs appear in lane assignment
+- [x] T011 Fail diagnostically on executable WPs missing ownership manifests
+- [x] T012 Add planning-artifact exclusion diagnostic to output
+- [x] T013 Add glob-match validation warning for zero-match owned_files
+- [x] T014 Add warning for src/** fallback in ownership inference
+- [x] T015 Write regression tests for WP02
 
 ### Dependencies
 
