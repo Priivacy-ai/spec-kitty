@@ -35,12 +35,12 @@
 | T024 | Create post-edit verification template step | WP05 | [D] |
 | T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [D] |
 | T026 | Write tests for occurrence classification guardrails | WP05 | | [D] |
-| T027 | Replace broken progress formula in `agent_utils/status.py` | WP06 | [P] |
-| T028 | Replace broken progress formulas in `cli/commands/agent/tasks.py` | WP06 | [P] |
-| T029 | Update scanner to pre-compute `weighted_percentage` | WP06 | |
-| T030 | Update dashboard JS to read pre-computed progress | WP06 | |
-| T031 | Update `next_cmd.py` via runtime engine weighted progress | WP06 | |
-| T032 | Write tests for weighted progress across surfaces | WP06 | |
+| T027 | Replace broken progress formula in `agent_utils/status.py` | WP06 | [D] |
+| T028 | Replace broken progress formulas in `cli/commands/agent/tasks.py` | WP06 | [D] |
+| T029 | Update scanner to pre-compute `weighted_percentage` | WP06 | | [D] |
+| T030 | Update dashboard JS to read pre-computed progress | WP06 | | [D] |
+| T031 | Update `next_cmd.py` via runtime engine weighted progress | WP06 | | [D] |
+| T032 | Write tests for weighted progress across surfaces | WP06 | | [D] |
 
 ## Execution Order and Dependencies
 
