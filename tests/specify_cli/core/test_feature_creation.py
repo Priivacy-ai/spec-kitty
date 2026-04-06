@@ -224,6 +224,12 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
     )
     assert meta["target_branch"] == "2.x"
 
+    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'planning_base_branch: "2.x"' in tasks_readme
+    assert 'merge_target_branch: "2.x"' in tasks_readme
+
 
 def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
     """When no target_branch provided, uses the current branch."""
@@ -245,6 +251,12 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         (result.feature_dir / "meta.json").read_text(encoding="utf-8")
     )
     assert meta["target_branch"] == "develop"
+
+    tasks_readme = (result.feature_dir / "tasks" / "README.md").read_text(
+        encoding="utf-8"
+    )
+    assert 'planning_base_branch: "develop"' in tasks_readme
+    assert 'merge_target_branch: "develop"' in tasks_readme
 
 
 # ---------------------------------------------------------------------------
