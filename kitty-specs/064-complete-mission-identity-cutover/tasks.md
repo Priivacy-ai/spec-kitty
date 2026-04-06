@@ -162,10 +162,10 @@ Create shape-based assertion tests validating all contract surfaces against upst
 
 Grep-based audit of entire codebase for leaked feature-era surfaces. Fix anything found.
 
-- [ ] T047: Grep `feature_slug` in `src/specify_cli/` excluding upgrade/migration → must be zero
-- [ ] T048: Grep `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `FeatureCreated`, `FeatureCompleted` → must be zero
-- [ ] T049: Grep `aggregate_type.*Feature`, `mission_key` excluding migration → must be zero
-- [ ] T050: Fix any remaining leaks and document audit results
+- [x] T047: Grep `feature_slug` in `src/specify_cli/` excluding upgrade/migration → must be zero
+- [x] T048: Grep `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `FeatureCreated`, `FeatureCompleted` → must be zero
+- [x] T049: Grep `aggregate_type.*Feature`, `mission_key` excluding migration → must be zero
+- [x] T050: Fix any remaining leaks and document audit results
 
 **Requirement refs**: FR-015, FR-016, FR-017
 
