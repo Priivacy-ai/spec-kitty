@@ -14,7 +14,8 @@ base_branch: kitty/mission-067-runtime-recovery-and-audit-safety
 base_commit: 3d2111f0a8ae6f38cc87624d0da7a2f93d012fad
 created_at: '2026-04-06T18:54:00.179180+00:00'
 subtasks: [T012, T013, T014, T015, T016, T017]
-shell_pid: '89396'
+shell_pid: "89396"
+agent: "claude:opus:implementer:implementer"
 history:
 - timestamp: '2026-04-06T18:43:32+00:00'
   event: created
@@ -267,3 +268,7 @@ The shim pipeline: Generated command files → `spec-kitty agent shim <cmd>` →
 - Check that `accept` resolution doesn't require WP context (it's feature-level)
 - Confirm all deleted files have no remaining importers (grep check in T014)
 - Test migration against a project with existing shim-based files
+
+## Activity Log
+
+- 2026-04-06T18:54:00Z – claude:opus:implementer:implementer – shell_pid=89396 – Started implementation via action command
