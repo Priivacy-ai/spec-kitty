@@ -12,7 +12,7 @@ Consumer skills are further sub-classified as either *prompt-driven* or
   entirely by their full prompt template files.  No thin shim files are
   generated for them.
 - **CLI-driven** commands (``CLI_DRIVEN_COMMANDS``) are dispatched through
-  ``spec-kitty agent shim <command>`` and receive thin 3-line shim files.
+  canonical ``spec-kitty`` CLI commands and receive thin command files.
 
 The two sets are disjoint and their union equals ``CONSUMER_SKILLS``.
 """
@@ -125,7 +125,7 @@ def is_cli_driven(skill_name: str) -> bool:
     """Return True if *skill_name* is dispatched through the CLI shim path.
 
     CLI-driven commands receive thin 3-line shim files and are dispatched
-    via ``spec-kitty agent shim <command>``.
+    via direct canonical ``spec-kitty`` CLI commands.
 
     Args:
         skill_name: Skill identifier (e.g. ``"implement"``).

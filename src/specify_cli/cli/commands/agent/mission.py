@@ -41,6 +41,7 @@ from specify_cli.core.worktree import (
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.ownership import infer_ownership, validate_ownership
+from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
@@ -1564,6 +1565,18 @@ def finalize_tasks(
             if not json_output:
                 for warning in glob_warnings:
                     console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
+
+            # Soft check: warn when codebase-wide WPs miss audit targets
+            codebase_wide_owned_files = [
+                list(manifest.owned_files)
+                for manifest in wp_manifests.values()
+                if manifest.is_codebase_wide
+            ]
+            audit_warnings = validate_audit_coverage(codebase_wide_owned_files, repo_root)
+            all_ownership_warnings.extend(audit_warnings)
+            if not json_output:
+                for warning in audit_warnings:
+                    console.print(f"[yellow]Audit coverage warning:[/yellow] {warning}")
 
         # Prepare metadata for event emission
         mission_slug = feature_dir.name

@@ -253,6 +253,93 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
     return VCSBackend.GIT
 
 
+def _run_recover_mode(
+    _wp_id: str,
+    feature: str | None,
+    json_output: bool,
+) -> None:
+    """Run crash recovery for the given mission.
+
+    Orchestrates scan + worktree/context/status reconciliation + reporting.
+    The _wp_id argument is accepted but ignored for recovery -- all WPs in
+    the mission are scanned.
+    """
+    from rich.table import Table
+
+    from specify_cli.lanes.recovery import run_recovery, scan_recovery_state
+
+    try:
+        repo_root = find_repo_root()
+        _feature_number, mission_slug = detect_feature_context(feature)
+    except (TaskCliError, typer.Exit) as exc:
+        if json_output:
+            print(json.dumps({"status": "error", "error": str(exc)}))
+        raise typer.Exit(1) from None
+
+    # First, show what we found
+    states = scan_recovery_state(repo_root, mission_slug)
+    needs_recovery = [s for s in states if s.recovery_action != "no_action"]
+
+    if not needs_recovery:
+        if json_output:
+            print(json.dumps({
+                "status": "ok",
+                "message": "No crashed implementation sessions found.",
+                "recovered_wps": [],
+                "worktrees_recreated": 0,
+                "transitions_emitted": 0,
+                "errors": [],
+            }))
+        else:
+            console.print("[green]No crashed implementation sessions found.[/green]")
+        return
+
+    if not json_output:
+        table = Table(title="Recovery Scan Results")
+        table.add_column("WP", style="cyan")
+        table.add_column("Lane", style="blue")
+        table.add_column("Branch", style="dim")
+        table.add_column("Worktree", style="green")
+        table.add_column("Context", style="green")
+        table.add_column("Status", style="yellow")
+        table.add_column("Action", style="bold")
+
+        for s in needs_recovery:
+            table.add_row(
+                s.wp_id,
+                s.lane_id,
+                s.branch_name,
+                "yes" if s.worktree_exists else "[red]NO[/red]",
+                "yes" if s.context_exists else "[red]NO[/red]",
+                s.status_lane,
+                s.recovery_action,
+            )
+        console.print(table)
+        console.print()
+
+    # Run recovery
+    report = run_recovery(repo_root, mission_slug)
+
+    if json_output:
+        print(json.dumps({
+            "status": "ok",
+            "recovered_wps": report.recovered_wps,
+            "worktrees_recreated": report.worktrees_recreated,
+            "transitions_emitted": report.transitions_emitted,
+            "errors": report.errors,
+        }))
+    else:
+        console.print("[bold green]Recovery complete[/bold green]")
+        console.print(f"  WPs recovered: {', '.join(report.recovered_wps) or 'none'}")
+        console.print(f"  Worktrees recreated: {report.worktrees_recreated}")
+        console.print(f"  Contexts recreated: {report.contexts_recreated}")
+        console.print(f"  Status transitions emitted: {report.transitions_emitted}")
+        if report.errors:
+            console.print("  [red]Errors:[/red]")
+            for err in report.errors:
+                console.print(f"    - {err}")
+
+
 @_json_safe_output
 @require_main_repo
 def implement(
@@ -263,11 +350,16 @@ def implement(
         typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit status and planning changes (default: from project config)"),
     ] = None,
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
+    recover: bool = typer.Option(False, "--recover", help="Recover from crashed implementation session"),
 ) -> None:
     """Allocate or reuse the lane worktree for a work package."""
     from specify_cli.core.agent_config import get_auto_commit_default
     from specify_cli.core.dependency_graph import parse_wp_dependencies
     from specify_cli.sync.events import emit_wp_status_changed
+
+    if recover:
+        _run_recover_mode(wp_id, feature, json_output)
+        return
 
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")

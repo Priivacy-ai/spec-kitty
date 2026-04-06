@@ -120,7 +120,7 @@ class TestImplementCommand:
             return_value=("010", "010-feature"),
         ):
             with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature")
+                implement("WP01", feature="010-feature", recover=False)
 
     def test_implement_json_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
@@ -152,7 +152,7 @@ class TestImplementCommand:
                 is_reuse=False,
             )
 
-            implement("WP01", feature="010-feature", json_output=True)
+            implement("WP01", feature="010-feature", json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["workspace"] == ".worktrees/010-feature-lane-a"
@@ -176,7 +176,7 @@ class TestImplementCommand:
             "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
         ):
             with pytest.raises(typer.Exit):
-                implement("WP01", feature="010-feature", json_output=True)
+                implement("WP01", feature="010-feature", json_output=True, recover=False)
 
         payload = json.loads(capsys.readouterr().out.strip())
         assert payload["status"] == "error"
@@ -214,7 +214,7 @@ class TestImplementCommand:
                 is_reuse=True,
             )
 
-            implement("WP02", feature="010-feature")
+            implement("WP02", feature="010-feature", recover=False)
 
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["wp_id"] == "WP02"

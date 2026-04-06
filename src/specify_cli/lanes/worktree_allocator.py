@@ -151,3 +151,30 @@ def _create_lane_worktree(
             f"Failed to create lane worktree at {worktree_path}: "
             f"{result.stderr.strip()}"
         )
+
+
+def _recover_lane_worktree(
+    repo_root: Path, worktree_path: Path, existing_branch: str,
+) -> None:
+    """Recreate worktree from existing branch (recovery mode).
+
+    Uses ``git worktree add <path> <branch>`` WITHOUT ``-b`` to attach
+    to an already-existing branch. This is the recovery path for when
+    the agent process crashed and the branch survived but the worktree
+    was lost.
+
+    Raises:
+        RuntimeError: If the git worktree add command fails.
+    """
+    worktree_path.parent.mkdir(parents=True, exist_ok=True)
+    result = subprocess.run(
+        ["git", "worktree", "add", str(worktree_path), existing_branch],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Failed to recover worktree at {worktree_path}: "
+            f"{result.stderr.strip()}"
+        )

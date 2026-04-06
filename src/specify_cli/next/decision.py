@@ -222,8 +222,8 @@ def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
     }
 
 
-def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
-    """Compute WP lane counts for the progress field from the event log."""
+def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
+    """Compute WP lane counts and weighted progress for the progress field from the event log."""
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
@@ -234,7 +234,7 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
 
     wp_lanes = _get_wp_lanes(feature_dir)
 
-    counts = {
+    counts: dict[str, int | float] = {
         "total_wps": 0,
         "done_wps": 0,
         "approved_wps": 0,
@@ -258,6 +258,16 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int] | None:
             counts["for_review_wps"] += 1
         elif lane == "planned":
             counts["planned_wps"] += 1
+
+    # Compute weighted progress from the materialized snapshot
+    try:
+        from specify_cli.status.progress import compute_weighted_progress
+        from specify_cli.status.reducer import materialize
+        snapshot = materialize(feature_dir)
+        progress = compute_weighted_progress(snapshot)
+        counts["weighted_percentage"] = round(progress.percentage, 1)
+    except Exception:
+        pass
 
     return counts
 
