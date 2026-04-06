@@ -20,8 +20,8 @@ subtasks:
 - T025
 phase: Phase C - Contract Cleanup
 assignee: ''
-agent: "claude:sonnet-4.6:python-implementer:implementer"
-shell_pid: "74089"
+agent: "opencode:gpt-5.4:python-reviewer:reviewer"
+shell_pid: "78590"
 history:
 - timestamp: '2026-04-06T05:39:39Z'
   agent: system
@@ -159,3 +159,4 @@ All 8 command functions have `feature: str = typer.Option(..., "--feature", ...)
 
 - 2026-04-06T07:20:29Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=74089 – Started implementation via action command
 - 2026-04-06T07:33:13Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=74089 – Ready for review: orchestrator API hard cutover complete. All 8 alias calls removed, identity_aliases.py deleted, 3 commands renamed, 2 error codes renamed, --mission flag on all 8 commands, contract gate inserted, 78 tests passing.
+- 2026-04-06T07:33:34Z – opencode:gpt-5.4:python-reviewer:reviewer – shell_pid=78590 – Started review via action command
