@@ -1,0 +1,344 @@
+"""Tests for concurrent review isolation via ReviewLock.
+
+Covers all 12 required test cases for T029 with 90%+ target coverage of
+src/specify_cli/review/lock.py.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+from pathlib import Path
+from unittest.mock import patch
+
+import pytest
+
+from specify_cli.review.lock import (
+    LOCK_DIR,
+    LOCK_FILE,
+    ReviewLock,
+    ReviewLockError,
+    _apply_env_var_isolation,
+    _get_isolation_config,
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def _make_lock(worktree: Path, pid: int = os.getpid(), agent: str = "claude", wp_id: str = "WP01") -> ReviewLock:
+    """Create and save a ReviewLock to the given worktree directory."""
+    lock = ReviewLock(
+        worktree_path=str(worktree),
+        wp_id=wp_id,
+        agent=agent,
+        started_at="2026-04-06T12:00:00+00:00",
+        pid=pid,
+    )
+    lock.save(worktree)
+    return lock
+
+
+def _lock_path(worktree: Path) -> Path:
+    return worktree / LOCK_DIR / LOCK_FILE
+
+
+# ---------------------------------------------------------------------------
+# T1: test_acquire_creates_lock_file
+# ---------------------------------------------------------------------------
+
+
+def test_acquire_creates_lock_file(tmp_path: Path) -> None:
+    """Lock file exists after acquire()."""
+    lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
+
+    assert _lock_path(tmp_path).exists(), "Lock file should be created"
+    data = json.loads(_lock_path(tmp_path).read_text())
+    assert data["wp_id"] == "WP01"
+    assert data["agent"] == "claude"
+    assert data["pid"] == os.getpid()
+
+
+# ---------------------------------------------------------------------------
+# T2: test_release_removes_lock_file
+# ---------------------------------------------------------------------------
+
+
+def test_release_removes_lock_file(tmp_path: Path) -> None:
+    """Lock file is removed after release()."""
+    ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
+    assert _lock_path(tmp_path).exists()
+
+    ReviewLock.release(tmp_path)
+    assert not _lock_path(tmp_path).exists(), "Lock file should be removed after release"
+
+
+# ---------------------------------------------------------------------------
+# T3: test_acquire_blocks_on_active_lock
+# ---------------------------------------------------------------------------
+
+
+def test_acquire_blocks_on_active_lock(tmp_path: Path) -> None:
+    """Raises ReviewLockError when an active lock exists (PID alive)."""
+    # Place a lock with the CURRENT process PID (guaranteed alive).
+    _make_lock(tmp_path, pid=os.getpid(), agent="codex", wp_id="WP02")
+
+    with pytest.raises(ReviewLockError) as exc_info:
+        ReviewLock.acquire(tmp_path, wp_id="WP03", agent="claude")
+
+    msg = str(exc_info.value)
+    assert "codex" in msg
+    assert "WP02" in msg
+    assert str(os.getpid()) in msg
+
+
+# ---------------------------------------------------------------------------
+# T4: test_acquire_overwrites_stale_lock
+# ---------------------------------------------------------------------------
+
+
+def test_acquire_overwrites_stale_lock(tmp_path: Path) -> None:
+    """Stale lock (dead PID) is overwritten without raising an error."""
+    # Simulate a dead PID by mocking os.kill to raise ProcessLookupError.
+    dead_pid = 999999999  # Very unlikely to exist
+    _make_lock(tmp_path, pid=dead_pid, agent="old-agent", wp_id="WP01")
+
+    with patch("specify_cli.review.lock.os.kill", side_effect=ProcessLookupError):
+        new_lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="new-agent")
+
+    assert new_lock.agent == "new-agent"
+    data = json.loads(_lock_path(tmp_path).read_text())
+    assert data["agent"] == "new-agent"
+
+
+# ---------------------------------------------------------------------------
+# T5: test_is_stale_with_dead_pid
+# ---------------------------------------------------------------------------
+
+
+def test_is_stale_with_dead_pid(tmp_path: Path) -> None:
+    """is_stale() returns True when os.kill raises ProcessLookupError."""
+    lock = ReviewLock(
+        worktree_path=str(tmp_path),
+        wp_id="WP01",
+        agent="claude",
+        started_at="2026-04-06T12:00:00+00:00",
+        pid=999999999,
+    )
+
+    with patch("specify_cli.review.lock.os.kill", side_effect=ProcessLookupError):
+        assert lock.is_stale() is True
+
+
+# ---------------------------------------------------------------------------
+# T6: test_is_stale_with_alive_pid
+# ---------------------------------------------------------------------------
+
+
+def test_is_stale_with_alive_pid(tmp_path: Path) -> None:
+    """is_stale() returns False when os.kill succeeds (process exists)."""
+    lock = ReviewLock(
+        worktree_path=str(tmp_path),
+        wp_id="WP01",
+        agent="claude",
+        started_at="2026-04-06T12:00:00+00:00",
+        pid=os.getpid(),
+    )
+
+    # os.kill(pid, 0) on the current process should succeed (returns None).
+    with patch("specify_cli.review.lock.os.kill", return_value=None):
+        assert lock.is_stale() is False
+
+
+# ---------------------------------------------------------------------------
+# T7: test_load_missing_file
+# ---------------------------------------------------------------------------
+
+
+def test_load_missing_file(tmp_path: Path) -> None:
+    """load() returns None when lock file does not exist."""
+    result = ReviewLock.load(tmp_path)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# T8: test_load_malformed_json
+# ---------------------------------------------------------------------------
+
+
+def test_load_malformed_json(tmp_path: Path) -> None:
+    """load() returns None when lock file contains invalid JSON."""
+    lock_dir = tmp_path / LOCK_DIR
+    lock_dir.mkdir(parents=True)
+    (lock_dir / LOCK_FILE).write_text("{not valid json")
+
+    result = ReviewLock.load(tmp_path)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# T9: test_isolation_config_env_var
+# ---------------------------------------------------------------------------
+
+
+def test_isolation_config_env_var(tmp_path: Path) -> None:
+    """Config with env_var strategy is parsed correctly."""
+    config_dir = tmp_path / ".kittify"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text(
+        "review:\n"
+        "  concurrent_isolation:\n"
+        "    strategy: env_var\n"
+        "    env_var: TEST_DB_SUFFIX\n"
+        "    template: '{agent}_{wp_id}'\n"
+    )
+
+    result = _get_isolation_config(tmp_path)
+    assert result is not None
+    assert result["strategy"] == "env_var"
+    assert result["env_var"] == "TEST_DB_SUFFIX"
+    assert result["template"] == "{agent}_{wp_id}"
+
+
+# ---------------------------------------------------------------------------
+# T10: test_isolation_config_missing
+# ---------------------------------------------------------------------------
+
+
+def test_isolation_config_missing(tmp_path: Path) -> None:
+    """_get_isolation_config returns None when config.yaml doesn't exist."""
+    result = _get_isolation_config(tmp_path)
+    assert result is None
+
+
+# ---------------------------------------------------------------------------
+# T11: test_apply_env_var_isolation
+# ---------------------------------------------------------------------------
+
+
+def test_apply_env_var_isolation(tmp_path: Path) -> None:
+    """_apply_env_var_isolation sets env var with correctly formatted value."""
+    config = {
+        "strategy": "env_var",
+        "env_var": "TEST_DB_SUFFIX",
+        "template": "{agent}_{wp_id}",
+    }
+
+    try:
+        _apply_env_var_isolation(config, agent="claude", wp_id="WP05")
+        assert os.environ.get("TEST_DB_SUFFIX") == "claude_WP05"
+    finally:
+        os.environ.pop("TEST_DB_SUFFIX", None)
+
+
+# ---------------------------------------------------------------------------
+# T12: test_default_serialization_no_config
+# ---------------------------------------------------------------------------
+
+
+def test_default_serialization_no_config(tmp_path: Path) -> None:
+    """Without config, default behavior is lock serialization (not env-var)."""
+    # No .kittify/config.yaml present → _get_isolation_config returns None.
+    isolation = _get_isolation_config(tmp_path)
+    assert isolation is None, "Should return None when no config exists"
+
+    # Verify that acquire/release work correctly (serialization path).
+    lock = ReviewLock.acquire(tmp_path, wp_id="WP01", agent="claude")
+    assert _lock_path(tmp_path).exists()
+
+    ReviewLock.release(tmp_path)
+    assert not _lock_path(tmp_path).exists()
+
+
+# ---------------------------------------------------------------------------
+# Additional edge-case tests for coverage
+# ---------------------------------------------------------------------------
+
+
+def test_release_no_lock_file_is_safe(tmp_path: Path) -> None:
+    """release() is a no-op when no lock file exists."""
+    # Should not raise.
+    ReviewLock.release(tmp_path)
+
+
+def test_is_stale_permission_error(tmp_path: Path) -> None:
+    """is_stale() returns False on PermissionError (process exists, diff user)."""
+    lock = ReviewLock(
+        worktree_path=str(tmp_path),
+        wp_id="WP01",
+        agent="claude",
+        started_at="2026-04-06T12:00:00+00:00",
+        pid=1234,
+    )
+
+    with patch("specify_cli.review.lock.os.kill", side_effect=PermissionError):
+        assert lock.is_stale() is False
+
+
+def test_is_stale_os_error(tmp_path: Path) -> None:
+    """is_stale() returns True on a generic OSError."""
+    lock = ReviewLock(
+        worktree_path=str(tmp_path),
+        wp_id="WP01",
+        agent="claude",
+        started_at="2026-04-06T12:00:00+00:00",
+        pid=1234,
+    )
+
+    with patch("specify_cli.review.lock.os.kill", side_effect=OSError("unknown")):
+        assert lock.is_stale() is True
+
+
+def test_load_missing_fields_returns_none(tmp_path: Path) -> None:
+    """load() returns None when JSON is valid but fields are missing."""
+    lock_dir = tmp_path / LOCK_DIR
+    lock_dir.mkdir(parents=True)
+    (lock_dir / LOCK_FILE).write_text('{"wp_id": "WP01"}')  # Missing required fields
+
+    result = ReviewLock.load(tmp_path)
+    assert result is None
+
+
+def test_isolation_config_no_review_section(tmp_path: Path) -> None:
+    """_get_isolation_config returns None when config.yaml has no review section."""
+    config_dir = tmp_path / ".kittify"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text("vcs:\n  type: git\n")
+
+    result = _get_isolation_config(tmp_path)
+    assert result is None
+
+
+def test_isolation_config_wrong_strategy(tmp_path: Path) -> None:
+    """_get_isolation_config returns None when strategy is not env_var."""
+    config_dir = tmp_path / ".kittify"
+    config_dir.mkdir()
+    (config_dir / "config.yaml").write_text(
+        "review:\n"
+        "  concurrent_isolation:\n"
+        "    strategy: other\n"
+    )
+
+    result = _get_isolation_config(tmp_path)
+    assert result is None
+
+
+def test_lock_roundtrip(tmp_path: Path) -> None:
+    """ReviewLock saves and loads correctly (round-trip)."""
+    original = ReviewLock(
+        worktree_path=str(tmp_path),
+        wp_id="WP07",
+        agent="gemini",
+        started_at="2026-04-06T15:00:00+00:00",
+        pid=42,
+    )
+    original.save(tmp_path)
+
+    loaded = ReviewLock.load(tmp_path)
+    assert loaded is not None
+    assert loaded.wp_id == "WP07"
+    assert loaded.agent == "gemini"
+    assert loaded.pid == 42
+    assert loaded.started_at == "2026-04-06T15:00:00+00:00"
