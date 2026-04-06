@@ -146,11 +146,11 @@ Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and
 
 Create shape-based assertion tests validating all contract surfaces against upstream 3.0.0 shape.
 
-- [ ] T042: Create `tests/contract/` directory and fixture data from upstream contracts
-- [ ] T043: `test_event_envelope.py` — construct events via live code, assert 3.0.0 shape
-- [ ] T044: `test_orchestrator_api.py` — invoke commands, assert response matches contract
-- [ ] T045: `test_body_sync.py` — construct upload payload, assert canonical fields
-- [ ] T046: `test_tracker_bind.py` — construct bind payload, assert `build_id` present
+- [x] T042: Create `tests/contract/` directory and fixture data from upstream contracts
+- [x] T043: `test_event_envelope.py` — construct events via live code, assert 3.0.0 shape
+- [x] T044: `test_orchestrator_api.py` — invoke commands, assert response matches contract
+- [x] T045: `test_body_sync.py` — construct upload payload, assert canonical fields
+- [x] T046: `test_tracker_bind.py` — construct bind payload, assert `build_id` present
 
 **Requirement refs**: NFR-002
 
