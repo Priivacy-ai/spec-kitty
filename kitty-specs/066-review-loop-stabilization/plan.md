@@ -172,6 +172,7 @@ tests/
 3. Update review prompt in workflow.py:
    - Add writable in-repo feedback path to review output: `kitty-specs/<mission>/tasks/<WP-slug>/review-cycle-{N}.md`
    - Replace temp-file feedback path with this committed path
+   - **WP01 interaction note**: WP03 changes where the review prompt tells the reviewer to write. The `--review-feedback-file` flag still accepts any path — the reviewer writes to the in-repo path, and `move-task` reads from it. If WP01 hasn't landed yet, `move-task` persists to `.git/` (old behavior). After WP01 lands, `move-task` persists to the same in-repo location. The convergence is natural and requires no coordination beyond using the same path convention.
 
 **Tests**: Classification of various dirty-path patterns, validation with only benign dirtiness (should pass), validation with blocking dirtiness (should fail), review prompt includes writable path.
 
@@ -186,15 +187,18 @@ tests/
 **Implementation approach**:
 1. Create `BaselineTestResult` and `TestFailure` dataclasses in `review/baseline.py`
 2. Implement `capture_baseline()`:
+   - Runs at **implement time** (inside `agent action implement`, when the worktree exists and dependencies are installed), not at claim time. The claim transition is a status update in the planning context, which may lack test dependencies and the implementation worktree.
    - Checks out base branch in a temporary worktree (or reads from current checkout if on base)
-   - Runs test suite, parses output for structured results
-   - Saves to `kitty-specs/<mission>/tasks/<WP-slug>/baseline-tests.json`
+   - Runs `pytest --junitxml=<tmpfile>` and parses the JUnit XML output (`xml.etree.ElementTree`, stdlib). Extracts test name, status, and one-line failure message per test case. Discards the XML file after parsing.
+   - For non-pytest runners: reads `review.test_command` from `.kittify/config.yaml` (e.g., `test_command: "cargo test -- --format json"`). If no config exists, defaults to pytest. Auto-detection of test runners is out of scope — non-pytest projects must configure explicitly.
+   - Saves structured results to `kitty-specs/<mission>/tasks/<WP-slug>/baseline-tests.json`
    - Commits the artifact
+   - Skips capture if `baseline-tests.json` already exists (cached from prior implement cycle)
 3. Implement `load_baseline()` — reads cached JSON artifact
 4. Implement `diff_baseline()`:
    - Input: BaselineTestResult (cached), current test run results
    - Output: `(pre_existing: list[TestFailure], new_failures: list[TestFailure], fixed: list[str])`
-5. Hook `capture_baseline()` into WP claim path (when agent claims a WP, run baseline capture if not already cached)
+5. Hook `capture_baseline()` into the implement path (`agent action implement`), before the agent starts coding. Not at claim time.
 6. Hook `diff_baseline()` into review prompt generation:
    - Add a "Baseline Context" section to review prompt showing pre-existing failures vs new failures
    - Clear labeling: "These N failures existed before this WP" / "These M failures are new"
@@ -218,6 +222,7 @@ tests/
    - `is_stale()`: check `os.kill(pid, 0)` — cross-platform via `psutil` or try/except (psutil is already a dependency per charter)
    - Hook into `agent action review`: acquire lock before review starts, release after move-task completes
    - Stale lock cleanup: on `agent action review` start, if lock PID is dead, log warning and proceed
+   - Add `.spec-kitty/` to `.gitignore` — lock files must never be committed (they are runtime state, not artifacts)
 2. **Optional path (20% effort): env-var isolation**
    - Read `review.concurrent_isolation` from `.kittify/config.yaml` (new config section)
    - If `strategy: "env_var"`: set the declared env var per agent using the template (e.g., `test_db_{agent}_{wp_id}`)
@@ -243,9 +248,10 @@ tests/
    - Selects `ArbiterCategory` from checklist responses
    - If category is `CUSTOM`, requires mandatory explanation
 3. Hook into move-task arbiter override path:
-   - When `--force` is used on a `for_review` -> `planned` transition, run the arbiter checklist
-   - Persist `ArbiterDecision` in the review-cycle artifact's frontmatter (add `arbiter_override` section)
-   - Set `review_ref` to `"arbiter-override://{category}"` instead of generic `"force-override"`
+   - Detect arbiter override: when `--force` is used to move a WP **forward** from `planned` (to `for_review`, `claimed`, or `approved`) AND the latest event for this WP was a `for_review` → `planned` transition with a `review_ref` — that means the WP was just rejected, and a forward `--force` move is an arbiter override, not a normal claim.
+   - When detected: run the arbiter checklist before allowing the transition
+   - Persist `ArbiterDecision` in the review-cycle artifact's frontmatter (the same artifact that the rejection created)
+   - Set `review_ref` to the existing `review-cycle://` pointer (not a new scheme — the arbiter decision is metadata on the existing review-cycle artifact, not a separate addressable resource)
 4. Make arbiter decisions visible:
    - `agent tasks status` shows arbiter override history when displaying review cycles
    - The fix-prompt generator in WP02 can reference arbiter decisions for context
@@ -285,7 +291,8 @@ WP02 and WP04 both modify `workflow.py` (implement path and review prompt respec
 
 | Risk | Likelihood | Impact | Mitigation |
 |------|-----------|--------|------------|
-| Baseline test capture is slow for large projects | Medium | Low | Capture at claim time (one-time cost), cache results. NFR-004 bounds this. |
+| Baseline test capture is slow for large projects | Medium | Low | Capture at implement time (one-time cost), cache results. NFR-004 bounds this. |
+| Test suite unavailable at capture time | Low | Medium | Capture runs at implement time (worktree exists, deps installed), not claim time. If tests fail to run, baseline artifact is created with `failed: -1` sentinel and a warning. |
 | ReviewLock stale detection fails on some platforms | Low | Medium | Use `os.kill(pid, 0)` with fallback to PID file age check. psutil available if needed. |
 | Legacy feedback:// pointers have edge cases | Low | Low | Comprehensive test coverage for both pointer formats. Legacy path is read-only. |
 | WP01/WP03 merge conflicts in tasks.py | Low | Low | Non-overlapping sections. Implementers can verify with `git diff --check`. |

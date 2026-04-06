@@ -289,25 +289,34 @@ def _persist_review_feedback(
 
 ---
 
-## Config Extension (for opt-in concurrent review isolation)
+## Config Extensions
 
-### .kittify/config.yaml — new optional section
+### .kittify/config.yaml — new optional sections
 
 ```yaml
 # Existing sections unchanged
 agents:
   available: [claude, opencode]
 
-# NEW: opt-in concurrent review isolation
+# NEW (WP05): opt-in concurrent review isolation
 review:
   concurrent_isolation:
     strategy: "env_var"           # "env_var" or "serialized" (default)
     env_var: "DATABASE_URL"       # which env var to scope
     template: "postgresql://localhost:5432/test_{agent}_{wp_id}"  # naming template
+
+  # NEW (WP04): custom test command for baseline capture
+  # Default: pytest --junitxml=<tmpfile> (auto, no config needed)
+  # Only configure if NOT using pytest:
+  test_command: "cargo test -- --format json"
+  test_output_format: "junit_xml"  # "junit_xml" (default) — parser used to extract structured results
 ```
 
-**Default behavior** (no config): serialization (ReviewLock).
+**Concurrent isolation default behavior** (no config): serialization (ReviewLock).
 **With config**: env-var scoping per review agent using the declared template.
+
+**Baseline test default behavior** (no config): `pytest --junitxml=<tmpfile>`, parsed via `xml.etree.ElementTree`.
+**With config**: custom `test_command` with specified output format. Non-pytest projects must configure explicitly — no auto-detection.
 
 ---
 
@@ -339,4 +348,4 @@ The review-cycle artifact model does not add new lanes to the status state machi
 | `for_review` → `planned` (rejection) | Writes feedback to `.git/`, sets `review_ref` to `feedback://` pointer | Writes review-cycle artifact to `kitty-specs/`, sets `review_ref` to `review-cycle://` pointer |
 | `planned` → `claimed` (re-claim after rejection) | Shows feedback path in prompt | Generates fix-mode prompt from latest review-cycle artifact |
 | `for_review` → `done` (approval) | Stores evidence in DoneEvidence | Unchanged |
-| Arbiter override | Sets `review_ref` to `"force-override"` | Sets `review_ref` to `"arbiter-override://{category}"`, persists ArbiterDecision in review-cycle artifact |
+| Arbiter override (forward `--force` from `planned` after rejection) | Sets `review_ref` to `"force-override"` | Sets `review_ref` to the existing `review-cycle://` pointer for the rejection's review-cycle artifact. Persists `ArbiterDecision` as a frontmatter extension on that same artifact. No new pointer scheme — the arbiter decision is metadata on the review-cycle artifact, not a separate resource. |

@@ -81,5 +81,20 @@ failures:
 
 ### D8: Baseline capture timing
 
-**Decision**: Capture at WP claim time (not review time). Cache as committed artifact. Lookup at review time reads the cached artifact.
-**Rationale**: Running the test suite at review time would add the project's full test duration to every review setup. Capturing at claim time means the cost is paid once, and the cached result is available instantly at review time.
+**Decision**: Capture at **implement time** (inside `agent action implement`, when the worktree exists and dependencies are installed), not at claim time. Cache as committed artifact. Lookup at review time reads the cached artifact.
+**Rationale (from operator review)**: The claim transition (`planned` → `claimed`) runs in the planning context, which may lack test dependencies and the implementation worktree may not even exist yet. The implement action (`agent action implement`) is when the workspace is ready. Capturing at implement time means the cost is paid once (before the agent starts coding), and the cached result is available instantly at review time.
+**Corrects**: Earlier version incorrectly said "claim time" — operator flagged this as a lifecycle error.
+
+### D9: Test runner output parsing
+
+**Decision**: Use JUnit XML format (`pytest --junitxml=<tmpfile>`), parsed via `xml.etree.ElementTree` (stdlib). For non-pytest projects, require explicit configuration in `.kittify/config.yaml` — no auto-detection of test runners.
+**Rationale (from operator review)**: Raw pytest stdout is not reliably parseable. JUnit XML is a structured, standardized format that works with pytest, unittest, and most CI systems. The stdlib XML parser is zero-dependency. Auto-detecting whether a project uses pytest, unittest, jest, cargo test, etc. is brittle and scope creep — projects that don't use pytest configure `review.test_command` explicitly.
+**Alternatives considered**:
+- `pytest-json-report` plugin — rejected: requires installing an extra plugin; JUnit XML is built into pytest
+- Raw stdout parsing — rejected: unreliable, format varies across pytest versions and plugins
+- Auto-detect test runner — rejected: brittle framework detection, false positives
+
+### D10: Pointer scheme consolidation
+
+**Decision**: Two pointer schemes only: `feedback://` (legacy) and `review-cycle://` (new). No `arbiter-override://` scheme.
+**Rationale (from operator review)**: The arbiter decision is metadata on an existing review-cycle artifact, not a separate addressable resource. The `review_ref` for an arbiter override points to the same `review-cycle://` artifact that the rejection created. The `ArbiterDecision` is stored as a frontmatter extension on that artifact. Three URI schemes is unnecessary proliferation.
