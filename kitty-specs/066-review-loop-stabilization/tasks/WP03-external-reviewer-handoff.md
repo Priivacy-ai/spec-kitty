@@ -244,3 +244,4 @@ WP03 changes where the review prompt tells the reviewer to write. The `--review-
 ## Activity Log
 
 - 2026-04-06T16:42:31Z – claude:sonnet-4-6:implementer:implementer – shell_pid=47989 – Started implementation via action command
+- 2026-04-06T16:51:43Z – claude:sonnet-4-6:implementer:implementer – shell_pid=47989 – Ready for review: dirty-state classification implemented, all 16 tests pass (12 unit + 4 integration), 97% coverage on dirty_classifier.py
