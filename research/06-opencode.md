@@ -28,7 +28,7 @@ $ opencode --version
 1.1.14
 
 $ which opencode
-/Users/robert/.opencode/bin/opencode
+~/.opencode/bin/opencode
 ```
 
 **Status**: CLI is installed and functional.

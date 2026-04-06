@@ -5,7 +5,7 @@
 | Filename | `2026-01-30-19-auto-discover-migrations-from-filesystem.md` |
 | Status | Accepted |
 | Date | 2026-01-30 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Recurring release blocker where migrations exist on disk but aren't registered because developers forget to add imports to `migrations/__init__.py`. This happened during 0.13.20 release preparation. |
 
 ---

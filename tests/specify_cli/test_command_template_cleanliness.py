@@ -3,10 +3,10 @@
 These tests assert that the 9 canonical prompt-driven command template files
 are free of dev-specific content that would break consumer projects:
   - No 057- or other feature-slug artifacts
-  - No absolute machine paths (/Users/robert/, /home/)
+  - No absolute machine paths (/Users/<user>/, /home/<user>/)
   - No .kittify/missions/ read instructions
   - No deprecated "planning repository" terminology
-  - All templates ≥50 non-empty lines
+  - All templates >=50 non-empty lines
   - No YAML frontmatter blocks (the asset generator adds its own)
   - Planning-workflow templates use "project root checkout" terminology
   - tasks.md contains WP ownership metadata guidance fields
@@ -18,6 +18,7 @@ WP06: T026
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 import pytest
 
@@ -61,10 +62,42 @@ _TEMPLATES_DIR = (
     / "command-templates"
 )
 
+_REPO_ROOT = Path(__file__).parent.parent.parent
+_ACTIVE_CODEBASE_PATHS: tuple[Path, ...] = (
+    _REPO_ROOT / "src",
+    _REPO_ROOT / "tests",
+    _REPO_ROOT / "docs",
+    _REPO_ROOT / "architecture",
+    _REPO_ROOT / "research",
+    _REPO_ROOT / "AGENTS.md",
+    _REPO_ROOT / "README.md",
+    _REPO_ROOT / "CHANGELOG.md",
+)
+_FORBIDDEN_HOME_LITERAL = "/Users/" + "robe" + "rt/"
+
 
 def _template_content(command: str) -> str:
     """Read and return the content of a command template file."""
     return (_TEMPLATES_DIR / f"{command}.md").read_text(encoding="utf-8")
+
+
+def _active_codebase_files() -> list[Path]:
+    """Return text files from the active codebase surface.
+
+    `kitty-specs/` is intentionally excluded because the user wants to preserve
+    historical artifacts there.
+    """
+    files: list[Path] = []
+    for path in _ACTIVE_CODEBASE_PATHS:
+        if path.is_file():
+            files.append(path)
+            continue
+        files.extend(
+            candidate
+            for candidate in path.rglob("*")
+            if candidate.is_file() and "__pycache__" not in candidate.parts and candidate.suffix != ".pyc"
+        )
+    return files
 
 
 # ---------------------------------------------------------------------------
@@ -104,7 +137,7 @@ def test_no_057_mission_slug(command: str) -> None:
     """Templates must not contain the 057- development slug."""
     content = _template_content(command)
     assert "057-" not in content, (
-        f"{command}.md contains '057-' dev-time feature slug — strip before shipping"
+        f"{command}.md contains '057-' dev-time feature slug - strip before shipping"
     )
 
 
@@ -120,7 +153,7 @@ def test_no_dev_specific_mission_slugs(command: str) -> None:
     # Check specifically for the dev-time feature slugs
     for bad_slug in ("057-", "058-"):
         assert bad_slug not in content, (
-            f"{command}.md contains dev-time feature slug '{bad_slug}' — "
+            f"{command}.md contains dev-time feature slug '{bad_slug}' - "
             f"strip before shipping to consumers"
         )
 
@@ -134,11 +167,27 @@ def test_no_dev_specific_mission_slugs(command: str) -> None:
 def test_no_absolute_user_paths(command: str) -> None:
     """Templates must not contain absolute paths tied to a specific machine."""
     content = _template_content(command)
-    assert "/Users/robert/" not in content, (
-        f"{command}.md contains absolute user path '/Users/robert/'"
+    assert _FORBIDDEN_HOME_LITERAL not in content, (
+        f"{command}.md contains a forbidden user-specific home path literal"
     )
-    assert "/home/" not in content, (
-        f"{command}.md contains '/home/' path"
+    assert re.search(r"/Users/[^/]+/", content) is None, (
+        f"{command}.md contains macOS absolute user path '/Users/<user>/'"
+    )
+    assert re.search(r"/home/[^/]+/", content) is None, (
+        f"{command}.md contains Linux absolute user path '/home/<user>/'"
+    )
+
+
+def test_no_user_specific_home_literal_in_active_codebase() -> None:
+    """The active codebase must never ship a forbidden user-specific home path."""
+    offenders = [
+        path.relative_to(_REPO_ROOT).as_posix()
+        for path in _active_codebase_files()
+        if _FORBIDDEN_HOME_LITERAL in path.read_text(encoding="utf-8", errors="ignore")
+    ]
+    assert offenders == [], (
+        "Found forbidden user-specific home path literal in active codebase files: "
+        + ", ".join(offenders)
     )
 
 
@@ -181,11 +230,11 @@ def test_no_planning_repository_terminology(command: str) -> None:
     """
     content = _template_content(command)
     assert "planning repository" not in content.lower(), (
-        f"{command}.md uses deprecated 'planning repository' terminology — "
+        f"{command}.md uses deprecated 'planning repository' terminology - "
         f"use 'project root checkout' instead"
     )
     assert "planning repo" not in content.lower(), (
-        f"{command}.md uses deprecated 'planning repo' terminology — "
+        f"{command}.md uses deprecated 'planning repo' terminology - "
         f"use 'project root' instead"
     )
 
@@ -205,7 +254,7 @@ def test_uses_project_root_checkout_in_planning_templates(command: str) -> None:
     """
     content = _template_content(command)
     assert "project root checkout" in content.lower(), (
-        f"{command}.md missing 'project root checkout' terminology — "
+        f"{command}.md missing 'project root checkout' terminology - "
         f"add explicit location guidance for agents"
     )
 
@@ -224,7 +273,7 @@ def test_no_yaml_frontmatter(command: str) -> None:
     """
     content = _template_content(command)
     assert not content.startswith("---"), (
-        f"{command}.md has YAML frontmatter — strip it before shipping "
+        f"{command}.md has YAML frontmatter - strip it before shipping "
         f"(the asset generator adds its own frontmatter during rendering)"
     )
 
@@ -239,7 +288,7 @@ def test_has_feature_flag_guidance(command: str) -> None:
     """Every template must include a note about passing --feature <slug>."""
     content = _template_content(command)
     assert "--feature" in content, (
-        f"{command}.md missing '--feature' guidance — add: "
+        f"{command}.md missing '--feature' guidance - add: "
         f"'In repos with multiple features, always pass `--feature <slug>` to "
         f"every spec-kitty command.'"
     )
@@ -260,14 +309,14 @@ def test_tasks_template_has_ownership_guidance() -> None:
     """
     content = _template_content("tasks")
     assert "owned_files" in content, (
-        "tasks.md missing 'owned_files' ownership guidance — "
+        "tasks.md missing 'owned_files' ownership guidance - "
         "agents need this to enforce file isolation between WPs"
     )
     assert "authoritative_surface" in content, (
-        "tasks.md missing 'authoritative_surface' guidance — "
+        "tasks.md missing 'authoritative_surface' guidance - "
         "identifies the canonical output location for each WP"
     )
     assert "execution_mode" in content, (
-        "tasks.md missing 'execution_mode' guidance — "
+        "tasks.md missing 'execution_mode' guidance - "
         "must distinguish 'code_change' from 'planning_artifact' WPs"
     )

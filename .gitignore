@@ -73,8 +73,8 @@ node_modules/
 sdd-*/
 
 # Added by Spec Kitty CLI (auto-managed)
-.claude/*
-!.claude/skills/
+.claude/
+.agents/
 .opencode/
 .windsurf/
 .gemini/
@@ -132,5 +132,3 @@ tmp/**
 pytest-of-*/
 .kittify/missions/__pycache__/
 .spec-kitty/
-.claude/
-.agent/

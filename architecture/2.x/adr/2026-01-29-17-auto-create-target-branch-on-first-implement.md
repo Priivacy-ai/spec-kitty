@@ -5,7 +5,7 @@
 | Filename | `2026-01-29-17-auto-create-target-branch-on-first-implement.md` |
 | Status | Superseded |
 | Date | 2026-01-29 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Discovered during ~/tmp multi-feature testing when Feature 002 (target: 3.x) created WP01 but agent was confused about how to create the 3.x branch. |
 
 > Superseded on 2026-04-05 by

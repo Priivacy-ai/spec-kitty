@@ -5,7 +5,7 @@
 | Filename | `2026-02-09-1-canonical-wp-status-model.md` |
 | Status | Accepted |
 | Date | 2026-02-09 |
-| Deciders | Robert Douglass, Planning Team (Feature 012) |
+| Deciders | Spec Kitty Architecture Team, Planning Team (Feature 012) |
 | Technical Story | Feature 012 — Status State Model Remediation (PRD Sections 5, 6) |
 
 ---

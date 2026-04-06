@@ -12,7 +12,7 @@ These rules apply to **all commands** (specify, plan, research, tasks, implement
 
 ✅ **CORRECT**:
 - `kitty-specs/001-feature/tasks/WP01.md`
-- `/Users/robert/Code/myproject/kitty-specs/001-feature/spec.md`
+- `/absolute/path/to/myproject/kitty-specs/001-feature/spec.md`
 - `tasks/WP01.md` (relative to feature directory)
 
 ❌ **WRONG**:
@@ -206,7 +206,7 @@ Rules:
 - Before merge or Fly promotion, always run and pass the `prod-like` auth preflight.
 - If tracker connectors are missing in UI, verify waffle flag `tracker_connectors` is enabled for the team.
 - Use skill `$spec-kitty-docker-modes` for Docker mode operations and auth preflight workflows.
-- Runbook source of truth: `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-saas/docs/docker-development-modes.md`.
+- Runbook source of truth: `spec-kitty-saas/docs/docker-development-modes.md` in the sibling SaaS repo checkout.
 
 
 ---

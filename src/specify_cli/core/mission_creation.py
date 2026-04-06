@@ -46,7 +46,7 @@ class MissionCreationResult:
 
 KEBAB_CASE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 
-TASKS_README_CONTENT = """\
+TASKS_README_TEMPLATE = """\
 # Tasks Directory
 
 This directory contains work package (WP) prompt files.
@@ -72,9 +72,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "Planning artifacts were generated on main; completed changes must merge back into main."
+planning_base_branch: "{planning_branch}"
+merge_target_branch: "{planning_branch}"
+branch_strategy: "Planning artifacts were generated on {planning_branch}; completed changes must merge back into {planning_branch}."
 subtasks:
   - "T001"
   - "T002"
@@ -112,6 +112,11 @@ spec-kitty agent tasks move-task WP01 --to doing
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
 """
+
+
+def render_tasks_readme_content(planning_branch: str) -> str:
+    """Render tasks/README.md with branch-aware example frontmatter."""
+    return TASKS_README_TEMPLATE.format(planning_branch=planning_branch)
 
 
 # ---------------------------------------------------------------------------
@@ -252,7 +257,10 @@ def create_mission_core(
 
     # Tasks README
     tasks_readme = tasks_dir / "README.md"
-    tasks_readme.write_text(TASKS_README_CONTENT, encoding="utf-8")
+    tasks_readme.write_text(
+        render_tasks_readme_content(planning_branch),
+        encoding="utf-8",
+    )
 
     # ------------------------------------------------------------------
     # 5. Spec template

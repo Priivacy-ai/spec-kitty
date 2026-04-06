@@ -1,7 +1,5 @@
 """Tests for acceptance matrix, evidence validation, and negative invariants."""
 
-import pytest
-
 from specify_cli.acceptance_matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
@@ -97,7 +95,7 @@ class TestManualEvidence:
             "AC-01", "Check dashboard", "manual_qa",
             evidence="http://localhost:8000/dashboard",
             verified_at="2026-04-03T12:00:00Z",
-            verified_by="robert",
+            verified_by="qa-operator",
             pass_fail="pass",
         )
         assert validate_manual_evidence(c) == []

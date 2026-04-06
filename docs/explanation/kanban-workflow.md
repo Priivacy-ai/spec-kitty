@@ -429,7 +429,7 @@ Users can override lane transitions when needed:
 spec-kitty agent tasks move-task WP01 --to planned --force --note "Reopening after hotfix"
 ```
 
-External orchestrators should request equivalent transitions through `spec-kitty orchestrator-api transition ...` so host validation and audit history stay consistent.
+External orchestrators should request equivalent transitions through `spec-kitty orchestrator-api transition ...`, including review-handoff evidence such as `--subtasks-complete`, `--implementation-evidence-present`, `--review-ref`, and `--evidence-json`, so host validation and audit history stay consistent.
 
 ## Rules and Constraints
 

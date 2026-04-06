@@ -3,8 +3,8 @@
 **Status**: Draft
 **Date**: 2026-03-10
 **Scope**: `spec-kitty-saas`, `spec-kitty` CLI
-**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty/docs/architecture/adr-connector-auth-binding-separation.md)
-**Related PRD**: [Connector Installation-First Onboarding and Resource Mapping Architecture v1](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/prd-connector-auth-first-team-binding-v1.md)
+**Related ADR**: [Connector Installation, User Link, and Resource Mapping Separation](adr-connector-auth-binding-separation.md)
+**Related PRD**: `prd-connector-auth-first-team-binding-v1.md` in the planning repo
 
 ## Executive Summary
 

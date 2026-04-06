@@ -1,1 +1,0 @@
-/Users/robert/.agents/skills/spec-kitty-orchestrator-api-operator/SKILL.md

@@ -56,7 +56,7 @@ process.on('SIGTERM', cleanup);
     await page.waitForTimeout(3000);
 
     // Take screenshot
-    await page.screenshot({ path: '/Users/robert/Code/spec-kitty/diagnostics_screenshot.png', fullPage: true });
+    await page.screenshot({ path: 'diagnostics_screenshot.png', fullPage: true });
     console.log('Screenshot saved to diagnostics_screenshot.png');
 
     // Get page title
@@ -111,7 +111,7 @@ process.on('SIGTERM', cleanup);
     console.error('Error accessing page:', error.message);
     // Take screenshot even on error
     try {
-      await page.screenshot({ path: '/Users/robert/Code/spec-kitty/diagnostics_error_screenshot.png', fullPage: true });
+      await page.screenshot({ path: 'diagnostics_error_screenshot.png', fullPage: true });
       console.log('Error screenshot saved');
     } catch (e) {
       console.error('Could not save error screenshot:', e.message);

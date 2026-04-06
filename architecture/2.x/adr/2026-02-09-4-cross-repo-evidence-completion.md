@@ -5,7 +5,7 @@
 | Filename | `2026-02-09-4-cross-repo-evidence-completion.md` |
 | Status | Superseded |
 | Date | 2026-02-09 |
-| Deciders | Robert Douglass, Planning Team (Feature 012) |
+| Deciders | Spec Kitty Architecture Team, Planning Team (Feature 012) |
 | Technical Story | Feature 012 — Status State Model Remediation (PRD Sections 8, 10) |
 
 ---
@@ -64,7 +64,7 @@ Every event transitioning a WP to `done` must include a structured `evidence` fi
     }
   ],
   "review": {
-    "reviewer": "robert-douglass",
+    "reviewer": "architecture-team-review",
     "verdict": "approved",
     "reference": "WP05 review feedback"
   }

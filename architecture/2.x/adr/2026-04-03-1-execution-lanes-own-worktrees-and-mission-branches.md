@@ -5,7 +5,7 @@
 | Filename | `2026-04-03-1-execution-lanes-own-worktrees-and-mission-branches.md` |
 | Status | Accepted |
 | Date | 2026-04-03 |
-| Deciders | Robert Douglass, Spec Kitty Architecture Team |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Reliability remediation after Feature 028 — lane-based execution and merge safety |
 
 ---
@@ -216,4 +216,4 @@ All work for a mission happens in one branch/worktree, even if disjoint.
 - `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md`
 
 **Related Product Document:**
-- `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/prd-lane-based-execution-and-feature-acceptance-gates-v1.md`
+- Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo

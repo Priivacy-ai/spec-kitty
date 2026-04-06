@@ -36,8 +36,8 @@ Comprehensive functional test implementation according to `TESTING_REQUIREMENTS_
 
 **Run Tests:**
 ```bash
-cd /Users/robert/Code/spec-kitty
-source /Users/robert/Code/spec-kitty-test/venv/bin/activate  # Has spec-kitty in editable mode
+cd /path/to/spec-kitty
+source /path/to/spec-kitty-test/venv/bin/activate  # Has spec-kitty in editable mode
 pytest tests/test_encoding_validation_functional.py -v
 ```
 

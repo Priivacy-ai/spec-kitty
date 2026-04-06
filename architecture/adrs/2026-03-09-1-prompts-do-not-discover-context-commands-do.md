@@ -6,7 +6,7 @@
 
 **Date:** 2026-03-09
 
-**Deciders:** Robert Douglass, CLI Team, Architecture Team
+**Deciders:** CLI Team, Architecture Team
 
 **Technical Story:** Eliminate prompt-level feature/WP/base discovery and move execution context ownership into canonical command APIs.
 
@@ -175,8 +175,8 @@ This ADR will be considered implemented when all of the following are true:
 
 ## Related ADRs
 
-* [2026-02-17-1-canonical-next-command-runtime-loop.md](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/tmp/spec-kitty-20260309-080931/architecture/adrs/2026-02-17-1-canonical-next-command-runtime-loop.md)
-* [2026-02-17-2-runtime-owned-mission-discovery-loading.md](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/tmp/spec-kitty-20260309-080931/architecture/adrs/2026-02-17-2-runtime-owned-mission-discovery-loading.md)
+* [2026-02-17-1-canonical-next-command-runtime-loop.md](2026-02-17-1-canonical-next-command-runtime-loop.md)
+* [2026-02-17-2-runtime-owned-mission-discovery-loading.md](2026-02-17-2-runtime-owned-mission-discovery-loading.md)
 
 ## More Information
 

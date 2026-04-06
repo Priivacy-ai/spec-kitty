@@ -70,7 +70,7 @@ process.on('SIGTERM', cleanup);
     consoleMessages.forEach(msg => console.log(msg));
 
     await page.screenshot({
-      path: '/Users/robert/Code/spec-kitty/diagnostics_features_check.png',
+      path: 'diagnostics_features_check.png',
       fullPage: true
     });
 

@@ -28,7 +28,7 @@ $ claude --version
 2.1.12 (Claude Code)
 
 $ which claude
-/Users/robert/.local/bin/claude
+~/.local/bin/claude
 ```
 
 **Status**: CLI is installed and functional.
