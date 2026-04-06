@@ -1,0 +1,142 @@
+{
+  "version": 1,
+  "mission_slug": "067-runtime-recovery-and-audit-safety",
+  "mission_id": "067-runtime-recovery-and-audit-safety",
+  "mission_branch": "kitty/mission-067-runtime-recovery-and-audit-safety",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/lanes/worktree_allocator.py",
+        "src/specify_cli/merge/state.py",
+        "src/specify_cli/merge/workspace.py",
+        "src/specify_cli/workspace_context.py",
+        "tests/runtime/test_workspace_context*",
+        "tests/specify_cli/lanes/test_implement*",
+        "tests/specify_cli/merge/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/__init__.py",
+        "src/specify_cli/cli/commands/shim.py",
+        "src/specify_cli/core/execution_context.py",
+        "src/specify_cli/migration/rewrite_shims.py",
+        "src/specify_cli/shims/__init__.py",
+        "src/specify_cli/shims/entrypoints.py",
+        "src/specify_cli/shims/generator.py",
+        "src/specify_cli/shims/models.py",
+        "tests/specify_cli/core/test_execution_context*",
+        "tests/specify_cli/shims/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/frontmatter.py",
+        "src/specify_cli/ownership/models.py",
+        "src/specify_cli/ownership/validation.py",
+        "tests/specify_cli/ownership/**",
+        "tests/specify_cli/test_frontmatter*"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/missions/software-dev/command-templates/**",
+        "src/specify_cli/upgrade/skill_update.py",
+        "tests/specify_cli/upgrade/test_skill_update*"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/agent_utils/status.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/dashboard/scanner.py",
+        "src/specify_cli/dashboard/static/dashboard/dashboard.js",
+        "src/specify_cli/next/decision.py",
+        "tests/specify_cli/agent_utils/test_status*",
+        "tests/specify_cli/dashboard/**",
+        "tests/specify_cli/status/test_progress*"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-06T18:51:39.127882+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}
