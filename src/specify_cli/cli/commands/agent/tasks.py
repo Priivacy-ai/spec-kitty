@@ -1661,64 +1661,16 @@ def finalize_tasks(
             _output_error(json_output, f"Tasks directory not found: {tasks_dir}")
             raise typer.Exit(1)
 
-        # Parse tasks.md for dependency patterns
-        content = tasks_md.read_text(encoding="utf-8")
-        dependencies_map: dict[str, list[str]] = {}
-
-        # Strategy 1: Look for explicit "Depends on: WP##" patterns
-        # Strategy 2: Look for phase groupings where later phases depend on earlier ones
-        # For now, implement simple pattern matching
-
-        wp_pattern = re.compile(r'WP(\d{2})')
-        depends_pattern = re.compile(r'(?:depends on|dependency:|requires):\s*(WP\d{2}(?:,\s*WP\d{2})*)', re.IGNORECASE)
-
-        current_wp = None
-        for line in content.split('\n'):
-            # Find WP headers
-            wp_match = wp_pattern.search(line)
-            if wp_match and ('##' in line or 'Work Package' in line):
-                current_wp = f"WP{wp_match.group(1)}"
-                if current_wp not in dependencies_map:
-                    dependencies_map[current_wp] = []
-
-            # Find dependency declarations for current WP
-            if current_wp:
-                dep_match = depends_pattern.search(line)
-                if dep_match:
-                    # Extract all WP IDs mentioned
-                    dep_wps = re.findall(r'WP\d{2}', dep_match.group(1))
-                    dependencies_map[current_wp].extend(dep_wps)
-                    # Remove duplicates
-                    dependencies_map[current_wp] = list(dict.fromkeys(dependencies_map[current_wp]))
+        # Parse tasks.md for dependency patterns using the shared canonical parser
+        tasks_content = tasks_md.read_text(encoding="utf-8")
+        from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
+        dependencies_map: dict[str, list[str]] = _shared_parse_deps(tasks_content)
 
         # Ensure all WP files in tasks/ dir are in the map (with empty deps if not mentioned)
         for wp_file in tasks_dir.glob("WP*.md"):
-            wp_id = wp_file.stem.split('-')[0]  # Extract WP## from WP##-title.md
-            if wp_id not in dependencies_map:
-                dependencies_map[wp_id] = []
-
-        # Update each WP file's frontmatter with dependencies
-        updated_count = 0
-        for wp_id, deps in sorted(dependencies_map.items()):
-            # Find WP file
-            wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
-            if not wp_files:
-                console.print(f"[yellow]Warning:[/yellow] No file found for {wp_id}")
-                continue
-
-            wp_file = wp_files[0]
-
-            # Read current content
-            content = wp_file.read_text(encoding="utf-8-sig")
-            frontmatter, body, padding = split_frontmatter(content)
-
-            # Update dependencies field
-            updated_front = set_scalar(frontmatter, "dependencies", deps)
-
-            # Rebuild and write
-            updated_doc = build_document(updated_front, body, padding)
-            wp_file.write_text(updated_doc, encoding="utf-8")
-            updated_count += 1
+            wp_id_stem = wp_file.stem.split('-')[0]  # Extract WP## from WP##-title.md
+            if re.match(r'^WP\d{2}$', wp_id_stem) and wp_id_stem not in dependencies_map:
+                dependencies_map[wp_id_stem] = []
 
         # Validate dependency graph for cycles
         from specify_cli.core.dependency_graph import detect_cycles
@@ -1727,24 +1679,127 @@ def finalize_tasks(
             _output_error(json_output, f"Circular dependencies detected: {cycles}")
             raise typer.Exit(1)
 
+        from specify_cli.frontmatter import read_frontmatter as _read_fm, write_frontmatter as _write_fm
+
+        # --- Pre-loop: read all existing frontmatter for conflict detection (T004) ---
+        existing_frontmatter: dict[str, dict[str, object]] = {}
+        for _wp_file in tasks_dir.glob("WP*.md"):
+            _wp_id = _wp_file.stem.split('-')[0]
+            if not re.match(r'^WP\d{2}$', _wp_id):
+                continue
+            try:
+                _fm, _ = _read_fm(_wp_file)
+                existing_frontmatter[_wp_id] = _fm
+            except Exception:
+                existing_frontmatter[_wp_id] = {}
+
+        # --- Dependency conflict detection (T004: disagree-loud) ---
+        dep_conflict_errors: list[str] = []
+        for wp_id_chk, parsed_deps in dependencies_map.items():
+            existing_deps_raw = existing_frontmatter.get(wp_id_chk, {}).get("dependencies", [])
+            existing_deps: list[str] = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
+            if existing_deps and parsed_deps and set(existing_deps) != set(parsed_deps):
+                dep_conflict_errors.append(
+                    f"{wp_id_chk}: frontmatter has {sorted(existing_deps)}, "
+                    f"tasks.md parsed {sorted(parsed_deps)}. "
+                    f"Resolve the disagreement in tasks.md or WP frontmatter before finalizing."
+                )
+        if dep_conflict_errors:
+            error_msg = "Dependency disagreement detected:\n" + "\n".join(dep_conflict_errors)
+            _output_error(json_output, error_msg)
+            raise typer.Exit(1)
+
+        # Update each WP file's frontmatter with dependencies (T005: use FrontmatterManager)
+        updated_count = 0
+        modified_wps: list[str] = []
+        unchanged_wps: list[str] = []
+        preserved_wps: list[str] = []
+        would_modify: list[dict[str, object]] = []
+
+        for wp_id, parsed_deps in sorted(dependencies_map.items()):
+            # Find WP file
+            wp_files = list(tasks_dir.glob(f"{wp_id}-*.md")) + list(tasks_dir.glob(f"{wp_id}.md"))
+            if not wp_files:
+                console.print(f"[yellow]Warning:[/yellow] No file found for {wp_id}")
+                continue
+
+            wp_file = wp_files[0]
+
+            # Read current frontmatter using type-safe FrontmatterManager API (T005)
+            try:
+                fm_dict, body = _read_fm(wp_file)
+            except Exception as e:
+                console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
+                continue
+
+            # --- Dependency resolution with preserve-existing (T004) ---
+            existing_deps_raw = fm_dict.get("dependencies", [])
+            existing_deps = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
+            if not parsed_deps and existing_deps:
+                # Parser found nothing but frontmatter has deps — preserve existing
+                deps = existing_deps
+                preserved_wps.append(wp_id)
+            else:
+                deps = parsed_deps
+
+            old_deps = fm_dict.get("dependencies", [])
+            old_deps_list = list(old_deps) if isinstance(old_deps, (list, tuple)) else []
+            deps_changed = old_deps_list != deps
+
+            if deps_changed:
+                fm_dict["dependencies"] = deps
+                # Gate ALL file writes on validate_only (T006)
+                if not validate_only:
+                    _write_fm(wp_file, fm_dict, body)
+                else:
+                    would_modify.append({"wp_id": wp_id, "changes": {"dependencies": deps}})
+                updated_count += 1
+                if wp_id not in preserved_wps:
+                    modified_wps.append(wp_id)
+            else:
+                if wp_id not in preserved_wps:
+                    unchanged_wps.append(wp_id)
+
         # Bootstrap canonical status state for all WPs
         bootstrap_result = bootstrap_canonical_state(
             feature_dir, mission_slug, dry_run=validate_only
         )
 
-        result = {
-            "result": "success",
-            "updated": updated_count,
-            "dependencies": dependencies_map,
-            "feature": mission_slug,
-            "bootstrap": {
-                "total_wps": bootstrap_result.total_wps,
-                "already_initialized": bootstrap_result.already_initialized,
-                "newly_seeded": bootstrap_result.newly_seeded,
-                "skipped": bootstrap_result.skipped,
-                "wp_details": bootstrap_result.wp_details,
-            },
-        }
+        if validate_only:
+            result: dict[str, object] = {
+                "result": "validation_passed",
+                "validate_only": True,
+                "would_modify": would_modify,
+                "would_preserve": preserved_wps,
+                "unchanged": unchanged_wps,
+                "updated_wp_count": updated_count,
+                "dependencies": dependencies_map,
+                "feature": mission_slug,
+                "bootstrap": {
+                    "total_wps": bootstrap_result.total_wps,
+                    "already_initialized": bootstrap_result.already_initialized,
+                    "newly_seeded": bootstrap_result.newly_seeded,
+                    "skipped": bootstrap_result.skipped,
+                    "wp_details": bootstrap_result.wp_details,
+                },
+            }
+        else:
+            result = {
+                "result": "success",
+                "updated_wp_count": updated_count,
+                "modified_wps": modified_wps,
+                "unchanged_wps": unchanged_wps,
+                "preserved_wps": preserved_wps,
+                "dependencies": dependencies_map,
+                "feature": mission_slug,
+                "bootstrap": {
+                    "total_wps": bootstrap_result.total_wps,
+                    "already_initialized": bootstrap_result.already_initialized,
+                    "newly_seeded": bootstrap_result.newly_seeded,
+                    "skipped": bootstrap_result.skipped,
+                    "wp_details": bootstrap_result.wp_details,
+                },
+            }
 
         _output_result(
             json_output,
