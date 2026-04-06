@@ -276,3 +276,4 @@ No validation checks that extracted glob patterns match real files.
 - 2026-04-06T14:18:20Z – claude:opus:reviewer:reviewer – shell_pid=11591 – Started review via action command
 - 2026-04-06T14:21:52Z – claude:opus:reviewer:reviewer – shell_pid=11591 – Moved to planned
 - 2026-04-06T14:22:07Z – claude:sonnet:implementer:implementer – shell_pid=12061 – Started implementation via action command
+- 2026-04-06T14:24:37Z – claude:sonnet:implementer:implementer – shell_pid=12061 – Fixed: wired validate_glob_matches, ownership warnings, and planning_artifact_wps into JSON output
