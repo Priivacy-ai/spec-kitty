@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "mission_slug": "065-tasks-and-lane-stabilization",
+  "mission_id": "065-tasks-and-lane-stabilization",
+  "mission_branch": "kitty/mission-065-tasks-and-lane-stabilization",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/context/middleware.py",
+        "src/specify_cli/context/store.py",
+        "src/specify_cli/core/dependency_parser.py",
+        "src/specify_cli/core/paths.py",
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/lanes/models.py",
+        "src/specify_cli/missions/software-dev/command-templates/tasks.md",
+        "src/specify_cli/ownership/inference.py",
+        "src/specify_cli/ownership/validation.py",
+        "src/specify_cli/shims/generator.py",
+        "tests/context/test_middleware.py",
+        "tests/context/test_store.py",
+        "tests/core/test_dependency_parser.py",
+        "tests/core/test_paths.py",
+        "tests/git_ops/test_atomic_status_commits_unit.py",
+        "tests/git_ops/test_mark_status_pipe_table.py",
+        "tests/lanes/test_collapse_report.py",
+        "tests/lanes/test_compute.py",
+        "tests/lanes/test_models.py",
+        "tests/ownership/test_inference.py",
+        "tests/ownership/test_validation.py",
+        "tests/shims/test_generator.py",
+        "tests/specify_cli/cli/commands/agent/test_feature_finalize_bootstrap.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py",
+        "tests/tasks/test_finalize_tasks_json_output_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-06T13:53:11.028307+00:00",
+  "computed_from": "dependency_graph+ownership"
+}

@@ -9,7 +9,7 @@ requirement_refs:
 - FR-015
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktrees allocated per computed lane from lanes.json. Planning on main, merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T010, T011, T012, T013, T014, T015]
 history:
 - at: '2026-04-06T13:45:48+00:00'

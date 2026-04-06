@@ -6,17 +6,15 @@ requirement_refs:
 - FR-010
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execution worktrees allocated per computed lane from lanes.json. Planning on main, merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T022, T023, T024, T025]
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
   action: Created WP04 prompt during /spec-kitty.tasks
-authoritative_surface: src/specify_cli/cli/commands/agent/
+authoritative_surface: tests/git_ops/
 execution_mode: code_change
 owned_files:
-- src/specify_cli/cli/commands/agent/tasks.py
-- src/specify_cli/missions/software-dev/command-templates/tasks.md
 - tests/git_ops/test_atomic_status_commits_unit.py
 - tests/git_ops/test_mark_status_pipe_table.py
 ---
