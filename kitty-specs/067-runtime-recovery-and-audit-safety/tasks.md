@@ -138,9 +138,9 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: None
 **Estimated prompt size**: ~450 lines
 
-- [ ] T027 Replace broken progress formula in `agent_utils/status.py:138` with `compute_weighted_progress()` (WP06)
-- [ ] T028 Replace broken progress formulas in `cli/commands/agent/tasks.py:2582,2634` (WP06)
-- [ ] T029 Update scanner to pre-compute `weighted_percentage` field in emitted JSON payload (WP06)
-- [ ] T030 Update dashboard JS at lines 319 and 401 to read pre-computed `weighted_percentage` (WP06)
-- [ ] T031 Update `next_cmd.py:199` — wire runtime engine `_compute_wp_progress()` to return weighted progress (WP06)
-- [ ] T032 Write tests for shared weighted-progress calculation across CLI/dashboard/next surfaces (WP06)
+- [x] T027 Replace broken progress formula in `agent_utils/status.py:138` with `compute_weighted_progress()` (WP06)
+- [x] T028 Replace broken progress formulas in `cli/commands/agent/tasks.py:2582,2634` (WP06)
+- [x] T029 Update scanner to pre-compute `weighted_percentage` field in emitted JSON payload (WP06)
+- [x] T030 Update dashboard JS at lines 319 and 401 to read pre-computed `weighted_percentage` (WP06)
+- [x] T031 Update `next_cmd.py:199` — wire runtime engine `_compute_wp_progress()` to return weighted progress (WP06)
+- [x] T032 Write tests for shared weighted-progress calculation across CLI/dashboard/next surfaces (WP06)
