@@ -272,3 +272,4 @@ No validation checks that extracted glob patterns match real files.
 ## Activity Log
 
 - 2026-04-06T14:11:15Z – claude:sonnet:implementer:implementer – shell_pid=10098 – Started implementation via action command
+- 2026-04-06T14:17:59Z – claude:sonnet:implementer:implementer – shell_pid=10098 – Ready for review: T010-T015 all implemented and tested. LaneComputationError raised on missing manifests and completeness gaps, planning_artifact_wps field added to LanesManifest, validate_glob_matches warns on zero-match globs, infer_owned_files returns (globs, warnings) with src/** fallback warning. 1890 tests pass.
