@@ -265,6 +265,25 @@ def _setup_implement_fixture(workflow_repo: Path, *, lane: str = "planned") -> t
     return wp_path, feature_slug
 
 
+def _setup_review_fixture(workflow_repo: Path, *, lane: str = "for_review") -> tuple[Path, str]:
+    """Shared setup for review prompt-content tests.
+
+    Returns (wp_path, feature_slug).
+    """
+    feature_slug = "001-test-feature"
+    feature_dir = workflow_repo / "kitty-specs" / feature_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+    (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+    wp_path = tasks_dir / "WP01-test.md"
+    _write_wp_file(wp_path, "WP01", lane=lane)
+    _seed_wp_lane(feature_dir, "WP01", lane)
+    workspace = lane_worktree_path(workflow_repo, feature_slug)
+    workspace.mkdir(parents=True, exist_ok=True)
+    return wp_path, feature_slug
+
+
 def test_implement_prompt_includes_when_youre_done_header(workflow_repo: Path) -> None:
     """Implement prompt file must include the 'WHEN YOU'RE DONE:' section header.
 
@@ -339,3 +358,35 @@ def test_implement_prompt_has_numbered_steps(workflow_repo: Path) -> None:
     assert "1. **Commit your implementation files:**" in content
     assert "2." in content
     assert "3." in content
+
+
+def test_implement_prompt_points_to_shared_feature_artifacts(workflow_repo: Path) -> None:
+    _wp_path, feature_slug = _setup_implement_fixture(workflow_repo)
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "📚 SHARED FEATURE ARTIFACTS:" in content
+    assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in content
+
+
+def test_review_prompt_points_to_shared_feature_artifacts(workflow_repo: Path) -> None:
+    _wp_path, feature_slug = _setup_review_fixture(workflow_repo)
+
+    result = CliRunner().invoke(
+        workflow.app,
+        ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-review-WP01.md"
+    content = prompt_file.read_text(encoding="utf-8")
+    assert "📚 SHARED FEATURE ARTIFACTS:" in content
+    assert f"Spec, plan, tasks, and status live in main repo: {workflow_repo}/kitty-specs/{feature_slug}/" in content
+    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in content
