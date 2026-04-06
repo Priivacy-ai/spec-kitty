@@ -4,7 +4,7 @@
 
 **Date:** 2026-01-25
 
-**Deciders:** Robert Douglass, Claude
+**Deciders:** Architecture Team, Claude
 
 **Technical Story:** Research WPs created artifacts in worktrees that were never merged to main
 

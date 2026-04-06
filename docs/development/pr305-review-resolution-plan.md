@@ -1,6 +1,6 @@
 # PR #305 Review Resolution Plan
 
-**Context**: Robert Douglass's code review of PR #305 (specs 046, 048, 054) identified two
+**Context**: A prior code review of PR #305 (specs 046, 048, 054) identified two
 critical and several major issues. This document records the agreed resolution approach and
 the concrete implementation plan for both tracks.
 

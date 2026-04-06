@@ -5,7 +5,7 @@
 | Filename | `2026-01-31-1-vendor-spec-kitty-events.md` |
 | Status | Accepted |
 | Date | 2026-01-31 |
-| Deciders | Robert Douglass, Claude Sonnet 4.5 |
+| Deciders | Spec Kitty Architecture Team, Claude Sonnet 4.5 |
 | Technical Story | 0.13.20 release blocked by PyPI rejecting direct Git dependencies |
 
 ---

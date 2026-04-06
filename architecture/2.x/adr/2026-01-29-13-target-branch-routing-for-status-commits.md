@@ -5,7 +5,7 @@
 | Filename | `2026-01-29-13-target-branch-routing-for-status-commits.md` |
 | Status | Superseded |
 | Date | 2026-01-29 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Implements dual-branch development support for 0.13.8 hotfix, enabling Feature 025 (CLI Event Log Integration) to develop on the `2.x` branch without race conditions or branch divergence. |
 
 > Superseded on 2026-04-05 by

@@ -5,7 +5,7 @@
 | Filename | `2026-01-27-11-dual-repository-pattern.md` |
 | Status | Accepted |
 | Date | 2026-01-27 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Feature 025 (CLI Event Log Integration) requires integrating the completed spec-kitty-events library (Feature 003) into the CLI. The library is private during MVP phase but will eventually be open sourced. |
 | Branch Context | This dependency is for the **2.x branch only**. The 1.x/main branch does NOT have this dependency (local-only CLI with YAML logs). See ADR-12 for branch strategy details. |
 

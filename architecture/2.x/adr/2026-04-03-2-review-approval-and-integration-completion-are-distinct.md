@@ -5,7 +5,7 @@
 | Filename | `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md` |
 | Status | Accepted |
 | Date | 2026-04-03 |
-| Deciders | Robert Douglass, Spec Kitty Architecture Team |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Reliability remediation after Feature 028 — align lifecycle semantics with integrated shipping reality |
 
 ---

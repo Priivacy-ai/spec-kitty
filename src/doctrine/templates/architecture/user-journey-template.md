@@ -19,7 +19,7 @@
   - Simple CRUD operations
   - Features fully captured by a BDD acceptance scenario
 
-  Source: Derived from https://gist.github.com/robertDouglass/e5b53e360fcee01bd9bebd7e33850ebf
+  Source: Derived from an internal user journey template reference
   Doctrine alignment: Traceable Decisions (decision capture), Human In Charge
   (actor attribution), Locality of Change (scope boundaries)
 -->

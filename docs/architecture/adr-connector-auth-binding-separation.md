@@ -2,7 +2,7 @@
 
 **Status**: Accepted
 **Date**: 2026-03-10
-**Author**: Robert + Claude + Codex
+**Author**: Spec Kitty team + Claude + Codex
 **Supersedes**: Implicit design in `ConnectorBinding` where OAuth tokens are stored per-binding
 
 ## Context
@@ -155,7 +155,7 @@ These products converge on the same pattern: installation scope first, user link
 
 ## Related
 
-- PRD: [Connector Installation-First Onboarding and Resource Mapping Architecture v1](/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/prd-connector-auth-first-team-binding-v1.md)
+- Companion planning artifact: `prd-connector-auth-first-team-binding-v1.md` in the planning repo
 - Existing tracker interface PRD: `prd-universal-task-tracker-interface-and-doctrine-sot-v1.md`
 - Current models: `apps/connectors/models.py` in `spec-kitty-saas`
 

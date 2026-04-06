@@ -5,7 +5,7 @@
 | Filename | `2026-04-03-3-feature-acceptance-runs-on-the-integrated-mission-branch.md` |
 | Status | Accepted |
 | Date | 2026-04-03 |
-| Deciders | Robert Douglass, Spec Kitty Architecture Team |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Reliability remediation after Feature 028 — integrated acceptance and negative invariant enforcement |
 
 ---
@@ -185,4 +185,4 @@ Run feature QA and acceptance only on the mission integration branch.
 - `2026-02-17-1-canonical-next-command-runtime-loop.md`
 
 **Related Product Document:**
-- `/Users/robert/ClaudeCowork/Spec-Kitty-Cowork/spec-kitty-planning/product-ideas/prd-lane-based-execution-and-feature-acceptance-gates-v1.md`
+- Companion planning artifact: `prd-lane-based-execution-and-feature-acceptance-gates-v1.md` in the planning repo

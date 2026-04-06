@@ -19,8 +19,8 @@ Successfully implemented **48 comprehensive tests** across 4 test suites accordi
 ### Test Execution
 
 ```bash
-cd /Users/robert/Code/spec-kitty
-source /Users/robert/Code/spec-kitty-test/venv/bin/activate
+cd /path/to/spec-kitty
+source /path/to/spec-kitty-test/venv/bin/activate
 
 # Run all tests
 pytest tests/test_encoding*.py tests/test_plan*.py tests/test_dashboard*.py -v
@@ -145,8 +145,8 @@ These provide git integration and end-to-end workflow testing but aren't require
 
 **From spec-kitty repository:**
 ```bash
-cd /Users/robert/Code/spec-kitty
-source /Users/robert/Code/spec-kitty-test/venv/bin/activate
+cd /path/to/spec-kitty
+source /path/to/spec-kitty-test/venv/bin/activate
 
 # Run all tests
 pytest tests/test_encoding*.py tests/test_plan*.py tests/test_dashboard*.py -v
@@ -203,9 +203,9 @@ pytest tests/test_plan_validation.py -v
 
 ## Quick Reference
 
-**Test location:** `/Users/robert/Code/spec-kitty/tests/`
-**Requirements:** `/Users/robert/Code/spec-kitty/tests/TESTING_REQUIREMENTS_ENCODING_AND_PLAN_VALIDATION.md`
-**Progress tracker:** `/Users/robert/Code/spec-kitty/tests/TESTING_PROGRESS.md`
-**Findings:** `/Users/robert/Code/spec-kitty-test/findings/0.4.13/`
+**Test location:** `tests/`
+**Requirements:** `tests/TESTING_REQUIREMENTS_ENCODING_AND_PLAN_VALIDATION.md`
+**Progress tracker:** `tests/TESTING_PROGRESS.md`
+**Findings:** `/path/to/spec-kitty-test/findings/0.4.13/`
 
 **Status:** ✅ **COMPLETE AND READY FOR REVIEW**

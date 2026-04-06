@@ -19,13 +19,13 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-pytestmark = pytest.mark.fast
-
 from specify_cli.sync.git_metadata import (
     GitMetadata,
     GitMetadataResolver,
     parse_repo_slug,
 )
+
+pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
@@ -352,11 +352,11 @@ class TestParseRepoSlug:
 
     def test_file_url_returns_none(self):
         """file:// remotes are local and should not be treated as repo slugs."""
-        assert parse_repo_slug("file:///Users/robert/code/spec-kitty") is None
+        assert parse_repo_slug("file:///tmp/spec-kitty") is None
 
     def test_local_filesystem_path_returns_none(self):
         """Bare filesystem paths are not hosted repo slugs."""
-        assert parse_repo_slug("/Users/robert/code/spec-kitty") is None
+        assert parse_repo_slug("/tmp/spec-kitty") is None
 
     def test_relative_filesystem_path_returns_none(self):
         """Relative local paths are not hosted repo slugs."""

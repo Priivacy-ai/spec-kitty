@@ -5,7 +5,7 @@
 | Filename | `2026-01-30-18-auto-detect-merged-single-parent-dependencies.md` |
 | Status | Superseded |
 | Date | 2026-01-30 |
-| Deciders | Robert Douglass |
+| Deciders | Spec Kitty Architecture Team |
 | Technical Story | Fixes workflow gap where `spec-kitty implement` fails when a single-parent dependency (WP01) has been merged to the target branch, causing dependent WPs (WP02, WP08) to block on non-existent workspace branches. |
 
 > Superseded on 2026-04-05 by
