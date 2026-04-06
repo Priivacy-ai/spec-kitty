@@ -31,10 +31,10 @@
 | T020 | Define audit template target paths | WP04 | [P] |
 | T021 | Add finalize-time validation for template/doc coverage | WP04 | |
 | T022 | Write tests for audit scope validation | WP04 | |
-| T023 | Create occurrence classification template step | WP05 | |
-| T024 | Create post-edit verification template step | WP05 | [P] |
-| T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [P] |
-| T026 | Write tests for occurrence classification guardrails | WP05 | |
+| T023 | Create occurrence classification template step | WP05 | | [D] |
+| T024 | Create post-edit verification template step | WP05 | [D] |
+| T025 | Add optional `context_filter` to `apply_text_replacements()` | WP05 | [D] |
+| T026 | Write tests for occurrence classification guardrails | WP05 | | [D] |
 | T027 | Replace broken progress formula in `agent_utils/status.py` | WP06 | [P] |
 | T028 | Replace broken progress formulas in `cli/commands/agent/tasks.py` | WP06 | [P] |
 | T029 | Update scanner to pre-compute `weighted_percentage` | WP06 | |
