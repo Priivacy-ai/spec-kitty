@@ -236,6 +236,7 @@ Prompts do not rediscover feature context. Commands do.
    - Prompt generation stats (files written, directory structure, any skipped items with rationale)
    - Finalization status (dependencies parsed, X WP files updated, committed to target branch)
    - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
+   - **Implementation handoff offer** (see Step 10 below)
 
 Context for work-package planning: $ARGUMENTS
 
@@ -513,6 +514,19 @@ Provide summary with:
 - Parallelization opportunities
 - MVP scope
 - Next command
+
+### Step 10: Implementation Handoff Offer
+
+After reporting, ask the user directly:
+
+> **Should I use the `/spec-kitty-implement-review` skill to fully implement all WPs until completion?**
+> This will dispatch implementing and reviewing agents for every WP, handle rejection cycles, and merge all lanes when done.
+
+- If the user says **yes**: invoke the `spec-kitty-implement-review` skill with the mission slug. The user may also specify which agents to use for implementation and review (e.g., "yes, use sonnet for implementing and opus for reviewing").
+- If the user says **no** or wants to do it manually: end here and let them run `/spec-kitty.implement` at their own pace.
+- If the user asks for a subset (e.g., "just WP01 and WP02 for now"): invoke the skill with that scope.
+
+This handoff is the natural transition from planning to execution. Do NOT skip the question — always offer it explicitly so the user can choose their execution strategy.
 
 ## ⚠️ Common Mistakes to Avoid
 
