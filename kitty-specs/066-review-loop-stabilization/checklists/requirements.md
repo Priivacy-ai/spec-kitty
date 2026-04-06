@@ -35,6 +35,10 @@
 
 ## Notes
 
-- All items pass. Spec is ready for `/spec-kitty.plan`.
+- All items pass after spec review revision (2026-04-06). Spec is ready for `/spec-kitty.plan`.
 - FR-003 references a specific path pattern (`kitty-specs/<feature>/tasks/<WP-slug>/review-cycle-{N}.md`) — this is an artifact location convention, not an implementation detail.
 - C-002 references `git status --porcelain` as a behavioral constraint on the classification approach, not as an implementation prescription.
+- FR-016 (backward-compatible pointer resolution) added per spec review to prevent dangling `feedback://` references in pre-066 event logs.
+- WP03 (old "wire fix-mode") absorbed into WP02 per spec review — the wiring is not a standalone deliverable.
+- WP05 split into WP04 (baseline test capture, #444) and WP05 (concurrent review isolation, #440) per spec review — unrelated problems with different risk profiles.
+- Scenario 5 rewritten to match actual failure mode: concurrent review of same WP or shared project-global test DB across lanes.

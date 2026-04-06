@@ -18,7 +18,7 @@ The implement/review loop in Spec Kitty is operationally unreliable. After tranc
 
 ## Motivation
 
-Fix these six friction points and the multi-agent sprint loop becomes materially faster (focused fix prompts instead of full re-sends), cheaper (fewer wasted tokens per rejection cycle), and more trustworthy (reviewers can separate signal from noise, arbiters leave auditable rationale).
+Fix these friction points and the multi-agent sprint loop becomes materially faster (focused fix prompts instead of full re-sends), cheaper (fewer wasted tokens per rejection cycle), and more trustworthy (reviewers can separate signal from noise, arbiters leave auditable rationale).
 
 ## Scope
 
@@ -90,9 +90,10 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 
 ### Scenario 5: Concurrent review agents do not collide
 
-**Given** two review agents are reviewing WP03 and WP04 in the same worktree
-**When** both agents attempt to run tests
-**Then** either the system provides isolated execution environments (separate test DB instances) or explicitly blocks the second review with a clear message explaining that concurrent review in the same worktree is not supported
+**Given** two review agents are pointed at the same lane worktree to review the same WP redundantly (e.g., two GPT-5.4 instances for parallel review), or two WPs in different lanes share a project-global test database
+**When** both agents attempt to run the test suite concurrently
+**Then** either the orchestrator sets environment-scoped test database names so each agent gets an isolated DB instance, or the system explicitly blocks the second concurrent review with a clear message explaining that concurrent test execution in overlapping environments is not supported
+**And** no review rejection is caused by test infrastructure collisions (DB lock errors, table-already-exists errors) rather than actual code defects
 
 ### Scenario 6: Arbiter uses structured checklist
 
@@ -109,7 +110,7 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 | FR-002 | Fix-mode prompts shall reference the persisted review-cycle artifact by path so the implementing agent can read the full feedback | Proposed |
 | FR-003 | Review feedback shall be persisted as versioned markdown artifacts at `kitty-specs/<feature>/tasks/<WP-slug>/review-cycle-{N}.md` | Proposed |
 | FR-004 | Review-cycle artifacts shall include machine-parseable YAML frontmatter with fields: `affected_files` (paths and line ranges), `cycle_number`, `reviewer_agent`, `verdict`, and `reviewed_at` timestamp | Proposed |
-| FR-005 | Each rejection cycle shall increment the cycle number and create a new artifact (append-only, no overwriting) | Proposed |
+| FR-005 | Each rejection cycle shall increment the cycle number and create a new artifact (append-only, no overwriting). The next cycle number is determined by counting existing `review-cycle-*.md` files in the WP's sub-artifact directory. | Proposed |
 | FR-006 | Review-cycle artifacts shall be committed to the repository so they survive across sessions and clones | Proposed |
 | FR-007 | The fix-mode prompt generator shall read from the latest persisted review-cycle artifact to construct the fix prompt | Proposed |
 | FR-008 | External reviewers shall have a writable in-repo feedback path that follows the same review-cycle artifact format | Proposed |
@@ -120,6 +121,7 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 | FR-013 | The system shall either provide isolated test execution for concurrent review agents or explicitly serialize/block concurrent reviews in the same worktree with a clear explanation | Proposed |
 | FR-014 | Arbiter override decisions shall use a structured rationale model with standard categories: pre-existing failure, wrong-context review, cross-scope finding, infra/environmental issue, and custom (with mandatory explanation) | Proposed |
 | FR-015 | Arbiter rationale and override decisions shall be persisted in the review history and visible in subsequent review-cycle artifacts | Proposed |
+| FR-016 | The review feedback pointer resolver shall support both the new `kitty-specs/` artifact location and the legacy `feedback://` pointer format (resolving to `.git/spec-kitty/feedback/`). Pre-066 event log entries with legacy pointers shall remain resolvable without migration. | Proposed |
 
 ## Non-Functional Requirements
 
@@ -128,7 +130,7 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 | NFR-001 | Fix-mode prompts shall be proportional to review findings, not original WP scope | Fix prompt size < 25% of original implement prompt size for single-file findings | Proposed |
 | NFR-002 | Review-cycle artifact creation shall not block the rejection workflow | Artifact write + commit completes within 5 seconds | Proposed |
 | NFR-003 | Dirty-state classification shall complete without user-visible delay | Classification of up to 100 dirty paths completes within 1 second | Proposed |
-| NFR-004 | Baseline test result capture shall not add significant overhead to review setup | Baseline capture completes within 30 seconds for projects with up to 500 tests | Proposed |
+| NFR-004 | Baseline test result capture shall not add significant overhead to review setup. Capture means running the test suite on the base branch at claim time and caching the results, or reading cached CI results if available — not re-running at review time. | Cached result lookup completes within 5 seconds; fresh capture (run at claim time, not review time) completes within the project's normal test suite duration | Proposed |
 | NFR-005 | All new review artifacts shall be human-readable without special tooling | Artifacts are plain markdown with YAML frontmatter, viewable in any text editor or GitHub UI | Proposed |
 
 ## Constraints
@@ -138,21 +140,23 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 | C-001 | Review-cycle artifacts must live inside `kitty-specs/<feature>/tasks/` — not in `.git/` or other git-internal locations | Proposed |
 | C-002 | The dirty-state classification must partition `git status --porcelain` output by path pattern and WP ownership — not use a flag that disables all checks | Proposed |
 | C-003 | The existing `--force` flag behavior (skip all validation) must be preserved as an escape hatch but must not be the recommended path for benign dirtiness | Proposed |
-| C-004 | Concurrent review isolation must not require changes to the project's test infrastructure — the solution must work at the orchestrator/worktree level | Proposed |
+| C-004 | Concurrent review isolation must not require manual changes to the project's test configuration (no user-added conftest.py, no settings.py edits). The orchestrator may set environment variables (e.g., `DATABASE_URL`, test DB name) that the project's test runner already respects. | Proposed |
 | C-005 | Arbiter rationale categories must be extensible (new categories can be added) but the initial set must include the four standard categories | Proposed |
 
 ## Work Package Decomposition
 
 | WP | Name | Issues | Depends On | Description |
 |----|------|--------|------------|-------------|
-| WP01 | Persisted review artifact model | #432, storage side of #433 | — | Define the review-cycle artifact schema, storage location, versioning model, and read/write operations. Move feedback persistence from `.git/spec-kitty/feedback/` to committed `kitty-specs/` artifacts. |
-| WP02 | Focused rejection recovery | #430 | WP01 | Generate fix-mode prompts from persisted review-cycle artifacts. The prompt generator reads the structured frontmatter (affected files, line ranges, verdict) to produce focused fix instructions. |
-| WP03 | Wire fix-mode to persisted artifacts | Integration side of #433 | WP01, WP02 | Thin integration layer ensuring the end-to-end path — rejection, persisted feedback, focused fix prompt — works as a single coherent flow. |
-| WP04 | External reviewer handoff | #439 | — | Implement dirty-state classification (blocking vs. benign by path pattern and WP ownership). Provide writable in-repo feedback path for external reviewers. |
-| WP05 | Review correctness under real execution | #444, #440 | — | Add baseline test result capture to review prompts. Implement concurrent review isolation or explicit serialization/blocking. |
+| WP01 | Persisted review artifact model | #432, storage side of #433 | — | Define the review-cycle artifact schema, storage location, versioning model, and read/write operations. Move feedback persistence from `.git/spec-kitty/feedback/` to committed `kitty-specs/` artifacts. Add backward-compatible resolution for legacy `feedback://` pointers in the event log (FR-016). |
+| WP02 | Focused rejection recovery | #430, integration side of #433 | WP01 | Generate fix-mode prompts from persisted review-cycle artifacts. The prompt generator reads the structured frontmatter (affected files, line ranges, verdict) to produce focused fix instructions. Includes the end-to-end wiring: the `agent action implement` code path that detects a prior rejection cycle and switches from full-prompt to fix-prompt mode, plus end-to-end integration tests for the rejection -> persisted feedback -> focused fix prompt flow. |
+| WP03 | External reviewer handoff | #439 | — | Implement dirty-state classification in `_validate_ready_for_review()` (blocking vs. benign by path pattern and WP ownership). Provide writable in-repo feedback path for external reviewers. |
+| WP04 | Baseline test capture | #444 | — | Capture baseline test results at WP claim time. Surface baseline-vs-current test delta in review prompts so reviewers can distinguish pre-existing failures from newly introduced regressions. |
+| WP05 | Concurrent review isolation | #440 | — | Implement environment-scoped test database isolation for concurrent review agents, or explicit serialization/blocking of unsupported concurrent reviews with an actionable explanation. |
 | WP06 | Arbiter ergonomics | #441 | — | Add structured arbiter checklist with standard rationale categories. Persist arbiter decisions in review history. |
 
-**Execution ordering**: WP01 -> WP02 -> WP03 (strict chain). WP04, WP05, WP06 are independent of this chain and can execute in parallel with each other and with WP02/WP03.
+**Execution ordering**: WP01 -> WP02 (strict chain). WP03, WP04, WP05, WP06 are independent of this chain and can execute in parallel with each other and with WP02.
+
+**Parallel safety rationale for WP01 and WP03**: Both modify `tasks.py`, but in non-overlapping sections. WP01 changes `_persist_review_feedback()` (lines 245-265) and the move-task pointer handling (lines 985-990). WP03 changes `_validate_ready_for_review()` (lines 468-750). These are separated by ~200 lines with no shared helper calls, so parallel execution has low merge conflict risk.
 
 ## Dependencies & Assumptions
 
@@ -164,7 +168,7 @@ If implementation reveals a missing prerequisite, file a follow-on issue instead
 
 ### Assumptions
 
-- The current `_persist_review_feedback()` in tasks.py writing to `.git/spec-kitty/feedback/` can be replaced without backward compatibility — no external consumers depend on that location
+- The current `_persist_review_feedback()` in tasks.py writing to `.git/spec-kitty/feedback/` will be replaced for new writes, but the pointer resolver must remain backward-compatible: existing `feedback://` pointers in the event log (from pre-066 rejection cycles) must still resolve to the legacy `.git/` location (FR-016). New writes go to `kitty-specs/`; old reads still work.
 - Review-cycle artifact frontmatter schema can be defined fresh — there is no existing schema to migrate from
 - Baseline test results can be captured by running the test suite on the base branch or reading cached CI results
 - The arbiter rationale categories (pre-existing failure, wrong-context review, cross-scope finding, infra/environmental issue) cover the majority of false-positive rejection scenarios observed in practice
