@@ -186,14 +186,14 @@ Fix all generated command guidance so that `--mission <slug>` is present whereve
 
 ### Included Subtasks
 
-- [ ] T026 Fix --feature to --mission in middleware.py error message
-- [ ] T027 Fix --feature to --mission in store.py error message
-- [ ] T028 Add --mission hint to shim template
-- [ ] T029 Fix tasks.md template context resolve example
-- [ ] T030 Audit all template command examples for missing --mission
-- [ ] T031 Improve require_explicit_feature error message
-- [ ] T032 Write regression tests for WP05
-- [ ] T033 Fix --feature command_hint in 5 require_explicit_feature callers
+- [x] T026 Fix --feature to --mission in middleware.py error message
+- [x] T027 Fix --feature to --mission in store.py error message
+- [x] T028 Add --mission hint to shim template
+- [x] T029 Fix tasks.md template context resolve example
+- [x] T030 Audit all template command examples for missing --mission
+- [x] T031 Improve require_explicit_feature error message
+- [x] T032 Write regression tests for WP05
+- [x] T033 Fix --feature command_hint in 5 require_explicit_feature callers
 
 ### Dependencies
 
