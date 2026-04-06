@@ -10,6 +10,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T022, T023, T024, T025]
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "14891"
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
@@ -287,3 +289,7 @@ WP04 does not own these files in its frontmatter — it modifies them under the 
 - Test against the real `kitty-specs/063-universal-charter-rename/tasks.md` to verify pipe-table parsing works on actual generated artifacts
 - Verify checkbox detection comes before pipe-table detection in the loop (canonical format first)
 - Check that pipe-table status update regex doesn't accidentally match non-status cells
+
+## Activity Log
+
+- 2026-04-06T14:42:16Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Started implementation via action command
