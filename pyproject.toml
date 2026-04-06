@@ -60,7 +60,7 @@ dependencies = [
     "pydantic>=2.0",
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
-    "spec-kitty-events==2.9.0",
+    "spec-kitty-events==3.0.0",
     "spec-kitty-runtime==0.4.2",
     "spec-kitty-tracker==0.3.0",
     "websockets>=12.0",  # WebSocket client for sync protocol
@@ -338,4 +338,13 @@ also_copy = [
 # Exclude migrations (idempotent, hard to unit-test meaningfully via mutation)
 do_not_mutate = [
     "src/specify_cli/upgrade/migrations/",
+]
+
+[tool.uv]
+# Override spec-kitty-runtime's transitive pin on spec-kitty-events==2.9.0.
+# runtime 0.4.2 imports from spec_kitty_events.mission_next which only exists
+# in events 3.0.0. This is an upstream packaging bug in spec-kitty-runtime
+# (tracked: Priivacy-ai/spec-kitty-runtime#TBD).
+override-dependencies = [
+    "spec-kitty-events==3.0.0",
 ]
