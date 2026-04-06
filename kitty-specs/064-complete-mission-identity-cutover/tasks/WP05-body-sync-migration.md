@@ -22,8 +22,8 @@ subtasks:
 - T033
 phase: Phase C - Contract Cleanup
 assignee: ''
-agent: ''
-shell_pid: ''
+agent: "claude:sonnet-4.6:python-implementer:implementer"
+shell_pid: "80435"
 history:
 - timestamp: '2026-04-06T05:39:39Z'
   agent: system
@@ -206,3 +206,7 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/body-sync.md` f
 
 - SQLite column rename requires 3.25.0+ — Python 3.11+ bundles 3.39+, so this is safe
 - Existing code may reference old field names in SQL strings — grep for `feature_slug` and `mission_key` in SQL literals
+
+## Activity Log
+
+- 2026-04-06T07:35:32Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=80435 – Started implementation via action command
