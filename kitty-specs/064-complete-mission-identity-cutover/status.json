@@ -1,8 +1,8 @@
 {
-  "event_count": 9,
+  "event_count": 14,
   "feature_slug": "064-complete-mission-identity-cutover",
-  "last_event_id": "01KNGNJYPNTKRX65G4A5VSYTSF",
-  "materialized_at": "2026-04-06T05:52:27.360623+00:00",
+  "last_event_id": "01KNGP9KFHKY60S1Q3H93A7RJA",
+  "materialized_at": "2026-04-06T06:04:49.522022+00:00",
   "mission_slug": "064-complete-mission-identity-cutover",
   "summary": {
     "approved": 0,
@@ -11,23 +11,23 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
-    "planned": 9
+    "in_progress": 1,
+    "planned": 8
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "opencode:gpt-5.4:python-implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNGNJYH0G1KQ3QYKXPHX96SY",
-      "last_transition_at": "2026-04-06T05:52:27.168416+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KNGP7AZSDMGTXFQQAVFKA15M",
+      "last_transition_at": "2026-04-06T06:03:35.289585+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
+      "actor": "user",
+      "force_count": 2,
       "lane": "planned",
-      "last_event_id": "01KNGNJYMBHA575D74WPSJJDZ7",
-      "last_transition_at": "2026-04-06T05:52:27.275399+00:00"
+      "last_event_id": "01KNGP9KFHKY60S1Q3H93A7RJA",
+      "last_transition_at": "2026-04-06T06:04:49.521699+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
