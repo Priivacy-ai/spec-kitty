@@ -398,7 +398,7 @@ def decide_next_via_runtime(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission="unknown",
             mission_state="unknown",
             timestamp=now,
@@ -429,7 +429,7 @@ def decide_next_via_runtime(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state="unknown",
             timestamp=now,
@@ -477,7 +477,7 @@ def decide_next_via_runtime(
             return Decision(
                 kind=DecisionKind.step,
                 agent=agent,
-                feature_slug=feature_slug,
+                mission_slug=feature_slug,
                 mission=mission_key,
                 mission_state=current_step_id,
                 timestamp=now,
@@ -504,7 +504,7 @@ def decide_next_via_runtime(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state=current_step_id or "unknown",
             timestamp=now,
@@ -569,7 +569,7 @@ def _build_wp_iteration_decision(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state=step_id,
             timestamp=timestamp,
@@ -588,7 +588,7 @@ def _build_wp_iteration_decision(
     return Decision(
         kind=DecisionKind.step,
         agent=agent,
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         mission=mission_key,
         mission_state=step_id,
         timestamp=timestamp,
@@ -623,7 +623,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.terminal,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state="done",
             timestamp=timestamp,
@@ -638,7 +638,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.blocked,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state=step_id or "unknown",
             timestamp=timestamp,
@@ -668,7 +668,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.decision_required,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state=step_id or "unknown",
             timestamp=timestamp,
@@ -694,7 +694,7 @@ def _map_runtime_decision(
             return Decision(
                 kind=DecisionKind.blocked,
                 agent=agent,
-                feature_slug=feature_slug,
+                mission_slug=feature_slug,
                 mission=mission_key,
                 mission_state=step_id,
                 timestamp=timestamp,
@@ -710,7 +710,7 @@ def _map_runtime_decision(
         return Decision(
             kind=DecisionKind.step,
             agent=agent,
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             mission=mission_key,
             mission_state=step_id,
             timestamp=timestamp,
@@ -736,7 +736,7 @@ def _map_runtime_decision(
     return Decision(
         kind=DecisionKind.step,
         agent=agent,
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         mission=mission_key,
         mission_state=step_id or "unknown",
         timestamp=timestamp,

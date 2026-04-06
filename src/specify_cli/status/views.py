@@ -63,7 +63,7 @@ def write_derived_views(
         derived_dir: Root directory for derived artefacts.
     """
     snapshot = materialize(feature_dir)
-    feature_slug = snapshot.feature_slug or feature_dir.name
+    feature_slug = snapshot.mission_slug or feature_dir.name
 
     output_dir = derived_dir / feature_slug
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -102,7 +102,7 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
         lanes[lane].append(wp_id)
 
     return {
-        "feature_slug": snapshot.feature_slug,
+        "mission_slug": snapshot.mission_slug,
         "total_wps": len(snapshot.work_packages),
         "summary": snapshot.summary,
         "lanes": lanes,

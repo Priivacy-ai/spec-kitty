@@ -42,7 +42,7 @@ class DecisionKind:
 class Decision:
     kind: str  # one of DecisionKind.*
     agent: str
-    feature_slug: str
+    mission_slug: str
     mission: str
     mission_state: str
     timestamp: str
@@ -66,7 +66,7 @@ class Decision:
         return {
             "kind": self.kind,
             "agent": self.agent,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "mission": self.mission,
             "mission_state": self.mission_state,
             "timestamp": self.timestamp,

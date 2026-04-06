@@ -48,7 +48,7 @@ def _make_event(
     """Build a valid event dict with optional overrides."""
     event: dict = {
         "event_id": event_id,
-        "feature_slug": feature_slug,
+        "mission_slug": feature_slug,
         "wp_id": wp_id,
         "from_lane": from_lane,
         "to_lane": to_lane,

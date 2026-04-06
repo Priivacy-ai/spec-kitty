@@ -90,7 +90,7 @@ Test content here.
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",
-                feature_slug="017-test-feature",
+                mission_slug="017-test-feature",
                 wp_id="WP01",
                 from_lane=Lane.PLANNED,
                 to_lane=Lane(lane_val),

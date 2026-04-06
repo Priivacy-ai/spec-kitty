@@ -45,7 +45,7 @@ def _make_snapshot(
         summary[lane] = summary.get(lane, 0) + 1
 
     return StatusSnapshot(
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         materialized_at="2026-01-01T00:00:00+00:00",
         event_count=len(wp_lanes),
         last_event_id=None,
@@ -64,7 +64,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -261,7 +261,7 @@ def test_result_is_json_serialisable():
     result = compute_weighted_progress(snapshot)
     json_str = json.dumps(result.to_dict())
     parsed = json.loads(json_str)
-    assert parsed["feature_slug"] == "test-feature"
+    assert parsed["mission_slug"] == "test-feature"
     assert "percentage" in parsed
     assert "per_wp" in parsed
 
@@ -286,7 +286,7 @@ def test_generate_progress_json_writes_file(tmp_path):
     progress_file = derived_dir / "001-test-feature" / "progress.json"
     assert progress_file.exists()
     data = json.loads(progress_file.read_text())
-    assert data["feature_slug"] == "001-test-feature"
+    assert data["mission_slug"] == "001-test-feature"
     assert data["percentage"] == pytest.approx(100.0)
 
 

@@ -239,7 +239,7 @@ class TestE2EJsonOutputFormat:
         assert keys == sorted(keys)
 
         # Check structure
-        assert "feature_slug" in parsed
+        assert "mission_slug" in parsed
         assert "materialized_at" in parsed
         assert "event_count" in parsed
         assert "work_packages" in parsed

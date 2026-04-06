@@ -56,7 +56,7 @@ def _append_status_event(
         feature_dir,
         StatusEvent(
             event_id=f"{wp_id}-{to_lane.value}-{time.time_ns()}",
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             wp_id=wp_id,
             from_lane=from_lane,
             to_lane=to_lane,

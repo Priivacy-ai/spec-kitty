@@ -27,7 +27,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),
@@ -75,9 +75,7 @@ def test_write_derived_views_creates_files(tmp_path):
     status_data = json.loads(status_path.read_text())
     board_data = json.loads(board_path.read_text())
     assert status_data["mission_slug"] == "001-test"
-    assert status_data["feature_slug"] == "001-test"
     assert board_data["mission_slug"] == "001-test"
-    assert board_data["feature_slug"] == "001-test"
 
 
 def test_generate_progress_json_creates_file(tmp_path):
@@ -93,7 +91,6 @@ def test_generate_progress_json_creates_file(tmp_path):
     assert progress_file.exists()
     data = json.loads(progress_file.read_text())
     assert data["mission_slug"] == "002-test"
-    assert data["feature_slug"] == "002-test"
     assert data["percentage"] == pytest.approx(30.0)
 
 
@@ -132,7 +129,7 @@ def test_materialize_output_json_structure(tmp_path):
     generate_progress_json(feature_dir, derived_dir)
 
     data = json.loads((derived_dir / "004-structure" / "progress.json").read_text())
-    for key in ("mission_slug", "feature_slug", "percentage", "done_count", "total_count", "per_lane_counts", "per_wp"):
+    for key in ("mission_slug", "percentage", "done_count", "total_count", "per_lane_counts", "per_wp"):
         assert key in data, f"Missing key: {key}"
 
 
@@ -303,5 +300,5 @@ def test_materialize_if_stale_no_events(tmp_path):
     snapshot = materialize_if_stale(feature_dir, tmp_path)
 
     assert snapshot is not None
-    assert snapshot.feature_slug == ""  # empty snapshot
+    assert snapshot.mission_slug == ""  # empty snapshot
     assert snapshot.event_count == 0

@@ -239,7 +239,7 @@ class TestValidateCommand:
         assert result.exit_code == 0
 
         data = json.loads(result.output)
-        assert data["feature_slug"] == feature_slug
+        assert data["mission_slug"] == feature_slug
         assert "passed" in data
         assert isinstance(data["errors"], list)
         assert isinstance(data["warnings"], list)

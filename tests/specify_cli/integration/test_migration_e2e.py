@@ -272,7 +272,7 @@ class TestMigrationIdempotency:
         # Create a live (non-migration) event
         live_event = StatusEvent(
             event_id="01ABCDEF0000000000000000AA",
-            feature_slug="006-idempotent",
+            mission_slug="006-idempotent",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -306,7 +306,7 @@ class TestMigrationIdempotency:
         # Write a migration-style event first
         migration_event = StatusEvent(
             event_id="01AAAAAAAAAAAAAAAAAAAAAABB",
-            feature_slug="007-no-loss",
+            mission_slug="007-no-loss",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.PLANNED,

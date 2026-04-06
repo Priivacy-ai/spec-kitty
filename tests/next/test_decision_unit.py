@@ -31,7 +31,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     """Seed a WP into a specific lane in the event log."""
     event = StatusEvent(
         event_id=f"test-{wp_id}-{lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(lane),
@@ -487,7 +487,6 @@ class TestDecideNext:
         assert "kind" in d
         assert "agent" in d
         assert "mission_slug" in d
-        assert "feature_slug" in d
         assert "mission" in d
         assert "mission_state" in d
         assert "timestamp" in d
@@ -518,7 +517,7 @@ class TestDecideNext:
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="specify",
             timestamp="2026-02-17T00:00:00+00:00",
@@ -604,7 +603,7 @@ class TestDecisionQuestionOptions:
         decision = Decision(
             kind=DecisionKind.decision_required,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="unknown",
             timestamp="2026-02-18T00:00:00+00:00",
@@ -623,7 +622,7 @@ class TestDecisionQuestionOptions:
         decision = Decision(
             kind=DecisionKind.step,
             agent="test",
-            feature_slug="042-test",
+            mission_slug="042-test",
             mission="software-dev",
             mission_state="specify",
             timestamp="2026-02-18T00:00:00+00:00",

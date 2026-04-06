@@ -46,7 +46,7 @@ class TestCanonicalFanOut:
     ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000TEST",
-            feature_slug="039-test-feature",
+            mission_slug="039-test-feature",
             wp_id="WP01",
             from_lane=from_lane,
             to_lane=to_lane,

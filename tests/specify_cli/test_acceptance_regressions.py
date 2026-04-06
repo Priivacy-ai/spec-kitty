@@ -111,7 +111,7 @@ def _create_test_feature(
         now = datetime.now(timezone.utc).isoformat()
         event = StatusEvent(
             event_id=str(ULID()),
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.DONE,

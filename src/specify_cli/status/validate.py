@@ -56,7 +56,6 @@ def validate_event_schema(event: dict) -> list[str]:
     findings: list[str] = []
     required_fields = [
         "event_id",
-        "feature_slug",
         "wp_id",
         "from_lane",
         "to_lane",
@@ -68,6 +67,10 @@ def validate_event_schema(event: dict) -> list[str]:
     for f in required_fields:
         if f not in event:
             findings.append(f"Missing required field: {f}")
+
+    # mission_slug (canonical) or feature_slug (legacy) must be present
+    if "mission_slug" not in event and "feature_slug" not in event:
+        findings.append("Missing required field: mission_slug (or legacy feature_slug)")
 
     # ULID format check
     event_id = event.get("event_id", "")

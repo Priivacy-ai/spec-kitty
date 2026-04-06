@@ -28,7 +28,7 @@ def _make_event(
     """Helper to build a minimal StatusEvent for testing."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug="034-feature-name",
+        mission_slug="034-feature-name",
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,

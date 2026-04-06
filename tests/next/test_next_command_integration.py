@@ -91,7 +91,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -191,7 +191,6 @@ class TestNextCommandJSON:
         d = decision.to_dict()
         assert d["agent"] == "test-agent"
         assert d["mission_slug"] == "042-test-feature"
-        assert d["feature_slug"] == "042-test-feature"
         assert d["mission"] == "software-dev"
         assert "kind" in d
 
@@ -429,7 +428,7 @@ class TestNextCommandCLI:
         assert result.exit_code == 0, f"stderr: {result.output}"
         data = json.loads(result.output)
         assert data["agent"] == "test-agent"
-        assert data["feature_slug"] == "042-test-feature"
+        assert data["mission_slug"] == "042-test-feature"
         assert data["mission"] == "software-dev"
         assert "kind" in data
         assert "mission_state" in data

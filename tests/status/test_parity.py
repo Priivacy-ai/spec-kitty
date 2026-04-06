@@ -54,7 +54,7 @@ def _make_event(
 ) -> StatusEvent:
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -411,7 +411,7 @@ class TestReducerDeterminism:
     def test_json_serialization_byte_identical(self):
         """materialize_to_json produces byte-identical output for same snapshot."""
         snapshot = StatusSnapshot(
-            feature_slug="034-parity-test",
+            mission_slug="034-parity-test",
             materialized_at="2026-02-08T15:00:00+00:00",
             event_count=3,
             last_event_id="01HXYZ0000000000000000000C",
@@ -451,13 +451,13 @@ class TestReducerDeterminism:
 
         # Valid JSON
         parsed = json.loads(json_a)
-        assert parsed["feature_slug"] == "034-parity-test"
+        assert parsed["mission_slug"] == "034-parity-test"
         assert parsed["event_count"] == 3
 
     def test_sorted_keys_in_json_output(self):
         """JSON output has sorted keys for deterministic diff-friendly output."""
         snapshot = StatusSnapshot(
-            feature_slug="034-parity-test",
+            mission_slug="034-parity-test",
             materialized_at="2026-02-08T15:00:00+00:00",
             event_count=1,
             last_event_id="01HXYZ0000000000000000000A",
@@ -522,7 +522,7 @@ class TestReducerDeterminism:
         parsed = json.loads(json_str)
         roundtrip = StatusSnapshot.from_dict(parsed)
 
-        assert roundtrip.feature_slug == snapshot.feature_slug
+        assert roundtrip.mission_slug == snapshot.mission_slug
         assert roundtrip.event_count == snapshot.event_count
         assert roundtrip.last_event_id == snapshot.last_event_id
         assert roundtrip.work_packages == snapshot.work_packages
@@ -535,7 +535,7 @@ class TestReducerDeterminism:
             snap_a = reduce([])
             snap_b = reduce([])
 
-        assert snap_a.feature_slug == snap_b.feature_slug == ""
+        assert snap_a.mission_slug == snap_b.mission_slug == ""
         assert snap_a.event_count == snap_b.event_count == 0
         assert snap_a.last_event_id == snap_b.last_event_id is None
         assert snap_a.work_packages == snap_b.work_packages == {}

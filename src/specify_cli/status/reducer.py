@@ -118,7 +118,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     """
     if not events:
         return StatusSnapshot(
-            feature_slug="",
+            mission_slug="",
             materialized_at=_now_utc(),
             event_count=0,
             last_event_id=None,
@@ -139,7 +139,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
 
     # Step 3 & 4: Iterate and apply events with rollback-aware precedence
     wp_states: dict[str, dict[str, Any]] = {}
-    feature_slug = sorted_events[0].feature_slug
+    feature_slug = sorted_events[0].mission_slug
 
     for event in sorted_events:
         current = wp_states.get(event.wp_id)
@@ -154,7 +154,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
             summary[lane_val] += 1
 
     return StatusSnapshot(
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         materialized_at=_now_utc(),
         event_count=len(sorted_events),
         last_event_id=sorted_events[-1].event_id,

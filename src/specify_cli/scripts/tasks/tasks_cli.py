@@ -123,7 +123,7 @@ def stage_update(
     canonical_to = resolve_lane_alias(target_lane)
     event = StatusEvent(
         event_id=_generate_ulid(),
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         wp_id=wp_id,
         from_lane=Lane(canonical_from),
         to_lane=Lane(canonical_to),

@@ -317,7 +317,7 @@ def emit_status_transition(
         _mirror_phase1_frontmatter_lane(feature_dir, wp_id, resolved_lane)
         return StatusEvent(
             event_id=_generate_ulid(),
-            feature_slug=feature_slug,
+            mission_slug=feature_slug,
             wp_id=wp_id,
             from_lane=Lane(from_lane),
             to_lane=Lane(resolved_lane),
@@ -355,7 +355,7 @@ def emit_status_transition(
     # Step 4: Create StatusEvent with ULID event_id
     event = StatusEvent(
         event_id=_generate_ulid(),
-        feature_slug=feature_slug,
+        mission_slug=feature_slug,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(resolved_lane),

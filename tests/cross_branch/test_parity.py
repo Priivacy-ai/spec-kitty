@@ -49,7 +49,7 @@ class TestReducerParity:
         expected = _load_expected_snapshot()
 
         # Feature slug
-        assert snapshot.feature_slug == expected["feature_slug"]
+        assert snapshot.mission_slug == expected.get("mission_slug", expected.get("feature_slug"))
 
         # Event count
         assert snapshot.event_count == expected["event_count"]
@@ -110,9 +110,9 @@ class TestReducerParity:
         expected = _load_expected_snapshot()
 
         # All events should have the same feature_slug
-        slugs = {e.feature_slug for e in events}
+        slugs = {e.mission_slug for e in events}
         assert len(slugs) == 1
-        assert slugs.pop() == expected["feature_slug"]
+        assert slugs.pop() == expected.get("mission_slug", expected.get("feature_slug"))
 
         # All event_ids should be unique
         event_ids = [e.event_id for e in events]

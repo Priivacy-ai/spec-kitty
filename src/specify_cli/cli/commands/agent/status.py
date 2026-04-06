@@ -354,7 +354,7 @@ def doctor(
 
     if json_output:
         report = {
-            "feature_slug": result.feature_slug,
+            "mission_slug": result.feature_slug,
             "healthy": overall_healthy,
             "global_runtime": [
                 {
@@ -434,7 +434,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
     return {
         "features": [
             {
-                "feature_slug": f.feature_slug,
+                "mission_slug": f.feature_slug,
                 "status": f.status,
                 "wp_count": len(f.wp_details),
                 "wp_details": [
@@ -614,7 +614,7 @@ def validate(
             print(
                 json.dumps(
                     {
-                        "feature_slug": feature_slug,
+                        "mission_slug": feature_slug,
                         "passed": True,
                         "errors": [],
                         "warnings": [],
@@ -645,7 +645,7 @@ def validate(
         print(
             json.dumps(
                 {
-                    "feature_slug": feature_slug,
+                    "mission_slug": feature_slug,
                     "passed": result.passed,
                     "errors": result.errors,
                     "warnings": result.warnings,

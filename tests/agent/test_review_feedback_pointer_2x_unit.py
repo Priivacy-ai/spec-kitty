@@ -103,7 +103,7 @@ def _git_common_dir(repo: Path) -> Path:
 def _mock_status_event(*, to_lane: str, actor: str, force: bool) -> StatusEvent:
     return StatusEvent(
         event_id="01HZX000000000000000000000",
-        feature_slug="001-test-feature",
+        mission_slug="001-test-feature",
         wp_id="WP01",
         from_lane=Lane("for_review"),
         to_lane=Lane(to_lane),

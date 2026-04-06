@@ -929,7 +929,7 @@ class TestDoctorCLI:
         output = result.output.strip()
         parsed = json.loads(output)
         assert parsed["healthy"] is True
-        assert parsed["feature_slug"] == "034-test"
+        assert parsed["mission_slug"] == "034-test"
         assert parsed["findings"] == []
 
     def test_doctor_cli_healthy_exit_0(self, tmp_path: Path):

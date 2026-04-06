@@ -63,7 +63,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
 
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -447,7 +447,7 @@ class TestMapRuntimeDecision:
         # Original fields
         assert "kind" in d
         assert "agent" in d
-        assert "feature_slug" in d
+        assert "mission_slug" in d
         assert "mission" in d
         assert "mission_state" in d
         assert "timestamp" in d

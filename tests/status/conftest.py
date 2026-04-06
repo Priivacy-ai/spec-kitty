@@ -70,7 +70,7 @@ def sample_done_evidence(
 def sample_status_event() -> StatusEvent:
     return StatusEvent(
         event_id="01HXYZ0123456789ABCDEFGHJK",
-        feature_slug="034-feature-name",
+        mission_slug="034-feature-name",
         wp_id="WP01",
         from_lane=Lane.PLANNED,
         to_lane=Lane.CLAIMED,
@@ -87,7 +87,7 @@ def sample_status_event_with_evidence(
 ) -> StatusEvent:
     return StatusEvent(
         event_id="01HXYZ0123456789ABCDEFGHJL",
-        feature_slug="034-feature-name",
+        mission_slug="034-feature-name",
         wp_id="WP01",
         from_lane=Lane.FOR_REVIEW,
         to_lane=Lane.DONE,
@@ -102,7 +102,7 @@ def sample_status_event_with_evidence(
 @pytest.fixture
 def sample_status_snapshot() -> StatusSnapshot:
     return StatusSnapshot(
-        feature_slug="034-feature-name",
+        mission_slug="034-feature-name",
         materialized_at="2026-02-08T15:00:00Z",
         event_count=5,
         last_event_id="01HXYZ0123456789ABCDEFGHJM",

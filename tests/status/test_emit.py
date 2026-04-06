@@ -86,7 +86,7 @@ class TestDeriveFromLane:
         """Derives from_lane from the last event's to_lane for the WP."""
         event = StatusEvent(
             event_id="01HXYZ0000000000000000TEST",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -108,7 +108,7 @@ class TestDeriveFromLane:
 
         event_wp01 = StatusEvent(
             event_id="01HXYZ0000000000000000TST1",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -119,7 +119,7 @@ class TestDeriveFromLane:
         )
         event_wp02 = StatusEvent(
             event_id="01HXYZ0000000000000000TST2",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP02",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -140,7 +140,7 @@ class TestDeriveFromLane:
 
         event = StatusEvent(
             event_id="01HXYZ0000000000000000TST3",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.CLAIMED,
@@ -163,7 +163,7 @@ class TestDeriveFromLane:
             feature_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO02",
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 from_lane=Lane.CLAIMED,
                 to_lane=Lane.IN_PROGRESS,
@@ -177,7 +177,7 @@ class TestDeriveFromLane:
             feature_dir,
             StatusEvent(
                 event_id="01HXYZ0000000000000000OO01",
-                feature_slug="034-test-feature",
+                mission_slug="034-test-feature",
                 wp_id="WP01",
                 from_lane=Lane.PLANNED,
                 to_lane=Lane.CLAIMED,
@@ -293,7 +293,7 @@ class TestEmitStatusTransition:
         assert event.from_lane == Lane.PLANNED
         assert event.to_lane == Lane.CLAIMED
         assert event.wp_id == "WP01"
-        assert event.feature_slug == "034-test-feature"
+        assert event.mission_slug == "034-test-feature"
         assert event.actor == "claude-opus"
         assert event.force is False
         assert event.execution_mode == "worktree"
@@ -844,7 +844,7 @@ class TestSaasFanOut:
     ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000SAAS",
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             from_lane=from_lane,
             to_lane=to_lane,

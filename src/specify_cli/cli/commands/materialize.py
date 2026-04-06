@@ -83,7 +83,7 @@ def materialize(
             generate_progress_json(feature_dir, derived_dir)
             files_written.append("progress.json")
             processed.append({
-                "feature_slug": slug,
+                "mission_slug": slug,
                 "files_written": files_written,
                 "timestamp": datetime.now(UTC).isoformat(),
             })
@@ -104,7 +104,7 @@ def materialize(
             console.print("[dim]No features materialised.[/dim]")
         else:
             for entry in processed:
-                slug = entry["feature_slug"]
+                slug = entry.get("mission_slug") or entry.get("feature_slug")
                 files = ", ".join(entry["files_written"])
                 console.print(f"[green]OK[/green] {slug} — {files}")
         if errors:

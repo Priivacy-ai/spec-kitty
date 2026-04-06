@@ -60,7 +60,7 @@ class ProgressResult:
     JSON-serialisable for machine consumption.
     """
 
-    feature_slug: str
+    mission_slug: str
     percentage: float
     done_count: int
     total_count: int
@@ -69,7 +69,7 @@ class ProgressResult:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "percentage": round(self.percentage, 4),
             "done_count": self.done_count,
             "total_count": self.total_count,
@@ -113,7 +113,7 @@ def compute_weighted_progress(
     work_packages = snapshot.work_packages
     if not work_packages:
         return ProgressResult(
-            feature_slug=snapshot.feature_slug,
+            mission_slug=snapshot.mission_slug,
             percentage=0.0,
             done_count=0,
             total_count=0,
@@ -153,7 +153,7 @@ def compute_weighted_progress(
     percentage = (weighted_sum / weight_total * 100.0) if weight_total > 0 else 0.0
 
     return ProgressResult(
-        feature_slug=snapshot.feature_slug,
+        mission_slug=snapshot.mission_slug,
         percentage=percentage,
         done_count=done_count,
         total_count=len(work_packages),
@@ -175,7 +175,7 @@ def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
         derived_dir: Root directory for derived artefacts.
     """
     snapshot = materialize(feature_dir)
-    feature_slug = snapshot.feature_slug or feature_dir.name
+    feature_slug = snapshot.mission_slug or feature_dir.name
     result = compute_weighted_progress(snapshot)
 
     output_dir = derived_dir / feature_slug
