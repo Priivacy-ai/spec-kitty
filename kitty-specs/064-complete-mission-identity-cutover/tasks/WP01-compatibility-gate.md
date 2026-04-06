@@ -175,3 +175,4 @@ The vendored artifact already exists as a planning artifact at `kitty-specs/064-
 - 2026-04-06T06:03:35Z – opencode:gpt-5.4:python-implementer:implementer – shell_pid=39186 – Started implementation via action command
 - 2026-04-06T06:07:51Z – opencode:gpt-5.4:python-implementer:implementer – shell_pid=39186 – Ready for review: vendored upstream contract artifact, added cached runtime compatibility gate, and covered validation/pass-through behavior with unit tests
 - 2026-04-06T06:08:27Z – opencode:gpt-5.4:python-reviewer:reviewer – shell_pid=40497 – Started review via action command
+- 2026-04-06T06:11:09Z – opencode:gpt-5.4:python-reviewer:reviewer – shell_pid=40497 – Moved to planned
