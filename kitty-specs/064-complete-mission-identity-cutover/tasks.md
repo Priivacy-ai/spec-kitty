@@ -48,13 +48,13 @@ Build the central compatibility gate that validates outbound payloads against th
 
 Rename `feature_creation.py` → `mission_creation.py` and `feature_metadata.py` → `mission_metadata.py`. Update all imports. Fix meta.json scaffolding to write canonical field names.
 
-- [ ] T006: `git mv` feature_creation.py → mission_creation.py + update 2 prod imports
-- [ ] T007: Update meta.json scaffolding in mission_creation.py to write `mission_slug`, `mission_number`, `mission_type`
-- [ ] T008: Update 3 test files for mission_creation import
-- [ ] T009: `git mv` feature_metadata.py → mission_metadata.py + update 10 prod imports
-- [ ] T010: Update 3 test files for mission_metadata import
-- [ ] T011: Update other meta.json write paths (upgrade/feature_meta.py) to use canonical fields
-- [ ] T012: Write tests verifying new meta.json writes use canonical fields only
+- [x] T006: `git mv` feature_creation.py → mission_creation.py + update 2 prod imports
+- [x] T007: Update meta.json scaffolding in mission_creation.py to write `mission_slug`, `mission_number`, `mission_type`
+- [x] T008: Update 3 test files for mission_creation import
+- [x] T009: `git mv` feature_metadata.py → mission_metadata.py + update 10 prod imports
+- [x] T010: Update 3 test files for mission_metadata import
+- [x] T011: Update other meta.json write paths (upgrade/feature_meta.py) to use canonical fields
+- [x] T012: Write tests verifying new meta.json writes use canonical fields only
 
 **Requirement refs**: FR-016, FR-019
 
