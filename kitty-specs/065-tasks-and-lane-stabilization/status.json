@@ -1,14 +1,14 @@
 {
-  "event_count": 42,
-  "last_event_id": "01KNHXEYRJ3CPB288YDGRAANXA",
-  "materialized_at": "2026-04-06T17:29:19.378889+00:00",
+  "event_count": 43,
+  "last_event_id": "01KNHXEZR6H3FAC961W8V5F8YV",
+  "materialized_at": "2026-04-06T17:29:20.391845+00:00",
   "mission_slug": "065-tasks-and-lane-stabilization",
   "summary": {
-    "approved": 3,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 2,
+    "done": 3,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -30,10 +30,10 @@
     },
     "WP03": {
       "actor": "user",
-      "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01KNHKWHA0NBH6DJWKD9EKVSZM",
-      "last_transition_at": "2026-04-06T14:41:58.592513+00:00"
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KNHXEZR6H3FAC961W8V5F8YV",
+      "last_transition_at": "2026-04-06T17:29:20.391047+00:00"
     },
     "WP04": {
       "actor": "user",
