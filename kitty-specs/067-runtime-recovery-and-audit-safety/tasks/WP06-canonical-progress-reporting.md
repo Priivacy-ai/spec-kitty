@@ -278,3 +278,4 @@ Callsite 8 (`merge/state.py:102` — `completed_wps / wp_order * 100`) is intent
 ## Activity Log
 
 - 2026-04-06T18:52:26Z – claude:opus:implementer:implementer – shell_pid=88313 – Started implementation via action command
+- 2026-04-06T19:02:39Z – claude:opus:implementer:implementer – shell_pid=88313 – All 7 broken callsites replaced with compute_weighted_progress(). merge/state.py intentionally untouched. 11 integration tests added.
