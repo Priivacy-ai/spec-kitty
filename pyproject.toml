@@ -61,7 +61,7 @@ dependencies = [
     "packaging>=23.0",
     "psutil>=5.9.0",  # Cross-platform process management for dashboard
     "spec-kitty-events==3.0.0",
-    "spec-kitty-runtime==0.4.2",
+    "spec-kitty-runtime==0.4.3",
     "spec-kitty-tracker==0.3.0",
     "websockets>=12.0",  # WebSocket client for sync protocol
     "toml>=0.10.2",  # Config file parsing
