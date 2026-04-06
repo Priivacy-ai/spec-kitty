@@ -15,8 +15,6 @@ import os
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
-
 from .models import StatusSnapshot
 from .reducer import materialize, reduce
 from .store import EVENTS_FILENAME, read_events
@@ -48,7 +46,7 @@ def write_derived_views(
 ) -> None:
     """Generate and write derived views from the event log.
 
-    Produces two files under ``derived_dir / <feature_slug>/``:
+    Produces two files under ``derived_dir / <mission_slug>/``:
 
     - ``status.json`` — full StatusSnapshot serialised as JSON.
     - ``board-summary.json`` — lane counts and WP lists per lane.
@@ -65,9 +63,9 @@ def write_derived_views(
         derived_dir: Root directory for derived artefacts.
     """
     snapshot = materialize(feature_dir)
-    feature_slug = snapshot.feature_slug or feature_dir.name
+    mission_slug = snapshot.mission_slug or feature_dir.name
 
-    output_dir = derived_dir / feature_slug
+    output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)
 
     # Write status.json
@@ -88,7 +86,7 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
     """Build a compact board summary from a StatusSnapshot.
 
     Returns a dict with:
-    - ``feature_slug``: feature identifier
+    - ``mission_slug``: feature identifier
     - ``total_wps``: total number of work packages
     - ``summary``: lane -> count mapping (all 7 lanes)
     - ``lanes``: lane -> list of wp_ids mapping
@@ -103,20 +101,20 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
             lanes[lane] = []
         lanes[lane].append(wp_id)
 
-    return with_tracked_mission_slug_aliases({
-        "feature_slug": snapshot.feature_slug,
+    return {
+        "mission_slug": snapshot.mission_slug,
         "total_wps": len(snapshot.work_packages),
         "summary": snapshot.summary,
         "lanes": lanes,
         "materialized_at": snapshot.materialized_at,
-    })
+    }
 
 
 def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     """Regenerate derived views when the event log is newer than the derived files.
 
     Checks whether ``status.json`` and ``progress.json`` exist in
-    ``.kittify/derived/<feature_slug>/`` and whether the event log
+    ``.kittify/derived/<mission_slug>/`` and whether the event log
     (``status.events.jsonl``) has a newer mtime than either derived file.
     If stale (or derived files are missing), regenerates all derived views.
 
@@ -130,9 +128,9 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
     """
     from .progress import generate_progress_json  # local import to avoid circular
 
-    feature_slug = feature_dir.name
+    mission_slug = feature_dir.name
     derived_dir = repo_root / ".kittify" / "derived"
-    feature_derived = derived_dir / feature_slug
+    feature_derived = derived_dir / mission_slug
 
     events_path = feature_dir / EVENTS_FILENAME
     status_path = feature_derived / DERIVED_STATUS_FILENAME

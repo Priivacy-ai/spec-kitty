@@ -16,10 +16,10 @@ def _install_manifest_stubs(monkeypatch, worktree_path: Path) -> None:
     """Provide lightweight manifest + worktree stubs for diagnostics tests."""
 
     class FakeManifest:
-        def __init__(self, kittify_dir: Path, *, mission_key: str | None = None) -> None:
+        def __init__(self, kittify_dir: Path, *, mission_type: str | None = None) -> None:
             self.kittify_dir = kittify_dir
             self.mission_dir = (
-                kittify_dir / "missions" / mission_key if mission_key else None
+                kittify_dir / "missions" / mission_type if mission_type else None
             )
 
         def get_expected_files(self) -> dict[str, list[str]]:
@@ -82,7 +82,7 @@ def _configure_common_patches(monkeypatch, worktree_path: Path) -> None:
 
     # Create fake acceptance module for the corrected import path
     fake_acceptance = types.ModuleType("specify_cli.acceptance")
-    fake_acceptance.detect_feature_slug = lambda repo_root, cwd: "004-modular-code-refactoring"  # type: ignore[attr-defined]
+    fake_acceptance.detect_mission_slug = lambda repo_root, cwd: "004-modular-code-refactoring"  # type: ignore[attr-defined]
     fake_acceptance.AcceptanceError = _DummyAcceptanceError  # type: ignore[attr-defined]
     monkeypatch.setitem(sys.modules, "specify_cli.acceptance", fake_acceptance)
 
@@ -156,7 +156,7 @@ def test_run_diagnostics_with_feature_dir_resolves_mission(monkeypatch, tmp_path
     # Create a feature dir with meta.json specifying 'research' mission
     feature_dir = tmp_path / "feature-dir"
     feature_dir.mkdir()
-    meta = {"mission": "research", "feature_slug": "099-test", "created_at": "2026-01-01"}
+    meta = {"mission": "research", "mission_slug": "099-test", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     _configure_common_patches(monkeypatch, worktree_dir)

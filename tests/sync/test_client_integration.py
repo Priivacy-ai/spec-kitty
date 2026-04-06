@@ -1,9 +1,68 @@
 """Integration tests for WebSocket client"""
 
+import json
 import pytest
+from unittest.mock import AsyncMock
+from uuid import UUID
+
 from specify_cli.sync.client import WebSocketClient, ConnectionStatus
+from specify_cli.sync.project_identity import ProjectIdentity
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_pong_includes_build_id():
+    """Test that pong response to server ping includes build_id from project identity."""
+    identity = ProjectIdentity(
+        project_uuid=UUID("12345678-1234-5678-1234-567812345678"),
+        project_slug="test-project",
+        node_id="abcdef123456",
+        build_id="bid-9999",
+    )
+    client = WebSocketClient(
+        server_url="ws://localhost:8000",
+        token="test-token",
+        project_identity=identity,
+    )
+
+    # Simulate an active connection with a mock websocket
+    sent_messages: list[str] = []
+    mock_ws = AsyncMock()
+    mock_ws.send = AsyncMock(side_effect=lambda msg: sent_messages.append(msg))
+    client.ws = mock_ws
+    client.connected = True
+
+    # Simulate receiving a ping
+    await client._handle_ping({"type": "ping", "timestamp": "2026-04-06T00:00:00Z"})
+
+    assert len(sent_messages) == 1
+    pong = json.loads(sent_messages[0])
+    assert pong["type"] == "pong"
+    assert pong["timestamp"] == "2026-04-06T00:00:00Z"
+    assert pong["build_id"] == "bid-9999"
+
+
+@pytest.mark.asyncio
+async def test_heartbeat_pong_omits_build_id_when_no_identity():
+    """Test that pong response omits build_id when no project identity is set."""
+    client = WebSocketClient(
+        server_url="ws://localhost:8000",
+        token="test-token",
+    )
+
+    sent_messages: list[str] = []
+    mock_ws = AsyncMock()
+    mock_ws.send = AsyncMock(side_effect=lambda msg: sent_messages.append(msg))
+    client.ws = mock_ws
+    client.connected = True
+
+    await client._handle_ping({"type": "ping", "timestamp": "2026-04-06T00:00:00Z"})
+
+    assert len(sent_messages) == 1
+    pong = json.loads(sent_messages[0])
+    assert pong["type"] == "pong"
+    assert "build_id" not in pong
 
 
 @pytest.mark.asyncio

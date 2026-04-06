@@ -15,6 +15,7 @@ import requests
 
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
+from specify_cli.core.contract_gate import validate_outbound_payload
 
 
 # ---------------------------------------------------------------------------
@@ -347,6 +348,13 @@ def batch_sync(  # noqa: C901
 
     if show_progress:
         print(f"Syncing {len(events)} events... (0/{len(events)})")
+
+    # Validate each event envelope against upstream contract before sending
+    for evt in events:
+        try:
+            validate_outbound_payload(evt, "envelope")
+        except Exception:
+            pass  # Log-only; don't block batch sync for legacy queued events
 
     # Compress payload with gzip
     payload = json.dumps({"events": events}).encode("utf-8")

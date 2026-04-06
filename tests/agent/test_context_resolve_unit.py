@@ -18,7 +18,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     canonical_lane = _lane_alias.get(lane, lane)
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -70,7 +70,7 @@ def _write_lanes(feature_dir: Path, *lane_defs: tuple[str, tuple[str, ...]]) -> 
         feature_dir,
         LanesManifest(
             version=1,
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             mission_id=f"mission-{feature_dir.name}",
             mission_branch=f"kitty/mission-{feature_dir.name}",
             target_branch="main",
@@ -103,7 +103,7 @@ def test_context_resolve_tasks_uses_latest_incomplete(tmp_path: Path, monkeypatc
     assert result.exit_code == 0, result.stdout
     payload = json.loads(result.stdout)
     assert payload["success"] is True
-    assert payload["feature_slug"] == "002-second"
+    assert payload["mission_slug"] == "002-second"
     assert payload["target_branch"] == "2.x"
     assert payload["commands"]["check_prerequisites"].endswith("--feature 002-second")
     assert payload["commands"]["finalize_tasks"].endswith("--feature 002-second --json")

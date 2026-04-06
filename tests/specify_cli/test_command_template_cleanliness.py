@@ -100,7 +100,7 @@ def test_template_minimum_length(command: str) -> None:
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_057_feature_slug(command: str) -> None:
+def test_no_057_mission_slug(command: str) -> None:
     """Templates must not contain the 057- development slug."""
     content = _template_content(command)
     assert "057-" not in content, (
@@ -109,7 +109,7 @@ def test_no_057_feature_slug(command: str) -> None:
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_dev_specific_feature_slugs(command: str) -> None:
+def test_no_dev_specific_mission_slugs(command: str) -> None:
     """Templates must not contain the 057- or 058- dev-time feature slugs.
 
     The 057- and 058- slugs are development artifacts that leaked from source

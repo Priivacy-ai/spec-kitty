@@ -114,7 +114,7 @@ def test_merge_without_feature_on_feature_branch_reads_meta_target(monkeypatch, 
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "2.x"
 
 
@@ -184,7 +184,7 @@ def test_explicit_feature_flag_reads_meta_target(monkeypatch, tmp_path: Path) ->
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "2.x"
 
 
@@ -208,7 +208,7 @@ def test_explicit_feature_flag_missing_meta_falls_back_to_primary(monkeypatch, t
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "main"
 
 
@@ -247,7 +247,7 @@ def test_feature_explicitly_targeting_main(monkeypatch, tmp_path: Path) -> None:
 
     assert result.exit_code == 0
     payload = _extract_json(result.stdout)
-    assert payload["feature_slug"] == slug
+    assert payload["mission_slug"] == slug
     assert payload["target_branch"] == "main"
 
 

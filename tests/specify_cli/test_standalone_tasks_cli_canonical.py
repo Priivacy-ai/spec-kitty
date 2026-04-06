@@ -58,7 +58,7 @@ def _build_feature(repo: Path, slug: str = "060-standalone-test", *, with_events
     if with_events:
         event = StatusEvent(
             event_id="01TESTSTANDALONEDONE",
-            feature_slug=slug,
+            mission_slug=slug,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.DONE,
@@ -238,7 +238,7 @@ def test_src_tasks_cli_rollback_uses_canonical_event_history(
         feature_dir,
         StatusEvent(
             event_id="01TESTROLLBACKPLANNED000001",
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.PLANNED,
@@ -252,7 +252,7 @@ def test_src_tasks_cli_rollback_uses_canonical_event_history(
         feature_dir,
         StatusEvent(
             event_id="01TESTROLLBACKREVIEW00001",
-            feature_slug=feature_dir.name,
+            mission_slug=feature_dir.name,
             wp_id="WP01",
             from_lane=Lane.PLANNED,
             to_lane=Lane.FOR_REVIEW,

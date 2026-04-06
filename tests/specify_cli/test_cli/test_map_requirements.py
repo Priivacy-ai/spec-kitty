@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.feature import app as feature_app
+from specify_cli.cli.commands.agent.mission import app as feature_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.frontmatter import read_frontmatter
 
@@ -59,7 +59,7 @@ class TestMapRequirementsIndividual:
     """Tests for individual mode (--wp + --refs)."""
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_writes_to_frontmatter(
         self,
@@ -85,7 +85,7 @@ class TestMapRequirementsIndividual:
         assert _read_wp_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_individual_unions_refs(
         self,
@@ -114,7 +114,7 @@ class TestMapRequirementsIndividual:
         assert "FR-002" in refs
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_replace_overwrites_refs(
         self,
@@ -151,7 +151,7 @@ class TestMapRequirementsIndividual:
         assert "FR-001" not in refs
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_merge_individual_different_wps(
         self,
@@ -184,7 +184,7 @@ class TestMapRequirementsBatch:
     """Tests for batch mode (--batch)."""
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_writes_all_mappings_to_frontmatter(
         self,
@@ -210,7 +210,7 @@ class TestMapRequirementsBatch:
         assert _read_wp_refs(feature_dir, "WP02") == ["FR-003"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_batch_non_string_refs_p3_regression(
         self,
@@ -232,7 +232,7 @@ class TestMapRequirementsBatch:
         assert "list of strings" in payload["error"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_batch_replace_overwrites(
         self,
@@ -265,7 +265,7 @@ class TestMapRequirementsValidation:
     """Validation and migration tests."""
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_rejects_unknown_ref(
         self,
@@ -290,7 +290,7 @@ class TestMapRequirementsValidation:
         assert payload["unknown_refs"] == ["FR-999"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_rejects_unknown_wp(
         self,
@@ -315,7 +315,7 @@ class TestMapRequirementsValidation:
         assert payload["unknown_wps"] == ["WP99"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_rejects_invalid_format(
         self,
@@ -340,7 +340,7 @@ class TestMapRequirementsValidation:
         assert "INVALID-REF" in payload["malformed_refs"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_requires_one_mode(
         self,
@@ -359,7 +359,7 @@ class TestMapRequirementsValidation:
         assert "Provide either --wp + --refs" in result.stdout
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_coverage_summary(
         self,
@@ -387,7 +387,7 @@ class TestMapRequirementsValidation:
         assert "FR-003" in coverage["unmapped_functional"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_seeds_from_tasks_md_on_first_migration(
         self,
@@ -419,7 +419,7 @@ class TestMapRequirementsValidation:
         assert refs == ["FR-001", "FR-002"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_replace_clears_stale_invalid_refs(
         self,
@@ -458,7 +458,7 @@ class TestMapRequirementsValidation:
         assert refs == ["FR-001", "FR-002", "FR-003"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     def test_reports_stale_invalid_refs(
         self,
@@ -493,15 +493,15 @@ class TestMapRequirementsValidation:
 class TestFinalizeTasksWithFrontmatterRefs:
     """Tests for finalize-tasks reading from WP frontmatter."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch(
-        "specify_cli.cli.commands.agent.feature._show_branch_context",
+        "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
+    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
     @patch(
-        "specify_cli.cli.commands.agent.feature.run_command",
+        "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),
     )
     def test_finalize_reads_requirement_refs_from_frontmatter(
@@ -548,15 +548,15 @@ class TestFinalizeTasksWithFrontmatterRefs:
         assert "NFR-001" in payload["requirement_refs_parsed"]["WP01"]
         assert "FR-002" in payload["requirement_refs_parsed"]["WP02"]
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch(
-        "specify_cli.cli.commands.agent.feature._show_branch_context",
+        "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
+    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
     @patch(
-        "specify_cli.cli.commands.agent.feature.run_command",
+        "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),
     )
     def test_frontmatter_takes_priority_over_stale_tasks_md(

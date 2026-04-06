@@ -41,7 +41,7 @@ class TestGenerateStatusView:
         """generate_status_view reflects emitted transitions."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -55,7 +55,7 @@ class TestGenerateStatusView:
         """generate_status_view result matches materialize().to_dict()."""
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-2",
@@ -71,7 +71,7 @@ class TestWriteDerivedViews:
         derived_dir = tmp_path / "derived"
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -87,7 +87,7 @@ class TestWriteDerivedViews:
         derived_dir = tmp_path / "derived"
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
@@ -104,14 +104,14 @@ class TestWriteDerivedViews:
         derived_dir = tmp_path / "derived"
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",
         )
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP02",
             to_lane="claimed",
             actor="agent-1",
@@ -160,7 +160,7 @@ class TestEmitHasNoLegacyBridge:
 
         emit_status_transition(
             feature_dir=feature_dir,
-            feature_slug="034-test-feature",
+            mission_slug="034-test-feature",
             wp_id="WP01",
             to_lane="claimed",
             actor="agent-1",

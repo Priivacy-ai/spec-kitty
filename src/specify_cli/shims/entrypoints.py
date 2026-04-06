@@ -43,16 +43,16 @@ def _parse_raw_args(raw_args: str) -> dict[str, str | None]:
         raw_args: Raw argument string passed from the agent runtime.
 
     Returns:
-        Dictionary with keys ``"wp_code"`` and ``"feature_slug"``
+        Dictionary with keys ``"wp_code"`` and ``"mission_slug"``
         (each may be ``None`` if not found).
     """
     wp_match = _WP_CODE_PATTERN.search(raw_args)
     wp_code = wp_match.group(0).upper() if wp_match else None
 
     feature_match = _FEATURE_FLAG_PATTERN.search(raw_args)
-    feature_slug = feature_match.group(1) if feature_match else None
+    mission_slug = feature_match.group(1) if feature_match else None
 
-    return {"wp_code": wp_code, "feature_slug": feature_slug}
+    return {"wp_code": wp_code, "mission_slug": mission_slug}
 
 
 # ---------------------------------------------------------------------------
@@ -128,16 +128,16 @@ def shim_dispatch(
     if command in PROMPT_DRIVEN_COMMANDS:
         return None
 
-    # Parse raw_args to extract wp_code and feature_slug
+    # Parse raw_args to extract wp_code and mission_slug
     parsed = _parse_raw_args(raw_args)
     wp_code: str | None = parsed["wp_code"]
-    feature_slug: str | None = parsed["feature_slug"]
+    mission_slug: str | None = parsed["mission_slug"]
 
     # Resolve or load context
     context = resolve_or_load(
         token=context_token,
         wp_code=wp_code,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         agent=agent,
         repo_root=repo_root,
     )

@@ -63,7 +63,7 @@ def _make_feature(
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
-    meta = {"feature_slug": slug, "title": f"Feature {slug}"}
+    meta = {"mission_slug": slug, "title": f"Feature {slug}"}
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2), encoding="utf-8"
     )
@@ -105,7 +105,7 @@ def _write_status_json(feature_dir: Path, slug: str, wp_lanes: dict[str, str]) -
         for wp_code, lane in wp_lanes.items()
     }
     snapshot = {
-        "feature_slug": slug,
+        "mission_slug": slug,
         "materialized_at": "2026-01-01T12:00:00+00:00",
         "event_count": len(wp_lanes),
         "last_event_id": None,
@@ -121,12 +121,12 @@ def _make_event(
     wp_code: str,
     from_lane: str,
     to_lane: str,
-    feature_slug: str = "001-test",
+    mission_slug: str = "001-test",
     event_id: str = "",
 ) -> dict:
     return {
         "event_id": event_id or f"EVT_{wp_code}_{to_lane}",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "wp_id": wp_code,
         "from_lane": from_lane,
         "to_lane": to_lane,
@@ -430,7 +430,7 @@ class TestDeduplication:
 class TestIdentityEnrichment:
     def test_work_package_id_backfilled(self) -> None:
         """_enrich_event_identity adds work_package_id when missing."""
-        evt = {"event_id": "ID01", "wp_id": "WP01", "feature_slug": "001-test"}
+        evt = {"event_id": "ID01", "wp_id": "WP01", "mission_slug": "001-test"}
         wp_id_map = {"WP01": "ULID01ULID01ULID01ULID0001"}
         enriched, changed = _enrich_event_identity(evt, "001-test", wp_id_map)
         assert changed
@@ -442,18 +442,18 @@ class TestIdentityEnrichment:
             "event_id": "ID01",
             "wp_id": "WP01",
             "work_package_id": "EXISTING",
-            "feature_slug": "001-test",
+            "mission_slug": "001-test",
         }
         enriched, changed = _enrich_event_identity(evt, "001-test", {"WP01": "NEW"})
         # work_package_id already present — no change
         assert enriched["work_package_id"] == "EXISTING"
 
-    def test_feature_slug_backfilled(self) -> None:
-        """_enrich_event_identity adds feature_slug when missing."""
+    def test_mission_slug_backfilled(self) -> None:
+        """_enrich_event_identity adds mission_slug when missing."""
         evt = {"event_id": "ID01", "wp_id": "WP01"}
         enriched, changed = _enrich_event_identity(evt, "001-test", {})
         assert changed
-        assert enriched["feature_slug"] == "001-test"
+        assert enriched["mission_slug"] == "001-test"
 
 
 # ---------------------------------------------------------------------------

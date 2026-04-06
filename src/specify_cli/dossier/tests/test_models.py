@@ -434,14 +434,14 @@ class TestMissionDossier:
     def test_create_empty_dossier(self):
         """Create MissionDossier with minimal fields."""
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
         )
         assert dossier.mission_slug == "software-dev"
         assert dossier.mission_run_id == "run-001"
-        assert dossier.feature_slug == "042-dossier"
+        assert dossier.mission_slug == "042-dossier"
         assert dossier.feature_dir == "/path/to/feature"
         assert dossier.artifacts == []
 
@@ -464,9 +464,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
         )
@@ -503,9 +503,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
         )
@@ -537,9 +537,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
         )
@@ -561,9 +561,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
             manifest={"required": ["spec"]},  # Has manifest
@@ -585,9 +585,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
             manifest={"required": ["spec"]},  # Has manifest
@@ -608,9 +608,9 @@ class TestMissionDossier:
             ),
         ]
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="042-dossier",
+            mission_type="042-dossier",
             feature_dir="/path/to/feature",
             artifacts=artifacts,
             manifest=None,  # No manifest

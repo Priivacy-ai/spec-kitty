@@ -27,7 +27,7 @@ class LaneNotFoundError(Exception):
 
 def allocate_lane_worktree(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     lanes_manifest: LanesManifest,
 ) -> tuple[Path, str]:
@@ -43,7 +43,7 @@ def allocate_lane_worktree(
 
     Args:
         repo_root: Absolute path to the main repository.
-        feature_slug: Feature slug for branch naming.
+        mission_slug: Feature slug for branch naming.
         wp_id: Work package ID to allocate a worktree for.
         lanes_manifest: The computed lanes manifest.
 
@@ -61,8 +61,8 @@ def allocate_lane_worktree(
             f"{wp_id} is not assigned to any execution lane in lanes.json"
         )
 
-    branch = lane_branch_name(feature_slug, lane.lane_id)
-    worktree_path = repo_root / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+    branch = lane_branch_name(mission_slug, lane.lane_id)
+    worktree_path = repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
 
     if worktree_path.exists():
         # Reuse existing lane worktree — validate it is clean first.

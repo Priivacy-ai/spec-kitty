@@ -16,7 +16,7 @@ from typing_extensions import Annotated
 from specify_cli.cli import StepTracker
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
-from specify_cli.feature_metadata import set_vcs_lock
+from specify_cli.mission_metadata import set_vcs_lock
 from specify_cli.frontmatter import update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
@@ -94,26 +94,21 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
 
     match = _re.match(r"^(\d{3})-", slug)
     if not match:
-        console.print(
-            f"[red]Error:[/red] Invalid feature slug format: {slug}\n"
-            "Expected format: ###-feature-name (for example, 010-lane-only-runtime)"
-        )
+        console.print(f"[red]Error:[/red] Invalid feature slug format: {slug}\nExpected format: ###-feature-name (for example, 010-lane-only-runtime)")
         raise typer.Exit(1)
 
     return match.group(1), slug
 
 
-def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
+def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:
     """Find the markdown file for a work package."""
-    tasks_dir = repo_root / "kitty-specs" / feature_slug / "tasks"
+    tasks_dir = repo_root / "kitty-specs" / mission_slug / "tasks"
     if not tasks_dir.exists():
         raise FileNotFoundError(f"Tasks directory not found: {tasks_dir}")
 
     normalized_wp_id = wp_id.strip().upper()
     if not _WP_ID_RE.fullmatch(normalized_wp_id):
-        raise FileNotFoundError(
-            f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01)."
-        )
+        raise FileNotFoundError(f"Invalid work package ID: {wp_id}. Expected format WP## (for example, WP01).")
 
     wp_name_re = re.compile(rf"^{re.escape(normalized_wp_id)}(?:[-_.].+)?\.md$", re.IGNORECASE)
     wp_files = sorted(path for path in tasks_dir.glob("WP*.md") if wp_name_re.match(path.name))
@@ -122,12 +117,12 @@ def find_wp_file(repo_root: Path, feature_slug: str, wp_id: str) -> Path:
     return wp_files[0]
 
 
-def resolve_feature_target_branch(feature_slug: str, repo_root: Path) -> str:
+def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
     """Resolve the feature's configured target branch from metadata."""
     from specify_cli.core.git_ops import resolve_target_branch
 
     resolution = resolve_target_branch(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         repo_path=repo_root,
         respect_current=True,
     )
@@ -137,7 +132,7 @@ def resolve_feature_target_branch(feature_slug: str, repo_root: Path) -> str:
 def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
     feature_dir: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
     planning_branch: str,
     *,
@@ -180,16 +175,14 @@ def _ensure_planning_artifacts_committed_git(
         console.print(f"  {file_path}")
 
     if current_branch != planning_branch:
-        console.print(
-            f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}."
-        )
+        console.print(f"\n[red]Error:[/red] Planning artifacts must be committed on {planning_branch}.")
         console.print(f"Current branch: {current_branch}")
         raise typer.Exit(1)
 
     if not auto_commit:
         console.print("\n[yellow]Auto-commit disabled.[/yellow] Commit planning artifacts first:")
         console.print(f"  git add -f {feature_dir}")
-        console.print(f'  git commit -m "chore: planning artifacts for {feature_slug}"')
+        console.print(f'  git commit -m "chore: planning artifacts for {mission_slug}"')
         raise typer.Exit(1)
 
     console.print(f"\n[cyan]Auto-committing planning artifacts to {planning_branch}...[/cyan]")
@@ -207,10 +200,7 @@ def _ensure_planning_artifacts_committed_git(
         console.print(result.stderr)
         raise typer.Exit(1)
 
-    commit_msg = (
-        f"chore: planning artifacts for {feature_slug}\n\n"
-        f"Auto-committed by spec-kitty before creating the lane worktree for {wp_id}"
-    )
+    commit_msg = f"chore: planning artifacts for {mission_slug}\n\nAuto-committed by spec-kitty before creating the lane worktree for {wp_id}"
     result = subprocess.run(
         ["git", "-c", "commit.gpgsign=false", "commit", "-m", commit_msg],
         cwd=repo_root,
@@ -278,11 +268,11 @@ def implement(
         repo_root = find_repo_root()
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        _feature_number, feature_slug = detect_feature_context(feature)
-        feature_dir = repo_root / "kitty-specs" / feature_slug
-        wp_file = find_wp_file(repo_root, feature_slug, wp_id)
+        _feature_number, mission_slug = detect_feature_context(feature)
+        feature_dir = repo_root / "kitty-specs" / mission_slug
+        wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
-        tracker.complete("detect", f"Feature: {feature_slug}")
+        tracker.complete("detect", f"Feature: {mission_slug}")
     except (TaskCliError, FileNotFoundError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
         console.print(tracker.render())
@@ -290,11 +280,11 @@ def implement(
 
     tracker.start("validate")
     try:
-        planning_branch = resolve_feature_target_branch(feature_slug, repo_root)
+        planning_branch = resolve_feature_target_branch(mission_slug, repo_root)
         _ensure_planning_artifacts_committed_git(
             repo_root=repo_root,
             feature_dir=feature_dir,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             planning_branch=planning_branch,
             auto_commit=bool(auto_commit),
@@ -318,7 +308,7 @@ def implement(
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
         result = create_lane_workspace(
             repo_root=repo_root,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             wp_file=wp_file,
             lanes_manifest=lanes_manifest,
@@ -374,16 +364,14 @@ def implement(
                 else:
                     console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
             else:
-                console.print(
-                    f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]"
-                )
+                console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
 
             try:
                 emit_wp_status_changed(
                     wp_id=wp_id,
                     from_lane=current_lane,
                     to_lane="in_progress",
-                    feature_slug=feature_slug,
+                    mission_slug=mission_slug,
                 )
             except Exception as exc:
                 console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {exc}")
@@ -398,7 +386,7 @@ def implement(
                     "workspace": workspace_rel,
                     "workspace_path": workspace_rel,
                     "branch": branch_name,
-                    "feature": feature_slug,
+                    "feature": mission_slug,
                     "wp_id": wp_id,
                     "lane_id": result.lane_id,
                     "status": "created",

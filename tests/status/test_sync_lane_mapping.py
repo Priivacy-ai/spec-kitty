@@ -46,7 +46,7 @@ class TestCanonicalFanOut:
     ) -> StatusEvent:
         return StatusEvent(
             event_id="01HXYZ0000000000000000TEST",
-            feature_slug="039-test-feature",
+            mission_slug="039-test-feature",
             wp_id="WP01",
             from_lane=from_lane,
             to_lane=to_lane,
@@ -84,7 +84,7 @@ class TestCanonicalFanOut:
             from_lane=str(from_lane),
             to_lane=str(to_lane),
             actor="test-actor",
-            feature_slug="039-test-feature",
+            mission_slug="039-test-feature",
             policy_metadata=None,
         )
 
@@ -124,7 +124,7 @@ class TestInvalidLaneHandling:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_slug="039-test-feature",
                 wp_id="WP01",
                 to_lane="NONEXISTENT",
                 actor="tester",
@@ -137,7 +137,7 @@ class TestInvalidLaneHandling:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_slug="039-test-feature",
                 wp_id="WP01",
                 to_lane="",
                 actor="tester",
@@ -150,7 +150,7 @@ class TestInvalidLaneHandling:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_slug="039-test-feature",
                 wp_id="WP01",
                 to_lane="42",
                 actor="tester",
@@ -161,7 +161,7 @@ class TestInvalidLaneHandling:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_slug="039-test-feature",
                 wp_id="WP01",
                 to_lane="Doing_stuff",
                 actor="tester",
@@ -175,7 +175,7 @@ class TestInvalidLaneHandling:
         with pytest.raises(TransitionError):
             emit_status_transition(
                 feature_dir=feature_dir,
-                feature_slug="039-test-feature",
+                mission_slug="039-test-feature",
                 wp_id="WP01",
                 to_lane="bogus",
                 actor="tester",

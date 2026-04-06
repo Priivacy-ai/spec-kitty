@@ -103,7 +103,7 @@ def info_command(
         table.add_column("Value")
 
         table.add_row("Work Package", f"[bold]{context.wp_id}[/bold]")
-        table.add_row("Feature", context.feature_slug)
+        table.add_row("Feature", context.mission_slug)
         table.add_row("Base Branch", f"[cyan]{context.base_branch}[/cyan]")
         table.add_row("Base Commit", f"[dim]{context.base_commit[:12]}[/dim]")
         table.add_row("Dependencies", ", ".join(context.dependencies) if context.dependencies else "[dim]none[/dim]")
@@ -174,7 +174,7 @@ def list_command(
             table.add_column("Dependencies")
             table.add_column("Status")
 
-            for ctx in sorted(contexts, key=lambda c: (c.feature_slug, c.wp_id)):
+            for ctx in sorted(contexts, key=lambda c: (c.mission_slug, c.wp_id)):
                 # Check if worktree exists
                 worktree_path = repo_root / ctx.worktree_path
                 status = "[green]Active[/green]" if worktree_path.exists() else "[yellow]Orphaned[/yellow]"
@@ -183,7 +183,7 @@ def list_command(
 
                 table.add_row(
                     ctx.wp_id,
-                    ctx.feature_slug,
+                    ctx.mission_slug,
                     ctx.base_branch,
                     deps,
                     status,
@@ -266,7 +266,7 @@ def mission_resolve_command(
     try:
         ctx = resolve_context(
             wp_code=wp,
-            feature_slug=feature,
+            mission_slug=feature,
             agent=agent or "unknown",
             repo_root=repo_root,
         )
@@ -323,7 +323,7 @@ def mission_show_command(
 
         table.add_row("Token", f"[bold]{ctx.token}[/bold]")
         table.add_row("WP Code", f"[bold]{ctx.wp_code}[/bold]")
-        table.add_row("Feature Slug", ctx.feature_slug)
+        table.add_row("Feature Slug", ctx.mission_slug)
         table.add_row("Mission ID", ctx.mission_id)
         table.add_row("Work Package ID", ctx.work_package_id)
         table.add_row("Project UUID", ctx.project_uuid)

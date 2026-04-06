@@ -103,18 +103,18 @@ def validate_tasks(
 
     # Validate single feature
     try:
-        feature_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
-    feature_dir = resolve_worktree_aware_feature_dir(repo_root, feature_slug, Path.cwd(), console)
+    feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
 
     if not feature_dir.exists():
         console.print(f"[red]Error:[/red] Feature directory not found: {feature_dir}")
         raise typer.Exit(1)
 
-    console.print(f"[cyan]Validating task metadata for feature:[/cyan] {feature_slug}")
+    console.print(f"[cyan]Validating task metadata for feature:[/cyan] {mission_slug}")
     console.print()
 
     mismatches, fixed = _validate_feature_tasks(

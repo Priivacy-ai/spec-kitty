@@ -1,4 +1,4 @@
-"""Tests for core/feature_creation.py — the programmatic feature-creation API."""
+"""Tests for core/mission_creation.py — the programmatic feature-creation API."""
 
 from __future__ import annotations
 
@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from specify_cli.core.feature_creation import (
+from specify_cli.core.mission_creation import (
     FeatureCreationError,
     FeatureCreationResult,
     create_feature_core,
@@ -17,7 +17,7 @@ from specify_cli.core.feature_creation import (
 
 pytestmark = pytest.mark.fast
 
-_CORE_MODULE = "specify_cli.core.feature_creation"
+_CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 # ---------------------------------------------------------------------------
@@ -70,14 +70,14 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "test-feature")
 
     assert isinstance(result, FeatureCreationResult)
-    assert result.feature_slug == "001-test-feature"
-    assert result.feature_number == "001"
+    assert result.mission_slug == "001-test-feature"
+    assert result.mission_number == "001"
     assert result.target_branch == "main"
     assert result.current_branch == "main"
     assert result.feature_dir == tmp_path / "kitty-specs" / "001-test-feature"
@@ -87,9 +87,9 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
     meta_file = result.feature_dir / "meta.json"
     assert meta_file.exists()
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    assert meta["feature_slug"] == "001-test-feature"
+    assert meta["mission_slug"] == "001-test-feature"
     assert meta["target_branch"] == "main"
-    assert meta["mission"] == "software-dev"
+    assert meta["mission_type"] == "software-dev"
 
     # spec.md exists
     assert (result.feature_dir / "spec.md").exists()
@@ -113,7 +113,7 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=5),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "my-feature")
@@ -210,18 +210,14 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_feature_core(
-            tmp_path, "test-feature", target_branch="2.x"
-        )
+        result = create_feature_core(tmp_path, "test-feature", target_branch="2.x")
 
     assert result.target_branch == "2.x"
     assert result.current_branch == "main"
-    meta = json.loads(
-        (result.feature_dir / "meta.json").read_text(encoding="utf-8")
-    )
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "2.x"
 
 
@@ -235,15 +231,13 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=2),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "my-feature")
 
     assert result.target_branch == "develop"
-    meta = json.loads(
-        (result.feature_dir / "meta.json").read_text(encoding="utf-8")
-    )
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
     assert meta["target_branch"] == "develop"
 
 
@@ -262,17 +256,13 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=3),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
-        result = create_feature_core(
-            tmp_path, "docs-feature", mission="documentation"
-        )
+        result = create_feature_core(tmp_path, "docs-feature", mission="documentation")
 
-    meta = json.loads(
-        (result.feature_dir / "meta.json").read_text(encoding="utf-8")
-    )
-    assert meta["mission"] == "documentation"
+    meta = json.loads((result.feature_dir / "meta.json").read_text(encoding="utf-8"))
+    assert meta["mission_type"] == "documentation"
     assert "documentation_state" in meta
     assert meta["documentation_state"]["iteration_mode"] == "initial"
 
@@ -287,12 +277,12 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "basic-feature")
 
-    assert result.meta["mission"] == "software-dev"
+    assert result.meta["mission_type"] == "software-dev"
 
 
 # ---------------------------------------------------------------------------
@@ -310,10 +300,10 @@ def test_feature_number_zero_padded(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
         patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=42),
-        patch(f"{_CORE_MODULE}.emit_feature_created"),
+        patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_feature_core(tmp_path, "padded-test")
 
-    assert result.feature_number == "042"
-    assert result.feature_slug == "042-padded-test"
+    assert result.mission_number == "042"
+    assert result.mission_slug == "042-padded-test"

@@ -7,12 +7,12 @@ Error codes used:
   USAGE_ERROR                 -- CLI parse/usage error (missing required arg, bad option, etc.)
   POLICY_METADATA_REQUIRED    -- --policy missing on a run-affecting command
   POLICY_VALIDATION_FAILED    -- policy JSON invalid or contains secrets
-  FEATURE_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
+  MISSION_NOT_FOUND           -- mission slug does not resolve to a kitty-specs dir
   WP_NOT_FOUND                -- WP ID does not exist in the mission
   TRANSITION_REJECTED         -- transition not allowed by state machine
   WP_ALREADY_CLAIMED          -- WP claimed by a different actor
-  FEATURE_NOT_READY           -- not all WPs done (for accept-feature)
-  PREFLIGHT_FAILED            -- preflight checks failed (for merge-feature)
+  MISSION_NOT_READY           -- not all WPs done (for accept-mission)
+  PREFLIGHT_FAILED            -- preflight checks failed (for merge-mission)
   CONTRACT_VERSION_MISMATCH   -- provider version is below MIN_PROVIDER_VERSION
   UNSUPPORTED_STRATEGY        -- merge strategy not implemented
 """
@@ -29,7 +29,7 @@ from dataclasses import dataclass
 
 import typer
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import safe_commit
 
 from .envelope import (
@@ -79,12 +79,14 @@ class _JSONErrorGroup(TyperGroup):
 
     def _emit_error(self, message: str) -> None:
         """Emit a USAGE_ERROR JSON envelope to stdout."""
-        _emit(make_envelope(
-            command="unknown",
-            success=False,
-            data={"message": message},
-            error_code="USAGE_ERROR",
-        ))
+        _emit(
+            make_envelope(
+                command="unknown",
+                success=False,
+                data={"message": message},
+                error_code="USAGE_ERROR",
+            )
+        )
 
     def make_context(self, info_name, args, parent=None, **extra):
         """Catch group-level parse errors when nested (e.g. orchestrator-api --bogus).
@@ -183,19 +185,19 @@ def _get_main_repo_root() -> Path:
     return root
 
 
-def _resolve_feature_dir(main_repo_root: Path, feature_slug: str) -> Path | None:
-    """Return the feature directory if it exists, else None."""
-    feature_dir = main_repo_root / "kitty-specs" / feature_slug
-    if not feature_dir.exists():
+def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None:
+    """Return the mission directory if it exists, else None."""
+    mission_dir = main_repo_root / "kitty-specs" / mission_slug
+    if not mission_dir.exists():
         return None
-    return feature_dir
+    return mission_dir
 
 
-def _get_last_actor(feature_dir: Path, wp_id: str) -> str | None:
+def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
     """Get the actor of the most recent event for this WP."""
     from specify_cli.status.store import read_events
 
-    events = read_events(feature_dir)
+    events = read_events(mission_dir)
     for event in reversed(events):
         if event.wp_id == wp_id:
             return event.actor
@@ -232,19 +234,19 @@ def _resolve_wp_file(tasks_dir: Path, wp_id: str) -> Path | None:
     return None
 
 
-def _resolve_merge_target_branch(main_repo_root: Path, feature_slug: str, target: str | None) -> str:
+def _resolve_merge_target_branch(main_repo_root: Path, mission_slug: str, target: str | None) -> str:
     if target is not None:
         return target
 
     from specify_cli.core.paths import get_feature_target_branch
 
-    return get_feature_target_branch(main_repo_root, feature_slug)
+    return get_feature_target_branch(main_repo_root, mission_slug)
 
 
 def _build_merge_preflight(
     main_repo_root: Path,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     target: str | None,
 ) -> _MergePreflightResult:
     """Validate merge prerequisites and collect machine-readable errors."""
@@ -252,13 +254,13 @@ def _build_merge_preflight(
     from specify_cli.core.git_ops import run_command
     from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 
-    resolved_target = _resolve_merge_target_branch(main_repo_root, feature_slug, target)
+    resolved_target = _resolve_merge_target_branch(main_repo_root, mission_slug, target)
     errors: list[str] = []
 
     if (main_repo_root / ".git").exists():
         preflight = run_git_preflight(main_repo_root, check_worktree_list=True)
         if not preflight.passed:
-            payload = build_git_preflight_failure_payload(preflight, command_name="orchestrator-api merge-feature")
+            payload = build_git_preflight_failure_payload(preflight, command_name="orchestrator-api merge-mission")
             errors.append(payload["error"])
             errors.extend(payload.get("remediation", []))
 
@@ -278,7 +280,7 @@ def _build_merge_preflight(
             errors.append(f"Target branch '{resolved_target}' does not exist locally or on origin.")
 
     try:
-        require_lanes_json(feature_dir)
+        require_lanes_json(mission_dir)
     except (MissingLanesError, CorruptLanesError) as exc:
         errors.append(str(exc))
 
@@ -287,8 +289,8 @@ def _build_merge_preflight(
 
 def _execute_lane_merge(
     main_repo_root: Path,
-    feature_dir: Path,
-    feature_slug: str,
+    mission_dir: Path,
+    mission_slug: str,
     target_branch: str,
     *,
     push: bool,
@@ -304,14 +306,14 @@ def _execute_lane_merge(
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
 
-    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest = require_lanes_json(mission_dir)
     lanes_manifest.target_branch = target_branch
 
     policy = load_policy_config(main_repo_root)
     all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     gate_eval = evaluate_merge_gates(
-        feature_dir,
-        feature_slug,
+        mission_dir,
+        mission_slug,
         all_wp_ids,
         policy.merge_gates,
         main_repo_root,
@@ -321,24 +323,24 @@ def _execute_lane_merge(
         raise RuntimeError("; ".join(blocking) or "Merge gates failed.")
 
     for lane in lanes_manifest.lanes:
-        lane_result = merge_lane_to_mission(main_repo_root, feature_slug, lane.lane_id, lanes_manifest)
+        lane_result = merge_lane_to_mission(main_repo_root, mission_slug, lane.lane_id, lanes_manifest)
         if not lane_result.success:
             raise RuntimeError("; ".join(lane_result.errors) or f"Lane {lane.lane_id} merge failed.")
 
-    mission_result = merge_mission_to_target(main_repo_root, feature_slug, lanes_manifest)
+    mission_result = merge_mission_to_target(main_repo_root, mission_slug, lanes_manifest)
     if not mission_result.success:
         raise RuntimeError("; ".join(mission_result.errors) or "Mission merge failed.")
 
     for lane in lanes_manifest.lanes:
         for wp_id in lane.wp_ids:
-            _mark_wp_merged_done(main_repo_root, feature_slug, wp_id, lanes_manifest.target_branch)
+            _mark_wp_merged_done(main_repo_root, mission_slug, wp_id, lanes_manifest.target_branch)
 
     if push and has_remote(main_repo_root):
         run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo_root)
 
     if remove_worktree:
         for lane in lanes_manifest.lanes:
-            wt_path = main_repo_root / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            wt_path = main_repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
             if wt_path.exists():
                 run_command(
                     ["git", "worktree", "remove", str(wt_path), "--force"],
@@ -349,7 +351,7 @@ def _execute_lane_merge(
     if delete_branch:
         for lane in lanes_manifest.lanes:
             run_command(
-                ["git", "branch", "-D", lane_branch_name(feature_slug, lane.lane_id)],
+                ["git", "branch", "-D", lane_branch_name(mission_slug, lane.lane_id)],
                 cwd=main_repo_root,
                 check_return=False,
             )
@@ -413,25 +415,25 @@ def contract_version(
     _emit(envelope)
 
 
-# ── Command 2: feature-state ────────────────────────────────────────────────
+# ── Command 2: mission-state ────────────────────────────────────────────────
 
 
-@app.command(name="feature-state")
-def feature_state(
-    feature: str = typer.Option(
+@app.command(name="mission-state")
+def mission_state(
+    mission: str = typer.Option(
         ...,
-        "--feature",
-        help="Mission slug (legacy flag name, e.g. 034-my-feature)",
+        "--mission",
+        help="Mission slug (e.g. 034-my-mission)",
     ),
 ) -> None:
     """Return the full state of a mission (all WPs, lanes, dependencies)."""
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
         _fail(
-            "feature-state",
-            "FEATURE_NOT_FOUND",
-            f"Mission '{feature}' not found in kitty-specs/",
+            "mission-state",
+            "MISSION_NOT_FOUND",
+            f"Mission '{mission}' not found in kitty-specs/",
         )
         return
 
@@ -440,12 +442,12 @@ def feature_state(
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     # Query endpoint: reduce from event log without rewriting status.json.
-    snapshot = reduce(read_events(feature_dir))
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = reduce(read_events(mission_dir))
+    dep_graph = build_dependency_graph(mission_dir)
 
     # Build the full WP set from task files + dep graph + snapshot
     # so that untouched WPs (no events yet) still appear as "planned"
-    tasks_dir = feature_dir / "tasks"
+    tasks_dir = mission_dir / "tasks"
     task_file_wp_ids: set[str] = set()
     if tasks_dir.exists():
         for p in tasks_dir.iterdir():
@@ -468,14 +470,16 @@ def feature_state(
             }
         )
 
+    data = {
+        "mission_slug": mission,
+        "summary": snapshot.summary,
+        "work_packages": work_packages,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
-        command="feature-state",
+        command="mission-state",
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "summary": snapshot.summary,
-            "work_packages": work_packages,
-        }),
+        data=data,
     )
     _emit(envelope)
 
@@ -485,16 +489,16 @@ def feature_state(
 
 @app.command(name="list-ready")
 def list_ready(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
         _fail(
             "list-ready",
-            "FEATURE_NOT_FOUND",
-            f"Mission '{feature}' not found in kitty-specs/",
+            "MISSION_NOT_FOUND",
+            f"Mission '{mission}' not found in kitty-specs/",
         )
         return
 
@@ -503,8 +507,8 @@ def list_ready(
     from specify_cli.core.dependency_graph import build_dependency_graph
 
     # Query endpoint: reduce from event log without rewriting status.json.
-    snapshot = reduce(read_events(feature_dir))
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = reduce(read_events(mission_dir))
+    dep_graph = build_dependency_graph(mission_dir)
     wp_states = snapshot.work_packages
 
     ready_wps = []
@@ -515,10 +519,7 @@ def list_ready(
             continue
 
         # Check all dependencies are done
-        all_deps_done = all(
-            wp_states.get(dep, {}).get("lane") == "done"
-            for dep in deps
-        )
+        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
 
         ready_wps.append(
             {
@@ -531,13 +532,15 @@ def list_ready(
     # Filter to only truly ready ones
     ready_wps = [wp for wp in ready_wps if wp["dependencies_satisfied"]]
 
+    data = {
+        "mission_slug": mission,
+        "ready_work_packages": ready_wps,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command="list-ready",
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "ready_work_packages": ready_wps,
-        }),
+        data=data,
     )
     _emit(envelope)
 
@@ -547,12 +550,12 @@ def list_ready(
 
 @app.command(name="start-implementation")
 def start_implementation(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
 ) -> None:
-    """Composite transition: planned→claimed→in_progress (idempotent)."""
+    """Composite transition: planned->claimed->in_progress (idempotent)."""
     cmd = "start-implementation"
 
     # Policy required
@@ -569,41 +572,41 @@ def start_implementation(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     current_lane = wp_state.get("lane", "planned")
-    last_actor = _get_last_actor(feature_dir, wp)
+    last_actor = _get_last_actor(mission_dir, wp)
 
-    workspace_path = str(main_repo_root / ".worktrees" / f"{feature}-{wp}")
+    workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
     prompt_path = str(wp_path)
 
     try:
         if current_lane == "planned":
-            # Composite: planned → claimed → in_progress
+            # Composite: planned -> claimed -> in_progress
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission,
                 wp,
                 "claimed",
                 actor,
                 policy_metadata=policy_dict,
             )
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission,
                 wp,
                 "in_progress",
                 actor,
@@ -624,8 +627,8 @@ def start_implementation(
                 )
                 return
             emit_status_transition(
-                feature_dir,
-                feature,
+                mission_dir,
+                mission,
                 wp,
                 "in_progress",
                 actor,
@@ -661,19 +664,21 @@ def start_implementation(
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
 
+    data = {
+        "mission_slug": mission,
+        "wp_id": wp,
+        "from_lane": from_lane_reported,
+        "to_lane": "in_progress",
+        "workspace_path": workspace_path,
+        "prompt_path": prompt_path,
+        "policy_metadata_recorded": True,
+        "no_op": no_op,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane_reported,
-            "to_lane": "in_progress",
-            "workspace_path": workspace_path,
-            "prompt_path": prompt_path,
-            "policy_metadata_recorded": True,
-            "no_op": no_op,
-        }),
+        data=data,
     )
     _emit(envelope)
 
@@ -683,7 +688,7 @@ def start_implementation(
 
 @app.command(name="start-review")
 def start_review(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
@@ -697,7 +702,7 @@ def start_review(
         return
 
     if not review_ref:
-        _fail(cmd, "TRANSITION_REJECTED", "--review-ref is required for start-review (for_review→in_progress guard)")
+        _fail(cmd, "TRANSITION_REJECTED", "--review-ref is required for start-review (for_review->in_progress guard)")
         return
 
     try:
@@ -709,20 +714,20 @@ def start_review(
     policy_dict = policy_to_dict(policy_obj)
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     from_lane = wp_state.get("lane", "planned")
 
@@ -730,8 +735,8 @@ def start_review(
 
     try:
         emit_status_transition(
-            feature_dir,
-            feature,
+            mission_dir,
+            mission,
             wp,
             "in_progress",
             actor,
@@ -743,17 +748,19 @@ def start_review(
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
 
+    data = {
+        "mission_slug": mission,
+        "wp_id": wp,
+        "from_lane": from_lane,
+        "to_lane": "in_progress",
+        "prompt_path": prompt_path,
+        "policy_metadata_recorded": True,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane,
-            "to_lane": "in_progress",
-            "prompt_path": prompt_path,
-            "policy_metadata_recorded": True,
-        }),
+        data=data,
     )
     _emit(envelope)
 
@@ -763,7 +770,7 @@ def start_review(
 
 @app.command(name="transition")
 def transition(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     to: str = typer.Option(..., "--to", help="Target lane"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
@@ -805,27 +812,27 @@ def transition(
             return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
-    snapshot = materialize(feature_dir)
+    snapshot = materialize(mission_dir)
     wp_state = snapshot.work_packages.get(wp, {})
     from_lane = wp_state.get("lane", "planned")
 
     try:
         emit_status_transition(
-            feature_dir,
-            feature,
+            mission_dir,
+            mission,
             wp,
             to_lane,
             actor,
@@ -839,16 +846,18 @@ def transition(
         _fail(cmd, "TRANSITION_REJECTED", str(exc))
         return
 
+    data = {
+        "mission_slug": mission,
+        "wp_id": wp,
+        "from_lane": from_lane,
+        "to_lane": to_lane,
+        "policy_metadata_recorded": policy_dict is not None,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "from_lane": from_lane,
-            "to_lane": to_lane,
-            "policy_metadata_recorded": policy_dict is not None,
-        }),
+        data=data,
     )
     _emit(envelope)
 
@@ -858,7 +867,7 @@ def transition(
 
 @app.command(name="append-history")
 def append_history(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     wp: str = typer.Option(..., "--wp", help="Work package ID"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
     note: str = typer.Option(..., "--note", help="History note to append"),
@@ -867,14 +876,14 @@ def append_history(
     cmd = "append-history"
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    wp_path = _resolve_wp_file(feature_dir / "tasks", wp)
+    wp_path = _resolve_wp_file(mission_dir / "tasks", wp)
     if wp_path is None:
-        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {feature}")
+        _fail(cmd, "WP_NOT_FOUND", f"Work package '{wp}' not found in {mission}")
         return
 
     from specify_cli.tasks_support import (
@@ -895,98 +904,98 @@ def append_history(
     safe_commit(
         repo_path=main_repo_root,
         files_to_commit=[wp_path],
-        commit_message=f"hist: append activity log entry for {feature}/{wp}",
+        commit_message=f"hist: append activity log entry for {mission}/{wp}",
         allow_empty=True,
     )
 
     entry_id = "hist-" + uuid.uuid4().hex
 
+    data = {
+        "mission_slug": mission,
+        "wp_id": wp,
+        "history_entry_id": entry_id,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "wp_id": wp,
-            "history_entry_id": entry_id,
-        }),
+        data=data,
     )
     _emit(envelope)
 
 
-# ── Command 8: accept-feature ──────────────────────────────────────────────
+# ── Command 8: accept-mission ──────────────────────────────────────────────
 
 
-@app.command(name="accept-feature")
-def accept_feature(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+@app.command(name="accept-mission")
+def accept_mission(
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     actor: str = typer.Option(..., "--actor", help="Actor identity"),
 ) -> None:
     """Accept a mission after all WPs are done."""
-    cmd = "accept-feature"
+    cmd = "accept-mission"
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
     from specify_cli.status.reducer import materialize
     from specify_cli.core.dependency_graph import build_dependency_graph
 
-    snapshot = materialize(feature_dir)
-    dep_graph = build_dependency_graph(feature_dir)
+    snapshot = materialize(mission_dir)
+    dep_graph = build_dependency_graph(mission_dir)
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [
-        wp_id
-        for wp_id in sorted(all_wp_ids)
-        if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"
-    ]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
     if incomplete:
         _fail(
             cmd,
-            "FEATURE_NOT_READY",
+            "MISSION_NOT_READY",
             f"Mission has {len(incomplete)} incomplete WP(s)",
             {"incomplete_wps": sorted(incomplete)},
         )
         return
 
     # Write acceptance record via centralized metadata writer
-    from specify_cli.feature_metadata import record_acceptance
+    from specify_cli.mission_metadata import record_acceptance
 
     accepted_at = datetime.now(timezone.utc).isoformat()
     record_acceptance(
-        feature_dir,
+        mission_dir,
         accepted_by=actor,
         mode="orchestrator",
     )
 
+    data = {
+        "mission_slug": mission,
+        "accepted": True,
+        "mode": "auto",
+        "accepted_at": accepted_at,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "accepted": True,
-            "mode": "auto",
-            "accepted_at": accepted_at,
-        }),
+        data=data,
     )
     _emit(envelope)
 
 
-# ── Command 9: merge-feature ───────────────────────────────────────────────
+# ── Command 9: merge-mission ───────────────────────────────────────────────
 
 
-@app.command(name="merge-feature")
-def merge_feature(
-    feature: str = typer.Option(..., "--feature", help="Mission slug (legacy flag name)"),
+@app.command(name="merge-mission")
+def merge_mission(
+    mission: str = typer.Option(..., "--mission", help="Mission slug"),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
 ) -> None:
     """Merge a lane-based mission into target."""
-    cmd = "merge-feature"
+    cmd = "merge-mission"
 
     _SUPPORTED_STRATEGIES = frozenset(["merge", "squash", "rebase"])
     if strategy not in _SUPPORTED_STRATEGIES:
@@ -999,19 +1008,19 @@ def merge_feature(
         return
 
     main_repo_root = _get_main_repo_root()
-    feature_dir = _resolve_feature_dir(main_repo_root, feature)
-    if feature_dir is None:
-        _fail(cmd, "FEATURE_NOT_FOUND", f"Mission '{feature}' not found in kitty-specs/")
+    mission_dir = _resolve_mission_dir(main_repo_root, mission)
+    if mission_dir is None:
+        _fail(cmd, "MISSION_NOT_FOUND", f"Mission '{mission}' not found in kitty-specs/")
         return
 
-    preflight = _build_merge_preflight(main_repo_root, feature_dir, feature, target)
+    preflight = _build_merge_preflight(main_repo_root, mission_dir, mission, target)
     if preflight.errors:
         _fail(
             cmd,
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "feature_slug": feature,
+                "mission_slug": mission,
                 "target_branch": preflight.target_branch,
                 "errors": preflight.errors,
             },
@@ -1021,8 +1030,8 @@ def merge_feature(
     try:
         _execute_lane_merge(
             main_repo_root,
-            feature_dir,
-            feature,
+            mission_dir,
+            mission,
             preflight.target_branch,
             push=push,
             delete_branch=True,
@@ -1034,23 +1043,25 @@ def merge_feature(
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "feature_slug": feature,
+                "mission_slug": mission,
                 "target_branch": preflight.target_branch,
                 "errors": [str(exc)],
             },
         )
         return
 
+    data = {
+        "mission_slug": mission,
+        "merged": True,
+        "target_branch": preflight.target_branch,
+        "strategy": strategy,
+        "worktree_removed": False,
+    }
+    validate_outbound_payload(data, "orchestrator_api")
     envelope = make_envelope(
         command=cmd,
         success=True,
-        data=with_tracked_mission_slug_aliases({
-            "feature_slug": feature,
-            "merged": True,
-            "target_branch": preflight.target_branch,
-            "strategy": strategy,
-            "worktree_removed": False,
-        }),
+        data=data,
     )
     _emit(envelope)
 

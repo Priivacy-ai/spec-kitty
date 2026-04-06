@@ -1,6 +1,6 @@
 """Integration tests for orchestrator_api commands.
 
-Uses CliRunner to invoke commands against a fake feature directory
+Uses CliRunner to invoke commands against a fake mission directory
 with a real event log (no subprocess, no git).
 """
 
@@ -23,15 +23,15 @@ runner = CliRunner()
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
-def _make_feature(tmp_path: Path, feature_slug: str = "099-test-feature") -> tuple[Path, Path]:
-    """Create a minimal feature directory with tasks.
+def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tuple[Path, Path]:
+    """Create a minimal mission directory with tasks.
 
     Returns:
-        (repo_root, feature_dir)
+        (repo_root, mission_dir)
     """
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     for wp_id in ("WP01", "WP02"):
@@ -42,19 +42,19 @@ def _make_feature(tmp_path: Path, feature_slug: str = "099-test-feature") -> tup
         )
 
     meta = {
-        "feature_number": feature_slug.split("-")[0],
-        "slug": feature_slug,
-        "feature_slug": feature_slug,
-        "friendly_name": "Test Feature",
-        "mission": "software-dev",
+        "mission_number": mission_slug.split("-")[0],
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
+        "friendly_name": "Test Mission",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-03-18T00:00:00+00:00",
         "status_phase": 1,
     }
-    (feature_dir / "meta.json").write_text(
+    (mission_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
     )
-    return repo_root, feature_dir
+    return repo_root, mission_dir
 
 def _valid_policy_json() -> str:
     return json.dumps(
@@ -69,33 +69,33 @@ def _valid_policy_json() -> str:
         }
     )
 
-def _emit_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str, actor: str = "test") -> None:
+def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, actor: str = "test") -> None:
     """Helper to emit a status event directly."""
     from specify_cli.status.emit import emit_status_transition
 
     if to_lane == "in_progress" and from_lane == "planned":
-        emit_status_transition(feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name,
+        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name,
                                wp_id, "claimed", actor)
-        emit_status_transition(feature_dir, feature_dir.parent.parent.name + "-" + feature_dir.name,
+        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name,
                                wp_id, "in_progress", actor)
     else:
         emit_status_transition(
-            feature_dir,
-            feature_dir.parent.parent.name + "-" + feature_dir.name,
+            mission_dir,
+            mission_dir.parent.parent.name + "-" + mission_dir.name,
             wp_id,
             to_lane,
             actor,
         )
 
-def _emit_planned_to_done(feature_dir: Path, feature_slug: str, wp_id: str, actor: str = "test") -> None:
+def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, actor: str = "test") -> None:
     """Transition a WP all the way to done."""
     from specify_cli.status.emit import emit_status_transition
 
-    emit_status_transition(feature_dir, feature_slug, wp_id, "claimed", actor)
-    emit_status_transition(feature_dir, feature_slug, wp_id, "in_progress", actor)
-    emit_status_transition(feature_dir, feature_slug, wp_id, "for_review", actor)
+    emit_status_transition(mission_dir, mission_slug, wp_id, "claimed", actor)
+    emit_status_transition(mission_dir, mission_slug, wp_id, "in_progress", actor)
+    emit_status_transition(mission_dir, mission_slug, wp_id, "for_review", actor)
     emit_status_transition(
-        feature_dir, feature_slug, wp_id, "done", actor,
+        mission_dir, mission_slug, wp_id, "done", actor,
         evidence={
             "review": {
                 "reviewer": "reviewer-agent",
@@ -118,33 +118,33 @@ class TestContractVersion:
         assert "min_supported_provider_version" in data["data"]
         assert data["command"] == "orchestrator-api.contract-version"
 
-# ── feature-state ─────────────────────────────────────────────────
+# ── mission-state ─────────────────────────────────────────────────
 
-class TestFeatureState:
-    def test_feature_state_with_event_log(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+class TestMissionState:
+    def test_mission_state_with_event_log(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # Emit one transition
         from specify_cli.status.emit import emit_status_transition
-        emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "test-actor")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test-actor")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["feature-state", "--feature", feature_slug])
+            result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
-        assert data["data"]["mission_slug"] == feature_slug
-        assert data["data"]["feature_slug"] == feature_slug
+        assert data["data"]["mission_slug"] == mission_slug
+        assert "mission_slug" not in data["data"]
         wps = {wp["wp_id"]: wp for wp in data["data"]["work_packages"]}
         assert "WP01" in wps
         assert wps["WP01"]["lane"] == "claimed"
 
-    def test_feature_not_found(self, tmp_path):
+    def test_mission_not_found(self, tmp_path):
         repo_root = tmp_path / "repo"
         repo_root.mkdir()
 
@@ -152,24 +152,24 @@ class TestFeatureState:
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["feature-state", "--feature", "nonexistent-feature"])
+            result = runner.invoke(app, ["mission-state", "--mission", "nonexistent-mission"])
 
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert data["success"] is False
-        assert data["error_code"] == "FEATURE_NOT_FOUND"
+        assert data["error_code"] == "MISSION_NOT_FOUND"
 
-    def test_feature_state_does_not_write_status_snapshot(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
-        status_path = feature_dir / "status.json"
+    def test_mission_state_does_not_write_status_snapshot(self, tmp_path):
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        status_path = mission_dir / "status.json"
         assert not status_path.exists()
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["feature-state", "--feature", feature_slug])
+            result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         assert not status_path.exists()
@@ -178,37 +178,37 @@ class TestFeatureState:
 
 class TestListReady:
     def test_planned_wp_with_satisfied_deps_is_ready(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["list-ready", "--feature", feature_slug])
+            result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
-        assert data["data"]["mission_slug"] == feature_slug
+        assert data["data"]["mission_slug"] == mission_slug
         ready = {wp["wp_id"] for wp in data["data"]["ready_work_packages"]}
         # Both WP01 and WP02 have no deps, so both should be ready
         assert "WP01" in ready
         assert "WP02" in ready
 
     def test_in_progress_wp_not_in_ready(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         from specify_cli.status.emit import emit_status_transition
-        emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "test")
-        emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "test")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "test")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["list-ready", "--feature", feature_slug])
+            result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
@@ -217,16 +217,16 @@ class TestListReady:
         assert "WP02" in ready_ids
 
     def test_list_ready_does_not_write_status_snapshot(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
-        status_path = feature_dir / "status.json"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
+        status_path = mission_dir / "status.json"
         assert not status_path.exists()
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["list-ready", "--feature", feature_slug])
+            result = runner.invoke(app, ["list-ready", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         assert not status_path.exists()
@@ -235,14 +235,14 @@ class TestListReady:
 
 class TestStartImplementation:
     def test_no_policy_returns_error(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
             result = runner.invoke(
                 app,
-                ["start-implementation", "--feature", "099-test-feature", "--wp", "WP01", "--actor", "claude"],
+                ["start-implementation", "--mission", "099-test-mission", "--wp", "WP01", "--actor", "claude"],
             )
 
         assert result.exit_code == 1
@@ -250,8 +250,8 @@ class TestStartImplementation:
         assert data["error_code"] == "POLICY_METADATA_REQUIRED"
 
     def test_planned_wp_composite_transition(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -261,7 +261,7 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -277,13 +277,13 @@ class TestStartImplementation:
         assert data["data"]["no_op"] is False
 
     def test_already_in_progress_same_actor_noop(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # First put WP01 in_progress as claude
         from specify_cli.status.emit import emit_status_transition
-        emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "claude")
-        emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "claude")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -293,7 +293,7 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -306,12 +306,12 @@ class TestStartImplementation:
         assert data["data"]["no_op"] is True
 
     def test_already_claimed_different_actor_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # Put WP01 in claimed state as "other-agent"
         from specify_cli.status.emit import emit_status_transition
-        emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "other-agent")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "other-agent")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -321,7 +321,7 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -336,7 +336,7 @@ class TestStartImplementation:
 
 class TestStartReview:
     def test_no_review_ref_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -345,7 +345,7 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--feature", "099-test-feature",
+                    "--mission", "099-test-mission",
                     "--wp", "WP01",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -357,14 +357,14 @@ class TestStartReview:
         assert data["error_code"] == "TRANSITION_REJECTED"
 
     def test_valid_start_review(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # Put WP01 in for_review state
         from specify_cli.status.emit import emit_status_transition
-        emit_status_transition(feature_dir, feature_slug, "WP01", "claimed", "claude")
-        emit_status_transition(feature_dir, feature_slug, "WP01", "in_progress", "claude")
-        emit_status_transition(feature_dir, feature_slug, "WP01", "for_review", "claude")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
+        emit_status_transition(mission_dir, mission_slug, "WP01", "for_review", "claude")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -374,7 +374,7 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--actor", "reviewer",
                     "--policy", _valid_policy_json(),
@@ -392,19 +392,19 @@ class TestStartReview:
 
 class TestTransition:
     def test_invalid_transition_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            # planned → done is not a valid transition
+            # planned -> done is not a valid transition
             result = runner.invoke(
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "done",
                     "--actor", "claude",
@@ -416,19 +416,19 @@ class TestTransition:
         assert data["error_code"] == "TRANSITION_REJECTED"
 
     def test_terminal_transition_no_policy_required(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            # planned → canceled should succeed without --policy
+            # planned -> canceled should succeed without --policy
             result = runner.invoke(
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "canceled",
                     "--actor", "claude",
@@ -442,8 +442,8 @@ class TestTransition:
         assert data["data"]["policy_metadata_recorded"] is False
 
     def test_run_affecting_transition_requires_policy(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -453,7 +453,7 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--to", "claimed",
                     "--actor", "claude",
@@ -469,8 +469,8 @@ class TestTransition:
 
 class TestAppendHistory:
     def test_appends_entry_and_returns_history_id(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -483,7 +483,7 @@ class TestAppendHistory:
                 app,
                 [
                     "append-history",
-                    "--feature", feature_slug,
+                    "--mission", mission_slug,
                     "--wp", "WP01",
                     "--actor", "claude",
                     "--note", "Started implementation",
@@ -497,7 +497,7 @@ class TestAppendHistory:
         assert data["data"]["wp_id"] == "WP01"
 
     def test_wp_not_found_error(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -506,7 +506,7 @@ class TestAppendHistory:
                 app,
                 [
                     "append-history",
-                    "--feature", "099-test-feature",
+                    "--mission", "099-test-mission",
                     "--wp", "WP99",
                     "--actor", "claude",
                     "--note", "nonexistent",
@@ -517,16 +517,16 @@ class TestAppendHistory:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_NOT_FOUND"
 
-# ── accept-feature ────────────────────────────────────────────────
+# ── accept-mission ────────────────────────────────────────────────
 
-class TestAcceptFeature:
+class TestAcceptMission:
     def test_all_done_accepted(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # Transition all WPs to done
-        _emit_planned_to_done(feature_dir, feature_slug, "WP01")
-        _emit_planned_to_done(feature_dir, feature_slug, "WP02")
+        _emit_planned_to_done(mission_dir, mission_slug, "WP01")
+        _emit_planned_to_done(mission_dir, mission_slug, "WP02")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -535,8 +535,8 @@ class TestAcceptFeature:
             result = runner.invoke(
                 app,
                 [
-                    "accept-feature",
-                    "--feature", feature_slug,
+                    "accept-mission",
+                    "--mission", mission_slug,
                     "--actor", "claude",
                 ],
             )
@@ -544,21 +544,21 @@ class TestAcceptFeature:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
-        assert data["data"]["mission_slug"] == feature_slug
-        assert data["data"]["feature_slug"] == feature_slug
+        assert data["data"]["mission_slug"] == mission_slug
+        assert "mission_slug" not in data["data"]
         assert data["data"]["accepted"] is True
 
         # Verify meta.json was written
-        meta = json.loads((feature_dir / "meta.json").read_text())
+        meta = json.loads((mission_dir / "meta.json").read_text())
         assert "accepted_at" in meta
         assert meta["accepted_by"] == "claude"
 
     def test_incomplete_wps_returns_error(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # Only do WP01
-        _emit_planned_to_done(feature_dir, feature_slug, "WP01")
+        _emit_planned_to_done(mission_dir, mission_slug, "WP01")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -567,27 +567,27 @@ class TestAcceptFeature:
             result = runner.invoke(
                 app,
                 [
-                    "accept-feature",
-                    "--feature", feature_slug,
+                    "accept-mission",
+                    "--mission", mission_slug,
                     "--actor", "claude",
                 ],
             )
 
         assert result.exit_code == 1
         data = json.loads(result.output)
-        assert data["error_code"] == "FEATURE_NOT_READY"
+        assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
-# ── merge-feature ─────────────────────────────────────────────────
+# ── merge-mission ─────────────────────────────────────────────────
 
-class TestMergeFeature:
+class TestMergeMission:
     def test_preflight_fails_returns_error(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         mock_preflight = MagicMock()
         mock_preflight.target_branch = "main"
-        mock_preflight.errors = ["lanes.json is missing for this feature"]
+        mock_preflight.errors = ["lanes.json is missing for this mission"]
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -599,8 +599,8 @@ class TestMergeFeature:
             result = runner.invoke(
                 app,
                 [
-                    "merge-feature",
-                    "--feature", feature_slug,
+                    "merge-mission",
+                    "--mission", mission_slug,
                     "--target", "main",
                 ],
             )
@@ -611,8 +611,8 @@ class TestMergeFeature:
         assert "lanes.json" in data["data"]["errors"][0]
 
     def test_merge_success(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         mock_preflight = MagicMock()
         mock_preflight.target_branch = "main"
@@ -630,8 +630,8 @@ class TestMergeFeature:
             result = runner.invoke(
                 app,
                 [
-                    "merge-feature",
-                    "--feature", feature_slug,
+                    "merge-mission",
+                    "--mission", mission_slug,
                     "--target", "main",
                     "--strategy", "merge",
                 ],
@@ -640,15 +640,15 @@ class TestMergeFeature:
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
-        assert data["data"]["mission_slug"] == feature_slug
-        assert data["data"]["feature_slug"] == feature_slug
+        assert data["data"]["mission_slug"] == mission_slug
+        assert "mission_slug" not in data["data"]
         assert data["data"]["merged"] is True
         assert data["data"]["target_branch"] == "main"
         assert data["data"]["strategy"] == "merge"
 
     def test_rebase_strategy_success(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         mock_preflight = MagicMock()
         mock_preflight.target_branch = "main"
@@ -666,8 +666,8 @@ class TestMergeFeature:
             result = runner.invoke(
                 app,
                 [
-                    "merge-feature",
-                    "--feature", feature_slug,
+                    "merge-mission",
+                    "--mission", mission_slug,
                     "--target", "main",
                     "--strategy", "rebase",
                 ],
@@ -679,8 +679,8 @@ class TestMergeFeature:
         assert data["data"]["strategy"] == "rebase"
 
     def test_unsupported_strategy_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -689,8 +689,8 @@ class TestMergeFeature:
             result = runner.invoke(
                 app,
                 [
-                    "merge-feature",
-                    "--feature", feature_slug,
+                    "merge-mission",
+                    "--mission", mission_slug,
                     "--target", "main",
                     "--strategy", "octopus",
                 ],
@@ -741,7 +741,7 @@ class TestContractVersionMismatch:
 
 class TestWPNotFound:
     def test_start_implementation_ghost_wp_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -750,7 +750,7 @@ class TestWPNotFound:
                 app,
                 [
                     "start-implementation",
-                    "--feature", "099-test-feature",
+                    "--mission", "099-test-mission",
                     "--wp", "WP99",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -762,7 +762,7 @@ class TestWPNotFound:
         assert data["error_code"] == "WP_NOT_FOUND"
 
     def test_start_review_ghost_wp_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -771,7 +771,7 @@ class TestWPNotFound:
                 app,
                 [
                     "start-review",
-                    "--feature", "099-test-feature",
+                    "--mission", "099-test-mission",
                     "--wp", "WP99",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -784,7 +784,7 @@ class TestWPNotFound:
         assert data["error_code"] == "WP_NOT_FOUND"
 
     def test_transition_ghost_wp_rejected(self, tmp_path):
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -793,7 +793,7 @@ class TestWPNotFound:
                 app,
                 [
                     "transition",
-                    "--feature", "099-test-feature",
+                    "--mission", "099-test-mission",
                     "--wp", "WP99",
                     "--to", "canceled",
                     "--actor", "claude",
@@ -804,20 +804,20 @@ class TestWPNotFound:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_NOT_FOUND"
 
-# ── feature-state with no events ──────────────────────────────────
+# ── mission-state with no events ──────────────────────────────────
 
-class TestFeatureStateNoEvents:
+class TestMissionStateNoEvents:
     def test_untouched_wps_appear_as_planned(self, tmp_path):
-        """WPs with no events still appear in feature-state with lane=planned."""
-        repo_root, feature_dir = _make_feature(tmp_path, "099-test-feature")
-        feature_slug = "099-test-feature"
+        """WPs with no events still appear in mission-state with lane=planned."""
+        repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
+        mission_slug = "099-test-mission"
 
         # No events emitted at all
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["feature-state", "--feature", feature_slug])
+            result = runner.invoke(app, ["mission-state", "--mission", mission_slug])
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
@@ -830,16 +830,16 @@ class TestFeatureStateNoEvents:
 
 # ── Suffixed WP filenames (P0 regression) ─────────────────────────
 
-def _make_feature_with_suffixed_wps(
-    tmp_path: Path, feature_slug: str = "040-test-feature"
+def _make_mission_with_suffixed_wps(
+    tmp_path: Path, mission_slug: str = "040-test-mission"
 ) -> tuple[Path, Path]:
-    """Create a feature directory whose WP files have hyphen-suffixed names.
+    """Create a mission directory whose WP files have hyphen-suffixed names.
 
     e.g. WP07-adapter-implementations.md instead of WP07.md
     """
     repo_root = tmp_path / "repo"
-    feature_dir = repo_root / "kitty-specs" / feature_slug
-    tasks_dir = feature_dir / "tasks"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
     (tasks_dir / "WP01-core-setup.md").write_text(
@@ -853,16 +853,16 @@ def _make_feature_with_suffixed_wps(
     # Also include a non-WP file to verify it is excluded
     (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
 
-    (feature_dir / "meta.json").write_text(
+    (mission_dir / "meta.json").write_text(
         json.dumps({"status_phase": 1}), encoding="utf-8"
     )
-    return repo_root, feature_dir
+    return repo_root, mission_dir
 
 class TestSuffixedWPFilenames:
     """Commands must accept WP IDs whose task files have hyphen-suffixed names."""
 
     def test_start_implementation_accepts_suffixed_file(self, tmp_path):
-        repo_root, feature_dir = _make_feature_with_suffixed_wps(tmp_path)
+        repo_root, mission_dir = _make_mission_with_suffixed_wps(tmp_path)
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
@@ -871,7 +871,7 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "start-implementation",
-                    "--feature", "040-test-feature",
+                    "--mission", "040-test-mission",
                     "--wp", "WP07",
                     "--actor", "claude",
                     "--policy", _valid_policy_json(),
@@ -888,10 +888,10 @@ class TestSuffixedWPFilenames:
     def test_transition_accepts_suffixed_file(self, tmp_path):
         from specify_cli.status.emit import emit_status_transition
 
-        repo_root, feature_dir = _make_feature_with_suffixed_wps(tmp_path)
+        repo_root, mission_dir = _make_mission_with_suffixed_wps(tmp_path)
         # Put WP07 in_progress so we can cancel it
-        emit_status_transition(feature_dir, "040-test-feature", "WP07", "claimed", "claude")
-        emit_status_transition(feature_dir, "040-test-feature", "WP07", "in_progress", "claude")
+        emit_status_transition(mission_dir, "040-test-mission", "WP07", "claimed", "claude")
+        emit_status_transition(mission_dir, "040-test-mission", "WP07", "in_progress", "claude")
 
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
@@ -901,7 +901,7 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "transition",
-                    "--feature", "040-test-feature",
+                    "--mission", "040-test-mission",
                     "--wp", "WP07",
                     "--to", "canceled",
                     "--actor", "claude",
@@ -914,14 +914,14 @@ class TestSuffixedWPFilenames:
         assert data["data"]["wp_id"] == "WP07"
         assert data["data"]["to_lane"] == "canceled"
 
-    def test_feature_state_emits_canonical_ids_only(self, tmp_path):
-        """feature-state must not include raw filename stems like 'WP07-adapter-implementations'."""
-        repo_root, _ = _make_feature_with_suffixed_wps(tmp_path)
+    def test_mission_state_emits_canonical_ids_only(self, tmp_path):
+        """mission-state must not include raw filename stems like 'WP07-adapter-implementations'."""
+        repo_root, _ = _make_mission_with_suffixed_wps(tmp_path)
         with patch(
             "specify_cli.orchestrator_api.commands._get_main_repo_root",
             return_value=repo_root,
         ):
-            result = runner.invoke(app, ["feature-state", "--feature", "040-test-feature"])
+            result = runner.invoke(app, ["mission-state", "--mission", "040-test-mission"])
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
@@ -938,3 +938,43 @@ class TestSuffixedWPFilenames:
 
         # Non-WP file must NOT appear
         assert "README" not in wp_ids
+
+
+# ── Old command names must fail ───────────────────────────────────
+
+class TestOldCommandNamesFail:
+    """Old feature-era command names must fail as unknown commands."""
+
+    def test_feature_state_rejected(self):
+        result = runner.invoke(app, ["feature-state", "--mission", "dummy"])
+        assert result.exit_code != 0
+
+    def test_accept_feature_rejected(self):
+        result = runner.invoke(app, ["accept-feature", "--mission", "dummy"])
+        assert result.exit_code != 0
+
+    def test_merge_feature_rejected(self):
+        result = runner.invoke(app, ["merge-feature", "--mission", "dummy"])
+        assert result.exit_code != 0
+
+
+# ── Old --feature flag must fail ──────────────────────────────────
+
+class TestOldFeatureFlagFails:
+    """The --feature flag must no longer be accepted on any command."""
+
+    def test_mission_state_rejects_feature_flag(self, tmp_path):
+        result = runner.invoke(app, ["mission-state", "--feature", "dummy"])
+        assert result.exit_code != 0
+
+    def test_list_ready_rejects_feature_flag(self, tmp_path):
+        result = runner.invoke(app, ["list-ready", "--feature", "dummy"])
+        assert result.exit_code != 0
+
+    def test_start_implementation_rejects_feature_flag(self, tmp_path):
+        result = runner.invoke(app, [
+            "start-implementation", "--feature", "dummy",
+            "--wp", "WP01", "--actor", "claude",
+            "--policy", _valid_policy_json(),
+        ])
+        assert result.exit_code != 0

@@ -97,7 +97,7 @@ def resolve_context(
             print(json.dumps({"success": True, **context.to_dict()}, indent=2))
         else:
             console.print(f"[green]✓[/green] Resolved {action} context")
-            console.print(f"  Feature: {context.feature_slug} ({context.detection_method})")
+            console.print(f"  Feature: {context.mission_slug} ({context.detection_method})")
             console.print(f"  Target branch: {context.target_branch}")
             if context.wp_id:
                 console.print(f"  Work package: {context.wp_id} ({context.lane})")

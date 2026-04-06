@@ -70,7 +70,7 @@ def _seed_canonical_wp_state(
 
     event = StatusEvent(
         event_id=f"TEST{wp_id}{len(existing_events) + 1:020d}",
-        feature_slug=feature,
+        mission_slug=feature,
         wp_id=wp_id,
         from_lane=Lane(current_lane or "planned"),
         to_lane=Lane(canonical_target),

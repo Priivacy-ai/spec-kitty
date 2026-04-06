@@ -183,9 +183,9 @@ def current_cmd(
     check_version_compatibility(project_root, "mission")
 
     # Detect feature if not explicitly provided
-    feature_slug = feature if feature else _detect_current_feature(project_root)
+    mission_slug = feature if feature else _detect_current_feature(project_root)
 
-    if not feature_slug:
+    if not mission_slug:
         console.print(
             "[yellow]No active feature detected.[/yellow]\n"
             "\nUse [cyan]--feature <slug>[/cyan] to specify one, "
@@ -207,13 +207,13 @@ def current_cmd(
         raise typer.Exit(1)
 
     try:
-        feature_dir = project_root / "kitty-specs" / feature_slug
+        feature_dir = project_root / "kitty-specs" / mission_slug
         if not feature_dir.exists():
-            console.print(f"[red]Feature not found:[/red] {feature_slug}")
+            console.print(f"[red]Feature not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
         mission = get_mission_for_feature(feature_dir, project_root)
-        context = f"Mission: {feature_slug}"
+        context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")

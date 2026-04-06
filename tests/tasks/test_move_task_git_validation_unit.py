@@ -90,7 +90,7 @@ Test content here.
             feature_dir,
             StatusEvent(
                 event_id=f"seed-WP01-{lane_val}",
-                feature_slug="017-test-feature",
+                mission_slug="017-test-feature",
                 wp_id="WP01",
                 from_lane=Lane.PLANNED,
                 to_lane=Lane(lane_val),
@@ -135,7 +135,7 @@ class TestMoveTaskGitValidation:
     """Tests for git validation and merge ancestry guardrails for done transitions."""
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_uncommitted_changes_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -163,7 +163,7 @@ class TestMoveTaskGitValidation:
         assert "uncommitted" in error_text or "changes" in error_text or "merge ancestry" in error_text
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_committed_changes_but_unmerged_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -197,7 +197,7 @@ class TestMoveTaskGitValidation:
         assert "merge ancestry" in output["error"].lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_force_requires_override_reason_when_unmerged(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -220,7 +220,7 @@ class TestMoveTaskGitValidation:
         assert "done-override-reason" in output["error"]
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_override_reason_succeeds_when_unmerged(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -249,7 +249,7 @@ class TestMoveTaskGitValidation:
         assert output["new_lane"] == "done"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_after_branch_merged_succeeds_without_override(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -277,7 +277,7 @@ class TestMoveTaskGitValidation:
         assert output["new_lane"] == "done"
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_for_review_still_validates(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -301,7 +301,7 @@ class TestMoveTaskGitValidation:
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_to_done_with_staged_but_uncommitted_fails(
         self, mock_slug: Mock, mock_root: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
@@ -325,16 +325,16 @@ class TestMoveTaskGitValidation:
         assert "error" in output
         assert "uncommitted" in output["error"].lower() or "changes" in output["error"].lower()
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
     def test_review_validation_allows_behind_status_only_commits(
         self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
         """Status-only commits on planning branch should not force rebases."""
         repo_root, worktree = git_repo_with_worktree
-        feature_slug = "017-test-feature"
+        mission_slug = "017-test-feature"
 
         # Add a status/planning-only commit on main so the worktree is behind.
-        wp_file = repo_root / "kitty-specs" / feature_slug / "tasks" / "WP01-test-task.md"
+        wp_file = repo_root / "kitty-specs" / mission_slug / "tasks" / "WP01-test-task.md"
         content = wp_file.read_text(encoding="utf-8")
         wp_file.write_text(content + "\n<!-- status update -->\n", encoding="utf-8")
         subprocess.run(["git", "add", str(wp_file)], cwd=repo_root, check=True, capture_output=True)
@@ -347,7 +347,7 @@ class TestMoveTaskGitValidation:
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=worktree,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id="WP01",
             force=False,
         )
@@ -355,15 +355,15 @@ class TestMoveTaskGitValidation:
         assert is_valid is True
         assert guidance == []
 
-    @patch("specify_cli.cli.commands.agent.tasks.get_feature_mission_key", return_value="software-dev")
+    @patch("specify_cli.cli.commands.agent.tasks.get_mission_type", return_value="software-dev")
     def test_review_validation_allows_behind_config_and_status_commits(
         self, _mock_mission: Mock, git_repo_with_worktree: tuple[Path, Path]
     ):
         """Config/status-only commits on planning branch should not force rebase."""
         repo_root, worktree = git_repo_with_worktree
-        feature_slug = "017-test-feature"
+        mission_slug = "017-test-feature"
 
-        wp_file = repo_root / "kitty-specs" / feature_slug / "tasks" / "WP01-test-task.md"
+        wp_file = repo_root / "kitty-specs" / mission_slug / "tasks" / "WP01-test-task.md"
         config_file = repo_root / ".kittify" / "config.yaml"
 
         wp_file.write_text(wp_file.read_text(encoding="utf-8") + "\n<!-- status update -->\n", encoding="utf-8")
@@ -384,7 +384,7 @@ class TestMoveTaskGitValidation:
 
         is_valid, guidance = _validate_ready_for_review(
             repo_root=worktree,
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id="WP01",
             force=False,
         )
@@ -393,7 +393,7 @@ class TestMoveTaskGitValidation:
         assert guidance == []
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_for_review_blocks_when_lane_branch_has_kitty_specs_commits(
         self,
         mock_slug: Mock,
@@ -431,7 +431,7 @@ class TestMoveTaskGitValidation:
         assert "kitty-specs" in output["error"].lower()
 
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.tasks._find_feature_slug")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
     def test_move_for_review_from_worktree_does_not_mirror_commit_to_lane_branch(
         self,
         mock_slug: Mock,

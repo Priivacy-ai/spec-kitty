@@ -67,7 +67,7 @@ class TestFullCLIWorkflow:
         assert result.returncode == 0, f"create-feature failed: {result.stderr}"
         output = json.loads(result.stdout)
         feature_dir = Path(output["feature_dir"])
-        feature_slug = output["feature"]
+        mission_slug = output["feature"]
 
         # Run setup-plan
         result = run_cli(
@@ -76,7 +76,7 @@ class TestFullCLIWorkflow:
             "feature",
             "setup-plan",
             "--feature",
-            feature_slug,
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, (
@@ -108,7 +108,7 @@ class TestFullCLIWorkflow:
         create_output = json.loads(result.stdout)
         assert create_output["result"] == "success"
 
-        feature_slug = create_output["feature"]
+        mission_slug = create_output["feature"]
         feature_dir = Path(create_output["feature_dir"])
         assert feature_dir.exists()
         assert (feature_dir / "spec.md").exists()
@@ -120,7 +120,7 @@ class TestFullCLIWorkflow:
             "feature",
             "setup-plan",
             "--feature",
-            feature_slug,
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, f"setup-plan failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -198,7 +198,7 @@ Create a hello module.
 
         meta_content = {
             "feature_number": "001",
-            "feature_slug": feature_slug,
+            "mission_slug": mission_slug,
             "created_at": "2026-02-12T00:00:00Z",
             "vcs": "git",
         }
@@ -229,7 +229,7 @@ Create a hello module.
             "feature",
             "finalize-tasks",
             "--feature",
-            feature_slug,
+            mission_slug,
             "--json",
         )
         assert result.returncode == 0, f"finalize-tasks failed:\nstdout: {result.stdout}\nstderr: {result.stderr}"
@@ -246,12 +246,12 @@ Create a hello module.
             "implement",
             "WP01",
             "--feature",
-            feature_slug,
+            mission_slug,
             "--json",
         )
 
         # Parse workspace path from JSON output (lane worktrees are the only supported topology).
-        worktree_dir = repo / ".worktrees" / f"{feature_slug}-lane-a"
+        worktree_dir = repo / ".worktrees" / f"{mission_slug}-lane-a"
         if result.returncode == 0 and result.stdout.strip():
             try:
                 impl_data = json.loads(result.stdout.strip().splitlines()[-1])
@@ -267,7 +267,7 @@ Create a hello module.
                 "implement",
                 "WP01",
                 "--feature",
-                feature_slug,
+                mission_slug,
             )
 
         # Verify worktree was created
@@ -320,7 +320,7 @@ Create a hello module.
             "--to",
             "for_review",
             "--feature",
-            feature_slug,
+            mission_slug,
             "--json",
         )
 

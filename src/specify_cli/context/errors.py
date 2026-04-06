@@ -16,7 +16,7 @@ class WorkPackageNotFoundError(ContextResolutionError):
 
 
 class MissingArgumentError(ContextResolutionError):
-    """Required argument (wp_code or feature_slug) was not provided."""
+    """Required argument (wp_code or mission_slug) was not provided."""
 
 
 class MissingIdentityError(ContextResolutionError):

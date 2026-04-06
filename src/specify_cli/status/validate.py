@@ -41,7 +41,7 @@ def validate_event_schema(event: dict) -> list[str]:
     """Validate a single event dict against the StatusEvent schema.
 
     Checks:
-    - All required fields present: event_id, feature_slug, wp_id,
+    - All required fields present: event_id, mission_slug, wp_id,
       from_lane, to_lane, at, actor, force, execution_mode
     - event_id is valid event ID (ULID Crockford base32, or UUID)
     - from_lane and to_lane are canonical lane values (never aliases)
@@ -56,7 +56,6 @@ def validate_event_schema(event: dict) -> list[str]:
     findings: list[str] = []
     required_fields = [
         "event_id",
-        "feature_slug",
         "wp_id",
         "from_lane",
         "to_lane",
@@ -68,6 +67,10 @@ def validate_event_schema(event: dict) -> list[str]:
     for f in required_fields:
         if f not in event:
             findings.append(f"Missing required field: {f}")
+
+    # mission_slug (canonical) or mission_slug (legacy) must be present
+    if "mission_slug" not in event and "mission_slug" not in event:
+        findings.append("Missing required field: mission_slug (or legacy mission_slug)")
 
     # ULID format check
     event_id = event.get("event_id", "")

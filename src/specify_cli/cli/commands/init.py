@@ -79,7 +79,7 @@ download_and_extract_template = download_and_extract_template_github
 
 def _resolve_mission_command_templates_dir(
     project_path: Path,
-    mission_key: str,
+    mission_type: str,
     scratch_parent: Path,
 ) -> Path:
     """Build a temporary directory of mission command templates resolved via the 4-tier resolver.
@@ -91,7 +91,7 @@ def _resolve_mission_command_templates_dir(
 
     Args:
         project_path: Root of the user project (contains ``.kittify/``).
-        mission_key: Mission identifier (e.g. ``"software-dev"``).
+        mission_type: Mission identifier (e.g. ``"software-dev"``).
         scratch_parent: A directory under which the scratch dir will be created.
 
     Returns:
@@ -116,7 +116,7 @@ def _resolve_mission_command_templates_dir(
     # Tier 3 -- global
     try:
         global_home = get_kittify_home()
-        global_dir = global_home / "missions" / mission_key / subdir
+        global_dir = global_home / "missions" / mission_type / subdir
         if global_dir.is_dir():
             candidate_names.update(p.name for p in global_dir.glob("*.md"))
     except RuntimeError:
@@ -125,21 +125,21 @@ def _resolve_mission_command_templates_dir(
     # Tier 4 -- package
     try:
         pkg_root = get_package_asset_root()
-        pkg_dir = pkg_root / mission_key / subdir
+        pkg_dir = pkg_root / mission_type / subdir
         if pkg_dir.is_dir():
             candidate_names.update(p.name for p in pkg_dir.glob("*.md"))
     except FileNotFoundError:
         pass
 
     # Build scratch directory with the winning version of each file.
-    resolved_dir = scratch_parent / f".resolved-{mission_key}-cmd-templates"
+    resolved_dir = scratch_parent / f".resolved-{mission_type}-cmd-templates"
     if resolved_dir.exists():
         shutil.rmtree(resolved_dir)
     resolved_dir.mkdir(parents=True)
 
     for name in sorted(candidate_names):
         try:
-            result = resolve_command(name, project_path, mission=mission_key)
+            result = resolve_command(name, project_path, mission=mission_type)
             shutil.copy2(result.path, resolved_dir / name)
         except FileNotFoundError:
             # Should not happen (we discovered the name), but be safe.
@@ -744,7 +744,7 @@ def init(  # noqa: C901
     preferred_reviewer: str | None = typer.Option(
         None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"
     ),
-    mission_key: str | None = typer.Option(
+    mission_type: str | None = typer.Option(
         None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"
     ),
     ignore_agent_tools: bool = typer.Option(
@@ -1026,7 +1026,7 @@ def init(  # noqa: C901
         _console.print(f"[dim]Auto-detected script type:[/dim] [cyan]{SCRIPT_TYPE_CHOICES[selected_script]}[/cyan]")
 
     # Mission selection deprecated - missions are now per-mission
-    if mission_key:
+    if mission_type:
         _console.print(
             "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-mission during /spec-kitty.specify"  # noqa: E501
         )

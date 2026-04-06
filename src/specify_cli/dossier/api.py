@@ -40,7 +40,7 @@ __all__ = [
 class DossierOverviewResponse(BaseModel):
     """High-level dossier summary (completeness, counts, hashes)."""
 
-    feature_slug: str = Field(..., description="Feature identifier (e.g., '042-local-mission-dossier')")
+    mission_slug: str = Field(..., description="Feature identifier (e.g., '042-local-mission-dossier')")
     completeness_status: str = Field(..., description="'complete' | 'incomplete' | 'unknown'")
     parity_hash_sha256: str = Field(..., description="SHA256 hash of sorted artifact hashes")
     artifact_counts: dict[str, int] = Field(
@@ -97,7 +97,7 @@ class ArtifactDetailResponse(BaseModel):
 class SnapshotExportResponse(BaseModel):
     """Snapshot JSON for SaaS import."""
 
-    feature_slug: str = Field(..., description="Feature identifier")
+    mission_slug: str = Field(..., description="Feature identifier")
     snapshot_id: str = Field(..., description="Unique snapshot ID (UUID)")
     total_artifacts: int = Field(..., description="Total number of artifacts")
     required_artifacts: int = Field(..., description="Count of required artifacts")
@@ -125,16 +125,16 @@ class DossierHandlerAdapter:
     Error handling: Return error_response or raise (framework-dependent).
     """
 
-    def handle_dossier_overview(self, feature_slug: str) -> DossierOverviewResponse | dict[str, Any]:
-        """GET /api/dossier/overview?feature={feature_slug}
+    def handle_dossier_overview(self, mission_slug: str) -> DossierOverviewResponse | dict[str, Any]:
+        """GET /api/dossier/overview?feature={mission_slug}
 
         Returns:
             DossierOverviewResponse or error dict
         """
         raise NotImplementedError
 
-    def handle_dossier_artifacts(self, feature_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
-        """GET /api/dossier/artifacts?feature={feature_slug}&class=...&wp_id=...&step_id=...&required_only=...
+    def handle_dossier_artifacts(self, mission_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
+        """GET /api/dossier/artifacts?feature={mission_slug}&class=...&wp_id=...&step_id=...&required_only=...
 
         Returns:
             ArtifactListResponse or error dict
@@ -142,7 +142,7 @@ class DossierHandlerAdapter:
         raise NotImplementedError
 
     def handle_dossier_artifact_detail(
-        self, feature_slug: str, artifact_key: str
+        self, mission_slug: str, artifact_key: str
     ) -> ArtifactDetailResponse | dict[str, Any]:
         """GET /api/dossier/artifacts/{artifact_key}
 
@@ -151,8 +151,8 @@ class DossierHandlerAdapter:
         """
         raise NotImplementedError
 
-    def handle_dossier_snapshot_export(self, feature_slug: str) -> SnapshotExportResponse | dict[str, Any]:
-        """GET /api/dossier/snapshots/export?feature={feature_slug}
+    def handle_dossier_snapshot_export(self, mission_slug: str) -> SnapshotExportResponse | dict[str, Any]:
+        """GET /api/dossier/snapshots/export?feature={mission_slug}
 
         Returns:
             SnapshotExportResponse or error dict (SaaS import-compatible)
@@ -212,25 +212,25 @@ class DossierAPIHandler(DossierHandlerAdapter):
         """
         self.repo_root = Path(repo_root)
 
-    def handle_dossier_overview(self, feature_slug: str) -> DossierOverviewResponse | dict[str, Any]:
+    def handle_dossier_overview(self, mission_slug: str) -> DossierOverviewResponse | dict[str, Any]:
         """Return high-level dossier summary.
 
         Args:
-            feature_slug: Feature identifier
+            mission_slug: Feature identifier
 
         Returns:
             DossierOverviewResponse or error dict
         """
         try:
             # Load snapshot
-            feature_dir = self.repo_root / "kitty-specs" / feature_slug
-            snapshot = load_snapshot(feature_dir, feature_slug)
+            feature_dir = self.repo_root / "kitty-specs" / mission_slug
+            snapshot = load_snapshot(feature_dir, mission_slug)
 
             if not snapshot:
-                return error_response(f"Dossier not found for {feature_slug}", 404)
+                return error_response(f"Dossier not found for {mission_slug}", 404)
 
             return DossierOverviewResponse(
-                feature_slug=feature_slug,
+                mission_slug=mission_slug,
                 completeness_status=snapshot.completeness_status,
                 parity_hash_sha256=snapshot.parity_hash_sha256,
                 artifact_counts={
@@ -247,7 +247,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error loading overview: {str(exc)}", 500)
 
-    def handle_dossier_artifacts(self, feature_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
+    def handle_dossier_artifacts(self, mission_slug: str, **filters) -> ArtifactListResponse | dict[str, Any]:
         """List all artifacts with filtering and stable ordering.
 
         Filters:
@@ -257,7 +257,7 @@ class DossierAPIHandler(DossierHandlerAdapter):
         - required_only: Boolean (true/false)
 
         Args:
-            feature_slug: Feature identifier
+            mission_slug: Feature identifier
             **filters: Optional filtering parameters
 
         Returns:
@@ -266,10 +266,10 @@ class DossierAPIHandler(DossierHandlerAdapter):
         try:
             # Load dossier (not implemented yet - placeholder)
             # For now, return empty list with full filters applied
-            dossier = self._load_dossier(feature_slug)
+            dossier = self._load_dossier(mission_slug)
 
             if not dossier:
-                return error_response(f"Dossier not found for {feature_slug}", 404)
+                return error_response(f"Dossier not found for {mission_slug}", 404)
 
             # Apply filters
             filtered_artifacts = dossier.artifacts
@@ -317,22 +317,22 @@ class DossierAPIHandler(DossierHandlerAdapter):
             return error_response(f"Error listing artifacts: {str(exc)}", 500)
 
     def handle_dossier_artifact_detail(
-        self, feature_slug: str, artifact_key: str
+        self, mission_slug: str, artifact_key: str
     ) -> ArtifactDetailResponse | dict[str, Any]:
         """Return artifact detail with full-text content (or truncation notice).
 
         Args:
-            feature_slug: Feature identifier
+            mission_slug: Feature identifier
             artifact_key: Artifact key (e.g., 'input.spec.main')
 
         Returns:
             ArtifactDetailResponse or error dict
         """
         try:
-            dossier = self._load_dossier(feature_slug)
+            dossier = self._load_dossier(mission_slug)
 
             if not dossier:
-                return error_response(f"Dossier not found for {feature_slug}", 404)
+                return error_response(f"Dossier not found for {mission_slug}", 404)
 
             # Find artifact
             artifact = None
@@ -383,24 +383,24 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error loading artifact detail: {str(exc)}", 500)
 
-    def handle_dossier_snapshot_export(self, feature_slug: str) -> SnapshotExportResponse | dict[str, Any]:
+    def handle_dossier_snapshot_export(self, mission_slug: str) -> SnapshotExportResponse | dict[str, Any]:
         """Export snapshot JSON for SaaS import.
 
         Args:
-            feature_slug: Feature identifier
+            mission_slug: Feature identifier
 
         Returns:
             SnapshotExportResponse or error dict (SaaS import-compatible)
         """
         try:
-            feature_dir = self.repo_root / "kitty-specs" / feature_slug
-            snapshot = load_snapshot(feature_dir, feature_slug)
+            feature_dir = self.repo_root / "kitty-specs" / mission_slug
+            snapshot = load_snapshot(feature_dir, mission_slug)
 
             if not snapshot:
-                return error_response(f"Snapshot not found for {feature_slug}", 404)
+                return error_response(f"Snapshot not found for {mission_slug}", 404)
 
             return SnapshotExportResponse(
-                feature_slug=snapshot.feature_slug,
+                mission_slug=snapshot.mission_slug,
                 snapshot_id=snapshot.snapshot_id,
                 total_artifacts=snapshot.total_artifacts,
                 required_artifacts=snapshot.required_artifacts,
@@ -416,14 +416,14 @@ class DossierAPIHandler(DossierHandlerAdapter):
         except Exception as exc:
             return error_response(f"Error exporting snapshot: {str(exc)}", 500)
 
-    def _load_dossier(self, feature_slug: str) -> MissionDossier | None:
+    def _load_dossier(self, mission_slug: str) -> MissionDossier | None:
         """Load dossier for a feature from snapshot artifact summaries.
 
         Reconstructs a MissionDossier from the latest snapshot by converting
         artifact_summaries back to ArtifactRef objects.
 
         Args:
-            feature_slug: Feature identifier
+            mission_slug: Feature identifier
 
         Returns:
             MissionDossier or None if not found
@@ -431,8 +431,8 @@ class DossierAPIHandler(DossierHandlerAdapter):
         Raises:
             ValueError, TypeError on invalid snapshot data
         """
-        feature_dir = self.repo_root / "kitty-specs" / feature_slug
-        snapshot = load_snapshot(feature_dir, feature_slug)
+        feature_dir = self.repo_root / "kitty-specs" / mission_slug
+        snapshot = load_snapshot(feature_dir, mission_slug)
 
         if not snapshot:
             return None
@@ -466,9 +466,9 @@ class DossierAPIHandler(DossierHandlerAdapter):
         # Create minimal MissionDossier with just the artifacts
         # Use placeholder values for required fields we don't have from snapshot
         return MissionDossier(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             feature_dir=str(feature_dir),
             artifacts=artifacts,
-            mission_slug="unknown",  # Not tracked in snapshot
+            mission_type="unknown",  # Not tracked in snapshot
             mission_run_id=snapshot.snapshot_id,  # Use snapshot ID as proxy
         )

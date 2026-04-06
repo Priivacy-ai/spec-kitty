@@ -23,7 +23,7 @@ from specify_cli.lanes.persistence import write_lanes_json
 def _setup_project(
     tmp_path: Path,
     *,
-    feature_slug: str = "057-test-feature",
+    mission_slug: str = "057-test-feature",
     wp_code: str = "WP01",
     execution_mode: str = "code_change",
     dependencies: list[str] | None = None,
@@ -44,13 +44,13 @@ def _setup_project(
     )
     (kittify_dir / "config.yaml").write_text(config_content, encoding="utf-8")
 
-    # kitty-specs/<feature_slug>/meta.json
-    feature_dir = tmp_path / "kitty-specs" / feature_slug
+    # kitty-specs/<mission_slug>/meta.json
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     meta = {
         "feature_number": "057",
         "slug": "test-feature",
-        "feature_slug": feature_slug,
+        "mission_slug": mission_slug,
         "friendly_name": "Test Feature",
         "mission": "software-dev",
         "target_branch": "main",
@@ -63,7 +63,7 @@ def _setup_project(
         encoding="utf-8",
     )
 
-    # kitty-specs/<feature_slug>/tasks/<wp_code>-*.md
+    # kitty-specs/<mission_slug>/tasks/<wp_code>-*.md
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(parents=True)
 
@@ -91,9 +91,9 @@ def _setup_project(
         feature_dir,
         LanesManifest(
             version=1,
-            feature_slug=feature_slug,
-            mission_id=mission_id or feature_slug,
-            mission_branch=f"kitty/mission-{feature_slug}",
+            mission_slug=mission_slug,
+            mission_id=mission_id or mission_slug,
+            mission_branch=f"kitty/mission-{mission_slug}",
             target_branch="main",
             lanes=[
                 ExecutionLane(
@@ -122,7 +122,7 @@ class TestResolveContext:
 
         assert isinstance(ctx, MissionContext)
         assert ctx.wp_code == "WP01"
-        assert ctx.feature_slug == "057-test-feature"
+        assert ctx.mission_slug == "057-test-feature"
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == str(repo)
@@ -179,11 +179,11 @@ class TestResolveContext:
         assert isinstance(ctx.owned_files, tuple)
         assert ctx.owned_files == ("src/**", "tests/**")
 
-    def test_mission_id_falls_back_to_feature_slug(self, tmp_path: Path) -> None:
-        """When meta.json has no mission_id, use feature_slug."""
+    def test_mission_id_falls_back_to_mission_slug(self, tmp_path: Path) -> None:
+        """When meta.json has no mission_id, use mission_slug."""
         repo = _setup_project(tmp_path)
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        # feature_slug is used as mission_id when mission_id is absent
+        # mission_slug is used as mission_id when mission_id is absent
         assert ctx.mission_id == "057-test-feature"
 
     def test_mission_id_from_meta_json(self, tmp_path: Path) -> None:
@@ -207,9 +207,9 @@ class TestResolveContextErrors:
         with pytest.raises(MissingArgumentError, match="wp_code is required"):
             resolve_context("", "057-test-feature", "claude", repo)
 
-    def test_empty_feature_slug_raises(self, tmp_path: Path) -> None:
+    def test_empty_mission_slug_raises(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path)
-        with pytest.raises(MissingArgumentError, match="feature_slug is required"):
+        with pytest.raises(MissingArgumentError, match="mission_slug is required"):
             resolve_context("WP01", "", "claude", repo)
 
     def test_missing_config_raises(self, tmp_path: Path) -> None:
@@ -228,7 +228,7 @@ class TestResolveContextErrors:
             resolve_context("WP01", "057-test-feature", "claude", tmp_path)
 
     def test_feature_not_found_raises(self, tmp_path: Path) -> None:
-        repo = _setup_project(tmp_path, feature_slug="057-test-feature")
+        repo = _setup_project(tmp_path, mission_slug="057-test-feature")
         with pytest.raises(FeatureNotFoundError, match="not found"):
             resolve_context("WP01", "999-nonexistent", "claude", repo)
 
@@ -266,19 +266,19 @@ class TestResolveOrLoad:
         loaded = resolve_or_load(
             token=original.token,
             wp_code=None,
-            feature_slug=None,
+            mission_slug=None,
             agent="claude",
             repo_root=repo,
         )
         assert loaded == original
 
     def test_resolve_from_args(self, tmp_path: Path) -> None:
-        """When no token, resolve from wp_code + feature_slug."""
+        """When no token, resolve from wp_code + mission_slug."""
         repo = _setup_project(tmp_path)
         ctx = resolve_or_load(
             token=None,
             wp_code="WP01",
-            feature_slug="057-test-feature",
+            mission_slug="057-test-feature",
             agent="claude",
             repo_root=repo,
         )
@@ -291,18 +291,18 @@ class TestResolveOrLoad:
             resolve_or_load(
                 token=None,
                 wp_code=None,
-                feature_slug="057-test-feature",
+                mission_slug="057-test-feature",
                 agent="claude",
                 repo_root=repo,
             )
 
-    def test_missing_feature_slug_raises(self, tmp_path: Path) -> None:
+    def test_missing_mission_slug_raises(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path)
         with pytest.raises(MissingArgumentError, match="--feature"):
             resolve_or_load(
                 token=None,
                 wp_code="WP01",
-                feature_slug=None,
+                mission_slug=None,
                 agent="claude",
                 repo_root=repo,
             )
@@ -313,13 +313,13 @@ class TestResolveOrLoad:
             resolve_or_load(
                 token=None,
                 wp_code=None,
-                feature_slug=None,
+                mission_slug=None,
                 agent="claude",
                 repo_root=repo,
             )
 
     def test_token_takes_precedence(self, tmp_path: Path) -> None:
-        """If token is provided, wp_code/feature_slug are ignored."""
+        """If token is provided, wp_code/mission_slug are ignored."""
         repo = _setup_project(tmp_path)
         original = resolve_context("WP01", "057-test-feature", "claude", repo)
 
@@ -327,7 +327,7 @@ class TestResolveOrLoad:
         loaded = resolve_or_load(
             token=original.token,
             wp_code="WP99",  # This would fail if used
-            feature_slug="999-nonexistent",  # This would fail if used
+            mission_slug="999-nonexistent",  # This would fail if used
             agent="claude",
             repo_root=repo,
         )

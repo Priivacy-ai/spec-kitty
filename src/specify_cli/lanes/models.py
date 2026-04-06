@@ -62,10 +62,10 @@ class LanesManifest:
 
     Attributes:
         version: Schema version (currently 1).
-        feature_slug: Human-readable slug used in branch names.
+        mission_slug: Human-readable slug used in branch names.
         mission_id: Immutable ULID from meta.json. Used for merge locks and
-            runtime identity. May equal feature_slug if backfill hasn't run.
-        mission_branch: Integration branch name (kitty/mission-{feature_slug}).
+            runtime identity. May equal mission_slug if backfill hasn't run.
+        mission_branch: Integration branch name (kitty/mission-{mission_slug}).
         target_branch: Branch the mission merges into (e.g. "main").
         lanes: Ordered list of execution lanes.
         computed_at: ISO 8601 timestamp of computation.
@@ -73,7 +73,7 @@ class LanesManifest:
     """
 
     version: int
-    feature_slug: str
+    mission_slug: str
     mission_id: str
     mission_branch: str
     target_branch: str
@@ -98,7 +98,7 @@ class LanesManifest:
     def to_dict(self) -> dict[str, Any]:
         return {
             "version": self.version,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "mission_id": self.mission_id,
             "mission_branch": self.mission_branch,
             "target_branch": self.target_branch,
@@ -109,11 +109,11 @@ class LanesManifest:
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LanesManifest:
-        feature_slug = data["feature_slug"]
+        mission_slug = data["mission_slug"]
         return cls(
             version=data["version"],
-            feature_slug=feature_slug,
-            mission_id=data.get("mission_id", feature_slug),
+            mission_slug=mission_slug,
+            mission_id=data.get("mission_id", mission_slug),
             mission_branch=data["mission_branch"],
             target_branch=data["target_branch"],
             lanes=[ExecutionLane.from_dict(lane) for lane in data["lanes"]],

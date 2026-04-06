@@ -14,7 +14,7 @@ def _write_event(feature_dir: Path, wp_id: str, to_lane: str, from_lane: str = "
     """Append a single status event to the feature's event log."""
     event = StatusEvent(
         event_id=f"01TEST{wp_id}{to_lane.upper()[:4]}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane(from_lane),
         to_lane=Lane(to_lane),

@@ -44,7 +44,7 @@ class MissionMergeResult:
 
 def merge_lane_to_mission(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     lane_id: str,
     lanes_manifest: LanesManifest | None = None,
 ) -> LaneMergeResult:
@@ -55,7 +55,7 @@ def merge_lane_to_mission(
 
     Args:
         repo_root: Repository root.
-        feature_slug: Feature slug.
+        mission_slug: Feature slug.
         lane_id: Lane to merge (e.g., "lane-a").
         lanes_manifest: Pre-loaded manifest (loaded from disk if None).
 
@@ -63,7 +63,7 @@ def merge_lane_to_mission(
         LaneMergeResult with success/error status.
     """
     if lanes_manifest is None:
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:
             return LaneMergeResult(
@@ -83,7 +83,7 @@ def merge_lane_to_mission(
             errors=[f"Lane {lane_id} not found in lanes.json"],
         )
 
-    branch = lane_branch_name(feature_slug, lane_id)
+    branch = lane_branch_name(mission_slug, lane_id)
     mission_branch = lanes_manifest.mission_branch
 
     # Verify the lane branch exists.
@@ -122,7 +122,7 @@ def merge_lane_to_mission(
 
 def merge_mission_to_target(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     lanes_manifest: LanesManifest | None = None,
 ) -> MissionMergeResult:
     """Merge the mission integration branch into the target branch (e.g., main).
@@ -131,14 +131,14 @@ def merge_mission_to_target(
 
     Args:
         repo_root: Repository root.
-        feature_slug: Feature slug.
+        mission_slug: Feature slug.
         lanes_manifest: Pre-loaded manifest (loaded from disk if None).
 
     Returns:
         MissionMergeResult with success/error status.
     """
     if lanes_manifest is None:
-        feature_dir = repo_root / "kitty-specs" / feature_slug
+        feature_dir = repo_root / "kitty-specs" / mission_slug
         lanes_manifest = read_lanes_json(feature_dir)
         if lanes_manifest is None:
             return MissionMergeResult(

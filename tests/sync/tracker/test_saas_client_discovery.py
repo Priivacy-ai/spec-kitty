@@ -83,6 +83,7 @@ PROJECT_IDENTITY: dict[str, Any] = {
     "slug": "my-project",
     "node_id": "a1b2c3d4e5f6",
     "repo_slug": None,
+    "build_id": "b0000000-0000-0000-0000-000000000001",
 }
 
 

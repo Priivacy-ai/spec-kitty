@@ -57,7 +57,7 @@ from acceptance_support import (  # noqa: E402
     perform_acceptance,
 )
 
-from specify_cli.feature_metadata import record_merge, finalize_merge  # noqa: E402
+from specify_cli.mission_metadata import record_merge, finalize_merge  # noqa: E402
 from specify_cli.status.store import append_event  # noqa: E402
 from specify_cli.status.models import Lane, StatusEvent  # noqa: E402
 from specify_cli.status.reducer import materialize as _materialize  # noqa: E402
@@ -77,6 +77,7 @@ def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
         return "planned"
 
     from specify_cli.status.reducer import reduce as _reduce
+
     snapshot = _reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state and isinstance(wp_state.get("lane"), str):
@@ -87,6 +88,7 @@ def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
 def _generate_ulid() -> str:
     """Generate a ULID for the status event."""
     import ulid as _ulid_mod
+
     if hasattr(_ulid_mod, "new"):
         return _ulid_mod.new().str
     return str(_ulid_mod.ULID())
@@ -284,9 +286,7 @@ def update_command(args: argparse.Namespace) -> None:
 
     print(f"✅ Updated {wp.work_package_id or wp.path.name} → {validated_lane}")
     print(f"   {wp.path.relative_to(repo_root)}")
-    print(
-        f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – {note}"
-    )
+    print(f"   Logged: - {timestamp} – {agent} – shell_pid={shell_pid} – {note}")
 
 
 def history_command(args: argparse.Namespace) -> None:
@@ -404,17 +404,9 @@ def list_command(args: argparse.Namespace) -> None:
     width_id = max(len(row["id"]) for row in rows)
     width_lane = max(len(row["lane"]) for row in rows)
     width_agent = max(len(row["agent"]) for row in rows) if any(row["agent"] for row in rows) else 5
-    width_assignee = (
-        max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
-    )
+    width_assignee = max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
 
-    header = (
-        f"{'Lane'.ljust(width_lane)}  "
-        f"{'WP'.ljust(width_id)}  "
-        f"{'Agent'.ljust(width_agent)}  "
-        f"{'Assignee'.ljust(width_assignee)}  "
-        "Title"
-    )
+    header = f"{'Lane'.ljust(width_lane)}  {'WP'.ljust(width_id)}  {'Agent'.ljust(width_agent)}  {'Assignee'.ljust(width_assignee)}  Title"
     print(header)
     print("-" * len(header))
     for row in rows:
@@ -435,13 +427,12 @@ def rollback_command(args: argparse.Namespace) -> None:
 
     # Derive previous lane from canonical event history
     from specify_cli.status.store import read_events
+
     events = read_events(feature_dir)
     wp_events = [e for e in events if e.wp_id == wp_id]
 
     if not wp_events:
-        raise TaskCliError(
-            f"No canonical status events for {wp_id}. Cannot determine the previous lane."
-        )
+        raise TaskCliError(f"No canonical status events for {wp_id}. Cannot determine the previous lane.")
 
     if len(wp_events) == 1:
         # Only one event: previous lane is the from_lane of that event
@@ -659,13 +650,12 @@ def _finalize_merge_metadata(meta_path: Optional[Path], merge_commit: str) -> No
     except (ValueError, FileNotFoundError):
         pass
 
+
 def merge_command(args: argparse.Namespace) -> None:
     # merge_command needs the LOCAL git root (may be a worktree), not the main
     # repo root that find_repo_root() returns.  git rev-parse --show-toplevel
     # gives us exactly that.
-    local_root = Path(
-        run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip()
-    )
+    local_root = Path(run_git(["rev-parse", "--show-toplevel"], cwd=Path.cwd()).stdout.strip())
     repo_root = local_root
     current_branch = run_git(
         ["rev-parse", "--abbrev-ref", "HEAD"],
@@ -683,12 +673,11 @@ def merge_command(args: argparse.Namespace) -> None:
     # Resolve target branch dynamically if not specified
     if args.target is None:
         from specify_cli.core.git_ops import resolve_primary_branch
+
         args.target = resolve_primary_branch(repo_root)
 
     if current_branch == args.target:
-        raise TaskCliError(
-            f"Already on target branch '{args.target}'. Switch to the feature branch before merging."
-        )
+        raise TaskCliError(f"Already on target branch '{args.target}'. Switch to the feature branch before merging.")
 
     if current_branch != feature:
         raise TaskCliError(
@@ -709,9 +698,7 @@ def merge_command(args: argparse.Namespace) -> None:
     def ensure_clean(cwd: Path) -> None:
         status = run_git(["status", "--porcelain"], cwd=cwd, check=True).stdout.strip()
         if status:
-            raise TaskCliError(
-                f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging."
-            )
+            raise TaskCliError(f"Working directory at {cwd} has uncommitted changes. Commit or stash before merging.")
 
     ensure_clean(repo_root)
     if in_worktree:
@@ -724,9 +711,7 @@ def merge_command(args: argparse.Namespace) -> None:
         if args.strategy == "squash":
             steps.append(f"  - Merge {feature} with --squash and commit")
         elif args.strategy == "rebase":
-            steps.append(
-                f"  - Rebase {feature} onto {args.target} manually (command exits before merge)"
-            )
+            steps.append(f"  - Rebase {feature} onto {args.target} manually (command exits before merge)")
         else:
             steps.append(f"  - Merge {feature} with --no-ff")
         if args.push:
@@ -749,14 +734,10 @@ def merge_command(args: argparse.Namespace) -> None:
         git(["fetch"], check=False)
         pull = git(["pull", "--ff-only"], check=False)
         if pull.returncode != 0:
-            raise TaskCliError(
-                "Failed to fast-forward target branch. Resolve upstream changes and retry."
-            )
+            raise TaskCliError("Failed to fast-forward target branch. Resolve upstream changes and retry.")
 
     if args.strategy == "rebase":
-        raise TaskCliError(
-            "Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`."
-        )
+        raise TaskCliError("Rebase strategy requires manual steps. Run `git checkout {feature}` followed by `git rebase {args.target}`.")
 
     meta_path: Optional[Path] = None
     meta_rel: Optional[str] = None
@@ -764,9 +745,7 @@ def merge_command(args: argparse.Namespace) -> None:
     if args.strategy == "squash":
         merge_proc = git(["merge", "--squash", feature], check=False)
         if merge_proc.returncode != 0:
-            raise TaskCliError(
-                "Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch."
-            )
+            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
         meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
         if meta_path:
             meta_rel = str(meta_path.relative_to(primary_repo_root))
@@ -775,9 +754,7 @@ def merge_command(args: argparse.Namespace) -> None:
     else:
         merge_proc = git(["merge", "--no-ff", "--no-commit", feature], check=False)
         if merge_proc.returncode != 0:
-            raise TaskCliError(
-                "Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch."
-            )
+            raise TaskCliError("Merge failed. Resolve conflicts manually, commit, then rerun with --keep-worktree --keep-branch.")
         meta_path = _prepare_merge_metadata(primary_repo_root, feature, args.target, args.strategy, args.push)
         if meta_path:
             meta_rel = str(meta_path.relative_to(primary_repo_root))
@@ -808,6 +785,8 @@ def merge_command(args: argparse.Namespace) -> None:
             git(["branch", "-D", feature])
 
     print(f"Merge complete: {feature} -> {args.target}")
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="Spec Kitty task utilities")
     subparsers = parser.add_subparsers(dest="command", required=True)

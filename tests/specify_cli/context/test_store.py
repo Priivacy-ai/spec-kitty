@@ -24,7 +24,7 @@ def _make_context(**overrides: object) -> MissionContext:
         "mission_id": "057-test-feature",
         "work_package_id": "WP01",
         "wp_code": "WP01",
-        "feature_slug": "057-test-feature",
+        "mission_slug": "057-test-feature",
         "target_branch": "main",
         "authoritative_repo": "/tmp/repo",
         "authoritative_ref": "kitty/mission-057-test-feature-lane-a",

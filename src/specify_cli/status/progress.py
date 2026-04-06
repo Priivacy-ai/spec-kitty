@@ -16,8 +16,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
-
 from .models import StatusSnapshot
 from .reducer import materialize
 
@@ -62,7 +60,7 @@ class ProgressResult:
     JSON-serialisable for machine consumption.
     """
 
-    feature_slug: str
+    mission_slug: str
     percentage: float
     done_count: int
     total_count: int
@@ -70,14 +68,14 @@ class ProgressResult:
     per_wp: list[WPProgress] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return with_tracked_mission_slug_aliases({
-            "feature_slug": self.feature_slug,
+        return {
+            "mission_slug": self.mission_slug,
             "percentage": round(self.percentage, 4),
             "done_count": self.done_count,
             "total_count": self.total_count,
             "per_lane_counts": self.per_lane_counts,
             "per_wp": [wp.to_dict() for wp in self.per_wp],
-        })
+        }
 
 
 def compute_weighted_progress(
@@ -115,7 +113,7 @@ def compute_weighted_progress(
     work_packages = snapshot.work_packages
     if not work_packages:
         return ProgressResult(
-            feature_slug=snapshot.feature_slug,
+            mission_slug=snapshot.mission_slug,
             percentage=0.0,
             done_count=0,
             total_count=0,
@@ -155,7 +153,7 @@ def compute_weighted_progress(
     percentage = (weighted_sum / weight_total * 100.0) if weight_total > 0 else 0.0
 
     return ProgressResult(
-        feature_slug=snapshot.feature_slug,
+        mission_slug=snapshot.mission_slug,
         percentage=percentage,
         done_count=done_count,
         total_count=len(work_packages),
@@ -167,7 +165,7 @@ def compute_weighted_progress(
 def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
     """Materialise snapshot, compute progress, and write ``progress.json``.
 
-    Writes to ``derived_dir / <feature_slug> / progress.json`` atomically
+    Writes to ``derived_dir / <mission_slug> / progress.json`` atomically
     (write-to-temp then ``os.replace``). The output directory is created
     if it does not exist.
 
@@ -177,10 +175,10 @@ def generate_progress_json(feature_dir: Path, derived_dir: Path) -> None:
         derived_dir: Root directory for derived artefacts.
     """
     snapshot = materialize(feature_dir)
-    feature_slug = snapshot.feature_slug or feature_dir.name
+    mission_slug = snapshot.mission_slug or feature_dir.name
     result = compute_weighted_progress(snapshot)
 
-    output_dir = derived_dir / feature_slug
+    output_dir = derived_dir / mission_slug
     output_dir.mkdir(parents=True, exist_ok=True)
 
     json_str = json.dumps(result.to_dict(), sort_keys=True, indent=2, ensure_ascii=False) + "\n"

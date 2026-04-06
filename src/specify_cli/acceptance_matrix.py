@@ -6,7 +6,7 @@ provides a structured evidence artifact that the acceptance gate reads
 to validate evidence completeness before emitting transitions through
 the existing event pipeline.
 
-Persisted at kitty-specs/{feature_slug}/acceptance-matrix.json.
+Persisted at kitty-specs/{mission_slug}/acceptance-matrix.json.
 """
 
 from __future__ import annotations
@@ -52,7 +52,7 @@ class AcceptanceMatrix:
     completeness, then emits transitions through the event pipeline.
     """
 
-    feature_slug: str
+    mission_slug: str
     criteria: list[AcceptanceCriterion] = field(default_factory=list)
     negative_invariants: list[NegativeInvariant] = field(default_factory=list)
 
@@ -70,7 +70,7 @@ class AcceptanceMatrix:
 
     def to_dict(self) -> dict:
         return {
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "overall_verdict": self.overall_verdict,
             "criteria": [asdict(c) for c in self.criteria],
             "negative_invariants": [asdict(ni) for ni in self.negative_invariants],
@@ -79,7 +79,7 @@ class AcceptanceMatrix:
     @classmethod
     def from_dict(cls, data: dict) -> AcceptanceMatrix:
         return cls(
-            feature_slug=data["feature_slug"],
+            mission_slug=data["mission_slug"],
             criteria=[
                 AcceptanceCriterion(**c) for c in data.get("criteria", [])
             ],

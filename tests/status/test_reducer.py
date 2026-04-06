@@ -22,7 +22,7 @@ pytestmark = pytest.mark.fast
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
-    feature_slug: str = "034-feature-name",
+    mission_slug: str = "034-feature-name",
     wp_id: str = "WP01",
     from_lane: Lane = Lane.PLANNED,
     to_lane: Lane = Lane.CLAIMED,
@@ -36,7 +36,7 @@ def _make_event(
     """Helper to build StatusEvent with sensible defaults."""
     return StatusEvent(
         event_id=event_id,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         from_lane=from_lane,
         to_lane=to_lane,
@@ -55,7 +55,7 @@ class TestReduceEmpty:
     def test_reduce_empty_events(self) -> None:
         snapshot = reduce([])
 
-        assert snapshot.feature_slug == ""
+        assert snapshot.mission_slug == ""
         assert snapshot.event_count == 0
         assert snapshot.last_event_id is None
         assert snapshot.work_packages == {}
@@ -85,7 +85,7 @@ class TestReduceSingleEvent:
         )
         snapshot = reduce([event])
 
-        assert snapshot.feature_slug == "034-feature-name"
+        assert snapshot.mission_slug == "034-feature-name"
         assert snapshot.event_count == 1
         assert snapshot.last_event_id == "01HXYZ0000000000000000000A"
         assert "WP01" in snapshot.work_packages
@@ -322,7 +322,7 @@ class TestByteIdenticalOutput:
         """Two calls to materialize_to_json with the same snapshot produce
         identical byte strings."""
         snapshot = StatusSnapshot(
-            feature_slug="034-feature-name",
+            mission_slug="034-feature-name",
             materialized_at="2026-02-08T15:00:00Z",
             event_count=2,
             last_event_id="01HXYZ0000000000000000000B",
@@ -354,7 +354,7 @@ class TestByteIdenticalOutput:
 
         # Verify it's valid JSON
         parsed = json.loads(json_a)
-        assert parsed["feature_slug"] == "034-feature-name"
+        assert parsed["mission_slug"] == "034-feature-name"
 
     def test_byte_identical_across_reduce_calls(self) -> None:
         """Two reduce calls with the same events and a fixed materialized_at
@@ -405,12 +405,12 @@ class TestMaterializeFile:
 
         content = status_path.read_text(encoding="utf-8")
         parsed = json.loads(content)
-        assert parsed["feature_slug"] == "034-feature-name"
+        assert parsed["mission_slug"] == "034-feature-name"
         assert parsed["event_count"] == 1
         assert "WP01" in parsed["work_packages"]
 
         # Snapshot returned matches file content
-        assert snapshot.feature_slug == "034-feature-name"
+        assert snapshot.mission_slug == "034-feature-name"
         assert snapshot.event_count == 1
 
     def test_materialize_atomic_write(self, tmp_path: Path) -> None:
@@ -444,7 +444,7 @@ class TestMaterializeFile:
 
         status_path = feature_dir / SNAPSHOT_FILENAME
         assert status_path.exists()
-        assert snapshot.feature_slug == ""
+        assert snapshot.mission_slug == ""
         assert snapshot.event_count == 0
 
     def test_materialize_overwrites_existing(self, tmp_path: Path) -> None:

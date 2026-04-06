@@ -32,7 +32,7 @@ def _setup_feature(tmp_path, wp_ids, wp_lanes=None):
         for wp_id, lane in wp_lanes.items():
             events.append({
                 "event_id": f"evt-{wp_id}",
-                "feature_slug": "010-feat",
+                "mission_slug": "010-feat",
                 "wp_id": wp_id,
                 "from_lane": "planned",
                 "to_lane": lane,

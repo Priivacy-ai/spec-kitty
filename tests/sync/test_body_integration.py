@@ -25,15 +25,15 @@ from specify_cli.sync.namespace import NamespaceRef, UploadOutcome, UploadStatus
 pytestmark = pytest.mark.fast
 
 def _ns(
-    feature_slug: str = "047-feat",
+    mission_slug: str = "047-feat",
     target_branch: str = "main",
     project_uuid: str = "uuid-1",
 ) -> NamespaceRef:
     return NamespaceRef(
         project_uuid=project_uuid,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
-        mission_key="software-dev",
+        mission_type="software-dev",
         manifest_version="1",
     )
 
@@ -184,8 +184,8 @@ class TestSC002NamespaceIsolation:
         feature_b.mkdir()
         hash_b = _write_file(feature_b, "spec.md", "# Feature B")
 
-        ns_a = _ns(feature_slug="feat-a")
-        ns_b = _ns(feature_slug="feat-b")
+        ns_a = _ns(mission_slug="feat-a")
+        ns_b = _ns(mission_slug="feat-b")
 
         art_a = _artifact("spec.md", hash_a, len(b"# Feature A"))
         art_b = _artifact("spec.md", hash_b, len(b"# Feature B"))

@@ -219,9 +219,9 @@ class TestMissingArtifactDetection:
 
         # Create dossier with no artifacts
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -260,9 +260,9 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -303,9 +303,9 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest=manifest.dict(),
@@ -332,9 +332,9 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -361,9 +361,9 @@ class TestMissingArtifactDetection:
         )
 
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -459,7 +459,7 @@ class TestMissionDossierBuilder:
         dossier = indexer.index_feature(tmp_path, "software-dev")
 
         assert dossier.mission_slug == "software-dev"
-        assert dossier.feature_slug == tmp_path.name
+        assert dossier.mission_slug == tmp_path.name
         assert dossier.feature_dir == str(tmp_path)
         assert len(dossier.artifacts) >= 3
 
@@ -537,9 +537,9 @@ class TestCompletenessStatus:
             is_present=True,
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},  # Has manifest
@@ -559,9 +559,9 @@ class TestCompletenessStatus:
             error_reason="not_found",
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},
@@ -580,9 +580,9 @@ class TestCompletenessStatus:
             is_present=True,
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest=None,  # No manifest
@@ -611,9 +611,9 @@ class TestCompletenessStatus:
             error_reason="not_found",
         )
         dossier = MissionDossier(
-            mission_slug="software-dev",
+            mission_type="software-dev",
             mission_run_id="run-001",
-            feature_slug="test-feature",
+            mission_type="test-feature",
             feature_dir="/tmp/test",
             artifacts=[required, optional],
             manifest={"required": ["spec"]},

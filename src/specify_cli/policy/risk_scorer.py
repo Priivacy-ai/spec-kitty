@@ -44,7 +44,7 @@ class LanePairRisk:
 class RiskReport:
     """Complete risk report for a feature's lane parallelization."""
 
-    feature_slug: str
+    mission_slug: str
     lane_pair_risks: list[LanePairRisk]
     overall_score: float
     threshold: float
@@ -85,7 +85,7 @@ def compute_risk_report(
     overall = max((r.score for r in pair_risks), default=0.0)
 
     return RiskReport(
-        feature_slug=lanes_manifest.feature_slug,
+        mission_slug=lanes_manifest.mission_slug,
         lane_pair_risks=pair_risks,
         overall_score=overall,
         threshold=policy.threshold,

@@ -12,8 +12,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
-
 
 class Lane(StrEnum):
     """8-lane canonical work package lifecycle states."""
@@ -141,7 +139,7 @@ class StatusEvent:
     """
 
     event_id: str  # ULID
-    feature_slug: str  # e.g. "034-feature-name"
+    mission_slug: str  # e.g. "034-feature-name"
     wp_id: str  # e.g. "WP01"
     from_lane: Lane
     to_lane: Lane
@@ -157,7 +155,7 @@ class StatusEvent:
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
             "event_id": self.event_id,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "wp_id": self.wp_id,
             "from_lane": str(self.from_lane),
             "to_lane": str(self.to_lane),
@@ -184,7 +182,7 @@ class StatusEvent:
         evidence_data = data.get("evidence")
         return cls(
             event_id=data["event_id"],
-            feature_slug=data.get("mission_slug") or data["feature_slug"],
+            mission_slug=data.get("mission_slug") or data.get("mission_slug", ""),
             wp_id=data["wp_id"],
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
@@ -206,7 +204,7 @@ class StatusSnapshot:
     Produced by the deterministic reducer from the canonical event log.
     """
 
-    feature_slug: str
+    mission_slug: str
     materialized_at: str  # ISO 8601 UTC
     event_count: int
     last_event_id: str | None
@@ -214,22 +212,22 @@ class StatusSnapshot:
     summary: dict[str, int]  # lane -> count
 
     def to_dict(self) -> dict[str, Any]:
-        return with_tracked_mission_slug_aliases({
-            "feature_slug": self.feature_slug,
+        return {
+            "mission_slug": self.mission_slug,
             "materialized_at": self.materialized_at,
             "event_count": self.event_count,
             "last_event_id": self.last_event_id,
             "work_packages": self.work_packages,
             "summary": self.summary,
-        })
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
-        feature_slug = data.get("feature_slug", data.get("mission_slug"))
-        if feature_slug is None:
-            raise KeyError("feature_slug")
+        mission_slug = data.get("mission_slug") or data.get("mission_slug")
+        if mission_slug is None:
+            raise KeyError("mission_slug")
         return cls(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             materialized_at=data["materialized_at"],
             event_count=data["event_count"],
             last_event_id=data.get("last_event_id"),

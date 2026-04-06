@@ -43,7 +43,7 @@ class WorkspaceContext:
 
     # Identity
     wp_id: str  # e.g., "WP02"
-    feature_slug: str  # e.g., "010-lane-only-runtime"
+    mission_slug: str  # e.g., "010-lane-only-runtime"
 
     # Paths
     worktree_path: str  # Relative path from repo root (e.g., ".worktrees/010-feature-lane-a")
@@ -93,7 +93,7 @@ class ResolvedWorkspace:
     This describes the lane worktree that owns a work package.
     """
 
-    feature_slug: str
+    mission_slug: str
     wp_id: str
     workspace_name: str
     worktree_path: Path
@@ -146,7 +146,7 @@ def save_context(repo_root: Path, context: WorkspaceContext) -> Path:
     Returns:
         Path to saved context file
     """
-    workspace_name = f"{context.feature_slug}-{context.lane_id}"
+    workspace_name = f"{context.mission_slug}-{context.lane_id}"
     context_path = get_context_path(repo_root, workspace_name)
 
     # Write JSON with pretty formatting
@@ -226,7 +226,7 @@ def list_contexts(repo_root: Path) -> list[WorkspaceContext]:
 
 def build_feature_context_index(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
 ) -> dict[str, WorkspaceContext]:
     """Index feature contexts by WP ID, expanding lane contexts to all WPs.
 
@@ -234,7 +234,7 @@ def build_feature_context_index(
     caller asking for WP01 should still find the lane context even after the
     active WP in that lane has advanced to WP02.
     """
-    cache_key = (str(repo_root.resolve()), feature_slug)
+    cache_key = (str(repo_root.resolve()), mission_slug)
     cached = _FEATURE_CONTEXT_INDEX_CACHE.get(cache_key)
     if cached is not None:
         return dict(cached)
@@ -242,7 +242,7 @@ def build_feature_context_index(
     index: dict[str, WorkspaceContext] = {}
 
     for context in list_contexts(repo_root):
-        if context.feature_slug != feature_slug:
+        if context.mission_slug != mission_slug:
             continue
 
         if context.lane_wp_ids:
@@ -260,16 +260,16 @@ def build_feature_context_index(
 
 def find_context_for_wp(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
 ) -> WorkspaceContext | None:
     """Return the lane workspace context for a work package."""
-    return build_feature_context_index(repo_root, feature_slug).get(wp_id)
+    return build_feature_context_index(repo_root, mission_slug).get(wp_id)
 
 
 def resolve_workspace_for_wp(
     repo_root: Path,
-    feature_slug: str,
+    mission_slug: str,
     wp_id: str,
 ) -> ResolvedWorkspace:
     """Resolve the real workspace/branch contract for a work package.
@@ -280,11 +280,11 @@ def resolve_workspace_for_wp(
 
     The returned path may not exist yet; callers can inspect `.exists`.
     """
-    context = find_context_for_wp(repo_root, feature_slug, wp_id)
+    context = find_context_for_wp(repo_root, mission_slug, wp_id)
     if context is not None:
         worktree_path = repo_root / context.worktree_path
         return ResolvedWorkspace(
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             wp_id=wp_id,
             workspace_name=worktree_path.name,
             worktree_path=worktree_path,
@@ -294,7 +294,7 @@ def resolve_workspace_for_wp(
             context=context,
         )
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.persistence import require_lanes_json
 
@@ -303,40 +303,40 @@ def resolve_workspace_for_wp(
     if lane is None:
         raise ValueError(f"{wp_id} is not assigned to any lane in {feature_dir / 'lanes.json'}")
 
-    workspace_name = f"{feature_slug}-{lane.lane_id}"
+    workspace_name = f"{mission_slug}-{lane.lane_id}"
     return ResolvedWorkspace(
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         wp_id=wp_id,
         workspace_name=workspace_name,
         worktree_path=repo_root / ".worktrees" / workspace_name,
-        branch_name=lane_branch_name(feature_slug, lane.lane_id),
+        branch_name=lane_branch_name(mission_slug, lane.lane_id),
         lane_id=lane.lane_id,
         lane_wp_ids=list(lane.wp_ids),
         context=None,
     )
 
 
-def resolve_feature_worktree(repo_root: Path, feature_slug: str) -> Path | None:
+def resolve_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree to operate on for a feature.
 
     Prefer active lane workspace contexts first, then lane paths inferred from
     `lanes.json`.
     """
     for context in list_contexts(repo_root):
-        if context.feature_slug != feature_slug:
+        if context.mission_slug != mission_slug:
             continue
         candidate = repo_root / context.worktree_path
         if candidate.is_dir():
             return candidate
 
-    feature_dir = repo_root / "kitty-specs" / feature_slug
+    feature_dir = repo_root / "kitty-specs" / mission_slug
     from specify_cli.lanes.persistence import read_lanes_json
 
     lanes_manifest = read_lanes_json(feature_dir)
 
     if lanes_manifest is not None:
         for lane in lanes_manifest.lanes:
-            candidate = repo_root / ".worktrees" / f"{feature_slug}-{lane.lane_id}"
+            candidate = repo_root / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
             if candidate.is_dir():
                 return candidate
     return None
@@ -356,7 +356,7 @@ def find_orphaned_contexts(repo_root: Path) -> list[tuple[str, WorkspaceContext]
     for context in list_contexts(repo_root):
         workspace_path = repo_root / context.worktree_path
         if not workspace_path.exists():
-            workspace_name = f"{context.feature_slug}-{context.lane_id}"
+            workspace_name = f"{context.mission_slug}-{context.lane_id}"
             orphaned.append((workspace_name, context))
 
     return orphaned

@@ -36,7 +36,7 @@ _EXPORT_NAMES = (
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",
-    "detect_feature_slug",
+    "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
 )
@@ -66,7 +66,7 @@ __all__ = [
     "WorkPackageState",
     "choose_mode",
     "collect_feature_summary",
-    "detect_feature_slug",
+    "detect_mission_slug",
     "normalize_feature_encoding",
     "perform_acceptance",
 ]

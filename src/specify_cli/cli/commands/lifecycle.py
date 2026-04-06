@@ -11,7 +11,7 @@ from typing import Optional
 
 import typer
 
-from specify_cli.cli.commands.agent import feature as agent_feature
+from specify_cli.cli.commands.agent import mission as agent_feature
 
 
 def _slugify_feature_input(value: str) -> str:
@@ -29,7 +29,7 @@ def specify(
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
     slug = _slugify_feature_input(feature)
-    agent_feature.create_feature(feature_slug=slug, mission=mission, json_output=json_output)
+    agent_feature.create_mission(mission_slug=slug, mission=mission, json_output=json_output)
 
 
 def plan(

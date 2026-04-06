@@ -34,7 +34,7 @@ def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:
     canonical_lane = _lane_alias.get(lane, lane)
     event = StatusEvent(
         event_id=f"test-{wp_id}-{canonical_lane}",
-        feature_slug=feature_dir.name,
+        mission_slug=feature_dir.name,
         wp_id=wp_id,
         from_lane=Lane.PLANNED,
         to_lane=Lane(canonical_lane),
@@ -85,7 +85,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.chdir(repo_root)
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.workflow._ensure_target_branch_checked_out",
-        lambda repo_root, feature_slug: (repo_root, "main"),
+        lambda repo_root, mission_slug: (repo_root, "main"),
     )
     monkeypatch.setattr(
         "specify_cli.cli.commands.agent.workflow.safe_commit",
@@ -103,8 +103,8 @@ class TestImplementBodyNoteLaneFree:
 
     def test_implement_body_note_no_lane_from_planned(self, workflow_repo: Path) -> None:
         """When implementing from planned, body note should not contain lane=."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -116,12 +116,12 @@ class TestImplementBodyNoteLaneFree:
         # Seed canonical state so implement doesn't hard-fail
         _seed_wp_lane(feature_dir, "WP01", "planned")
 
-        workspace = lane_worktree_path(workflow_repo, feature_slug)
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -135,8 +135,8 @@ class TestImplementBodyNoteLaneFree:
 
     def test_implement_body_note_no_lane_from_doing(self, workflow_repo: Path) -> None:
         """When re-entering doing, body note should not contain lane=."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -148,12 +148,12 @@ class TestImplementBodyNoteLaneFree:
         # Seed canonical state as in_progress (= doing)
         _seed_wp_lane(feature_dir, "WP01", "doing")
 
-        workspace = lane_worktree_path(workflow_repo, feature_slug)
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -174,8 +174,8 @@ class TestReviewBodyNoteLaneFree:
 
     def test_review_body_note_no_lane(self, workflow_repo: Path) -> None:
         """Review body note should not contain lane= segment."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -189,7 +189,7 @@ class TestReviewBodyNoteLaneFree:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code == 0, result.stdout
@@ -210,8 +210,8 @@ class TestImplementHardFailNoCanonical:
 
     def test_implement_hardfails_no_events(self, workflow_repo: Path) -> None:
         """Implement should fail when event log has no state for WP."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -222,12 +222,12 @@ class TestImplementHardFailNoCanonical:
         _write_wp_file(wp_path, "WP01", lane="planned")
         # NO event seeding -- WP has no canonical state
 
-        workspace = lane_worktree_path(workflow_repo, feature_slug)
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -240,8 +240,8 @@ class TestImplementHardFailNoCanonical:
 
     def test_implement_hardfails_events_exist_but_not_for_wp(self, workflow_repo: Path) -> None:
         """Implement should fail when event log has events for other WPs but not this one."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -253,12 +253,12 @@ class TestImplementHardFailNoCanonical:
         # Seed events for WP02 only — WP01 has no canonical state
         _seed_wp_lane(feature_dir, "WP02", "planned")
 
-        workspace = lane_worktree_path(workflow_repo, feature_slug)
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -266,8 +266,8 @@ class TestImplementHardFailNoCanonical:
 
     def test_implement_succeeds_with_canonical_state(self, workflow_repo: Path) -> None:
         """Implement should succeed when WP has canonical state in event log."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -279,12 +279,12 @@ class TestImplementHardFailNoCanonical:
         # Seed canonical state
         _seed_wp_lane(feature_dir, "WP01", "planned")
 
-        workspace = lane_worktree_path(workflow_repo, feature_slug)
+        workspace = lane_worktree_path(workflow_repo, mission_slug)
         workspace.mkdir(parents=True)
 
         result = CliRunner().invoke(
             workflow.app,
-            ["implement", "WP01", "--feature", feature_slug, "--agent", "test-agent"],
+            ["implement", "WP01", "--feature", mission_slug, "--agent", "test-agent"],
         )
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"
@@ -299,8 +299,8 @@ class TestReviewHardFailNoCanonical:
 
     def test_review_hardfails_no_events(self, workflow_repo: Path) -> None:
         """Review should fail when event log has no state for WP."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -310,7 +310,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -323,8 +323,8 @@ class TestReviewHardFailNoCanonical:
 
     def test_review_hardfails_events_exist_but_not_for_wp(self, workflow_repo: Path) -> None:
         """Review should fail when event log has events for other WPs but not this one."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -335,7 +335,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
@@ -343,8 +343,8 @@ class TestReviewHardFailNoCanonical:
 
     def test_review_succeeds_with_canonical_state(self, workflow_repo: Path) -> None:
         """Review should succeed when WP has canonical state in event log."""
-        feature_slug = "060-test-feature"
-        feature_dir = workflow_repo / "kitty-specs" / feature_slug
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
@@ -358,7 +358,7 @@ class TestReviewHardFailNoCanonical:
 
         result = CliRunner().invoke(
             workflow.app,
-            ["review", "WP01", "--feature", feature_slug, "--agent", "test-reviewer"],
+            ["review", "WP01", "--feature", mission_slug, "--agent", "test-reviewer"],
         )
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"

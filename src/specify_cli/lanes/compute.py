@@ -140,7 +140,7 @@ def find_overlap_pairs(
 def compute_lanes(
     dependency_graph: dict[str, list[str]],
     ownership_manifests: dict[str, OwnershipManifest],
-    feature_slug: str,
+    mission_slug: str,
     target_branch: str = "main",
     wp_bodies: dict[str, str] | None = None,
     mission_id: str | None = None,
@@ -158,19 +158,19 @@ def compute_lanes(
     Args:
         dependency_graph: WP ID → list of dependency WP IDs.
         ownership_manifests: WP ID → OwnershipManifest.
-        feature_slug: Feature identifier.
+        mission_slug: Feature identifier.
         target_branch: Branch the mission merges into.
         wp_bodies: Optional WP ID → body text for surface inference.
 
     Returns:
         A LanesManifest ready for persistence.
     """
-    resolved_mission_id = mission_id or feature_slug
+    resolved_mission_id = mission_id or mission_slug
 
     # Collect all WP IDs from the graph.
     all_wp_ids = sorted(dependency_graph.keys())
     if not all_wp_ids:
-        return _empty_manifest(feature_slug, target_branch, resolved_mission_id)
+        return _empty_manifest(mission_slug, target_branch, resolved_mission_id)
 
     # Separate planning artifacts — they don't get lanes.
     code_wp_ids: list[str] = []
@@ -181,7 +181,7 @@ def compute_lanes(
         code_wp_ids.append(wp_id)
 
     if not code_wp_ids:
-        return _empty_manifest(feature_slug, target_branch, resolved_mission_id)
+        return _empty_manifest(mission_slug, target_branch, resolved_mission_id)
 
     # Build union-find over code WPs.
     uf = _UnionFind(code_wp_ids)
@@ -294,11 +294,11 @@ def compute_lanes(
             )
         )
 
-    mission_branch = f"kitty/mission-{feature_slug}"
+    mission_branch = f"kitty/mission-{mission_slug}"
 
     return LanesManifest(
         version=1,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         mission_id=resolved_mission_id,
         mission_branch=mission_branch,
         target_branch=target_branch,
@@ -336,14 +336,14 @@ def _compute_lane_depths(
 
 
 def _empty_manifest(
-    feature_slug: str, target_branch: str, mission_id: str,
+    mission_slug: str, target_branch: str, mission_id: str,
 ) -> LanesManifest:
     """Return an empty LanesManifest (no code WPs to lane)."""
     return LanesManifest(
         version=1,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         mission_id=mission_id,
-        mission_branch=f"kitty/mission-{feature_slug}",
+        mission_branch=f"kitty/mission-{mission_slug}",
         target_branch=target_branch,
         lanes=[],
         computed_at=datetime.now(timezone.utc).isoformat(),

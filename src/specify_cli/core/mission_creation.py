@@ -20,7 +20,7 @@ from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.worktree import get_next_feature_number
 from specify_cli.git import safe_commit
-from specify_cli.sync.events import emit_feature_created
+from specify_cli.sync.events import emit_mission_created
 
 
 class FeatureCreationError(RuntimeError):
@@ -32,8 +32,8 @@ class FeatureCreationResult:
     """Structured result from ``create_feature_core()``."""
 
     feature_dir: Path
-    feature_slug: str
-    feature_number: str
+    mission_slug: str
+    mission_number: str
     meta: dict[str, Any]
     target_branch: str
     current_branch: str
@@ -121,7 +121,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 def _commit_feature_file(
     file_path: Path,
-    feature_slug: str,
+    mission_slug: str,
     artifact_type: str,
     repo_root: Path,
 ) -> None:
@@ -135,7 +135,7 @@ def _commit_feature_file(
     if current_branch is None:
         raise FeatureCreationError("Not in a git repository")
 
-    commit_msg = f"Add {artifact_type} for feature {feature_slug}"
+    commit_msg = f"Add {artifact_type} for feature {mission_slug}"
     success = safe_commit(
         repo_path=repo_root,
         files_to_commit=[file_path],
@@ -153,7 +153,7 @@ def _commit_feature_file(
 
 def create_feature_core(
     repo_root: Path | None,
-    feature_slug: str,
+    mission_slug: str,
     *,
     mission: str | None = None,
     target_branch: str | None = None,
@@ -170,7 +170,7 @@ def create_feature_core(
         Absolute path to the project root (must contain ``.kittify/`` and
         ``kitty-specs/``).  When *None*, ``locate_project_root()`` is called
         automatically.
-    feature_slug:
+    mission_slug:
         Bare slug such as ``"user-auth"`` (kebab-case, no number prefix).
     mission:
         Optional mission key (e.g. ``"documentation"``, ``"software-dev"``).
@@ -192,9 +192,9 @@ def create_feature_core(
     # ------------------------------------------------------------------
     # 1. Input validation
     # ------------------------------------------------------------------
-    if not KEBAB_CASE_PATTERN.match(feature_slug):
+    if not KEBAB_CASE_PATTERN.match(mission_slug):
         raise FeatureCreationError(
-            f"Invalid feature slug '{feature_slug}'. "
+            f"Invalid feature slug '{mission_slug}'. "
             "Must be kebab-case (lowercase letters, numbers, hyphens only)."
             "\n\nValid examples:"
             "\n  - user-auth"
@@ -211,29 +211,20 @@ def create_feature_core(
     # ------------------------------------------------------------------
     cwd = Path.cwd().resolve()
     if is_worktree_context(cwd):
-        raise FeatureCreationError(
-            "Cannot create features from inside a worktree. "
-            "Run from the project root checkout."
-        )
+        raise FeatureCreationError("Cannot create features from inside a worktree. Run from the project root checkout.")
 
     resolved_root = repo_root
     if resolved_root is None:
         resolved_root = locate_project_root()
     if resolved_root is None:
-        raise FeatureCreationError(
-            "Could not locate project root. Run from within spec-kitty repository."
-        )
+        raise FeatureCreationError("Could not locate project root. Run from within spec-kitty repository.")
 
     if not is_git_repo(resolved_root):
-        raise FeatureCreationError(
-            "Not in a git repository. Feature creation requires git."
-        )
+        raise FeatureCreationError("Not in a git repository. Feature creation requires git.")
 
     current_branch = get_current_branch(resolved_root)
     if not current_branch or current_branch == "HEAD":
-        raise FeatureCreationError(
-            "Must be on a branch to create features (detached HEAD detected)."
-        )
+        raise FeatureCreationError("Must be on a branch to create features (detached HEAD detected).")
 
     # ------------------------------------------------------------------
     # 3. Resolve planning branch
@@ -244,9 +235,9 @@ def create_feature_core(
     # 4. Feature number allocation + directory creation
     # ------------------------------------------------------------------
     feature_number = get_next_feature_number(resolved_root)
-    feature_slug_formatted = f"{feature_number:03d}-{feature_slug}"
+    mission_slug_formatted = f"{feature_number:03d}-{mission_slug}"
 
-    feature_dir = resolved_root / "kitty-specs" / feature_slug_formatted
+    feature_dir = resolved_root / "kitty-specs" / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)
 
     (feature_dir / "checklists").mkdir(exist_ok=True)
@@ -281,7 +272,7 @@ def create_feature_core(
 
     # Commit spec.md (non-fatal)
     with contextlib.suppress(Exception):
-        _commit_feature_file(spec_file, feature_slug_formatted, "spec", resolved_root)
+        _commit_feature_file(spec_file, mission_slug_formatted, "spec", resolved_root)
 
     # ------------------------------------------------------------------
     # 6. meta.json
@@ -292,25 +283,25 @@ def create_feature_core(
         with contextlib.suppress(json.JSONDecodeError, OSError):
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
-    meta.setdefault("feature_number", f"{feature_number:03d}")
-    meta.setdefault("slug", feature_slug_formatted)
-    meta.setdefault("feature_slug", feature_slug_formatted)
-    meta.setdefault("friendly_name", feature_slug.replace("-", " ").strip())
-    meta.setdefault("mission", mission or "software-dev")
+    meta.setdefault("mission_number", f"{feature_number:03d}")
+    meta.setdefault("slug", mission_slug_formatted)
+    meta.setdefault("mission_slug", mission_slug_formatted)
+    meta.setdefault("friendly_name", mission_slug.replace("-", " ").strip())
+    meta.setdefault("mission_type", mission or "software-dev")
     meta.setdefault("target_branch", planning_branch)
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat())  # noqa: UP017
 
-    from specify_cli.feature_metadata import set_documentation_state, write_meta
+    from specify_cli.mission_metadata import set_documentation_state, write_meta
 
     write_meta(feature_dir, meta)
     with contextlib.suppress(Exception):
-        _commit_feature_file(meta_file, feature_slug_formatted, "meta", resolved_root)
+        _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
 
     # ------------------------------------------------------------------
     # 7. Documentation state (if applicable)
     # ------------------------------------------------------------------
     if mission == "documentation":
-        meta.setdefault("mission", "documentation")
+        meta.setdefault("mission_type", "documentation")
         if "documentation_state" not in meta:
             doc_state: dict[str, Any] = {
                 "iteration_mode": "initial",
@@ -322,15 +313,15 @@ def create_feature_core(
             }
             set_documentation_state(feature_dir, doc_state)
         with contextlib.suppress(Exception):
-            _commit_feature_file(meta_file, feature_slug_formatted, "meta", resolved_root)
+            _commit_feature_file(meta_file, mission_slug_formatted, "meta", resolved_root)
 
     # ------------------------------------------------------------------
     # 8. Event emission (fire-and-forget)
     # ------------------------------------------------------------------
     with contextlib.suppress(Exception):
-        emit_feature_created(
-            feature_slug=feature_slug_formatted,
-            feature_number=f"{feature_number:03d}",
+        emit_mission_created(
+            mission_slug=mission_slug_formatted,
+            mission_number=f"{feature_number:03d}",
             target_branch=planning_branch,
             wp_count=0,
         )
@@ -342,7 +333,9 @@ def create_feature_core(
         )
 
         trigger_feature_dossier_sync_if_enabled(
-            feature_dir, feature_slug_formatted, resolved_root,
+            feature_dir,
+            mission_slug_formatted,
+            resolved_root,
         )
 
     # ------------------------------------------------------------------
@@ -352,8 +345,8 @@ def create_feature_core(
 
     return FeatureCreationResult(
         feature_dir=feature_dir,
-        feature_slug=feature_slug_formatted,
-        feature_number=f"{feature_number:03d}",
+        mission_slug=mission_slug_formatted,
+        mission_number=f"{feature_number:03d}",
         meta=meta,
         target_branch=planning_branch,
         current_branch=current_branch,
