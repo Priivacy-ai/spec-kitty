@@ -2510,6 +2510,7 @@ def status(
             raise typer.Exit(1)
 
         # Load canonical lanes from event log (lane is event-log-only)
+        _st_snapshot = None
         try:
             from specify_cli.status.store import read_events as _st_read_events
             from specify_cli.status.reducer import reduce as _st_reduce
