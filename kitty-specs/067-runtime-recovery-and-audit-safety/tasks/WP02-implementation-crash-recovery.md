@@ -11,6 +11,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T007, T008, T009, T010, T011]
+agent: "claude:opus:implementer:implementer"
+shell_pid: "31463"
 history:
 - timestamp: '2026-04-06T18:43:32+00:00'
   event: created
@@ -244,3 +246,7 @@ Existing building blocks:
 - Check that status reconciliation uses `actor: "recovery"` for auditability
 - Confirm recovery doesn't advance past `in_progress`
 - Test with real git operations, not mocked subprocess calls
+
+## Activity Log
+
+- 2026-04-06T19:07:43Z – claude:opus:implementer:implementer – shell_pid=31463 – Started implementation via action command
