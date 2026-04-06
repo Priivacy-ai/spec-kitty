@@ -85,13 +85,31 @@ def _resolve_git_common_dir(repo_root: Path) -> Path | None:
 
 
 def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | None:
-    """Resolve a `feedback://` pointer (or legacy absolute path) to a file path."""
+    """Resolve a review feedback pointer to a file path.
+
+    Supports two pointer formats:
+    - ``review-cycle://<mission_slug>/<wp_slug>/review-cycle-N.md``
+      → ``kitty-specs/<mission_slug>/tasks/<wp_slug>/review-cycle-N.md``
+    - ``feedback://<mission_slug>/<task_id>/<filename>``  (legacy)
+      → ``.git/spec-kitty/feedback/<mission_slug>/<task_id>/<filename>``
+
+    Also handles legacy absolute-path strings.
+    Returns None for the sentinel string ``"force-override"`` or any
+    unrecognised / non-existent pointer.
+    """
     value = pointer.strip()
-    if not value:
+    if not value or value == "force-override":
         return None
 
-    if value.startswith("feedback://"):
-        relative = value[len("feedback://") :]
+    if value.startswith("review-cycle://"):
+        relative = value[len("review-cycle://"):]
+        parts = [p for p in relative.split("/") if p]
+        if len(parts) != 3:
+            return None
+        # parts: mission_slug / wp_slug / filename
+        candidate = repo_root / "kitty-specs" / parts[0] / "tasks" / parts[1] / parts[2]
+    elif value.startswith("feedback://"):
+        relative = value[len("feedback://"):]
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
@@ -138,6 +156,49 @@ def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
         f"WP {wp_id} has no canonical status. "
         f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
     )
+
+
+def _has_prior_rejection(
+    feature_dir: Path,
+    wp_slug: str,
+    normalized_wp_id: str,
+) -> bool:
+    """Check if a WP has review-cycle artifacts from a prior rejection.
+
+    Both conditions must be true:
+    1. Review-cycle artifact files exist in the sub-artifact directory.
+    2. The latest event for this WP is a rejection (from_lane=for_review).
+
+    This prevents false positives when artifacts exist from a cycle that was
+    already resolved (last event is not a rejection).
+
+    Args:
+        feature_dir: Path to kitty-specs/<mission>/ in the main repo.
+        wp_slug: Full WP file stem, e.g. "WP01-some-title".
+        normalized_wp_id: Canonical WP ID, e.g. "WP01".
+
+    Returns:
+        True iff both artifact files and a rejection event are present.
+    """
+    sub_artifact_dir = feature_dir / "tasks" / wp_slug
+    if not sub_artifact_dir.exists():
+        return False
+    if not list(sub_artifact_dir.glob("review-cycle-*.md")):
+        return False
+
+    # Check that the latest event for this WP is a rejection transition
+    try:
+        from specify_cli.status.store import read_events as _read_status_events
+
+        _events = _read_status_events(feature_dir)
+        for _ev in reversed(_events):
+            if _ev.wp_id == normalized_wp_id:
+                # Latest event for this WP found — check if it came from for_review
+                return str(_ev.from_lane) == "for_review"
+    except Exception:
+        pass
+
+    return False
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
@@ -558,11 +619,81 @@ def implement(
         if review_feedback_ref:
             review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
 
+        # Fix-mode detection: if the WP was rejected and has review-cycle artifacts,
+        # generate a focused fix-mode prompt instead of the full WP prompt.
+        # The fix-prompt completely replaces the full WP prompt (not appended to it).
+        _wp_slug = wp.path.stem  # e.g. "WP01-some-title"
+        if _has_prior_rejection(feature_dir, _wp_slug, normalized_wp_id):
+            try:
+                from rich.console import Console as _RichConsole
+                from specify_cli.review.artifacts import ReviewCycleArtifact as _ReviewCycleArtifact
+                from specify_cli.review.fix_prompt import generate_fix_prompt as _generate_fix_prompt
+
+                _sub_artifact_dir = feature_dir / "tasks" / _wp_slug
+                _latest_artifact = _ReviewCycleArtifact.latest(_sub_artifact_dir)
+                if _latest_artifact is not None:
+                    _console = _RichConsole()
+                    _console.print(
+                        f"[bold]Fix mode[/bold]: generating focused prompt from "
+                        f"review-cycle-{_latest_artifact.cycle_number} "
+                        f"(Canonical feedback: {_sub_artifact_dir / f'review-cycle-{_latest_artifact.cycle_number}.md'})"
+                    )
+                    _fix_prompt_text = _generate_fix_prompt(
+                        artifact=_latest_artifact,
+                        worktree_path=workspace_path,
+                        mission_slug=mission_slug,
+                        wp_id=normalized_wp_id,
+                    )
+                    _fix_prompt_file = _write_prompt_to_file(
+                        "implement", normalized_wp_id, _fix_prompt_text
+                    )
+                    print()
+                    print(f"📍 Workspace: cd {workspace_path}")
+                    print(f"🔧 Fix mode — Cycle {_latest_artifact.cycle_number}: focused prompt from review artifact")
+                    print()
+                    print("▶▶▶ NEXT STEP: Read the full fix-mode prompt file now:")
+                    print(f"    cat {_fix_prompt_file}")
+                    print()
+                    return
+            except Exception as _fix_mode_err:
+                logger.warning("Fix-mode prompt generation failed, falling through to full prompt: %s", _fix_mode_err)
+
         # Detect mission type and get deliverables_path for research missions
         mission_type = get_mission_type(feature_dir)
         deliverables_path = None
         if mission_type == "research":
             deliverables_path = get_deliverables_path(feature_dir, mission_slug)
+
+        # Capture baseline test results (one-time, cached) before the agent starts coding
+        # wp.path.stem is e.g. "WP04-baseline-test-capture"
+        _wp_slug = wp.path.stem
+        try:
+            from specify_cli.review.baseline import capture_baseline as _capture_baseline
+
+            _baseline = _capture_baseline(
+                worktree_path=workspace_path,
+                base_branch=target_branch,
+                wp_id=normalized_wp_id,
+                mission_slug=mission_slug,
+                feature_dir=feature_dir,
+                wp_slug=_wp_slug,
+            )
+            if _baseline is not None and _baseline.failed > 0:
+                print(f"[dim]Baseline: {_baseline.failed} pre-existing test failure(s) captured[/dim]")
+                # Commit the baseline artifact to the feature branch
+                _baseline_artifact = feature_dir / "tasks" / _wp_slug / "baseline-tests.json"
+                if _baseline_artifact.exists():
+                    safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[_baseline_artifact],
+                        commit_message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                        allow_empty=True,
+                    )
+            elif _baseline is not None and _baseline.failed == -1:
+                print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+        except Exception as _bl_err:
+            import logging as _bl_logging
+            _bl_logging.getLogger(__name__).warning("Baseline capture error: %s", _bl_err)
 
         # Build full prompt content for file
         lines = []
@@ -1064,6 +1195,19 @@ def review(
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
 
+        # Concurrent review isolation: acquire review lock or apply env-var isolation
+        from specify_cli.review.lock import ReviewLock, ReviewLockError, _get_isolation_config, _apply_env_var_isolation
+
+        isolation_config = _get_isolation_config(main_repo_root)
+        if isolation_config and isolation_config.get("strategy") == "env_var":
+            _apply_env_var_isolation(isolation_config, agent or "unknown", normalized_wp_id)
+        else:
+            try:
+                ReviewLock.acquire(Path(workspace_path), normalized_wp_id, agent or "unknown")
+            except ReviewLockError as e:
+                print(f"[red]{e}[/red]")
+                raise typer.Exit(1)
+
         # Ensure workspace exists (attach to the real branch if needed).
         if not workspace.exists:
             # Ensure .worktrees directory exists
@@ -1203,8 +1347,55 @@ def review(
             lines.append("─" * 80)
             lines.append("")
 
-        # Create unique temp file path for review feedback (avoids conflicts between agents)
-        review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
+        # Baseline Test Context — load cached baseline and surface pre-existing failures
+        _rv_wp_slug = wp.path.stem
+        _rv_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        try:
+            from specify_cli.review.baseline import BaselineTestResult as _BaselineTestResult
+
+            _rv_baseline_path = _rv_feature_dir / "tasks" / _rv_wp_slug / "baseline-tests.json"
+            _rv_baseline = _BaselineTestResult.load(_rv_baseline_path)
+            if _rv_baseline is not None and _rv_baseline.failed > 0:
+                lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
+                lines.append(
+                    f"**{_rv_baseline.failed} test failure(s) existed BEFORE this WP** "
+                    f"(base: {_rv_baseline.base_branch} @ {_rv_baseline.base_commit[:7]}):"
+                )
+                lines.append("")
+                lines.append("| Test | Error | File |")
+                lines.append("|------|-------|------|")
+                for _rv_f in _rv_baseline.failures:
+                    lines.append(f"| {_rv_f.test} | {_rv_f.error[:80]} | {_rv_f.file} |")
+                lines.append("")
+                lines.append(
+                    "**These failures are NOT regressions introduced by this WP.** "
+                    "Only flag test failures that are NOT in this list."
+                )
+                lines.append("─" * 80)
+                lines.append("")
+            elif _rv_baseline is not None and _rv_baseline.failed == -1:
+                lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
+                lines.append(
+                    "**Warning**: Baseline test capture failed at implement time. "
+                    "Cannot distinguish pre-existing failures from regressions. "
+                    "Exercise caution when attributing test failures to this WP."
+                )
+                lines.append("─" * 80)
+                lines.append("")
+        except Exception as _rv_bl_err:
+            import logging as _rv_bl_log
+            _rv_bl_log.getLogger(__name__).warning("Baseline load error in review: %s", _rv_bl_err)
+
+        # Determine the writable in-repo feedback path.
+        # Derive wp_slug from the WP file stem (e.g. "WP03-external-reviewer-handoff").
+        wp_slug = wp.path.stem  # e.g. "WP03-external-reviewer-handoff"
+        sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
+        sub_artifact_dir.mkdir(parents=True, exist_ok=True)
+
+        # Determine the next review cycle number based on existing files.
+        existing_cycles = sorted(sub_artifact_dir.glob("review-cycle-*.md"))
+        next_cycle = len(existing_cycles) + 1
+        review_feedback_path = sub_artifact_dir / f"review-cycle-{next_cycle}.md"
 
         # Next steps
         lines.append("=" * 80)
@@ -1217,9 +1408,10 @@ def review(
         )
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
-        lines.append(f"  1. Write feedback to: {review_feedback_path}")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
-        lines.append("  3. move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer")
+        lines.append(f"  1. Write feedback to (in-repo, committed with the project):")
+        lines.append(f"     {review_feedback_path}")
+        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
+        lines.append("  3. move-task stores feedback reference in the event log and WP frontmatter")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
@@ -1266,14 +1458,14 @@ def review(
         )
         lines.append("")
         lines.append(f"❌ REQUEST CHANGES (issues found):")
-        lines.append(f"   1. Write feedback:")
+        lines.append(f"   1. Write feedback to the in-repo path (committed with the project):")
         lines.append(f"      cat > {review_feedback_path} <<'EOF'")
         lines.append(f"**Issue 1**: <description and how to fix>")
         lines.append(f"**Issue 2**: <description and how to fix>")
         lines.append(f"EOF")
         lines.append("")
         lines.append(f"   2. Move to planned with feedback:")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
         lines.append("     The Python script handles all file updates automatically.")
@@ -1306,7 +1498,7 @@ def review(
             f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} "
             '--to approved --note "Review passed"'
         )
-        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path}")
+        print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:
         print(f"Error: {e}")
