@@ -10,8 +10,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T026, T027, T028, T029, T030, T031, T032, T033]
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "12750"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "13255"
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
@@ -341,3 +341,4 @@ The `require_explicit_feature()` function at `core/paths.py:273-339` does genera
 
 - 2026-04-06T14:27:02Z – claude:sonnet:implementer:implementer – shell_pid=12750 – Started implementation via action command
 - 2026-04-06T14:32:00Z – claude:sonnet:implementer:implementer – shell_pid=12750 – Ready for review: all 8 subtasks complete (T026-T033). Fixed --mission flag in error messages, shims, 6 templates, and 5 caller sites. 175 tests pass.
+- 2026-04-06T14:32:22Z – claude:opus:reviewer:reviewer – shell_pid=13255 – Started review via action command
