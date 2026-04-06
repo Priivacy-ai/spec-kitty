@@ -22,7 +22,8 @@ subtasks:
 - T014
 - T015
 - T016
-shell_pid: '47989'
+shell_pid: "47989"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -239,3 +240,7 @@ WP03 changes where the review prompt tells the reviewer to write. The `--review-
 - Test with real multi-WP dirty state: run two WPs in different lanes, verify one's status changes don't block the other's review handoff
 - Verify the classification regex handles edge cases (WP IDs with different digit counts: WP01 vs WP10)
 - Check that the in-repo feedback path uses the correct WP slug (kebab-case), not just the WP ID
+
+## Activity Log
+
+- 2026-04-06T16:42:31Z – claude:sonnet-4-6:implementer:implementer – shell_pid=47989 – Started implementation via action command
