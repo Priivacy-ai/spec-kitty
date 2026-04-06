@@ -24,13 +24,13 @@
 | T014 | Update _validate_ready_for_review() — use classifier, only block on blocking | WP03 | [P] |
 | T015 | Update review prompt — surface writable in-repo feedback path | WP03 | [P] |
 | T016 | Write tests for classification, validation, review prompt path | WP03 | [P] |
-| T017 | Create baseline.py with BaselineTestResult and TestFailure dataclasses | WP04 | [P] |
-| T018 | Implement capture_baseline() — pytest --junitxml + JUnit XML parsing | WP04 | [P] |
-| T019 | Implement load_baseline() and diff_baseline() — cached lookup + diff | WP04 | [P] |
-| T020 | Hook capture_baseline() into implement path (before agent starts coding) | WP04 | [P] |
-| T021 | Hook diff_baseline() into review prompt — Baseline Context section | WP04 | [P] |
-| T022 | Add review.test_command config support for non-pytest runners | WP04 | [P] |
-| T023 | Write tests for capture, JSON round-trip, diff, config, review prompt | WP04 | [P] |
+| T017 | Create baseline.py with BaselineTestResult and TestFailure dataclasses | WP04 | [D] |
+| T018 | Implement capture_baseline() — pytest --junitxml + JUnit XML parsing | WP04 | [D] |
+| T019 | Implement load_baseline() and diff_baseline() — cached lookup + diff | WP04 | [D] |
+| T020 | Hook capture_baseline() into implement path (before agent starts coding) | WP04 | [D] |
+| T021 | Hook diff_baseline() into review prompt — Baseline Context section | WP04 | [D] |
+| T022 | Add review.test_command config support for non-pytest runners | WP04 | [D] |
+| T023 | Write tests for capture, JSON round-trip, diff, config, review prompt | WP04 | [D] |
 | T024 | Create lock.py with ReviewLock dataclass — acquire, release, is_stale | WP05 | [D] |
 | T025 | Implement stale lock detection — cross-platform PID check | WP05 | [D] |
 | T026 | Hook lock acquire/release into agent action review | WP05 | [D] |
@@ -160,12 +160,12 @@
 **Issues**: #441
 **Estimated prompt size**: ~400 lines
 
-- [ ] T030 Create arbiter.py with ArbiterCategory, ArbiterChecklist, ArbiterDecision (WP06)
-- [ ] T031 Implement prompt_arbiter_checklist() — 5-question checklist + category (WP06)
-- [ ] T032 Implement override detection in move-task — forward --force after rejection (WP06)
-- [ ] T033 Persist ArbiterDecision in review-cycle artifact frontmatter (WP06)
-- [ ] T034 Make arbiter decisions visible in agent tasks status (WP06)
-- [ ] T035 Write tests for checklist, detection, persistence, visibility (WP06)
+- [x] T030 Create arbiter.py with ArbiterCategory, ArbiterChecklist, ArbiterDecision (WP06)
+- [x] T031 Implement prompt_arbiter_checklist() — 5-question checklist + category (WP06)
+- [x] T032 Implement override detection in move-task — forward --force after rejection (WP06)
+- [x] T033 Persist ArbiterDecision in review-cycle artifact frontmatter (WP06)
+- [x] T034 Make arbiter decisions visible in agent tasks status (WP06)
+- [x] T035 Write tests for checklist, detection, persistence, visibility (WP06)
 
 **Implementation sketch**: Create ArbiterCategory StrEnum (5 categories), ArbiterChecklist (5 boolean questions), ArbiterDecision. Detect override: when `--force` moves WP forward from `planned` and latest event was `for_review` → `planned` with `review_ref`. Run checklist, persist decision in review-cycle artifact frontmatter. `review_ref` points to same `review-cycle://` artifact — no new pointer scheme.
 
