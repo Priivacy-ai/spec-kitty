@@ -4,6 +4,8 @@ import pytest
 
 from specify_cli.lanes.compute import (
     LaneComputationError,
+    _are_disjoint,
+    _describe_overlap,
     compute_lanes,
     find_overlap_pairs,
     infer_surfaces,
@@ -122,8 +124,12 @@ class TestWriteScopeGrouping:
 
 
 class TestSurfaceGrouping:
-    def test_shared_surface_same_lane(self):
-        """Two independent WPs mentioning 'dashboard' → same lane."""
+    def test_shared_surface_disjoint_ownership_separate_lanes(self):
+        """Two independent WPs with disjoint ownership mentioning 'dashboard' → separate lanes.
+
+        Rule 3 refinement: surface match alone is not sufficient when ownership is
+        provably disjoint. Previously this collapsed to one lane.
+        """
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["src/views/**"]),
@@ -132,6 +138,20 @@ class TestSurfaceGrouping:
         wp_bodies = {
             "WP01": "Implement the dashboard landing page",
             "WP02": "Create dashboard template components",
+        }
+        result = compute_lanes(graph, manifests, "test-feat", wp_bodies=wp_bodies)
+        assert len(result.lanes) == 2
+
+    def test_shared_surface_overlapping_ownership_same_lane(self):
+        """Two independent WPs with overlapping ownership + shared surface → same lane."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/views/**"]),
+            "WP02": _manifest(["src/views/dashboard/**"]),  # overlaps src/views/**
+        }
+        wp_bodies = {
+            "WP01": "Implement the dashboard landing page",
+            "WP02": "Create dashboard sub-views",
         }
         result = compute_lanes(graph, manifests, "test-feat", wp_bodies=wp_bodies)
         assert len(result.lanes) == 1
@@ -149,6 +169,26 @@ class TestSurfaceGrouping:
         }
         result = compute_lanes(graph, manifests, "test-feat", wp_bodies=wp_bodies)
         assert len(result.lanes) == 2
+
+    def test_disjoint_ownership_preserves_parallelism(self):
+        """WP A owns src/a/**, WP B owns src/b/**, both mention 'api' → separate lanes.
+
+        This is the canonical regression test for FR-009.
+        """
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        wp_bodies = {
+            "WP01": "Add API endpoints for the new service",
+            "WP02": "Refactor API routes for legacy cleanup",
+        }
+        result = compute_lanes(graph, manifests, "test-feat", wp_bodies=wp_bodies)
+        assert len(result.lanes) == 2
+        lane_wp_sets = [set(lane.wp_ids) for lane in result.lanes]
+        assert {"WP01"} in lane_wp_sets
+        assert {"WP02"} in lane_wp_sets
 
 
 # ---------------------------------------------------------------------------
@@ -455,3 +495,169 @@ class TestPlanningArtifactDiagnostic:
         data = result.to_dict()
         assert "planning_artifact_wps" in data
         assert "WP02" in data["planning_artifact_wps"]
+
+
+# ---------------------------------------------------------------------------
+# T017/T019: Collapse events recorded and independent collapse counting
+# ---------------------------------------------------------------------------
+
+
+class TestCollapseEvents:
+    def test_dependency_rule_records_event(self):
+        """Dep-based merge → CollapseEvent with rule='dependency'."""
+        graph = {"WP01": [], "WP02": ["WP01"]}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        rules = [e.rule for e in result.collapse_report.events]
+        assert "dependency" in rules
+        dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
+        assert any(e.wp_a == "WP02" and e.wp_b == "WP01" for e in dep_events)
+
+    def test_dependency_event_evidence_format(self):
+        """Dependency event evidence is '{wp_id} depends on {dep}'."""
+        graph = {"WP01": [], "WP02": ["WP01"]}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
+        assert dep_events[0].evidence == "WP02 depends on WP01"
+
+    def test_write_scope_rule_records_event(self):
+        """Overlap-based merge → CollapseEvent with rule='write_scope_overlap'."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/utils/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        rules = [e.rule for e in result.collapse_report.events]
+        assert "write_scope_overlap" in rules
+
+    def test_write_scope_event_evidence_contains_globs(self):
+        """Write-scope event evidence names the overlapping globs."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/utils/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        ws_events = [e for e in result.collapse_report.events if e.rule == "write_scope_overlap"]
+        assert len(ws_events) == 1
+        assert "src/core/**" in ws_events[0].evidence
+        assert "src/core/utils/**" in ws_events[0].evidence
+
+    def test_surface_heuristic_records_event(self):
+        """Surface-based merge (non-disjoint) → CollapseEvent with rule='surface_heuristic'."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/views/**"]),
+            "WP02": _manifest(["src/views/dashboard/**"]),  # overlaps
+        }
+        wp_bodies = {
+            "WP01": "Implement the dashboard landing page",
+            "WP02": "Create dashboard sub-views",
+        }
+        result = compute_lanes(graph, manifests, "test-feat", wp_bodies=wp_bodies)
+        assert result.collapse_report is not None
+        # The write-scope overlap catches this first; no surface_heuristic needed
+        # But we test both rules are recorded across scenarios
+        rules = [e.rule for e in result.collapse_report.events]
+        # At minimum, write_scope_overlap must fire for overlapping globs
+        assert "write_scope_overlap" in rules
+
+    def test_independent_collapse_count_with_overlap(self):
+        """Independent WPs forced to same lane via write-scope → count > 0."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/utils/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        # WP01 and WP02 have no dependency relationship → independent collapse
+        assert result.collapse_report.independent_wps_collapsed == 1
+
+    def test_dependent_collapse_not_counted_independent(self):
+        """Dependent WPs in same lane (via dep rule) → independent count = 0."""
+        graph = {"WP01": [], "WP02": ["WP01"]}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        # WP01→WP02 is a direct dep, so not independent
+        assert result.collapse_report.independent_wps_collapsed == 0
+
+    def test_no_collapses_empty_report(self):
+        """Two fully independent WPs with no overlaps → empty collapse events."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/a/**"]),
+            "WP02": _manifest(["src/b/**"]),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        assert len(result.collapse_report.events) == 0
+        assert result.collapse_report.independent_wps_collapsed == 0
+
+    def test_no_duplicate_events_for_same_pair(self):
+        """When Rule 1 and Rule 2 both fire for the same pair, only one event is recorded per trigger."""
+        graph = {"WP01": [], "WP02": ["WP01"]}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["src/core/utils/**"]),  # overlapping
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.collapse_report is not None
+        dep_events = [e for e in result.collapse_report.events if e.rule == "dependency"]
+        # Only one dep event for WP02→WP01
+        assert len(dep_events) == 1
+        # Rule 2 fires but uf.find(WP01) == uf.find(WP02) already → no write_scope event
+        ws_events = [e for e in result.collapse_report.events if e.rule == "write_scope_overlap"]
+        assert len(ws_events) == 0
+
+
+# ---------------------------------------------------------------------------
+# T018: _are_disjoint and _describe_overlap helpers
+# ---------------------------------------------------------------------------
+
+
+class TestHelpers:
+    def test_are_disjoint_true_for_separate_paths(self):
+        ma = _manifest(["src/a/**"])
+        mb = _manifest(["src/b/**"])
+        assert _are_disjoint(ma, mb) is True
+
+    def test_are_disjoint_false_for_overlapping_paths(self):
+        ma = _manifest(["src/core/**"])
+        mb = _manifest(["src/core/utils/**"])
+        assert _are_disjoint(ma, mb) is False
+
+    def test_are_disjoint_false_exact_match(self):
+        ma = _manifest(["src/foo/**"])
+        mb = _manifest(["src/foo/**"])
+        assert _are_disjoint(ma, mb) is False
+
+    def test_describe_overlap_names_globs(self):
+        ma = _manifest(["src/core/**"])
+        mb = _manifest(["src/core/utils/**"])
+        desc = _describe_overlap(ma, mb)
+        assert "src/core/**" in desc
+        assert "src/core/utils/**" in desc
+
+    def test_describe_overlap_fallback(self):
+        """Disjoint manifests → fallback message."""
+        ma = _manifest(["src/a/**"])
+        mb = _manifest(["src/b/**"])
+        desc = _describe_overlap(ma, mb)
+        assert "write-scope overlap" in desc

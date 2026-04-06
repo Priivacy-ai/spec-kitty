@@ -15,6 +15,60 @@ from typing import Any
 
 
 @dataclass(frozen=True)
+class CollapseEvent:
+    """A single union-find merge event during lane computation.
+
+    Attributes:
+        wp_a: First work package ID involved in the merge.
+        wp_b: Second work package ID involved in the merge.
+        rule: Rule that triggered the merge. One of: "dependency",
+            "write_scope_overlap", "surface_heuristic".
+        evidence: Human-readable explanation of why the merge occurred.
+    """
+
+    wp_a: str
+    wp_b: str
+    rule: str
+    evidence: str
+
+    def to_dict(self) -> dict[str, str]:
+        return {
+            "wp_a": self.wp_a,
+            "wp_b": self.wp_b,
+            "rule": self.rule,
+            "evidence": self.evidence,
+        }
+
+
+@dataclass
+class CollapseReport:
+    """Summary of all union-find merge events during lane computation.
+
+    Attributes:
+        events: All CollapseEvent instances recorded during computation.
+        independent_wps_collapsed: Number of merge events where the two WPs
+            have no direct or transitive dependency relationship.
+    """
+
+    events: list[CollapseEvent]
+    independent_wps_collapsed: int
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "events": [e.to_dict() for e in self.events],
+            "total_merges": len(self.events),
+            "independent_wps_collapsed": self.independent_wps_collapsed,
+            "by_rule": self._count_by_rule(),
+        }
+
+    def _count_by_rule(self) -> dict[str, int]:
+        counts: dict[str, int] = {}
+        for e in self.events:
+            counts[e.rule] = counts.get(e.rule, 0) + 1
+        return counts
+
+
+@dataclass(frozen=True)
 class ExecutionLane:
     """A group of WPs sharing one worktree and branch.
 
@@ -83,6 +137,7 @@ class LanesManifest:
     computed_at: str
     computed_from: str
     planning_artifact_wps: list[str] = field(default_factory=list)
+    collapse_report: CollapseReport | None = field(default=None)
 
     def lane_for_wp(self, wp_id: str) -> ExecutionLane | None:
         """Return the lane containing the given WP, or None."""
@@ -99,7 +154,7 @@ class LanesManifest:
         return groups
 
     def to_dict(self) -> dict[str, Any]:
-        return {
+        d: dict[str, Any] = {
             "version": self.version,
             "mission_slug": self.mission_slug,
             "mission_id": self.mission_id,
@@ -110,10 +165,28 @@ class LanesManifest:
             "computed_from": self.computed_from,
             "planning_artifact_wps": self.planning_artifact_wps,
         }
+        if self.collapse_report and self.collapse_report.events:
+            d["collapse_report"] = self.collapse_report.to_dict()
+        return d
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> LanesManifest:
         mission_slug = data["mission_slug"]
+        collapse_report: CollapseReport | None = None
+        if "collapse_report" in data:
+            cr_data = data["collapse_report"]
+            collapse_report = CollapseReport(
+                events=[
+                    CollapseEvent(
+                        wp_a=e["wp_a"],
+                        wp_b=e["wp_b"],
+                        rule=e["rule"],
+                        evidence=e["evidence"],
+                    )
+                    for e in cr_data.get("events", [])
+                ],
+                independent_wps_collapsed=cr_data.get("independent_wps_collapsed", 0),
+            )
         return cls(
             version=data["version"],
             mission_slug=mission_slug,
@@ -124,4 +197,5 @@ class LanesManifest:
             computed_at=data["computed_at"],
             computed_from=data["computed_from"],
             planning_artifact_wps=data.get("planning_artifact_wps", []),
+            collapse_report=collapse_report,
         )

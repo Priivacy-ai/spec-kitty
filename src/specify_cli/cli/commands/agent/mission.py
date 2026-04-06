@@ -1608,11 +1608,13 @@ def finalize_tasks(
                     wp_bodies=wp_bodies,
                     mission_id=meta.get("mission_id") if meta else None,
                 )
+                _cr_dry = lanes_manifest_dry.collapse_report
                 lanes_stats = {
                     "computed": True,
                     "count": len(lanes_manifest_dry.lanes),
                     "lane_ids": [l.lane_id for l in lanes_manifest_dry.lanes],
                     "planning_artifact_wps": lanes_manifest_dry.planning_artifact_wps,
+                    "collapse_report": _cr_dry.to_dict() if _cr_dry else None,
                 }
 
             if json_output:
@@ -1640,6 +1642,12 @@ def finalize_tasks(
                 console.print(f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, {bootstrap_result.already_initialized} already initialized")
                 if lanes_stats.get("computed"):
                     console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
+                    _cr_info = lanes_stats.get("collapse_report")
+                    if _cr_info and _cr_info.get("independent_wps_collapsed", 0) > 0:
+                        console.print(
+                            f"[yellow]⚠[/yellow] {_cr_info['independent_wps_collapsed']} independent WP pair(s) "
+                            f"collapsed into same lane. Run with --json to see details."
+                        )
             return
 
         # Bootstrap canonical status state for all WPs
@@ -1669,6 +1677,14 @@ def finalize_tasks(
             lanes_path = write_lanes_json(feature_dir, lanes_manifest)
             if not json_output:
                 console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
+                if (
+                    lanes_manifest.collapse_report
+                    and lanes_manifest.collapse_report.independent_wps_collapsed > 0
+                ):
+                    console.print(
+                        f"[yellow]⚠[/yellow] {lanes_manifest.collapse_report.independent_wps_collapsed} "
+                        f"independent WP pair(s) collapsed into same lane. Run with --json to see details."
+                    )
 
             # Compute parallelization risk report
             from specify_cli.policy.config import load_policy_config
@@ -1844,6 +1860,11 @@ def finalize_tasks(
                         "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
                         "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_manifest else [],
                         "planning_artifact_wps": lanes_manifest.planning_artifact_wps if lanes_manifest else [],
+                        "collapse_report": (
+                            lanes_manifest.collapse_report.to_dict()
+                            if lanes_manifest and lanes_manifest.collapse_report
+                            else None
+                        ),
                     },
                     "ownership_warnings": all_ownership_warnings,
                 }

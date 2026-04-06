@@ -17,7 +17,7 @@ from datetime import datetime, timezone
 from itertools import combinations
 
 from specify_cli.core.dependency_graph import topological_sort
-from specify_cli.lanes.models import ExecutionLane, LanesManifest
+from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
 
@@ -109,6 +109,78 @@ def infer_surfaces(wp_body: str) -> list[str]:
         if any(kw in body_lower for kw in keywords):
             matched.append(surface)
     return matched
+
+
+# ---------------------------------------------------------------------------
+# Collapse report helpers
+# ---------------------------------------------------------------------------
+
+
+def _describe_overlap(
+    manifest_a: OwnershipManifest,
+    manifest_b: OwnershipManifest,
+) -> str:
+    """Return a human-readable description of which globs overlap between two manifests."""
+    overlapping: list[str] = []
+    for glob_a in manifest_a.owned_files:
+        for glob_b in manifest_b.owned_files:
+            if _globs_overlap(glob_a, glob_b):
+                overlapping.append(f"{glob_a!r} vs {glob_b!r}")
+    if overlapping:
+        return "overlapping globs: " + ", ".join(overlapping)
+    return "write-scope overlap"
+
+
+def _are_disjoint(
+    manifest_a: OwnershipManifest,
+    manifest_b: OwnershipManifest,
+) -> bool:
+    """Return True if no glob from manifest_a overlaps with any glob from manifest_b."""
+    for glob_a in manifest_a.owned_files:
+        for glob_b in manifest_b.owned_files:
+            if _globs_overlap(glob_a, glob_b):
+                return False
+    return True
+
+
+def _transitive_deps(
+    dependency_graph: dict[str, list[str]],
+) -> dict[str, set[str]]:
+    """Build the transitive closure of the dependency graph.
+
+    Returns a mapping of WP ID → set of all WPs it transitively depends on.
+    """
+    cache: dict[str, set[str]] = {}
+
+    def _reach(wp_id: str) -> set[str]:
+        if wp_id in cache:
+            return cache[wp_id]
+        direct = set(dependency_graph.get(wp_id, []))
+        result: set[str] = set(direct)
+        for dep in direct:
+            result.update(_reach(dep))
+        cache[wp_id] = result
+        return result
+
+    for wp in dependency_graph:
+        _reach(wp)
+    return cache
+
+
+def _count_independent_collapses(
+    events: list[CollapseEvent],
+    dependency_graph: dict[str, list[str]],
+) -> int:
+    """Count events where wp_a and wp_b have no direct or transitive dependency relationship."""
+    transitive = _transitive_deps(dependency_graph)
+    count = 0
+    for event in events:
+        if event.rule == "dependency":
+            continue  # By definition not independent
+        a, b = event.wp_a, event.wp_b
+        if b not in transitive.get(a, set()) and a not in transitive.get(b, set()):
+            count += 1
+    return count
 
 
 # ---------------------------------------------------------------------------
@@ -205,11 +277,19 @@ def compute_lanes(
 
     # Build union-find over code WPs.
     uf = _UnionFind(code_wp_ids)
+    collapse_events: list[CollapseEvent] = []
 
     # Rule 1: Dependencies → same lane.
     for wp_id in code_wp_ids:
         for dep in dependency_graph.get(wp_id, []):
             if dep in uf._parent:
+                if uf.find(wp_id) != uf.find(dep):
+                    collapse_events.append(CollapseEvent(
+                        wp_a=wp_id,
+                        wp_b=dep,
+                        rule="dependency",
+                        evidence=f"{wp_id} depends on {dep}",
+                    ))
                 uf.union(wp_id, dep)
 
     # Rule 2: Overlapping write scopes → same lane.
@@ -219,20 +299,44 @@ def compute_lanes(
         if wp in ownership_manifests
     }
     for wp_a, wp_b in find_overlap_pairs(code_manifests):
+        if uf.find(wp_a) != uf.find(wp_b):
+            overlap = _describe_overlap(code_manifests[wp_a], code_manifests[wp_b])
+            collapse_events.append(CollapseEvent(
+                wp_a=wp_a,
+                wp_b=wp_b,
+                rule="write_scope_overlap",
+                evidence=overlap,
+            ))
         uf.union(wp_a, wp_b)
 
     # Rule 3: Shared predicted surfaces → same lane.
+    # Only merges WPs when ownership is NOT provably disjoint. If both WPs have
+    # manifests and their owned_files are disjoint, skip the merge — a shared
+    # surface keyword is not enough evidence of a real conflict.
     if wp_bodies:
         wp_surfaces: dict[str, list[str]] = {}
         for wp_id in code_wp_ids:
             body = wp_bodies.get(wp_id, "")
             wp_surfaces[wp_id] = infer_surfaces(body)
 
-        # For each pair sharing a surface, union them.
         for wp_a, wp_b in combinations(code_wp_ids, 2):
             surfaces_a = set(wp_surfaces.get(wp_a, []))
             surfaces_b = set(wp_surfaces.get(wp_b, []))
             if surfaces_a & surfaces_b:
+                # Only merge if ownership is NOT provably disjoint.
+                # Absence of a manifest means we cannot prove disjointness → merge.
+                ma = code_manifests.get(wp_a)
+                mb = code_manifests.get(wp_b)
+                if ma and mb and _are_disjoint(ma, mb):
+                    continue  # Disjoint ownership — surface match is not enough
+                shared = sorted(surfaces_a & surfaces_b)
+                if uf.find(wp_a) != uf.find(wp_b):
+                    collapse_events.append(CollapseEvent(
+                        wp_a=wp_a,
+                        wp_b=wp_b,
+                        rule="surface_heuristic",
+                        evidence=f"shared surfaces {shared} with non-disjoint ownership",
+                    ))
                 uf.union(wp_a, wp_b)
 
     # Build lane groups from union-find.
@@ -329,6 +433,13 @@ def compute_lanes(
 
     mission_branch = f"kitty/mission-{mission_slug}"
 
+    # Build the collapse report with independent-WP collapse count.
+    independent_collapsed = _count_independent_collapses(collapse_events, dependency_graph)
+    collapse_report = CollapseReport(
+        events=collapse_events,
+        independent_wps_collapsed=independent_collapsed,
+    )
+
     return LanesManifest(
         version=1,
         mission_slug=mission_slug,
@@ -339,6 +450,7 @@ def compute_lanes(
         computed_at=datetime.now(timezone.utc).isoformat(),
         computed_from="dependency_graph+ownership",
         planning_artifact_wps=planning_artifact_wps,
+        collapse_report=collapse_report,
     )
 
 
