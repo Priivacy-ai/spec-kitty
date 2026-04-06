@@ -1,1 +1,0 @@
-/Users/robert/.agents/skills/spec-kitty-runtime-next/references/blocked-state-recovery.md

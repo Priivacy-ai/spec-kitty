@@ -1,1 +1,0 @@
-/Users/robert/.claude/skills/spec-kitty-git-workflow/references/git-operations-matrix.md

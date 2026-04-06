@@ -1,1 +1,0 @@
-/Users/robert/.claude/skills/spec-kitty-runtime-review/references/review-checklist.md

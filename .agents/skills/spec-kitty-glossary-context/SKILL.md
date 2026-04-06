@@ -1,1 +1,0 @@
-/Users/robert/.agents/skills/spec-kitty-glossary-context/SKILL.md
