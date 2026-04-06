@@ -1515,7 +1515,7 @@ def finalize_tasks(
             except (json.JSONDecodeError, OSError) as exc:
                 console.print(f"[yellow]Warning:[/yellow] Failed to read meta.json for event emission: {exc}")
         else:
-            console.print("[yellow]Warning:[/yellow] meta.json missing; skipping FeatureCreated emission")
+            console.print("[yellow]Warning:[/yellow] meta.json missing; skipping MissionCreated emission")
 
         # Commit tasks.md and WP files to target branch
         commit_created = False
@@ -1724,7 +1724,7 @@ def finalize_tasks(
             raise typer.Exit(1)
 
         # Emit WPCreated events (non-blocking)
-        # FeatureCreated is emitted earlier during create-feature
+        # MissionCreated is emitted earlier during create-feature
         causation_id = get_emitter().generate_causation_id()
 
         for wp in work_packages:
