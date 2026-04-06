@@ -1,6 +1,6 @@
 {
   "mission_slug": "067-runtime-recovery-and-audit-safety",
-  "snapshot_id": "ac662845-d37b-48c2-a6e8-4b8ce9f182fe",
+  "snapshot_id": "ff9ff966-b351-4e02-a870-130d9fd14a38",
   "total_artifacts": 19,
   "required_artifacts": 3,
   "required_present": 3,
@@ -8,24 +8,24 @@
   "optional_artifacts": 16,
   "optional_present": 16,
   "completeness_status": "complete",
-  "parity_hash_sha256": "8bb97e2c009da039d1b25e0e2ad30d06d70608ca9d8ca82ffb3a70b141f41f5e",
+  "parity_hash_sha256": "36e65c7dea1085310412bfd82fc25c92e9dee0064db2d5570300c6da2bfc6175",
   "parity_hash_components": [
-    "051e5b5ac68940b9bfd19d2329fa66767593e731b5de91f0f546b711f2f94b47",
     "1f08af24b408bf10fb8f4a287131fc37f2118e3c569649c8fabadb9e78d3a34b",
-    "22a7073861daf3928ace573df76b284bac8716245c759ed127f9eb20dee011a1",
+    "236b3ff809fe88d6a02bf28cceac59add3c259d37ca0cc2731319bac07e032e8",
     "27cab1c68b35312d42a2583d6f860ea841522b784e38fb9121693675f479d974",
     "3faeb2e17779f48317f8ab01396d64a0467501bd7ef4b503d1f13e7f828168ef",
     "416df0e6b2ea55cc22f8389981a5305328328d331b014f4ba9b1cee6c990e75f",
     "7c316d6e98ea6813f07ff7292da4f86fd88424fc35170b309806e60331b62494",
     "7e4db2ad5f75bbb5d127ef673b80abfa995797162ba92fc1f7aae32808ca087f",
+    "7fb823bd25afbf63b93a166d7825ad3827dd33cb35ad0dbea902bb78f8e2f0b5",
     "846dd9ddee4b2a635772e0258d041a1082506423611cbdafb2ca33eae6a96fe5",
     "8c67237ee24c6ae8b9218ee48b73eba476aa82938ab8bcd0e7aa44e92fdf5aa2",
     "8e905863219c99880519369ba37ba13bed7861af21ed1b4a7582156d149d8853",
     "8f13db4df86a593d3da7320bea3229dbc29dc4b9ad69280fee3b6e5dd839165a",
     "ad249d747041143e91bd486bd4cd5b8cbbb17a5c356e2c073fff1daf5e57da8f",
     "b3d47713dc0a276b262db6d34a2b8c83099ce9138d50330cd3aa7662fc38d280",
+    "c04d925f7be6c615aa5571e90e7f7e18b8554bcc8340165090f999f6a3eece12",
     "c0844655de0e3072f8562ecba8f12a4a03d0ba8239b8e9353bdd0680e38356c1",
-    "c2a0852aecad0795a72e8e72aecf65c6798f49df7dcc4b8a8ff3db3ac3d3ab3c",
     "d34d0716c6c3251b980a15319f4c916e3e9ae0552b1b60c980647ee76555a64b",
     "ea885c3b8500347db8be160daa1f72a27102ff0f801890795fbd8e098c9979ec",
     "fd1ded0e7d9d921fb4a1bf5eb97aecaf9bb347f503941a613430cc8b6a4ae48a"
@@ -42,7 +42,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561238+00:00",
+      "indexed_at": "2026-04-06T18:53:11.006340+00:00",
       "provenance": null
     },
     {
@@ -56,7 +56,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562050+00:00",
+      "indexed_at": "2026-04-06T18:53:11.007904+00:00",
       "provenance": null
     },
     {
@@ -70,7 +70,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561408+00:00",
+      "indexed_at": "2026-04-06T18:53:11.006840+00:00",
       "provenance": null
     },
     {
@@ -84,7 +84,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562956+00:00",
+      "indexed_at": "2026-04-06T18:53:11.008878+00:00",
       "provenance": null
     },
     {
@@ -98,49 +98,49 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.563417+00:00",
+      "indexed_at": "2026-04-06T18:53:11.009664+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status",
       "artifact_class": "output",
       "relative_path": "status.json",
-      "content_hash_sha256": "c2a0852aecad0795a72e8e72aecf65c6798f49df7dcc4b8a8ff3db3ac3d3ab3c",
-      "size_bytes": 1721,
+      "content_hash_sha256": "236b3ff809fe88d6a02bf28cceac59add3c259d37ca0cc2731319bac07e032e8",
+      "size_bytes": 1747,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561947+00:00",
+      "indexed_at": "2026-04-06T18:53:11.007811+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status.events",
       "artifact_class": "output",
       "relative_path": "status.events.jsonl",
-      "content_hash_sha256": "22a7073861daf3928ace573df76b284bac8716245c759ed127f9eb20dee011a1",
-      "size_bytes": 2998,
+      "content_hash_sha256": "7fb823bd25afbf63b93a166d7825ad3827dd33cb35ad0dbea902bb78f8e2f0b5",
+      "size_bytes": 3758,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.560748+00:00",
+      "indexed_at": "2026-04-06T18:53:11.005642+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp01-merge-interruption-recovery",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP01-merge-interruption-recovery.md",
-      "content_hash_sha256": "051e5b5ac68940b9bfd19d2329fa66767593e731b5de91f0f546b711f2f94b47",
-      "size_bytes": 11941,
+      "content_hash_sha256": "c04d925f7be6c615aa5571e90e7f7e18b8554bcc8340165090f999f6a3eece12",
+      "size_bytes": 12318,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.563139+00:00",
+      "indexed_at": "2026-04-06T18:53:11.009083+00:00",
       "provenance": null
     },
     {
@@ -154,7 +154,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.563250+00:00",
+      "indexed_at": "2026-04-06T18:53:11.009200+00:00",
       "provenance": null
     },
     {
@@ -168,7 +168,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562574+00:00",
+      "indexed_at": "2026-04-06T18:53:11.008504+00:00",
       "provenance": null
     },
     {
@@ -182,7 +182,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562370+00:00",
+      "indexed_at": "2026-04-06T18:53:11.008280+00:00",
       "provenance": null
     },
     {
@@ -196,7 +196,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562471+00:00",
+      "indexed_at": "2026-04-06T18:53:11.008387+00:00",
       "provenance": null
     },
     {
@@ -210,7 +210,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.562259+00:00",
+      "indexed_at": "2026-04-06T18:53:11.008160+00:00",
       "provenance": null
     },
     {
@@ -224,7 +224,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561492+00:00",
+      "indexed_at": "2026-04-06T18:53:11.007102+00:00",
       "provenance": null
     },
     {
@@ -238,7 +238,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.560890+00:00",
+      "indexed_at": "2026-04-06T18:53:11.005984+00:00",
       "provenance": null
     },
     {
@@ -252,7 +252,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561318+00:00",
+      "indexed_at": "2026-04-06T18:53:11.006606+00:00",
       "provenance": null
     },
     {
@@ -266,7 +266,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561717+00:00",
+      "indexed_at": "2026-04-06T18:53:11.007662+00:00",
       "provenance": null
     },
     {
@@ -280,7 +280,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561636+00:00",
+      "indexed_at": "2026-04-06T18:53:11.007353+00:00",
       "provenance": null
     },
     {
@@ -294,9 +294,9 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-06T18:52:26.561147+00:00",
+      "indexed_at": "2026-04-06T18:53:11.006217+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-04-06 18:52:26.585504+00:00"
+  "computed_at": "2026-04-06 18:53:11.046022+00:00"
 }
