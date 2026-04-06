@@ -1,1 +1,0 @@
-/Users/robert/.claude/skills/spec-kitty-orchestrator-api-operator/references/orchestrator-api-contract.md
