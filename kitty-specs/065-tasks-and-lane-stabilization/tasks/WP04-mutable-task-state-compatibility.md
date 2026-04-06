@@ -293,3 +293,4 @@ WP04 does not own these files in its frontmatter — it modifies them under the 
 ## Activity Log
 
 - 2026-04-06T14:42:16Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Started implementation via action command
+- 2026-04-06T14:46:20Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Ready for review: pipe-table mark-status support implemented with 30 tests, checkbox format standardized in tasks template
