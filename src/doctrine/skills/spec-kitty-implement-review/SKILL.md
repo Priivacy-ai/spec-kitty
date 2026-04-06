@@ -186,9 +186,14 @@ The prompt contains all context, acceptance criteria, and review feedback
 4. Implement all subtasks
 5. Write tests that verify the contract (what the spec says)
 6. Integration verification (MANDATORY before moving to for_review):
-   - Verify new code is called from live entry points
+   - Verify new code is ACTUALLY CALLED from live entry points (not just defined)
+   - Grep for imports of your new module in the files that should call it
+   - If you created a new function/class, grep the codebase for callers — zero callers means the feature is dead code
    - Verify old code paths are removed or redirected
    - Grep for old function/class names to confirm removal
+   CRITICAL: A module with passing tests but no callers is NOT implemented.
+   The most common review failure is dead code — tests pass but the feature
+   is never invoked from the live command path.
 7. Run tests: pytest tests/... -v
 8. Commit: git add -A && git commit -m "feat(WP##): <description>"
 9. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
@@ -469,6 +474,77 @@ spec-kitty agent tasks move-task WP## --to approved --force \
 
 ---
 
+## Parallel Sprint Pattern
+
+When multiple independent WPs can execute simultaneously, dispatch them all at
+once instead of processing sequentially. This is the fastest path for features
+with mixed dependency graphs.
+
+### Identifying Parallel Opportunities
+
+```bash
+# lanes.json shows which WPs are independent (different lanes)
+cat kitty-specs/<mission>/lanes.json
+```
+
+Independent WPs are in separate lanes. WPs in the same lane have a dependency
+chain and must execute sequentially within that lane.
+
+### Parallel Dispatch
+
+Claim all workspaces first (sequential — each modifies git state), then
+dispatch all agents in parallel:
+
+```bash
+# 1. Claim workspaces (must be sequential — git state mutations)
+for wp in WP01 WP03 WP04 WP05 WP06; do
+  spec-kitty agent action implement $wp --mission-run <slug> --agent <tool>:<model>
+done
+
+# 2. Dispatch agents in parallel (method depends on orchestrator)
+#    - CLI orchestrator: launch background processes
+#    - Claude Code: use Agent tool with run_in_background=True
+#    - CI/CD: parallel matrix jobs
+#    - Human operator: open multiple terminals
+```
+
+The dispatch mechanism is orchestrator-dependent. The key constraint is that
+workspace claiming must be sequential, but agent execution can be fully parallel.
+
+### Completion-Driven Review Scheduling
+
+As each implementation agent completes (notified asynchronously):
+1. Check which WP reached `for_review`
+2. Dispatch a review agent for that WP immediately
+3. If the reviewed WP unblocks a dependent (e.g., WP01 approval unblocks WP02),
+   dispatch the dependent's implementation immediately
+4. Continue until all WPs are approved
+
+This pattern sustains maximum parallelism throughout the sprint. Do NOT wait for
+all implementations to complete before starting reviews.
+
+### Tracking Parallel State
+
+Maintain a status table of the current state. Update after each agent
+completion:
+
+```
+| WP   | Stage                | Agent         |
+|------|----------------------|---------------|
+| WP01 | Review in progress   | <reviewer>    |
+| WP03 | Approved             | --            |
+| WP04 | Implementation       | <implementer> |
+| WP05 | Review in progress   | <reviewer>    |
+| WP06 | Fix cycle 1/3        | <implementer> |
+| WP02 | Blocked on WP01      | --            |
+```
+
+Use `spec-kitty agent tasks status --mission-run <slug>` as the authoritative
+source. The table above is the orchestrator's working copy for scheduling
+decisions between status checks.
+
+---
+
 ## Dependency-Aware Sequencing
 
 ### Linear Dependency Chain (Strict Sequence)
@@ -551,6 +627,102 @@ spec-kitty merge --mission-run <slug>
 
 ---
 
+## Step 6: Merge All Lanes
+
+After all WPs are approved, merge the lanes into the mission branch, then
+merge the mission branch into the target branch (usually `main`).
+
+### Run the Merge Command
+
+```bash
+# From the main repository root (NOT from a worktree)
+spec-kitty merge --mission <mission-slug>
+```
+
+This command:
+1. Validates all WPs have review approval (gate check)
+2. Merges each lane branch into the mission branch sequentially
+3. Merges the mission branch into the target branch
+4. Cleans up worktrees and lane branches
+
+### Handling Stale Lane Conflicts
+
+When lanes modify overlapping files (e.g., `__init__.py`, shared modules),
+the merge command will fail with a "stale lane" error:
+
+```
+✗ lane-c: Lane lane-c is stale: overlapping files ['src/review/__init__.py'].
+  Run: cd .worktrees/*-lane-c && git merge kitty/mission-<slug>
+```
+
+**Resolution pattern** (repeat for each stale lane):
+
+```bash
+# 1. Enter the stale lane worktree
+cd .worktrees/<mission>-lane-<X>
+
+# 2. Merge the mission branch (which has earlier lanes merged)
+git merge kitty/mission-<mission-slug> --no-edit
+
+# 3. If conflicts occur, resolve them:
+#    - __init__.py conflicts: combine all imports from both sides
+#    - Shared module conflicts: keep both changes (they modify different sections)
+#    - Test __init__.py: usually take the incoming version
+
+# 4. Commit the resolution
+git add -A && git commit -m "merge: resolve lane-<X> conflicts"
+
+# 5. Return to main repo and retry
+cd /path/to/main/repo
+spec-kitty merge --mission <mission-slug>
+```
+
+**Common conflict patterns:**
+- `__init__.py` in new modules: Each lane creates its own version with different
+  exports. Combine all exports into one file.
+- Shared files (`tasks.py`, `workflow.py`): Multiple lanes modify different
+  sections. Git usually auto-merges; manual resolution needed only for
+  overlapping edits.
+- Test `__init__.py`: Empty files — take either version.
+
+### Post-Merge Validation
+
+After merge completes, the git index may show stale state from worktree
+operations. If `git status` shows unexpected deletions:
+
+```bash
+# Restore working tree to match HEAD
+git checkout HEAD -- src/ tests/
+
+# Verify merge landed correctly
+git log --oneline -3
+git show --stat HEAD
+```
+
+Run the full test suite on main after merge to catch cross-lane integration issues:
+
+```bash
+pytest tests/ -v
+```
+
+This is the only point where all WP code from all lanes coexists — earlier
+lane-specific test runs only verify each WP in isolation.
+
+### Post-Merge Done Transition
+
+After merge completes, WPs move to `done` automatically. If they remain in
+`approved`, move them manually:
+
+```bash
+for wp in WP01 WP02 WP03 WP04 WP05 WP06; do
+  spec-kitty agent tasks move-task $wp --to done --force \
+    --done-override-reason "Feature merged to main" \
+    --mission <mission-slug>
+done
+```
+
+---
+
 ## Key Rules
 
 1. **Always use `spec-kitty agent action implement WP##`** before dispatching
@@ -597,3 +769,15 @@ understand the verification method.
 
 **Parallel review commit batching**: When running multiple reviews in parallel,
 commit all status changes from main in one batch after all reviews complete.
+
+**Stale git index after merge**: After `spec-kitty merge` completes and cleans
+up worktrees, `git status` may show files from the merged lanes as "deleted"
+in the staging area. This is a git worktree cleanup artifact, not real data loss.
+Fix with `git checkout HEAD -- src/ tests/` to restore the working tree to match
+HEAD.
+
+**Dead code after implementation**: If a WP creates a new module with tests that
+pass but the module is never imported from the live command path, the feature
+does not work. This is the most common post-merge defect. Run
+`grep -r "from.*<new_module>" src/` to verify at least one live caller exists
+for every new module.
