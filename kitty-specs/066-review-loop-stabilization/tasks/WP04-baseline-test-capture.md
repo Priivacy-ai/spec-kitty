@@ -19,7 +19,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: '48037'
+shell_pid: "48037"
+agent: "claude:sonnet-4-6:implementer:implementer"
 history:
 - timestamp: '2026-04-06T16:32:04Z'
   lane: planned
@@ -323,3 +324,7 @@ This WP modifies `workflow.py` in two places:
 - Check that temporary worktree is always cleaned up, even on failure (use try/finally)
 - Verify baseline artifact stays small (structured JSON, no raw output)
 - Confirm capture happens at implement time, NOT claim time
+
+## Activity Log
+
+- 2026-04-06T16:42:33Z – claude:sonnet-4-6:implementer:implementer – shell_pid=48037 – Started implementation via action command
