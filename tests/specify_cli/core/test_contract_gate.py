@@ -155,6 +155,27 @@ def test_unknown_context_is_noop() -> None:
     assert payload == original
 
 
+def test_payload_context_rejects_forbidden_fields() -> None:
+    """Nested payload.mission_scoped rules must be enforced."""
+    bad = {"feature_slug": "064-leaky", "mission_slug": "064-ok", "mission_number": "064", "mission_type": "software-dev"}
+    with pytest.raises(ContractViolationError) as exc_info:
+        validate_outbound_payload(bad, "payload")
+    assert "feature_slug" in str(exc_info.value)
+
+
+def test_payload_context_requires_mission_fields() -> None:
+    """Nested payload.mission_scoped required fields must be checked."""
+    incomplete = {"mission_slug": "064-ok"}  # missing mission_number, mission_type
+    with pytest.raises(ContractViolationError) as exc_info:
+        validate_outbound_payload(incomplete, "payload")
+    assert "mission_number" in str(exc_info.value) or "mission_type" in str(exc_info.value)
+
+
+def test_payload_context_passes_valid() -> None:
+    valid = {"mission_slug": "064-ok", "mission_number": "064", "mission_type": "software-dev"}
+    validate_outbound_payload(valid, "payload")  # should not raise
+
+
 def test_gate_validates_quickly() -> None:
     payload = _valid_envelope()
 

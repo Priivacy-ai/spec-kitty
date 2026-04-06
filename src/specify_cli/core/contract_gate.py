@@ -100,7 +100,12 @@ def _validate_section(payload: Payload, context: str, section: ContractNode) -> 
             continue
 
         if isinstance(value, dict):
-            _validate_constraint(payload, context, key, value)
+            # Nested sub-section (e.g., payload.mission_scoped) —
+            # recursively validate its rules against the same payload.
+            if "required_fields" in value or "forbidden_fields" in value:
+                _validate_section(payload, f"{context}.{key}", value)
+            else:
+                _validate_constraint(payload, context, key, value)
 
 
 def validate_outbound_payload(payload: Payload, context: str) -> None:
