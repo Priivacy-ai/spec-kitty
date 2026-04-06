@@ -1,7 +1,7 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KNJ2TSGJXV7Y4ZSKMF0CEGPJ",
-  "materialized_at": "2026-04-06T19:03:10.098890+00:00",
+  "event_count": 22,
+  "last_event_id": "01KNJ2TVZVMA7P932KC9DCZ4F1",
+  "materialized_at": "2026-04-06T19:03:12.635848+00:00",
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "summary": {
     "approved": 0,
@@ -9,17 +9,17 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 4,
+    "for_review": 2,
+    "in_progress": 3,
     "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:opus:implementer:implementer",
-      "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KNJ28G89E107GKR6J2DS5JEP",
-      "last_transition_at": "2026-04-06T18:53:10.793496+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNJ2TVZVMA7P932KC9DCZ4F1",
+      "last_transition_at": "2026-04-06T19:03:12.635376+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",

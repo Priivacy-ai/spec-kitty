@@ -239,3 +239,4 @@ Resume/abort paths are explicitly disabled at `merge.py:359-361` with an error m
 ## Activity Log
 
 - 2026-04-06T18:53:10Z – claude:opus:implementer:implementer – shell_pid=88435 – Started implementation via action command
+- 2026-04-06T19:03:12Z – claude:opus:implementer:implementer – shell_pid=88435 – Merge is now resumable after interruption. MergeState lifecycle, event dedup, resume/abort CLI, retry tolerance, and 22 tests.
