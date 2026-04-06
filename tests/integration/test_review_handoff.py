@@ -136,13 +136,14 @@ def test_validate_with_blocking_dirtiness_fails(
     _mock_mission: Mock,
     review_handoff_repo: tuple[Path, Path, str],
 ):
-    """WP-owned files that are dirty must block review with actionable guidance."""
+    """Non-planning source files that are dirty must block review with actionable guidance."""
     repo_root, worktree, mission_slug = review_handoff_repo
     feature_dir = repo_root / "kitty-specs" / mission_slug
 
-    # Make OWN task file dirty (this is blocking)
-    task_file = feature_dir / "tasks" / "WP01-test-handoff.md"
-    task_file.write_text(task_file.read_text() + "\n<!-- dirty edit -->\n")
+    # Make a non-planning file dirty (source code — this IS blocking)
+    # WP task files are planning artifacts and benign; use a different file type
+    random_file = feature_dir / "some-source-file.py"
+    random_file.write_text("# uncommitted source code\n")
 
     is_valid, guidance = _validate_ready_for_review(
         repo_root=worktree,
