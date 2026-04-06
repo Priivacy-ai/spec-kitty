@@ -10,8 +10,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T022, T023, T024, T025]
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "14891"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "15460"
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
@@ -294,3 +294,4 @@ WP04 does not own these files in its frontmatter — it modifies them under the 
 
 - 2026-04-06T14:42:16Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Started implementation via action command
 - 2026-04-06T14:46:20Z – claude:sonnet:implementer:implementer – shell_pid=14891 – Ready for review: pipe-table mark-status support implemented with 30 tests, checkbox format standardized in tasks template
+- 2026-04-06T14:46:40Z – claude:opus:reviewer:reviewer – shell_pid=15460 – Started review via action command
