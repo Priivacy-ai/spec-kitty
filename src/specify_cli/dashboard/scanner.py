@@ -369,6 +369,19 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     for lane, count in lane_counts.items():
                         kanban_stats[lane] = count
                         kanban_stats["total"] += count
+
+                    # Pre-compute weighted progress for dashboard JS
+                    try:
+                        from specify_cli.status.progress import compute_weighted_progress
+                        from specify_cli.status.reducer import materialize
+                        snap = materialize(feature_dir)
+                        progress = compute_weighted_progress(snap)
+                        kanban_stats["weighted_percentage"] = round(progress.percentage, 1)
+                    except Exception:
+                        logger.debug(
+                            "Could not compute weighted progress for '%s'",
+                            feature_dir.name,
+                        )
                 except CanonicalStatusNotFoundError:
                     logger.warning(
                         "No event log for feature '%s' — skipping kanban counts",

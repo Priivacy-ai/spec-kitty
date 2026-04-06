@@ -316,7 +316,9 @@ return `
     const stats = feature.kanban_stats;
     const total = stats.total;
     const completed = stats.done;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const completionRate = stats.weighted_percentage != null
+        ? Math.round(stats.weighted_percentage)
+        : (total > 0 ? Math.round((completed / total) * 100) : 0);
 
     const artifacts = feature.artifacts;
     const artifactList = [
@@ -384,7 +386,9 @@ function loadKanban() {
     fetch(`/api/kanban/${currentFeature}`)
         .then(response => response.json())
         .then(data => {
-            renderKanban(data && data.lanes ? data.lanes : data);
+            const lanes = data && data.lanes ? data.lanes : data;
+            const weightedPct = data ? data.weighted_percentage : null;
+            renderKanban(lanes, weightedPct);
         })
         .catch(error => {
             document.getElementById('kanban-board').innerHTML =
@@ -392,13 +396,15 @@ function loadKanban() {
         });
 }
 
-function renderKanban(lanes) {
+function renderKanban(lanes, weightedPercentage) {
     const inReviewTasks = lanes.in_review || [];
     const forReviewTasks = lanes.for_review || [];
     const reviewColumnTasks = forReviewTasks.concat(inReviewTasks);
     const total = lanes.planned.length + lanes.doing.length + reviewColumnTasks.length + (lanes.approved || []).length + lanes.done.length;
     const completed = lanes.done.length;
-    const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0;
+    const completionRate = weightedPercentage != null
+        ? Math.round(weightedPercentage)
+        : (total > 0 ? Math.round((completed / total) * 100) : 0);
 
     const agents = new Set();
     Object.values(lanes).forEach(tasks => {

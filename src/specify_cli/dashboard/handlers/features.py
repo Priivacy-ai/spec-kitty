@@ -131,10 +131,23 @@ class FeatureHandler(DashboardHandler):
             feature_dir = resolve_feature_dir(project_path, feature_id)
             is_legacy = is_legacy_format(feature_dir) if feature_dir else False
 
+            # Pre-compute weighted progress for the kanban panel
+            weighted_pct = None
+            if feature_dir and not is_legacy:
+                try:
+                    from specify_cli.status.progress import compute_weighted_progress
+                    from specify_cli.status.reducer import materialize
+                    snap = materialize(feature_dir)
+                    progress = compute_weighted_progress(snap)
+                    weighted_pct = round(progress.percentage, 1)
+                except Exception:
+                    pass
+
             response = {
                 'lanes': kanban_data,
                 'is_legacy': is_legacy,
                 'upgrade_needed': is_legacy,
+                'weighted_percentage': weighted_pct,
             }
 
             self.send_response(200)
