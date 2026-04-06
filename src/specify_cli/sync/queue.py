@@ -199,9 +199,9 @@ _BODY_QUEUE_SCHEMA = """
 CREATE TABLE IF NOT EXISTS body_upload_queue (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     project_uuid TEXT NOT NULL,
-    feature_slug TEXT NOT NULL,
+    mission_slug TEXT NOT NULL,
     target_branch TEXT NOT NULL,
-    mission_key TEXT NOT NULL,
+    mission_type TEXT NOT NULL,
     manifest_version TEXT NOT NULL,
     artifact_path TEXT NOT NULL,
     content_hash TEXT NOT NULL,
@@ -212,15 +212,48 @@ CREATE TABLE IF NOT EXISTS body_upload_queue (
     next_attempt_at REAL NOT NULL DEFAULT 0.0,
     created_at REAL NOT NULL,
     last_error TEXT,
-    UNIQUE(project_uuid, feature_slug, target_branch, mission_key, manifest_version, artifact_path, content_hash)
+    UNIQUE(project_uuid, mission_slug, target_branch, mission_type, manifest_version, artifact_path, content_hash)
 );
 CREATE INDEX IF NOT EXISTS idx_body_queue_next_attempt ON body_upload_queue(next_attempt_at);
-CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, feature_slug, target_branch);
+CREATE INDEX IF NOT EXISTS idx_body_queue_namespace ON body_upload_queue(project_uuid, mission_slug, target_branch);
 """
 
 
+def _migrate_body_queue_column_rename(conn: sqlite3.Connection) -> None:
+    """Rename legacy columns feature_slug -> mission_slug, mission_key -> mission_type.
+
+    Idempotent: skips if columns are already renamed or if the table does not exist.
+    SQLite ALTER TABLE RENAME COLUMN requires SQLite 3.25.0+ (Python 3.11+ bundles 3.39+).
+    """
+    cursor = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='body_upload_queue'"
+    )
+    if cursor.fetchone() is None:
+        return  # Table doesn't exist yet; fresh install will create with new names
+
+    col_cursor = conn.execute("PRAGMA table_info(body_upload_queue)")
+    columns = {row[1] for row in col_cursor}
+
+    if "feature_slug" not in columns and "mission_key" not in columns:
+        return  # Already migrated
+
+    if "feature_slug" in columns:
+        conn.execute(
+            "ALTER TABLE body_upload_queue RENAME COLUMN feature_slug TO mission_slug"
+        )
+    if "mission_key" in columns:
+        conn.execute(
+            "ALTER TABLE body_upload_queue RENAME COLUMN mission_key TO mission_type"
+        )
+    conn.commit()
+
+
 def ensure_body_queue_schema(conn: sqlite3.Connection) -> None:
-    """Create body_upload_queue table and indexes if they don't exist."""
+    """Create body_upload_queue table and indexes if they don't exist.
+
+    Also runs the column rename migration for existing databases.
+    """
+    _migrate_body_queue_column_rename(conn)
     conn.executescript(_BODY_QUEUE_SCHEMA)
 
 

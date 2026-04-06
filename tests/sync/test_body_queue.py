@@ -23,16 +23,16 @@ pytestmark = pytest.mark.fast
 
 def _ns(
     project_uuid: str = "uuid-1",
-    feature_slug: str = "047-feat",
+    mission_slug: str = "047-feat",
     target_branch: str = "main",
-    mission_key: str = "software-dev",
+    mission_type: str = "software-dev",
     manifest_version: str = "1",
 ) -> NamespaceRef:
     return NamespaceRef(
         project_uuid=project_uuid,
-        feature_slug=feature_slug,
+        mission_slug=mission_slug,
         target_branch=target_branch,
-        mission_key=mission_key,
+        mission_type=mission_type,
         manifest_version=manifest_version,
     )
 
@@ -127,8 +127,8 @@ class TestEnqueue:
 
         db = Path(str(tmp_path)) / "test.db"
         q = OfflineBodyUploadQueue(db_path=db)
-        ns1 = _ns(feature_slug="feat-a")
-        ns2 = _ns(feature_slug="feat-b")
+        ns1 = _ns(mission_slug="feat-a")
+        ns2 = _ns(mission_slug="feat-b")
         assert q.enqueue(ns1, "spec.md", "hash1", "body", 4) == BodyEnqueueResult.ENQUEUED
         assert q.enqueue(ns2, "spec.md", "hash1", "body", 4) == BodyEnqueueResult.ENQUEUED
 
@@ -233,9 +233,9 @@ class TestDrain:
         task = tasks[0]
         assert isinstance(task, BodyUploadTask)
         assert task.project_uuid == "uuid-1"
-        assert task.feature_slug == "047-feat"
+        assert task.mission_slug == "047-feat"
         assert task.target_branch == "main"
-        assert task.mission_key == "software-dev"
+        assert task.mission_type == "software-dev"
         assert task.manifest_version == "1"
         assert task.artifact_path == "spec.md"
         assert task.content_hash == "sha256abc"

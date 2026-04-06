@@ -17,9 +17,9 @@ pytestmark = pytest.mark.fast
 def _ns() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="uuid-1",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
-        mission_key="software-dev",
+        mission_type="software-dev",
         manifest_version="1",
     )
 

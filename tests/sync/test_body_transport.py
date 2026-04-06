@@ -25,9 +25,9 @@ class FakeTask:
     """Mimics BodyUploadTask fields needed by body_transport."""
 
     project_uuid: str = "550e8400-e29b-41d4-a716-446655440000"
-    feature_slug: str = "047-feat"
+    mission_slug: str = "047-feat"
     target_branch: str = "main"
-    mission_key: str = "software-dev"
+    mission_type: str = "software-dev"
     manifest_version: str = "1"
     artifact_path: str = "spec.md"
     content_hash: str = "abcd1234" * 8
@@ -55,25 +55,25 @@ def _mock_response(status_code: int, json_body: dict | None = None) -> MagicMock
 
 
 class TestBuildRequestBody:
-    def test_includes_all_10_fields(self) -> None:
+    def test_includes_all_9_fields(self) -> None:
         task = FakeTask()
         body = _build_request_body(task)
         assert body["project_uuid"] == task.project_uuid
-        assert body["feature_slug"] == task.feature_slug
+        assert body["mission_slug"] == task.mission_slug
         assert body["target_branch"] == task.target_branch
-        assert body["mission_key"] == task.mission_key
+        assert body["mission_type"] == task.mission_type
         assert body["manifest_version"] == task.manifest_version
         assert body["artifact_path"] == task.artifact_path
         assert body["content_hash"] == task.content_hash
         assert body["hash_algorithm"] == task.hash_algorithm
         assert body["content_body"] == task.content_body
-        assert len(body) == 10
+        assert len(body) == 9
 
-    def test_mission_slug_alias_equals_mission_key(self) -> None:
+    def test_no_legacy_fields(self) -> None:
         task = FakeTask()
         body = _build_request_body(task)
-        assert "mission_slug" in body
-        assert body["mission_slug"] == body["mission_key"]
+        assert "feature_slug" not in body
+        assert "mission_key" not in body
 
 
 # --- _safe_json ---
@@ -247,7 +247,7 @@ class TestPushContent:
         payload = call_kwargs.kwargs.get("json") or call_kwargs[1].get("json")
         assert payload["project_uuid"] == task.project_uuid
         assert payload["content_body"] == task.content_body
-        assert len(payload) == 10
+        assert len(payload) == 9
 
     @patch("specify_cli.sync.body_transport.requests.post")
     def test_uses_default_timeout(self, mock_post: MagicMock) -> None:

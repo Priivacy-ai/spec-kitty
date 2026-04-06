@@ -20,9 +20,9 @@ pytestmark = pytest.mark.fast
 def _make_namespace() -> NamespaceRef:
     return NamespaceRef(
         project_uuid="550e8400-e29b-41d4-a716-446655440000",
-        feature_slug="047-feat",
+        mission_slug="047-feat",
         target_branch="main",
-        mission_key="software-dev",
+        mission_type="software-dev",
         manifest_version="1",
     )
 

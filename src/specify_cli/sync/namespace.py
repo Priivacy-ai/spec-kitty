@@ -25,21 +25,21 @@ class NamespaceRef:
     """Canonical 5-field namespace tuple for body upload requests.
 
     Every body upload must include these fields to identify the artifact's
-    position within the project/feature/branch hierarchy.
+    position within the project/mission/branch hierarchy.
     """
 
     project_uuid: str
-    feature_slug: str
+    mission_slug: str
     target_branch: str
-    mission_key: str
+    mission_type: str
     manifest_version: str
 
     def __post_init__(self) -> None:
         for field_name in (
             "project_uuid",
-            "feature_slug",
+            "mission_slug",
             "target_branch",
-            "mission_key",
+            "mission_type",
             "manifest_version",
         ):
             value = getattr(self, field_name)
@@ -50,17 +50,17 @@ class NamespaceRef:
         """Return all 5 fields as a flat dict for request body construction."""
         return {
             "project_uuid": self.project_uuid,
-            "feature_slug": self.feature_slug,
+            "mission_slug": self.mission_slug,
             "target_branch": self.target_branch,
-            "mission_key": self.mission_key,
+            "mission_type": self.mission_type,
             "manifest_version": self.manifest_version,
         }
 
     def dedupe_key(self, artifact_path: str, content_hash: str) -> str:
         """Return deterministic 7-field string for body queue deduplication."""
         return (
-            f"{self.project_uuid}|{self.feature_slug}|{self.target_branch}"
-            f"|{self.mission_key}|{self.manifest_version}"
+            f"{self.project_uuid}|{self.mission_slug}|{self.target_branch}"
+            f"|{self.mission_type}|{self.manifest_version}"
             f"|{artifact_path}|{content_hash}"
         )
 
@@ -68,21 +68,21 @@ class NamespaceRef:
     def from_context(
         cls,
         identity: ProjectIdentity,
-        feature_slug: str,
+        mission_slug: str,
         target_branch: str,
-        mission_key: str,
+        mission_type: str,
         manifest_version: str,
     ) -> NamespaceRef:
-        """Construct a NamespaceRef from ProjectIdentity and feature metadata."""
+        """Construct a NamespaceRef from ProjectIdentity and mission metadata."""
         if identity.project_uuid is None:
             raise ValueError(
                 "ProjectIdentity.project_uuid is required for body sync"
             )
         return cls(
             project_uuid=str(identity.project_uuid),
-            feature_slug=feature_slug,
+            mission_slug=mission_slug,
             target_branch=target_branch,
-            mission_key=mission_key,
+            mission_type=mission_type,
             manifest_version=manifest_version,
         )
 
