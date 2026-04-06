@@ -3,6 +3,7 @@ work_package_id: WP08
 title: End-to-End Audit + Cleanup
 dependencies: [WP07]
 requirement_refs:
+- FR-001
 - FR-015
 - FR-016
 - FR-017
