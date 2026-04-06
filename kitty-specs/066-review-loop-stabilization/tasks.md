@@ -37,12 +37,12 @@
 | T027 | Add .spec-kitty/ to .gitignore | WP05 | [D] |
 | T028 | Implement opt-in env-var isolation config from .kittify/config.yaml | WP05 | [D] |
 | T029 | Write tests for lock lifecycle, stale detection, concurrent block, config | WP05 | [D] |
-| T030 | Create arbiter.py with ArbiterCategory, ArbiterChecklist, ArbiterDecision | WP06 | [P] |
-| T031 | Implement prompt_arbiter_checklist() — 5-question checklist + category | WP06 | [P] |
-| T032 | Implement override detection in move-task — forward --force after rejection | WP06 | [P] |
-| T033 | Persist ArbiterDecision in review-cycle artifact frontmatter | WP06 | [P] |
-| T034 | Make arbiter decisions visible in agent tasks status | WP06 | [P] |
-| T035 | Write tests for checklist, detection, persistence, visibility | WP06 | [P] |
+| T030 | Create arbiter.py with ArbiterCategory, ArbiterChecklist, ArbiterDecision | WP06 | [D] |
+| T031 | Implement prompt_arbiter_checklist() — 5-question checklist + category | WP06 | [D] |
+| T032 | Implement override detection in move-task — forward --force after rejection | WP06 | [D] |
+| T033 | Persist ArbiterDecision in review-cycle artifact frontmatter | WP06 | [D] |
+| T034 | Make arbiter decisions visible in agent tasks status | WP06 | [D] |
+| T035 | Write tests for checklist, detection, persistence, visibility | WP06 | [D] |
 
 ## Work Packages
 
