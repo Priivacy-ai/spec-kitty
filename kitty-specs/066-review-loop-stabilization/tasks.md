@@ -8,7 +8,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Create review module scaffold (__init__.py, artifacts.py with dataclasses) | WP01 | | [D] |
+| T001 | Create review module scaffold (__init__.py, artifacts.py with dataclasses) | WP01 | | [D] | [D] |
 | T002 | Implement ReviewCycleArtifact write() — YAML frontmatter + markdown body | WP01 | | [D] |
 | T003 | Implement from_file() and latest() — parse artifacts, find highest cycle | WP01 | | [D] |
 | T004 | Rewrite _persist_review_feedback() in tasks.py — create ReviewCycleArtifact | WP01 | | [D] |
