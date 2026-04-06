@@ -51,7 +51,7 @@ def _scaffold_project(
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": mission_type}),
+        json.dumps({"mission_type": mission_type}),
         encoding="utf-8",
     )
 

@@ -25,10 +25,15 @@ def _resolve_mission_from_feature(feature_dir: Path) -> Optional[str]:
     Returns the mission string or ``None`` when no meta.json exists.
     """
     try:
-        from .feature_metadata import load_meta
+        from .mission_metadata import load_meta
         meta = load_meta(feature_dir)
         if meta:
-            return meta.get("mission")
+            mission_type = str(meta.get("mission_type", "")).strip()
+            if mission_type:
+                return mission_type
+            legacy_mission = str(meta.get("mission", "")).strip()
+            if legacy_mission:
+                return legacy_mission
     except Exception:
         pass
     return None

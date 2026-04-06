@@ -77,6 +77,33 @@ def _save_feature_runs(repo_root: Path, index: dict[str, dict[str, str]]) -> Non
     atomic_write(path, content, mkdir=True)
 
 
+def _mission_key_for_run_ref(run_ref: MissionRunRef, default: str) -> str:
+    """Read the mission key from either runtime field name."""
+    mission_key = getattr(run_ref, "mission_key", None)
+    if isinstance(mission_key, str) and mission_key.strip():
+        return mission_key
+    mission_type = getattr(run_ref, "mission_type", None)
+    if isinstance(mission_type, str) and mission_type.strip():
+        return mission_type
+    return default
+
+
+def _build_run_ref(*, run_id: str, run_dir: str, mission_type: str) -> MissionRunRef:
+    """Construct MissionRunRef across runtime versions."""
+    try:
+        return MissionRunRef(
+            run_id=run_id,
+            run_dir=run_dir,
+            mission_key=mission_type,
+        )
+    except TypeError:
+        return MissionRunRef(
+            run_id=run_id,
+            run_dir=run_dir,
+            mission_type=mission_type,
+        )
+
+
 # ---------------------------------------------------------------------------
 # WP iteration helpers
 # ---------------------------------------------------------------------------
@@ -338,10 +365,15 @@ def get_or_start_run(
         entry = index[mission_slug]
         run_dir = Path(entry["run_dir"])
         if (run_dir / "state.json").exists():
-            return MissionRunRef(
+            stored_mission_type = (
+                entry.get("mission_type")
+                or entry.get("mission_key")
+                or mission_type
+            )
+            return _build_run_ref(
                 run_id=entry["run_id"],
                 run_dir=entry["run_dir"],
-                mission_type=entry.get("mission_type", mission_type),
+                mission_type=stored_mission_type,
             )
 
     # Start a new run
@@ -359,10 +391,12 @@ def get_or_start_run(
     )
 
     # Persist to index
+    resolved_mission_type = _mission_key_for_run_ref(run_ref, mission_type)
     index[mission_slug] = {
         "run_id": run_ref.run_id,
         "run_dir": run_ref.run_dir,
-        "mission_type": run_ref.mission_type,
+        "mission_type": resolved_mission_type,
+        "mission_key": resolved_mission_type,
     }
     _save_feature_runs(repo_root, index)
 

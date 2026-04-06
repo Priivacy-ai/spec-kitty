@@ -37,7 +37,7 @@ def test_verify_with_research_feature(tmp_path: Path) -> None:
     # Create feature directory with meta.json specifying research mission
     feature_dir = project_root / "kitty-specs" / "099-research-feature"
     feature_dir.mkdir(parents=True)
-    meta = {"mission": "research", "mission_slug": "099-research-feature", "created_at": "2026-01-01"}
+    meta = {"mission_type": "research", "mission_slug": "099-research-feature", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
@@ -101,7 +101,7 @@ def test_verify_resolves_mission_from_mission_slug(tmp_path: Path) -> None:
 
     feature_dir = project_root / "kitty-specs" / "042-my-feature"
     feature_dir.mkdir(parents=True)
-    meta = {"mission": "documentation", "mission_slug": "042-my-feature", "created_at": "2026-01-01"}
+    meta = {"mission_type": "documentation", "mission_slug": "042-my-feature", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
@@ -214,7 +214,7 @@ def test_resolve_feature_dir_from_worktree_without_mock(tmp_path: Path) -> None:
 
     feature_dir = main_repo / "kitty-specs" / "099-research-feature"
     feature_dir.mkdir(parents=True)
-    meta = {"mission": "research", "mission_slug": "099-research-feature"}
+    meta = {"mission_type": "research", "mission_slug": "099-research-feature"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     # --- Set up git worktree gitdir ---
@@ -258,7 +258,7 @@ def test_diagnostics_mode_resolves_main_repo_root(tmp_path: Path) -> None:
 
     feature_dir = main_repo / "kitty-specs" / "099-research-feature"
     feature_dir.mkdir(parents=True)
-    meta = {"mission": "research", "mission_slug": "099-research-feature"}
+    meta = {"mission_type": "research", "mission_slug": "099-research-feature"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     captured_path = {}

@@ -156,7 +156,7 @@ def test_run_diagnostics_with_feature_dir_resolves_mission(monkeypatch, tmp_path
     # Create a feature dir with meta.json specifying 'research' mission
     feature_dir = tmp_path / "feature-dir"
     feature_dir.mkdir()
-    meta = {"mission": "research", "mission_slug": "099-test", "created_at": "2026-01-01"}
+    meta = {"mission_type": "research", "mission_slug": "099-test", "created_at": "2026-01-01"}
     (feature_dir / "meta.json").write_text(json.dumps(meta))
 
     _configure_common_patches(monkeypatch, worktree_dir)

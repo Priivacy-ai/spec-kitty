@@ -557,7 +557,13 @@ def get_mission_type(feature_dir: Path) -> str:
     try:
         with open(meta_file, 'r', encoding='utf-8') as f:
             meta = json.load(f)
-        return meta.get("mission", "software-dev")
+        mission_type = str(meta.get("mission_type", "")).strip()
+        if mission_type:
+            return mission_type
+        legacy_mission = str(meta.get("mission", "")).strip()
+        if legacy_mission:
+            return legacy_mission
+        return "software-dev"
     except (json.JSONDecodeError, OSError):
         return "software-dev"
 

@@ -25,7 +25,12 @@ def _resolve_mission_from_feature(feature_dir: Path) -> str | None:
 
         meta = load_meta(feature_dir)
         if meta:
-            return meta.get("mission_type")
+            mission_type = str(meta.get("mission_type", "")).strip()
+            if mission_type:
+                return mission_type
+            legacy_mission = str(meta.get("mission", "")).strip()
+            if legacy_mission:
+                return legacy_mission
     except Exception:
         pass
     return None

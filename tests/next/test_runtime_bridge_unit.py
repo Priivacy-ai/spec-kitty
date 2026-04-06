@@ -45,7 +45,7 @@ def _scaffold_project(
     feature_dir = repo_root / "kitty-specs" / mission_slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
-        json.dumps({"mission": mission_type}),
+        json.dumps({"mission_type": mission_type}),
         encoding="utf-8",
     )
 
@@ -198,7 +198,7 @@ class TestGetOrStartRun:
         run_ref = get_or_start_run("042-test-feature", repo_root, "software-dev")
         assert run_ref.run_id is not None
         assert len(run_ref.run_id) > 0
-        assert run_ref.mission_type == "software-dev"
+        assert getattr(run_ref, "mission_key", None) == "software-dev"
         assert Path(run_ref.run_dir).exists()
         assert (Path(run_ref.run_dir) / "state.json").exists()
 
@@ -217,7 +217,7 @@ class TestGetOrStartRun:
         # Create second feature
         feature_dir2 = repo_root / "kitty-specs" / "043-other-feature"
         feature_dir2.mkdir(parents=True)
-        (feature_dir2 / "meta.json").write_text('{"mission": "software-dev"}', encoding="utf-8")
+        (feature_dir2 / "meta.json").write_text('{"mission_type": "software-dev"}', encoding="utf-8")
 
         from specify_cli.next.runtime_bridge import get_or_start_run
 

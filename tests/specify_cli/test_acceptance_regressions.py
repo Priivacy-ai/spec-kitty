@@ -73,11 +73,11 @@ def _create_test_feature(
 
     # meta.json
     meta = {
-        "feature_number": "099",
+        "mission_number": "099",
         "slug": mission_slug,
         "mission_slug": mission_slug,
         "friendly_name": "Test Feature",
-        "mission": "software-dev",
+        "mission_type": "software-dev",
         "target_branch": "main",
         "created_at": "2026-01-01T00:00:00Z",
     }

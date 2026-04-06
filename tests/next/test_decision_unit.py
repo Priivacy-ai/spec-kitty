@@ -55,7 +55,7 @@ def feature_dir(tmp_path: Path) -> Path:
     fd.mkdir(parents=True)
     # Create meta.json
     meta = fd / "meta.json"
-    meta.write_text('{"mission": "software-dev"}', encoding="utf-8")
+    meta.write_text('{"mission_type": "software-dev"}', encoding="utf-8")
     return fd
 
 

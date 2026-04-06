@@ -106,7 +106,7 @@ class TestStatusInProgressLane:
             "specify_cli.core.stale_detection.check_doing_wps_for_staleness",
             return_value={},
         ):
-            result = runner.invoke(app, ["status", "--feature", "042-test", "--json"])
+            result = runner.invoke(app, ["status", "--mission", "042-test", "--json"])
 
         assert result.exit_code == 0, f"stdout: {result.stdout}"
         output = json.loads(result.stdout)
@@ -148,7 +148,7 @@ class TestStatusInProgressLane:
         mock_slug.return_value = "042-test"
         mock_branch.return_value = (repo_root, "main")
 
-        result = runner.invoke(app, ["status", "--feature", "042-test"])
+        result = runner.invoke(app, ["status", "--mission", "042-test"])
 
         assert result.exit_code == 0, f"stdout: {result.stdout}"
         # The WP should appear in the output (not silently dropped)

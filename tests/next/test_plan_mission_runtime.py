@@ -41,7 +41,7 @@ def temp_project(tmp_path: Path) -> Generator[Path, None, None]:
 
 @pytest.fixture
 def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
-    """Create a test feature with mission=plan.
+    """Create a test feature with mission_type=plan.
 
     Depends on: temp_project
     Yields: (mission_slug, feature_dir)
@@ -50,11 +50,11 @@ def plan_feature(temp_project: Path) -> Generator[tuple[str, Path], None, None]:
     feature_dir = temp_project / "kitty-specs" / mission_slug
     feature_dir.mkdir()
 
-    # Create meta.json with mission: "plan"
+    # Create meta.json with mission_type: "plan"
     meta = {
-        "feature_number": "001",
+        "mission_number": "001",
         "slug": mission_slug,
-        "mission": "plan",
+        "mission_type": "plan",
         "created_at": "2026-02-22T00:00:00+00:00"
     }
     (feature_dir / "meta.json").write_text(json.dumps(meta, indent=2))
@@ -127,12 +127,12 @@ class TestPlanMissionIntegration:
         # Verify feature directory exists
         assert feature_dir.exists()
 
-        # Verify meta.json exists and contains mission=plan
+        # Verify meta.json exists and contains mission_type=plan
         meta_file = feature_dir / "meta.json"
         assert meta_file.exists()
 
         meta = json.loads(meta_file.read_text())
-        assert meta["mission"] == "plan"
+        assert meta["mission_type"] == "plan"
         assert meta["slug"] == mission_slug
 
     def test_plan_feature_spec_file_created(self, plan_feature):
@@ -184,9 +184,9 @@ class TestPlanMissionIntegration:
         mission_slug, feature_dir = plan_feature
         import yaml
 
-        # 1. Verify feature has mission=plan
+        # 1. Verify feature has mission_type=plan
         meta = json.loads((feature_dir / "meta.json").read_text())
-        assert meta["mission"] == "plan", "Feature must have mission=plan"
+        assert meta["mission_type"] == "plan", "Feature must have mission_type=plan"
 
         # 2. Verify mission-runtime.yaml exists (required for discovery)
         mission_runtime = Path("src/specify_cli/missions/plan/mission-runtime.yaml")
