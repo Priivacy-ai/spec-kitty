@@ -85,13 +85,31 @@ def _resolve_git_common_dir(repo_root: Path) -> Path | None:
 
 
 def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | None:
-    """Resolve a `feedback://` pointer (or legacy absolute path) to a file path."""
+    """Resolve a review feedback pointer to a file path.
+
+    Supports two pointer formats:
+    - ``review-cycle://<mission_slug>/<wp_slug>/review-cycle-N.md``
+      → ``kitty-specs/<mission_slug>/tasks/<wp_slug>/review-cycle-N.md``
+    - ``feedback://<mission_slug>/<task_id>/<filename>``  (legacy)
+      → ``.git/spec-kitty/feedback/<mission_slug>/<task_id>/<filename>``
+
+    Also handles legacy absolute-path strings.
+    Returns None for the sentinel string ``"force-override"`` or any
+    unrecognised / non-existent pointer.
+    """
     value = pointer.strip()
-    if not value:
+    if not value or value == "force-override":
         return None
 
-    if value.startswith("feedback://"):
-        relative = value[len("feedback://") :]
+    if value.startswith("review-cycle://"):
+        relative = value[len("review-cycle://"):]
+        parts = [p for p in relative.split("/") if p]
+        if len(parts) != 3:
+            return None
+        # parts: mission_slug / wp_slug / filename
+        candidate = repo_root / "kitty-specs" / parts[0] / "tasks" / parts[1] / parts[2]
+    elif value.startswith("feedback://"):
+        relative = value[len("feedback://"):]
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
@@ -138,6 +156,49 @@ def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
         f"WP {wp_id} has no canonical status. "
         f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
     )
+
+
+def _has_prior_rejection(
+    feature_dir: Path,
+    wp_slug: str,
+    normalized_wp_id: str,
+) -> bool:
+    """Check if a WP has review-cycle artifacts from a prior rejection.
+
+    Both conditions must be true:
+    1. Review-cycle artifact files exist in the sub-artifact directory.
+    2. The latest event for this WP is a rejection (from_lane=for_review).
+
+    This prevents false positives when artifacts exist from a cycle that was
+    already resolved (last event is not a rejection).
+
+    Args:
+        feature_dir: Path to kitty-specs/<mission>/ in the main repo.
+        wp_slug: Full WP file stem, e.g. "WP01-some-title".
+        normalized_wp_id: Canonical WP ID, e.g. "WP01".
+
+    Returns:
+        True iff both artifact files and a rejection event are present.
+    """
+    sub_artifact_dir = feature_dir / "tasks" / wp_slug
+    if not sub_artifact_dir.exists():
+        return False
+    if not list(sub_artifact_dir.glob("review-cycle-*.md")):
+        return False
+
+    # Check that the latest event for this WP is a rejection transition
+    try:
+        from specify_cli.status.store import read_events as _read_status_events
+
+        _events = _read_status_events(feature_dir)
+        for _ev in reversed(_events):
+            if _ev.wp_id == normalized_wp_id:
+                # Latest event for this WP found — check if it came from for_review
+                return str(_ev.from_lane) == "for_review"
+    except Exception:
+        pass
+
+    return False
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
@@ -557,6 +618,46 @@ def implement(
 
         if review_feedback_ref:
             review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
+
+        # Fix-mode detection: if the WP was rejected and has review-cycle artifacts,
+        # generate a focused fix-mode prompt instead of the full WP prompt.
+        # The fix-prompt completely replaces the full WP prompt (not appended to it).
+        _wp_slug = wp.path.stem  # e.g. "WP01-some-title"
+        if _has_prior_rejection(feature_dir, _wp_slug, normalized_wp_id):
+            try:
+                from rich.console import Console as _RichConsole
+                from specify_cli.review.artifacts import ReviewCycleArtifact as _ReviewCycleArtifact
+                from specify_cli.review.fix_prompt import generate_fix_prompt as _generate_fix_prompt
+
+                _sub_artifact_dir = feature_dir / "tasks" / _wp_slug
+                _latest_artifact = _ReviewCycleArtifact.latest(_sub_artifact_dir)
+                if _latest_artifact is not None:
+                    _console = _RichConsole()
+                    _console.print(
+                        f"[bold]Fix mode[/bold]: generating focused prompt from "
+                        f"review-cycle-{_latest_artifact.cycle_number} "
+                        f"(Canonical feedback: {_sub_artifact_dir / f'review-cycle-{_latest_artifact.cycle_number}.md'})"
+                    )
+                    _fix_prompt_text = _generate_fix_prompt(
+                        artifact=_latest_artifact,
+                        worktree_path=workspace_path,
+                        wp_prompt_path=wp.path,
+                        mission_slug=mission_slug,
+                        wp_id=normalized_wp_id,
+                    )
+                    _fix_prompt_file = _write_prompt_to_file(
+                        "implement", normalized_wp_id, _fix_prompt_text
+                    )
+                    print()
+                    print(f"📍 Workspace: cd {workspace_path}")
+                    print(f"🔧 Fix mode — Cycle {_latest_artifact.cycle_number}: focused prompt from review artifact")
+                    print()
+                    print("▶▶▶ NEXT STEP: Read the full fix-mode prompt file now:")
+                    print(f"    cat {_fix_prompt_file}")
+                    print()
+                    return
+            except Exception as _fix_mode_err:
+                logger.warning("Fix-mode prompt generation failed, falling through to full prompt: %s", _fix_mode_err)
 
         # Detect mission type and get deliverables_path for research missions
         mission_type = get_mission_type(feature_dir)

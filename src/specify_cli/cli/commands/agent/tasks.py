@@ -242,26 +242,73 @@ def _resolve_git_common_dir(main_repo_root: Path) -> Path:
     return common_dir
 
 
+def _resolve_wp_slug(main_repo_root: Path, mission_slug: str, task_id: str) -> str:
+    """Resolve the WP slug (e.g. 'WP01-some-title') from a task ID.
+
+    Looks for a file named '{task_id}-*.md' in kitty-specs/<mission>/tasks/.
+    Falls back to bare task_id if no matching file is found.
+    """
+    tasks_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks"
+    if tasks_dir.exists():
+        for p in tasks_dir.iterdir():
+            if p.stem.startswith(f"{task_id}-") or p.stem == task_id:
+                return p.stem
+    return task_id
+
+
 def _persist_review_feedback(
     *,
     main_repo_root: Path,
     mission_slug: str,
     task_id: str,
     feedback_source: Path,
+    reviewer_agent: str = "unknown",
+    affected_files: list[dict[str, str]] | None = None,
 ) -> tuple[Path, str]:
-    """Persist review feedback in git common-dir and return pointer."""
-    git_common_dir = _resolve_git_common_dir(main_repo_root)
-    feedback_dir = git_common_dir / "spec-kitty" / "feedback" / mission_slug / task_id
-    feedback_dir.mkdir(parents=True, exist_ok=True)
+    """Persist review feedback as a versioned ReviewCycleArtifact in kitty-specs/.
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    unique_id = uuid.uuid4().hex[:8]
-    suffix = feedback_source.suffix or ".md"
-    filename = f"{timestamp}-{unique_id}{suffix}"
-    persisted_path = feedback_dir / filename
+    Creates a committed artifact at:
+      kitty-specs/<mission>/tasks/<WP-slug>/review-cycle-{N}.md
 
-    shutil.copy2(feedback_source, persisted_path)
-    pointer = f"feedback://{mission_slug}/{task_id}/{filename}"
+    Returns:
+        Tuple of (persisted_path, pointer) where pointer is a
+        ``review-cycle://`` URI.
+    """
+    from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+
+    wp_slug = _resolve_wp_slug(main_repo_root, mission_slug, task_id)
+    sub_artifact_dir = main_repo_root / "kitty-specs" / mission_slug / "tasks" / wp_slug
+    cycle_n = ReviewCycleArtifact.next_cycle_number(sub_artifact_dir)
+
+    body = feedback_source.read_text(encoding="utf-8")
+    reviewed_at = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    parsed_affected: list[AffectedFile] = []
+    if affected_files:
+        for af in affected_files:
+            parsed_affected.append(
+                AffectedFile(
+                    path=af["path"],
+                    line_range=af.get("line_range"),
+                )
+            )
+
+    artifact = ReviewCycleArtifact(
+        cycle_number=cycle_n,
+        wp_id=task_id,
+        mission_slug=mission_slug,
+        reviewer_agent=reviewer_agent,
+        verdict="rejected",
+        reviewed_at=reviewed_at,
+        affected_files=parsed_affected,
+        body=body,
+    )
+
+    filename = f"review-cycle-{cycle_n}.md"
+    persisted_path = sub_artifact_dir / filename
+    artifact.write(persisted_path)
+
+    pointer = f"review-cycle://{mission_slug}/{wp_slug}/{filename}"
     return persisted_path, pointer
 
 
@@ -1000,6 +1047,7 @@ def move_task(
                 mission_slug=mission_slug,
                 task_id=task_id,
                 feedback_source=resolved_feedback_source,
+                reviewer_agent=agent or "unknown",
             )
 
         # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
