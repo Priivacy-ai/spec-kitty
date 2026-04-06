@@ -113,7 +113,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> tuple[Path
 
 
 def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, Path]):
-    _repo, feedback_pointer, feedback_file = workflow_repo
+    repo, feedback_pointer, feedback_file = workflow_repo
     runner = CliRunner()
 
     result = runner.invoke(
@@ -129,6 +129,9 @@ def test_implement_prompt_uses_feedback_pointer(workflow_repo: tuple[Path, str, 
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert f"Canonical feedback reference: {feedback_pointer}" in prompt_content
     assert f'Read it first: cat "{feedback_file}"' in prompt_content
+    assert "📚 SHARED FEATURE ARTIFACTS:" in prompt_content
+    assert f"Spec, plan, tasks, and status live in main repo: {repo}/kitty-specs/001-test-feature/" in prompt_content
+    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in prompt_content
 
 
 @pytest.mark.parametrize(
@@ -250,3 +253,6 @@ def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_
         "move-task stores feedback in shared git common-dir and writes frontmatter review_feedback pointer"
         in prompt_content
     )
+    assert "📚 SHARED FEATURE ARTIFACTS:" in prompt_content
+    assert f"Spec, plan, tasks, and status live in main repo: {repo}/kitty-specs/001-test-feature/" in prompt_content
+    assert "Use this lane workspace for code/tests; do not expect shared feature artifacts here" in prompt_content
