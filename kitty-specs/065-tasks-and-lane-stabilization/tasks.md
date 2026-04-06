@@ -41,11 +41,12 @@
 | T030 | Audit all template command examples for missing --mission | WP05 | [P] |
 | T031 | Improve require_explicit_feature error message | WP05 | [P] |
 | T032 | Write regression tests for WP05 | WP05 | [P] |
+| T033 | Fix --feature command_hint in 5 require_explicit_feature callers | WP05 | [P] |
 
 ## Work Package Execution Order
 
-**Phase 1 (parallel)**: WP01, WP02, WP04, WP05 — no inter-dependencies, disjoint file ownership
-**Phase 2**: WP03 — depends on WP02 (builds on lane computation changes)
+**Phase 1 (parallel)**: WP01, WP02, WP05 — no inter-dependencies, disjoint file ownership
+**Phase 2 (parallel)**: WP03, WP04 — WP03 depends on WP02 (lane computation); WP04 depends on WP01 + WP05 (shared tasks.py and tasks template ownership)
 
 ---
 
@@ -163,11 +164,12 @@ Add pipe-table row parsing and mutation to `mark-status` so it can update task s
 
 ### Dependencies
 
-None — can start immediately.
+Depends on WP01 (shared `tasks.py` ownership) and WP05 (shared tasks template ownership). WP04 modifies `mark_status` in `tasks.py` and task-format instructions in the template; WP01 and WP05 must complete their changes to these files first.
 
 ### Risks
 
-- Pipe-table status marker regex could be too broad (matching non-task tables) or too narrow (missing edge-case formatting). Mitigate by testing against the real 063 tasks.md artifact.
+- Pipe-table status marker regex must not corrupt the Parallel column (`[P]`) — it must target a dedicated status column or use column-position-aware matching. Mitigate by testing against the real 063 tasks.md artifact.
+- The existing pipe-table format has no dedicated status column. The `[P]` in column 4 is the Parallel marker, not a status marker. The implementation must either add a status column convention or use a different status representation that doesn't collide with `[P]`.
 
 ---
 
@@ -191,6 +193,7 @@ Fix all generated command guidance so that `--mission <slug>` is present whereve
 - [ ] T030 Audit all template command examples for missing --mission
 - [ ] T031 Improve require_explicit_feature error message
 - [ ] T032 Write regression tests for WP05
+- [ ] T033 Fix --feature command_hint in 5 require_explicit_feature callers
 
 ### Dependencies
 

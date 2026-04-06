@@ -16,7 +16,9 @@ history:
 authoritative_surface: src/specify_cli/lanes/
 execution_mode: code_change
 owned_files:
+- src/specify_cli/lanes/compute.py
 - src/specify_cli/lanes/models.py
+- tests/lanes/test_compute.py
 - tests/lanes/test_models.py
 - tests/lanes/test_collapse_report.py
 ---

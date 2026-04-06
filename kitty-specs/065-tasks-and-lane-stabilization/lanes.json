@@ -17,6 +17,11 @@
       "write_scope": [
         "src/specify_cli/cli/commands/agent/mission.py",
         "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/commands/research.py",
+        "src/specify_cli/cli/commands/validate_encoding.py",
+        "src/specify_cli/cli/commands/validate_tasks.py",
         "src/specify_cli/context/middleware.py",
         "src/specify_cli/context/store.py",
         "src/specify_cli/core/dependency_parser.py",
@@ -53,6 +58,6 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-04-06T13:53:11.028307+00:00",
+  "computed_at": "2026-04-06T13:59:16.380253+00:00",
   "computed_from": "dependency_graph+ownership"
 }

@@ -15,13 +15,13 @@ history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
   action: Created WP02 prompt during /spec-kitty.tasks
-authoritative_surface: src/specify_cli/lanes/
+authoritative_surface: src/specify_cli/ownership/
 execution_mode: code_change
 owned_files:
-- src/specify_cli/lanes/compute.py
 - src/specify_cli/ownership/inference.py
 - src/specify_cli/ownership/validation.py
-- tests/lanes/test_compute.py
+- tests/ownership/test_inference.py
+- tests/ownership/test_validation.py
 - tests/ownership/test_inference.py
 - tests/ownership/test_validation.py
 ---
@@ -58,6 +58,8 @@ No validation checks that extracted glob patterns match real files.
 - Merge target: `main`
 - Execution worktrees are allocated per computed lane from `lanes.json`
 - To start implementation: `spec-kitty implement WP02`
+
+**Ownership note**: WP02 owns `ownership/inference.py` and `ownership/validation.py`. T010 and T011 also modify `lanes/compute.py`, but that file is owned by WP03 (which depends on WP02, so they share a lane). WP02's compute.py changes (assertions, error paths in lines 170-220) will be committed first; WP03 then modifies the union rules and output (lines 186-308).
 
 ---
 

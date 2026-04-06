@@ -9,7 +9,7 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-subtasks: [T026, T027, T028, T029, T030, T031, T032]
+subtasks: [T026, T027, T028, T029, T030, T031, T032, T033]
 history:
 - at: '2026-04-06T13:45:48+00:00'
   actor: claude
@@ -21,6 +21,11 @@ owned_files:
 - src/specify_cli/context/store.py
 - src/specify_cli/shims/generator.py
 - src/specify_cli/core/paths.py
+- src/specify_cli/cli/commands/validate_tasks.py
+- src/specify_cli/cli/commands/validate_encoding.py
+- src/specify_cli/cli/commands/next_cmd.py
+- src/specify_cli/cli/commands/research.py
+- src/specify_cli/cli/commands/implement.py
 - src/specify_cli/missions/software-dev/command-templates/tasks.md
 - tests/context/test_middleware.py
 - tests/context/test_store.py
@@ -285,8 +290,38 @@ The `require_explicit_feature()` function at `core/paths.py:273-339` does genera
 
 ---
 
+## Subtask T033: Fix --feature command_hint in require_explicit_feature Callers
+
+**Purpose**: Five callers pass `command_hint="--feature <slug>"` to `require_explicit_feature()`, overriding the correct default. This causes error messages to say `--feature` even though the CLI parameter is `--mission` (FR-012).
+
+**Steps**:
+
+1. Update all five callers to use `--mission <slug>`:
+
+   - `src/specify_cli/cli/commands/validate_tasks.py:106`:
+     ```python
+     mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
+     ```
+   - `src/specify_cli/cli/commands/validate_encoding.py:78`: same change
+   - `src/specify_cli/cli/commands/next_cmd.py:59`: same change
+   - `src/specify_cli/cli/commands/research.py:58`: same change
+   - `src/specify_cli/cli/commands/implement.py:102`: same change
+
+2. Verify no other callers pass `--feature` by grepping:
+   ```bash
+   grep -rn 'command_hint.*--feature' src/
+   ```
+   Should return zero results after the fix.
+
+**Files**: `src/specify_cli/cli/commands/validate_tasks.py`, `src/specify_cli/cli/commands/validate_encoding.py`, `src/specify_cli/cli/commands/next_cmd.py`, `src/specify_cli/cli/commands/research.py`, `src/specify_cli/cli/commands/implement.py`
+
+**Validation**: `grep -c 'command_hint.*--feature' src/` returns 0.
+
+---
+
 ## Definition of Done
 
+- [ ] All `require_explicit_feature()` callers use `command_hint="--mission <slug>"`, not `--feature`
 - [ ] Error messages in middleware.py and store.py use `--mission`, not `--feature`
 - [ ] Shim template includes `--mission` guidance
 - [ ] Tasks template context resolve example includes `--mission <mission-slug>`

@@ -1,7 +1,8 @@
 ---
 work_package_id: WP04
 title: Mutable Task-State Compatibility
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - FR-010
 planning_base_branch: main
@@ -61,7 +62,10 @@ Active mission artifacts (e.g., `kitty-specs/063-universal-charter-rename/tasks.
 - Execution worktrees are allocated per computed lane from `lanes.json`
 - To start implementation: `spec-kitty implement WP04`
 
-**Owned files note**: This WP shares `tasks.py` with WP01. WP01 modifies the `finalize_tasks` function (lines 1626-1768) and dependency parsing. WP04 modifies the `mark_status` function (lines 1272-1421). These are separate functions with no overlap. They share a lane by ownership overlap, which is correct since both modify the same file.
+**Dependency note**: WP04 depends on WP01 and WP05 because they share file ownership:
+- WP01 owns `tasks.py` and makes extensive changes to `finalize_tasks`. WP04 modifies `mark_status` in the same file. WP04 runs after WP01 to avoid merge conflicts.
+- WP05 owns the `tasks.md` command template and fixes its `--mission` guidance. WP04's T024 also modifies this template to standardize format instructions. WP04 runs after WP05 to avoid conflicts.
+WP04 does not own these files in its frontmatter — it modifies them under the ownership of WP01 and WP05 respectively, sequenced by dependency.
 
 ---
 
@@ -103,45 +107,85 @@ Active mission artifacts (e.g., `kitty-specs/063-universal-charter-rename/tasks.
 
 ---
 
-## Subtask T023: Implement Pipe-Table Status Update Logic
+## Subtask T023: Implement Column-Aware Pipe-Table Status Update
 
-**Purpose**: When a pipe-table task row is found, replace the status marker in-place.
+**Purpose**: When a pipe-table task row is found, update its status without corrupting other columns.
+
+**Critical design constraint**: The existing pipe-table format (e.g., `kitty-specs/063-universal-charter-rename/tasks.md`) uses `[P]` in a "Parallel" column to indicate parallelism, NOT task status. A naive global `re.sub` of `[P]` → `[D]` would corrupt this column. The implementation must be column-aware.
 
 **Steps**:
 
-1. Add a helper function:
+1. Parse the pipe-table header to identify column semantics:
    ```python
-   def _update_pipe_table_status(line: str, status: str) -> str:
-       """Replace status marker in a pipe-table row.
-
-       Recognizes: [P] (planned/pending), [D] (done), [x] (done), [ ] (pending)
-       """
-       if status == "done":
-           # Replace pending markers with done
-           line = re.sub(r'\[\s*P\s*\]', '[D]', line)
-           line = re.sub(r'\[\s*\]', '[x]', line)  # Also handle [ ] format
-       else:  # pending
-           # Replace done markers with pending
-           line = re.sub(r'\[\s*D\s*\]', '[P]', line)
-           line = re.sub(r'\[\s*x\s*\]', '[ ]', line)
-       return line
+   def _parse_pipe_table_header(lines: list[str], task_row_idx: int) -> dict[str, int]:
+       """Scan backwards from a task row to find the header row and map column names to indices."""
+       for i in range(task_row_idx - 1, -1, -1):
+           line = lines[i].strip()
+           if re.match(r'^\|[\s-]+\|', line):  # Separator row — skip
+               continue
+           if '|' in line and not re.match(r'^\|[\s-]+\|', line):
+               cells = [c.strip().lower() for c in line.split('|')[1:-1]]
+               return {name: idx for idx, name in enumerate(cells) if name}
+           break
+       return {}
    ```
 
-2. Integrate into the `mark_status` main loop at lines 1340-1352:
+2. Implement column-aware status update:
+   ```python
+   def _update_pipe_table_status(line: str, status: str, header_map: dict[str, int]) -> str:
+       """Update status in a pipe-table row using column-aware targeting.
+
+       Rules:
+       - If a "status" column exists: update only that column
+       - If no "status" column exists but a "parallel" column has [P]/[D]: DO NOT touch it
+       - If no recognized status column: append a status cell
+       """
+       cells = line.split('|')
+       # cells[0] is empty (before first |), cells[-1] is empty (after last |)
+       inner_cells = cells[1:-1]
+
+       status_col = header_map.get('status')
+       parallel_col = header_map.get('parallel')
+
+       if status_col is not None and status_col < len(inner_cells):
+           # Update the status column directly
+           marker = ' [D] ' if status == 'done' else ' [ ] '
+           inner_cells[status_col] = marker
+       elif parallel_col is not None:
+           # Parallel column exists — do NOT corrupt it
+           # Append a new status cell instead
+           new_marker = ' [D] ' if status == 'done' else ' [ ] '
+           inner_cells.append(new_marker)
+       else:
+           # No header info — use last cell if it looks like a status marker
+           last = inner_cells[-1].strip() if inner_cells else ''
+           if re.match(r'\[\s*[PDx ]\s*\]', last):
+               marker = ' [D] ' if status == 'done' else ' [ ] '
+               inner_cells[-1] = marker
+           else:
+               # Append
+               new_marker = ' [D] ' if status == 'done' else ' [ ] '
+               inner_cells.append(new_marker)
+
+       return '|' + '|'.join(inner_cells) + '|'
+   ```
+
+3. Integrate into the `mark_status` main loop:
    ```python
    for task_id in task_ids:
        task_found = False
        for i, line in enumerate(lines):
-           # Strategy 1: Checkbox format (existing)
+           # Strategy 1: Checkbox format (existing, canonical)
            if re.search(rf'-\s*\[[ x]\]\s*{re.escape(task_id)}\b', line):
                lines[i] = re.sub(r'-\s*\[[ x]\]', f'- {new_checkbox}', line)
                updated_tasks.append(task_id)
                task_found = True
                break
 
-           # Strategy 2: Pipe-table format (new)
+           # Strategy 2: Pipe-table format (backward compatibility)
            if _is_pipe_table_task_row(line, task_id):
-               lines[i] = _update_pipe_table_status(line, status)
+               header_map = _parse_pipe_table_header(lines, i)
+               lines[i] = _update_pipe_table_status(line, status, header_map)
                updated_tasks.append(task_id)
                task_found = True
                break
@@ -150,11 +194,14 @@ Active mission artifacts (e.g., `kitty-specs/063-universal-charter-rename/tasks.
            not_found_tasks.append(task_id)
    ```
 
-3. Checkbox detection must come FIRST (it's the canonical format). Pipe-table is a fallback.
+4. Checkbox detection must come FIRST (canonical format). Pipe-table is a fallback.
 
 **Files**: `src/specify_cli/cli/commands/agent/tasks.py`
 
-**Validation**: `| T001 | desc | WP01 | [P] |` with status=done → `| T001 | desc | WP01 | [D] |`
+**Validation**:
+- `| T001 | desc | WP01 | [P] |` with "Parallel" header → `[P]` NOT touched, status appended
+- `| T001 | desc | WP01 | [ ] |` with "Status" header → `[ ]` replaced with `[D]`
+- `| T001 | desc | WP01 |` with no status-like cell → status cell appended
 
 ---
 
@@ -186,7 +233,13 @@ Active mission artifacts (e.g., `kitty-specs/063-universal-charter-rename/tasks.
    - `src/specify_cli/missions/*/command-templates/tasks.md`
    - `src/specify_cli/templates/tasks-template.md` (if exists)
 
-4. If a `tasks-template.md` exists with pipe-table examples in the "Subtask Index" section, that's a reference table (not a tracking format) and can remain as-is. The key change is in the task tracking rows that `mark-status` mutates.
+4. **Important distinction**: The "Subtask Index" pipe-table at the top of `tasks.md` is a **reference table**, not a tracking surface. `mark-status` targets the per-WP **checkbox rows** (e.g., `- [ ] T001 Description`), not the index table. The index table uses `[P]` to indicate parallelism, not status. This distinction must be documented in the template so implementers don't confuse them.
+
+   Add this note to the template:
+   ```markdown
+   Note: The Subtask Index table at the top of tasks.md is a reference table.
+   mark-status targets the per-WP checkbox rows below, not the index.
+   ```
 
 **Files**: `src/specify_cli/missions/software-dev/command-templates/tasks.md` (and any other mission templates)
 
