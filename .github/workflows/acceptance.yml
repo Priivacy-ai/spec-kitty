@@ -1,0 +1,133 @@
+name: Acceptance
+
+on:
+  pull_request:
+    branches:
+      - main
+      - develop
+      - 2.x
+  push:
+    branches:
+      - main
+      - develop
+      - 2.x
+  workflow_dispatch:
+    inputs:
+      candidate_package:
+        description: Optional candidate package under verification
+        required: false
+        default: ""
+        type: string
+      candidate_version:
+        description: Optional candidate version under verification
+        required: false
+        default: ""
+        type: string
+      candidate_source:
+        description: Optional candidate source descriptor
+        required: false
+        default: ""
+        type: string
+      candidate_ref:
+        description: Optional candidate git ref or artifact identifier
+        required: false
+        default: ""
+        type: string
+      verification_profile:
+        description: Verification profile name
+        required: false
+        default: default
+        type: string
+  workflow_call:
+    inputs:
+      candidate_package:
+        required: false
+        type: string
+        default: ""
+      candidate_version:
+        required: false
+        type: string
+        default: ""
+      candidate_source:
+        required: false
+        type: string
+        default: ""
+      candidate_ref:
+        required: false
+        type: string
+        default: ""
+      verification_profile:
+        required: false
+        type: string
+        default: default
+
+concurrency:
+  group: acceptance-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  acceptance:
+    runs-on: ubuntu-latest
+    env:
+      CANDIDATE_PACKAGE: ${{ inputs.candidate_package || '' }}
+      CANDIDATE_VERSION: ${{ inputs.candidate_version || '' }}
+      CANDIDATE_SOURCE: ${{ inputs.candidate_source || '' }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install test and build tooling
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[test,lint]" build
+
+      - name: Apply candidate dependency override
+        if: ${{ env.CANDIDATE_PACKAGE != '' }}
+        run: |
+          set -euo pipefail
+
+          case "${CANDIDATE_SOURCE:-pypi}" in
+            ""|pypi)
+              pip install --upgrade "${CANDIDATE_PACKAGE}==${CANDIDATE_VERSION}"
+              ;;
+            testpypi)
+              pip install --upgrade \
+                --index-url https://test.pypi.org/simple/ \
+                --extra-index-url https://pypi.org/simple \
+                "${CANDIDATE_PACKAGE}==${CANDIDATE_VERSION}"
+              ;;
+            http*|*.whl|git+*)
+              pip install --upgrade "${CANDIDATE_SOURCE}"
+              ;;
+            *)
+              echo "Unsupported candidate_source '${CANDIDATE_SOURCE}'"
+              exit 1
+              ;;
+          esac
+
+      - name: Run shared-library acceptance tests
+        run: |
+          pytest -q \
+            tests/next/test_next_replay_parity_integration.py \
+            tests/next/test_next_command_integration.py \
+            tests/next/test_runtime_bridge_unit.py
+
+      - name: Run tracker import smoke
+        run: |
+          python - <<'PY'
+          import spec_kitty_tracker
+
+          print(f"Loaded spec_kitty_tracker from {spec_kitty_tracker.__file__}")
+          PY
+
+      - name: Build package artifacts
+        run: python -m build --wheel
