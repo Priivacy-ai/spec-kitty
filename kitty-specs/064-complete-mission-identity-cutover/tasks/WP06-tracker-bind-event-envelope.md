@@ -13,7 +13,7 @@ requirement_refs:
 - FR-018
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts were generated on main; completed changes must merge back into main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T033
 - T034
@@ -33,7 +33,7 @@ history:
 authoritative_surface: src/specify_cli/cli/commands/tracker.py
 execution_mode: code_change
 owned_files:
-- src/specify_cli/tracker/**
+- src/specify_cli/tracker/saas_client.py
 - src/specify_cli/cli/commands/tracker.py
 - src/specify_cli/sync/emitter.py
 - src/specify_cli/sync/batch.py
