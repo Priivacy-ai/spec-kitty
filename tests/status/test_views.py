@@ -193,7 +193,7 @@ def test_materialize_if_stale_uses_feature_dir_name_for_derived_paths(
     monkeypatch.setattr(progress_module, "generate_progress_json", _record_progress)
     monkeypatch.setattr(views_module, "materialize", lambda _: snapshot)
 
-    result = materialize_if_stale(feature_dir, tmp_path)
+    result = views_module.materialize_if_stale(feature_dir, tmp_path)
 
     expected_derived = tmp_path / ".kittify" / "derived"
     assert calls == [("write", expected_derived), ("progress", expected_derived)]
