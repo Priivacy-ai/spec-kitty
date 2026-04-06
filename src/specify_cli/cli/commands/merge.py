@@ -344,7 +344,7 @@ def merge(
     dry_run: bool = typer.Option(False, "--dry-run", help="Show what would be done without executing"),
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
-    feature: str = typer.Option(None, "--feature", help="Mission slug when merging from main branch (legacy flag name)"),
+    feature: str = typer.Option(None, "--feature", hidden=True, help="Legacy alias for --mission"),
     resume: bool = typer.Option(False, "--resume", help="Resume is no longer supported"),
     abort: bool = typer.Option(False, "--abort", help="Abort is no longer supported"),
     context_token: str = typer.Option(None, "--context", help="Unused compatibility flag"),
@@ -392,7 +392,7 @@ def merge(
 
     if dry_run:
         if not resolved_feature:
-            error_msg = "Feature slug could not be resolved. Use --feature <slug>."
+            error_msg = "Mission slug could not be resolved. Use --mission <slug>."
             if json_output:
                 print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
             else:
@@ -426,7 +426,7 @@ def merge(
         return
 
     if not resolved_feature:
-        console.print("[red]Error:[/red] Feature slug could not be resolved. Use --feature <slug>.")
+        console.print("[red]Error:[/red] Mission slug could not be resolved. Use --mission <slug>.")
         raise typer.Exit(1)
 
     try:

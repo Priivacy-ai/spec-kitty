@@ -238,7 +238,7 @@ def cleanup_command(
 @app.command(name="mission-resolve")
 def mission_resolve_command(
     wp: Annotated[str, typer.Option("--wp", help="Work package code (e.g., WP01)")],
-    feature: Annotated[str, typer.Option("--feature", help="Feature slug (e.g., 057-feature-name)")],
+    feature: Annotated[str, typer.Option("--mission", "--feature", help="Mission slug (e.g., 057-feature-name)")],
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (default: 'unknown')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output full JSON context (default: token only)")] = False,
 ) -> None:
@@ -251,10 +251,10 @@ def mission_resolve_command(
 
     Examples:
         # Resolve and print token for piping
-        TOKEN=$(spec-kitty context mission-resolve --wp WP01 --feature 057-my-feature)
+        TOKEN=$(spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature)
 
         # Resolve and print full JSON
-        spec-kitty context mission-resolve --wp WP01 --feature 057-my-feature --json
+        spec-kitty context mission-resolve --wp WP01 --mission 057-my-feature --json
     """
     from specify_cli.context import resolve_context, ContextResolutionError
 

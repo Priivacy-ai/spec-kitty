@@ -123,6 +123,31 @@ class TestLoadContext:
             load_context("ctx-INCOMPLETE", tmp_path)
 
 
+class TestMissionFlagInErrorMessage:
+    """Regression tests: error messages use --mission, not --feature (T027)."""
+
+    def test_missing_token_error_uses_mission_flag(self, tmp_path: Path) -> None:
+        """load_context not-found error must say --mission, not --feature."""
+        (tmp_path / ".kittify" / "runtime" / "contexts").mkdir(parents=True)
+
+        with pytest.raises(ContextNotFoundError) as exc_info:
+            load_context("ctx-DOES-NOT-EXIST", tmp_path)
+
+        error_msg = str(exc_info.value)
+        assert "--mission" in error_msg
+        assert "--feature" not in error_msg
+
+    def test_missing_token_error_shows_resolve_command(self, tmp_path: Path) -> None:
+        """load_context not-found error must include the context resolve command."""
+        (tmp_path / ".kittify" / "runtime" / "contexts").mkdir(parents=True)
+
+        with pytest.raises(ContextNotFoundError) as exc_info:
+            load_context("ctx-DOES-NOT-EXIST", tmp_path)
+
+        error_msg = str(exc_info.value)
+        assert "context resolve" in error_msg
+
+
 class TestListContexts:
     """list_contexts enumerates persisted tokens."""
 

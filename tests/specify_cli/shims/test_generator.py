@@ -20,8 +20,8 @@ class TestGenerateShimContent:
     def test_three_non_empty_components(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.rstrip("\n").splitlines()
-        # version marker, invariant line, prohibition line, blank, CLI call
-        assert len(lines) == 5
+        # version marker, invariant line, prohibition line, mission hint, blank, CLI call
+        assert len(lines) == 6
 
     def test_first_line_invariant(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -37,12 +37,12 @@ class TestGenerateShimContent:
 
     def test_fourth_line_is_cli_call(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        # Line 0 is version marker, so CLI call is on line 4
-        fourth = content.splitlines()[4]
-        assert "spec-kitty agent shim implement" in fourth
-        assert "--agent claude" in fourth
-        assert "--raw-args" in fourth
-        assert "$ARGUMENTS" in fourth
+        # Line 0 is version marker, mission hint on line 3, blank on line 4, CLI call on line 5
+        fifth = content.splitlines()[5]
+        assert "spec-kitty agent shim implement" in fifth
+        assert "--agent claude" in fifth
+        assert "--raw-args" in fifth
+        assert "$ARGUMENTS" in fifth
 
     def test_arg_placeholder_substituted(self) -> None:
         content = generate_shim_content("review", "codex", "$PROMPT")
@@ -65,6 +65,22 @@ class TestGenerateShimContent:
         forbidden = ["worktree", "git checkout", "if [", "mkdir"]
         for token in forbidden:
             assert token not in content, f"Workflow logic leaked: {token!r}"
+
+    def test_shim_content_mentions_mission(self) -> None:
+        """Shim content must include --mission guidance for multi-mission repos (T028)."""
+        content = generate_shim_content("tasks", "claude", "$ARGUMENTS")
+        assert "--mission" in content
+
+    def test_shim_content_mission_hint_line(self) -> None:
+        """Mission hint must appear on line 3 (0-indexed) of the shim content (T028)."""
+        content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        lines = content.splitlines()
+        assert lines[3] == "In repos with multiple missions, pass --mission <slug> in your arguments."
+
+    def test_shim_content_version_marker_still_first(self) -> None:
+        """Version marker must still be the first line after adding mission hint (T028)."""
+        content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        assert content.splitlines()[0].startswith("<!-- spec-kitty-command-version:")
 
 
 # ---------------------------------------------------------------------------

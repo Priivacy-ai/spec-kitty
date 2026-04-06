@@ -161,7 +161,7 @@ def resolve_context(
     if not mission_slug:
         msg = (
             "mission_slug is required. Provide the feature slug "
-            "(e.g., --feature 057-canonical-context-architecture-cleanup). "
+            "(e.g., --mission 057-canonical-context-architecture-cleanup). "
             "No scanning or auto-detection is performed."
         )
         raise MissingArgumentError(msg)
@@ -282,11 +282,11 @@ def resolve_or_load(
     if not wp_code:
         missing.append("--wp <WP_CODE>")
     if not mission_slug:
-        missing.append("--feature <FEATURE_SLUG>")
+        missing.append("--mission <MISSION_SLUG>")
 
     msg = (
         f"Missing required argument(s): {', '.join(missing)}. "
-        "Either provide a --context <token> or both --wp and --feature. "
+        "Either provide a --context <token> or both --wp and --mission. "
         "No scanning or auto-detection is performed."
     )
     raise MissingArgumentError(msg)

@@ -23,8 +23,9 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 def research(
     feature: Optional[str] = typer.Option(
         None,
+        "--mission",
         "--feature",
-        help="Mission slug to target (legacy flag name; auto-detected when omitted)",
+        help="Mission slug to target",
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
@@ -55,7 +56,7 @@ def research(
 
     tracker.start("feature")
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         tracker.error("feature", str(exc))
         console.print(tracker.render())

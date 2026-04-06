@@ -274,7 +274,7 @@ def require_explicit_feature(feature: str | None, *, command_hint: str = "") -> 
     """Require an explicit feature slug; raise if not provided.
 
     Replaces heuristic detection.  Every CLI command that needs a feature slug
-    must receive it via ``--feature`` (or equivalent).  No scanning, no env
+    must receive it via ``--mission`` (or equivalent).  No scanning, no env
     var magic, no git branch guessing.
 
     When the feature is missing, scans ``kitty-specs/`` for available features

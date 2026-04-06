@@ -3,6 +3,12 @@
 Verifies that finalize-tasks calls bootstrap_canonical_state() after
 dependency parsing, respects --validate-only with dry_run=True, and
 includes bootstrap stats in JSON output.
+
+WP01 additions (T009):
+- test_validate_only_no_file_writes: --validate-only must not modify WP files
+- test_validate_only_reports_would_modify: JSON output includes would_modify
+- test_non_empty_disagreement_fails: conflicting deps → exit code 1 + diagnostic
+- test_empty_parse_preserves_existing_deps: existing deps survive empty parse
 """
 
 from __future__ import annotations
@@ -303,3 +309,262 @@ class TestBootstrapStatsInJson:
                 continue
 
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
+
+
+# ---------------------------------------------------------------------------
+# WP01 regression tests (T009)
+# ---------------------------------------------------------------------------
+
+
+def _setup_feature_with_existing_deps(
+    tmp_path: Path,
+    mission_slug: str = "060-test-feature",
+    wp02_existing_deps: list[str] | None = None,
+) -> Path:
+    """Create feature where WP02 already has frontmatter dependencies."""
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    (feature_dir / "spec.md").write_text(
+        "---\ntitle: Test Feature\n---\n\n"
+        "## Requirements\n\n"
+        "- FR-001: First requirement\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "tasks.md").write_text(
+        "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
+        encoding="utf-8",
+    )
+    (feature_dir / "meta.json").write_text(
+        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
+    )
+
+    for wp_id, refs in [("WP01", ["FR-001"]), ("WP02", ["FR-001"])]:
+        dep_lines = ""
+        if wp_id == "WP02" and wp02_existing_deps is not None:
+            dep_items = "\n".join(f"  - {d}" for d in wp02_existing_deps)
+            dep_lines = f"dependencies:\n{dep_items}\n" if dep_items else "dependencies: []\n"
+        else:
+            dep_lines = "dependencies: []\n"
+        refs_yaml = "\n".join(f"  - {r}" for r in refs)
+        (tasks_dir / f"{wp_id}-test.md").write_text(
+            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"Test {wp_id}\"\n"
+            f"requirement_refs:\n{refs_yaml}\n"
+            f"{dep_lines}"
+            f"---\n\n# {wp_id}\n",
+            encoding="utf-8",
+        )
+
+    return feature_dir
+
+
+class TestWP01Regressions:
+    """WP01 regression tests (T009)."""
+
+    def test_validate_only_no_file_writes(self, tmp_path: Path) -> None:
+        """--validate-only must not modify WP files (files byte-identical before/after)."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature(tmp_path, mission_slug)
+        tasks_dir = feature_dir / "tasks"
+
+        # Capture checksums before
+        checksums_before = {
+            f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")
+        }
+
+        patches = _common_patches(tmp_path, mission_slug)
+        mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
+        patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        # Capture checksums after — must be identical
+        checksums_after = {
+            f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")
+        }
+        assert checksums_before == checksums_after, (
+            "validate_only=True must not modify any WP files on disk"
+        )
+
+    def test_validate_only_reports_would_modify(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """--validate-only JSON output must include would_modify field."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=True)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+                if data.get("result") == "validation_passed":
+                    assert "would_modify" in data, "JSON must include would_modify"
+                    assert "would_preserve" in data, "JSON must include would_preserve"
+                    assert "unchanged" in data, "JSON must include unchanged"
+                    assert data["validate_only"] is True
+                    return
+            except json.JSONDecodeError:
+                continue
+        pytest.fail("No JSON output with 'result': 'validation_passed' found")
+
+    def test_non_empty_disagreement_fails(self, tmp_path: Path) -> None:
+        """Non-empty dep disagreement between tasks.md and frontmatter → exit 1."""
+        mission_slug = "060-test-feature"
+        # WP02 frontmatter says [WP99] but tasks.md says "Depends on WP01"
+        feature_dir = _setup_feature_with_existing_deps(
+            tmp_path, mission_slug, wp02_existing_deps=["WP99"]
+        )
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        exit_code = None
+        try:
+            finalize_tasks(feature=mission_slug, json_output=False, validate_only=False)
+        except (typer.Exit, SystemExit) as exc:
+            exit_code = getattr(exc, "code", 1) or 1
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        assert exit_code == 1, "Dependency disagreement must exit with code 1"
+
+    def test_empty_parse_preserves_existing_deps(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """When parser finds no deps but frontmatter has deps, preserve existing."""
+        mission_slug = "060-test-feature"
+        # tasks.md declares no dependencies for WP02; frontmatter has [WP01]
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (feature_dir / "spec.md").write_text(
+            "---\ntitle: Test Feature\n---\n\n"
+            "## Requirements\n\n"
+            "- FR-001: First requirement\n",
+            encoding="utf-8",
+        )
+        # tasks.md has no dependency declaration for WP02
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nSome content, no dep line.\n",
+            encoding="utf-8",
+        )
+        (feature_dir / "meta.json").write_text(
+            json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
+        )
+
+        for wp_id, refs in [("WP01", ["FR-001"]), ("WP02", ["FR-001"])]:
+            dep_line = "dependencies: []\n" if wp_id == "WP01" else "dependencies:\n  - WP01\n"
+            refs_yaml = "\n".join(f"  - {r}" for r in refs)
+            (tasks_dir / f"{wp_id}-test.md").write_text(
+                f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"Test {wp_id}\"\n"
+                f"requirement_refs:\n{refs_yaml}\n"
+                f"{dep_line}"
+                f"---\n\n# {wp_id}\n",
+                encoding="utf-8",
+            )
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        # WP02 file should still have WP01 in its dependencies
+        wp02_file = tasks_dir / "WP02-test.md"
+        assert wp02_file.exists()
+        content = wp02_file.read_text(encoding="utf-8")
+        assert "WP01" in content, (
+            "Existing WP01 dependency must be preserved when parser finds nothing"
+        )
+
+    def test_json_reports_modified_unchanged_preserved(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        """Success JSON output must include modified_wps, unchanged_wps, preserved_wps."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
+            return_value=_make_bootstrap_result()
+        )
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+        try:
+            finalize_tasks(feature=mission_slug, json_output=True, validate_only=False)
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+                if data.get("result") == "success":
+                    assert "modified_wps" in data, "JSON must include modified_wps"
+                    assert "unchanged_wps" in data, "JSON must include unchanged_wps"
+                    assert "preserved_wps" in data, "JSON must include preserved_wps"
+                    assert isinstance(data["modified_wps"], list)
+                    assert isinstance(data["unchanged_wps"], list)
+                    assert isinstance(data["preserved_wps"], list)
+                    return
+            except json.JSONDecodeError:
+                continue
+        pytest.fail("No JSON output with 'result': 'success' found")

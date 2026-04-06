@@ -256,3 +256,17 @@ Exceptions discussed case-by-case. Strong justification required.
 - Hard-break policy: do not introduce or preserve `feature*` aliases (API/query params, routes, fields, flags, env vars, command names, or docs) when the domain object is a Mission.
 - Use `Mission` / `Missions` as the only canonical term in active codepaths and interfaces.
 - Historical archived artifacts may retain legacy wording only as immutable snapshots and must be explicitly marked legacy.
+
+### Regression Vigilance (2026-04-06)
+
+The `--feature` → `--mission` rename has been a persistent source of regressions. Mission 065 swept ~45 user-facing references, but the pattern keeps recurring because:
+1. New code copies from old code that still uses `feature` as variable names (the internal Python parameter name is `feature` even when the CLI flag is `--mission`)
+2. Error messages and guidance strings are written ad-hoc without checking the canon
+3. Subagent-implemented code may not see this charter
+
+**Hyper-vigilance rules:**
+- Every PR that adds a new `typer.Option` or `argparse.add_argument` for a mission slug MUST use `--mission` as the primary name. `--feature` is only acceptable as a hidden secondary alias.
+- Every PR that adds an error message mentioning a CLI flag MUST reference `--mission`, not `--feature`.
+- Every PR that adds a command example in templates or docstrings MUST use `--mission`.
+- Code reviewers MUST grep for `--feature` in new/changed lines and reject any non-alias usage.
+- The upstream contract at `src/specify_cli/core/upstream_contract.json` lists `--feature` as a **forbidden CLI flag** for new code. This is authoritative.

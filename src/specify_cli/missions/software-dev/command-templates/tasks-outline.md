@@ -43,7 +43,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding, resolve canonical command context:
 
 ```bash
-spec-kitty agent context resolve --action tasks_outline --json
+spec-kitty agent context resolve --action tasks_outline --mission <mission-slug> --json
 ```
 
 Treat that JSON as canonical for feature slug, feature directory, and target branch.

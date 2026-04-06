@@ -669,7 +669,7 @@ def merge_command(args: argparse.Namespace) -> None:
     if current_branch != feature:
         raise TaskCliError(
             f"Current branch '{current_branch}' does not match detected feature '{feature}'."
-            " Run this command from the feature worktree or specify --feature explicitly."
+            " Run this command from the feature worktree or specify --mission explicitly."
         )
 
     try:
@@ -817,7 +817,7 @@ def build_parser() -> argparse.ArgumentParser:
     rollback.add_argument("--force", action="store_true", help="Ignore other staged work-package files")
 
     status = subparsers.add_parser("status", help="Summarize work packages for a feature")
-    status.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    status.add_argument("--mission", "--feature", help="Mission slug")
     status.add_argument("--json", action="store_true", help="Emit JSON summary")
     status.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     status.add_argument(
@@ -827,7 +827,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     verify = subparsers.add_parser("verify", help="Run acceptance checks without committing")
-    verify.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    verify.add_argument("--mission", "--feature", help="Mission slug")
     verify.add_argument("--json", action="store_true", help="Emit JSON summary")
     verify.add_argument("--lenient", action="store_true", help="Skip strict metadata validation")
     verify.add_argument(
@@ -837,7 +837,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     accept = subparsers.add_parser("accept", help="Perform feature acceptance workflow")
-    accept.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    accept.add_argument("--mission", "--feature", help="Mission slug")
     accept.add_argument("--mode", choices=["auto", "pr", "local", "checklist"], default="auto")
     accept.add_argument("--actor", help="Override acceptance author (defaults to system/user)")
     accept.add_argument("--test", action="append", help="Record validation command executed (repeatable)")
@@ -852,7 +852,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
 
     merge = subparsers.add_parser("merge", help="Merge a feature branch into the target branch")
-    merge.add_argument("--feature", help="Feature directory slug (auto-detect by default)")
+    merge.add_argument("--mission", "--feature", help="Mission slug")
     merge.add_argument("--strategy", choices=["merge", "squash", "rebase"], default="merge")
     merge.add_argument("--target", default=None, help="Target branch to merge into (auto-detected)")
     merge.add_argument("--push", action="store_true", help="Push to origin after merging")

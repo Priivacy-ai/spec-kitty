@@ -4,12 +4,15 @@ from __future__ import annotations
 
 import pytest
 
+from pathlib import Path
+
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 from specify_cli.ownership.validation import (
     ValidationResult,
     validate_all,
     validate_authoritative_surface,
     validate_execution_mode_consistency,
+    validate_glob_matches,
     validate_no_overlap,
     validate_ownership,
 )
@@ -231,3 +234,68 @@ class TestValidateAll:
         assert result.passed
         result.errors.append("some error")
         assert not result.passed
+
+
+# ---------------------------------------------------------------------------
+# T013: validate_glob_matches — warns when globs match zero files
+# ---------------------------------------------------------------------------
+
+
+class TestValidateGlobMatches:
+    def test_nonexistent_glob_emits_warning(self, tmp_path: Path) -> None:
+        """A glob that matches no files must produce a warning."""
+        manifests = {
+            "WP01": _manifest(
+                owned=("nonexistent_dir/**",),
+                surface="nonexistent_dir/",
+            ),
+        }
+        warnings = validate_glob_matches(manifests, tmp_path)
+        assert len(warnings) == 1
+        assert "WP01" in warnings[0]
+        assert "nonexistent_dir/**" in warnings[0]
+
+    def test_existing_glob_no_warning(self, tmp_path: Path) -> None:
+        """A glob that matches at least one file must produce no warning."""
+        # Create a file so the glob matches
+        src_dir = tmp_path / "src" / "module"
+        src_dir.mkdir(parents=True)
+        (src_dir / "foo.py").write_text("# hello")
+
+        manifests = {
+            "WP01": _manifest(owned=("src/**",), surface="src/"),
+        }
+        warnings = validate_glob_matches(manifests, tmp_path)
+        assert warnings == []
+
+    def test_multiple_globs_one_missing_warns(self, tmp_path: Path) -> None:
+        """Only the missing glob gets a warning; existing one is fine."""
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        (src_dir / "present.py").write_text("# present")
+
+        manifests = {
+            "WP01": OwnershipManifest(
+                execution_mode=ExecutionMode.CODE_CHANGE,
+                owned_files=("src/**", "missing_path/**"),
+                authoritative_surface="src/",
+            ),
+        }
+        warnings = validate_glob_matches(manifests, tmp_path)
+        assert len(warnings) == 1
+        assert "missing_path/**" in warnings[0]
+
+    def test_empty_manifests_no_warnings(self, tmp_path: Path) -> None:
+        warnings = validate_glob_matches({}, tmp_path)
+        assert warnings == []
+
+    def test_warnings_sorted_by_wp_id(self, tmp_path: Path) -> None:
+        """Warnings are emitted in sorted WP ID order."""
+        manifests = {
+            "WP02": _manifest(owned=("miss_b/**",), surface="miss_b/"),
+            "WP01": _manifest(owned=("miss_a/**",), surface="miss_a/"),
+        }
+        warnings = validate_glob_matches(manifests, tmp_path)
+        assert len(warnings) == 2
+        assert warnings[0].startswith("WP01")
+        assert warnings[1].startswith("WP02")

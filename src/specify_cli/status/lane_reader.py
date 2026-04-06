@@ -30,7 +30,7 @@ def _require_event_log(feature_dir: Path) -> None:
         slug = feature_dir.name
         raise CanonicalStatusNotFoundError(
             f"Canonical status not found for feature '{slug}'. "
-            f"Run 'spec-kitty agent mission finalize-tasks --feature {slug}' "
+            f"Run 'spec-kitty agent mission finalize-tasks --mission {slug}' "
             f"to bootstrap the event log."
         )
 

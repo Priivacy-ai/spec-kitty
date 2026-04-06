@@ -153,6 +153,33 @@ class TestRequireContextDecorator:
         assert result == "hello world"
 
 
+class TestMissionFlagInErrorMessage:
+    """Regression tests: error messages use --mission, not --feature (T026)."""
+
+    def test_missing_context_error_uses_mission_flag(self) -> None:
+        """get_context error must say --mission, not --feature."""
+        ctx = MagicMock(spec=typer.Context)
+        ctx.obj = {}
+
+        with pytest.raises(typer.BadParameter) as exc_info:
+            get_context(ctx)
+
+        error_msg = str(exc_info.value)
+        assert "--mission" in error_msg
+        assert "--feature" not in error_msg
+
+    def test_missing_context_error_shows_resolve_command(self) -> None:
+        """get_context error must include the context resolve command."""
+        ctx = MagicMock(spec=typer.Context)
+        ctx.obj = {}
+
+        with pytest.raises(typer.BadParameter) as exc_info:
+            get_context(ctx)
+
+        error_msg = str(exc_info.value)
+        assert "context resolve" in error_msg
+
+
 class TestEndToEndTyperApp:
     """Integration test with a real typer app and CliRunner."""
 

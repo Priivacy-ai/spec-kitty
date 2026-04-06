@@ -205,7 +205,7 @@ def run_enhanced_verify(
     # 4. Feature Analysis (only when an explicit feature is provided)
     try:
         if not feature:
-            raise ValueError("No --feature provided; skipping feature analysis.")
+            raise ValueError("No --mission provided; skipping feature analysis.")
         mission_slug = feature.strip()
 
         output_data["feature_detection"] = {

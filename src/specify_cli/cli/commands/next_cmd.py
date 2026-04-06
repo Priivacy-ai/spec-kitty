@@ -23,7 +23,7 @@ def next_step(
     result: Annotated[
         str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
     ] = "success",
-    feature: Annotated[str | None, typer.Option("--feature", "--mission-run", help="Mission run slug (--feature is the legacy alias; use --mission-run)")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", "--mission-run", "--feature", help="Mission slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[
@@ -56,7 +56,7 @@ def next_step(
 
     # Resolve feature slug
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
