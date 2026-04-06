@@ -556,7 +556,7 @@ def _validate_ready_for_review(
         errors="replace",
         check=False
     )
-    uncommitted_in_main = result.stdout.strip()
+    uncommitted_in_main = result.stdout.rstrip()
 
     if uncommitted_in_main:
         # Use the dirty classifier to partition paths into blocking vs. benign.

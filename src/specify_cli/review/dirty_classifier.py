@@ -77,11 +77,13 @@ def _is_benign(path: str, wp_id: str) -> bool:
     if normalised.startswith(".kittify/") or normalised == ".kittify":
         return True
 
-    # 3. Another WP's task file
+    # 3. Any WP task file in kitty-specs/ (planning artifacts, auto-committed by move-task)
+    # All task files are benign in the planning repo context — they are modified
+    # by move-task itself (frontmatter status updates). The blocking category
+    # is reserved for uncommitted source code changes in the execution worktree.
     match = _WP_TASK_PATTERN.search(normalised)
     if match:
-        # Benign iff the WP in the filename differs from the current WP
-        return match.group(1) != wp_id
+        return True
 
     # 4. Root-level tasks.md (auto-updated by mark-status)
     if _ROOT_TASKS_MD_PATTERN.search(normalised):

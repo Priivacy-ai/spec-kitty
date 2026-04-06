@@ -60,14 +60,16 @@ def test_other_wp_task_files_are_benign():
 
 
 # ---------------------------------------------------------------------------
-# 4. Own task file IS blocking
+# 4. Own task file is benign (planning artifact, auto-committed by move-task)
 # ---------------------------------------------------------------------------
 
-def test_own_task_file_is_blocking():
+def test_own_task_file_is_benign():
+    """WP task files are planning artifacts modified by move-task itself.
+    They should not block review handoff even for the current WP."""
     paths = ["kitty-specs/066-test/tasks/WP01-my-feature.md"]
     blocking, benign = _classify(paths, wp_id="WP01")
-    assert blocking == ["kitty-specs/066-test/tasks/WP01-my-feature.md"]
-    assert benign == []
+    assert blocking == []
+    assert benign == ["kitty-specs/066-test/tasks/WP01-my-feature.md"]
 
 
 # ---------------------------------------------------------------------------
@@ -118,9 +120,9 @@ def test_kittify_paths_are_benign():
 def test_mixed_dirty_paths():
     blocking_paths = [
         "src/specify_cli/tasks.py",
-        "kitty-specs/066-test/tasks/WP01-my-feature.md",
     ]
     benign_paths = [
+        "kitty-specs/066-test/tasks/WP01-my-feature.md",
         "kitty-specs/066-test/status.events.jsonl",
         "kitty-specs/066-test/status.json",
         "kitty-specs/066-test/tasks/WP02-other.md",
@@ -156,11 +158,11 @@ def test_root_tasks_md_is_benign():
 
 
 def test_wp_task_file_with_double_digit_wp_id():
-    """Regression: WP10 should be treated as blocking when wp_id=WP10."""
+    """All WP task files are benign planning artifacts, even the current WP's."""
     paths = ["kitty-specs/066-test/tasks/WP10-big-feature.md"]
     blocking, benign = _classify(paths, wp_id="WP10")
-    assert blocking == paths
-    assert benign == []
+    assert blocking == []
+    assert benign == paths
 
 
 def test_wp_task_file_other_double_digit_is_benign():

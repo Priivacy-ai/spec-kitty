@@ -235,6 +235,7 @@ def test_review_prompt_includes_in_repo_path(
     next_cycle_2 = len(existing_cycles_2) + 1
     assert next_cycle_2 == 2
 
-    # 5. The path is NOT under /tmp
-    import tempfile
-    assert not str(review_feedback_path).startswith(tempfile.gettempdir())
+    # 5. The path is under kitty-specs/, not a standalone temp file
+    # (On CI, repo_root itself may be under /tmp, so we check the relative structure)
+    relative = str(review_feedback_path.relative_to(repo_root))
+    assert relative.startswith("kitty-specs/")
