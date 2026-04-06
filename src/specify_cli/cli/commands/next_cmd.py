@@ -56,7 +56,7 @@ def next_step(
 
     # Resolve feature slug
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc

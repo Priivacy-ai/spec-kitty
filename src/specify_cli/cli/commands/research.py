@@ -55,7 +55,7 @@ def research(
 
     tracker.start("feature")
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         tracker.error("feature", str(exc))
         console.print(tracker.render())

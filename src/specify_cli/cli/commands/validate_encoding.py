@@ -75,7 +75,7 @@ def validate_encoding(
 
     # Validate single feature
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--feature <slug>")
+        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc

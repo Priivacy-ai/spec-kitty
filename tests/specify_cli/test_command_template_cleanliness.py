@@ -299,6 +299,55 @@ def test_has_feature_flag_guidance(command: str) -> None:
 # ---------------------------------------------------------------------------
 
 
+# ---------------------------------------------------------------------------
+# T029 / T030: context resolve example includes --mission
+# ---------------------------------------------------------------------------
+
+
+def test_tasks_template_context_resolve_has_mission() -> None:
+    """tasks.md context resolve example must include --mission <mission-slug> (T029)."""
+    content = _template_content("tasks")
+    # The context resolve command example must explicitly show --mission
+    assert "context resolve --action tasks --mission" in content, (
+        "tasks.md context resolve example missing '--mission' - "
+        "agents copy-paste this and immediately fail without it"
+    )
+
+
+@pytest.mark.parametrize("command", ["tasks-packages", "tasks-outline"])
+def test_context_resolve_examples_have_mission(command: str) -> None:
+    """All context resolve examples in planning templates must include --mission (T030)."""
+    content = _template_content(command)
+    # If a template has a context resolve call, it must have --mission
+    if "context resolve" in content:
+        assert "--mission" in content, (
+            f"{command}.md has context resolve call without '--mission' - "
+            f"add --mission <mission-slug> to the context resolve example"
+        )
+
+
+def test_tasks_template_finalize_tasks_has_mission() -> None:
+    """tasks.md finalize-tasks examples must include --mission (T030)."""
+    content = _template_content("tasks")
+    # The validate-only example must have --mission
+    assert "finalize-tasks --validate-only --mission" in content, (
+        "tasks.md finalize-tasks --validate-only example missing '--mission'"
+    )
+
+
+def test_tasks_template_map_requirements_has_mission() -> None:
+    """tasks.md map-requirements examples must include --mission (T030)."""
+    content = _template_content("tasks")
+    assert "map-requirements --batch" in content
+    # Batch mode example must include --mission
+    lines_with_batch = [ln for ln in content.splitlines() if "map-requirements --batch" in ln]
+    assert lines_with_batch, "tasks.md missing map-requirements --batch example"
+    for line in lines_with_batch:
+        assert "--mission" in line, (
+            f"tasks.md map-requirements --batch line missing '--mission': {line.strip()!r}"
+        )
+
+
 def test_tasks_template_has_ownership_guidance() -> None:
     """tasks.md must include WP ownership metadata field guidance.
 

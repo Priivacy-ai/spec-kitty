@@ -97,7 +97,7 @@ def get_context(ctx: typer.Context) -> MissionContext:
     if not isinstance(mission_ctx, MissionContext):
         msg = (
             "No context token provided. "
-            "Run `spec-kitty agent context resolve --wp <WP> --feature <feature>` first, "
+            "Run `spec-kitty agent context resolve --wp <WP> --mission <slug>` first, "
             "then pass the token: --context <token>"
         )
         raise typer.BadParameter(msg)

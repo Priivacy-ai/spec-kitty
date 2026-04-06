@@ -11,6 +11,7 @@ from __future__ import annotations
 import fnmatch
 from dataclasses import dataclass, field
 from itertools import combinations
+from pathlib import Path
 
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
@@ -21,6 +22,7 @@ __all__ = [
     "validate_execution_mode_consistency",
     "validate_all",
     "validate_ownership",
+    "validate_glob_matches",
 ]
 
 # Paths considered "planning only" for execution_mode consistency checks.
@@ -199,3 +201,34 @@ def validate_all(manifests: dict[str, OwnershipManifest]) -> ValidationResult:
 
 # Public alias used by __init__.py
 validate_ownership = validate_all
+
+
+def validate_glob_matches(
+    manifests: dict[str, OwnershipManifest],
+    repo_root: Path,
+) -> list[str]:
+    """Warn when owned_files globs match zero files in the repository.
+
+    This is a soft check — it returns warnings, not errors.  A zero-match
+    glob is not a hard failure because WPs may legitimately target files
+    that do not yet exist (new file creation), but it is suspicious enough
+    to warrant a warning so operators can verify the pattern is correct.
+
+    Args:
+        manifests: Mapping of WP ID to OwnershipManifest.
+        repo_root: Root directory of the repository for glob resolution.
+
+    Returns:
+        List of warning messages.  Empty list means all globs matched at
+        least one file.
+    """
+    warnings: list[str] = []
+    for wp_id in sorted(manifests):
+        manifest = manifests[wp_id]
+        for pattern in manifest.owned_files:
+            if not any(repo_root.glob(pattern)):
+                warnings.append(
+                    f"{wp_id}: owned_files glob '{pattern}' matches "
+                    f"zero files in the repository"
+                )
+    return warnings

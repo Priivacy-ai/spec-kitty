@@ -71,6 +71,7 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
         f"<!-- spec-kitty-command-version: {version} -->\n"
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, or prompt contents.\n"
+        "In repos with multiple missions, pass --mission <slug> in your arguments.\n"
         "\n"
         f'`spec-kitty agent shim {command} --agent {agent_name} --raw-args "{arg_placeholder}"`\n'
     )

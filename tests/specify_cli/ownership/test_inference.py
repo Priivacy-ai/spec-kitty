@@ -5,6 +5,8 @@ from __future__ import annotations
 import pytest
 
 from specify_cli.ownership.inference import (
+    SRC_FALLBACK_GLOB,
+    SRC_FALLBACK_WARNING,
     infer_authoritative_surface,
     infer_execution_mode,
     infer_owned_files,
@@ -78,34 +80,39 @@ class TestInferExecutionMode:
 class TestInferOwnedFiles:
     def test_planning_artifact_defaults_to_feature_glob(self) -> None:
         content = "Update kitty-specs/057-feature/spec.md and plan.md."
-        globs = infer_owned_files(content, "057-my-feature")
+        globs, warnings = infer_owned_files(content, "057-my-feature")
         assert "kitty-specs/057-my-feature/**" in globs
+        assert warnings == []
 
     def test_code_change_extracts_src_paths(self) -> None:
         content = (
             "Create src/specify_cli/ownership/__init__.py\n"
             "Create src/specify_cli/ownership/models.py\n"
         )
-        globs = infer_owned_files(content, "057-feature")
+        globs, warnings = infer_owned_files(content, "057-feature")
         assert any("src/" in g for g in globs)
+        assert warnings == []
 
     def test_code_change_extracts_tests_paths(self) -> None:
         content = "Add tests/specify_cli/ownership/test_models.py"
-        globs = infer_owned_files(content, "057-feature")
+        globs, warnings = infer_owned_files(content, "057-feature")
         assert any("tests" in g for g in globs)
+        assert warnings == []
 
     def test_fallback_when_no_paths_found(self) -> None:
-        """When no path tokens are found in a code_change WP, return src/**."""
+        """When no path tokens are found in a code_change WP, return src/** with warning."""
         content = "Implement the new feature logic."
-        globs = infer_owned_files(content, "057-feature")
+        globs, warnings = infer_owned_files(content, "057-feature")
         assert globs == ["src/**"]
+        assert len(warnings) == 1
+        assert "src/**" in warnings[0]
 
     def test_deduplicates_results(self) -> None:
         content = (
             "Create src/specify_cli/foo.py\n"
             "Create src/specify_cli/bar.py\n"
         )
-        globs = infer_owned_files(content, "057-feature")
+        globs, _warnings = infer_owned_files(content, "057-feature")
         assert len(globs) == len(set(globs))
 
 
@@ -150,19 +157,66 @@ class TestInferAuthoritativeSurface:
 class TestInferOwnership:
     def test_returns_ownership_manifest(self) -> None:
         content = "Create src/specify_cli/ownership/__init__.py"
-        manifest = infer_ownership(content, "057-feature")
+        manifest, warnings = infer_ownership(content, "057-feature")
         assert isinstance(manifest, OwnershipManifest)
         assert manifest.execution_mode == ExecutionMode.CODE_CHANGE
         assert len(manifest.owned_files) > 0
         assert manifest.authoritative_surface != ""
+        assert warnings == []
 
     def test_planning_artifact_manifest(self) -> None:
         content = "Update kitty-specs/057-feature/spec.md and plan.md."
-        manifest = infer_ownership(content, "057-feature")
+        manifest, warnings = infer_ownership(content, "057-feature")
         assert manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT
         assert any("kitty-specs/057-feature" in f for f in manifest.owned_files)
+        assert warnings == []
 
     def test_wp_files_override_contributes(self) -> None:
         content = "Do something."
-        manifest = infer_ownership(content, "057-feature", wp_files=["src/foo.py"])
+        manifest, _warnings = infer_ownership(content, "057-feature", wp_files=["src/foo.py"])
         assert manifest.execution_mode == ExecutionMode.CODE_CHANGE
+
+    def test_fallback_manifest_has_warning(self) -> None:
+        """WP with no file paths → src/** fallback, warning returned."""
+        content = "Implement the new feature logic."
+        manifest, warnings = infer_ownership(content, "057-feature")
+        assert "src/**" in manifest.owned_files
+        assert len(warnings) == 1
+        assert "src/**" in warnings[0]
+
+
+# ---------------------------------------------------------------------------
+# T014: src/** fallback warning
+# ---------------------------------------------------------------------------
+
+
+class TestSrcFallbackWarning:
+    def test_src_fallback_emits_warning(self) -> None:
+        """When no file paths are found, the fallback glob is returned with a warning."""
+        content = "Implement the new feature logic with no paths mentioned."
+        globs, warnings = infer_owned_files(content, "057-feature")
+        assert SRC_FALLBACK_GLOB in globs
+        assert len(warnings) == 1
+        assert SRC_FALLBACK_WARNING in warnings
+
+    def test_explicit_paths_no_fallback_warning(self) -> None:
+        """When explicit paths are found, no fallback warning is emitted."""
+        content = "Create src/specify_cli/ownership/__init__.py with exports."
+        globs, warnings = infer_owned_files(content, "057-feature")
+        # No fallback needed → no warning
+        assert warnings == []
+        # And the glob is not the fallback (or if it matches, src/** was derived,
+        # which would be odd for explicit content — assert no warning is the key check)
+
+    def test_planning_artifact_no_fallback_warning(self) -> None:
+        """Planning artifact WPs return the feature glob, no fallback warning."""
+        content = "Update kitty-specs/057-feature/spec.md and plan.md."
+        globs, warnings = infer_owned_files(content, "057-feature")
+        assert "kitty-specs/057-feature/**" in globs
+        assert warnings == []
+
+    def test_fallback_glob_constant_matches_actual(self) -> None:
+        """SRC_FALLBACK_GLOB constant matches what infer_owned_files returns."""
+        content = "Do something generic with no paths."
+        globs, _warnings = infer_owned_files(content, "057-feature")
+        assert SRC_FALLBACK_GLOB in globs

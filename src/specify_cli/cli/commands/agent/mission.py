@@ -41,6 +41,7 @@ from specify_cli.core.worktree import (
 from specify_cli.frontmatter import read_frontmatter, write_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.ownership import infer_ownership, validate_ownership
+from specify_cli.ownership.validation import validate_glob_matches
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
@@ -1276,7 +1277,8 @@ def finalize_tasks(
         if tasks_md.exists():
             # Read tasks.md and parse dependency mapping (always needed)
             tasks_content = tasks_md.read_text(encoding="utf-8")
-            wp_dependencies = _parse_dependencies_from_tasks_md(tasks_content)
+            from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
+            wp_dependencies = _shared_parse_deps(tasks_content)
 
             # FALLBACK: tasks.md text (backward compat for pre-API projects)
             tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
@@ -1367,6 +1369,12 @@ def finalize_tasks(
 
         updated_count = 0
         work_packages: list[dict[str, object]] = []
+        # Per-WP outcome tracking (T008)
+        modified_wps: list[str] = []
+        unchanged_wps: list[str] = []
+        preserved_wps: list[str] = []
+        # Would-be changes for --validate-only report (T007)
+        would_modify: list[dict[str, object]] = []
         planning_base_branch = target_branch
         merge_target_branch = target_branch
         branch_strategy = (
@@ -1374,6 +1382,40 @@ def finalize_tasks(
             f"During /spec-kitty.implement this WP may branch from a dependency-specific base, "
             f"but completed changes must merge back into {merge_target_branch} unless the human explicitly redirects the landing branch."
         )
+
+        # --- Pre-loop: read all existing frontmatter for conflict detection (T004) ---
+        existing_frontmatter: dict[str, dict[str, object]] = {}
+        for _wp_file in wp_files:
+            _wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", _wp_file.name)
+            if not _wp_id_match:
+                continue
+            _wp_id = _wp_id_match.group(1)
+            try:
+                _fm, _ = read_frontmatter(_wp_file)
+                existing_frontmatter[_wp_id] = _fm
+            except Exception:
+                existing_frontmatter[_wp_id] = {}
+
+        # --- Dependency conflict detection (T004: disagree-loud) ---
+        dep_conflict_errors: list[str] = []
+        for wp_id_chk, parsed_deps in wp_dependencies.items():
+            existing_deps_raw = existing_frontmatter.get(wp_id_chk, {}).get("dependencies", [])
+            existing_deps: list[str] = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
+            if existing_deps and parsed_deps and set(existing_deps) != set(parsed_deps):
+                dep_conflict_errors.append(
+                    f"{wp_id_chk}: frontmatter has {sorted(existing_deps)}, "
+                    f"tasks.md parsed {sorted(parsed_deps)}. "
+                    f"Resolve the disagreement in tasks.md or WP frontmatter before finalizing."
+                )
+        if dep_conflict_errors:
+            error_msg = "Dependency disagreement detected:\n" + "\n".join(dep_conflict_errors)
+            if json_output:
+                _emit_json({"error": error_msg, "dependency_conflicts": dep_conflict_errors})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        all_ownership_warnings: list[str] = []
 
         for wp_file in wp_files:
             # Extract WP ID from filename
@@ -1401,8 +1443,17 @@ def finalize_tasks(
                 console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
                 continue
 
-            # Get dependencies for this WP (default to empty list)
-            deps = wp_dependencies.get(wp_id, [])
+            # --- Dependency resolution with preserve-existing (T004) ---
+            parsed_deps = wp_dependencies.get(wp_id, [])
+            existing_deps_raw = frontmatter.get("dependencies", [])
+            existing_deps = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
+            if not parsed_deps and existing_deps:
+                # Parser found nothing but frontmatter has deps — preserve existing
+                deps = existing_deps
+                preserved_wps.append(wp_id)
+            else:
+                deps = parsed_deps
+
             requirement_refs = wp_requirement_refs.get(wp_id, [])
             title = (frontmatter.get("title") or "").strip() or wp_id
             work_packages.append(
@@ -1415,46 +1466,64 @@ def finalize_tasks(
             )
 
             frontmatter_changed = False
+            changed_fields: dict[str, object] = {}
 
             # Update frontmatter with dependencies + requirement refs
             if not has_dependencies_line or frontmatter.get("dependencies") != deps:
+                changed_fields["dependencies"] = deps
                 frontmatter["dependencies"] = deps
                 frontmatter_changed = True
 
             if frontmatter.get("planning_base_branch") != planning_base_branch:
+                changed_fields["planning_base_branch"] = planning_base_branch
                 frontmatter["planning_base_branch"] = planning_base_branch
                 frontmatter_changed = True
 
             if frontmatter.get("merge_target_branch") != merge_target_branch:
+                changed_fields["merge_target_branch"] = merge_target_branch
                 frontmatter["merge_target_branch"] = merge_target_branch
                 frontmatter_changed = True
 
             if frontmatter.get("branch_strategy") != branch_strategy:
+                changed_fields["branch_strategy"] = branch_strategy
                 frontmatter["branch_strategy"] = branch_strategy
                 frontmatter_changed = True
 
             if not has_requirement_refs_line or frontmatter.get("requirement_refs") != requirement_refs:
+                changed_fields["requirement_refs"] = requirement_refs
                 frontmatter["requirement_refs"] = requirement_refs
                 frontmatter_changed = True
 
             # Ownership manifest: infer missing fields, write to frontmatter
             if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
                 wp_raw_content = wp_file.read_text(encoding="utf-8")
-                ownership = infer_ownership(wp_raw_content, mission_slug)
+                ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
+                all_ownership_warnings.extend(infer_warnings)
                 if not frontmatter.get("execution_mode"):
+                    changed_fields["execution_mode"] = str(ownership.execution_mode)
                     frontmatter["execution_mode"] = str(ownership.execution_mode)
                     frontmatter_changed = True
                 if not frontmatter.get("owned_files"):
+                    changed_fields["owned_files"] = list(ownership.owned_files)
                     frontmatter["owned_files"] = list(ownership.owned_files)
                     frontmatter_changed = True
                 if not frontmatter.get("authoritative_surface"):
+                    changed_fields["authoritative_surface"] = ownership.authoritative_surface
                     frontmatter["authoritative_surface"] = ownership.authoritative_surface
                     frontmatter_changed = True
 
             if frontmatter_changed:
-                # Write updated frontmatter
-                write_frontmatter(wp_file, frontmatter, body)
+                # Gate ALL file writes on validate_only (T006)
+                if not validate_only:
+                    write_frontmatter(wp_file, frontmatter, body)
+                else:
+                    would_modify.append({"wp_id": wp_id, "changes": changed_fields})
                 updated_count += 1
+                if wp_id not in preserved_wps:
+                    modified_wps.append(wp_id)
+            else:
+                if wp_id not in preserved_wps:
+                    unchanged_wps.append(wp_id)
 
         # Validate ownership manifests across all WPs (hard errors block finalization)
         wp_manifests: dict[str, object] = {}
@@ -1488,6 +1557,13 @@ def finalize_tasks(
                     for err in ownership_result.errors:
                         console.print(f"  - {err}")
                 raise typer.Exit(1)
+
+            # Soft check: warn when owned_files globs match zero files (T013)
+            glob_warnings = validate_glob_matches(wp_manifests, repo_root)  # type: ignore[arg-type]
+            all_ownership_warnings.extend(glob_warnings)
+            if not json_output:
+                for warning in glob_warnings:
+                    console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
 
         # Prepare metadata for event emission
         mission_slug = feature_dir.name
@@ -1532,10 +1608,13 @@ def finalize_tasks(
                     wp_bodies=wp_bodies,
                     mission_id=meta.get("mission_id") if meta else None,
                 )
+                _cr_dry = lanes_manifest_dry.collapse_report
                 lanes_stats = {
                     "computed": True,
                     "count": len(lanes_manifest_dry.lanes),
                     "lane_ids": [l.lane_id for l in lanes_manifest_dry.lanes],
+                    "planning_artifact_wps": lanes_manifest_dry.planning_artifact_wps,
+                    "collapse_report": _cr_dry.to_dict() if _cr_dry else None,
                 }
 
             if json_output:
@@ -1543,11 +1622,15 @@ def finalize_tasks(
                     {
                         "result": "validation_passed",
                         "mission_slug": mission_slug,
-                        "mission_slug": mission_slug,
                         "wp_count": len(work_packages),
                         "validate_only": True,
+                        "would_modify": would_modify,
+                        "would_preserve": preserved_wps,
+                        "unchanged": unchanged_wps,
+                        "updated_wp_count": updated_count,
                         "bootstrap": bootstrap_stats,
                         "lanes": lanes_stats,
+                        "ownership_warnings": all_ownership_warnings,
                         "message": "All validations passed. Run without --validate-only to commit.",
                     }
                 )
@@ -1555,9 +1638,16 @@ def finalize_tasks(
                 console.print("[green]✓[/green] All validations passed (--validate-only mode, no commit)")
                 console.print(f"  Mission: {mission_slug}")
                 console.print(f"  WPs validated: {len(work_packages)}")
+                console.print(f"  Would modify: {len(would_modify)} WP(s), preserve: {len(preserved_wps)}, unchanged: {len(unchanged_wps)}")
                 console.print(f"  Bootstrap: {bootstrap_result.newly_seeded} WPs would be seeded, {bootstrap_result.already_initialized} already initialized")
                 if lanes_stats.get("computed"):
                     console.print(f"  Lanes: {lanes_stats['count']} lane(s) would be computed")
+                    _cr_info = lanes_stats.get("collapse_report")
+                    if _cr_info and _cr_info.get("independent_wps_collapsed", 0) > 0:
+                        console.print(
+                            f"[yellow]⚠[/yellow] {_cr_info['independent_wps_collapsed']} independent WP pair(s) "
+                            f"collapsed into same lane. Run with --json to see details."
+                        )
             return
 
         # Bootstrap canonical status state for all WPs
@@ -1587,6 +1677,14 @@ def finalize_tasks(
             lanes_path = write_lanes_json(feature_dir, lanes_manifest)
             if not json_output:
                 console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
+                if (
+                    lanes_manifest.collapse_report
+                    and lanes_manifest.collapse_report.independent_wps_collapsed > 0
+                ):
+                    console.print(
+                        f"[yellow]⚠[/yellow] {lanes_manifest.collapse_report.independent_wps_collapsed} "
+                        f"independent WP pair(s) collapsed into same lane. Run with --json to see details."
+                    )
 
             # Compute parallelization risk report
             from specify_cli.policy.config import load_policy_config
@@ -1743,6 +1841,9 @@ def finalize_tasks(
                     "result": "success",
                     "wp_count": len(work_packages),
                     "updated_wp_count": updated_count,
+                    "modified_wps": modified_wps,
+                    "unchanged_wps": unchanged_wps,
+                    "preserved_wps": preserved_wps,
                     "tasks_dir": str(tasks_dir),
                     "commit_created": commit_created,
                     "commit_hash": commit_hash,
@@ -1758,7 +1859,14 @@ def finalize_tasks(
                         "computed": lanes_manifest is not None,
                         "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
                         "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_manifest else [],
+                        "planning_artifact_wps": lanes_manifest.planning_artifact_wps if lanes_manifest else [],
+                        "collapse_report": (
+                            lanes_manifest.collapse_report.to_dict()
+                            if lanes_manifest and lanes_manifest.collapse_report
+                            else None
+                        ),
                     },
+                    "ownership_warnings": all_ownership_warnings,
                 }
             )
 

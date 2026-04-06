@@ -9,6 +9,9 @@ Covers:
 - commit_created is True on first run, False on idempotent second run
 - files_committed includes tasks.md and WP file paths
 - all 6 required JSON fields are present and correctly typed
+
+WP01 additions (T009):
+- test_json_reports_modified_unchanged_preserved: three categories in JSON output
 """
 
 from __future__ import annotations
@@ -279,3 +282,33 @@ class TestFinalizeTasks:
         assert isinstance(payload["files_committed"], list)
         assert isinstance(payload["updated_wp_count"], int)
         assert isinstance(payload["tasks_dir"], str)
+
+    def test_json_reports_modified_unchanged_preserved(self, tmp_path: Path) -> None:
+        """Success JSON output must include modified_wps, unchanged_wps, preserved_wps (T008/T009)."""
+        # Arrange
+        feature_dir, _ = _build_feature(tmp_path)
+
+        # Act
+        with (
+            patch("specify_cli.cli.commands.agent.mission.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.agent.mission._find_feature_directory", return_value=feature_dir),
+            patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main")),
+            patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True),
+            patch("specify_cli.cli.commands.agent.mission.run_command", side_effect=_make_run_command("M tasks.md")),
+            patch("specify_cli.cli.commands.agent.mission.get_emitter"),
+        ):
+            result = runner.invoke(app, ["finalize-tasks", "--json"])
+
+        # Assert
+        assert result.exit_code == 0, result.stdout
+        import json as _json
+
+        lines = [l for l in result.stdout.splitlines() if l.strip().startswith("{")]
+        payload = _json.loads(lines[-1])
+        assert payload.get("result") == "success"
+        assert "modified_wps" in payload, "JSON must include modified_wps"
+        assert "unchanged_wps" in payload, "JSON must include unchanged_wps"
+        assert "preserved_wps" in payload, "JSON must include preserved_wps"
+        assert isinstance(payload["modified_wps"], list)
+        assert isinstance(payload["unchanged_wps"], list)
+        assert isinstance(payload["preserved_wps"], list)
