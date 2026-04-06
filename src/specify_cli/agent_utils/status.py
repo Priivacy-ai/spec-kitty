@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
 console = Console()
@@ -135,7 +136,8 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         planned_count = len(by_lane["planned"])
         blocked_count = len(by_lane["blocked"])
         canceled_count = len(by_lane["canceled"])
-        progress_pct = round((done_count / total * 100), 1) if total > 0 else 0
+        progress_result = compute_weighted_progress(snapshot)
+        progress_pct = round(progress_result.percentage, 1)
 
         # Analyze parallelization opportunities
         done_wp_ids = {wp["id"] for wp in by_lane["done"]}

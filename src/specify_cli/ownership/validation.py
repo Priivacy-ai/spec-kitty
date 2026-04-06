@@ -4,11 +4,15 @@ Validates that:
 - No two WPs have overlapping owned_files glob patterns.
 - Each WP's authoritative_surface is a prefix of at least one owned_files entry.
 - execution_mode is consistent with the owned_files paths (warnings only).
+
+Codebase-wide WPs (scope == "codebase-wide") are exempt from overlap,
+authoritative-surface, and execution-mode consistency checks.
 """
 
 from __future__ import annotations
 
 import fnmatch
+import logging
 from dataclasses import dataclass, field
 from itertools import combinations
 from pathlib import Path
@@ -24,6 +28,8 @@ __all__ = [
     "validate_ownership",
     "validate_glob_matches",
 ]
+
+logger = logging.getLogger(__name__)
 
 # Paths considered "planning only" for execution_mode consistency checks.
 _PLANNING_PREFIXES = ("kitty-specs/", "docs/")
@@ -81,6 +87,9 @@ def _globs_overlap(pattern_a: str, pattern_b: str) -> bool:
 def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
     """Check that no two WPs have overlapping owned_files glob patterns.
 
+    Codebase-wide WPs are excluded from overlap checks because they are
+    expected to overlap with everything -- that is their purpose.
+
     Args:
         manifests: Mapping of WP ID (e.g. ``"WP01"``) to its OwnershipManifest.
 
@@ -88,11 +97,20 @@ def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
         List of error messages.  Empty list means no overlaps detected.
     """
     errors: list[str] = []
-    wp_ids = list(manifests.keys())
+
+    # Filter out codebase-wide WPs -- they are allowed to overlap with anything.
+    narrow_manifests = {
+        wp_id: m for wp_id, m in manifests.items() if not m.is_codebase_wide
+    }
+    skipped = set(manifests.keys()) - set(narrow_manifests.keys())
+    for wp_id in sorted(skipped):
+        logger.info("Skipping overlap check for %s (codebase-wide scope)", wp_id)
+
+    wp_ids = list(narrow_manifests.keys())
 
     for wp_a, wp_b in combinations(wp_ids, 2):
-        manifest_a = manifests[wp_a]
-        manifest_b = manifests[wp_b]
+        manifest_a = narrow_manifests[wp_a]
+        manifest_b = narrow_manifests[wp_b]
 
         for glob_a in manifest_a.owned_files:
             for glob_b in manifest_b.owned_files:
@@ -108,12 +126,18 @@ def validate_no_overlap(manifests: dict[str, OwnershipManifest]) -> list[str]:
 def validate_authoritative_surface(manifest: OwnershipManifest) -> list[str]:
     """Check that authoritative_surface is a prefix of at least one owned_files entry.
 
+    Codebase-wide WPs are skipped -- they may have broad authoritative_surface
+    values like ``"/"`` that do not follow the narrow prefix convention.
+
     Args:
         manifest: The OwnershipManifest to validate.
 
     Returns:
         List of error messages.  Empty list means the manifest is valid.
     """
+    if manifest.is_codebase_wide:
+        return []
+
     errors: list[str] = []
     surface = manifest.authoritative_surface
 
@@ -136,7 +160,8 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
     """Warn when owned_files are inconsistent with execution_mode.
 
     These are warnings, not hard errors, because users can manually override
-    inferred values.
+    inferred values.  Codebase-wide WPs are exempt because an audit WP may
+    legitimately mix code and planning paths.
 
     Args:
         manifest: The OwnershipManifest to check.
@@ -144,6 +169,9 @@ def validate_execution_mode_consistency(manifest: OwnershipManifest) -> list[str
     Returns:
         List of warning messages.  Empty list means no inconsistencies found.
     """
+    if manifest.is_codebase_wide:
+        return []
+
     warnings: list[str] = []
 
     if manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:

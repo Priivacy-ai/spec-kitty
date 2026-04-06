@@ -54,6 +54,7 @@ class FrontmatterManager:
         "assignee",
         "agent",
         "shell_pid",
+        "scope",  # Optional: "codebase-wide" for audit/cutover WPs that need whole-repo access
         "history",
     ]
 

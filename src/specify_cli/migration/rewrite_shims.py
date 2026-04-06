@@ -1,9 +1,9 @@
-"""Regenerate all agent command files (CLI shims + prompt-driven templates).
+"""Regenerate all agent command files (CLI commands + prompt-driven templates).
 
 Writes all 16 consumer-facing command files for every configured agent:
 
-- **CLI-driven** commands (7): thin 3-line shims delegating to
-  ``spec-kitty agent shim <command>``.
+- **CLI-driven** commands (7): thin command files calling canonical
+  ``spec-kitty`` commands directly (e.g. ``spec-kitty agent action implement``).
 - **Prompt-driven** commands (9): full rendered prompt templates from
   the package-bundled mission command-templates.
 

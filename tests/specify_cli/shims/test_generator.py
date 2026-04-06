@@ -1,15 +1,62 @@
-"""Tests for shims/generator.py — shim content and file generation."""
+"""Tests for shims/generator.py -- direct canonical command generation."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from specify_cli.shims.generator import (
     AGENT_ARG_PLACEHOLDERS,
+    _canonical_command,
     generate_shim_content,
     generate_all_shims,
 )
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS, CONSUMER_SKILLS, PROMPT_DRIVEN_COMMANDS
+
+
+# ---------------------------------------------------------------------------
+# _canonical_command
+# ---------------------------------------------------------------------------
+
+class TestCanonicalCommand:
+    def test_implement(self) -> None:
+        cmd = _canonical_command("implement", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty agent action implement $ARGUMENTS --agent claude"
+
+    def test_review(self) -> None:
+        cmd = _canonical_command("review", "codex", "$PROMPT")
+        assert cmd == "spec-kitty agent action review $PROMPT --agent codex"
+
+    def test_accept(self) -> None:
+        cmd = _canonical_command("accept", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty agent mission accept $ARGUMENTS"
+
+    def test_status(self) -> None:
+        cmd = _canonical_command("status", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty agent tasks status $ARGUMENTS"
+
+    def test_merge(self) -> None:
+        cmd = _canonical_command("merge", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty merge $ARGUMENTS"
+
+    def test_dashboard(self) -> None:
+        cmd = _canonical_command("dashboard", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty dashboard $ARGUMENTS"
+
+    def test_tasks_finalize(self) -> None:
+        cmd = _canonical_command("tasks-finalize", "claude", "$ARGUMENTS")
+        assert cmd == "spec-kitty agent mission finalize-tasks $ARGUMENTS"
+
+    def test_unknown_raises_value_error(self) -> None:
+        with pytest.raises(ValueError, match="Unknown CLI-driven command"):
+            _canonical_command("nonexistent", "claude", "$ARGUMENTS")
+
+    def test_all_cli_driven_commands_mapped(self) -> None:
+        """Every command in CLI_DRIVEN_COMMANDS must have a canonical mapping."""
+        for cmd in CLI_DRIVEN_COMMANDS:
+            result = _canonical_command(cmd, "claude", "$ARGUMENTS")
+            assert "spec-kitty" in result
 
 
 # ---------------------------------------------------------------------------
@@ -35,50 +82,51 @@ class TestGenerateShimContent:
         second = content.splitlines()[2]
         assert second == "Do not rediscover context from branches, files, or prompt contents."
 
-    def test_fourth_line_is_cli_call(self) -> None:
+    def test_direct_implement_command(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        # Line 0 is version marker, mission hint on line 3, blank on line 4, CLI call on line 5
-        fifth = content.splitlines()[5]
-        assert "spec-kitty agent shim implement" in fifth
-        assert "--agent claude" in fifth
-        assert "--raw-args" in fifth
-        assert "$ARGUMENTS" in fifth
+        assert "spec-kitty agent action implement $ARGUMENTS --agent claude" in content
+
+    def test_direct_review_command(self) -> None:
+        content = generate_shim_content("review", "codex", "$PROMPT")
+        assert "spec-kitty agent action review $PROMPT --agent codex" in content
+
+    def test_direct_accept_command(self) -> None:
+        content = generate_shim_content("accept", "claude", "$ARGUMENTS")
+        assert "spec-kitty agent mission accept $ARGUMENTS" in content
+
+    def test_no_shim_dispatch(self) -> None:
+        """Generated content must NOT reference the old shim dispatch path."""
+        for cmd in CLI_DRIVEN_COMMANDS:
+            content = generate_shim_content(cmd, "claude", "$ARGUMENTS")
+            assert "agent shim" not in content
 
     def test_arg_placeholder_substituted(self) -> None:
         content = generate_shim_content("review", "codex", "$PROMPT")
         assert "$PROMPT" in content
         assert "$ARGUMENTS" not in content
 
-    def test_command_verb_in_cli_call(self) -> None:
-        for skill in ["specify", "plan", "tasks", "implement", "review", "merge"]:
-            content = generate_shim_content(skill, "claude", "$ARGUMENTS")
-            assert f"spec-kitty agent shim {skill}" in content
-
-    def test_agent_name_in_cli_call(self) -> None:
+    def test_agent_name_in_implement_review(self) -> None:
         for agent in ["claude", "codex", "opencode", "gemini"]:
             content = generate_shim_content("implement", agent, "$ARGUMENTS")
             assert f"--agent {agent}" in content
 
     def test_no_workflow_logic(self) -> None:
-        """Shim must not contain workflow keywords like 'if', 'git', 'worktree'."""
+        """Command files must not contain workflow keywords."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         forbidden = ["worktree", "git checkout", "if [", "mkdir"]
         for token in forbidden:
             assert token not in content, f"Workflow logic leaked: {token!r}"
 
     def test_shim_content_mentions_mission(self) -> None:
-        """Shim content must include --mission guidance for multi-mission repos (T028)."""
-        content = generate_shim_content("tasks", "claude", "$ARGUMENTS")
+        content = generate_shim_content("status", "claude", "$ARGUMENTS")
         assert "--mission" in content
 
     def test_shim_content_mission_hint_line(self) -> None:
-        """Mission hint must appear on line 3 (0-indexed) of the shim content (T028)."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
         assert lines[3] == "In repos with multiple missions, pass --mission <slug> in your arguments."
 
     def test_shim_content_version_marker_still_first(self) -> None:
-        """Version marker must still be the first line after adding mission hint (T028)."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         assert content.splitlines()[0].startswith("<!-- spec-kitty-command-version:")
 
@@ -133,13 +181,13 @@ class TestGenerateAllShims:
 
         written = generate_all_shims(tmp_path)
 
-        # Only CLI-driven skills should get shim files — not prompt-driven ones
+        # Only CLI-driven skills should get command files
         written_names = {p.name for p in written}
         for skill in CLI_DRIVEN_COMMANDS:
             assert f"spec-kitty.{skill}.md" in written_names
 
     def test_prompt_driven_skills_not_written(self, tmp_path: Path) -> None:
-        """Prompt-driven commands must NOT receive shim files."""
+        """Prompt-driven commands must NOT receive command files."""
         _setup_kittify_config(tmp_path, ["claude"])
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
         generate_all_shims(tmp_path)
@@ -147,18 +195,17 @@ class TestGenerateAllShims:
         cmd_dir = tmp_path / ".claude" / "commands"
         for skill in PROMPT_DRIVEN_COMMANDS:
             assert not (cmd_dir / f"spec-kitty.{skill}.md").exists(), (
-                f"Prompt-driven skill '{skill}' should not get a shim file"
+                f"Prompt-driven skill '{skill}' should not get a command file"
             )
 
     def test_generates_exactly_seven_files_per_agent(self, tmp_path: Path) -> None:
-        """generate_all_shims produces exactly 7 shim files per configured agent."""
         _setup_kittify_config(tmp_path, ["claude"])
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
         written = generate_all_shims(tmp_path)
         assert len(written) == len(CLI_DRIVEN_COMMANDS)
         assert len(CLI_DRIVEN_COMMANDS) == 7
 
-    def test_files_have_correct_content(self, tmp_path: Path) -> None:
+    def test_files_have_direct_commands(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
         generate_all_shims(tmp_path)
@@ -168,7 +215,8 @@ class TestGenerateAllShims:
         content = impl_file.read_text(encoding="utf-8")
         assert "Run this exact command and treat its output as authoritative." in content
         assert "Do not rediscover context" in content
-        assert "spec-kitty agent shim implement" in content
+        assert "spec-kitty agent action implement" in content
+        assert "agent shim" not in content
 
     def test_correct_placeholder_per_agent(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude", "codex"])
@@ -189,15 +237,12 @@ class TestGenerateAllShims:
         assert result == sorted(result)
 
     def test_unconfigured_agent_not_written(self, tmp_path: Path) -> None:
-        """Agents not in config.yaml should not get shim files."""
         _setup_kittify_config(tmp_path, ["claude"])
-        # Pre-create a codex directory (orphaned)
         (tmp_path / ".codex" / "prompts").mkdir(parents=True)
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
 
         generate_all_shims(tmp_path)
 
-        # codex dir was pre-existing but NOT configured — no spec-kitty shims
         codex_impl = tmp_path / ".codex" / "prompts" / "spec-kitty.implement.md"
         assert not codex_impl.exists()
 

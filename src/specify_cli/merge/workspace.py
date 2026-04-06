@@ -7,9 +7,18 @@ checked-out branch is never changed.
 
 from __future__ import annotations
 
+import logging
+import os
 import shutil
 import subprocess
+import sys
+import time
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+# Files in the runtime directory that must survive cleanup for recovery.
+_PRESERVED_FILES = {"state.json", "lock"}
 
 __all__ = [
     "create_merge_workspace",
@@ -17,6 +26,7 @@ __all__ = [
     "get_merge_workspace",
     "get_merge_workspace_path",
     "get_merge_runtime_dir",
+    "_worktree_removal_delay",
 ]
 
 
@@ -65,8 +75,24 @@ def create_merge_workspace(mission_id: str, target_branch: str, repo_root: Path)
     return workspace_path
 
 
+def _worktree_removal_delay() -> float:
+    """Return the delay (in seconds) between worktree removals.
+
+    macOS FSEvents needs time to catch up after worktree removal;
+    configurable via SPEC_KITTY_WORKTREE_REMOVAL_DELAY env var.
+    """
+    env_val = os.environ.get("SPEC_KITTY_WORKTREE_REMOVAL_DELAY")
+    if env_val is not None:
+        return float(env_val)
+    return 2.0 if sys.platform == "darwin" else 0.0
+
+
 def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
-    """Remove the dedicated merge worktree and per-mission runtime directory.
+    """Remove the dedicated merge worktree and non-state runtime artifacts.
+
+    Preserves ``state.json`` and ``lock`` files in the runtime directory so
+    that interrupted merges can be resumed.  Call :func:`clear_state` after
+    confirmed full completion to remove the state file.
 
     Args:
         mission_id: Mission/feature slug identifier
@@ -90,10 +116,23 @@ def cleanup_merge_workspace(mission_id: str, repo_root: Path) -> None:
                 capture_output=True,
                 check=False,
             )
+    elif logger.isEnabledFor(logging.DEBUG):
+        logger.debug("Workspace %s does not exist, skipping worktree removal", workspace_path)
 
-    # Remove entire per-mission runtime directory
+    # Selectively delete runtime directory contents, preserving state files.
     if runtime_dir.exists():
-        shutil.rmtree(runtime_dir, ignore_errors=True)
+        for child in list(runtime_dir.iterdir()):
+            if child.name in _PRESERVED_FILES:
+                continue
+            if child.is_dir():
+                shutil.rmtree(child, ignore_errors=True)
+            else:
+                child.unlink(missing_ok=True)
+
+        # Remove the directory itself only if it is now truly empty
+        remaining = list(runtime_dir.iterdir())
+        if not remaining:
+            runtime_dir.rmdir()
 
 
 def get_merge_workspace(mission_id: str, repo_root: Path) -> Path | None:

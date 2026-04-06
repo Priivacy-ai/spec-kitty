@@ -4,7 +4,6 @@ import typer
 from typing_extensions import Annotated
 
 from . import config, mission, tasks, context, release, workflow, status
-from specify_cli.cli.commands import shim as shim_module
 
 app = typer.Typer(
     name="agent",
@@ -21,7 +20,6 @@ app.add_typer(context.app, name="context")
 app.add_typer(release.app, name="release")
 app.add_typer(workflow.app, name="action", help="Mission action commands that display prompts and instructions for agents")
 app.add_typer(status.app, name="status")
-app.add_typer(shim_module.app, name="shim")
 
 
 @app.command(name="check-prerequisites", hidden=True)

@@ -11,6 +11,10 @@ from enum import StrEnum
 from typing import Any
 
 
+# Sentinel for the codebase-wide scope value used in WP frontmatter.
+SCOPE_CODEBASE_WIDE = "codebase-wide"
+
+
 class ExecutionMode(StrEnum):
     """Execution mode of a work package.
 
@@ -32,11 +36,20 @@ class OwnershipManifest:
         owned_files: Tuple of glob patterns describing files owned by this WP.
         authoritative_surface: Path prefix that is the primary surface owned by
             this WP (e.g. ``src/specify_cli/ownership/``).
+        scope: Optional scope declaration. When set to ``"codebase-wide"``, the WP
+            is an audit/cutover WP that legitimately touches the entire repository.
+            Ownership validation is relaxed for such WPs.
     """
 
     execution_mode: ExecutionMode
     owned_files: tuple[str, ...]  # Glob patterns
     authoritative_surface: str  # Path prefix
+    scope: str | None = None  # "codebase-wide" or None (narrow/default)
+
+    @property
+    def is_codebase_wide(self) -> bool:
+        """Return True if this WP has codebase-wide scope."""
+        return self.scope == SCOPE_CODEBASE_WIDE
 
     @classmethod
     def from_frontmatter(cls, data: dict[str, Any]) -> OwnershipManifest:
@@ -44,7 +57,7 @@ class OwnershipManifest:
 
         Args:
             data: Dictionary with keys ``execution_mode``, ``owned_files``,
-                and ``authoritative_surface``.
+                and ``authoritative_surface``. Optionally ``scope``.
 
         Returns:
             A new OwnershipManifest instance.
@@ -62,11 +75,13 @@ class OwnershipManifest:
         owned_files = tuple(raw_files)
 
         authoritative_surface = data.get("authoritative_surface", "")
+        scope = data.get("scope") or None
 
         return cls(
             execution_mode=execution_mode,
             owned_files=owned_files,
             authoritative_surface=authoritative_surface,
+            scope=scope,
         )
 
     def to_frontmatter(self) -> dict[str, Any]:
@@ -75,8 +90,11 @@ class OwnershipManifest:
         Returns:
             Dictionary suitable for writing into YAML frontmatter.
         """
-        return {
+        result: dict[str, Any] = {
             "execution_mode": str(self.execution_mode),
             "owned_files": list(self.owned_files),
             "authoritative_surface": self.authoritative_surface,
         }
+        if self.scope is not None:
+            result["scope"] = self.scope
+        return result

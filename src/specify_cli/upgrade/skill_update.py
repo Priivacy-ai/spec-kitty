@@ -27,7 +27,9 @@ See also: agent-path-matrix.md in the setup-doctor skill references.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
+from fnmatch import fnmatch
 from pathlib import Path
 
 # All possible skill root directories from agent-path-matrix.md.
@@ -117,16 +119,25 @@ def find_skill_files(
 def apply_text_replacements(
     file_path: Path,
     replacements: list[tuple[str, str]],
+    context_filter: Callable[[Path], bool] | None = None,
 ) -> bool:
     """Apply a list of text replacements to a file.
 
     Args:
         file_path: Path to the file to modify.
         replacements: List of (old_text, new_text) tuples.
+        context_filter: Optional callable that receives the file path and returns
+            True if the file should be processed, False to skip it. When None
+            (the default), all files are processed. This allows callers to
+            exclude files by pattern (e.g., skip ``.kittify/`` paths).
 
     Returns:
-        True if the file was modified, False if no changes were needed.
+        True if the file was modified, False if no changes were needed
+        or the file was skipped by the context_filter.
     """
+    if context_filter is not None and not context_filter(file_path):
+        return False
+
     try:
         content = file_path.read_text(encoding="utf-8")
     except (OSError, UnicodeDecodeError):
@@ -140,6 +151,30 @@ def apply_text_replacements(
         file_path.write_text(content, encoding="utf-8")
         return True
     return False
+
+
+def exclude_paths(*patterns: str) -> Callable[[Path], bool]:
+    """Create a context filter that excludes files matching any glob pattern.
+
+    Use with ``apply_text_replacements`` to skip files during bulk edits::
+
+        filt = exclude_paths(".kittify/*", "*.lock")
+        apply_text_replacements(path, replacements, context_filter=filt)
+
+    Args:
+        *patterns: Glob patterns to exclude. Matched against the string
+            representation of the file path using :func:`fnmatch.fnmatch`.
+
+    Returns:
+        A callable suitable for the ``context_filter`` parameter of
+        :func:`apply_text_replacements`.
+    """
+
+    def _filter(path: Path) -> bool:
+        path_str = str(path)
+        return not any(fnmatch(path_str, p) for p in patterns)
+
+    return _filter
 
 
 def file_contains_any(file_path: Path, markers: list[str]) -> bool:
