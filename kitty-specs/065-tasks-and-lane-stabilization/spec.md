@@ -36,7 +36,7 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 **Given** a feature where the LLM has written WP prompt files with `dependencies: [WP01, WP02]` in YAML frontmatter, matching bullet-list dependency sections in `tasks.md`
 **When** the operator runs `spec-kitty agent mission finalize-tasks --mission <slug> --json`
-**Then** the finalized WP files retain the declared dependencies. If the parser extracts dependencies from `tasks.md`, the result agrees with or supplements (never silently replaces) the existing frontmatter values. The JSON output accurately reports which WPs were modified and which were unchanged.
+**Then** the finalized WP files retain the declared dependencies. If the parser extracts a non-empty dependency list from `tasks.md` that disagrees with the WP's existing non-empty frontmatter `dependencies`, finalization fails with a diagnostic error naming the WP, the parsed values, and the existing values — it does not silently merge, supplement, or replace. If the parser extracts an empty list and frontmatter has a non-empty list, the existing value is preserved. The JSON output accurately reports which WPs were modified and which were unchanged.
 
 ### Scenario 2: Validate-Only Is Non-Mutating
 
@@ -48,7 +48,7 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 **Given** a finalized feature with N WPs defined in `tasks.md` and corresponding `tasks/WP*.md` files
 **When** lane computation runs (during finalization or explicitly)
-**Then** every WP appears in exactly one lane in `lanes.json`. If a WP cannot be assigned (e.g., missing ownership manifest), the command fails with a diagnostic error naming the problematic WP, rather than silently omitting it.
+**Then** every executable (non-planning-artifact) WP appears in exactly one lane in `lanes.json`. WPs with `execution_mode: planning_artifact` are intentionally excluded from lane assignment but listed in a diagnostic summary so operators can verify the exclusion is correct. If an executable WP cannot be assigned (e.g., missing ownership manifest), the command fails with a diagnostic error naming the problematic WP, rather than silently omitting it.
 
 ### Scenario 4: Parallelism Preserved When Ownership Is Disjoint
 
@@ -66,13 +66,13 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 **Given** a feature whose `tasks.md` uses pipe-table rows for task tracking (e.g., `| T001 | description | WP01 | [P] |`)
 **When** the operator or agent runs `spec-kitty agent tasks mark-status T001 --status done`
-**Then** the command finds and updates the task's status in the pipe-table row, or the system standardizes task generation to the checkbox format that the mutator already supports, with prompts and templates aligned.
+**Then** the command finds and updates the task's status in the pipe-table row. This is required for backward compatibility with existing generated artifacts. Future task generation may additionally be standardized to a single format, but `mark-status` must support both checkbox and pipe-table formats.
 
 ### Scenario 7: Agent Command Guidance Includes Required Context
 
 **Given** an AI agent following the generated `/spec-kitty.tasks` slash-command prompt in a multi-mission repository
-**When** the agent reaches the step where it must call `spec-kitty agent context resolve --action tasks`
-**Then** the generated guidance explicitly includes `--mission <slug>` in the example command. The agent succeeds on the first try without needing to parse an error message for available features.
+**When** the agent reaches any step that invokes a `spec-kitty agent` subcommand requiring mission context (e.g., `context resolve`, `check-prerequisites`, `finalize-tasks`, `mark-status`)
+**Then** the generated guidance explicitly includes `--mission <slug>` in every example command. The agent succeeds on the first try without needing to parse an error message for available features.
 
 ### Scenario 8: Consistent Flag Naming in Error Messages
 
@@ -86,15 +86,17 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 |----|-------------|--------|
 | FR-001 | The `finalize-tasks` dependency parser recognizes both inline format (`Depends on: WP01, WP02`) and bullet-list format (`### Dependencies\n- WP01\n- WP02`) when extracting dependencies from `tasks.md`. | Proposed |
 | FR-002 | When the dependency parser extracts an empty dependency list for a WP but the WP's frontmatter already contains a non-empty `dependencies` field, the existing value is preserved. | Proposed |
+| FR-002a | When the dependency parser extracts a non-empty dependency list that disagrees with an existing non-empty `dependencies` field in WP frontmatter, finalization fails with a diagnostic error naming the WP, the parsed values, and the existing values. No silent merge, supplement, or replacement occurs. | Proposed |
 | FR-003 | The `finalize-tasks` JSON output accurately reports which WPs had their frontmatter modified and which were unchanged. | Proposed |
 | FR-004 | When `--validate-only` is passed to `finalize-tasks`, no files on disk are written, moved, or deleted. The flag gates all mutation steps, not just the final commit. | Proposed |
 | FR-005 | `--validate-only` output reports what mutations would occur without executing them: which WPs would have dependencies updated, which would have other frontmatter fields changed. | Proposed |
-| FR-006 | Lane computation produces a lane assignment for every WP that exists in the finalized task set. No WP is silently omitted from `lanes.json`. | Proposed |
-| FR-007 | If a WP cannot be assigned to a lane (missing ownership manifest, unresolvable conflict), lane computation fails with a diagnostic error naming the specific WP and the reason. | Proposed |
+| FR-006 | Lane computation produces a lane assignment for every executable (non-planning-artifact) WP in the finalized task set. WPs with `execution_mode: planning_artifact` are intentionally excluded but listed in a diagnostic summary. No executable WP is silently omitted from `lanes.json`. | Proposed |
+| FR-007 | If an executable WP cannot be assigned to a lane (missing ownership manifest, unresolvable conflict), lane computation fails with a diagnostic error naming the specific WP and the reason. | Proposed |
 | FR-008 | Lane computation emits a collapse report when WPs that are independent in the dependency graph are merged into the same lane. The report names the merging rule and the specific files, globs, or surfaces that triggered the merge. | Proposed |
 | FR-009 | Surface-heuristic lane merging (Rule 3) is refined so that broad keyword matches (e.g., "sidebar" matching "app-shell") do not collapse WPs with disjoint owned files. | Proposed |
-| FR-010 | `mark-status` can update task state in pipe-table formatted `tasks.md` rows, or task generation is standardized to exclusively emit the checkbox format that `mark-status` already supports. All templates and prompts are aligned with the chosen format. | Proposed |
-| FR-011 | All generated slash-command prompts and command examples that invoke `spec-kitty agent context resolve` include the `--mission <slug>` parameter explicitly. | Proposed |
+| FR-010 | `mark-status` supports both checkbox-style (`- [ ] T001`) and pipe-table (`| T001 | ... | [P] |`) task row formats for backward compatibility with existing generated artifacts. | Proposed |
+| FR-010a | If task generation is standardized to a single format going forward, `mark-status` still supports the legacy format so existing `tasks.md` files remain editable without regeneration. | Proposed |
+| FR-011 | All generated slash-command prompts and command examples across the tasks/action surface — including `context resolve`, `check-prerequisites`, `finalize-tasks`, `mark-status`, and any other `spec-kitty agent` subcommand that requires mission context — include the `--mission <slug>` parameter explicitly. | Proposed |
 | FR-012 | Error messages for missing mission context use the same flag name as the CLI parameter (`--mission`), not alternative names like `--feature`. | Proposed |
 | FR-013 | The `require_explicit_feature()` error message includes a concrete example using the first available mission slug from `kitty-specs/`, formatted as a complete copy-pasteable command. | Proposed |
 | FR-014 | Ownership manifest validation warns when a WP's `owned_files` globs match zero files in the current repository. | Proposed |
@@ -126,11 +128,11 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 - Dependency parsing and frontmatter preservation in `finalize-tasks` (both entry points)
 - `--validate-only` non-mutation guarantee
-- Lane graph completeness (every WP in lanes.json)
+- Lane graph completeness (every executable WP in lanes.json, planning-artifact WPs diagnostically surfaced)
 - Lane collapse explanation reporting
 - Surface-heuristic refinement for lane computation
-- `mark-status` format compatibility (pipe-table or standardized generation)
-- Generated command guidance for `--mission` flag
+- `mark-status` backward-compatible pipe-table and checkbox format support
+- Generated command guidance for `--mission` flag across the full tasks/action command surface
 - Error message flag-name consistency
 - Ownership validation warnings
 - Regression tests for all of the above
@@ -167,7 +169,8 @@ Six confirmed bugs in the planning/tasks pipeline break the contract between tas
 
 - The bullet-list dependency format in tasks.md is the primary format LLMs generate; inline format is secondary but must remain supported
 - Surface-heuristic merging (Rule 3) can be made less aggressive without breaking existing valid lane assignments
-- The pipe-table vs checkbox format decision for tasks.md can be resolved by standardizing generation to one format (either is acceptable)
+- `mark-status` must support both pipe-table and checkbox formats for backward compatibility; generation may be standardized going forward but the mutator must handle both
+- Planning-artifact WPs (`execution_mode: planning_artifact`) are intentionally excluded from lane assignment by the existing execution model; this mission does not change that model, only makes the exclusion visible and diagnostic
 
 ## Success Criteria
 
