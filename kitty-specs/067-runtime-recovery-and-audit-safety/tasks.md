@@ -125,10 +125,10 @@ Recommended start: WP06 (lowest risk, highest operator impact, ~1 day).
 **Dependencies**: None
 **Estimated prompt size**: ~350 lines
 
-- [ ] T023 Create occurrence classification template step for cutover/rename WP mission templates (WP05)
-- [ ] T024 Create post-edit verification template step with grep-based confirmation (WP05)
-- [ ] T025 Add optional `context_filter` parameter to `apply_text_replacements()` in skill_update.py (WP05)
-- [ ] T026 Write tests for occurrence classification guardrail enforcement (WP05)
+- [x] T023 Create occurrence classification template step for cutover/rename WP mission templates (WP05)
+- [x] T024 Create post-edit verification template step with grep-based confirmation (WP05)
+- [x] T025 Add optional `context_filter` parameter to `apply_text_replacements()` in skill_update.py (WP05)
+- [x] T026 Write tests for occurrence classification guardrail enforcement (WP05)
 
 ### WP06: Canonical Progress Reporting
 
