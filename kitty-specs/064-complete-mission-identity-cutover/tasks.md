@@ -32,11 +32,11 @@ WP01 + WP02 ──────────────────►WP06 (track
 
 Build the central compatibility gate that validates outbound payloads against the vendored upstream 3.0.0 contract artifact. Does NOT insert at chokepoints — downstream WPs insert the gate at their respective surfaces.
 
-- [ ] T001: Vendor `upstream-3.0.0-shape.json` into package as `src/specify_cli/core/upstream_contract.json`
-- [ ] T002: Create `ContractViolationError` exception class
-- [ ] T003: Create `validate_outbound_payload(payload, context)` that loads vendored artifact
-- [ ] T004: Write unit tests for all forbidden/required field validation rules
-- [ ] T005: Write unit tests for pass-through behavior on valid payloads
+- [x] T001: Vendor `upstream-3.0.0-shape.json` into package as `src/specify_cli/core/upstream_contract.json`
+- [x] T002: Create `ContractViolationError` exception class
+- [x] T003: Create `validate_outbound_payload(payload, context)` that loads vendored artifact
+- [x] T004: Write unit tests for all forbidden/required field validation rules
+- [x] T005: Write unit tests for pass-through behavior on valid payloads
 
 **Requirement refs**: FR-012, FR-013, FR-023
 
