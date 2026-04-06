@@ -75,11 +75,11 @@
 **Issues**: #430, integration side of #433
 **Estimated prompt size**: ~380 lines
 
-- [ ] T007 Create fix_prompt.py with generate_fix_prompt() (WP02)
-- [ ] T008 Implement fix-prompt template rendering (WP02)
-- [ ] T009 Add fix-mode detection in workflow.py implement path (WP02)
-- [ ] T010 Implement mode switching — fix-prompt vs full-prompt (WP02)
-- [ ] T011 Write tests for fix-prompt generation, sizing, end-to-end flow (WP02)
+- [x] T007 Create fix_prompt.py with generate_fix_prompt() (WP02)
+- [x] T008 Implement fix-prompt template rendering (WP02)
+- [x] T009 Add fix-mode detection in workflow.py implement path (WP02)
+- [x] T010 Implement mode switching — fix-prompt vs full-prompt (WP02)
+- [x] T011 Write tests for fix-prompt generation, sizing, end-to-end flow (WP02)
 
 **Implementation sketch**: Create `generate_fix_prompt()` that reads latest ReviewCycleArtifact, extracts affected file paths/line ranges, reads current code from disk, and produces a focused prompt. Modify `agent action implement` in workflow.py to detect prior rejection cycles and switch modes.
 
