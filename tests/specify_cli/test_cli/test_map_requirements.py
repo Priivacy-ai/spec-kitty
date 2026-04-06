@@ -8,7 +8,7 @@ from unittest.mock import Mock, patch
 
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.feature import app as feature_app
+from specify_cli.cli.commands.agent.mission import app as feature_app
 from specify_cli.cli.commands.agent.tasks import app as tasks_app
 from specify_cli.frontmatter import read_frontmatter
 
@@ -493,15 +493,15 @@ class TestMapRequirementsValidation:
 class TestFinalizeTasksWithFrontmatterRefs:
     """Tests for finalize-tasks reading from WP frontmatter."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch(
-        "specify_cli.cli.commands.agent.feature._show_branch_context",
+        "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
+    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
     @patch(
-        "specify_cli.cli.commands.agent.feature.run_command",
+        "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),
     )
     def test_finalize_reads_requirement_refs_from_frontmatter(
@@ -548,15 +548,15 @@ class TestFinalizeTasksWithFrontmatterRefs:
         assert "NFR-001" in payload["requirement_refs_parsed"]["WP01"]
         assert "FR-002" in payload["requirement_refs_parsed"]["WP02"]
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     @patch(
-        "specify_cli.cli.commands.agent.feature._show_branch_context",
+        "specify_cli.cli.commands.agent.mission._show_branch_context",
         return_value=(None, "main"),
     )
-    @patch("specify_cli.cli.commands.agent.feature.safe_commit", return_value=True)
+    @patch("specify_cli.cli.commands.agent.mission.safe_commit", return_value=True)
     @patch(
-        "specify_cli.cli.commands.agent.feature.run_command",
+        "specify_cli.cli.commands.agent.mission.run_command",
         return_value=(0, "a" * 40, ""),
     )
     def test_frontmatter_takes_priority_over_stale_tasks_md(

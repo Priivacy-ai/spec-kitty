@@ -12,8 +12,6 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
-
 
 class Lane(StrEnum):
     """8-lane canonical work package lifecycle states."""
@@ -214,14 +212,14 @@ class StatusSnapshot:
     summary: dict[str, int]  # lane -> count
 
     def to_dict(self) -> dict[str, Any]:
-        return with_tracked_mission_slug_aliases({
+        return {
             "feature_slug": self.feature_slug,
             "materialized_at": self.materialized_at,
             "event_count": self.event_count,
             "last_event_id": self.last_event_id,
             "work_packages": self.work_packages,
             "summary": self.summary,
-        })
+        }
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:

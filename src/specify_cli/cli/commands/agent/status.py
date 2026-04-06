@@ -17,7 +17,6 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
@@ -377,7 +376,7 @@ def doctor(
                 for f in result.findings
             ],
         }
-        console.print_json(json.dumps(with_tracked_mission_slug_aliases(report)))
+        console.print_json(json.dumps(report))
     else:
         # Global Runtime section
         console.print("\n[bold]Global Runtime:[/bold]")
@@ -434,7 +433,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
     """Convert a MigrationResult to a JSON-serializable dict."""
     return {
         "features": [
-            with_tracked_mission_slug_aliases({
+            {
                 "feature_slug": f.feature_slug,
                 "status": f.status,
                 "wp_count": len(f.wp_details),
@@ -448,7 +447,7 @@ def _migration_result_to_dict(result: Any) -> dict[str, Any]:
                     for wp in f.wp_details
                 ],
                 "error": f.error,
-            })
+            }
             for f in result.features
         ],
         "summary": {
@@ -614,14 +613,14 @@ def validate(
         if json_output:
             print(
                 json.dumps(
-                    with_tracked_mission_slug_aliases({
+                    {
                         "feature_slug": feature_slug,
                         "passed": True,
                         "errors": [],
                         "warnings": [],
                         "error_count": 0,
                         "warning_count": 0,
-                    })
+                    }
                 )
             )
         else:
@@ -645,14 +644,14 @@ def validate(
     if json_output:
         print(
             json.dumps(
-                with_tracked_mission_slug_aliases({
+                {
                     "feature_slug": feature_slug,
                     "passed": result.passed,
                     "errors": result.errors,
                     "warnings": result.warnings,
                     "error_count": len(result.errors),
                     "warning_count": len(result.warnings),
-                })
+                }
             )
         )
     else:

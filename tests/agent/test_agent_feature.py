@@ -9,7 +9,7 @@ from unittest.mock import Mock, patch
 import pytest
 from typer.testing import CliRunner
 
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.fast
 
@@ -19,9 +19,9 @@ runner = CliRunner()
 class TestBranchContextCommand:
     """Tests for branch-context command."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.is_git_repo")
-    @patch("specify_cli.cli.commands.agent.feature.get_current_branch")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.is_git_repo")
+    @patch("specify_cli.cli.commands.agent.mission.get_current_branch")
     def test_branch_context_json_output(
         self,
         mock_branch: Mock,
@@ -57,7 +57,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.core.mission_creation.emit_feature_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     @patch("specify_cli.core.mission_creation.get_next_feature_number")
@@ -114,7 +114,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.core.mission_creation.emit_feature_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     @patch("specify_cli.core.mission_creation.get_next_feature_number")
@@ -143,7 +143,7 @@ class TestCreateFeatureCommand:
         assert "Directory:" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_json(
         self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
@@ -165,7 +165,7 @@ class TestCreateFeatureCommand:
         assert "Could not locate project root" in output["error"]
 
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_human(
         self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
@@ -184,8 +184,8 @@ class TestCreateFeatureCommand:
         assert "Could not locate project root" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_main_repo_hint(
         self,
         mock_cwd: Mock,
@@ -207,8 +207,8 @@ class TestCreateFeatureCommand:
         assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_worktrees_fallback_hint(
         self,
         mock_cwd: Mock,
@@ -230,7 +230,7 @@ class TestCreateFeatureCommand:
         assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo")
     def test_handles_git_errors(
         self, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, tmp_path: Path
@@ -254,7 +254,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.core.mission_creation.emit_feature_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     @patch("specify_cli.core.mission_creation.get_next_feature_number")
@@ -286,7 +286,7 @@ class TestCreateFeatureCommand:
     @patch("specify_cli.core.mission_creation.emit_feature_created")
     @patch("specify_cli.core.mission_creation._commit_feature_file")
     @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
     @patch("specify_cli.core.mission_creation.get_current_branch")
     @patch("specify_cli.core.mission_creation.get_next_feature_number")
@@ -319,9 +319,9 @@ class TestCreateFeatureCommand:
 class TestCheckPrerequisitesCommand:
     """Tests for check-prerequisites command."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_validates_prerequisites_json_output(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -351,9 +351,9 @@ class TestCheckPrerequisitesCommand:
         assert output["target_branch"] == "main"
         assert output["branch_matches_target"] is True
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_validates_prerequisites_human_output(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -378,9 +378,9 @@ class TestCheckPrerequisitesCommand:
         assert "Prerequisites check passed" in result.stdout
         assert "Mission: 001-test" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_shows_validation_errors(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -405,9 +405,9 @@ class TestCheckPrerequisitesCommand:
         assert "Prerequisites check failed" in result.stdout
         assert "Missing required file: spec.md" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_shows_validation_warnings(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -432,9 +432,9 @@ class TestCheckPrerequisitesCommand:
         assert "Warnings:" in result.stdout
         assert "Missing recommended directory: checklists/" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_paths_only_flag_json(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -470,9 +470,9 @@ class TestCheckPrerequisitesCommand:
         assert "SPECS_DIR" in output
         assert "spec_kitty_version" in output
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_include_tasks_flag(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -497,9 +497,9 @@ class TestCheckPrerequisitesCommand:
         output = json.loads(result.stdout)
         assert "Missing required file: tasks.md" in output["errors"]
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature.validate_feature_structure")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.validate_feature_structure")
     def test_passes_explicit_feature_to_detection(
         self, mock_validate: Mock, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -533,8 +533,8 @@ class TestCheckPrerequisitesCommand:
         assert isinstance(args[1], Path)
         assert kwargs["explicit_feature"] == "001-test"
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     def test_returns_context_remediation_payload_when_ambiguous(
         self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -561,7 +561,7 @@ class TestCheckPrerequisitesCommand:
         assert "check-prerequisites --feature" in payload["example_command"]
         assert payload["remediation"] == "Re-run with --feature <slug>"
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
         """Should return error when project root not found."""
         # Setup
@@ -577,8 +577,8 @@ class TestCheckPrerequisitesCommand:
         output = json.loads(first_line)
         assert "error" in output
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     def test_emits_single_json_object_on_detection_error(
         self,
         mock_find: Mock,
@@ -601,8 +601,8 @@ class TestCheckPrerequisitesCommand:
 class TestGitPreflightEnforcement:
     """Tests for _enforce_git_preflight integration in feature commands."""
 
-    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_check_prerequisites_exits_on_preflight_failure_json(
         self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
     ):
@@ -632,8 +632,8 @@ class TestGitPreflightEnforcement:
         assert isinstance(payload["remediation"], list)
         assert len(payload["remediation"]) >= 1
 
-    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_check_prerequisites_exits_on_preflight_failure_human(
         self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
     ):
@@ -660,8 +660,8 @@ class TestGitPreflightEnforcement:
         assert result.exit_code == 1
         assert "Git rejected repository ownership trust" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.run_git_preflight")
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.run_git_preflight")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_setup_plan_exits_on_preflight_failure_json(
         self, mock_locate: Mock, mock_preflight: Mock, tmp_path: Path
     ):
@@ -693,9 +693,9 @@ class TestGitPreflightEnforcement:
 class TestFinalizeTasksCommand:
     """Tests for finalize-tasks command."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context")
     def test_passes_explicit_feature_to_detection(
         self,
         mock_show_branch: Mock,
@@ -719,8 +719,8 @@ class TestFinalizeTasksCommand:
         assert isinstance(args[1], Path)
         assert kwargs["explicit_feature"] == "001-test"
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     def test_returns_context_remediation_payload_when_ambiguous(
         self, mock_find: Mock, mock_locate: Mock, tmp_path: Path
     ):
@@ -744,9 +744,9 @@ class TestFinalizeTasksCommand:
         assert "finalize-tasks --feature" in payload["example_command"]
         assert payload["remediation"] == "Re-run with --feature <slug>"
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
     def test_fails_when_requirement_refs_missing(
         self,
         mock_show_branch: Mock,
@@ -827,23 +827,23 @@ requirement_refs:
 
         with (
             patch(
-                "specify_cli.cli.commands.agent.feature.locate_project_root",
+                "specify_cli.cli.commands.agent.mission.locate_project_root",
                 return_value=tmp_path,
             ),
             patch(
-                "specify_cli.cli.commands.agent.feature._find_feature_directory",
+                "specify_cli.cli.commands.agent.mission._find_feature_directory",
                 return_value=feature_dir,
             ),
             patch(
-                "specify_cli.cli.commands.agent.feature._show_branch_context",
+                "specify_cli.cli.commands.agent.mission._show_branch_context",
                 return_value=(None, "main"),
             ),
             patch(
-                "specify_cli.cli.commands.agent.feature.safe_commit",
+                "specify_cli.cli.commands.agent.mission.safe_commit",
                 return_value=True,
             ),
             patch(
-                "specify_cli.cli.commands.agent.feature.run_command",
+                "specify_cli.cli.commands.agent.mission.run_command",
                 return_value=(0, "a" * 40, ""),
             ),
         ):
@@ -863,10 +863,10 @@ requirement_refs:
 class TestSetupPlanCommand:
     """Tests for setup-plan command."""
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission._commit_to_branch")
     def test_scaffolds_plan_template_json(
         self,
         mock_commit: Mock,
@@ -918,10 +918,10 @@ class TestSetupPlanCommand:
         # Verify commit was called
         mock_commit.assert_called_once()
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.cli.commands.agent.feature._commit_to_branch")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission._commit_to_branch")
     def test_scaffolds_plan_template_human(
         self,
         mock_commit: Mock,
@@ -952,10 +952,10 @@ class TestSetupPlanCommand:
         assert result.exit_code == 0
         assert "Plan scaffolded:" in result.stdout
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
-    @patch("specify_cli.cli.commands.agent.feature.files")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission.files")
     def test_errors_when_template_not_found(
         self,
         mock_files: Mock,
@@ -989,9 +989,9 @@ class TestSetupPlanCommand:
         assert "error" in output
         assert "Plan template not found" in output["error"]
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
-    @patch("specify_cli.cli.commands.agent.feature._show_branch_context", return_value=(None, "main"))
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission._show_branch_context", return_value=(None, "main"))
     def test_errors_when_spec_missing(
         self,
         mock_show_branch: Mock,
@@ -1019,7 +1019,7 @@ class TestSetupPlanCommand:
         assert output["spec_file"] == str((feature_dir / "spec.md").resolve())
         assert "Restore the missing spec file" in "\n".join(output["remediation"])
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
     def test_errors_when_project_root_not_found(self, mock_locate: Mock):
         """Should return error when project root not found."""
         # Setup
@@ -1035,8 +1035,8 @@ class TestSetupPlanCommand:
         output = json.loads(first_line)
         assert "error" in output
 
-    @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.cli.commands.agent.feature._find_feature_directory")
+    @patch("specify_cli.cli.commands.agent.mission.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.mission._find_feature_directory")
     def test_setup_plan_emits_single_json_object_on_detection_error(
         self,
         mock_find: Mock,
@@ -1061,7 +1061,7 @@ class TestFindFeatureDirectory:
 
     def test_finds_feature_with_explicit_slug(self, tmp_path: Path):
         """Should find feature directory when explicit slug is provided."""
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         # Create feature directory
         kitty_specs = tmp_path / "kitty-specs"
@@ -1076,7 +1076,7 @@ class TestFindFeatureDirectory:
 
     def test_raises_error_when_no_explicit_slug(self, tmp_path: Path):
         """Should raise ValueError when explicit_feature is None (auto-detection removed)."""
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
@@ -1088,7 +1088,7 @@ class TestFindFeatureDirectory:
 
     def test_raises_error_when_feature_dir_not_found(self, tmp_path: Path):
         """Should raise ValueError when the specified feature directory does not exist."""
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()
@@ -1099,7 +1099,7 @@ class TestFindFeatureDirectory:
 
     def test_raises_error_when_no_explicit_slug_with_multiple_features(self, tmp_path: Path):
         """Should raise ValueError when no slug is given even with multiple features present."""
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         # Create main repo structure with multiple features
         kitty_specs = tmp_path / "kitty-specs"
@@ -1112,7 +1112,7 @@ class TestFindFeatureDirectory:
 
     def test_finds_correct_feature_among_multiple(self, tmp_path: Path):
         """Should return the exact matching directory when explicit slug is given."""
-        from specify_cli.cli.commands.agent.feature import _find_feature_directory
+        from specify_cli.cli.commands.agent.mission import _find_feature_directory
 
         kitty_specs = tmp_path / "kitty-specs"
         kitty_specs.mkdir()

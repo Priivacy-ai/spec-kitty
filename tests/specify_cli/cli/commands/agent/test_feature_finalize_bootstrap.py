@@ -21,7 +21,7 @@ from specify_cli.status.bootstrap import BootstrapResult
 # Fixtures
 # ---------------------------------------------------------------------------
 
-MODULE = "specify_cli.cli.commands.agent.feature"
+MODULE = "specify_cli.cli.commands.agent.mission"
 CORE_MODULE = "specify_cli.core.mission_creation"
 
 
@@ -116,7 +116,7 @@ class TestFinalizeTasksCallsBootstrap:
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
-        from specify_cli.cli.commands.agent.feature import finalize_tasks
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         mocks = {}
@@ -154,7 +154,7 @@ class TestValidateOnlyDryRun:
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
-        from specify_cli.cli.commands.agent.feature import finalize_tasks
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
@@ -192,7 +192,7 @@ class TestValidateOnlyDryRun:
             return_value=_make_bootstrap_result(total=2, seeded=1, existing=1)
         )
 
-        from specify_cli.cli.commands.agent.feature import finalize_tasks
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
@@ -227,7 +227,7 @@ class TestBootstrapStatsInJson:
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result(total=2, seeded=1, existing=1))
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
-        from specify_cli.cli.commands.agent.feature import finalize_tasks
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():
@@ -270,7 +270,7 @@ class TestBootstrapStatsInJson:
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result(total=3, seeded=3, existing=0))
         patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
 
-        from specify_cli.cli.commands.agent.feature import finalize_tasks
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
 
         ctx_patches = {k: patch(k, v) for k, v in patches.items()}
         for p in ctx_patches.values():

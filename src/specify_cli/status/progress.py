@@ -16,8 +16,6 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
-
 from .models import StatusSnapshot
 from .reducer import materialize
 
@@ -70,14 +68,14 @@ class ProgressResult:
     per_wp: list[WPProgress] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
-        return with_tracked_mission_slug_aliases({
+        return {
             "feature_slug": self.feature_slug,
             "percentage": round(self.percentage, 4),
             "done_count": self.done_count,
             "total_count": self.total_count,
             "per_lane_counts": self.per_lane_counts,
             "per_wp": [wp.to_dict() for wp in self.per_wp],
-        })
+        }
 
 
 def compute_weighted_progress(

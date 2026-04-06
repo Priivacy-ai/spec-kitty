@@ -1955,7 +1955,7 @@ def map_requirements(
         tasks_md_refs: dict[str, list[str]] = {}
         tasks_md_file = feature_dir / "tasks.md"
         if tasks_md_file.exists():
-            from specify_cli.cli.commands.agent.feature import (
+            from specify_cli.cli.commands.agent.mission import (
                 _parse_requirement_refs_from_tasks_md,
             )
 

@@ -411,7 +411,6 @@ class TestMaterializeCommand:
 
         assert result.exit_code == 0, f"stdout: {result.output}"
         data = _extract_json(result.output)
-        assert "mission_slug" in data
         assert "feature_slug" in data
         assert "event_count" in data
         assert "work_packages" in data

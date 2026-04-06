@@ -11,7 +11,7 @@ from typing import Optional
 
 import typer
 
-from specify_cli.cli.commands.agent import feature as agent_feature
+from specify_cli.cli.commands.agent import mission as agent_feature
 
 
 def _slugify_feature_input(value: str) -> str:

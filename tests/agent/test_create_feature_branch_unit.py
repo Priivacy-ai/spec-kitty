@@ -10,11 +10,11 @@ import pytest
 from typer.testing import CliRunner
 from click.testing import Result
 
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.fast
 
-_FEATURE_MODULE = "specify_cli.cli.commands.agent.feature"
+_FEATURE_MODULE = "specify_cli.cli.commands.agent.mission"
 _CORE_MODULE = "specify_cli.core.mission_creation"
 
 runner = CliRunner()

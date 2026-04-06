@@ -3,7 +3,7 @@
 import subprocess
 import pytest
 from typer.testing import CliRunner
-from specify_cli.cli.commands.agent.feature import app
+from specify_cli.cli.commands.agent.mission import app
 
 pytestmark = pytest.mark.git_repo
 

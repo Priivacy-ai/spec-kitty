@@ -64,7 +64,7 @@ def test_create_feature_on_2x_records_target_branch(tmp_path, monkeypatch):
     """create_feature on 2.x records target_branch='2.x' in meta.json."""
     # Arrange
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "2.x")
     _setup_kittify(repo)
@@ -90,7 +90,7 @@ def test_create_feature_on_2x_with_main_also_existing(tmp_path, monkeypatch):
     """
     # Arrange
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
@@ -115,7 +115,7 @@ def test_create_feature_on_main_records_target_branch(tmp_path, monkeypatch):
     """create_feature on main records target_branch='main'."""
     # Arrange
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
@@ -138,7 +138,7 @@ def test_create_feature_on_master_records_target_branch(tmp_path, monkeypatch):
     """create_feature on master records target_branch='master'."""
     # Arrange
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "master")
     _setup_kittify(repo)
@@ -161,7 +161,7 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
     """create_feature on v3-next records target_branch='v3-next'."""
     # Arrange
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "v3-next")
     _setup_kittify(repo)
@@ -186,7 +186,7 @@ def test_create_feature_on_custom_branch_records_target_branch(tmp_path, monkeyp
 def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
     """--target-branch flag overrides current branch."""
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
@@ -206,7 +206,7 @@ def test_create_feature_with_explicit_target_branch_flag(tmp_path, monkeypatch):
 def test_create_feature_rejects_detached_head(tmp_path, monkeypatch):
     """create_feature fails on detached HEAD."""
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
@@ -224,7 +224,7 @@ def test_create_feature_rejects_detached_head(tmp_path, monkeypatch):
 def test_create_feature_rejects_worktree(tmp_path, monkeypatch):
     """create_feature fails when run from inside a worktree."""
     from typer.testing import CliRunner
-    from specify_cli.cli.commands.agent.feature import app
+    from specify_cli.cli.commands.agent.mission import app
 
     repo = _init_repo(tmp_path, "main")
     _setup_kittify(repo)
