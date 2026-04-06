@@ -564,6 +564,37 @@ def implement(
         if mission_type == "research":
             deliverables_path = get_deliverables_path(feature_dir, mission_slug)
 
+        # Capture baseline test results (one-time, cached) before the agent starts coding
+        # wp.path.stem is e.g. "WP04-baseline-test-capture"
+        _wp_slug = wp.path.stem
+        try:
+            from specify_cli.review.baseline import capture_baseline as _capture_baseline
+
+            _baseline = _capture_baseline(
+                worktree_path=workspace_path,
+                base_branch=target_branch,
+                wp_id=normalized_wp_id,
+                mission_slug=mission_slug,
+                feature_dir=feature_dir,
+                wp_slug=_wp_slug,
+            )
+            if _baseline is not None and _baseline.failed > 0:
+                print(f"[dim]Baseline: {_baseline.failed} pre-existing test failure(s) captured[/dim]")
+                # Commit the baseline artifact to the feature branch
+                _baseline_artifact = feature_dir / "tasks" / _wp_slug / "baseline-tests.json"
+                if _baseline_artifact.exists():
+                    safe_commit(
+                        repo_path=main_repo_root,
+                        files_to_commit=[_baseline_artifact],
+                        commit_message=f"chore: Capture baseline tests for {normalized_wp_id}",
+                        allow_empty=True,
+                    )
+            elif _baseline is not None and _baseline.failed == -1:
+                print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
+        except Exception as _bl_err:
+            import logging as _bl_logging
+            _bl_logging.getLogger(__name__).warning("Baseline capture error: %s", _bl_err)
+
         # Build full prompt content for file
         lines = []
         lines.append("=" * 80)
@@ -1202,6 +1233,45 @@ def review(
             lines.append(f"  git diff {base}..HEAD                    # Full diff")
             lines.append("─" * 80)
             lines.append("")
+
+        # Baseline Test Context — load cached baseline and surface pre-existing failures
+        _rv_wp_slug = wp.path.stem
+        _rv_feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        try:
+            from specify_cli.review.baseline import BaselineTestResult as _BaselineTestResult
+
+            _rv_baseline_path = _rv_feature_dir / "tasks" / _rv_wp_slug / "baseline-tests.json"
+            _rv_baseline = _BaselineTestResult.load(_rv_baseline_path)
+            if _rv_baseline is not None and _rv_baseline.failed > 0:
+                lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
+                lines.append(
+                    f"**{_rv_baseline.failed} test failure(s) existed BEFORE this WP** "
+                    f"(base: {_rv_baseline.base_branch} @ {_rv_baseline.base_commit[:7]}):"
+                )
+                lines.append("")
+                lines.append("| Test | Error | File |")
+                lines.append("|------|-------|------|")
+                for _rv_f in _rv_baseline.failures:
+                    lines.append(f"| {_rv_f.test} | {_rv_f.error[:80]} | {_rv_f.file} |")
+                lines.append("")
+                lines.append(
+                    "**These failures are NOT regressions introduced by this WP.** "
+                    "Only flag test failures that are NOT in this list."
+                )
+                lines.append("─" * 80)
+                lines.append("")
+            elif _rv_baseline is not None and _rv_baseline.failed == -1:
+                lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
+                lines.append(
+                    "**Warning**: Baseline test capture failed at implement time. "
+                    "Cannot distinguish pre-existing failures from regressions. "
+                    "Exercise caution when attributing test failures to this WP."
+                )
+                lines.append("─" * 80)
+                lines.append("")
+        except Exception as _rv_bl_err:
+            import logging as _rv_bl_log
+            _rv_bl_log.getLogger(__name__).warning("Baseline load error in review: %s", _rv_bl_err)
 
         # Create unique temp file path for review feedback (avoids conflicts between agents)
         review_feedback_path = Path(tempfile.gettempdir()) / f"spec-kitty-review-feedback-{normalized_wp_id}.md"
