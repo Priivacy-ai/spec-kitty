@@ -54,7 +54,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 Before proceeding, resolve canonical command context:
 
 ```bash
-spec-kitty agent context resolve --action tasks --json
+spec-kitty agent context resolve --action tasks --mission <mission-slug> --json
 ```
 
 Treat the resolver JSON as canonical for:
@@ -177,7 +177,7 @@ Prompts do not rediscover feature context. Commands do.
    - No two WPs may have overlapping `owned_files`.
    - Use specific paths, not broad globs like `src/**`.
    - Agents working on a WP must not modify files outside their `owned_files` list.
-   - Run `spec-kitty agent mission finalize-tasks --validate-only --json` to check ownership before committing.
+   - Run `spec-kitty agent mission finalize-tasks --validate-only --mission <mission-slug> --json` to check ownership before committing.
 
 8. **Finalize tasks with dependency parsing and commit**:
    After generating all WP prompt files, run the finalization command to:
@@ -256,12 +256,12 @@ WP file's YAML frontmatter — no sidecar files needed.
 
 **Batch mode (recommended)** — register all WP mappings at once:
 ```bash
-spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001","FR-002"],"WP02":["FR-003","FR-004"]}' --json
+spec-kitty agent tasks map-requirements --batch '{"WP01":["FR-001","FR-002"],"WP02":["FR-003","FR-004"]}' --mission <mission-slug> --json
 ```
 
 **Individual mode** — register one WP at a time:
 ```bash
-spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --json
+spec-kitty agent tasks map-requirements --wp WP01 --refs FR-001,FR-002 --mission <mission-slug> --json
 ```
 
 The response includes a coverage summary showing which FRs are still unmapped. Keep calling

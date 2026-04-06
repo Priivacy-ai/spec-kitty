@@ -28,7 +28,7 @@ $ARGUMENTS
 Run:
 
 ```bash
-spec-kitty agent context resolve --action tasks_packages --json
+spec-kitty agent context resolve --action tasks_packages --mission <mission-slug> --json
 ```
 
 Then execute the returned `check_prerequisites` command and capture

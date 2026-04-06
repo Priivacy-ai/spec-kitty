@@ -11,6 +11,7 @@ from specify_cli.core.paths import (
     is_worktree_context,
     resolve_with_context,
     check_broken_symlink,
+    require_explicit_feature,
 )
 
 
@@ -282,3 +283,59 @@ def test_locate_project_root_with_broken_symlink_kittify(tmp_path: Path, monkeyp
     # Should skip the broken symlink and return None (or continue searching)
     repo_root = locate_project_root()
     assert repo_root is None or repo_root != test_dir
+
+
+# ---------------------------------------------------------------------------
+# Regression tests for require_explicit_feature error messages (T031, T033)
+# ---------------------------------------------------------------------------
+
+def test_require_explicit_feature_error_uses_mission_flag(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Error message must say --mission, not --feature (T033 regression)."""
+    # Default command_hint should be --mission <slug>
+    with pytest.raises(ValueError) as exc_info:
+        require_explicit_feature(None)
+    assert "--mission" in str(exc_info.value)
+    assert "--feature" not in str(exc_info.value)
+
+
+def test_require_explicit_feature_error_has_complete_example(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Error message must include two complete, copy-pasteable commands (T031)."""
+    with pytest.raises(ValueError) as exc_info:
+        require_explicit_feature(None)
+    error_msg = str(exc_info.value)
+    assert "spec-kitty agent context resolve" in error_msg
+    assert "spec-kitty agent mission finalize-tasks" in error_msg
+
+
+def test_require_explicit_feature_error_uses_custom_hint(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Custom command_hint overrides default in error message (T031)."""
+    with pytest.raises(ValueError) as exc_info:
+        require_explicit_feature(None, command_hint="--mission <slug>")
+    assert "--mission" in str(exc_info.value)
+
+
+def test_require_explicit_feature_error_uses_real_slug(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Error example uses the first real slug when kitty-specs is available (T031)."""
+    (tmp_path / ".kittify").mkdir()
+    kitty_specs = tmp_path / "kitty-specs"
+    kitty_specs.mkdir()
+    (kitty_specs / "001-alpha-feature").mkdir()
+    (kitty_specs / "002-beta-feature").mkdir()
+
+    monkeypatch.setenv("SPECIFY_REPO_ROOT", str(tmp_path))
+
+    with pytest.raises(ValueError) as exc_info:
+        require_explicit_feature(None)
+    assert "001-alpha-feature" in str(exc_info.value)
+
+
+def test_require_explicit_feature_raises_for_empty_string() -> None:
+    """Empty string is treated the same as None."""
+    with pytest.raises(ValueError):
+        require_explicit_feature("")
+
+
+def test_require_explicit_feature_returns_stripped_slug() -> None:
+    """A valid slug is returned stripped."""
+    result = require_explicit_feature("  065-my-feature  ")
+    assert result == "065-my-feature"

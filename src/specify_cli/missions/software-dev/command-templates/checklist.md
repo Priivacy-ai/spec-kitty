@@ -29,7 +29,7 @@ You **MUST** consider the user input before proceeding (if not empty).
 
 ## Execution Steps
 
-1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json` from repo root and parse JSON for feature_dir and available_docs list.
+1. **Setup**: Run `spec-kitty agent mission check-prerequisites --json --mission <mission-slug>` from repo root and parse JSON for feature_dir and available_docs list.
    - All file paths must be absolute.
    - Treat `target_branch` / `base_branch` in the JSON payload as canonical branch context for this run.
 

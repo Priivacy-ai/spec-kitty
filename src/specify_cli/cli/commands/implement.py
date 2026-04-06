@@ -99,7 +99,7 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
     from specify_cli.core.paths import require_explicit_feature
 
     try:
-        slug = require_explicit_feature(feature_flag, command_hint="--feature <slug>")
+        slug = require_explicit_feature(feature_flag, command_hint="--mission <slug>")
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
