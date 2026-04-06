@@ -15,7 +15,7 @@ from specify_cli.cli.commands.agent.feature import app
 pytestmark = pytest.mark.fast
 
 _FEATURE_MODULE = "specify_cli.cli.commands.agent.feature"
-_CORE_MODULE = "specify_cli.core.feature_creation"
+_CORE_MODULE = "specify_cli.core.mission_creation"
 
 runner = CliRunner()
 

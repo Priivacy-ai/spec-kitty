@@ -54,13 +54,13 @@ class TestBranchContextCommand:
 class TestCreateFeatureCommand:
     """Tests for create-feature command."""
 
-    @patch("specify_cli.core.feature_creation.emit_feature_created")
-    @patch("specify_cli.core.feature_creation._commit_feature_file")
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation._commit_feature_file")
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.feature_creation.get_current_branch")
-    @patch("specify_cli.core.feature_creation.get_next_feature_number")
+    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.mission_creation.get_current_branch")
+    @patch("specify_cli.core.mission_creation.get_next_feature_number")
     def test_creates_feature_with_json_output(
         self, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
@@ -105,19 +105,19 @@ class TestCreateFeatureCommand:
         meta_path = feature_dir / "meta.json"
         assert meta_path.exists()
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
-        assert meta["feature_number"] == "001"
+        assert meta["mission_number"] == "001"
         assert meta["slug"] == "001-test-feature"
-        assert meta["feature_slug"] == "001-test-feature"
-        assert meta["mission"] == "software-dev"
+        assert meta["mission_slug"] == "001-test-feature"
+        assert meta["mission_type"] == "software-dev"
         assert meta["target_branch"] == "main"
 
-    @patch("specify_cli.core.feature_creation.emit_feature_created")
-    @patch("specify_cli.core.feature_creation._commit_feature_file")
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation._commit_feature_file")
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.feature_creation.get_current_branch")
-    @patch("specify_cli.core.feature_creation.get_next_feature_number")
+    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.mission_creation.get_current_branch")
+    @patch("specify_cli.core.mission_creation.get_next_feature_number")
     def test_creates_feature_with_human_output(
         self, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
@@ -142,9 +142,9 @@ class TestCreateFeatureCommand:
         assert "Mission created: 001-test-feature" in result.stdout
         assert "Directory:" in result.stdout
 
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.locate_project_root")
+    @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_json(
         self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
     ):
@@ -164,9 +164,9 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "Could not locate project root" in output["error"]
 
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.locate_project_root")
+    @patch("specify_cli.core.mission_creation.locate_project_root")
     def test_errors_when_project_root_not_found_human(
         self, mock_core_locate: Mock, mock_cli_locate: Mock, mock_is_wt: Mock,
     ):
@@ -183,7 +183,7 @@ class TestCreateFeatureCommand:
         assert "Error:" in result.stdout
         assert "Could not locate project root" in result.stdout
 
-    @patch("specify_cli.core.feature_creation.is_worktree_context")
+    @patch("specify_cli.core.mission_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_main_repo_hint(
@@ -206,7 +206,7 @@ class TestCreateFeatureCommand:
         assert "/main-repo" in result.stdout
         assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
-    @patch("specify_cli.core.feature_creation.is_worktree_context")
+    @patch("specify_cli.core.mission_creation.is_worktree_context")
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
     @patch("specify_cli.cli.commands.agent.feature.Path.cwd")
     def test_blocks_create_feature_from_worktree_with_worktrees_fallback_hint(
@@ -229,9 +229,9 @@ class TestCreateFeatureCommand:
         assert "/main-repo" in result.stdout
         assert "spec-kitty agent mission create-feature test-feature" in result.stdout
 
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.is_git_repo")
+    @patch("specify_cli.core.mission_creation.is_git_repo")
     def test_handles_git_errors(
         self, mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock, tmp_path: Path
     ):
@@ -251,13 +251,13 @@ class TestCreateFeatureCommand:
         assert "error" in output
         assert "git" in output["error"].lower()
 
-    @patch("specify_cli.core.feature_creation.emit_feature_created")
-    @patch("specify_cli.core.feature_creation._commit_feature_file")
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation._commit_feature_file")
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.feature_creation.get_current_branch")
-    @patch("specify_cli.core.feature_creation.get_next_feature_number")
+    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.mission_creation.get_current_branch")
+    @patch("specify_cli.core.mission_creation.get_next_feature_number")
     def test_allows_feature_creation_from_any_branch(
         self, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,
@@ -283,13 +283,13 @@ class TestCreateFeatureCommand:
         output = json.loads(first_line)
         assert output["result"] == "success"
 
-    @patch("specify_cli.core.feature_creation.emit_feature_created")
-    @patch("specify_cli.core.feature_creation._commit_feature_file")
-    @patch("specify_cli.core.feature_creation.is_worktree_context", return_value=False)
+    @patch("specify_cli.core.mission_creation.emit_feature_created")
+    @patch("specify_cli.core.mission_creation._commit_feature_file")
+    @patch("specify_cli.core.mission_creation.is_worktree_context", return_value=False)
     @patch("specify_cli.cli.commands.agent.feature.locate_project_root")
-    @patch("specify_cli.core.feature_creation.is_git_repo", return_value=True)
-    @patch("specify_cli.core.feature_creation.get_current_branch")
-    @patch("specify_cli.core.feature_creation.get_next_feature_number")
+    @patch("specify_cli.core.mission_creation.is_git_repo", return_value=True)
+    @patch("specify_cli.core.mission_creation.get_current_branch")
+    @patch("specify_cli.core.mission_creation.get_next_feature_number")
     def test_creates_feature_on_primary_branch(
         self, mock_get_number: Mock, mock_branch: Mock,
         mock_is_git: Mock, mock_locate: Mock, mock_is_wt: Mock,

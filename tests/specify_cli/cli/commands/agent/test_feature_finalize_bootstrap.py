@@ -22,7 +22,7 @@ from specify_cli.status.bootstrap import BootstrapResult
 # ---------------------------------------------------------------------------
 
 MODULE = "specify_cli.cli.commands.agent.feature"
-CORE_MODULE = "specify_cli.core.feature_creation"
+CORE_MODULE = "specify_cli.core.mission_creation"
 
 
 def _setup_feature(tmp_path: Path, feature_slug: str = "060-test-feature") -> Path:
