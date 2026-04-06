@@ -31,12 +31,12 @@
 | T021 | Hook diff_baseline() into review prompt — Baseline Context section | WP04 | [P] |
 | T022 | Add review.test_command config support for non-pytest runners | WP04 | [P] |
 | T023 | Write tests for capture, JSON round-trip, diff, config, review prompt | WP04 | [P] |
-| T024 | Create lock.py with ReviewLock dataclass — acquire, release, is_stale | WP05 | [P] |
-| T025 | Implement stale lock detection — cross-platform PID check | WP05 | [P] |
-| T026 | Hook lock acquire/release into agent action review | WP05 | [P] |
-| T027 | Add .spec-kitty/ to .gitignore | WP05 | [P] |
-| T028 | Implement opt-in env-var isolation config from .kittify/config.yaml | WP05 | [P] |
-| T029 | Write tests for lock lifecycle, stale detection, concurrent block, config | WP05 | [P] |
+| T024 | Create lock.py with ReviewLock dataclass — acquire, release, is_stale | WP05 | [D] |
+| T025 | Implement stale lock detection — cross-platform PID check | WP05 | [D] |
+| T026 | Hook lock acquire/release into agent action review | WP05 | [D] |
+| T027 | Add .spec-kitty/ to .gitignore | WP05 | [D] |
+| T028 | Implement opt-in env-var isolation config from .kittify/config.yaml | WP05 | [D] |
+| T029 | Write tests for lock lifecycle, stale detection, concurrent block, config | WP05 | [D] |
 | T030 | Create arbiter.py with ArbiterCategory, ArbiterChecklist, ArbiterDecision | WP06 | [P] |
 | T031 | Implement prompt_arbiter_checklist() — 5-question checklist + category | WP06 | [P] |
 | T032 | Implement override detection in move-task — forward --force after rejection | WP06 | [P] |
