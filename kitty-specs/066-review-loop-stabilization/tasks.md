@@ -19,11 +19,11 @@
 | T009 | Add fix-mode detection in workflow.py implement path | WP02 | |
 | T010 | Implement mode switching — fix-prompt vs full-prompt | WP02 | |
 | T011 | Write tests for fix-prompt generation, sizing, end-to-end flow | WP02 | |
-| T012 | Create dirty_classifier.py with classify_dirty_paths() | WP03 | [P] |
-| T013 | Implement classification rules — blocking vs benign path patterns | WP03 | [P] |
-| T014 | Update _validate_ready_for_review() — use classifier, only block on blocking | WP03 | [P] |
-| T015 | Update review prompt — surface writable in-repo feedback path | WP03 | [P] |
-| T016 | Write tests for classification, validation, review prompt path | WP03 | [P] |
+| T012 | Create dirty_classifier.py with classify_dirty_paths() | WP03 | [D] |
+| T013 | Implement classification rules — blocking vs benign path patterns | WP03 | [D] |
+| T014 | Update _validate_ready_for_review() — use classifier, only block on blocking | WP03 | [D] |
+| T015 | Update review prompt — surface writable in-repo feedback path | WP03 | [D] |
+| T016 | Write tests for classification, validation, review prompt path | WP03 | [D] |
 | T017 | Create baseline.py with BaselineTestResult and TestFailure dataclasses | WP04 | [D] |
 | T018 | Implement capture_baseline() — pytest --junitxml + JUnit XML parsing | WP04 | [D] |
 | T019 | Implement load_baseline() and diff_baseline() — cached lookup + diff | WP04 | [D] |
