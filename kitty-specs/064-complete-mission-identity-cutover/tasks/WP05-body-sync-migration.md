@@ -22,8 +22,8 @@ subtasks:
 - T033
 phase: Phase C - Contract Cleanup
 assignee: ''
-agent: "claude:sonnet-4.6:python-implementer:implementer"
-shell_pid: "80435"
+agent: "opencode:gpt-5.4:python-reviewer:reviewer"
+shell_pid: "84377"
 history:
 - timestamp: '2026-04-06T05:39:39Z'
   agent: system
@@ -211,3 +211,4 @@ See `kitty-specs/064-complete-mission-identity-cutover/contracts/body-sync.md` f
 
 - 2026-04-06T07:35:32Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=80435 – Started implementation via action command
 - 2026-04-06T07:44:02Z – claude:sonnet-4.6:python-implementer:implementer – shell_pid=80435 – Ready for review: renamed NamespaceRef/BodyUploadTask fields, updated transport payload, added contract gate, SQLite column migration, fresh schema, 217 tests passing
+- 2026-04-06T07:44:39Z – opencode:gpt-5.4:python-reviewer:reviewer – shell_pid=84377 – Started review via action command
