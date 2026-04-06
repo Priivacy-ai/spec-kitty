@@ -1,9 +1,11 @@
 {
   "created_at": "2026-04-06T13:13:39.241970+00:00",
-  "friendly_name": "tasks and lane stabilization",
+  "friendly_name": "Tasks And Lane Stabilization",
   "mission_number": "065",
   "mission_slug": "065-tasks-and-lane-stabilization",
   "mission_type": "software-dev",
   "slug": "065-tasks-and-lane-stabilization",
-  "target_branch": "main"
+  "source_description": "P0 stabilization mission: fix the planning/tasks control plane so features can be finalized into executable WPs and lanes without silent mutation, dependency loss, lane collapse, or agent command failures.",
+  "target_branch": "main",
+  "vcs": "git"
 }
