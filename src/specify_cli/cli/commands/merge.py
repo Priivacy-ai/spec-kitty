@@ -4,12 +4,21 @@ Lane worktrees are the only supported execution topology. Merge always follows
 the same two-step flow:
 1. Merge each lane branch into the mission branch.
 2. Merge the mission branch into the target branch.
+
+Recovery semantics (WP01 / 067):
+- MergeState is created at merge start and updated after each WP mark-done.
+- On interruption, rerunning ``merge`` detects the existing state and resumes.
+- ``--resume`` explicitly triggers resume; ``--abort`` cleans up state and exits.
+- ``cleanup_merge_workspace`` preserves state.json so recovery works.
+- ``clear_state`` is called only after confirmed full completion.
 """
 
 from __future__ import annotations
 
 import json
+import logging
 import re
+import time
 from pathlib import Path
 
 import typer
@@ -22,7 +31,25 @@ from specify_cli.core.git_preflight import build_git_preflight_failure_payload, 
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.frontmatter import read_frontmatter
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+from specify_cli.merge.state import MergeState, clear_state, load_state, save_state
+from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.tasks_support import TaskCliError, find_repo_root
+
+logger = logging.getLogger(__name__)
+
+
+def _has_transition_to(feature_dir: Path, wp_id: str, to_lane: str) -> bool:
+    """Check whether the event log already contains a transition for *wp_id* to *to_lane*.
+
+    This dedup guard prevents duplicate events when ``_mark_wp_merged_done`` is
+    called again on retry/resume.
+    """
+    from specify_cli.status.store import read_events
+
+    for event in read_events(feature_dir):
+        if event.wp_id == wp_id and event.to_lane == to_lane:
+            return True
+    return False
 
 
 def _mark_wp_merged_done(
@@ -31,7 +58,11 @@ def _mark_wp_merged_done(
     wp_id: str,
     target_branch: str,
 ) -> None:
-    """Record merge-complete state for a merged WP using canonical status events."""
+    """Record merge-complete state for a merged WP using canonical status events.
+
+    Includes event-log dedup: if the target transition already exists in the log
+    the emission is skipped so that retries are idempotent.
+    """
     feature_dir = repo_root / "kitty-specs" / mission_slug
     wp_path = None
     for candidate in sorted((feature_dir / "tasks").glob(f"{wp_id}*.md")):
@@ -55,6 +86,11 @@ def _mark_wp_merged_done(
     if lane == "done":
         return
 
+    # Dedup guard: if we already have a done transition in the log, skip everything.
+    if _has_transition_to(feature_dir, wp_id, "done"):
+        logger.debug("Dedup: %s already has 'done' transition, skipping", wp_id)
+        return
+
     evidence = extract_done_evidence(frontmatter, wp_id)
     if evidence is None:
         if lane == "approved":
@@ -73,23 +109,27 @@ def _mark_wp_merged_done(
             return
 
     if lane == "for_review":
-        try:
-            emit_status_transition(
-                feature_dir=feature_dir,
-                mission_slug=mission_slug,
-                wp_id=wp_id,
-                to_lane="approved",
-                actor="merge",
-                reason=f"Recorded prior review approval for merged {wp_id}",
-                evidence=evidence.to_dict(),
-                workspace_context=f"merge:{repo_root}",
-                repo_root=repo_root,
-            )
-        except TransitionError as exc:
-            console.print(
-                f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}"
-            )
-            return
+        # Dedup guard for the intermediate approved transition
+        if _has_transition_to(feature_dir, wp_id, "approved"):
+            logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
+        else:
+            try:
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane="approved",
+                    actor="merge",
+                    reason=f"Recorded prior review approval for merged {wp_id}",
+                    evidence=evidence.to_dict(),
+                    workspace_context=f"merge:{repo_root}",
+                    repo_root=repo_root,
+                )
+            except TransitionError as exc:
+                console.print(
+                    f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}"
+                )
+                return
         lane = "approved"
 
     if lane != "approved":
@@ -243,7 +283,7 @@ def _run_lane_based_merge(
     remove_worktree: bool,
     target_override: str | None = None,
 ) -> None:
-    """Execute the lane-only merge flow."""
+    """Execute the lane-only merge flow with MergeState lifecycle for recovery."""
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.policy.config import load_policy_config
@@ -255,12 +295,32 @@ def _run_lane_based_merge(
     if target_override:
         lanes_manifest.target_branch = target_override
 
+    # -- T001: MergeState lifecycle: load or create --
+    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
+    state = load_state(main_repo, mission_slug)
+    is_resume = False
+    if state is not None and state.completed_wps:
+        is_resume = True
+        console.print(
+            f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} "
+            f"({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)"
+        )
+    else:
+        state = MergeState(
+            mission_id=mission_slug,
+            mission_slug=mission_slug,
+            target_branch=lanes_manifest.target_branch,
+            wp_order=all_wp_ids,
+        )
+        save_state(state, main_repo)
+
+    completed_set = set(state.completed_wps)
+
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
     console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
 
     policy = load_policy_config(main_repo)
-    all_wp_ids = [wp for lane in lanes_manifest.lanes for wp in lane.wp_ids]
     gate_eval = evaluate_merge_gates(
         feature_dir,
         mission_slug,
@@ -281,35 +341,73 @@ def _run_lane_based_merge(
         console.print("\n[red]Error:[/red] Merge gates failed.")
         raise typer.Exit(1)
 
+    # -- Lane merges (skip lanes whose WPs are all already completed) --
     for lane in lanes_manifest.lanes:
+        lane_wp_set = set(lane.wp_ids)
+        if lane_wp_set.issubset(completed_set):
+            console.print(f"  [dim]Skipping {lane.lane_id} (all WPs already done)[/dim]")
+            continue
+
         lane_result = merge_lane_to_mission(main_repo, mission_slug, lane.lane_id, lanes_manifest)
         if lane_result.success:
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
-            for error in lane_result.errors:
-                console.print(f"  [red]✗[/red] {lane.lane_id}: {error}")
-            raise typer.Exit(1)
+            # T005: tolerate already-merged lanes on retry
+            already_merged = any(
+                "already" in e.lower() or "up to date" in e.lower() or "ancestor" in e.lower()
+                for e in lane_result.errors
+            )
+            if is_resume and already_merged:
+                console.print(f"  [dim]{lane.lane_id} already merged, continuing[/dim]")
+            else:
+                for error in lane_result.errors:
+                    console.print(f"  [red]✗[/red] {lane.lane_id}: {error}")
+                raise typer.Exit(1)
 
+    # -- Mission-to-target merge --
     mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest)
     if not mission_result.success:
-        for error in mission_result.errors:
-            console.print(f"[red]Error:[/red] {error}")
-        raise typer.Exit(1)
+        # T005: tolerate already-merged on retry
+        already_merged = any(
+            "already" in e.lower() or "up to date" in e.lower()
+            for e in mission_result.errors
+        )
+        if is_resume and already_merged:
+            console.print(f"[dim]{lanes_manifest.mission_branch} already merged into {lanes_manifest.target_branch}[/dim]")
+        else:
+            for error in mission_result.errors:
+                console.print(f"[red]Error:[/red] {error}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
+        if mission_result.commit:
+            console.print(f"  Commit: {mission_result.commit[:7]}")
 
-    console.print(f"\n[green]✓[/green] {lanes_manifest.mission_branch} → {lanes_manifest.target_branch}")
-    if mission_result.commit:
-        console.print(f"  Commit: {mission_result.commit[:7]}")
-
+    # -- T001: Mark WPs done with per-WP state tracking --
     for lane in lanes_manifest.lanes:
         for wp_id in lane.wp_ids:
+            if wp_id in completed_set:
+                console.print(f"  [dim]Skipping {wp_id} (already recorded as done)[/dim]")
+                continue
+
+            state.set_current_wp(wp_id)
+            save_state(state, main_repo)
+
             _mark_wp_merged_done(main_repo, mission_slug, wp_id, lanes_manifest.target_branch)
 
+            state.mark_wp_complete(wp_id)
+            save_state(state, main_repo)
+            completed_set.add(wp_id)
+
+    # -- Push --
     if push and has_remote(main_repo):
         run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
         console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
 
+    # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
     if remove_worktree:
-        for lane in lanes_manifest.lanes:
+        delay = _worktree_removal_delay()
+        for idx, lane in enumerate(lanes_manifest.lanes):
             wt_path = main_repo / ".worktrees" / f"{mission_slug}-{lane.lane_id}"
             if wt_path.exists():
                 run_command(
@@ -318,20 +416,52 @@ def _run_lane_based_merge(
                     check_return=False,
                 )
                 console.print(f"  Removed worktree: {wt_path.name}")
+                # Apply FSEvents delay between removals (not after the last one)
+                if delay > 0 and idx < len(lanes_manifest.lanes) - 1:
+                    time.sleep(delay)
+            else:
+                # T005: tolerate missing worktree on retry
+                logger.debug("Worktree %s does not exist, skipping removal", wt_path)
 
+    # -- T005: Branch deletion with retry tolerance --
     if delete_branch:
         for lane in lanes_manifest.lanes:
+            branch_name = lane_branch_name(mission_slug, lane.lane_id)
+            # T005: check if branch exists before attempting deletion
+            ret, _, _ = run_command(
+                ["git", "rev-parse", "--verify", f"refs/heads/{branch_name}"],
+                capture=True,
+                check_return=False,
+                cwd=main_repo,
+            )
+            if ret == 0:
+                run_command(
+                    ["git", "branch", "-D", branch_name],
+                    cwd=main_repo,
+                    check_return=False,
+                )
+            else:
+                logger.debug("Branch %s does not exist, skipping deletion", branch_name)
+
+        ret, _, _ = run_command(
+            ["git", "rev-parse", "--verify", f"refs/heads/{lanes_manifest.mission_branch}"],
+            capture=True,
+            check_return=False,
+            cwd=main_repo,
+        )
+        if ret == 0:
             run_command(
-                ["git", "branch", "-D", lane_branch_name(mission_slug, lane.lane_id)],
+                ["git", "branch", "-D", lanes_manifest.mission_branch],
                 cwd=main_repo,
                 check_return=False,
             )
-        run_command(
-            ["git", "branch", "-D", lanes_manifest.mission_branch],
-            cwd=main_repo,
-            check_return=False,
-        )
+        else:
+            logger.debug("Mission branch %s does not exist, skipping deletion", lanes_manifest.mission_branch)
         console.print(f"  Cleaned up {len(lanes_manifest.lanes)} lane branch(es) + mission branch")
+
+    # -- T002: Cleanup workspace (preserves state.json) then clear state --
+    cleanup_merge_workspace(mission_slug, main_repo)
+    clear_state(main_repo, mission_slug)
 
 
 @require_main_repo
@@ -345,8 +475,8 @@ def merge(
     json_output: bool = typer.Option(False, "--json", help="Output deterministic JSON (dry-run mode)"),
     mission: str = typer.Option(None, "--mission", help="Mission slug when merging from main branch"),
     feature: str = typer.Option(None, "--feature", hidden=True, help="Legacy alias for --mission"),
-    resume: bool = typer.Option(False, "--resume", help="Resume is no longer supported"),
-    abort: bool = typer.Option(False, "--abort", help="Abort is no longer supported"),
+    resume: bool = typer.Option(False, "--resume", help="Resume an interrupted merge from the last incomplete WP"),
+    abort: bool = typer.Option(False, "--abort", help="Abort an in-progress merge, cleaning up state and worktrees"),
     context_token: str = typer.Option(None, "--context", help="Unused compatibility flag"),
     keep_workspace: bool = typer.Option(False, "--keep-workspace", help="Unused compatibility flag"),
 ) -> None:
@@ -356,20 +486,60 @@ def merge(
     if not json_output:
         show_banner()
 
-    if resume or abort:
-        console.print("[red]Error:[/red] Resume/abort merge flows were removed with the legacy merge engine.")
-        raise typer.Exit(1)
-
     try:
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
+    # -- T004: Handle --abort early --
+    if abort:
+        mission_slug_raw = (mission or feature or "").strip() or None
+        resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        if resolved:
+            cleared = clear_state(repo_root, resolved)
+            cleanup_merge_workspace(resolved, repo_root)
+            if cleared:
+                console.print(f"[green]Aborted[/green] merge for {resolved}. State and workspace cleaned up.")
+            else:
+                console.print(f"[yellow]No active merge state found for {resolved}.[/yellow] Workspace cleaned up.")
+        else:
+            cleared = clear_state(repo_root)
+            if cleared:
+                console.print("[green]Aborted[/green] merge. State cleaned up.")
+            else:
+                console.print("[yellow]No active merge state to abort.[/yellow]")
+        return
+
+    # -- T004: Handle --resume (loads existing state; the main flow will detect it) --
+    if resume:
+        mission_slug_raw = (mission or feature or "").strip() or None
+        resolved = _resolve_mission_slug(repo_root, mission_slug_raw)
+        existing_state = load_state(repo_root, resolved)
+        if existing_state is None:
+            console.print("[red]Error:[/red] No interrupted merge to resume.")
+            raise typer.Exit(1)
+        console.print(
+            f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} "
+            f"({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
+        )
+        # Fall through to the normal merge flow which will detect the state
+
     _enforce_git_preflight(repo_root, json_output=json_output)
 
     mission_slug = (mission or feature or "").strip() or None
     resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
+
+    # T004: Auto-detect existing state when running merge without --resume
+    if not resume and resolved_feature:
+        existing_state = load_state(repo_root, resolved_feature)
+        if existing_state is not None and existing_state.remaining_wps:
+            console.print(
+                f"[bold cyan]Detected interrupted merge[/bold cyan] for {resolved_feature} "
+                f"({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} WPs done). "
+                "Auto-resuming."
+            )
+
     resolved_target_branch, target_source = _resolve_target_branch(repo_root, resolved_feature, target_branch)
     _validate_target_branch(
         repo_root,
@@ -443,4 +613,4 @@ def merge(
         raise typer.Exit(1)
 
 
-__all__ = ["_mark_wp_merged_done", "merge"]
+__all__ = ["_has_transition_to", "_mark_wp_merged_done", "merge"]
