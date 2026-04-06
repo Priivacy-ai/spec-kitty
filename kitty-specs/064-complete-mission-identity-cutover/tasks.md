@@ -124,7 +124,7 @@ Rename `NamespaceRef` and `BodyUploadTask` fields. Migrate SQLite queue schema. 
 
 Add `build_id` to tracker bind. Insert gate at tracker, emitter, batch sync, and WebSocket chokepoints. Audit event paths for `build_id` preservation. Rename FeatureCreated/FeatureCompleted event surfaces. Update vendored event model with `build_id` and `schema_version`.
 
-- [ ] T033: Add `build_id` to tracker bind `project_identity` dict in `tracker.py`
+- [x] T033: Add `build_id` to tracker bind `project_identity` dict in `tracker.py`
 - [x] T034: Insert gate at `SaaSTrackerClient._request()` chokepoint
 - [x] T035: Insert gate at `EventEmitter._emit()`, `batch_sync()`, `WebSocketClient.send_event()` chokepoints
 - [x] T036: Audit event emission paths for `build_id` presence and fix gaps
