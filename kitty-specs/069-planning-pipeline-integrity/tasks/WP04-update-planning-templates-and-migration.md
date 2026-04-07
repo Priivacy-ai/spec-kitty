@@ -423,3 +423,7 @@ class TestApply:
 - Verify `target_version = "3.2.0"` matches the pyproject.toml version that will ship this feature
 - Confirm the migration only imports from `m_2_1_3_restore_prompt_commands` (same-package, safe) and `m_0_9_1_complete_lane_migration` (pattern used by all other migrations)
 - The stale marker `"Create \`tasks.md\`"` must exactly match a string in the current `tasks-outline.md` Purpose section — verify before committing
+
+## Activity Log
+
+- 2026-04-07T12:09:57Z – unknown – shell_pid=16944 – T022-T026: templates rewritten for wps.yaml, migration m_3_2_0 with detect/apply/tests (16 tests, all passing)
