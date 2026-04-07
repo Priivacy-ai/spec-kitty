@@ -20,7 +20,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: '42381'
+shell_pid: "62643"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -268,3 +269,4 @@ Once WP04 lands, the maintainer can run `spec-kitty agent release prep --channel
 
 - 2026-04-07T09:23:30Z – unknown – shell_pid=42381 – Claimed by claude orchestrator
 - 2026-04-07T09:33:59Z – unknown – shell_pid=42381 – Ready for review: release-prep CLI implemented with full test suite. 28/28 tests pass, ruff and mypy clean on release package. PYTHONPATH=src python -m specify_cli agent release prep --help works. Zero network calls verified via mock.
+- 2026-04-07T09:34:38Z – claude:sonnet:reviewer:reviewer – shell_pid=62643 – Started review via action command
