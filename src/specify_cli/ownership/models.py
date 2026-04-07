@@ -8,7 +8,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any
+from typing import Any, overload
+
+from specify_cli.status.wp_metadata import WPMetadata
 
 
 # Sentinel for the codebase-wide scope value used in WP frontmatter.
@@ -51,13 +53,22 @@ class OwnershipManifest:
         """Return True if this WP has codebase-wide scope."""
         return self.scope == SCOPE_CODEBASE_WIDE
 
+    @overload
     @classmethod
-    def from_frontmatter(cls, data: dict[str, Any]) -> OwnershipManifest:
+    def from_frontmatter(cls, data: WPMetadata) -> OwnershipManifest: ...
+
+    @overload
+    @classmethod
+    def from_frontmatter(cls, data: dict[str, Any]) -> OwnershipManifest: ...
+
+    @classmethod
+    def from_frontmatter(cls, data: dict[str, Any] | WPMetadata) -> OwnershipManifest:
         """Construct an OwnershipManifest from parsed frontmatter data.
 
         Args:
-            data: Dictionary with keys ``execution_mode``, ``owned_files``,
-                and ``authoritative_surface``. Optionally ``scope``.
+            data: Either a :class:`WPMetadata` instance or a raw dictionary
+                with keys ``execution_mode``, ``owned_files``, and
+                ``authoritative_surface``. Optionally ``scope``.
 
         Returns:
             A new OwnershipManifest instance.
@@ -66,6 +77,21 @@ class OwnershipManifest:
             KeyError: If a required key is missing.
             ValueError: If ``execution_mode`` is not a valid ExecutionMode value.
         """
+        if isinstance(data, WPMetadata):
+            raw_mode = data.execution_mode
+            if raw_mode is None:
+                raise KeyError("execution_mode")
+            execution_mode = ExecutionMode(raw_mode)
+            owned_files = tuple(data.owned_files) if data.owned_files else ()
+            authoritative_surface = data.authoritative_surface or ""
+            scope = None  # WPMetadata doesn't carry scope field
+            return cls(
+                execution_mode=execution_mode,
+                owned_files=owned_files,
+                authoritative_surface=authoritative_surface,
+                scope=scope,
+            )
+
         raw_mode = data["execution_mode"]
         execution_mode = ExecutionMode(raw_mode)
 
