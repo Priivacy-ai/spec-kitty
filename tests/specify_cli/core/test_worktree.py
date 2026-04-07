@@ -5,30 +5,30 @@ Verifies:
 - planning_artifact WPs return repo_root directly (no worktree created).
 - Both execution modes avoid any file-hiding workspace mechanism.
 - create_wp_workspace() routes correctly for both execution modes.
+- create_wp_workspace() accepts WPMetadata in addition to raw dicts.
 """
 
 from __future__ import annotations
 
-import subprocess
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
 from specify_cli.core.worktree import create_wp_workspace
-from specify_cli.ownership.models import ExecutionMode
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_frontmatter(
     execution_mode: str = "code_change",
     wp_id: str = "WP01",
     mission_slug: str = "test-feature",
     owned_files: list[str] | None = None,
-) -> dict:
+) -> dict[str, object]:
     return {
         "work_package_id": wp_id,
         "execution_mode": execution_mode,
@@ -47,6 +47,7 @@ def _make_successful_vcs_result(workspace_path: Path) -> MagicMock:
 # ---------------------------------------------------------------------------
 # T018/T019: planning_artifact routing
 # ---------------------------------------------------------------------------
+
 
 class TestPlanningArtifactWorkspace:
     """planning_artifact WPs must return repo_root — no worktree created."""
@@ -101,6 +102,7 @@ class TestPlanningArtifactWorkspace:
 # ---------------------------------------------------------------------------
 # T018: code_change routing
 # ---------------------------------------------------------------------------
+
 
 class TestCodeChangeWorkspace:
     """code_change WPs must create standard full-checkout worktrees."""
@@ -175,14 +177,13 @@ class TestCodeChangeWorkspace:
         fail_result.error = "branch already exists"
         mock_vcs.create_workspace.return_value = fail_result
 
-        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            with pytest.raises(RuntimeError, match="branch already exists"):
-                create_wp_workspace(
-                    repo_root=tmp_path,
-                    workspace_path=workspace_path,
-                    workspace_name="kitty/mission-test-feature-lane-a",
-                    wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
-                )
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs), pytest.raises(RuntimeError, match="branch already exists"):
+            create_wp_workspace(
+                repo_root=tmp_path,
+                workspace_path=workspace_path,
+                workspace_name="kitty/mission-test-feature-lane-a",
+                wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
+            )
 
     def test_reuses_existing_valid_worktree(self, tmp_path: Path) -> None:
         """code_change WP reuses an existing workspace that has a .git marker."""
@@ -208,19 +209,19 @@ class TestCodeChangeWorkspace:
         workspace_path.mkdir(parents=True)
         # No .git file/dir — not a valid worktree
 
-        with patch("specify_cli.core.worktree.get_vcs"):
-            with pytest.raises(FileExistsError, match="not a worktree"):
-                create_wp_workspace(
-                    repo_root=tmp_path,
-                    workspace_path=workspace_path,
-                    workspace_name="kitty/mission-test-feature-lane-a",
-                    wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
-                )
+        with patch("specify_cli.core.worktree.get_vcs"), pytest.raises(FileExistsError, match="not a worktree"):
+            create_wp_workspace(
+                repo_root=tmp_path,
+                workspace_path=workspace_path,
+                workspace_name="kitty/mission-test-feature-lane-a",
+                wp_frontmatter=_make_frontmatter(execution_mode="code_change"),
+            )
 
 
 # ---------------------------------------------------------------------------
 # T018: execution_mode default / unknown values
 # ---------------------------------------------------------------------------
+
 
 class TestExecutionModeDefaults:
     """Verify fallback behaviour for absent or unknown execution_mode values."""
@@ -236,14 +237,13 @@ class TestExecutionModeDefaults:
         fail_result.error = "test"
         mock_vcs.create_workspace.return_value = fail_result
 
-        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            with pytest.raises(RuntimeError):
-                create_wp_workspace(
-                    repo_root=tmp_path,
-                    workspace_path=workspace_path,
-                    workspace_name="WP99",
-                    wp_frontmatter=frontmatter,
-                )
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs), pytest.raises(RuntimeError):
+            create_wp_workspace(
+                repo_root=tmp_path,
+                workspace_path=workspace_path,
+                workspace_name="WP99",
+                wp_frontmatter=frontmatter,
+            )
         # The VCS path was taken (not planning_artifact path)
         mock_vcs.create_workspace.assert_called_once()
 
@@ -261,20 +261,20 @@ class TestExecutionModeDefaults:
         fail_result.error = "test"
         mock_vcs.create_workspace.return_value = fail_result
 
-        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            with pytest.raises(RuntimeError):
-                create_wp_workspace(
-                    repo_root=tmp_path,
-                    workspace_path=workspace_path,
-                    workspace_name="WP99",
-                    wp_frontmatter=frontmatter,
-                )
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs), pytest.raises(RuntimeError):
+            create_wp_workspace(
+                repo_root=tmp_path,
+                workspace_path=workspace_path,
+                workspace_name="WP99",
+                wp_frontmatter=frontmatter,
+            )
         mock_vcs.create_workspace.assert_called_once()
 
 
 # ---------------------------------------------------------------------------
 # T020: verify legacy file-filtering hooks are absent from the VCS layer
 # ---------------------------------------------------------------------------
+
 
 class TestNoSparseCheckoutInVCS:
     """Verify that legacy file-hiding workspace hooks are absent from the VCS layer."""
@@ -285,9 +285,7 @@ class TestNoSparseCheckoutInVCS:
         from specify_cli.core.vcs.git import GitVCS
 
         sig = inspect.signature(GitVCS.create_workspace)
-        assert "sparse_exclude" not in sig.parameters, (
-            "sparse_exclude must be removed from GitVCS.create_workspace()"
-        )
+        assert "sparse_exclude" not in sig.parameters, "sparse_exclude must be removed from GitVCS.create_workspace()"
 
     def test_protocol_create_workspace_has_no_sparse_param(self) -> None:
         """VCSProtocol.create_workspace() must not declare sparse_exclude."""
@@ -295,14 +293,66 @@ class TestNoSparseCheckoutInVCS:
         from specify_cli.core.vcs.protocol import VCSProtocol
 
         sig = inspect.signature(VCSProtocol.create_workspace)
-        assert "sparse_exclude" not in sig.parameters, (
-            "sparse_exclude must be removed from VCSProtocol.create_workspace()"
-        )
+        assert "sparse_exclude" not in sig.parameters, "sparse_exclude must be removed from VCSProtocol.create_workspace()"
 
     def test_git_vcs_has_no_apply_sparse_checkout_method(self) -> None:
         """Legacy sparse helper must not exist on GitVCS."""
         from specify_cli.core.vcs.git import GitVCS
 
-        assert not hasattr(GitVCS, "_apply_sparse_checkout"), (
-            "_apply_sparse_checkout must be deleted from GitVCS"
+        assert not hasattr(GitVCS, "_apply_sparse_checkout"), "_apply_sparse_checkout must be deleted from GitVCS"
+
+
+# ---------------------------------------------------------------------------
+# WPMetadata typed input support
+# ---------------------------------------------------------------------------
+
+
+class TestWPMetadataInput:
+    """Verify create_wp_workspace accepts WPMetadata in addition to raw dicts."""
+
+    def test_planning_artifact_with_wp_metadata(self, tmp_path: Path) -> None:
+        """planning_artifact WP via WPMetadata returns repo_root."""
+        from specify_cli.status.wp_metadata import WPMetadata
+
+        meta = WPMetadata(
+            work_package_id="WP01",
+            title="Test WP",
+            dependencies=[],
+            execution_mode="planning_artifact",
+            owned_files=["docs/spec.md"],
+            feature_slug="test-feature",
         )
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
+        result = create_wp_workspace(
+            repo_root=tmp_path,
+            workspace_path=workspace_path,
+            workspace_name="kitty/mission-test-feature-lane-a",
+            wp_frontmatter=meta,
+        )
+        assert result == tmp_path
+
+    def test_code_change_with_wp_metadata(self, tmp_path: Path) -> None:
+        """code_change WP via WPMetadata delegates to VCS."""
+        from specify_cli.status.wp_metadata import WPMetadata
+
+        meta = WPMetadata(
+            work_package_id="WP01",
+            title="Test WP",
+            dependencies=[],
+            execution_mode="code_change",
+        )
+        workspace_path = tmp_path / ".worktrees" / "test-feature-lane-a"
+
+        mock_vcs = MagicMock()
+        mock_vcs.create_workspace.return_value = _make_successful_vcs_result(workspace_path)
+
+        with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
+            result = create_wp_workspace(
+                repo_root=tmp_path,
+                workspace_path=workspace_path,
+                workspace_name="kitty/mission-test-feature-lane-a",
+                wp_frontmatter=meta,
+            )
+
+        assert result == workspace_path
+        mock_vcs.create_workspace.assert_called_once()

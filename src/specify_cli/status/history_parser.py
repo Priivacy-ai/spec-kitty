@@ -25,6 +25,7 @@ from typing import Any
 
 from .models import DoneEvidence, ReviewApproval
 from .transitions import resolve_lane_alias
+from .wp_metadata import WPMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -191,21 +192,31 @@ def gap_fill(
     return result
 
 
-def extract_done_evidence(frontmatter: dict[str, Any], wp_id: str) -> DoneEvidence | None:
+def extract_done_evidence(
+    frontmatter: dict[str, Any] | WPMetadata,
+    wp_id: str,
+) -> DoneEvidence | None:
     """Build DoneEvidence from frontmatter review fields.
 
     Only produces evidence when review_status is "approved" AND
     reviewed_by is non-empty.
 
+    Accepts either a raw frontmatter dict (legacy migration callers)
+    or a typed :class:`WPMetadata` instance.
+
     Args:
-        frontmatter: Full WP frontmatter dict.
+        frontmatter: Full WP frontmatter dict or WPMetadata.
         wp_id: Work package ID for the reference field.
 
     Returns:
         DoneEvidence if review approval is present, None otherwise.
     """
-    review_status = frontmatter.get("review_status")
-    reviewed_by = frontmatter.get("reviewed_by")
+    if isinstance(frontmatter, WPMetadata):
+        review_status = frontmatter.review_status
+        reviewed_by = frontmatter.reviewed_by
+    else:
+        review_status = frontmatter.get("review_status")
+        reviewed_by = frontmatter.get("reviewed_by")
 
     if review_status == "approved" and reviewed_by and str(reviewed_by).strip():
         return DoneEvidence(

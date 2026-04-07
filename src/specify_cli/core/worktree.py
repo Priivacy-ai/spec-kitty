@@ -13,16 +13,22 @@ Workspace routing by execution_mode:
 
 from __future__ import annotations
 
+import contextlib
+import logging
 import platform
 import shutil
 import subprocess
 import warnings
 from pathlib import Path
+from typing import Any
 
 from .constants import KITTIFY_DIR, KITTY_SPECS_DIR, WORKTREES_DIR
 from .vcs import get_vcs
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
+from specify_cli.status.wp_metadata import WPMetadata
+
+logger = logging.getLogger(__name__)
 
 
 def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
@@ -60,12 +66,10 @@ def _exclude_from_git(worktree_path: Path, patterns: list[str]) -> None:
     exclude_file.parent.mkdir(parents=True, exist_ok=True)
 
     # Read existing exclusions
-    existing = set()
+    existing: set[str] = set()
     if exclude_file.exists():
-        try:
+        with contextlib.suppress(OSError):
             existing = set(exclude_file.read_text().splitlines())
-        except OSError:
-            pass
 
     # Add new patterns if not already present
     new_patterns = [p for p in patterns if p not in existing]
@@ -87,7 +91,7 @@ def create_wp_workspace(
     repo_root: Path,
     workspace_path: Path,
     workspace_name: str,
-    wp_frontmatter: dict,
+    wp_frontmatter: WPMetadata | dict[str, Any],
     base_branch: str | None = None,
     base_commit: str | None = None,
 ) -> Path:
@@ -104,8 +108,8 @@ def create_wp_workspace(
         repo_root: Absolute path to the repository root.
         workspace_path: Where a ``code_change`` worktree would be created.
         workspace_name: Branch name for a ``code_change`` worktree.
-        wp_frontmatter: Parsed YAML frontmatter dict for the work package.
-            Must contain ``execution_mode`` (defaults to ``code_change`` if absent).
+        wp_frontmatter: Parsed WP frontmatter — either a typed
+            :class:`WPMetadata` or a raw dict.
         base_branch: Optional branch to base the worktree on.
         base_commit: Optional commit to base the worktree on.
 
@@ -118,21 +122,28 @@ def create_wp_workspace(
         FileExistsError: If ``workspace_path`` already exists and is not a
             valid git worktree (``code_change`` only).
     """
-    # Determine execution_mode from frontmatter; default to code_change when absent
-    raw_mode = wp_frontmatter.get("execution_mode", ExecutionMode.CODE_CHANGE)
+    # Extract fields from either WPMetadata or raw dict
+    if isinstance(wp_frontmatter, WPMetadata):
+        raw_mode = wp_frontmatter.execution_mode or ExecutionMode.CODE_CHANGE
+        owned_files_raw: list[str] = list(wp_frontmatter.owned_files)
+        wp_code = wp_frontmatter.work_package_id
+        mission_slug = wp_frontmatter.feature_slug or ""
+    else:
+        raw_mode = wp_frontmatter.get("execution_mode", ExecutionMode.CODE_CHANGE)
+        owned_files_raw = wp_frontmatter.get("owned_files") or []
+        wp_code = wp_frontmatter.get("work_package_id", "")
+        mission_slug = wp_frontmatter.get("mission_slug", "")
+
     try:
         mode = ExecutionMode(raw_mode)
     except ValueError:
         mode = ExecutionMode.CODE_CHANGE
 
     if mode == ExecutionMode.PLANNING_ARTIFACT:
-        owned_files: list[str] = wp_frontmatter.get("owned_files") or []
-        wp_code = wp_frontmatter.get("work_package_id", "")
-        mission_slug = wp_frontmatter.get("mission_slug", "")
         return create_planning_workspace(
             mission_slug=mission_slug,
             wp_code=wp_code,
-            owned_files=list(owned_files) if isinstance(owned_files, (list, tuple)) else [],
+            owned_files=list(owned_files_raw) if isinstance(owned_files_raw, (list, tuple)) else [],
             repo_root=repo_root,
         )
 
@@ -208,11 +219,7 @@ def get_next_feature_number(repo_root: Path) -> int:
     return max_number + 1
 
 
-def create_feature_worktree(
-    repo_root: Path,
-    mission_slug: str,
-    feature_number: int | None = None
-) -> tuple[Path, Path]:
+def create_feature_worktree(repo_root: Path, mission_slug: str, feature_number: int | None = None) -> tuple[Path, Path]:
     """Create workspace (git worktree) for feature development.
 
     Creates a new workspace with a feature branch and sets up the
@@ -257,7 +264,7 @@ def create_feature_worktree(
             vcs = get_vcs(worktree_path)
             is_valid_workspace = vcs.is_repo(worktree_path)
         except Exception:
-            pass
+            logger.debug("VCS check failed for %s, falling back to .git marker", worktree_path, exc_info=True)
 
         # If VCS says no (or failed), fall back to simple git check
         # A valid git worktree has .git as a file (pointing to main repo)
@@ -295,9 +302,7 @@ def create_feature_worktree(
 
         # If VCS abstraction fails, fall back to direct git command with warning
         warnings.warn(
-            f"VCS abstraction failed ({type(e).__name__}: {e}); "
-            "falling back to direct git commands. "
-            "See: VCS abstraction layer documentation",
+            f"VCS abstraction failed ({type(e).__name__}: {e}); falling back to direct git commands. See: VCS abstraction layer documentation",
             DeprecationWarning,
             stacklevel=2,
         )
@@ -309,12 +314,10 @@ def create_feature_worktree(
                 capture_output=True,
                 text=True,
                 encoding="utf-8",
-                errors="replace"
+                errors="replace",
             )
         except subprocess.CalledProcessError as git_error:
-            raise RuntimeError(
-                f"Failed to create workspace: {git_error.stderr}"
-            ) from git_error
+            raise RuntimeError(f"Failed to create workspace: {git_error.stderr}") from git_error
 
     # Create feature directory structure
     feature_dir = worktree_path / KITTY_SPECS_DIR / branch_name
@@ -326,12 +329,7 @@ def create_feature_worktree(
     return (worktree_path, feature_dir)
 
 
-def setup_feature_directory(
-    feature_dir: Path,
-    worktree_path: Path,
-    repo_root: Path,
-    create_symlinks: bool = True
-) -> None:
+def setup_feature_directory(feature_dir: Path, worktree_path: Path, repo_root: Path, create_symlinks: bool = True) -> None:
     """Setup standard feature directory structure.
 
     Creates:
@@ -365,7 +363,7 @@ def setup_feature_directory(
     (tasks_dir / ".gitkeep").touch()
 
     # Create tasks/README.md with frontmatter format reference
-    tasks_readme_content = '''# Tasks Directory
+    tasks_readme_content = """# Tasks Directory
 
 This directory contains work package (WP) prompt files.
 
@@ -428,8 +426,8 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 - Format: `WP01-kebab-case-slug.md`
 - Examples: `WP01-setup-infrastructure.md`, `WP02-user-auth.md`
-'''
-    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding='utf-8')
+"""
+    (tasks_dir / "README.md").write_text(tasks_readme_content, encoding="utf-8")
 
     # Create worktree .kittify directory if it doesn't exist
     worktree_kittify = worktree_path / KITTIFY_DIR
@@ -509,10 +507,7 @@ spec-kitty agent tasks move-task WP01 --to doing
             spec_file.touch()
 
 
-def validate_feature_structure(
-    feature_dir: Path,
-    check_tasks: bool = False
-) -> dict:
+def validate_feature_structure(feature_dir: Path, check_tasks: bool = False) -> dict[str, Any]:
     """Validate feature directory structure and required files.
 
     Checks for:
@@ -539,8 +534,8 @@ def validate_feature_structure(
         >>> assert "valid" in result
         >>> assert "errors" in result
     """
-    errors = []
-    warnings = []
+    errors: list[str] = []
+    warnings_list: list[str] = []
     paths: dict[str, str] = {}
     artifact_files: dict[str, str] = {}
     artifact_dirs: dict[str, str] = {}
@@ -552,7 +547,7 @@ def validate_feature_structure(
         return {
             "valid": False,
             "errors": errors,
-            "warnings": warnings,
+            "warnings": warnings_list,
             "paths": paths,
             "artifact_files": artifact_files,
             "artifact_dirs": artifact_dirs,
@@ -583,7 +578,7 @@ def validate_feature_structure(
     for dir_name in recommended_dirs:
         dir_path = feature_dir / dir_name
         if not dir_path.exists():
-            warnings.append(f"Missing recommended directory: {dir_name}/")
+            warnings_list.append(f"Missing recommended directory: {dir_name}/")
         else:
             dir_path_str = str(dir_path)
             paths[f"{dir_name}_dir"] = dir_path_str
@@ -633,7 +628,7 @@ def validate_feature_structure(
     return {
         "valid": len(errors) == 0,
         "errors": errors,
-        "warnings": warnings,
+        "warnings": warnings_list,
         "paths": paths,
         "artifact_files": artifact_files,
         "artifact_dirs": artifact_dirs,

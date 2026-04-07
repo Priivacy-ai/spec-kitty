@@ -148,10 +148,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    for event in _store.read_events(feature_dir):
-        if event.wp_id == wp_id:
-            return True
-    return False
+    return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
 def _phase1_dual_write_enabled(feature_dir: Path) -> bool:
@@ -244,14 +241,14 @@ def emit_status_transition(
     mission_slug: str | None = None,
     force: bool = False,
     reason: str | None = None,
-    evidence: dict | None = None,
+    evidence: dict[str, Any] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
     review_result: Any = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
@@ -402,7 +399,7 @@ def emit_status_transition(
                 repo_root,
             )
         except Exception:
-            pass  # Never block status transitions
+            logger.debug("Dossier sync failed; never blocks status transitions", exc_info=True)
 
     # Step 9: Return the event
     return event
@@ -411,9 +408,9 @@ def emit_status_transition(
 def _saas_fan_out(
     event: StatusEvent,
     mission_slug: str,
-    repo_root: Path | None,
+    _repo_root: Path | None,
     *,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 

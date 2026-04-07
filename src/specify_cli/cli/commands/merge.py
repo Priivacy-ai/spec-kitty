@@ -30,13 +30,13 @@ from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
-from specify_cli.frontmatter import read_frontmatter
 from specify_cli.git import safe_commit
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.state import MergeState, clear_state, load_state, save_state
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 logger = logging.getLogger(__name__)
@@ -78,10 +78,7 @@ def _has_transition_to(feature_dir: Path, wp_id: str, to_lane: str) -> bool:
     """
     from specify_cli.status.store import read_events
 
-    for event in read_events(feature_dir):
-        if event.wp_id == wp_id and event.to_lane == to_lane:
-            return True
-    return False
+    return any(event.wp_id == wp_id and event.to_lane == to_lane for event in read_events(feature_dir))
 
 
 def _mark_wp_merged_done(
@@ -101,13 +98,10 @@ def _mark_wp_merged_done(
         wp_path = candidate
         break
     if wp_path is None or not wp_path.exists():
-        console.print(
-            f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; "
-            "skipping merge-complete status update."
-        )
+        console.print(f"[yellow]Warning:[/yellow] Could not locate WP file for {wp_id}; skipping merge-complete status update.")
         return
 
-    frontmatter, _body = read_frontmatter(wp_path)
+    metadata, _body = read_wp_frontmatter(wp_path)
     from specify_cli.status.lane_reader import get_wp_lane
     from specify_cli.status.models import DoneEvidence, ReviewApproval
     from specify_cli.status.emit import emit_status_transition, TransitionError
@@ -123,21 +117,18 @@ def _mark_wp_merged_done(
         logger.debug("Dedup: %s already has 'done' transition, skipping", wp_id)
         return
 
-    evidence = extract_done_evidence(frontmatter, wp_id)
+    evidence = extract_done_evidence(metadata, wp_id)
     if evidence is None:
         if lane == "approved":
             evidence = DoneEvidence(
                 review=ReviewApproval(
-                    reviewer=str(frontmatter.get("agent", "unknown")).strip() or "unknown",
+                    reviewer=(metadata.agent or "unknown").strip() or "unknown",
                     verdict="approved",
                     reference=f"lane-approved:{wp_id}",
                 )
             )
         else:
-            console.print(
-                f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; "
-                "skipping automatic move to done after merge."
-            )
+            console.print(f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; skipping automatic move to done after merge.")
             return
 
     if lane == "for_review":
@@ -158,17 +149,12 @@ def _mark_wp_merged_done(
                     repo_root=repo_root,
                 )
             except TransitionError as exc:
-                console.print(
-                    f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}"
-                )
+                console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
                 return
         lane = "approved"
 
     if lane != "approved":
-        console.print(
-            f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane}', not approved; "
-            "skipping automatic move to done after merge."
-        )
+        console.print(f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane}', not approved; skipping automatic move to done after merge.")
         return
 
     try:
@@ -184,9 +170,7 @@ def _mark_wp_merged_done(
             repo_root=repo_root,
         )
     except TransitionError as exc:
-        console.print(
-            f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}"
-        )
+        console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
 
 
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
@@ -285,19 +269,11 @@ def _validate_target_branch(
         return
 
     if target_source == "meta.json" and mission_slug:
-        error_msg = (
-            f"Target branch '{target_branch}' (from meta.json) does not exist locally "
-            f"or on origin. Check kitty-specs/{mission_slug}/meta.json."
-        )
+        error_msg = f"Target branch '{target_branch}' (from meta.json) does not exist locally or on origin. Check kitty-specs/{mission_slug}/meta.json."
     elif target_source == "primary_branch" and mission_slug:
-        error_msg = (
-            f"Target branch '{target_branch}' (resolved as primary branch) does not exist "
-            f"locally or on origin. Check kitty-specs/{mission_slug}/meta.json."
-        )
+        error_msg = f"Target branch '{target_branch}' (resolved as primary branch) does not exist locally or on origin. Check kitty-specs/{mission_slug}/meta.json."
     else:
-        error_msg = (
-            f"Target branch '{target_branch}' does not exist locally or on origin."
-        )
+        error_msg = f"Target branch '{target_branch}' does not exist locally or on origin."
 
     if json_output:
         print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
@@ -345,10 +321,7 @@ def _run_lane_based_merge(
     is_resume = False
     if state is not None and state.completed_wps:
         is_resume = True
-        console.print(
-            f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} "
-            f"({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)"
-        )
+        console.print(f"[bold cyan]Resuming[/bold cyan] merge for {mission_slug} ({len(state.completed_wps)}/{len(state.wp_order)} WPs already done)")
     else:
         state = MergeState(
             mission_id=mission_slug,
@@ -362,7 +335,7 @@ def _run_lane_based_merge(
 
     console.print(f"[bold]Lane-based merge for {mission_slug}[/bold]")
     console.print(f"  Mission branch: {lanes_manifest.mission_branch}")
-    console.print(f"  Lanes: {', '.join(l.lane_id for l in lanes_manifest.lanes)}")
+    console.print(f"  Lanes: {', '.join(ln.lane_id for ln in lanes_manifest.lanes)}")
 
     policy = load_policy_config(main_repo)
     gate_eval = evaluate_merge_gates(
@@ -373,13 +346,7 @@ def _run_lane_based_merge(
         main_repo,
     )
     for gate in gate_eval.gates:
-        icon = (
-            "[green]✓[/green]"
-            if gate.verdict == "pass"
-            else "[yellow]⚠[/yellow]"
-            if not gate.blocking
-            else "[red]✗[/red]"
-        )
+        icon = "[green]✓[/green]" if gate.verdict == "pass" else "[yellow]⚠[/yellow]" if not gate.blocking else "[red]✗[/red]"
         console.print(f"  {icon} Gate {gate.gate_name}: {gate.details}")
     if not gate_eval.overall_pass:
         console.print("\n[red]Error:[/red] Merge gates failed.")
@@ -397,10 +364,7 @@ def _run_lane_based_merge(
             console.print(f"  [green]✓[/green] {lane.lane_id} → {lanes_manifest.mission_branch}")
         else:
             # T005: tolerate already-merged lanes on retry
-            already_merged = any(
-                "already" in e.lower() or "up to date" in e.lower() or "ancestor" in e.lower()
-                for e in lane_result.errors
-            )
+            already_merged = any("already" in e.lower() or "up to date" in e.lower() or "ancestor" in e.lower() for e in lane_result.errors)
             if is_resume and already_merged:
                 console.print(f"  [dim]{lane.lane_id} already merged, continuing[/dim]")
             else:
@@ -418,15 +382,10 @@ def _run_lane_based_merge(
     merge_base_sha = merge_base_sha.strip() if _ret == 0 else "HEAD~1"
 
     # -- Mission-to-target merge (T010: honor strategy for this step only) --
-    mission_result = merge_mission_to_target(
-        main_repo, mission_slug, lanes_manifest, strategy=strategy
-    )
+    mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest, strategy=strategy)
     if not mission_result.success:
         # T005: tolerate already-merged on retry
-        already_merged = any(
-            "already" in e.lower() or "up to date" in e.lower()
-            for e in mission_result.errors
-        )
+        already_merged = any("already" in e.lower() or "up to date" in e.lower() for e in mission_result.errors)
         if is_resume and already_merged:
             console.print(f"[dim]{lanes_manifest.mission_branch} already merged into {lanes_manifest.target_branch}[/dim]")
         else:
@@ -487,9 +446,7 @@ def _run_lane_based_merge(
         if _ret_push != 0:
             if _is_linear_history_rejection(stderr_push):
                 _emit_remediation_hint(console)
-            console.print(
-                f"[red]Error:[/red] Push failed: {stderr_push.strip() or _out_push.strip()}"
-            )
+            console.print(f"[red]Error:[/red] Push failed: {stderr_push.strip() or _out_push.strip()}")
             raise typer.Exit(1)
         console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
 
@@ -560,10 +517,7 @@ def _run_lane_based_merge(
         console.print("  No likely-stale assertions detected.")
     else:
         for finding in stale_report.findings:
-            console.print(
-                f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} "
-                f"— {finding.hint}"
-            )
+            console.print(f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} — {finding.hint}")
 
 
 @require_main_repo
@@ -596,7 +550,7 @@ def merge(
         repo_root = find_repo_root()
     except TaskCliError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     # -- T004: Handle --abort early --
     if abort:
@@ -626,19 +580,14 @@ def merge(
             console.print("[red]Error:[/red] No interrupted merge to resume.")
             raise typer.Exit(1)
         console.print(
-            f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} "
-            f"({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
+            f"[bold cyan]Resume requested[/bold cyan] for {existing_state.mission_slug} ({len(existing_state.completed_wps)}/{len(existing_state.wp_order)} done)"
         )
         # Fall through to the normal merge flow which will detect the state
 
     _enforce_git_preflight(repo_root, json_output=json_output)
 
     # T009 — FR-005/FR-006: Resolve strategy: CLI flag > config > default (SQUASH)
-    resolved_strategy: MergeStrategy = (
-        strategy
-        or load_merge_config(repo_root).strategy
-        or MergeStrategy.SQUASH
-    )
+    resolved_strategy: MergeStrategy = strategy or load_merge_config(repo_root).strategy or MergeStrategy.SQUASH
 
     mission_slug = (mission or feature or "").strip() or None
     resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
@@ -690,7 +639,7 @@ def merge(
                 print(json.dumps({"spec_kitty_version": SPEC_KITTY_VERSION, "error": error_msg}))
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
 
         payload: dict[str, object] = {
             "spec_kitty_version": SPEC_KITTY_VERSION,
@@ -725,7 +674,7 @@ def merge(
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
 
 __all__ = [
