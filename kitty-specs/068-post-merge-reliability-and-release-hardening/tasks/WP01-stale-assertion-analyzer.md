@@ -24,7 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: '42161'
+shell_pid: "42447"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -258,3 +259,7 @@ Tests are explicitly required by the spec (FR-001..FR-004, FR-022, NFR-001, NFR-
 ## Next steps after merge
 
 Once WP01 lands, WP02 can start its T013 subtask (importing `run_check` from `specify_cli.post_merge.stale_assertions` inside `_run_lane_based_merge`).
+
+## Activity Log
+
+- 2026-04-07T09:18:37Z – claude:sonnet:implementer:implementer – shell_pid=42447 – Started implementation via action command
