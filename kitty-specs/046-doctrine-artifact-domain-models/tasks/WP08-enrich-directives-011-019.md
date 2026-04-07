@@ -1,5 +1,4 @@
 ---
-<<<<<<< HEAD
 work_package_id: WP08
 title: Create New Shipped Directives
 lane: "done"
@@ -31,40 +30,6 @@ history:
 ---
 
 # Work Package Prompt: WP08 – Create New Shipped Directives
-
-=======
-work_package_id: "WP08"
-subtasks:
-- "T042"
-- "T043"
-- "T044"
-- "T045"
-- "T046"
-- "T047"
-- "T048"
-- "T049"
-- "T050"
-- "T051"
-title: "Enrich Existing Directives 011-019 + test-first"
-phase: "Phase 2 - Content"
-lane: "planned"
-assignee: ""
-agent: ""
-shell_pid: ""
-review_status: ""
-reviewed_by: ""
-dependencies: ["WP01", "WP05"]
-history:
-- timestamp: "2026-02-26T04:36:22Z"
-    lane: "planned"
-    agent: "system"
-    shell_pid: ""
-    action: "Prompt generated via /spec-kitty.tasks"
----
-
-# Work Package Prompt: WP08 – Enrich Existing Directives 011-019 + test-first
->>>>>>>
->>>>>>> 046-doctrine-artifact-domain-models-WP10
 
 ## ⚠️ IMPORTANT: Review Feedback Status
 
@@ -191,11 +156,8 @@ Depends on WP01 and WP05 (parallel with WP07):
 ```bash
 spec-kitty implement WP08 --base WP05
 ```
-<<<<<<< HEAD
 - 2026-02-28T08:36:11Z – codex – shell_pid=112867 – lane=doing – Assigned agent via workflow command
 - 2026-02-28T08:46:06Z – codex – shell_pid=194283 – lane=for_review – Moved to for_review
 - 2026-03-04T04:27:10Z – claude-sonnet – shell_pid=1520139 – lane=doing – Started review via workflow command
 - 2026-03-04T04:29:31Z – claude-sonnet – shell_pid=1520139 – lane=planned – Moved to planned
-=======
->>>>>>> 046-doctrine-artifact-domain-models-WP10
 - 2026-03-04T04:45:39Z – claude-sonnet – shell_pid=1520139 – lane=done – Directives 011-019 + test-first all enriched via WP07 codex branch merged through WP10. All have scope, procedures. test-first has tactic_refs preserved.
