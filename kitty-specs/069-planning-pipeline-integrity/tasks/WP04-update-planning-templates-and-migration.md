@@ -429,3 +429,4 @@ class TestApply:
 
 - 2026-04-07T12:09:57Z – unknown – shell_pid=16944 – T022-T026: templates rewritten for wps.yaml, migration m_3_2_0 with detect/apply/tests (16 tests, all passing)
 - 2026-04-07T12:10:19Z – claude:sonnet:reviewer:reviewer – shell_pid=17254 – Started review via action command
+- 2026-04-07T12:11:55Z – claude:sonnet:reviewer:reviewer – shell_pid=17254 – Review passed: templates rewritten to wps.yaml (7 occurrences, 0 stale markers), tasks-packages.md has authoritative-deps warning (15 wps.yaml refs, 0 tasks.md refs), migration registered with @MigrationRegistry.register target_version=3.2.0, uses get_agent_dirs_for_project in both detect/apply, all 16 new tests pass, 368 upgrade tests pass with no regressions, version comments updated to 3.2.0 in both templates
