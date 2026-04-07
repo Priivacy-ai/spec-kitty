@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-04-07T07:32:08.633258+00:00",
+  "friendly_name": "post merge reliability and release hardening",
+  "mission_number": "068",
+  "mission_slug": "068-post-merge-reliability-and-release-hardening",
+  "mission_type": "software-dev",
+  "slug": "068-post-merge-reliability-and-release-hardening",
+  "target_branch": "main"
+}
