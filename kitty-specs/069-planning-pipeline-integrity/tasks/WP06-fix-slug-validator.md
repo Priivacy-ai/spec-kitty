@@ -9,7 +9,11 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-069-planning-pipeline-integrity
+base_commit: 1423753b3ab63d421652c24fee008f2863be2e1c
+created_at: '2026-04-07T11:48:16.423351+00:00'
 subtasks: [T035, T036, T037, T038]
+shell_pid: '9908'
 history:
 - date: '2026-04-07'
   event: created
