@@ -109,6 +109,69 @@ class TestQueryModeOutput:
         assert data.get("is_query") is True
 
 
+class TestQueryCurrentStateErrorPaths:
+    """Cover the three error-handling branches in query_current_state() (runtime_bridge.py).
+
+    These tests exercise lines 575, 591-592, and 610-611 which are otherwise
+    unreachable via CLI-level tests.
+    """
+
+    def test_missing_feature_dir_returns_unknown_state(self, tmp_path: Path) -> None:
+        """Line 575: feature_dir does not exist → Decision with mission_state='unknown'."""
+        from specify_cli.next.runtime_bridge import query_current_state
+
+        # tmp_path / "kitty-specs" / "069-missing" does NOT exist
+        decision = query_current_state("claude", "069-missing", tmp_path)
+
+        assert decision.is_query is True
+        assert decision.mission_state == "unknown"
+        assert decision.kind == "query"
+
+    def test_get_or_start_run_exception_returns_unknown_state(self, tmp_path: Path) -> None:
+        """Lines 591-592: get_or_start_run() raises → Decision with mission_state='unknown'."""
+        from specify_cli.next.runtime_bridge import query_current_state
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        with patch("specify_cli.next.runtime_bridge.get_or_start_run",
+                   side_effect=RuntimeError("run init failed")), \
+             patch("specify_cli.next.runtime_bridge.get_mission_type",
+                   return_value="software-dev"), \
+             patch("specify_cli.next.runtime_bridge._compute_wp_progress",
+                   return_value=None):
+
+            decision = query_current_state("claude", "069-test", tmp_path)
+
+        assert decision.is_query is True
+        assert decision.mission_state == "unknown"
+
+    def test_read_snapshot_exception_returns_unknown_step(self, tmp_path: Path) -> None:
+        """Lines 610-611: _read_snapshot raises → step falls back to 'unknown', query still works."""
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        mock_run_ref = MagicMock()
+        mock_run_ref.run_dir = str(tmp_path / "run")
+
+        with patch("specify_cli.next.runtime_bridge.get_or_start_run",
+                   return_value=mock_run_ref), \
+             patch("specify_cli.next.runtime_bridge.get_mission_type",
+                   return_value="software-dev"), \
+             patch("specify_cli.next.runtime_bridge._compute_wp_progress",
+                   return_value=None), \
+             patch("spec_kitty_runtime.engine._read_snapshot",
+                   side_effect=Exception("snapshot read failed")):
+
+            decision = query_current_state("claude", "069-test", tmp_path)
+
+        assert decision.is_query is True
+        assert decision.mission_state == "unknown"  # graceful fallback
+
+
 class TestResultSuccessStillAdvances:
     def test_result_success_calls_decide_not_query(self, tmp_path: Path) -> None:
         """C-005: --result success retains its advancing behavior."""
