@@ -1,7 +1,7 @@
 {
-  "event_count": 18,
-  "last_event_id": "01KNKMN9XSNQX7HHH2A1J3658G",
-  "materialized_at": "2026-04-07T09:33:59.097524+00:00",
+  "event_count": 19,
+  "last_event_id": "01KNKMNBPM3AD2GRD41WM20BSW",
+  "materialized_at": "2026-04-07T09:34:00.916427+00:00",
   "mission_slug": "068-post-merge-reliability-and-release-hardening",
   "summary": {
     "approved": 0,
@@ -9,17 +9,17 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 2,
-    "in_progress": 2,
+    "for_review": 3,
+    "in_progress": 1,
     "planned": 1
   },
   "work_packages": {
     "WP01": {
-      "actor": "claude:sonnet:implementer:implementer",
-      "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KNKKS5Y050MN726ZNV0EZGD6",
-      "last_transition_at": "2026-04-07T09:18:37.504129+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNKMNBPM3AD2GRD41WM20BSW",
+      "last_transition_at": "2026-04-07T09:34:00.916102+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
