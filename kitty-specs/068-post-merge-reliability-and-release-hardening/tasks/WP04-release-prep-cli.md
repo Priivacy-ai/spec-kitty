@@ -263,3 +263,7 @@ Tests are required by the spec (FR-013/014/015/015a, NFR-004, NFR-005). The zero
 ## Next steps after merge
 
 Once WP04 lands, the maintainer can run `spec-kitty agent release prep --channel alpha` to prepare the next 068 release without manually reconstructing version/changelog inputs.
+
+## Activity Log
+
+- 2026-04-07T09:23:30Z – unknown – shell_pid=42381 – Claimed by claude orchestrator
