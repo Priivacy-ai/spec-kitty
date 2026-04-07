@@ -18,7 +18,7 @@ from typing import Any
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 
-from .models import StatusSnapshot
+from .models import Lane, StatusSnapshot
 from .reducer import materialize
 
 # Default lane weights for the 9-lane state machine.
@@ -134,7 +134,7 @@ def compute_weighted_progress(
     done_count = 0
 
     for wp_id, wp_state in sorted(work_packages.items()):
-        lane = wp_state.get("lane", "planned")
+        lane = wp_state.get("lane", Lane.PLANNED)
         wp_weight = (wp_weights or {}).get(wp_id, 1.0)
         lw = resolved_lane_weights.get(lane, 0.0)
         fractional = wp_weight * lw
@@ -143,7 +143,7 @@ def compute_weighted_progress(
         weight_total += wp_weight
         per_lane_counts[lane] = per_lane_counts.get(lane, 0) + 1
 
-        if lane == "done":
+        if lane == Lane.DONE:
             done_count += 1
 
         per_wp.append(

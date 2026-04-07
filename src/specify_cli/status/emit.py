@@ -76,17 +76,17 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     """
     events = _store.read_events(feature_dir)
     if not events:
-        return "planned"
+        return Lane.PLANNED
 
     snapshot = _reducer.reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return "planned"
+        return Lane.PLANNED
 
     lane = wp_state.get("lane")
-    if isinstance(lane, str):
-        return lane
-    return "planned"
+    if lane is not None:
+        return Lane(lane)
+    return Lane.PLANNED
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:

@@ -17,6 +17,7 @@ from pathlib import Path
 
 from specify_cli.spec_kitty_events import normalize_event_id
 
+from .models import Lane
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
 
 STATUS_BLOCK_START = "<!-- status-model:start -->"
@@ -103,7 +104,7 @@ def validate_event_schema(event: dict) -> list[str]:
         findings.append(f"Event {event_id}: force=true without reason")
 
     # Review ref check: for_review -> in_progress requires review_ref
-    if event.get("from_lane") == "for_review" and event.get("to_lane") == "in_progress" and not event.get("review_ref"):
+    if event.get("from_lane") == Lane.FOR_REVIEW and event.get("to_lane") == Lane.IN_PROGRESS and not event.get("review_ref"):
         findings.append(f"Event {event_id}: for_review->in_progress without review_ref")
 
     return findings
@@ -152,7 +153,7 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
     findings: list[str] = []
 
     for event in events:
-        if event.get("to_lane") != "done":
+        if event.get("to_lane") != Lane.DONE:
             continue
 
         event_id = event.get("event_id", "unknown")
