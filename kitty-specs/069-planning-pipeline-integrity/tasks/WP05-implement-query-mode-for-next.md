@@ -17,7 +17,8 @@ base_branch: kitty/mission-069-planning-pipeline-integrity
 base_commit: 1423753b3ab63d421652c24fee008f2863be2e1c
 created_at: '2026-04-07T11:48:10.923471+00:00'
 subtasks: [T027, T028, T029, T030, T031, T032, T033, T034]
-shell_pid: '9875'
+shell_pid: "14049"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - date: '2026-04-07'
   event: created
@@ -442,3 +443,4 @@ Covered in T032. Add one additional check in the query mode JSON test verifying 
 ## Activity Log
 
 - 2026-04-07T11:57:38Z – unknown – shell_pid=9875 – T027-T034 complete: DecisionKind.query, query_current_state(), result=None default, _print_human() SC-003 label, tests
+- 2026-04-07T11:57:57Z – claude:sonnet:reviewer:reviewer – shell_pid=14049 – Started review via action command
