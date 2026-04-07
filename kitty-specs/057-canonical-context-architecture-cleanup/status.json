@@ -1,8 +1,8 @@
 {
   "event_count": 44,
-  "feature_slug": "057-canonical-context-architecture-cleanup",
   "last_event_id": "01KMRMNY2MRNFV722H4NKAY54C",
-  "materialized_at": "2026-03-27T21:54:50.068746+00:00",
+  "materialized_at": "2026-04-07T09:18:16.148082+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 14,
     "blocked": 0,

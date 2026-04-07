@@ -205,6 +205,8 @@ agents:
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
 - Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
+- Python 3.11+ + stdlib `ast` (no new dependency), existing `safe_commit` from `specify_cli.git`, existing `scan_recovery_state` from `specify_cli.lanes.recovery` (068-post-merge-reliability-and-release-hardening)
+- Filesystem only — `.kittify/config.yaml` gains a `merge.strategy` key; `kitty-specs/<mission>/status.events.jsonl` becomes the canonical surface for the FR-019 safe_commit fix (068-post-merge-reliability-and-release-hardening)
 ## Project Structure
 ```
 architecture/           # Architectural design decisions and technical specifications
@@ -249,6 +251,7 @@ pytest tests/ --browser-channel=chromium --headed=false
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 068-post-merge-reliability-and-release-hardening: Added new `src/specify_cli/post_merge/` package (stdlib `ast`-based stale-assertion analyzer), new `agent tests` CLI subgroup, populated `agent/release.py` stub with `prep` subcommand, FR-019 status-events safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` extension + `implement --base` flag
 - 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
 <!-- MANUAL ADDITIONS START -->

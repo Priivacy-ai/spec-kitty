@@ -1,9 +1,8 @@
 {
   "event_count": 49,
-  "feature_slug": "063-universal-charter-rename",
   "last_event_id": "01KND3T6Y3EJ00ADCYTBJK5HV7",
-  "materialized_at": "2026-04-04T20:44:07.491899+00:00",
-  "mission_slug": "063-universal-charter-rename",
+  "materialized_at": "2026-04-07T09:18:16.149411+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 8,
     "blocked": 0,

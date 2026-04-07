@@ -1,8 +1,8 @@
 {
-  "event_count": 11,
-  "feature_slug": "003-auto-protect-agent",
-  "last_event_id": "01KJ5V38JM9MQD0BHZ6Y3MKSKP",
-  "materialized_at": "2026-03-11T07:08:17.491619+00:00",
+  "event_count": 14,
+  "last_event_id": "01KN2376091Z51PV90Y7XRAQPC",
+  "materialized_at": "2026-04-07T09:18:16.150167+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -16,24 +16,24 @@
   "work_packages": {
     "WP01": {
       "actor": "migration",
-      "force_count": 3,
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KJ5V38JGMT9FE0G46VCQDPZ1",
-      "last_transition_at": "2025-11-10T11:00:00Z"
+      "last_event_id": "01KN2376091Z51PV90Y7XRAQPA",
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
     },
     "WP02": {
       "actor": "migration",
-      "force_count": 3,
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KJ5V38JJF8G12NACMVWRQGEG",
-      "last_transition_at": "2025-11-10T11:15:00Z"
+      "last_event_id": "01KN2376091Z51PV90Y7XRAQPB",
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
     },
     "WP03": {
       "actor": "migration",
-      "force_count": 3,
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KJ5V38JM9MQD0BHZ6Y3MKSKP",
-      "last_transition_at": "2025-11-10T11:35:00Z"
+      "last_event_id": "01KN2376091Z51PV90Y7XRAQPC",
+      "last_transition_at": "2026-03-31T14:02:05.181939+00:00"
     },
     "WP04": {
       "actor": "migration",

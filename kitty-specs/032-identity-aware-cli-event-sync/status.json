@@ -1,8 +1,8 @@
 {
   "event_count": 6,
-  "feature_slug": "032-identity-aware-cli-event-sync",
   "last_event_id": "01KJ5V38VJMDYQH3CJC9V99BSX",
-  "materialized_at": "2026-03-11T07:08:19.268960+00:00",
+  "materialized_at": "2026-04-07T09:18:16.109754+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

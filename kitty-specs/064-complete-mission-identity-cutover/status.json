@@ -1,9 +1,8 @@
 {
   "event_count": 70,
-  "feature_slug": "064-complete-mission-identity-cutover",
   "last_event_id": "01KNH10SXA9TB541HQ49A4K6YZ",
-  "materialized_at": "2026-04-06T09:12:15.531421+00:00",
-  "mission_slug": "064-complete-mission-identity-cutover",
+  "materialized_at": "2026-04-07T09:18:16.114082+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 9,
     "blocked": 0,

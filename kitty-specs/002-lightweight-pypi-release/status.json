@@ -1,8 +1,8 @@
 {
   "event_count": 4,
-  "feature_slug": "002-lightweight-pypi-release",
   "last_event_id": "01KJ5V38JDYQW3ESGM3ER1JJV3",
-  "materialized_at": "2026-03-11T07:08:17.425367+00:00",
+  "materialized_at": "2026-04-07T09:18:16.117230+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -1,8 +1,8 @@
 {
   "event_count": 10,
-  "feature_slug": "008-unified-python-cli",
   "last_event_id": "01KJ5V38N0KZKMA3XDHDR47Y69",
-  "materialized_at": "2026-03-11T07:08:17.910451+00:00",
+  "materialized_at": "2026-04-07T09:18:16.156889+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -1,8 +1,8 @@
 {
   "event_count": 9,
-  "feature_slug": "020-autonomous-multi-agent-orchestrator",
   "last_event_id": "01KJ5V38S983D0JVMFFG6ZF9PZ",
-  "materialized_at": "2026-03-11T07:08:18.764937+00:00",
+  "materialized_at": "2026-04-07T09:18:16.132010+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,
