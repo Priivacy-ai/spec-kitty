@@ -1,8 +1,8 @@
 {
   "event_count": 6,
-  "feature_slug": "006-per-feature-mission",
   "last_event_id": "01KJ5V38M4FTEBTRGFTHR2HK4X",
-  "materialized_at": "2026-03-11T07:08:17.749221+00:00",
+  "materialized_at": "2026-04-07T09:56:25.531697+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -1,14 +1,14 @@
 {
-  "event_count": 43,
-  "last_event_id": "01KNJ3V6RW9BQ8JGT9C4BX9B9C",
-  "materialized_at": "2026-04-06T19:20:52.253300+00:00",
+  "event_count": 49,
+  "last_event_id": "01KNKE62G31S673B0CSTMW7ZPC",
+  "materialized_at": "2026-04-07T09:56:25.566305+00:00",
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "summary": {
-    "approved": 6,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 6,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -17,44 +17,44 @@
     "WP01": {
       "actor": "user",
       "force_count": 4,
-      "lane": "approved",
-      "last_event_id": "01KNJ3295548S4EHTRR32C5VD9",
-      "last_transition_at": "2026-04-06T19:07:15.493055+00:00"
+      "lane": "done",
+      "last_event_id": "01KNKE3H80GHGR8E953JMEX7NQ",
+      "last_transition_at": "2026-04-07T07:39:25.312427+00:00"
     },
     "WP02": {
       "actor": "user",
       "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01KNJ3V6RW9BQ8JGT9C4BX9B9C",
-      "last_transition_at": "2026-04-06T19:20:52.252907+00:00"
+      "lane": "done",
+      "last_event_id": "01KNKE5BHBK6CNNFKVTBXSSKR0",
+      "last_transition_at": "2026-04-07T07:40:25.003255+00:00"
     },
     "WP03": {
       "actor": "user",
-      "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KNJ37GWHD6VSMDMJC8AFYJQZ",
-      "last_transition_at": "2026-04-06T19:10:07.249082+00:00"
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKE5ZCXHV6WTX9GCY4Y8ST8",
+      "last_transition_at": "2026-04-07T07:40:45.341475+00:00"
     },
     "WP04": {
       "actor": "user",
-      "force_count": 4,
-      "lane": "approved",
-      "last_event_id": "01KNJ2YDJQ8X9HJZ8Y8EPGCK8Q",
-      "last_transition_at": "2026-04-06T19:05:08.951581+00:00"
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KNKE60G24TB7VGARDQ7A153Z",
+      "last_transition_at": "2026-04-07T07:40:46.466058+00:00"
     },
     "WP05": {
       "actor": "user",
-      "force_count": 4,
-      "lane": "approved",
-      "last_event_id": "01KNJ2YZAAYB5N81M2VC25Z255",
-      "last_transition_at": "2026-04-06T19:05:27.114515+00:00"
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KNKE61H4FREKXKHV1ANYX313",
+      "last_transition_at": "2026-04-07T07:40:47.524603+00:00"
     },
     "WP06": {
       "actor": "user",
-      "force_count": 6,
-      "lane": "approved",
-      "last_event_id": "01KNJ39YYFXPTY2J9AZF87JJZ6",
-      "last_transition_at": "2026-04-06T19:11:27.183425+00:00"
+      "force_count": 7,
+      "lane": "done",
+      "last_event_id": "01KNKE62G31S673B0CSTMW7ZPC",
+      "last_transition_at": "2026-04-07T07:40:48.515835+00:00"
     }
   }
 }

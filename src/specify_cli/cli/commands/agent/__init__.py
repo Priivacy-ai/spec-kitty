@@ -3,7 +3,7 @@
 import typer
 from typing_extensions import Annotated
 
-from . import config, mission, tasks, context, release, workflow, status
+from . import config, mission, tasks, context, release, workflow, status, tests
 
 app = typer.Typer(
     name="agent",
@@ -20,6 +20,7 @@ app.add_typer(context.app, name="context")
 app.add_typer(release.app, name="release")
 app.add_typer(workflow.app, name="action", help="Mission action commands that display prompts and instructions for agents")
 app.add_typer(status.app, name="status")
+app.add_typer(tests.app, name="tests")
 
 
 @app.command(name="check-prerequisites", hidden=True)

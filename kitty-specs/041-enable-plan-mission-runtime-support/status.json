@@ -1,8 +1,8 @@
 {
   "event_count": 5,
-  "feature_slug": "041-enable-plan-mission-runtime-support",
   "last_event_id": "01KJ5V38XG9B006TT6BXWJ2QFQ",
-  "materialized_at": "2026-03-11T07:08:19.750116+00:00",
+  "materialized_at": "2026-04-07T09:56:25.579856+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

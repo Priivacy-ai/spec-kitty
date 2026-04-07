@@ -1,9 +1,10 @@
 {
   "event_count": 0,
-  "feature_slug": "",
   "last_event_id": null,
-  "materialized_at": "2026-02-18T14:04:32.299891+00:00",
+  "materialized_at": "2026-04-07T09:56:25.553870+00:00",
+  "mission_slug": "",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

@@ -1,8 +1,8 @@
 {
   "event_count": 33,
-  "feature_slug": "060-canonical-status-model-cleanup",
   "last_event_id": "01KN1DYA7FDVQNFSN7XF9670CZ",
-  "materialized_at": "2026-03-31T07:50:14.511853+00:00",
+  "materialized_at": "2026-04-07T09:56:25.530166+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 7,
     "blocked": 0,

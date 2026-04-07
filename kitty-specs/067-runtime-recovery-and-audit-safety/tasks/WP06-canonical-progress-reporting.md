@@ -285,3 +285,4 @@ Callsite 8 (`merge/state.py:102` — `completed_wps / wp_order * 100`) is intent
 - 2026-04-06T19:08:13Z – claude:opus:implementer:implementer – shell_pid=30308 – Fixed _st_snapshot NameError — initialized to None before try block (review cycle 1 fix)
 - 2026-04-06T19:08:57Z – claude:opus:reviewer:reviewer – shell_pid=33319 – Started review via action command
 - 2026-04-06T19:11:27Z – claude:opus:reviewer:reviewer – shell_pid=33319 – Review passed: _st_snapshot NameError fixed with None init before try block. All 7 callsites correctly wired to compute_weighted_progress(). merge/state.py intentionally untouched. 34/34 tests pass. Backward compat preserved.
+- 2026-04-07T07:40:48Z – claude:opus:reviewer:reviewer – shell_pid=33319 – Done override: Mission 067 merged via squash PR #452 (commit ba356d15); lane branches deleted post-merge so ancestry probe fails.

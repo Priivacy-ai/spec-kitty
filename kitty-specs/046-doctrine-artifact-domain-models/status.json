@@ -1,9 +1,10 @@
 {
   "event_count": 27,
-  "feature_slug": "046-doctrine-artifact-domain-models",
   "last_event_id": "01KK688B0M51D617W2XDAQG1CP",
-  "materialized_at": "2026-03-08T08:15:40.053053+00:00",
+  "materialized_at": "2026-04-07T09:56:25.574652+00:00",
+  "mission_slug": "",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,

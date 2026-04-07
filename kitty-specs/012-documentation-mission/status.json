@@ -1,8 +1,8 @@
 {
   "event_count": 10,
-  "feature_slug": "012-documentation-mission",
   "last_event_id": "01KJ5V38PJQ530SBM3GDT862YJ",
-  "materialized_at": "2026-03-11T07:08:18.181412+00:00",
+  "materialized_at": "2026-04-07T09:56:25.561121+00:00",
+  "mission_slug": "",
   "summary": {
     "approved": 0,
     "blocked": 0,

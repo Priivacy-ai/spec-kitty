@@ -22,6 +22,7 @@ import time
 from pathlib import Path
 
 import typer
+from rich.console import Console
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
 from specify_cli.cli.helpers import console, show_banner
@@ -30,12 +31,43 @@ from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.frontmatter import read_frontmatter
+from specify_cli.git import safe_commit
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.state import MergeState, clear_state, load_state, save_state
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
+from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 logger = logging.getLogger(__name__)
+
+# T011 — FR-009: push-error parser tokens (locked tuple — do not reorder or extend without a spec change)
+LINEAR_HISTORY_REJECTION_TOKENS: tuple[str, ...] = (
+    "merge commits",
+    "linear history",
+    "fast-forward only",
+    "GH006",
+    "non-fast-forward",
+)
+
+
+def _is_linear_history_rejection(stderr: str) -> bool:
+    """Return True if git push stderr indicates a linear-history rejection.
+
+    Case-insensitive substring match against the locked token list.
+    Fail-open: returns False for unrecognised rejection messages.
+    """
+    haystack = stderr.lower()
+    return any(token.lower() in haystack for token in LINEAR_HISTORY_REJECTION_TOKENS)
+
+
+def _emit_remediation_hint(hint_console: Console) -> None:
+    """Print a remediation hint for linear-history push rejections."""
+    hint_console.print(
+        "\n[yellow]Push rejected by linear-history protection.[/yellow]\n"
+        "Try [cyan]spec-kitty merge --strategy squash[/cyan], or set "
+        "[cyan]merge.strategy: squash[/cyan] in [cyan].kittify/config.yaml[/cyan].\n"
+    )
 
 
 def _has_transition_to(feature_dir: Path, wp_id: str, to_lane: str) -> bool:
@@ -282,8 +314,20 @@ def _run_lane_based_merge(
     delete_branch: bool,
     remove_worktree: bool,
     target_override: str | None = None,
+    strategy: MergeStrategy = MergeStrategy.SQUASH,
 ) -> None:
-    """Execute the lane-only merge flow with MergeState lifecycle for recovery."""
+    """Execute the lane-only merge flow with MergeState lifecycle for recovery.
+
+    Args:
+        repo_root: Repository root.
+        mission_slug: Feature slug.
+        push: Push to origin after merge.
+        delete_branch: Delete lane branches after merge.
+        remove_worktree: Remove lane worktrees after merge.
+        target_override: Override target branch.
+        strategy: Merge strategy for the mission→target step (FR-005, FR-006).
+            Lane→mission step always uses merge commits regardless of this value.
+    """
     from specify_cli.lanes.branch_naming import lane_branch_name
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.policy.config import load_policy_config
@@ -364,8 +408,19 @@ def _run_lane_based_merge(
                     console.print(f"  [red]✗[/red] {lane.lane_id}: {error}")
                 raise typer.Exit(1)
 
-    # -- Mission-to-target merge --
-    mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest)
+    # -- Capture merge-base SHA for post-merge stale-assertion check (T013) --
+    _ret, merge_base_sha, _err = run_command(
+        ["git", "merge-base", "HEAD", lanes_manifest.target_branch],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    merge_base_sha = merge_base_sha.strip() if _ret == 0 else "HEAD~1"
+
+    # -- Mission-to-target merge (T010: honor strategy for this step only) --
+    mission_result = merge_mission_to_target(
+        main_repo, mission_slug, lanes_manifest, strategy=strategy
+    )
     if not mission_result.success:
         # T005: tolerate already-merged on retry
         already_merged = any(
@@ -399,9 +454,43 @@ def _run_lane_based_merge(
             save_state(state, main_repo)
             completed_set.add(wp_id)
 
+    # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
+    safe_commit(
+        repo_path=main_repo,
+        files_to_commit=[
+            feature_dir / "status.events.jsonl",
+            feature_dir / "status.json",
+        ],
+        commit_message=f"chore({mission_slug}): record done transitions for merged WPs",
+        allow_empty=False,
+    )
+
+    # -- T013: Stale-assertion check (WP01 library import — NOT subprocess) --
+    try:
+        stale_report: StaleAssertionReport = run_check(
+            base_ref=merge_base_sha,
+            head_ref="HEAD",
+            repo_root=main_repo,
+        )
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("Stale-assertion check failed: %s", exc)
+        stale_report = None  # type: ignore[assignment]
+
     # -- Push --
     if push and has_remote(main_repo):
-        run_command(["git", "push", "origin", lanes_manifest.target_branch], cwd=main_repo)
+        _ret_push, _out_push, stderr_push = run_command(
+            ["git", "push", "origin", lanes_manifest.target_branch],
+            capture=True,
+            check_return=False,
+            cwd=main_repo,
+        )
+        if _ret_push != 0:
+            if _is_linear_history_rejection(stderr_push):
+                _emit_remediation_hint(console)
+            console.print(
+                f"[red]Error:[/red] Push failed: {stderr_push.strip() or _out_push.strip()}"
+            )
+            raise typer.Exit(1)
         console.print(f"[green]✓[/green] Pushed {lanes_manifest.target_branch} to origin")
 
     # -- T005: Worktree removal with retry tolerance and macOS FSEvents delay --
@@ -463,10 +552,27 @@ def _run_lane_based_merge(
     cleanup_merge_workspace(mission_slug, main_repo)
     clear_state(main_repo, mission_slug)
 
+    # -- T013: Render stale-assertion findings in the merge summary --
+    console.print("\n[bold]Stale assertion findings:[/bold]")
+    if stale_report is None:
+        console.print("  [yellow]Stale-assertion check could not run.[/yellow]")
+    elif not stale_report.findings:
+        console.print("  No likely-stale assertions detected.")
+    else:
+        for finding in stale_report.findings:
+            console.print(
+                f"  [{finding.confidence}] {finding.test_file.name}:{finding.test_line} "
+                f"— {finding.hint}"
+            )
+
 
 @require_main_repo
 def merge(
-    strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
+    strategy: MergeStrategy | None = typer.Option(
+        None,
+        "--strategy",
+        help="Merge strategy for mission\u2192target step: merge | squash | rebase. Default: squash.",
+    ),
     delete_branch: bool = typer.Option(True, "--delete-branch/--keep-branch", help="Delete lane branches after merge"),
     remove_worktree: bool = typer.Option(True, "--remove-worktree/--keep-worktree", help="Remove lane worktrees after merge"),
     push: bool = typer.Option(False, "--push", help="Push to origin after merge"),
@@ -481,7 +587,7 @@ def merge(
     keep_workspace: bool = typer.Option(False, "--keep-workspace", help="Unused compatibility flag"),
 ) -> None:
     """Merge a lane-based feature into its target branch."""
-    del context_token, keep_workspace, strategy
+    del context_token, keep_workspace
 
     if not json_output:
         show_banner()
@@ -526,6 +632,13 @@ def merge(
         # Fall through to the normal merge flow which will detect the state
 
     _enforce_git_preflight(repo_root, json_output=json_output)
+
+    # T009 — FR-005/FR-006: Resolve strategy: CLI flag > config > default (SQUASH)
+    resolved_strategy: MergeStrategy = (
+        strategy
+        or load_merge_config(repo_root).strategy
+        or MergeStrategy.SQUASH
+    )
 
     mission_slug = (mission or feature or "").strip() or None
     resolved_feature = _resolve_mission_slug(repo_root, mission_slug)
@@ -583,6 +696,7 @@ def merge(
             "spec_kitty_version": SPEC_KITTY_VERSION,
             "mission_slug": resolved_feature,
             "target_branch": resolved_target_branch,
+            "strategy": resolved_strategy.value,
             "delete_branch": delete_branch,
             "remove_worktree": remove_worktree,
             "push": push,
@@ -607,10 +721,19 @@ def merge(
             delete_branch=delete_branch,
             remove_worktree=remove_worktree,
             target_override=resolved_target_branch,
+            strategy=resolved_strategy,
         )
     except (MissingLanesError, CorruptLanesError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1)
 
 
-__all__ = ["_has_transition_to", "_mark_wp_merged_done", "merge"]
+__all__ = [
+    "_has_transition_to",
+    "_mark_wp_merged_done",
+    "_run_lane_based_merge",
+    "_is_linear_history_rejection",
+    "_emit_remediation_hint",
+    "LINEAR_HISTORY_REJECTION_TOKENS",
+    "merge",
+]
