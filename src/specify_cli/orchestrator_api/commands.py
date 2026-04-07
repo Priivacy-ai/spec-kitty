@@ -480,7 +480,7 @@ def mission_state(
         work_packages.append(
             {
                 "wp_id": wp_id,
-                "lane": wp_snapshot.get("lane", "planned"),
+                "lane": wp_snapshot.get("lane", Lane.PLANNED),
                 "dependencies": dep_graph.get(wp_id, []),
                 "last_actor": wp_snapshot.get("last_actor"),
             }
@@ -530,7 +530,7 @@ def list_ready(
     ready_wps = []
     for wp_id, deps in dep_graph.items():
         wp_snapshot = wp_states.get(wp_id, {})
-        lane = wp_snapshot.get("lane", "planned")
+        lane = wp_snapshot.get("lane", Lane.PLANNED)
         state = wp_state_for(lane)
         if state.progress_bucket() != "not_started":
             continue
@@ -538,7 +538,7 @@ def list_ready(
         # Check all dependencies are done (completed, not merely terminal —
         # canceled deps do NOT satisfy the dependency requirement).
         all_deps_done = all(
-            wp_state_for(wp_states.get(dep, {}).get("lane", "planned")).lane == Lane.DONE
+            wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE
             for dep in deps
         )
 
@@ -608,7 +608,7 @@ def start_implementation(
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
-    current_lane = wp_snapshot.get("lane", "planned")
+    current_lane = wp_snapshot.get("lane", Lane.PLANNED)
     state = wp_state_for(current_lane)
     last_actor = _get_last_actor(mission_dir, wp)
 
@@ -622,7 +622,7 @@ def start_implementation(
                 mission_dir,
                 mission,
                 wp,
-                "claimed",
+                Lane.CLAIMED,
                 actor,
                 policy_metadata=policy_dict,
             )
@@ -630,13 +630,13 @@ def start_implementation(
                 mission_dir,
                 mission,
                 wp,
-                "in_progress",
+                Lane.IN_PROGRESS,
                 actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
             )
-            from_lane_reported = "planned"
+            from_lane_reported = Lane.PLANNED
             no_op = False
 
         elif state.lane == Lane.CLAIMED:
@@ -652,13 +652,13 @@ def start_implementation(
                 mission_dir,
                 mission,
                 wp,
-                "in_progress",
+                Lane.IN_PROGRESS,
                 actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
             )
-            from_lane_reported = "claimed"
+            from_lane_reported = Lane.CLAIMED
             no_op = False
 
         elif state.lane == Lane.IN_PROGRESS:
@@ -671,7 +671,7 @@ def start_implementation(
                 )
                 return
             # Idempotent success
-            from_lane_reported = "in_progress"
+            from_lane_reported = Lane.IN_PROGRESS
             no_op = True
 
         else:
@@ -690,7 +690,7 @@ def start_implementation(
         "mission_slug": mission,
         "wp_id": wp,
         "from_lane": from_lane_reported,
-        "to_lane": "in_progress",
+        "to_lane": Lane.IN_PROGRESS,
         "workspace_path": workspace_path,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
@@ -747,7 +747,7 @@ def start_review(
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
-    from_lane = wp_snapshot.get("lane", "planned")
+    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     prompt_path = str(wp_path)
 
@@ -756,7 +756,7 @@ def start_review(
             mission_dir,
             mission,
             wp,
-            "in_review",
+            Lane.IN_REVIEW,
             actor,
             review_ref=review_ref,
             execution_mode="worktree",
@@ -770,7 +770,7 @@ def start_review(
         "mission_slug": mission,
         "wp_id": wp,
         "from_lane": from_lane,
-        "to_lane": "in_review",
+        "to_lane": Lane.IN_REVIEW,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
     }
@@ -862,7 +862,7 @@ def transition(
 
     snapshot = materialize(mission_dir)
     wp_snapshot = snapshot.work_packages.get(wp, {})
-    from_lane = wp_snapshot.get("lane", "planned")
+    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     try:
         emit_status_transition(
@@ -987,7 +987,7 @@ def accept_mission(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", "planned")).lane != Lane.DONE]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane != Lane.DONE]
     if incomplete:
         _fail(
             cmd,

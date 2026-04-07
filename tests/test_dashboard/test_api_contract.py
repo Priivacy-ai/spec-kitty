@@ -139,7 +139,7 @@ class TestKanbanContract:
 
     def test_top_level_keys_declared(self) -> None:
         keys = _typed_dict_keys(KanbanResponse)
-        assert keys == {"lanes", "is_legacy", "upgrade_needed"}
+        assert keys == {"lanes", "is_legacy", "upgrade_needed", "weighted_percentage"}
 
     def test_lane_names_in_js(self, js_identifiers: set[str]) -> None:
         """JS accesses the 6 kanban lane names."""

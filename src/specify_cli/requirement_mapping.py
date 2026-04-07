@@ -108,19 +108,14 @@ def _read_all_wp_refs(
     tasks_dir: Path,
     extractor: Any,
 ) -> dict[str, list[str]]:
-    """Shared reader for WP frontmatter requirement_refs.
-
-    This function intentionally uses raw frontmatter dict access rather than
-    typed :class:`WPMetadata` because the *extractor* callables are designed
-    to handle messy input types (scalar strings, non-string list items, etc.)
-    that Pydantic would coerce or reject.
+    """Read requirement_refs from all WP files' frontmatter.
 
     Args:
         tasks_dir: Directory containing WP*.md files.
         extractor: Callable(value) -> list[str] applied to the raw
             ``requirement_refs`` frontmatter value of each WP file.
     """
-    from specify_cli.frontmatter import read_frontmatter
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
     result: dict[str, list[str]] = {}
     if not tasks_dir.exists():
@@ -131,11 +126,11 @@ def _read_all_wp_refs(
             continue
         wp_id = match.group(1)
         try:
-            frontmatter, _ = read_frontmatter(wp_file)
+            wp_meta_dict, _ = read_wp_frontmatter(wp_file)
         except Exception:
             result[wp_id] = []
             continue
-        result[wp_id] = extractor(frontmatter.get("requirement_refs"))
+        result[wp_id] = extractor(wp_meta_dict.requirement_refs)
     return result
 
 
@@ -145,8 +140,30 @@ def read_all_wp_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
 
 
 def read_all_wp_raw_requirement_refs(tasks_dir: Path) -> dict[str, list[str]]:
-    """Read raw requirement_refs from all WP files' frontmatter."""
-    return _read_all_wp_refs(tasks_dir, _extract_raw_tokens)
+    """Read raw requirement_refs from all WP files' frontmatter.
+
+    Uses the raw frontmatter dict (not the typed model) so that non-string
+    items (e.g. integers) are preserved as ``<NON_STRING:...>`` tokens by
+    :func:`_extract_raw_tokens`.
+    """
+    from specify_cli.frontmatter import FrontmatterManager
+
+    result: dict[str, list[str]] = {}
+    if not tasks_dir.exists():
+        return result
+    fm = FrontmatterManager()
+    for wp_file in sorted(tasks_dir.glob("WP*.md")):
+        match = re.match(r"(WP\d{2})", wp_file.name)
+        if not match:
+            continue
+        wp_id = match.group(1)
+        try:
+            raw_dict, _ = fm.read(wp_file)
+        except Exception:  # MIGRATION-ONLY: raw dict access is intentional here
+            result[wp_id] = []
+            continue
+        result[wp_id] = _extract_raw_tokens(raw_dict.get("requirement_refs"))  # MIGRATION-ONLY: raw dict access is intentional here
+    return result
 
 
 def _extract_raw_tokens(value: Any) -> list[str]:

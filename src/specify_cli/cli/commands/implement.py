@@ -23,6 +23,7 @@ from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+from specify_cli.status.models import Lane
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 console = Console()
@@ -40,10 +41,10 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return str(state.get("lane", "planned"))
+                return Lane(state.get("lane", Lane.PLANNED))
     except Exception:  # noqa: S110 — best-effort lane lookup, fallback is safe
         pass
-    return "planned"
+    return Lane.PLANNED
 
 
 def _json_safe_output(func):
@@ -497,7 +498,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         import os
 
         current_lane = _get_wp_lane_from_event_log(feature_dir, wp_id)
-        if current_lane == "planned":
+        if current_lane == Lane.PLANNED:
             shell_pid = str(os.getppid())
             commit_msg = f"chore: {wp_id} claimed for implementation"
 
@@ -529,7 +530,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                 emit_wp_status_changed(
                     wp_id=wp_id,
                     from_lane=current_lane,
-                    to_lane="in_progress",
+                    to_lane=Lane.IN_PROGRESS,
                     mission_slug=mission_slug,
                 )
             except Exception as exc:

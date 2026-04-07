@@ -24,6 +24,7 @@ from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.locking import feature_status_lock
+from specify_cli.status.models import Lane
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -194,7 +195,7 @@ def _has_prior_rejection(
         for _ev in reversed(_events):
             if _ev.wp_id == normalized_wp_id:
                 # Latest event for this WP found — check if it came from for_review
-                return str(_ev.from_lane) == "for_review"
+                return _ev.from_lane == Lane.FOR_REVIEW
     except Exception:
         pass
 
@@ -325,7 +326,7 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
         _fp_lanes: dict = {}
         if _fp_snapshot:
             for _fp_wp_id, _fp_state in _fp_snapshot.work_packages.items():
-                _fp_lanes[_fp_wp_id] = str(_fp_state.get("lane", "planned"))
+                _fp_lanes[_fp_wp_id] = Lane(_fp_state.get("lane", Lane.PLANNED))
     except Exception:
         _fp_lanes = {}
 
@@ -334,8 +335,8 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
         frontmatter, _, _ = split_frontmatter(content)
         wp_id = extract_scalar(frontmatter, "work_package_id")
         if wp_id:
-            lane = _fp_lanes.get(wp_id, "planned")
-            if lane == "planned":
+            lane = _fp_lanes.get(wp_id, Lane.PLANNED)
+            if lane == Lane.PLANNED:
                 return wp_id
 
     return None
@@ -458,7 +459,7 @@ def implement(
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
-        if current_lane == "in_progress":
+        if current_lane == Lane.IN_PROGRESS:
             current_lane = "doing"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
@@ -491,37 +492,37 @@ def implement(
                 _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
 
-                if current_lane == "planned" or current_lane == "canceled":
+                if current_lane == Lane.PLANNED or current_lane == Lane.CANCELED:
                     # Two-step: planned→claimed, claimed→in_progress
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
-                        to_lane="claimed",
+                        to_lane=Lane.CLAIMED,
                         actor=_actor,
                     )
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
-                        to_lane="in_progress",
+                        to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                     )
-                elif current_lane == "claimed":
+                elif current_lane == Lane.CLAIMED:
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
-                        to_lane="in_progress",
+                        to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                     )
-                elif current_lane in ("for_review", "approved"):
+                elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
                     # Re-implementing after review — force back to in_progress
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
-                        to_lane="in_progress",
+                        to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
                         force=True,
                         reason="Re-implementing after review feedback",
@@ -598,7 +599,7 @@ def implement(
             for _ev in reversed(_events):
                 if (
                     _ev.wp_id == normalized_wp_id
-                    and str(_ev.from_lane) == "for_review"
+                    and _ev.from_lane == Lane.FOR_REVIEW
                     and _ev.review_ref is not None
                 ):
                     has_feedback = True
@@ -1029,7 +1030,7 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
         _fr_lanes: dict = {}
         if _fr_snapshot:
             for _fr_wp_id, _fr_state in _fr_snapshot.work_packages.items():
-                _fr_lanes[_fr_wp_id] = str(_fr_state.get("lane", "planned"))
+                _fr_lanes[_fr_wp_id] = Lane(_fr_state.get("lane", Lane.PLANNED))
     except Exception:
         _fr_lanes = {}
 
@@ -1038,8 +1039,8 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
         frontmatter, _, _ = split_frontmatter(content)
         wp_id = extract_scalar(frontmatter, "work_package_id")
         if wp_id:
-            lane = _fr_lanes.get(wp_id, "planned")
-            if lane == "for_review":
+            lane = _fr_lanes.get(wp_id, Lane.PLANNED)
+            if lane == Lane.FOR_REVIEW:
                 return wp_id
 
     return None
@@ -1113,8 +1114,8 @@ def review(
         if not _rv_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
-        current_lane = "doing" if current_lane_raw == "in_progress" else current_lane_raw
-        if current_lane not in {"for_review", "doing"}:
+        current_lane = "doing" if current_lane_raw == Lane.IN_PROGRESS else current_lane_raw
+        if current_lane not in {Lane.FOR_REVIEW, "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
             print("Only work packages in 'for_review' can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
@@ -1143,7 +1144,7 @@ def review(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
                     wp_id=normalized_wp_id,
-                    to_lane="in_progress",
+                    to_lane=Lane.IN_PROGRESS,
                     actor=agent,
                     force=True,  # review claim is always allowed
                     reason="Started review via action command",
@@ -1265,14 +1266,14 @@ def review(
                 _rw_lanes: dict = {}
                 if _rw_snapshot:
                     for _rw_wp_id, _rw_state in _rw_snapshot.work_packages.items():
-                        _rw_lanes[_rw_wp_id] = str(_rw_state.get("lane", "planned"))
+                        _rw_lanes[_rw_wp_id] = Lane(_rw_state.get("lane", Lane.PLANNED))
             except Exception:
                 _rw_lanes = {}
 
             incomplete: list[str] = []
             for dependent_id in dependents:
-                lane = _rw_lanes.get(dependent_id, "planned")
-                if lane in {"planned", "doing", "for_review"}:
+                lane = _rw_lanes.get(dependent_id, Lane.PLANNED)
+                if lane in {Lane.PLANNED, "doing", Lane.FOR_REVIEW}:
                     incomplete.append(dependent_id)
             if incomplete:
                 dependents_list = ", ".join(sorted(incomplete))

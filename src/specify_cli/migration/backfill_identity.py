@@ -187,7 +187,7 @@ def backfill_wp_ids(feature_dir: Path, mission_id: str) -> dict[str, str]:
         updates: dict[str, Any] = {}
 
         # mission_id — always propagate
-        if frontmatter.get("mission_id") != mission_id:
+        if frontmatter.get("mission_id") != mission_id:  # MIGRATION-ONLY: raw dict read-mutate-write
             updates["mission_id"] = mission_id
 
         # wp_code — set if missing
@@ -210,6 +210,6 @@ def backfill_wp_ids(feature_dir: Path, mission_id: str) -> dict[str, str]:
             frontmatter.update(updates)
             manager.write(wp_file, frontmatter, body)
 
-        mapping[wp_code] = frontmatter.get("work_package_id") or updates.get("work_package_id", "")
+        mapping[wp_code] = frontmatter.get("work_package_id") or updates.get("work_package_id", "")  # MIGRATION-ONLY: raw dict read-mutate-write
 
     return mapping

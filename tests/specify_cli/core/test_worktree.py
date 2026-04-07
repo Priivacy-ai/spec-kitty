@@ -28,13 +28,15 @@ def _make_frontmatter(
     wp_id: str = "WP01",
     mission_slug: str = "test-feature",
     owned_files: list[str] | None = None,
-) -> dict[str, object]:
-    return {
-        "work_package_id": wp_id,
-        "execution_mode": execution_mode,
-        "owned_files": owned_files or [],
-        "mission_slug": mission_slug,
-    }
+) -> WPMetadata:
+    from specify_cli.status.wp_metadata import WPMetadata
+
+    return WPMetadata(
+        work_package_id=wp_id,
+        execution_mode=execution_mode,
+        owned_files=owned_files or [],
+        feature_slug=mission_slug,
+    )
 
 
 def _make_successful_vcs_result(workspace_path: Path) -> MagicMock:
@@ -228,8 +230,10 @@ class TestExecutionModeDefaults:
 
     def test_missing_execution_mode_defaults_to_code_change(self, tmp_path: Path) -> None:
         """Frontmatter without execution_mode behaves as code_change."""
+        from specify_cli.status.wp_metadata import WPMetadata
+
         workspace_path = tmp_path / ".worktrees" / "WP99"
-        frontmatter = {"work_package_id": "WP99"}  # no execution_mode
+        frontmatter = WPMetadata(work_package_id="WP99")  # no execution_mode
 
         mock_vcs = MagicMock()
         fail_result = MagicMock()
@@ -244,16 +248,17 @@ class TestExecutionModeDefaults:
                 workspace_name="WP99",
                 wp_frontmatter=frontmatter,
             )
-        # The VCS path was taken (not planning_artifact path)
         mock_vcs.create_workspace.assert_called_once()
 
     def test_unknown_execution_mode_defaults_to_code_change(self, tmp_path: Path) -> None:
         """Unknown execution_mode value falls back to code_change."""
+        from specify_cli.status.wp_metadata import WPMetadata
+
         workspace_path = tmp_path / ".worktrees" / "WP99"
-        frontmatter = {
-            "work_package_id": "WP99",
-            "execution_mode": "totally_unknown_value",
-        }
+        frontmatter = WPMetadata(
+            work_package_id="WP99",
+            execution_mode="totally_unknown_value",
+        )
 
         mock_vcs = MagicMock()
         fail_result = MagicMock()

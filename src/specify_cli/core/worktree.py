@@ -91,9 +91,7 @@ def create_wp_workspace(
     repo_root: Path,
     workspace_path: Path,
     workspace_name: str,
-    wp_frontmatter: WPMetadata | dict[str, Any],
-    base_branch: str | None = None,
-    base_commit: str | None = None,
+    wp_frontmatter: WPMetadata,
 ) -> Path:
     """Create a workspace for a work package, routing by execution_mode.
 
@@ -108,10 +106,7 @@ def create_wp_workspace(
         repo_root: Absolute path to the repository root.
         workspace_path: Where a ``code_change`` worktree would be created.
         workspace_name: Branch name for a ``code_change`` worktree.
-        wp_frontmatter: Parsed WP frontmatter — either a typed
-            :class:`WPMetadata` or a raw dict.
-        base_branch: Optional branch to base the worktree on.
-        base_commit: Optional commit to base the worktree on.
+        wp_frontmatter: Parsed WP frontmatter as typed :class:`WPMetadata`.
 
     Returns:
         Path to the workspace.  For ``code_change`` this is ``workspace_path``
@@ -122,17 +117,10 @@ def create_wp_workspace(
         FileExistsError: If ``workspace_path`` already exists and is not a
             valid git worktree (``code_change`` only).
     """
-    # Extract fields from either WPMetadata or raw dict
-    if isinstance(wp_frontmatter, WPMetadata):
-        raw_mode = wp_frontmatter.execution_mode or ExecutionMode.CODE_CHANGE
-        owned_files_raw: list[str] = list(wp_frontmatter.owned_files)
-        wp_code = wp_frontmatter.work_package_id
-        mission_slug = wp_frontmatter.feature_slug or ""
-    else:
-        raw_mode = wp_frontmatter.get("execution_mode", ExecutionMode.CODE_CHANGE)
-        owned_files_raw = wp_frontmatter.get("owned_files") or []
-        wp_code = wp_frontmatter.get("work_package_id", "")
-        mission_slug = wp_frontmatter.get("mission_slug", "")
+    raw_mode = wp_frontmatter.execution_mode or ExecutionMode.CODE_CHANGE
+    owned_files_raw: list[str] = list(wp_frontmatter.owned_files)
+    wp_code = wp_frontmatter.work_package_id
+    mission_slug = wp_frontmatter.feature_slug or ""
 
     try:
         mode = ExecutionMode(raw_mode)
@@ -161,8 +149,8 @@ def create_wp_workspace(
     result = vcs.create_workspace(
         workspace_path=workspace_path,
         workspace_name=workspace_name,
-        base_branch=base_branch,
-        base_commit=base_commit,
+        base_branch=wp_frontmatter.base_branch,
+        base_commit=wp_frontmatter.base_commit,
         repo_root=repo_root,
     )
 

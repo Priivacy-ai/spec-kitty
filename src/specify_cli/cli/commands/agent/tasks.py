@@ -21,6 +21,7 @@ from specify_cli.sync.events import (
 )
 
 from specify_cli.status.emit import emit_status_transition
+from specify_cli.status.models import Lane
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
@@ -362,7 +363,7 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
         json_mode: If True, suppress Rich console output
     """
     # Only warn when moving to for_review
-    if target_lane != "for_review":
+    if target_lane != Lane.FOR_REVIEW:
         return
 
     # Don't show warnings in JSON mode
@@ -396,16 +397,16 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
         _dw_lanes: dict = {}
         if _dw_snapshot:
             for _dw_wp_id, _dw_state in _dw_snapshot.work_packages.items():
-                _dw_lanes[_dw_wp_id] = str(_dw_state.get("lane", "planned"))
+                _dw_lanes[_dw_wp_id] = Lane(_dw_state.get("lane", Lane.PLANNED))
     except Exception:
         _dw_lanes = {}
 
     incomplete = []
     for dep_id in dependents:
         try:
-            lane = _dw_lanes.get(dep_id, "planned")
+            lane = _dw_lanes.get(dep_id, Lane.PLANNED)
 
-            if resolve_lane_alias(lane) in ["planned", "in_progress", "claimed"]:
+            if resolve_lane_alias(lane) in [Lane.PLANNED, Lane.IN_PROGRESS, Lane.CLAIMED]:
                 incomplete.append(dep_id)
         except Exception:
             # Skip if we can't read the dependent
@@ -912,9 +913,9 @@ def move_task(
             _mt_events = _mt_read_events(_mt_feature_dir)
             _mt_snapshot = _mt_reduce(_mt_events) if _mt_events else None
             _mt_state = _mt_snapshot.work_packages.get(task_id) if _mt_snapshot else None
-            old_lane = str(_mt_state.get("lane", "planned")) if _mt_state else "planned"
+            old_lane = Lane(_mt_state.get("lane", Lane.PLANNED)) if _mt_state else Lane.PLANNED
         except Exception:
-            old_lane = "planned"
+            old_lane = Lane.PLANNED
 
         # AGENT OWNERSHIP CHECK: Warn if agent doesn't match WP's current agent
         # This helps prevent agents from accidentally modifying WPs they don't own
@@ -957,7 +958,7 @@ def move_task(
 
         # Strictly enforce deterministic review feedback capture on planned rollbacks.
         # This requirement is never bypassed, including with --force.
-        if target_lane == "planned":
+        if target_lane == Lane.PLANNED:
             if not resolved_feedback_source:
                 error_msg = f"❌ Moving {task_id} to 'planned' requires review feedback.\n\n"
                 error_msg += "Please provide feedback:\n"
@@ -984,7 +985,7 @@ def move_task(
             )
 
         # Validate subtasks are complete when moving to for_review/approved/done (Issue #72)
-        if target_lane in ("for_review", "approved", "done") and not force:
+        if target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE) and not force:
             unchecked = _check_unchecked_subtasks(repo_root, mission_slug, task_id, force)
             if unchecked:
                 error_msg = f"Cannot move {task_id} to {target_lane} - unchecked subtasks:\n"
@@ -1000,7 +1001,7 @@ def move_task(
 
         # Validate uncommitted changes when moving to for_review/approved/done
         # This catches the bug where agents edit artifacts but forget to commit
-        if target_lane in ("for_review", "approved", "done"):
+        if target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE):
             is_valid, guidance = _validate_ready_for_review(repo_root, mission_slug, task_id, force)
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
@@ -1014,7 +1015,7 @@ def move_task(
         user_note = note.strip() if isinstance(note, str) else note
         note_text = user_note
         override_reason = done_override_reason.strip() if isinstance(done_override_reason, str) else done_override_reason
-        if target_lane == "done":
+        if target_lane == Lane.DONE:
             merged, merge_msg = _wp_branch_merged_into_target(
                 repo_root=main_repo_root,
                 mission_slug=mission_slug,
@@ -1043,7 +1044,7 @@ def move_task(
         # --- Canonical emit pipeline (WP09 delegation) ---
         # Build evidence dict for approval and done transitions.
         evidence_dict = None
-        if target_lane in ("approved", "done"):
+        if target_lane in (Lane.APPROVED, Lane.DONE):
             # Auto-detect reviewer if not provided
             effective_reviewer = reviewer
             if not effective_reviewer:
@@ -1056,16 +1057,16 @@ def move_task(
             evidence_dict = {
                 "review": {
                     "reviewer": effective_reviewer,
-                    "verdict": "approved",
+                    "verdict": Lane.APPROVED,
                     "reference": effective_approval_ref or "force-override",
                 },
             }
 
         # Build review_ref for for_review -> in_progress transitions
         emit_review_ref = None
-        if target_lane == "planned" and review_feedback_pointer:
+        if target_lane == Lane.PLANNED and review_feedback_pointer:
             emit_review_ref = review_feedback_pointer
-        elif old_lane == "for_review" and resolve_lane_alias(target_lane) in ("in_progress", "planned") and force:
+        elif old_lane == Lane.FOR_REVIEW and resolve_lane_alias(target_lane) in (Lane.IN_PROGRESS, Lane.PLANNED) and force:
             emit_review_ref = "force-override"
 
         # Map --agent to actor; default to "user" if not provided
@@ -1139,7 +1140,7 @@ def move_task(
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done"]
+            forward = [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED, Lane.DONE]
             if current in forward and target in forward:
                 current_idx = forward.index(current)
                 target_idx = forward.index(target)
@@ -1171,10 +1172,10 @@ def move_task(
                 hop_review_result = None
                 if (
                     event is not None
-                    and str(event.to_lane) == "in_review"
+                    and event.to_lane == Lane.IN_REVIEW
                     and evidence_dict is not None
                     or event is None
-                    and current_event_lane == "in_review"
+                    and current_event_lane == Lane.IN_REVIEW
                     and evidence_dict is not None
                 ):
                     from specify_cli.status.models import ReviewResult
@@ -1182,7 +1183,7 @@ def move_task(
                     review_section = evidence_dict.get("review", {})
                     hop_review_result = ReviewResult(
                         reviewer=review_section.get("reviewer", actor),
-                        verdict=review_section.get("verdict", "approved"),
+                        verdict=review_section.get("verdict", Lane.APPROVED),
                         reference=review_section.get("reference", f"auto-forward:{task_id}"),
                     )
                 event = emit_status_transition(
@@ -1193,11 +1194,11 @@ def move_task(
                     actor=actor,
                     force=emit_force,
                     reason=emit_reason,
-                    evidence=evidence_dict if target in ("approved", "done") else None,
+                    evidence=evidence_dict if target in (Lane.APPROVED, Lane.DONE) else None,
                     review_ref=emit_review_ref,
                     workspace_context=f"move-task:{main_repo_root}",
-                    subtasks_complete=(True if target in ("for_review", "approved") and not emit_force else None),
-                    implementation_evidence_present=(True if target in ("for_review", "approved") and not emit_force else None),
+                    subtasks_complete=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
+                    implementation_evidence_present=(True if target in (Lane.FOR_REVIEW, Lane.APPROVED) and not emit_force else None),
                     repo_root=main_repo_root,
                     review_result=hop_review_result,
                 )
@@ -1278,7 +1279,7 @@ def move_task(
                 wp.path.write_text(updated_doc, encoding="utf-8")
 
         # Release review lock when review completes (approved or rejected back to planned)
-        if old_lane in ("for_review", "in_progress") and target_lane in ("approved", "planned"):
+        if old_lane in (Lane.FOR_REVIEW, Lane.IN_PROGRESS) and target_lane in (Lane.APPROVED, Lane.PLANNED):
             with contextlib.suppress(Exception):  # Lock may not exist (review started before WP05 landed)
                 from specify_cli.review.lock import ReviewLock
 
@@ -1606,7 +1607,7 @@ def list_tasks(
             _lt_lanes: dict = {}
             if _lt_snapshot:
                 for _lt_wp_id, _lt_state in _lt_snapshot.work_packages.items():
-                    _lt_lanes[_lt_wp_id] = str(_lt_state.get("lane", "planned"))
+                    _lt_lanes[_lt_wp_id] = Lane(_lt_state.get("lane", Lane.PLANNED))
         except Exception:
             _lt_lanes = {}
 
@@ -1621,7 +1622,7 @@ def list_tasks(
             task_wp_id = extract_scalar(frontmatter, "work_package_id") or task_file.stem
             task_title = extract_scalar(frontmatter, "title") or ""
             # Lane is event-log-only
-            task_lane = _lt_lanes.get(task_wp_id, "planned")
+            task_lane = _lt_lanes.get(task_wp_id, Lane.PLANNED)
 
             # Filter by lane if specified
             if lane and task_lane != lane:
@@ -2243,9 +2244,9 @@ def validate_workflow(
             _vw_events = _vw_read_events(_vw_feature_dir)
             _vw_snapshot = _vw_reduce(_vw_events) if _vw_events else None
             _vw_state = _vw_snapshot.work_packages.get(task_id) if _vw_snapshot else None
-            lane_value = str(_vw_state.get("lane", "planned")) if _vw_state else "planned"
+            lane_value = Lane(_vw_state.get("lane", Lane.PLANNED)) if _vw_state else Lane.PLANNED
         except Exception:
-            lane_value = "planned"
+            lane_value = Lane.PLANNED
 
         # Check work_package_id matches filename
         wp_id = extract_scalar(wp.frontmatter, "work_package_id")
@@ -2351,7 +2352,7 @@ def status(
             _st_lanes: dict = {}
             if _st_snapshot:
                 for _st_wp_id, _st_state in _st_snapshot.work_packages.items():
-                    _st_lanes[_st_wp_id] = str(_st_state.get("lane", "planned"))
+                    _st_lanes[_st_wp_id] = Lane(_st_state.get("lane", Lane.PLANNED))
         except Exception:
             _st_lanes = {}
 
@@ -2362,7 +2363,7 @@ def status(
 
             wp_id = extract_scalar(front, "work_package_id")
             title = extract_scalar(front, "title")
-            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, "planned"))
+            lane = resolve_lane_alias(_st_lanes.get(wp_id or wp_file.stem, Lane.PLANNED))
             phase = extract_scalar(front, "phase") or "Unknown Phase"
             agent = extract_scalar(front, "agent") or ""
             agent_profile = extract_scalar(front, "agent_profile") or ""
@@ -2390,7 +2391,7 @@ def status(
             # Check for stale WPs first (need to do this before JSON output too)
             from specify_cli.core.stale_detection import check_doing_wps_for_staleness
 
-            doing_wps = [wp for wp in work_packages if wp["lane"] == "in_progress"]
+            doing_wps = [wp for wp in work_packages if wp["lane"] == Lane.IN_PROGRESS]
             stale_results = check_doing_wps_for_staleness(
                 main_repo_root=main_repo_root,
                 mission_slug=mission_slug,
@@ -2400,7 +2401,7 @@ def status(
 
             # Add staleness info to WPs
             for wp in work_packages:
-                if wp["lane"] == "in_progress" and wp["id"] in stale_results:
+                if wp["lane"] == Lane.IN_PROGRESS and wp["id"] in stale_results:
                     result = stale_results[wp["id"]]
                     wp["is_stale"] = result.is_stale
                     wp["minutes_since_commit"] = result.minutes_since_commit
@@ -2423,7 +2424,7 @@ def status(
 
         # Rich table output
         # Group by lane
-        by_lane = {"planned": [], "in_progress": [], "in_review": [], "for_review": [], "approved": [], "done": []}
+        by_lane = {Lane.PLANNED: [], Lane.IN_PROGRESS: [], Lane.IN_REVIEW: [], Lane.FOR_REVIEW: [], Lane.APPROVED: [], Lane.DONE: []}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:
@@ -2437,7 +2438,7 @@ def status(
         stale_results = check_doing_wps_for_staleness(
             main_repo_root=main_repo_root,
             mission_slug=mission_slug,
-            doing_wps=by_lane["in_progress"],
+            doing_wps=by_lane[Lane.IN_PROGRESS],
             threshold_minutes=stale_threshold,
         )
 
@@ -2449,7 +2450,7 @@ def status(
             profile_repo = None
 
         # Add staleness info to WPs
-        for wp in by_lane["in_progress"]:
+        for wp in by_lane[Lane.IN_PROGRESS]:
             wp_id = wp["id"]
             if wp_id in stale_results:
                 result = stale_results[wp_id]
@@ -2461,9 +2462,9 @@ def status(
 
         # Calculate metrics
         total = len(work_packages)
-        done_count = len(by_lane["done"])
-        in_progress = len(by_lane["in_progress"]) + len(by_lane["in_review"]) + len(by_lane["for_review"])
-        planned_count = len(by_lane["planned"])
+        done_count = len(by_lane[Lane.DONE])
+        in_progress = len(by_lane[Lane.IN_PROGRESS]) + len(by_lane[Lane.IN_REVIEW]) + len(by_lane[Lane.FOR_REVIEW])
+        planned_count = len(by_lane[Lane.PLANNED])
         progress_pct = round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0
 
         # Create title panel
@@ -2491,8 +2492,8 @@ def status(
 
         # Kanban board table
         # Fold in_review WPs into the "Doing" column with a review marker
-        display_in_progress = list(by_lane["in_progress"])
-        for wp in by_lane.get("in_review", []):
+        display_in_progress = list(by_lane[Lane.IN_PROGRESS])
+        for wp in by_lane.get(Lane.IN_REVIEW, []):
             wp["_display_in_review"] = True
             display_in_progress.append(wp)
         table = Table(title="Kanban Board", show_header=True, header_style="bold magenta", border_style="dim")
@@ -2503,15 +2504,15 @@ def status(
         table.add_column("✅ Done", style="green", no_wrap=False, width=25)
 
         # Find max length for rows
-        max_rows = max(len(by_lane["planned"]), len(display_in_progress), len(by_lane["for_review"]), len(by_lane["approved"]), len(by_lane["done"]))
+        max_rows = max(len(by_lane[Lane.PLANNED]), len(display_in_progress), len(by_lane[Lane.FOR_REVIEW]), len(by_lane[Lane.APPROVED]), len(by_lane[Lane.DONE]))
 
         # Map display column keys to their data lists
         display_columns = [
-            ("planned", by_lane["planned"]),
-            ("in_progress", display_in_progress),
-            ("for_review", by_lane["for_review"]),
-            ("approved", by_lane["approved"]),
-            ("done", by_lane["done"]),
+            (Lane.PLANNED, by_lane[Lane.PLANNED]),
+            (Lane.IN_PROGRESS, display_in_progress),
+            (Lane.FOR_REVIEW, by_lane[Lane.FOR_REVIEW]),
+            (Lane.APPROVED, by_lane[Lane.APPROVED]),
+            (Lane.DONE, by_lane[Lane.DONE]),
         ]
 
         # Add rows
@@ -2525,7 +2526,7 @@ def status(
                     display_id = f"{marker}{wp['id']}"
 
                     # Add stale indicator for in_progress WPs
-                    if lane == "in_progress" and wp.get("is_stale"):
+                    if lane == Lane.IN_PROGRESS and wp.get("is_stale"):
                         cell = f"[red]⚠️ {display_id}[/red]\n{title_truncated}"
                     elif wp.get("_display_in_review"):
                         cell = f"[bright_cyan]{display_id} (review)[/bright_cyan]\n{title_truncated}"
@@ -2538,11 +2539,11 @@ def status(
 
         # Add count row
         table.add_row(
-            f"[bold]{len(by_lane['planned'])} WPs[/bold]",
-            f"[bold]{len(by_lane['in_progress'])} WPs[/bold]",
-            f"[bold]{len(by_lane['for_review'])} WPs[/bold]",
-            f"[bold]{len(by_lane['approved'])} WPs[/bold]",
-            f"[bold]{len(by_lane['done'])} WPs[/bold]",
+            f"[bold]{len(by_lane[Lane.PLANNED])} WPs[/bold]",
+            f"[bold]{len(by_lane[Lane.IN_PROGRESS])} WPs[/bold]",
+            f"[bold]{len(by_lane[Lane.FOR_REVIEW])} WPs[/bold]",
+            f"[bold]{len(by_lane[Lane.APPROVED])} WPs[/bold]",
+            f"[bold]{len(by_lane[Lane.DONE])} WPs[/bold]",
             style="dim",
         )
 
@@ -2573,25 +2574,25 @@ def status(
             pass  # review package not yet available
 
         # Next steps section
-        if by_lane["for_review"]:
+        if by_lane[Lane.FOR_REVIEW]:
             console.print("[bold cyan]👀 Ready for Review:[/bold cyan]")
-            for wp in by_lane["for_review"]:
+            for wp in by_lane[Lane.FOR_REVIEW]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print()
 
-        if by_lane["approved"]:
+        if by_lane[Lane.APPROVED]:
             console.print("[bold magenta]👍 Approved (merge when all WPs approved):[/bold magenta]")
-            for wp in by_lane["approved"]:
+            for wp in by_lane[Lane.APPROVED]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print("[dim]   Approved WPs stay here until feature merge. Dependents can start immediately.[/dim]")
             console.print()
 
-        if by_lane["in_progress"]:
+        if by_lane[Lane.IN_PROGRESS]:
             console.print("[bold blue]🔄 In Progress:[/bold blue]")
             stale_wps = []
-            for wp in by_lane["in_progress"]:
+            for wp in by_lane[Lane.IN_PROGRESS]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 if wp.get("is_stale"):
                     mins = wp.get("minutes_since_commit", "?")
@@ -2608,21 +2609,21 @@ def status(
                 console.print("[dim]   Run: spec-kitty agent tasks move-task <WP_ID> --to for_review[/dim]")
                 console.print()
 
-        if by_lane.get("in_review"):
+        if by_lane.get(Lane.IN_REVIEW):
             console.print("[bold bright_cyan]🔍 In Review (shown in Doing column):[/bold bright_cyan]")
-            for wp in by_lane["in_review"]:
+            for wp in by_lane[Lane.IN_REVIEW]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print()
 
-        if by_lane["planned"]:
+        if by_lane[Lane.PLANNED]:
             console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")
             # Show first 3 planned items
-            for wp in by_lane["planned"][:3]:
+            for wp in by_lane[Lane.PLANNED][:3]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                 console.print(f"  • {marker}{wp['id']} - {wp['title']}")
-            if len(by_lane["planned"]) > 3:
-                console.print(f"  [dim]... and {len(by_lane['planned']) - 3} more[/dim]")
+            if len(by_lane[Lane.PLANNED]) > 3:
+                console.print(f"  [dim]... and {len(by_lane[Lane.PLANNED]) - 3} more[/dim]")
             console.print()
 
         # Summary metrics

@@ -62,7 +62,8 @@ class WPMetadata(BaseModel):
     phase: str | None = None
     phases: str | None = None
     assignee: str | None = None
-    agent: str | None = None
+    agent: Any = None  # str in most WPs, dict (tool/model keys) in some legacy files
+    model: str | None = None
     agent_profile: str | None = None
     role: str | None = None
     shell_pid: int | None = None
@@ -271,16 +272,23 @@ class _Builder:
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """Load and validate WP frontmatter.
 
-    Returns ``(WPMetadata, body_text)``.
-    Raises :class:`pydantic.ValidationError` on invalid data.
-    Raises :class:`~specify_cli.frontmatter.FrontmatterError` on I/O or
-    parse failures.
+    Returns ``(WPMetadata, body_text)`` on success.
+
+    Uses ``strict=False`` so that non-string values in optional fields
+    (e.g. ``agent`` stored as a dict in some legacy WP files) are coerced
+    rather than causing validation failures.
+
+    Raises:
+        FrontmatterError: On I/O or YAML parse failures.
+        ValidationError: If the frontmatter fails ``WPMetadata`` validation.
     """
+    from pydantic import ValidationError  # noqa: F401 — re-exported for callers
+
     from specify_cli.frontmatter import FrontmatterManager
 
     fm = FrontmatterManager()
     frontmatter_dict, body = fm.read(path)
-    return WPMetadata.model_validate(frontmatter_dict), body
+    return WPMetadata.model_validate(frontmatter_dict, strict=False), body
 
 
 __all__ = ["WPMetadata", "read_wp_frontmatter"]

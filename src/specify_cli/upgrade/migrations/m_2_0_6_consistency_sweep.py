@@ -97,11 +97,7 @@ def _iter_feature_dirs(project_path: Path) -> list[Path]:
     kitty_specs = project_path / "kitty-specs"
     if not kitty_specs.exists():
         return []
-    return [
-        path
-        for path in sorted(kitty_specs.iterdir())
-        if path.is_dir()
-    ]
+    return [path for path in sorted(kitty_specs.iterdir()) if path.is_dir()]
 
 
 def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
@@ -207,7 +203,7 @@ def _normalize_wp_frontmatter(feature_dir: Path, dry_run: bool) -> tuple[int, li
             warnings.append(f"{wp_file.name}: {exc}")
             continue
 
-        raw_lane = frontmatter.get("lane") or "planned"
+        raw_lane = frontmatter.get("lane") or "planned"  # MIGRATION-ONLY: raw dict read-mutate-write
         canonical_lane = resolve_lane_alias(str(raw_lane))
         if canonical_lane in CANONICAL_LANES:
             frontmatter["lane"] = canonical_lane
@@ -312,7 +308,7 @@ def _wp_frontmatter_needs_normalization(feature_dir: Path) -> bool:
             frontmatter, _body = manager.read(wp_file)
         except FrontmatterError:
             return True
-        raw_lane = frontmatter.get("lane")
+        raw_lane = frontmatter.get("lane")  # MIGRATION-ONLY: raw dict read-mutate-write
         if raw_lane is None or not str(raw_lane).strip():
             return True
     return False
@@ -389,9 +385,7 @@ def _migrate_runtime_assets(project_path: Path, dry_run: bool) -> tuple[list[str
     removed = len(report.removed)
     if moved or removed:
         verb = "Would migrate" if dry_run else "Migrated"
-        changes.append(
-            f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)"
-        )
+        changes.append(f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)")
     return changes, []
 
 

@@ -33,6 +33,7 @@ import ulid as _ulid_mod
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
+from .wp_metadata import read_wp_frontmatter
 
 from .models import (
     DoneEvidence,
@@ -198,16 +199,18 @@ def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) ->
         return
 
     try:
-        frontmatter, body = read_frontmatter(wp_file)
+        wp_meta = read_wp_frontmatter(wp_file)
     except FrontmatterError as exc:
         logger.warning("Failed to read %s for phase-1 lane mirror: %s", wp_file, exc)
         return
 
-    if _LEGACY_LANE_FIELD not in frontmatter:
-        return
-    if str(frontmatter.get(_LEGACY_LANE_FIELD)).strip() == lane:
+    wp_meta_dict, _ = wp_meta
+    if wp_meta_dict.lane is not None and str(wp_meta_dict.lane).strip() == lane:
         return
 
+    frontmatter, body = read_frontmatter(wp_file)
+    if _LEGACY_LANE_FIELD not in frontmatter:
+        return
     frontmatter[_LEGACY_LANE_FIELD] = lane
     try:
         write_frontmatter(wp_file, frontmatter, body)

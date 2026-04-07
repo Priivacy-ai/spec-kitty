@@ -48,9 +48,7 @@ __all__ = [
 ]
 
 
-def read_file_resilient(
-    file_path: Path, *, auto_fix: bool = True
-) -> tuple[Optional[str], Optional[str]]:
+def read_file_resilient(file_path: Path, *, auto_fix: bool = True) -> tuple[Optional[str], Optional[str]]:
     """Read a file with resilience to encoding errors.
 
     This function attempts to read a file as UTF-8, and if that fails:
@@ -84,9 +82,7 @@ def read_file_resilient(
         return content, None
     except UnicodeDecodeError as exc:
         # Log the encoding error
-        logger.warning(
-            f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}"
-        )
+        logger.warning(f"UTF-8 decoding failed for {file_path.name} at byte {exc.start}: {exc.reason}")
 
         if not auto_fix:
             return None, (
@@ -115,8 +111,7 @@ def read_file_resilient(
         except Exception as fix_exc:
             logger.error(f"Auto-fix failed for {file_path.name}: {fix_exc}")
             return None, (
-                f"Encoding error in {file_path.name} and auto-fix failed: {fix_exc}. "
-                f"Manually repair the file or run 'spec-kitty validate-encoding --fix'."
+                f"Encoding error in {file_path.name} and auto-fix failed: {fix_exc}. Manually repair the file or run 'spec-kitty validate-encoding --fix'."
             )
     except Exception as exc:
         logger.error(f"Unexpected error reading {file_path.name}: {exc}")
@@ -203,11 +198,7 @@ def get_feature_artifacts(
     project_root = project_dir if project_dir is not None else feature_dir.parent.parent
     charter_path = resolve_project_charter_path(project_root)
 
-    charter_info = (
-        _get_artifact_info(charter_path)
-        if charter_path is not None
-        else {"exists": False, "mtime": None, "size": None}
-    )
+    charter_info = _get_artifact_info(charter_path) if charter_path is not None else {"exists": False, "mtime": None, "size": None}
 
     return {
         "charter": charter_info,
@@ -233,9 +224,7 @@ def get_workflow_status(artifacts: Dict[str, Dict[str, any]]) -> Dict[str, str]:
     workflow: Dict[str, str] = {}
 
     if not has_spec:
-        workflow.update(
-            {"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"}
-        )
+        workflow.update({"specify": "pending", "plan": "pending", "tasks": "pending", "implement": "pending"})
         return workflow
     workflow["specify"] = "complete"
 
@@ -323,6 +312,7 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     feature_dir = tasks_dir.parent
 
     from specify_cli.status.lane_reader import get_all_wp_lanes
+
     event_lanes = get_all_wp_lanes(feature_dir)
 
     for wp_file in tasks_dir.glob("WP*.md"):
@@ -386,6 +376,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
             else:
                 # New format: count WPs by canonical event log lane
                 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
                 try:
                     lane_counts = _count_wps_by_lane(tasks_dir)
                     for lane, count in lane_counts.items():
@@ -396,6 +387,7 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                     try:
                         from specify_cli.status.progress import compute_weighted_progress
                         from specify_cli.status.reducer import materialize
+
                         snap = materialize(feature_dir)
                         progress = compute_weighted_progress(snap)
                         kanban_stats["weighted_percentage"] = round(progress.percentage, 1)
@@ -409,20 +401,14 @@ def scan_all_features(project_dir: Path) -> List[Dict[str, Any]]:
                         "No event log for feature '%s' — skipping kanban counts",
                         feature_dir.name,
                     )
-                    kanban_stats["error"] = (
-                        f"Event log not found. Run: spec-kitty agent mission "
-                        f"finalize-tasks --mission {feature_dir.name}"
-                    )
+                    kanban_stats["error"] = f"Event log not found. Run: spec-kitty agent mission finalize-tasks --mission {feature_dir.name}"
                 except StoreError as exc:
                     logger.warning(
                         "Unreadable event log for feature '%s' — dashboard counts unavailable: %s",
                         feature_dir.name,
                         exc,
                     )
-                    kanban_stats["error"] = (
-                        "Event log unreadable. Run: spec-kitty upgrade "
-                        f"(feature {feature_dir.name})"
-                    )
+                    kanban_stats["error"] = f"Event log unreadable. Run: spec-kitty upgrade (feature {feature_dir.name})"
 
         worktree_root = project_dir / ".worktrees"
         worktree_path = worktree_root / feature_dir.name
@@ -470,48 +456,39 @@ def _process_wp_file(
             "assignee": "",
             "phase": "",
             "prompt_markdown": f"**Encoding Error**\n\n{error}",
-            "prompt_path": str(prompt_file.relative_to(project_dir))
-            if prompt_file.is_relative_to(project_dir)
-            else str(prompt_file),
+            "prompt_path": str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file),
             "encoding_error": True,
         }
 
-    frontmatter, prompt_body, _ = parse_frontmatter(content)
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
-    if not isinstance(frontmatter, dict) or "work_package_id" not in frontmatter:
+    try:
+        wp_meta_dict, prompt_body = read_wp_frontmatter(prompt_file)
+    except Exception:
         return None
 
     title_match = re.search(r"^#\s+Work Package Prompt:\s+(.+)$", content, re.MULTILINE)
     title = title_match.group(1) if title_match else prompt_file.stem
 
-    wp_id = frontmatter.get("work_package_id", prompt_file.stem)
-    # Derive feature_dir: for flat tasks/ it's parent.parent;
-    # for legacy tasks/<lane>/ it's parent.parent.parent.
-    # Use has_event_log to find the right level, else fall back to default_lane.
+    wp_id = wp_meta_dict.work_package_id
     from specify_cli.status.lane_reader import has_event_log, get_wp_lane
 
     stem = prompt_file.stem
     wp_id_match = re.match(r"^(WP\d+)", stem, re.IGNORECASE)
     canonical_wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
-    # Try flat layout first (tasks/WP01.md → feature_dir is parent.parent)
     candidate = prompt_file.parent.parent
     if has_event_log(candidate):
         lane = get_wp_lane(candidate, canonical_wp_id)
     elif has_event_log(candidate.parent):
-        # Legacy layout (tasks/planned/WP01.md → feature_dir is parent.parent.parent)
         lane = get_wp_lane(candidate.parent, canonical_wp_id)
     else:
-        # No event log at either level — use default_lane only for legacy
-        # features (where the directory structure IS the lane). For flat-task
-        # features the event log is mandatory; let the caller handle it.
-        feature_candidate = (
-            candidate if candidate.name != "tasks" else candidate.parent
-        )
+        feature_candidate = candidate if candidate.name != "tasks" else candidate.parent
         if is_legacy_format(feature_candidate):
             lane = default_lane
         else:
             from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
             raise CanonicalStatusNotFoundError(
                 f"Canonical status not found for feature "
                 f"'{feature_candidate.name}'. Run 'spec-kitty agent mission "
@@ -519,8 +496,7 @@ def _process_wp_file(
                 f"bootstrap the event log."
             )
 
-    agent_raw = frontmatter.get("agent", "")
-    # Normalize structured agent mapping (e.g. {tool: claude, model: opus, ...}) to tool string
+    agent_raw = wp_meta_dict.agent
     if isinstance(agent_raw, dict):
         agent_str = agent_raw.get("tool", "")
         model_str = agent_raw.get("model", "")
@@ -528,24 +504,21 @@ def _process_wp_file(
         agent_str = str(agent_raw) if agent_raw else ""
         model_str = ""
 
-    # Also check top-level frontmatter 'model' key as fallback
     if not model_str:
-        model_str = str(frontmatter.get("model", "")) if frontmatter.get("model") else ""
+        model_str = str(wp_meta_dict.model or "") if wp_meta_dict.model else ""
     return {
         "id": wp_id,
         "title": title,
         "lane": lane,
-        "subtasks": frontmatter.get("subtasks", []),
+        "subtasks": wp_meta_dict.subtasks or [],
         "agent": agent_str,
         "model": model_str,
-        "agent_profile": frontmatter.get("agent_profile", ""),
-        "role": frontmatter.get("role", ""),
-        "assignee": frontmatter.get("assignee", ""),
-        "phase": frontmatter.get("phase", ""),
+        "agent_profile": wp_meta_dict.agent_profile or "",
+        "role": wp_meta_dict.role or "",
+        "assignee": wp_meta_dict.assignee or "",
+        "phase": wp_meta_dict.phase or "",
         "prompt_markdown": prompt_body.strip(),
-        "prompt_path": str(prompt_file.relative_to(project_dir))
-        if prompt_file.is_relative_to(project_dir)
-        else str(prompt_file),
+        "prompt_path": str(prompt_file.relative_to(project_dir)) if prompt_file.is_relative_to(project_dir) else str(prompt_file),
     }
 
 
@@ -592,6 +565,7 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
     else:
         # New format: scan flat tasks/ directory, lane from event log
         from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
         for prompt_file in tasks_dir.glob("WP*.md"):
             try:
                 task_data = _process_wp_file(prompt_file, project_dir, "planned")
