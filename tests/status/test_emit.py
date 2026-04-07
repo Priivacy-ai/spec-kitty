@@ -15,6 +15,7 @@ import pytest
 
 import specify_cli.status.emit as emit_module
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.emit import (
     TransitionError,
     _build_done_evidence,
@@ -748,12 +749,18 @@ class TestPhase1CompatibilityBridge:
     ) -> None:
         wp_file = feature_dir / "tasks" / "WP01.md"
         wp_file.parent.mkdir()
-        wp_file.write_text("---\nowner: test\n---\n", encoding="utf-8")
+        wp_file.write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
 
         write_mock = MagicMock()
         monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
-        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"owner": "test"}, "body"))
+        # WPMetadata with no lane field — mirror should be a no-op (no lane to update)
+        monkeypatch.setattr(
+            emit_module,
+            "read_wp_frontmatter",
+            lambda path: (WPMetadata(work_package_id="WP01"), "body"),
+        )
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"work_package_id": "WP01"}, "body"))
         monkeypatch.setattr(emit_module, "write_frontmatter", write_mock)
 
         _mirror_phase1_frontmatter_lane(feature_dir, "WP01", "for_review")
@@ -768,14 +775,15 @@ class TestPhase1CompatibilityBridge:
     ) -> None:
         wp_file = feature_dir / "tasks" / "WP01.md"
         wp_file.parent.mkdir()
-        wp_file.write_text("---\nlane: planned\n---\n", encoding="utf-8")
+        wp_file.write_text("---\nwork_package_id: WP01\nlane: planned\n---\n", encoding="utf-8")
 
         monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
 
+        # Part 1: read_wp_frontmatter raises FrontmatterError → logged as "Failed to read"
         monkeypatch.setattr(
             emit_module,
-            "read_frontmatter",
+            "read_wp_frontmatter",
             lambda path: (_ for _ in ()).throw(FrontmatterError("read failed")),
         )
         with caplog.at_level("WARNING"):
@@ -783,7 +791,13 @@ class TestPhase1CompatibilityBridge:
         assert "Failed to read" in caplog.text
 
         caplog.clear()
-        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"lane": "planned"}, "body"))
+        # Part 2: read_wp_frontmatter succeeds (lane="planned"), write_frontmatter raises FrontmatterError
+        monkeypatch.setattr(
+            emit_module,
+            "read_wp_frontmatter",
+            lambda path: (WPMetadata(work_package_id="WP01", lane="planned"), "body"),
+        )
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"work_package_id": "WP01", "lane": "planned"}, "body"))
         monkeypatch.setattr(
             emit_module,
             "write_frontmatter",

@@ -30,6 +30,7 @@ from pathlib import Path
 from typing import Any
 
 import ulid as _ulid_mod
+from pydantic import ValidationError
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
@@ -200,7 +201,7 @@ def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) ->
 
     try:
         wp_meta = read_wp_frontmatter(wp_file)
-    except FrontmatterError as exc:
+    except (FrontmatterError, ValidationError) as exc:
         logger.warning("Failed to read %s for phase-1 lane mirror: %s", wp_file, exc)
         return
 
