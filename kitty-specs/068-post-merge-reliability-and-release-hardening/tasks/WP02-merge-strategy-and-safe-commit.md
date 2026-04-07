@@ -23,7 +23,8 @@ subtasks:
 - T012
 - T013
 - T014
-shell_pid: '63539'
+shell_pid: "65321"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -323,3 +324,4 @@ WP02 is the longest sequential chain. Once it lands, mission 068's two highest-i
 
 - 2026-04-07T09:37:12Z – unknown – shell_pid=63539 – WP01 approved, starting WP02
 - 2026-04-07T09:51:11Z – unknown – shell_pid=63539 – T008-T014 implemented: MergeStrategy config, CLI --strategy wiring, lane/merge strategy dispatch, linear-history push-error parser, safe_commit insertion (FR-019), stale-assertion check integration (T013). 31 tests all pass; ruff clean on new files.
+- 2026-04-07T09:51:38Z – claude:sonnet:reviewer:reviewer – shell_pid=65321 – Started review via action command
