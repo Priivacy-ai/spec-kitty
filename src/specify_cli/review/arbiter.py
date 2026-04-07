@@ -57,11 +57,11 @@ _CATEGORY_DEFAULTS: dict[ArbiterCategory, str] = {
 class ArbiterChecklist:
     """Five-question checklist that drives arbiter category derivation."""
 
-    is_pre_existing: bool       # Q1: Is the failure pre-existing on the base branch?
-    is_correct_context: bool    # Q2: Is the reviewer talking about the correct feature/WP?
-    is_in_scope: bool           # Q3: Is the finding within this WP's scope?
-    is_environmental: bool      # Q4: Is the failure environmental/infra?
-    should_follow_on: bool      # Q5: Should this become a follow-on issue instead?
+    is_pre_existing: bool  # Q1: Is the failure pre-existing on the base branch?
+    is_correct_context: bool  # Q2: Is the reviewer talking about the correct feature/WP?
+    is_in_scope: bool  # Q3: Is the finding within this WP's scope?
+    is_environmental: bool  # Q4: Is the failure environmental/infra?
+    should_follow_on: bool  # Q5: Should this become a follow-on issue instead?
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -87,11 +87,11 @@ class ArbiterChecklist:
 class ArbiterDecision:
     """Structured arbiter override decision with rationale."""
 
-    arbiter: str                 # who made the decision
+    arbiter: str  # who made the decision
     category: ArbiterCategory
-    explanation: str             # mandatory for all categories, especially CUSTOM
+    explanation: str  # mandatory for all categories, especially CUSTOM
     checklist: ArbiterChecklist
-    decided_at: str              # ISO 8601 UTC
+    decided_at: str  # ISO 8601 UTC
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -143,9 +143,7 @@ def _derive_category(checklist: ArbiterChecklist) -> ArbiterCategory:
 # Note parsing
 # ---------------------------------------------------------------------------
 
-_NOTE_CATEGORY_RE = re.compile(
-    r"^\s*\[([a-z_]+)\]\s*(.*)", re.DOTALL
-)
+_NOTE_CATEGORY_RE = re.compile(r"^\s*\[([a-z_]+)\]\s*(.*)", re.DOTALL)
 
 
 def parse_category_from_note(note: str | None) -> tuple[ArbiterCategory, str]:
@@ -272,18 +270,10 @@ def prompt_arbiter_checklist(
             return False
         return default
 
-    is_pre_existing = _ask_yn(
-        "Q1. Is this failure pre-existing on the base branch?", default=False
-    )
-    is_correct_context = _ask_yn(
-        "Q2. Is the reviewer talking about the correct feature/WP?", default=True
-    )
-    is_in_scope = _ask_yn(
-        "Q3. Is the finding within this WP's scope?", default=True
-    )
-    is_environmental = _ask_yn(
-        "Q4. Is the failure environmental or infrastructure-related?", default=False
-    )
+    is_pre_existing = _ask_yn("Q1. Is this failure pre-existing on the base branch?", default=False)
+    is_correct_context = _ask_yn("Q2. Is the reviewer talking about the correct feature/WP?", default=True)
+    is_in_scope = _ask_yn("Q3. Is the finding within this WP's scope?", default=True)
+    is_environmental = _ask_yn("Q4. Is the failure environmental or infrastructure-related?", default=False)
     should_follow_on = _ask_yn(
         "Q5. Should this become a follow-on issue instead of blocking this WP?",
         default=False,
@@ -365,11 +355,7 @@ def _is_arbiter_override(
         return False
 
     latest = wp_events[-1]
-    return (
-        latest.from_lane == Lane.FOR_REVIEW
-        and latest.to_lane == Lane.PLANNED
-        and latest.review_ref is not None
-    )
+    return latest.from_lane == Lane.FOR_REVIEW and latest.to_lane == Lane.PLANNED and latest.review_ref is not None
 
 
 # ---------------------------------------------------------------------------
@@ -434,11 +420,7 @@ def persist_arbiter_decision(
     Returns:
         Path to the file where the decision was written.
     """
-    artifact_path = (
-        _find_review_cycle_artifact(feature_dir, wp_id, review_ref or "")
-        if review_ref
-        else None
-    )
+    artifact_path = _find_review_cycle_artifact(feature_dir, wp_id, review_ref or "") if review_ref else None
 
     if artifact_path is not None and artifact_path.exists():
         # Primary path: update review-cycle artifact frontmatter
@@ -484,7 +466,9 @@ def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path
         fm_text = stream.getvalue().rstrip("\n")
         new_content = f"---\n{fm_text}\n---\n{content}"
 
-    artifact_path.write_text(new_content, encoding="utf-8")
+    artifact_path.write_text(
+        new_content, encoding="utf-8"
+    )  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
     return artifact_path
 
 

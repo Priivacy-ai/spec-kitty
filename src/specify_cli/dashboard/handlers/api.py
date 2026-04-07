@@ -25,7 +25,7 @@ class APIHandler(DashboardHandler):
         self.send_response(200)
         self.send_header("Content-type", "text/html")
         self.end_headers()
-        self.wfile.write(get_dashboard_html().encode())
+        self.wfile.write(get_dashboard_html().encode())  # NOSONAR(pythonsecurity:S5131) - returns compiled static HTML template, no user-controlled data reflected
 
     def handle_health(self) -> None:
         """Return project health metadata."""
