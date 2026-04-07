@@ -134,6 +134,37 @@ class TestWPMetadataValidators:
         meta = WPMetadata(work_package_id="WP01", title="T", base_commit=None)
         assert meta.base_commit is None
 
+    def test_invalid_lane_value_raises(self) -> None:
+        """Unknown lane string is rejected at construction time."""
+        with pytest.raises(ValidationError, match="lane"):
+            WPMetadata(work_package_id="WP01", title="T", lane="garbage")
+
+    def test_valid_lane_string_coerced_to_enum(self) -> None:
+        """String lane values are coerced to Lane enum members."""
+        from specify_cli.status.models import Lane
+
+        meta = WPMetadata(work_package_id="WP01", title="T", lane="in_progress")
+        assert meta.lane is Lane.IN_PROGRESS
+
+    def test_lane_enum_value_accepted(self) -> None:
+        """Lane enum members are accepted directly."""
+        from specify_cli.status.models import Lane
+
+        meta = WPMetadata(work_package_id="WP01", title="T", lane=Lane.FOR_REVIEW)
+        assert meta.lane is Lane.FOR_REVIEW
+
+    def test_lane_none_is_valid(self) -> None:
+        meta = WPMetadata(work_package_id="WP01", title="T", lane=None)
+        assert meta.lane is None
+
+    def test_all_nine_lanes_accepted(self) -> None:
+        """Every canonical Lane value is accepted."""
+        from specify_cli.status.models import Lane
+
+        for lane in Lane:
+            meta = WPMetadata(work_package_id="WP01", title="T", lane=lane.value)
+            assert meta.lane is lane
+
 
 class TestWPMetadataShellPid:
     """shell_pid coercion from string/empty to int/None."""

@@ -14,9 +14,11 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from specify_cli.status.models import Lane
 
 
 class WPMetadata(BaseModel):
@@ -68,7 +70,7 @@ class WPMetadata(BaseModel):
     role: str | None = None
     shell_pid: int | None = None
     history: list[Any] = Field(default_factory=list)
-    lane: str | None = None
+    lane: Lane | None = None
     feature_slug: str | None = None
     activity_log: str | None = None
 
@@ -90,6 +92,9 @@ class WPMetadata(BaseModel):
 
     # ── Observed-in-practice fields ────────────────────────────
     mission_id: str | None = None
+    mission_number: str | None = None
+    mission_slug: str | None = None
+    status: str | None = None  # legacy status field seen in some mission WPs
     wp_code: str | None = None
     branch_strategy_override: str | None = None
 
@@ -166,6 +171,29 @@ class WPMetadata(BaseModel):
         if v is None or v == "":
             return None
         return int(v)
+
+    # ── Legacy lane aliases ────────────────────────────────────────
+    # "doing" was the old name for in_progress before the Lane enum existed.
+    _LANE_ALIASES: ClassVar[dict[str, str]] = {"doing": "in_progress"}
+
+    @field_validator("lane", mode="before")
+    @classmethod
+    def coerce_lane(cls, v: Any) -> Lane | None:
+        """Coerce string lane values to Lane enum; reject unknown values.
+
+        The legacy alias ``"doing"`` is silently normalised to ``"in_progress"``
+        so that older WP files written before the Lane enum still parse correctly.
+        """
+        if v is None or v == "":
+            return None
+        canonical = cls._LANE_ALIASES.get(str(v), str(v))
+        try:
+            return Lane(canonical)
+        except ValueError:
+            valid = ", ".join(lane.value for lane in Lane)
+            raise ValueError(
+                f"Invalid lane value: {v!r}. Must be one of: {valid}"
+            )
 
     # ── Computed properties ──────────────────────────────────────
 

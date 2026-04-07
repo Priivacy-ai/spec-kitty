@@ -188,43 +188,46 @@ class TestEscape:
     """re.escape function (always uses stdlib)."""
 
     def test_escape_special_chars(self) -> None:
-        """re.escape delegates to stdlib re.escape (always, regardless of engine)."""
-        # Use a pattern where stdlib and RE2 agree: backslash-escaping a literal dot
+        """re.escape delegates to stdlib re.escape."""
         result = re.escape("a.b")  # type: ignore[attr-defined]
         assert result == _stdlib_re.escape("a.b")
 
 
-class TestPCREFallback:
-    """Patterns with lookaheads fall back gracefully to stdlib re."""
+class TestPCREPatternsFail:
+    """PCRE-only patterns raise re.error — there is no silent fallback."""
 
-    def test_positive_lookahead(self) -> None:
-        m = re.search(r"\w+(?= world)", "hello world")  # type: ignore[attr-defined]
-        assert m is not None
-        assert m.group() == "hello"
+    def test_positive_lookahead_raises(self) -> None:
+        """Lookahead is not supported by RE2; raises re.error immediately."""
+        with pytest.raises(_stdlib_re.error):
+            re.search(r"\w+(?= world)", "hello world")  # type: ignore[attr-defined]
 
-    def test_negative_lookahead(self) -> None:
-        m = re.search(r"\w+(?! world)", "hello there")  # type: ignore[attr-defined]
-        assert m is not None
+    def test_negative_lookahead_raises(self) -> None:
+        with pytest.raises(_stdlib_re.error):
+            re.search(r"\w+(?! world)", "hello there")  # type: ignore[attr-defined]
 
-    def test_lookbehind(self) -> None:
-        m = re.search(r"(?<=hello )\w+", "hello world")  # type: ignore[attr-defined]
-        assert m is not None
-        assert m.group() == "world"
+    def test_positive_lookbehind_raises(self) -> None:
+        with pytest.raises(_stdlib_re.error):
+            re.search(r"(?<=hello )\w+", "hello world")  # type: ignore[attr-defined]
+
+    def test_verbose_flag_raises(self) -> None:
+        """re.VERBOSE is not supported by RE2; raises re.error."""
+        with pytest.raises(_stdlib_re.error):
+            re.compile(r"\d+  # digits", re.VERBOSE)  # type: ignore[attr-defined]
 
 
 class TestIsRe2Active:
-    """is_re2_active() returns a bool."""
+    """is_re2_active() always returns True (google-re2 is a hard dependency)."""
 
-    def test_returns_bool(self) -> None:
-        result = is_re2_active()
-        assert isinstance(result, bool)
+    def test_returns_true(self) -> None:
+        assert is_re2_active() is True
 
 
 class TestInstanceofPattern:
-    """isinstance checks with re.Pattern work correctly."""
+    """isinstance checks with re.Pattern work correctly for RE2-compatible patterns."""
 
-    def test_compiled_pattern_is_instance_of_re_pattern(self) -> None:
-        """When the pattern falls back to stdlib (lookahead), isinstance works normally."""
-        # This pattern has a lookahead — always compiled via stdlib re
-        pat = re.compile(r"\w+(?= world)")  # type: ignore[attr-defined]
-        assert isinstance(pat, _stdlib_re.Pattern)
+    def test_compiled_pattern_is_pattern_like(self) -> None:
+        """RE2-compiled pattern exposes the Pattern duck-type interface."""
+        pat = re.compile(r"\w+")  # type: ignore[attr-defined]
+        assert hasattr(pat, "search")
+        assert hasattr(pat, "match")
+        assert hasattr(pat, "findall")
