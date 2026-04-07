@@ -26,32 +26,24 @@
     {
       "lane_id": "lane-b",
       "wp_ids": [
-        "WP02"
+        "WP02",
+        "WP03",
+        "WP04"
       ],
       "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
         "src/specify_cli/core/wps_manifest.py",
+        "src/specify_cli/missions/software-dev/command-templates/tasks-outline.md",
+        "src/specify_cli/missions/software-dev/command-templates/tasks-packages.md",
         "src/specify_cli/schemas/wps.schema.json",
-        "tests/core/test_wps_manifest.py"
+        "src/specify_cli/upgrade/migrations/m_3_2_0_update_planning_templates.py",
+        "tests/core/test_wps_manifest.py",
+        "tests/tasks/test_finalize_tasks_wps_yaml_unit.py",
+        "tests/upgrade/migrations/test_m_3_2_0_update_planning_templates.py"
       ],
       "predicted_surfaces": [
         "api",
         "artifact-rendering",
-        "legacy-cleanup"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-c",
-      "wp_ids": [
-        "WP03"
-      ],
-      "write_scope": [
-        "src/specify_cli/cli/commands/agent/mission.py",
-        "tests/tasks/test_finalize_tasks_wps_yaml_unit.py"
-      ],
-      "predicted_surfaces": [
-        "api",
         "legacy-cleanup",
         "tests"
       ],
@@ -59,25 +51,7 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-d",
-      "wp_ids": [
-        "WP04"
-      ],
-      "write_scope": [
-        "src/specify_cli/missions/software-dev/command-templates/tasks-outline.md",
-        "src/specify_cli/missions/software-dev/command-templates/tasks-packages.md",
-        "src/specify_cli/upgrade/migrations/m_3_2_0_update_planning_templates.py",
-        "tests/upgrade/migrations/test_m_3_2_0_update_planning_templates.py"
-      ],
-      "predicted_surfaces": [
-        "api",
-        "artifact-rendering"
-      ],
-      "depends_on_lanes": [],
-      "parallel_group": 0
-    },
-    {
-      "lane_id": "lane-e",
+      "lane_id": "lane-c",
       "wp_ids": [
         "WP05"
       ],
@@ -95,7 +69,7 @@
       "parallel_group": 0
     },
     {
-      "lane_id": "lane-f",
+      "lane_id": "lane-d",
       "wp_ids": [
         "WP06"
       ],
@@ -113,7 +87,28 @@
       "parallel_group": 0
     }
   ],
-  "computed_at": "2026-04-07T11:42:50.912563+00:00",
+  "computed_at": "2026-04-07T11:43:46.210594+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": []
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
 }

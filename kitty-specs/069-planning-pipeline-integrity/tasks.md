@@ -162,7 +162,7 @@ None (independent).
 
 ### Dependencies
 
-- **WP02** (requires `load_wps_manifest`, `dependencies_are_explicit`, `generate_tasks_md_from_manifest`)
+- WP02 (requires load_wps_manifest, dependencies_are_explicit, generate_tasks_md_from_manifest)
 
 ### Risks
 
@@ -200,7 +200,7 @@ None (independent).
 
 ### Dependencies
 
-- **WP02** (migration references schema from wps_manifest module in its description/docs only; not a runtime import dependency)
+- WP02 (migration references schema from wps_manifest module in its description/docs only; not a runtime import dependency)
 
 ### Risks
 
