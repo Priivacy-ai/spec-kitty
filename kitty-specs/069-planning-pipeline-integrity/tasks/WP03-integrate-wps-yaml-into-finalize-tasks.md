@@ -359,3 +359,4 @@ Test that `dependencies: []` in wps.yaml → after finalize, WP01 frontmatter `d
 
 - 2026-04-07T12:01:54Z – unknown – shell_pid=13338 – T015-T021: wps.yaml tier-0 in finalize_tasks, prose parser bypassed when present, tasks.md regenerated, 4 unit tests all passing
 - 2026-04-07T12:02:16Z – claude:sonnet:reviewer:reviewer – shell_pid=15937 – Started review via action command
+- 2026-04-07T12:04:07Z – claude:sonnet:reviewer:reviewer – shell_pid=15937 – Review passed: FR-006 prose parser guard (wps_manifest is None and tasks_md.exists()) confirmed at line 1303. FR-007 preserve-existing deps guard also uses wps_manifest is None at line 1478 — manifest is always authoritative. FR-008/FR-011 tasks.md regenerated via generate_tasks_md_from_manifest() after frontmatter writes at line 1557. FR-012 legacy path untouched when no wps.yaml. All 4 unit tests pass; 85/85 tasks suite clean.
