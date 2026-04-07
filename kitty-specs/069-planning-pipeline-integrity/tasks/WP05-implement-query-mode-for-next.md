@@ -444,3 +444,4 @@ Covered in T032. Add one additional check in the query mode JSON test verifying 
 
 - 2026-04-07T11:57:38Z – unknown – shell_pid=9875 – T027-T034 complete: DecisionKind.query, query_current_state(), result=None default, _print_human() SC-003 label, tests
 - 2026-04-07T11:57:57Z – claude:sonnet:reviewer:reviewer – shell_pid=14049 – Started review via action command
+- 2026-04-07T12:01:09Z – claude:sonnet:reviewer:reviewer – shell_pid=14049 – Review passed: All FR-012/FR-013/FR-014/FR-015/NFR-004 criteria met. Em dash U+2014 confirmed. query_current_state() has no next_step() calls. result defaults to None. _print_human() is_query branch is first. emit_event unreachable in query mode. to_dict() includes is_query. All 31 tests pass (5 new query mode + 26 existing). Integration test updates are minimal, correct --result success additions only. 9 pre-existing test_plan_mission_runtime.py failures unrelated to WP05.
