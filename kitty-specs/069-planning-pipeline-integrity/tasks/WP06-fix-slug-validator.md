@@ -13,7 +13,8 @@ base_branch: kitty/mission-069-planning-pipeline-integrity
 base_commit: 1423753b3ab63d421652c24fee008f2863be2e1c
 created_at: '2026-04-07T11:48:16.423351+00:00'
 subtasks: [T035, T036, T037, T038]
-shell_pid: '9908'
+shell_pid: "11723"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - date: '2026-04-07'
   event: created
@@ -258,3 +259,4 @@ class TestSlugCLI:
 ## Activity Log
 
 - 2026-04-07T11:53:17Z – unknown – shell_pid=9908 – T035-T038 complete: regex updated to ^[a-z0-9], error message updated, tests added, two stale tests updated to reflect new valid digit-prefix behavior
+- 2026-04-07T11:53:36Z – claude:sonnet:reviewer:reviewer – shell_pid=11723 – Started review via action command
