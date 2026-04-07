@@ -1,7 +1,7 @@
 {
   "event_count": 16,
   "last_event_id": "01KNKMH41E72ZW074KCHBSKT2V",
-  "materialized_at": "2026-04-07T09:31:41.998811+00:00",
+  "materialized_at": "2026-04-07T09:32:29.087614+00:00",
   "mission_slug": "068-post-merge-reliability-and-release-hardening",
   "summary": {
     "approved": 0,
