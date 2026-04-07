@@ -1,7 +1,7 @@
 {
   "event_count": 49,
   "last_event_id": "01KNKE62G31S673B0CSTMW7ZPC",
-  "materialized_at": "2026-04-07T09:53:43.566108+00:00",
+  "materialized_at": "2026-04-07T09:55:37.564879+00:00",
   "mission_slug": "067-runtime-recovery-and-audit-safety",
   "summary": {
     "approved": 0,

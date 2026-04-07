@@ -2,6 +2,12 @@
 
 from __future__ import annotations
 
+from specify_cli.merge.config import (
+    ConfigError,
+    MergeConfig,
+    MergeStrategy,
+    load_merge_config,
+)
 from specify_cli.merge.conflict_resolver import (
     ConflictType,
     ResolutionResult,
@@ -27,6 +33,11 @@ from specify_cli.merge.workspace import (
 )
 
 __all__ = [
+    # Merge config
+    "MergeStrategy",
+    "MergeConfig",
+    "ConfigError",
+    "load_merge_config",
     # Conflict resolution
     "ConflictType",
     "ResolutionResult",

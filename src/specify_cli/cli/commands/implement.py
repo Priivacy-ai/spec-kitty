@@ -141,6 +141,29 @@ def resolve_feature_target_branch(mission_slug: str, repo_root: Path) -> str:
     return resolution.target
 
 
+def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
+    """Validate that a base ref resolves locally and return its full SHA.
+
+    Raises typer.Exit(1) with a clear error message if the ref is unknown.
+    """
+    result = subprocess.run(
+        ["git", "rev-parse", "--verify", base_ref],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode != 0:
+        console.print(
+            f"[red]Error:[/red] Base ref '{base_ref}' does not resolve. "
+            "Try 'git fetch' or 'git branch -a' to see available refs."
+        )
+        raise typer.Exit(1)
+    return result.stdout.strip()
+
+
 def _ensure_planning_artifacts_committed_git(
     repo_root: Path,
     feature_dir: Path,
@@ -351,6 +374,15 @@ def implement(
     ] = None,
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
     recover: bool = typer.Option(False, "--recover", help="Recover from crashed implementation session"),
+    base: str | None = typer.Option(
+        None,
+        "--base",
+        help=(
+            "Explicit base ref for the lane workspace (default: auto-detect). "
+            "Use this when upstream dependency branches have been merged-and-deleted "
+            "and you want to start from the current target branch tip, e.g. --base main."
+        ),
+    ),
 ) -> None:
     """Allocate or reuse the lane worktree for a work package."""
     from specify_cli.core.agent_config import get_auto_commit_default
@@ -410,12 +442,25 @@ def implement(
     tracker.start("create")
     try:
         vcs_backend = _ensure_vcs_in_meta(feature_dir, repo_root)
+
+        # When --base is provided, validate the ref and build a patched
+        # LanesManifest that uses it as the mission_branch so the worktree
+        # allocator branches from the explicit base instead of auto-detecting.
+        active_lanes_manifest = lanes_manifest
+        if base is not None:
+            _validate_base_ref(repo_root, base)
+            # Shallow-patch the manifest's mission_branch so
+            # allocate_lane_worktree branches from the explicit ref.
+            from dataclasses import replace as _dc_replace
+            active_lanes_manifest = _dc_replace(lanes_manifest, mission_branch=base)
+            console.print(f"[cyan]→ Using explicit base ref: {base}[/cyan]")
+
         result = create_lane_workspace(
             repo_root=repo_root,
             mission_slug=mission_slug,
             wp_id=wp_id,
             wp_file=wp_file,
-            lanes_manifest=lanes_manifest,
+            lanes_manifest=active_lanes_manifest,
             declared_deps=declared_deps,
             vcs_backend_value=vcs_backend.value,
         )
