@@ -111,7 +111,7 @@ spec-kitty implement WP05
 
 **Files**: `src/specify_cli/lanes/recovery.py`
 
-**Validation**: a synthetic mission with WP01-WP05 marked done-and-deleted and WP06 dependent on WP05 returns `ready_to_start_from_target = ["WP06"]`.
+**Validation**: a synthetic test mission with five upstream work packages marked done-and-deleted and a sixth (downstream) work package dependent on the fifth returns `ready_to_start_from_target = ["WPf"]` (placeholder names — these are NOT references to mission 068's own WPs).
 
 ### T025 — Add `--base <ref>` CLI flag to `spec-kitty implement`
 
@@ -151,15 +151,15 @@ spec-kitty implement WP05
 - New: `tests/cli/commands/test_implement_base_flag.py`
 
 **Tests** (per `contracts/recovery_extension.md` test surface table):
-- `test_scan_recovery_state_finds_merged_deleted_deps` — synthetic mission with WP01-WP05 done-and-deleted, WP06 dependent on WP05, returns `ready_to_start_from_target == ["WP06"]`
+- `test_scan_recovery_state_finds_merged_deleted_deps` — synthetic test mission with five upstream work packages done-and-deleted, a sixth (downstream) work package dependent on the fifth, returns `ready_to_start_from_target == ["WPf"]` (placeholder names — NOT references to mission 068's own WPs)
 - `test_scan_recovery_state_legacy_live_branch_path_unchanged` — `consult_status_events=False` returns the same shape as before FR-021
 - `test_implement_base_flag_creates_workspace_from_ref` — `spec-kitty implement WP06 --base main` creates a worktree at main's tip
 - `test_implement_base_flag_invalid_ref_fails_clearly` — `--base bogus-ref` fails with the documented error message
-- `test_post_merge_unblocking_scenario_end_to_end` — **Scenario 7 reproduction**:
-  1. Set up a synthetic mission with WP01-WP06 in a dependency chain
-  2. Implement and merge WP01-WP05 (use a synthetic merge that mimics the post-merge state with branches deleted)
-  3. Run `scan_recovery_state` and assert WP06 is in `ready_to_start_from_target`
-  4. Run `spec-kitty implement WP06 --base main` and assert a fresh lane workspace is created
+- `test_post_merge_unblocking_scenario_end_to_end` — **Scenario 7 reproduction** (using six placeholder WPs in a synthetic test mission, NOT the WPs of mission 068 itself):
+  1. Set up a synthetic test mission with six placeholder work packages (call them `WPa..WPf`) in a dependency chain
+  2. Implement and merge the first five (`WPa..WPe`) — use a synthetic merge that mimics the post-merge state with branches deleted
+  3. Run `scan_recovery_state` and assert `WPf` is in `ready_to_start_from_target`
+  4. Run `spec-kitty implement WPf --base main` and assert a fresh lane workspace is created
   5. No manual `.kittify/` state edits required
 
 **Validation**: `pytest tests/lanes/test_recovery_post_merge.py tests/cli/commands/test_implement_base_flag.py -v` exits zero. No network calls.
@@ -205,13 +205,13 @@ spec-kitty implement WP05
 2. Authored at: today's date
 3. Validated DoD: "every issue from the Tracked GitHub Issues table appears below"
 4. **Primary scope rows** (must implement issues):
-   - #454: WP01 stale-assertion analyzer shipped
-   - #456: WP02 strategy wiring + squash default + push-error parser shipped
-   - #455: WP03 validation report + close-with-evidence OR tighten-workflow decision
-   - #457: WP04 release-prep CLI shipped + FR-023 scope-cut documented
+   - #454: stale-assertion analyzer shipped (this mission's stale-check work package)
+   - #456: strategy wiring + squash default + push-error parser shipped (this mission's merge-strategy work package)
+   - #455: validation report + close-with-evidence OR tighten-workflow decision (this mission's diff-coverage work package)
+   - #457: release-prep CLI shipped + FR-023 scope-cut documented (this mission's release-prep work package)
 5. **Verification-and-close scope rows**:
-   - #415: WP05 FR-021 fix landed (scan_recovery_state + --base)
-   - #416: WP02 FR-019/FR-020 fix landed; WP05 verified
+   - #415: FR-021 fix landed (scan_recovery_state extension + `--base` flag — this work package)
+   - #416: FR-019/FR-020 fix landed in the merge-strategy work package; verified by this work package
 6. **Carve-out rows** (filed as follow-ups):
    - FSEvents debounce / `_worktree_removal_delay()` empirical timing — link to the new follow-up issue
    - Dirty classifier `git check-ignore` consultation — link to the new follow-up issue
@@ -248,7 +248,7 @@ Tests are required by FR-021. The verification report (T027) and ledger (T028) a
 
 - Verify both `scan_recovery_state` paths (consult_status_events True and False) have explicit tests
 - Verify `--base` flag produces a clear error on invalid ref
-- Walk Scenario 7 by hand: check out a synthetic mission state where WP01-WP05 are done-and-deleted, run `spec-kitty implement WP06 --base main`, confirm it succeeds without manual `.kittify/` edits
+- Walk Scenario 7 by hand: check out a synthetic mission state where five upstream placeholder work packages are done-and-deleted, run `spec-kitty implement WPf --base main` against the downstream placeholder work package, confirm it succeeds without manual `.kittify/` edits
 - Open `wp05-verification-report.md` and check that every shape from #415 and #416 is accounted for
 - Open `mission-close-ledger.md` and grep-count the rows: there must be one for each issue in the Tracked GitHub Issues table
 - Verify every closed issue has its reference filled in (PR URL or commit SHA), not a placeholder
