@@ -14,7 +14,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning/base branch is main. Final merge target is main. Execution worktree is allocated by spec-kitty implement WP02 and resolved from lanes.json. WP02 depends on WP01 (run_check import); the lane planner will sequence them in the same lane or order their merges.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T008
 - T009

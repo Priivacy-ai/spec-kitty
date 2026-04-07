@@ -1,7 +1,8 @@
 ---
 work_package_id: WP05
 title: Recovery Extension And Mission Close
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - C-005
 - FR-016
@@ -10,7 +11,7 @@ requirement_refs:
 - FR-021
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning/base branch is main. Final merge target is main. Execution worktree is allocated by spec-kitty implement WP05 and resolved from lanes.json. WP05 also produces the Mission Close Ledger that satisfies DoD-4.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T024
 - T025
