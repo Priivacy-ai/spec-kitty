@@ -263,3 +263,4 @@ WP05 lands the mission close artifact. Once the ledger is committed and the issu
 ## Activity Log
 
 - 2026-04-07T09:23:31Z – unknown – shell_pid=42415 – Claimed by claude orchestrator
+- 2026-04-07T09:36:24Z – unknown – shell_pid=42415 – Ready for review: recovery extension, --base flag, verification reports
