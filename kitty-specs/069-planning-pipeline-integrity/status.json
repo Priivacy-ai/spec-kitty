@@ -1,16 +1,16 @@
 {
-  "event_count": 13,
-  "last_event_id": "01KNKWP21RS43MVQZFBGJEEAQM",
-  "materialized_at": "2026-04-07T11:54:12.409142+00:00",
+  "event_count": 14,
+  "last_event_id": "01KNKWR3DBZFYZCQH4TMTR7RZH",
+  "materialized_at": "2026-04-07T11:55:19.339356+00:00",
   "mission_slug": "069-planning-pipeline-integrity",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 1,
     "planned": 3
   },
   "work_packages": {
@@ -50,11 +50,11 @@
       "last_transition_at": "2026-04-07T11:42:50.899145+00:00"
     },
     "WP06": {
-      "actor": "claude:sonnet:reviewer:reviewer",
-      "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNKWMZ6T4D82KB74YTT0SCYK",
-      "last_transition_at": "2026-04-07T11:53:36.730187+00:00"
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KNKWR3DBZFYZCQH4TMTR7RZH",
+      "last_transition_at": "2026-04-07T11:55:19.339048+00:00"
     }
   }
 }
