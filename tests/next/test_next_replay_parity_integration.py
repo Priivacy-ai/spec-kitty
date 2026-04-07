@@ -18,7 +18,7 @@ def test_mission_next_replay_fixture_reduces_to_expected_state() -> None:
     reduced = reduce_mission_next_events(events)
 
     assert reduced.run_id == "replay-run-001"
-    assert reduced.mission_type == "software-dev"
+    assert reduced.mission_key == "replay-mission"
     assert reduced.run_status == MissionRunStatus.COMPLETED
     assert reduced.current_step_id is None
     assert reduced.completed_steps == ("step-setup-env", "step-configure-db")

@@ -87,7 +87,10 @@ def _json_safe_output(func):
             raise typer.Exit(1)
         finally:
             console.quiet = previous_quiet
-            console.file = previous_file
+            # Reset _file to None so the console uses sys.stdout dynamically.
+            # Restoring previous_file can leave the console pointing at a closed
+            # pytest capsys buffer when tests run in sequence.
+            console._file = None
 
     return wrapper
 
@@ -374,15 +377,17 @@ def implement(
     ] = None,
     json_output: bool = typer.Option(False, "--json", help="Output in JSON format"),
     recover: bool = typer.Option(False, "--recover", help="Recover from crashed implementation session"),
-    base: str | None = typer.Option(
-        None,
-        "--base",
-        help=(
-            "Explicit base ref for the lane workspace (default: auto-detect). "
-            "Use this when upstream dependency branches have been merged-and-deleted "
-            "and you want to start from the current target branch tip, e.g. --base main."
+    base: Annotated[
+        str | None,
+        typer.Option(
+            "--base",
+            help=(
+                "Explicit base ref for the lane workspace (default: auto-detect). "
+                "Use this when upstream dependency branches have been merged-and-deleted "
+                "and you want to start from the current target branch tip, e.g. --base main."
+            ),
         ),
-    ),
+    ] = None,
 ) -> None:
     """Allocate or reuse the lane worktree for a work package."""
     from specify_cli.core.agent_config import get_auto_commit_default
