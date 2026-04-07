@@ -65,6 +65,7 @@ kitty-specs/**/.kittify/dossiers/
 .kittify/charter/governance.yaml
 .kittify/charter/metadata.yaml
 .kittify/charter/references.yaml
+.kittify/.scratch
 node_modules/
 
 # Spec Kit-specific files
@@ -75,6 +76,7 @@ sdd-*/
 # Added by Spec Kitty CLI (auto-managed)
 .claude/
 .agents/
+.agents
 .opencode/
 .windsurf/
 .gemini/
