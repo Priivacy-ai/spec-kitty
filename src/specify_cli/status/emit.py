@@ -59,7 +59,7 @@ class TransitionError(Exception):
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
