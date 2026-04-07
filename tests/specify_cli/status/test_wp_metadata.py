@@ -6,9 +6,8 @@ T013 — CI validation test ensuring all kitty-specs WP files pass.
 
 from __future__ import annotations
 
-import glob
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from typing import Any
 
 import pytest
 from pydantic import ValidationError
@@ -82,11 +81,11 @@ class TestWPMetadataRequired:
 
     def test_missing_work_package_id(self) -> None:
         with pytest.raises(ValidationError, match="work_package_id"):
-            WPMetadata(title="No ID")
+            WPMetadata(title="No ID")  # type: ignore[call-arg]
 
     def test_missing_title(self) -> None:
         with pytest.raises(ValidationError, match="title"):
-            WPMetadata(work_package_id="WP01")
+            WPMetadata(work_package_id="WP01")  # type: ignore[call-arg]
 
 
 class TestWPMetadataValidators:
@@ -134,11 +133,11 @@ class TestWPMetadataShellPid:
     """shell_pid coercion from string/empty to int/None."""
 
     def test_string_coercion(self) -> None:
-        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="18377")
+        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="18377")  # type: ignore[arg-type]
         assert meta.shell_pid == 18377
 
     def test_empty_string_to_none(self) -> None:
-        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="")
+        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="")  # type: ignore[arg-type]
         assert meta.shell_pid is None
 
     def test_none_stays_none(self) -> None:
@@ -150,7 +149,7 @@ class TestWPMetadataShellPid:
         assert meta.shell_pid == 42
 
     def test_large_pid_string(self) -> None:
-        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="2451078")
+        meta = WPMetadata(work_package_id="WP01", title="T", shell_pid="2451078")  # type: ignore[arg-type]
         assert meta.shell_pid == 2451078
 
 
@@ -158,7 +157,7 @@ class TestWPMetadataPhaseCoercion:
     """phase coercion from non-string types."""
 
     def test_integer_phase(self) -> None:
-        meta = WPMetadata(work_package_id="WP01", title="T", phase=1)
+        meta = WPMetadata(work_package_id="WP01", title="T", phase=1)  # type: ignore[arg-type]
         assert meta.phase == "1"
 
     def test_string_phase(self) -> None:
@@ -178,7 +177,7 @@ class TestWPMetadataExtraFields:
             WPMetadata(
                 work_package_id="WP01",
                 title="T",
-                custom_field="value",
+                custom_field="value",  # type: ignore[call-arg]
             )
 
     def test_lane_as_declared_field(self) -> None:
@@ -213,7 +212,7 @@ class TestWPMetadataFrozen:
     def test_frozen_rejects_assignment(self) -> None:
         meta = WPMetadata(work_package_id="WP01", title="T")
         with pytest.raises(ValidationError):
-            meta.title = "Changed"  # type: ignore[misc]
+            meta.title = "Changed"
 
 
 class TestWPMetadataLegacyNormalization:
@@ -397,3 +396,219 @@ class TestCIValidation:
 
         # Validation errors are hard failures; YAML errors are warnings
         assert not validation_failures, "\n\n".join(msg_parts)
+
+
+# ─────────────────────────────────────────────────────────────
+# T-update: WPMetadata.update() — immutable field mutation
+# ─────────────────────────────────────────────────────────────
+
+
+class TestWPMetadataUpdate:
+    """update() returns a NEW WPMetadata with specified fields changed."""
+
+    def _make_base(self, **overrides: Any) -> WPMetadata:
+        defaults = {"work_package_id": "WP01", "title": "Base"}
+        return WPMetadata.model_validate({**defaults, **overrides})
+
+    # -- basic single-field update --
+
+    def test_update_single_field(self) -> None:
+        base = self._make_base(lane="planned")
+        updated = base.update(lane="in_progress")
+        assert updated.lane == "in_progress"
+        assert updated is not base
+
+    def test_update_preserves_unchanged_fields(self) -> None:
+        base = self._make_base(lane="planned", agent="claude", title="Original")
+        updated = base.update(lane="in_progress")
+        assert updated.title == "Original"
+        assert updated.agent == "claude"
+        assert updated.work_package_id == "WP01"
+
+    # -- multi-field update --
+
+    def test_update_multiple_fields(self) -> None:
+        base = self._make_base()
+        updated = base.update(lane="in_progress", agent="gemini", phase="Phase 2")
+        assert updated.lane == "in_progress"
+        assert updated.agent == "gemini"
+        assert updated.phase == "Phase 2"
+
+    # -- list field replacement --
+
+    def test_update_replaces_list_field(self) -> None:
+        base = self._make_base(dependencies=["WP02"])
+        updated = base.update(dependencies=["WP02", "WP03"])
+        assert updated.dependencies == ["WP02", "WP03"]
+        assert base.dependencies == ["WP02"]  # original unchanged
+
+    # -- None fields --
+
+    def test_update_can_set_field_to_none(self) -> None:
+        base = self._make_base(agent="claude")
+        updated = base.update(agent=None)
+        assert updated.agent is None
+
+    # -- immutability contract --
+
+    def test_update_does_not_mutate_original(self) -> None:
+        base = self._make_base(lane="planned", dependencies=["WP02"])
+        _ = base.update(lane="in_progress", dependencies=["WP03"])
+        assert base.lane == "planned"
+        assert base.dependencies == ["WP02"]
+
+    def test_original_stays_frozen_after_update(self) -> None:
+        base = self._make_base()
+        _ = base.update(lane="in_progress")
+        with pytest.raises(ValidationError):
+            base.title = "Mutated"
+
+    # -- validation still fires --
+
+    def test_update_validates_fields(self) -> None:
+        base = self._make_base()
+        with pytest.raises(ValidationError, match="title"):
+            base.update(title="")
+
+    def test_update_validates_base_commit(self) -> None:
+        base = self._make_base()
+        with pytest.raises(ValidationError, match="base_commit"):
+            base.update(base_commit="not-hex")
+
+    # -- rejects unknown fields --
+
+    def test_update_rejects_unknown_field(self) -> None:
+        base = self._make_base()
+        with pytest.raises(TypeError, match="unknown_field"):
+            base.update(unknown_field="bad")
+
+    # -- no-op update returns equal (but new) instance --
+
+    def test_update_no_args_returns_equal_copy(self) -> None:
+        base = self._make_base(lane="planned")
+        updated = base.update()
+        assert updated == base
+        assert updated is not base
+
+    # -- chaining --
+
+    def test_chained_updates(self) -> None:
+        base = self._make_base()
+        result = base.update(lane="planned").update(lane="in_progress").update(agent="claude")
+        assert result.lane == "in_progress"
+        assert result.agent == "claude"
+
+
+# ─────────────────────────────────────────────────────────────
+# T-builder: WPMetadata.builder() — fluent multi-step composition
+# ─────────────────────────────────────────────────────────────
+
+
+class TestWPMetadataBuilder:
+    """builder() returns a _Builder for fluent multi-step field composition."""
+
+    def _make_base(self, **overrides: Any) -> WPMetadata:
+        defaults = {"work_package_id": "WP01", "title": "Base"}
+        return WPMetadata.model_validate({**defaults, **overrides})
+
+    # -- basic builder flow --
+
+    def test_builder_set_and_build(self) -> None:
+        base = self._make_base(lane="planned")
+        result = base.builder().set(lane="in_progress").build()
+        assert result.lane == "in_progress"
+        assert result is not base
+
+    def test_builder_multiple_set_calls(self) -> None:
+        base = self._make_base()
+        result = base.builder().set(lane="in_progress").set(agent="claude").set(phase="Phase 1").build()
+        assert result.lane == "in_progress"
+        assert result.agent == "claude"
+        assert result.phase == "Phase 1"
+
+    def test_builder_last_set_wins(self) -> None:
+        base = self._make_base()
+        result = base.builder().set(lane="planned").set(lane="in_progress").build()
+        assert result.lane == "in_progress"
+
+    # -- append_to_history --
+
+    def test_builder_append_to_history(self) -> None:
+        entry1 = {"at": "2026-01-01", "actor": "system", "action": "created"}
+        base = self._make_base(history=[entry1])
+        entry2 = {"at": "2026-01-02", "actor": "claude", "action": "started"}
+        result = base.builder().append_to_history(entry2).build()
+        assert len(result.history) == 2
+        assert result.history[0] == entry1
+        assert result.history[1] == entry2
+
+    def test_builder_append_to_history_on_empty(self) -> None:
+        base = self._make_base()
+        entry = {"at": "2026-01-01", "actor": "system", "action": "created"}
+        result = base.builder().append_to_history(entry).build()
+        assert result.history == [entry]
+
+    def test_builder_append_does_not_mutate_original(self) -> None:
+        entry1 = {"at": "2026-01-01", "actor": "system", "action": "created"}
+        base = self._make_base(history=[entry1])
+        entry2 = {"at": "2026-01-02", "actor": "claude", "action": "started"}
+        _ = base.builder().append_to_history(entry2).build()
+        assert len(base.history) == 1
+
+    # -- append_dependency --
+
+    def test_builder_append_dependency(self) -> None:
+        base = self._make_base(dependencies=["WP02"])
+        result = base.builder().append_dependency("WP03").build()
+        assert result.dependencies == ["WP02", "WP03"]
+        assert base.dependencies == ["WP02"]
+
+    def test_builder_append_dependency_on_empty(self) -> None:
+        base = self._make_base()
+        result = base.builder().append_dependency("WP02").build()
+        assert result.dependencies == ["WP02"]
+
+    # -- combined set + append --
+
+    def test_builder_set_and_append_combined(self) -> None:
+        base = self._make_base(lane="planned")
+        entry = {"at": "2026-01-01", "actor": "claude", "action": "claimed"}
+        result = base.builder().set(lane="in_progress").set(agent="claude").append_to_history(entry).build()
+        assert result.lane == "in_progress"
+        assert result.agent == "claude"
+        assert len(result.history) == 1
+
+    # -- validation fires on build --
+
+    def test_builder_validates_on_build(self) -> None:
+        base = self._make_base()
+        with pytest.raises(ValidationError, match="title"):
+            base.builder().set(title="").build()
+
+    # -- rejects unknown fields in set --
+
+    def test_builder_set_rejects_unknown_field(self) -> None:
+        base = self._make_base()
+        with pytest.raises(TypeError, match="bogus"):
+            base.builder().set(bogus="bad")
+
+    # -- builder does not modify source --
+
+    def test_builder_does_not_modify_source(self) -> None:
+        base = self._make_base(lane="planned")
+        builder = base.builder()
+        builder.set(lane="in_progress")
+        # Before build(), base is still unchanged
+        assert base.lane == "planned"
+
+    # -- build can be called multiple times for different results --
+
+    def test_builder_reusable_across_builds(self) -> None:
+        base = self._make_base(lane="planned")
+        builder = base.builder().set(agent="claude")
+        r1 = builder.build()
+        r2 = builder.set(lane="in_progress").build()
+        assert r1.lane == "planned"
+        assert r1.agent == "claude"
+        assert r2.lane == "in_progress"
+        assert r2.agent == "claude"

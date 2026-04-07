@@ -164,6 +164,93 @@ class WPMetadata(BaseModel):
             return None
         return int(v)
 
+    # ── Immutable update API ───────────────────────────────────
+
+    def update(self, **kwargs: Any) -> WPMetadata:
+        """Return a NEW WPMetadata with the specified fields changed.
+
+        All Pydantic validation runs on the result.  The original
+        instance is never mutated.
+
+        Raises ``TypeError`` for unknown field names (before Pydantic
+        sees them) so callers get a clear error at the call site.
+        """
+        known = type(self).model_fields
+        for key in kwargs:
+            if key not in known:
+                raise TypeError(f"update() got an unexpected keyword argument {key!r}")
+        merged = self.model_dump() | kwargs
+        return type(self).model_validate(merged)
+
+    def builder(self) -> _Builder:
+        """Return a fluent :class:`_Builder` for multi-step composition.
+
+        Example::
+
+            new_meta = (
+                meta.builder()
+                .set(lane="in_progress")
+                .set(agent="claude")
+                .append_to_history(entry)
+                .build()
+            )
+        """
+        return _Builder(self)
+
+
+class _Builder:
+    """Fluent builder for composing multi-field WPMetadata updates.
+
+    Accumulates changes and produces a NEW validated WPMetadata on
+    :meth:`build`.  The source instance is never mutated.
+
+    This class is intentionally private — consumer code obtains it
+    via :meth:`WPMetadata.builder`.
+    """
+
+    __slots__ = ("_source", "_overrides", "_history_appends", "_dep_appends")
+
+    def __init__(self, source: WPMetadata) -> None:
+        self._source = source
+        self._overrides: dict[str, Any] = {}
+        self._history_appends: list[Any] = []
+        self._dep_appends: list[str] = []
+
+    def set(self, **kwargs: Any) -> _Builder:
+        """Stage field overrides (validated on :meth:`build`)."""
+        known = WPMetadata.model_fields
+        for key in kwargs:
+            if key not in known:
+                raise TypeError(f"set() got an unexpected keyword argument {key!r}")
+        self._overrides.update(kwargs)
+        return self
+
+    def append_to_history(self, entry: Any) -> _Builder:
+        """Append a history entry (applied on :meth:`build`)."""
+        self._history_appends.append(entry)
+        return self
+
+    def append_dependency(self, dep: str) -> _Builder:
+        """Append a dependency (applied on :meth:`build`)."""
+        self._dep_appends.append(dep)
+        return self
+
+    def build(self) -> WPMetadata:
+        """Produce a new validated WPMetadata from accumulated changes."""
+        merged = dict(self._overrides)
+
+        if self._history_appends:
+            base_history = list(merged.get("history", self._source.history))
+            merged["history"] = base_history + list(self._history_appends)
+
+        if self._dep_appends:
+            base_deps = list(merged.get("dependencies", self._source.dependencies))
+            merged["dependencies"] = base_deps + list(self._dep_appends)
+
+        base_data = self._source.model_dump()
+        base_data.update(merged)
+        return WPMetadata.model_validate(base_data)
+
 
 def read_wp_frontmatter(path: Path) -> tuple[WPMetadata, str]:
     """Load and validate WP frontmatter.
