@@ -305,3 +305,7 @@ The three changes are small and independent within a single logical unit. Verify
 1. The `sorted_events[-1].at` expression is inside the `if not events` guard's else path (i.e., only reached when `sorted_events` is non-empty)
 2. The read-before-write in `materialize()` uses UTF-8 decode to match `write_text(encoding="utf-8")`
 3. The import of `reduce` and `read_events` in `views.py` doesn't cause circular imports (status/reducer already imports from status/store; views imports from reducer — no cycle)
+
+## Activity Log
+
+- 2026-04-07T11:51:05Z – unknown – shell_pid=9810 – T001-T006 complete: reduce() deterministic, materialize() skip-write guard, materialize_if_stale() fixed
