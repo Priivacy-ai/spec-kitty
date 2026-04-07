@@ -212,6 +212,26 @@ class TestWPMetadataExtraFields:
         assert meta.agent_profile == "python-implementer"
 
 
+class TestWPMetadataDisplayTitle:
+    """display_title property: safe title with fallback to work_package_id."""
+
+    def test_returns_title_when_set(self) -> None:
+        meta = WPMetadata(work_package_id="WP01", title="Setup Infrastructure")
+        assert meta.display_title == "Setup Infrastructure"
+
+    def test_falls_back_to_wp_id_when_title_is_none(self) -> None:
+        meta = WPMetadata(work_package_id="WP03")
+        assert meta.display_title == "WP03"
+
+    def test_falls_back_to_wp_id_when_title_is_explicit_none(self) -> None:
+        meta = WPMetadata(work_package_id="WP05", title=None)
+        assert meta.display_title == "WP05"
+
+    def test_strips_whitespace_from_title(self) -> None:
+        meta = WPMetadata(work_package_id="WP02", title="  Padded Title  ")
+        assert meta.display_title == "Padded Title"
+
+
 class TestWPMetadataFrozen:
     """Model is immutable."""
 

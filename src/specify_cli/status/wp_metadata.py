@@ -166,6 +166,20 @@ class WPMetadata(BaseModel):
             return None
         return int(v)
 
+    # ── Computed properties ──────────────────────────────────────
+
+    @property
+    def display_title(self) -> str:
+        """Human-readable title, falling back to ``work_package_id``.
+
+        Strips surrounding whitespace when *title* is set.  Returns the
+        WP id when *title* is ``None`` so callers never need to
+        null-check.
+        """
+        if self.title is not None:
+            return self.title.strip()
+        return self.work_package_id
+
     # ── Immutable update API ───────────────────────────────────
 
     def update(self, **kwargs: Any) -> WPMetadata:

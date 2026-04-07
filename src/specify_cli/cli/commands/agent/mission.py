@@ -1511,7 +1511,7 @@ def finalize_tasks(
                 deps = parsed_deps
 
             requirement_refs = wp_requirement_refs.get(wp_id, [])
-            title = wp_meta.title.strip() or wp_id
+            title = wp_meta.display_title
             work_packages.append(
                 {
                     "id": wp_id,

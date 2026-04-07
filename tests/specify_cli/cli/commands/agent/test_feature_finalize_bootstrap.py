@@ -750,7 +750,7 @@ class TestTypedFrontmatterMigration:
         for wp_file in sorted(tasks_dir.glob("WP*.md")):
             wp_meta, _body = read_wp_frontmatter(wp_file)
             assert wp_meta.work_package_id is not None
-            assert wp_meta.title.strip() != ""
+            assert wp_meta.display_title != ""
 
     def test_finalize_updates_branch_fields_via_typed_api(self, tmp_path: Path) -> None:
         """Branch contract fields must be set correctly after finalize_tasks."""
