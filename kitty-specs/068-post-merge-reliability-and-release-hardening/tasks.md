@@ -209,7 +209,7 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 ## Dependency Graph
 
 ```
-WP01 (no deps) ────► WP02 (depends on WP01 for run_check import)
+WP01 (no deps) ────► WP02 (uses WP01's run_check library)
 WP03 (no deps)  ──► (independent)
 WP04 (no deps)  ──► (independent)
 WP05 (no deps)  ──► (independent)

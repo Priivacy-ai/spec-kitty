@@ -1,8 +1,7 @@
 ---
 work_package_id: WP05
 title: Recovery Extension And Mission Close
-dependencies:
-- WP01
+dependencies: []
 requirement_refs:
 - C-005
 - FR-016
