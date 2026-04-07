@@ -24,13 +24,13 @@
 | T012 | Unit tests: load, absent returns None, malformed raises ValidationError with field name | WP02 | P | [D] |
 | T013 | Unit tests: `dependencies_are_explicit` for present-empty vs absent key | WP02 | P | [D] |
 | T014 | Unit tests: `generate_tasks_md_from_manifest` preserves WP titles, deps, subtask counts | WP02 | P | [D] |
-| T015 | Add wps.yaml detection at top of `finalize_tasks()` — load manifest, build `wp_dependencies` | WP03 | |
-| T016 | Bypass prose parser when wps.yaml present (tier 0 takes precedence over tasks.md scanning) | WP03 | |
-| T017 | Add tasks.md regeneration step when wps.yaml present | WP03 | |
-| T018 | Integration test: wps.yaml present → manifest deps used, prose parser skipped | WP03 | P |
-| T019 | Integration test: `dependencies: []` in wps.yaml → WP has no deps after finalize | WP03 | P |
-| T020 | Integration test: tasks.md overwritten with manifest-generated content | WP03 | P |
-| T021 | Integration test: no wps.yaml → prose parser path unchanged (backward compat) | WP03 | P |
+| T015 | Add wps.yaml detection at top of `finalize_tasks()` — load manifest, build `wp_dependencies` | WP03 | | [D] |
+| T016 | Bypass prose parser when wps.yaml present (tier 0 takes precedence over tasks.md scanning) | WP03 | | [D] |
+| T017 | Add tasks.md regeneration step when wps.yaml present | WP03 | | [D] |
+| T018 | Integration test: wps.yaml present → manifest deps used, prose parser skipped | WP03 | P | [D] |
+| T019 | Integration test: `dependencies: []` in wps.yaml → WP has no deps after finalize | WP03 | P | [D] |
+| T020 | Integration test: tasks.md overwritten with manifest-generated content | WP03 | P | [D] |
+| T021 | Integration test: no wps.yaml → prose parser path unchanged (backward compat) | WP03 | P | [D] |
 | T022 | Rewrite `tasks-outline.md` template — produce wps.yaml, not tasks.md | WP04 | |
 | T023 | Rewrite `tasks-packages.md` template — read/update wps.yaml, generate WP files | WP04 | |
 | T024 | Write `m_3_2_0_update_planning_templates.py` migration with detect + apply | WP04 | |
