@@ -7,7 +7,7 @@ jobs:
     name: Verify bundled orchestrator is removed
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Check orchestrator package is absent
         run: |
@@ -29,7 +29,7 @@ jobs:
     name: Verify no banned flags in core runtime
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
       - name: Scan core runtime paths for banned flags
         run: |

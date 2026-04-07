@@ -9,6 +9,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-04-07
+
+### Added
+
+- **Typed `WPMetadata` Pydantic model** (`src/specify_cli/status/wp_metadata.py`) — immutable, validated work package metadata with `update()` builder API; replaces all raw `frontmatter.get()` dict access across consumer files. Closes #410.
+- **`Lane` enum state machine** — valid lane transitions enforced at the type level; all runtime consumers migrated from string comparisons to `Lane` enum values.
+- **Typed dashboard API contracts** (`src/specify_cli/dashboard/handlers/api.py`) — Pydantic response models replace untyped dicts.
+- **RE2 shim** (`src/kernel/_safe_re.py`) — `types.ModuleType`-based shim backed by `google-re2`; exposes the full `re` API and mitigates Sonar DOS hotspot findings. `google-re2>=1.1` added as a core runtime dependency.
+- **CI status-layer test stages** — new `fast-tests-status` and `integration-tests-status` jobs run the `tests/status/` and `tests/specify_cli/status/` suites in parallel with existing core/doctrine jobs; their coverage outputs feed the `diff-coverage` gate.
+- **`WPMetadata.display_title` property** — safe fallback for missing or empty WP titles.
+
+### Changed
+
+- All `frontmatter.get()` calls outside `frontmatter.py` migrated to typed `WPMetadata` access. Migration scripts retain raw dict access annotated `# MIGRATION-ONLY`.
+- `WPMetadata.title` is now optional; WP read errors propagate gracefully via `read_wp_frontmatter()`.
+- `OwnershipManifest.from_frontmatter()` accepts `WPMetadata` directly.
+- `diff-coverage` job wired to consume `coverage-kernel.xml`, `coverage-fast-status.xml`, and `coverage-integration-status.xml` in both enforced (critical-path 90%) and advisory (full-diff) steps.
+- GitHub Actions upgraded to Node.js 24 compatible versions (`actions/checkout@v6`, `actions/setup-python@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`) across all workflow files.
+
+### Fixed
+
+- `ValidationError` caught in phase-1 status mirror (`status/emit.py`) — prevents NoneType crashes on malformed WP files.
+- Ruff and mypy violations cleaned up in all files touched by the migration.
+- Sonar false-positive NOSONAR suppressions added in `arbiter.py` and `dashboard/handlers/api.py`.
+- WP03 validation report (mission 068) decision corrected from `close_with_evidence` to `tighten_workflow` to reflect the CI logic additions; `test_tighten_workflow_passes_large_pr_sample` implemented to verify the advisory-only contract.
+
 ## [3.1.0] - 2026-04-07
 
 ### Added

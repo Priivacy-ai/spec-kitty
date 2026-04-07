@@ -37,18 +37,18 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: "[ENFORCED] Set up Node"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -293,7 +293,7 @@ jobs:
 
       - name: "[ENFORCED] Upload lint artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-reports
           path: out/reports/
@@ -318,7 +318,7 @@ jobs:
 
       - name: "[ENFORCED] Upload linting failure details"
         if: always() && github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-failure-details
           path: out/reports/lint-failures/
@@ -351,7 +351,7 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Download linting failure details"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lint-failure-details
           path: /tmp/lint-failures
@@ -437,12 +437,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -485,7 +485,7 @@ jobs:
 
       - name: "[ENFORCED] Upload kernel-test artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kernel-test-reports
           path: out/reports/
@@ -501,12 +501,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -534,7 +534,7 @@ jobs:
 
       - name: "[ENFORCED] Upload fast-doctrine artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fast-test-doctrine-reports
           path: out/reports/
@@ -551,12 +551,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -602,7 +602,7 @@ jobs:
 
       - name: "[ENFORCED] Upload fast-core artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fast-test-core-reports
           path: out/reports/
@@ -618,12 +618,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -651,7 +651,7 @@ jobs:
 
       - name: "[ENFORCED] Upload fast-status artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fast-test-status-reports
           path: out/reports/
@@ -668,12 +668,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -700,7 +700,7 @@ jobs:
 
       - name: "[ENFORCED] Upload integration-doctrine artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-doctrine-reports
           path: out/reports/
@@ -717,12 +717,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -751,7 +751,7 @@ jobs:
 
       - name: "[ENFORCED] Upload integration-core artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-core-reports
           path: out/reports/
@@ -767,12 +767,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -799,7 +799,7 @@ jobs:
 
       - name: "[ENFORCED] Upload integration-status artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-status-reports
           path: out/reports/
@@ -816,18 +816,18 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: "[ENFORCED] Set up Node (Playwright)"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -871,7 +871,7 @@ jobs:
 
       - name: "[ENFORCED] Upload slow-and-e2e artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: slow-e2e-reports
           path: out/reports/
@@ -887,12 +887,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -904,7 +904,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-doctrine coverage"
         if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-doctrine-reports
           path: out/reports/fast-doctrine
@@ -912,7 +912,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-core coverage"
         if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-core-reports
           path: out/reports/fast-core
@@ -920,7 +920,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-doctrine coverage"
         if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-doctrine-reports
           path: out/reports/integration-doctrine
@@ -928,7 +928,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-core coverage"
         if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-core-reports
           path: out/reports/integration-core
@@ -936,7 +936,7 @@ jobs:
 
       - name: "[ENFORCED] Download kernel coverage"
         if: needs.kernel-tests.result == 'success' || needs.kernel-tests.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: kernel-test-reports
           path: out/reports/kernel
@@ -944,7 +944,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-status coverage"
         if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-status-reports
           path: out/reports/fast-status
@@ -952,7 +952,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-status coverage"
         if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-status-reports
           path: out/reports/integration-status
@@ -1061,7 +1061,7 @@ jobs:
 
       - name: "[ENFORCED] Check out repository"
         if: steps.sonar_token.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -1125,7 +1125,7 @@ jobs:
           mv "$tmp_file" sonar-project.properties
       - name: "[ENFORCED] Download fast-doctrine coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-doctrine.result == 'success' || needs.fast-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-doctrine-reports
           path: out/reports/fast-doctrine
@@ -1133,7 +1133,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-core coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-core.result == 'success' || needs.fast-tests-core.result == 'failure')
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-core-reports
           path: out/reports/fast-core
@@ -1141,7 +1141,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-doctrine coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-doctrine-reports
           path: out/reports/integration-doctrine
@@ -1149,7 +1149,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-core coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure')
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-core-reports
           path: out/reports/integration-core
@@ -1157,7 +1157,7 @@ jobs:
 
       - name: "[ENFORCED] Download slow-and-e2e coverage"
         if: steps.sonar_token.outputs.enabled == 'true' && (needs.slow-and-e2e.result == 'success' || needs.slow-and-e2e.result == 'failure')
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: slow-e2e-reports
           path: out/reports/slow-e2e
