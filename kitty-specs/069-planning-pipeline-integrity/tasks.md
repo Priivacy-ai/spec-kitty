@@ -31,11 +31,11 @@
 | T019 | Integration test: `dependencies: []` in wps.yaml → WP has no deps after finalize | WP03 | P | [D] |
 | T020 | Integration test: tasks.md overwritten with manifest-generated content | WP03 | P | [D] |
 | T021 | Integration test: no wps.yaml → prose parser path unchanged (backward compat) | WP03 | P | [D] |
-| T022 | Rewrite `tasks-outline.md` template — produce wps.yaml, not tasks.md | WP04 | |
-| T023 | Rewrite `tasks-packages.md` template — read/update wps.yaml, generate WP files | WP04 | |
-| T024 | Write `m_3_2_0_update_planning_templates.py` migration with detect + apply | WP04 | |
-| T025 | Migration unit tests: detect returns True/False correctly | WP04 | P |
-| T026 | Migration unit tests: apply overwrites stale files, respects agent config, is idempotent | WP04 | P |
+| T022 | Rewrite `tasks-outline.md` template — produce wps.yaml, not tasks.md | WP04 | | [D] |
+| T023 | Rewrite `tasks-packages.md` template — read/update wps.yaml, generate WP files | WP04 | | [D] |
+| T024 | Write `m_3_2_0_update_planning_templates.py` migration with detect + apply | WP04 | | [D] |
+| T025 | Migration unit tests: detect returns True/False correctly | WP04 | P | [D] |
+| T026 | Migration unit tests: apply overwrites stale files, respects agent config, is idempotent | WP04 | P | [D] |
 | T027 | Add `DecisionKind.query` constant and `is_query: bool = False` to `Decision` dataclass | WP05 | | [D] |
 | T028 | Implement `query_current_state()` in `runtime_bridge.py` — read state without advancing | WP05 | | [D] |
 | T029 | Change `result` default to `None` in `next_cmd.py`; add query mode branch | WP05 | | [D] |
