@@ -24,8 +24,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: "42447"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "62766"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -264,3 +264,4 @@ Once WP01 lands, WP02 can start its T013 subtask (importing `run_check` from `sp
 
 - 2026-04-07T09:18:37Z – claude:sonnet:implementer:implementer – shell_pid=42447 – Started implementation via action command
 - 2026-04-07T09:34:01Z – claude:sonnet:implementer:implementer – shell_pid=42447 – Ready for review: stale-assertion analyzer implemented with full test suite (24/24 passing, ruff clean)
+- 2026-04-07T09:35:05Z – claude:sonnet:reviewer:reviewer – shell_pid=62766 – Started review via action command
