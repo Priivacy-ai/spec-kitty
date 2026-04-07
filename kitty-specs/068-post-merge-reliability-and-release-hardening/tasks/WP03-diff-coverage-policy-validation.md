@@ -17,7 +17,8 @@ subtasks:
 - T016
 - T017
 - T018
-shell_pid: '42198'
+shell_pid: "59664"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -215,3 +216,4 @@ WP03 is verification-first and low-risk. Once it lands, #455 is permanently off 
 
 - 2026-04-07T09:23:28Z – unknown – shell_pid=42198 – Claimed by claude orchestrator
 - 2026-04-07T09:29:21Z – unknown – shell_pid=42198 – Ready for review: diff-coverage policy validated and documented
+- 2026-04-07T09:29:56Z – claude:sonnet:reviewer:reviewer – shell_pid=59664 – Started review via action command
