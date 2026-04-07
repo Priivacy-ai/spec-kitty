@@ -10,7 +10,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----|
-| T001 | Change `reduce()` to derive `materialized_at` from last event timestamp | WP01 | | [D] |
+| T001 | Change `reduce()` to derive `materialized_at` from last event timestamp | WP01 | | [D] | [D] |
 | T002 | Add skip-write guard to `materialize()` — compare bytes, skip if identical | WP01 | | [D] |
 | T003 | Fix `materialize_if_stale()` return to call `reduce()` not `materialize()` | WP01 | | [D] |
 | T004 | Unit tests: `reduce()` determinism — same events → same `materialized_at` | WP01 | P | [D] |
