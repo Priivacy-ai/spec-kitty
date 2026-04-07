@@ -632,4 +632,3 @@ A rushed job with vague, oversized WPs causes:
 - Rework and review cycles
 - Feature failure
 
-**Invest the tokens now. Be thorough. Future agents will thank you.**
