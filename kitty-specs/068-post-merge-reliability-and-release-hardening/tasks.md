@@ -25,13 +25,13 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Create `src/specify_cli/post_merge/` package with `__init__.py` and `stale_assertions.py` skeleton (dataclasses + module docstring) | WP01 | |
-| T002 | Implement source-side AST extraction: parse changed Python files from `git diff base..head`, walk ASTs, collect changed function/class names and changed string-literal `Constant` values | WP01 | |
-| T003 | Implement test-side AST scan: walk every test file from `git ls-files 'tests/**/*.py'`, parse with `ast`, find references to changed identifiers in assertion-bearing positions (`Assert`, `Compare`, `Call(func=Attribute(attr='assert*'))`) | WP01 | |
-| T004 | Implement `run_check(base_ref, head_ref, repo_root) -> StaleAssertionReport` orchestration: call source extractor, call test scanner, assign confidence (`high`/`medium`/`low`), populate `elapsed_seconds`/`files_scanned`/`findings_per_100_loc` | WP01 | |
-| T005 | Create `src/specify_cli/cli/commands/agent/tests.py` typer subapp with `stale-check --base --head [--json]` command; register the new subapp in `agent/__init__.py` | WP01 | |
-| T006 | Author test suite at `tests/post_merge/test_stale_assertions.py` and `tests/cli/commands/agent/test_tests_stale_check.py` covering FR-001/002/003/004 worked examples, NFR-001 wall-clock benchmark, NFR-002 FP-ceiling benchmark, FR-022 fallback path | WP01 | |
-| T007 | Add `--json` output mode to the CLI subcommand using `dataclasses.asdict` so downstream automation can consume the report; verify NFR-005 (no network) by mocking `subprocess` calls | WP01 | |
+| T001 | Create `src/specify_cli/post_merge/` package with `__init__.py` and `stale_assertions.py` skeleton (dataclasses + module docstring) | WP01 | | [D] |
+| T002 | Implement source-side AST extraction: parse changed Python files from `git diff base..head`, walk ASTs, collect changed function/class names and changed string-literal `Constant` values | WP01 | | [D] |
+| T003 | Implement test-side AST scan: walk every test file from `git ls-files 'tests/**/*.py'`, parse with `ast`, find references to changed identifiers in assertion-bearing positions (`Assert`, `Compare`, `Call(func=Attribute(attr='assert*'))`) | WP01 | | [D] |
+| T004 | Implement `run_check(base_ref, head_ref, repo_root) -> StaleAssertionReport` orchestration: call source extractor, call test scanner, assign confidence (`high`/`medium`/`low`), populate `elapsed_seconds`/`files_scanned`/`findings_per_100_loc` | WP01 | | [D] |
+| T005 | Create `src/specify_cli/cli/commands/agent/tests.py` typer subapp with `stale-check --base --head [--json]` command; register the new subapp in `agent/__init__.py` | WP01 | | [D] |
+| T006 | Author test suite at `tests/post_merge/test_stale_assertions.py` and `tests/cli/commands/agent/test_tests_stale_check.py` covering FR-001/002/003/004 worked examples, NFR-001 wall-clock benchmark, NFR-002 FP-ceiling benchmark, FR-022 fallback path | WP01 | | [D] |
+| T007 | Add `--json` output mode to the CLI subcommand using `dataclasses.asdict` so downstream automation can consume the report; verify NFR-005 (no network) by mocking `subprocess` calls | WP01 | | [D] |
 | T008 | Add `MergeStrategy` enum and `MergeConfig` dataclass + `load_merge_config(repo_root) -> MergeConfig` accessor in new file `src/specify_cli/merge/config.py`; extend `.kittify/config.yaml` with the `merge.strategy` schema; raise startup error on invalid value | WP02 | |
 | T009 | Wire `--strategy` CLI flag through `cli/commands/merge.py merge()` into `_run_lane_based_merge`: resolve from CLI flag → config key → squash default; pass resolved strategy down into `lanes/merge.py` | WP02 | |
 | T010 | Modify `src/specify_cli/lanes/merge.py` to honor the strategy parameter for the **mission→target** step (squash/rebase/merge); preserve existing merge-commit semantics for the **lane→mission** step | WP02 | |
@@ -159,11 +159,11 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T019 Create `src/specify_cli/release/version.py` with `propose_version` per locked rules (WP04)
-- [ ] T020 Implement `release/changelog.py` `build_changelog_block` reading kitty-specs/ + git tags only (WP04)
-- [ ] T021 Implement `release/payload.py` `build_release_prep_payload` orchestration + `ReleasePrepPayload` dataclass (WP04)
-- [ ] T022 Populate `agent/release.py` stub with `prep` subcommand (text + JSON modes); update stale comment (WP04)
-- [ ] T023 Test suite covering FR-013/014/015/015a + NFR-004 benchmark + zero-network assertion (WP04)
+- [x] T019 Create `src/specify_cli/release/version.py` with `propose_version` per locked rules (WP04)
+- [x] T020 Implement `release/changelog.py` `build_changelog_block` reading kitty-specs/ + git tags only (WP04)
+- [x] T021 Implement `release/payload.py` `build_release_prep_payload` orchestration + `ReleasePrepPayload` dataclass (WP04)
+- [x] T022 Populate `agent/release.py` stub with `prep` subcommand (text + JSON modes); update stale comment (WP04)
+- [x] T023 Test suite covering FR-013/014/015/015a + NFR-004 benchmark + zero-network assertion (WP04)
 
 **Implementation sketch**: Build the package bottom-up. (1) `version.py` is pure functions over version strings — start here, fully tested. (2) `changelog.py` reads filesystem + invokes `git tag --list` — testable with synthetic kitty-specs/ fixture. (3) `payload.py` orchestrates the above. (4) `agent/release.py` becomes a thin typer shim. (5) Tests lock the contract. Network mocking is essential — FR-014 forbids any GitHub API call.
 
