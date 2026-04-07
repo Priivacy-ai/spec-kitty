@@ -453,3 +453,7 @@ class TestGenerateTasksMd:
 - Confirm `_dependencies_explicit` is NOT serialized by Pydantic (it must be a `PrivateAttr` or excluded field, not a schema field)
 - Confirm `generate_tasks_md_from_manifest()` output contains WP titles and dependency lines (C-007)
 - Verify `ValidationError` raised by `load_wps_manifest()` includes the field name in the error message (NFR-002)
+
+## Activity Log
+
+- 2026-04-07T11:53:52Z – unknown – shell_pid=9844 – T007-T014 complete: WpsManifest model, load_wps_manifest, dependencies_are_explicit, generate_tasks_md_from_manifest, JSON Schema, tests — 20/20 tests pass, mypy strict clean on new file
