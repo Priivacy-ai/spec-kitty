@@ -254,3 +254,7 @@ class TestSlugCLI:
 - The regex change is a one-character edit: `[a-z]` → `[a-z0-9]`. Verify the rest of the pattern is unchanged.
 - Confirm the em dash in error messages was not unintentionally altered.
 - Run the full test suite after this change to catch any snapshot tests that may have recorded the old error message text.
+
+## Activity Log
+
+- 2026-04-07T11:53:17Z – unknown – shell_pid=9908 – T035-T038 complete: regex updated to ^[a-z0-9], error message updated, tests added, two stale tests updated to reflect new valid digit-prefix behavior

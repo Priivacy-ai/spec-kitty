@@ -95,14 +95,14 @@ None (independent).
 
 ### Included Subtasks
 
-- [ ] T007 Define `WorkPackageEntry` and `WpsManifest` Pydantic models (WP02)
-- [ ] T008 Implement `load_wps_manifest()` — ruamel.yaml loader with presence tracking (WP02)
-- [ ] T009 Implement `dependencies_are_explicit()` helper — detect present-empty `[]` vs absent key (WP02)
-- [ ] T010 Implement `generate_tasks_md_from_manifest()` — human-readable tasks.md generator (WP02)
-- [ ] T011 [P] Write `src/specify_cli/schemas/wps.schema.json` (JSON Schema Draft 2020-12) (WP02)
-- [ ] T012 [P] Unit tests: load, absent returns None, malformed raises ValidationError with field name (WP02)
-- [ ] T013 [P] Unit tests: `dependencies_are_explicit` for present-empty vs absent key (WP02)
-- [ ] T014 [P] Unit tests: `generate_tasks_md_from_manifest` preserves WP titles, deps, subtask counts (WP02)
+- [x] T007 Define `WorkPackageEntry` and `WpsManifest` Pydantic models (WP02)
+- [x] T008 Implement `load_wps_manifest()` — ruamel.yaml loader with presence tracking (WP02)
+- [x] T009 Implement `dependencies_are_explicit()` helper — detect present-empty `[]` vs absent key (WP02)
+- [x] T010 Implement `generate_tasks_md_from_manifest()` — human-readable tasks.md generator (WP02)
+- [x] T011 [P] Write `src/specify_cli/schemas/wps.schema.json` (JSON Schema Draft 2020-12) (WP02)
+- [x] T012 [P] Unit tests: load, absent returns None, malformed raises ValidationError with field name (WP02)
+- [x] T013 [P] Unit tests: `dependencies_are_explicit` for present-empty vs absent key (WP02)
+- [x] T014 [P] Unit tests: `generate_tasks_md_from_manifest` preserves WP titles, deps, subtask counts (WP02)
 
 ### Implementation Notes
 
