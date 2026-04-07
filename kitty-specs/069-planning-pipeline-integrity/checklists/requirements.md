@@ -39,5 +39,8 @@ All items pass. Specification is ready for `/spec-kitty.plan`.
 
 Key decisions recorded in Assumptions:
 - Three candidate approaches for #524 are left to planning (all satisfy the behavioral outcome)
-- JSON Schema location for `wps.yaml` determined during planning
-- Legacy prose parser retained, not deleted
+- JSON Schema location for `wps.yaml` fixed at `src/specify_cli/schemas/wps.schema.json` (FR-005)
+- Legacy prose parser retained, not deleted (FR-012)
+- FR-008/FR-009 tension resolved: code (`finalize-tasks`) generates `tasks.md`, LLM produces `wps.yaml` only (FR-009, FR-011)
+- Downstream consumers (dashboard, doctor, kanban) remain on WP frontmatter path; direct wps.yaml reads are out of scope
+- Slug validator has a single call site in `mission_creation.py`
