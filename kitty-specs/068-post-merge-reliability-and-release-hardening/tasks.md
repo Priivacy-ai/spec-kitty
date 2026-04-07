@@ -135,10 +135,10 @@ Execution worktrees are allocated per computed lane from `lanes.json` after `fin
 **Dependencies**: none
 
 **Included subtasks**:
-- [ ] T015 Author the WP03 validation report walking current `ci-quality.yml` (WP03)
-- [ ] T016 FR-011 path: close #455 with evidence + tighten CI step names (only if `decision == close_with_evidence`) (WP03)
-- [ ] T017 FR-012 path: modify `ci-quality.yml` + add large-PR test (only if `decision == tighten_workflow`) (WP03)
-- [ ] T018 Test suite covering report content gate, decision recording, and conditional FR-011/FR-012 paths (WP03)
+- [x] T015 Author the WP03 validation report walking current `ci-quality.yml` (WP03)
+- [x] T016 FR-011 path: close #455 with evidence + tighten CI step names (only if `decision == close_with_evidence`) (WP03)
+- [x] T017 FR-012 path: modify `ci-quality.yml` + add large-PR test (only if `decision == tighten_workflow`) (WP03)
+- [x] T018 Test suite covering report content gate, decision recording, and conditional FR-011/FR-012 paths (WP03)
 
 **Implementation sketch**: Read `ci-quality.yml` end-to-end first. Identify which step enforces critical-path and which emits the advisory full-diff report. Run a representative large PR (or a synthetic equivalent) through it locally. Record findings in the validation report. Decide. Execute either the FR-011 path (no workflow change, comment + step rename) OR the FR-012 path (workflow change + test + comment). Then write the test suite that validates whichever path you took.
 
