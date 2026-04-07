@@ -877,12 +877,12 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # diff-coverage: PR-only diff coverage gate (80% on changed lines).
-  # Consumes fast-test-reports and integration-test-reports.
+  # diff-coverage: PR-only diff coverage gate (90% on critical-path changed lines).
+  # Consumes kernel, fast-test, and integration-test coverage reports.
   # ---------------------------------------------------------------------------
   diff-coverage:
     runs-on: ubuntu-latest
-    needs: [integration-tests-doctrine, integration-tests-core, integration-tests-status]
+    needs: [kernel-tests, integration-tests-doctrine, integration-tests-core, integration-tests-status]
     if: always() && github.event_name == 'pull_request'
 
     steps:
@@ -934,6 +934,30 @@ jobs:
           path: out/reports/integration-core
         continue-on-error: true
 
+      - name: "[ENFORCED] Download kernel coverage"
+        if: needs.kernel-tests.result == 'success' || needs.kernel-tests.result == 'failure'
+        uses: actions/download-artifact@v4
+        with:
+          name: kernel-test-reports
+          path: out/reports/kernel
+        continue-on-error: true
+
+      - name: "[ENFORCED] Download fast-status coverage"
+        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
+        uses: actions/download-artifact@v4
+        with:
+          name: fast-test-status-reports
+          path: out/reports/fast-status
+        continue-on-error: true
+
+      - name: "[ENFORCED] Download integration-status coverage"
+        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-test-status-reports
+          path: out/reports/integration-status
+        continue-on-error: true
+
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
       # dashboard, merge, next.
       # Coverage effort is proportional to risk — flat 80% incentivizes meaningless tests.
@@ -943,10 +967,13 @@ jobs:
 
           coverage_reports=()
           for f in \
+            out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
             out/reports/fast-core/coverage/coverage-fast-core.xml \
+            out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml; do
+            out/reports/integration-core/coverage/coverage-integration-core.xml \
+            out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
 
@@ -974,10 +1001,13 @@ jobs:
         run: |
           coverage_reports=()
           for f in \
+            out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
             out/reports/fast-core/coverage/coverage-fast-core.xml \
+            out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml; do
+            out/reports/integration-core/coverage/coverage-integration-core.xml \
+            out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
 
