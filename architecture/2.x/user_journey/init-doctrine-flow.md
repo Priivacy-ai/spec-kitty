@@ -52,7 +52,7 @@ _run_doctrine_stack_init(project_path, non_interactive)
 **Trigger**: User selects "defaults" at the governance prompt, or `--non-interactive` flag is set.
 
 **Steps**:
-1. Load `src/doctrine/charter/defaults.yaml`.
+1. Load `src/charter/defaults.yaml`.
 2. Call `default_interview(mission, profile)` for baseline answers.
 3. Apply overrides from defaults.yaml (paradigms, directives, tools).
 4. Call `build_charter_draft(mission, interview)`.
@@ -161,9 +161,9 @@ to work independently. The init flow only **orchestrates** the existing machiner
 
 ## Defaults File
 
-**Location**: `src/doctrine/charter/defaults.yaml`
+**Location**: `src/charter/defaults.yaml`
 
-**Accessed via**: `resolve_doctrine_root() / "charter" / "defaults.yaml"`
+**Accessed via**: `importlib.resources.files("charter") / "defaults.yaml"`
 
 **Purpose**: Defines the pre-selected paradigms, directives, and tools applied
 when a user accepts defaults or uses `--non-interactive` mode.
@@ -192,6 +192,6 @@ available_tools:
 | File | Change |
 |------|--------|
 | `src/specify_cli/cli/commands/init.py` | Added `_load_doctrine_defaults()`, `_apply_doctrine_defaults()`, `_run_inline_interview()`, `_run_doctrine_stack_init()`; wired `_run_doctrine_stack_init()` call after `_maybe_generate_structure_templates()` |
-| `src/doctrine/charter/defaults.yaml` | New: predefined governance selections for accept-defaults path |
+| `src/charter/defaults.yaml` | Predefined governance selections for accept-defaults path |
 | `tests/specify_cli/cli/commands/test_init_doctrine.py` | New: 7 ATDD acceptance tests (US-1 scenarios 1-3, US-2 scenarios 1-4) |
 | `architecture/2.x/user_journey/init-doctrine-flow.md` | New: this document |
