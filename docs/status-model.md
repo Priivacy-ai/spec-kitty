@@ -193,7 +193,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 # "doing" is accepted as alias, persists as "in_progress" in the event log
 ```
 
-## 8-Lane State Machine
+## 9-Lane State Machine
 
 ### Canonical Lanes
 
@@ -203,6 +203,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 | `claimed` | WP assigned to an actor, not yet started | No |
 | `in_progress` | Active implementation underway | No |
 | `for_review` | Implementation complete, awaiting review | No |
+| `in_review` | Reviewer actively examining implementation | No |
 | `approved` | Review passed, awaiting merge | No |
 | `done` | Merged and accepted | Yes (unless forced) |
 | `blocked` | Blocked by external dependency or issue | No |
@@ -210,23 +211,28 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 **Alias**: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events)
 
-**Display**: The kanban board shows 5 columns (Planned, Doing, For Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
+**Display**: The kanban board shows 6 columns (Planned, Doing, For Review, In Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
 
-### Allowed Transitions (24 pairs)
+### Allowed Transitions (27 pairs)
 
 ```
-# Normal flow
+# Normal flow (implementation progression)
 planned     -> claimed         (requires actor)
 claimed     -> in_progress     (workspace context)
 in_progress -> for_review      (subtasks check)
+
+# Review progression
+for_review  -> in_review       (reviewer claims; actor required with conflict detection)
+in_review   -> approved        (ReviewResult required)
+in_review   -> done            (ReviewResult required)
+
+# Direct approval paths (legacy, kept for backward compat)
 in_progress -> approved        (direct approval path)
-for_review  -> approved        (reviewer approves)
-for_review  -> done            (direct to done with evidence)
 approved    -> done            (merge verified)
 
 # Feedback loops
-for_review  -> in_progress     (changes requested, requires review_ref)
-for_review  -> planned         (rejection with feedback, requires review_ref)
+in_review   -> in_progress     (changes requested, ReviewResult required)
+in_review   -> planned         (rejection with feedback, ReviewResult required)
 approved    -> in_progress     (rework after approval, requires review_ref)
 approved    -> planned         (rejection after approval, requires review_ref)
 in_progress -> planned         (abandon/reassign, requires reason)
@@ -236,6 +242,7 @@ planned     -> blocked
 claimed     -> blocked
 in_progress -> blocked
 for_review  -> blocked
+in_review   -> blocked         (ReviewResult required)
 approved    -> blocked
 blocked     -> in_progress
 
@@ -244,6 +251,7 @@ planned     -> canceled
 claimed     -> canceled
 in_progress -> canceled
 for_review  -> canceled
+in_review   -> canceled        (ReviewResult required)
 approved    -> canceled
 blocked     -> canceled
 ```
@@ -257,8 +265,12 @@ blocked     -> canceled
 | `planned -> claimed` | Actor identity required | "Transition planned -> claimed requires actor identity" |
 | `claimed -> in_progress` | Workspace context (placeholder, always passes) | "No workspace context" |
 | `in_progress -> for_review` | Subtask completion check (placeholder) | "Unchecked subtasks" |
-| `for_review -> done` | Reviewer approval evidence required | "Missing review approval evidence" |
-| `for_review -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
+| `in_progress -> approved` | Reviewer approval evidence required | "Missing review approval evidence" |
+| `for_review -> in_review` | Actor identity required (conflict detection) | "Transition for_review -> in_review requires actor identity" |
+| `in_review -> *` (all outbound) | ReviewResult required in TransitionContext | "in_review outbound transitions require ReviewResult" |
+| `approved -> done` | Reviewer approval evidence required | "Missing review approval evidence" |
+| `approved -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
+| `approved -> planned` | Review feedback reference required | "Missing review feedback reference" |
 | `in_progress -> planned` | Reason required | "Transition in_progress -> planned requires reason" |
 | Any forced transition | Actor AND reason required | "Force transitions require actor and reason" |
 

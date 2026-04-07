@@ -350,12 +350,12 @@ def _check_unchecked_subtasks(
 
     for line in lines:
         # Check if we entered this WP's section
-        if re.search(rf'##.*{wp_id}\b', line):
+        if re.search(rf'^#{{2,4}}(?!#).*{wp_id}\b', line):
             in_wp_section = True
             continue
 
         # Check if we entered a different WP section
-        if in_wp_section and re.search(r'##.*WP\d{2}\b', line):
+        if in_wp_section and re.search(r'^#{2,4}(?!#).*WP\d{2}\b', line):
             break  # Left this WP's section
 
         # Look for unchecked tasks in this WP's section
@@ -1220,7 +1220,7 @@ def move_task(
         def _lane_targets_for_emit(current_lane: str, requested_lane: str) -> list[str]:
             current = resolve_lane_alias(current_lane)
             target = resolve_lane_alias(requested_lane)
-            forward = ["planned", "claimed", "in_progress", "for_review", "approved", "done"]
+            forward = ["planned", "claimed", "in_progress", "for_review", "in_review", "approved", "done"]
             if current in forward and target in forward:
                 current_idx = forward.index(current)
                 target_idx = forward.index(target)
@@ -1247,6 +1247,27 @@ def move_task(
                 )
 
             for target in transition_targets:
+                # Auto-construct ReviewResult when hopping out of in_review
+                # (the review_result_required guard needs a structured outcome)
+                hop_review_result = None
+                if event is not None and str(event.to_lane) == "in_review" and evidence_dict is not None:
+                    from specify_cli.status.models import ReviewResult
+
+                    review_section = evidence_dict.get("review", {})
+                    hop_review_result = ReviewResult(
+                        reviewer=review_section.get("reviewer", actor),
+                        verdict=review_section.get("verdict", "approved"),
+                        reference=review_section.get("reference", f"auto-forward:{task_id}"),
+                    )
+                elif event is None and current_event_lane == "in_review" and evidence_dict is not None:
+                    from specify_cli.status.models import ReviewResult
+
+                    review_section = evidence_dict.get("review", {})
+                    hop_review_result = ReviewResult(
+                        reviewer=review_section.get("reviewer", actor),
+                        verdict=review_section.get("verdict", "approved"),
+                        reference=review_section.get("reference", f"auto-forward:{task_id}"),
+                    )
                 event = emit_status_transition(
                     feature_dir=feature_dir,
                     mission_slug=mission_slug,
@@ -1269,6 +1290,7 @@ def move_task(
                         else None
                     ),
                     repo_root=main_repo_root,
+                    review_result=hop_review_result,
                 )
                 # review_ref only applies to rollback transitions, never to forward chain hops
                 emit_review_ref = None
@@ -2590,7 +2612,7 @@ def status(
 
         # Rich table output
         # Group by lane
-        by_lane = {"planned": [], "in_progress": [], "for_review": [], "approved": [], "done": []}
+        by_lane = {"planned": [], "in_progress": [], "in_review": [], "for_review": [], "approved": [], "done": []}
         for wp in work_packages:
             lane = wp["lane"]
             if lane in by_lane:
@@ -2631,7 +2653,7 @@ def status(
         # Calculate metrics
         total = len(work_packages)
         done_count = len(by_lane["done"])
-        in_progress = len(by_lane["in_progress"]) + len(by_lane["for_review"])
+        in_progress = len(by_lane["in_progress"]) + len(by_lane["in_review"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
         progress_pct = round(compute_weighted_progress(_st_snapshot).percentage, 1) if _st_snapshot else 0
 
@@ -2659,6 +2681,11 @@ def status(
         console.print()
 
         # Kanban board table
+        # Fold in_review WPs into the "Doing" column with a review marker
+        display_in_progress = list(by_lane["in_progress"])
+        for wp in by_lane.get("in_review", []):
+            wp["_display_in_review"] = True
+            display_in_progress.append(wp)
         table = Table(title="Kanban Board", show_header=True, header_style="bold magenta", border_style="dim")
         table.add_column("📋 Planned", style="yellow", no_wrap=False, width=25)
         table.add_column("🔄 Doing", style="blue", no_wrap=False, width=25)
@@ -2667,15 +2694,24 @@ def status(
         table.add_column("✅ Done", style="green", no_wrap=False, width=25)
 
         # Find max length for rows
-        max_rows = max(len(by_lane["planned"]), len(by_lane["in_progress"]),
+        max_rows = max(len(by_lane["planned"]), len(display_in_progress),
                        len(by_lane["for_review"]), len(by_lane["approved"]), len(by_lane["done"]))
+
+        # Map display column keys to their data lists
+        display_columns = [
+            ("planned", by_lane["planned"]),
+            ("in_progress", display_in_progress),
+            ("for_review", by_lane["for_review"]),
+            ("approved", by_lane["approved"]),
+            ("done", by_lane["done"]),
+        ]
 
         # Add rows
         for i in range(max_rows):
             row = []
-            for lane in ["planned", "in_progress", "for_review", "approved", "done"]:
-                if i < len(by_lane[lane]):
-                    wp = by_lane[lane][i]
+            for lane, lane_list in display_columns:
+                if i < len(lane_list):
+                    wp = lane_list[i]
                     title_truncated = wp['title'][:22] + "..." if len(wp['title']) > 22 else wp['title']
                     marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
                     display_id = f"{marker}{wp['id']}"
@@ -2683,6 +2719,8 @@ def status(
                     # Add stale indicator for in_progress WPs
                     if lane == "in_progress" and wp.get("is_stale"):
                         cell = f"[red]⚠️ {display_id}[/red]\n{title_truncated}"
+                    elif wp.get("_display_in_review"):
+                        cell = f"[bright_cyan]{display_id} (review)[/bright_cyan]\n{title_truncated}"
                     else:
                         cell = f"{display_id}\n{title_truncated}"
                     row.append(cell)
@@ -2766,6 +2804,13 @@ def status(
                 console.print(f"[yellow]⚠️  {len(stale_wps)} stale WP(s) detected - agents may have stopped without transitioning[/yellow]")
                 console.print("[dim]   Run: spec-kitty agent tasks move-task <WP_ID> --to for_review[/dim]")
                 console.print()
+
+        if by_lane.get("in_review"):
+            console.print("[bold bright_cyan]🔍 In Review (shown in Doing column):[/bold bright_cyan]")
+            for wp in by_lane["in_review"]:
+                marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                console.print(f"  • {marker}{wp['id']} - {wp['title']}")
+            console.print()
 
         if by_lane["planned"]:
             console.print("[bold yellow]📋 Next Up (Planned):[/bold yellow]")

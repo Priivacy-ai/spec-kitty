@@ -10,8 +10,10 @@ from dataclasses import dataclass
 from datetime import datetime, UTC
 from pathlib import Path
 
-# IMPORTANT: Keep in sync with src/specify_cli/tasks_support.py
-LANES: tuple[str, ...] = ("planned", "doing", "for_review", "done")
+# Canonical lane tuple — imported from the status package (single source of truth).
+from specify_cli.status import CANONICAL_LANES
+
+LANES: tuple[str, ...] = CANONICAL_LANES
 
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 

@@ -25,8 +25,10 @@ from typing import Dict, List, Optional, Tuple
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.legacy_detector import is_legacy_format
 
-# IMPORTANT: Keep in sync with scripts/tasks/task_helpers.py
-LANES: Tuple[str, ...] = ("planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled")
+# Canonical lane tuple — imported from the status package (single source of truth).
+from specify_cli.status import CANONICAL_LANES
+
+LANES: Tuple[str, ...] = CANONICAL_LANES
 LANE_ALIASES: Dict[str, str] = {"doing": "in_progress"}
 TIMESTAMP_FORMAT = "%Y-%m-%dT%H:%M:%SZ"
 
@@ -117,9 +119,7 @@ def normalize_note(note: Optional[str], target_lane: str) -> str:
     return cleaned or default
 
 
-def detect_conflicting_wp_status(
-    status_lines: List[str], feature: str, old_path: Path, new_path: Path
-) -> List[str]:
+def detect_conflicting_wp_status(status_lines: List[str], feature: str, old_path: Path, new_path: Path) -> List[str]:
     """Return staged work-package entries unrelated to the requested move."""
     prefix = f"kitty-specs/{feature}/tasks/"
     allowed = {
@@ -165,11 +165,7 @@ def set_scalar(frontmatter: str, key: str, value: str) -> str:
         prefix = match.group(1)
         comment = match.group(3)
         comment_suffix = f"{comment}" if comment else ""
-        return (
-            frontmatter[: match.start()]
-            + f'{prefix}"{value}"{comment_suffix}'
-            + frontmatter[match.end() :]
-        )
+        return frontmatter[: match.start()] + f'{prefix}"{value}"{comment_suffix}' + frontmatter[match.end() :]
 
     insertion = f"{replacement_line}\n"
     history_match = re.search(r"^\s*history:\s*$", frontmatter, flags=re.MULTILINE)
@@ -292,6 +288,7 @@ class WorkPackage:
     @property
     def lane(self) -> Optional[str]:
         from specify_cli.status.lane_reader import get_wp_lane
+
         # WP files are at kitty-specs/<mission_slug>/tasks/WP01.md
         # feature_dir is the parent of the tasks/ directory
         feature_dir = self.path.parent.parent
@@ -350,9 +347,7 @@ def locate_work_package(repo_root: Path, feature: str, wp_id: str) -> WorkPackag
         raise TaskCliError(f"Work package '{wp_id}' not found under kitty-specs/{feature}/tasks.")
     if len(candidates) > 1:
         joined = "\n".join(str(item[1].relative_to(repo_root)) for item in candidates)
-        raise TaskCliError(
-            f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}"
-        )
+        raise TaskCliError(f"Multiple files matched '{wp_id}'. Refine the ID or clean duplicates:\n{joined}")
 
     lane, path, base_dir = candidates[0]
     text = path.read_text(encoding="utf-8-sig")
@@ -400,6 +395,7 @@ def get_lane_from_frontmatter(wp_path: Path, warn_on_missing: bool = True) -> st
         wp_id = wp_id_match.group(1).upper() if wp_id_match else stem
 
     from specify_cli.status.lane_reader import get_wp_lane
+
     return get_wp_lane(feature_dir, wp_id)
 
 

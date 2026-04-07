@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
@@ -64,7 +64,7 @@ def _generate_ulid() -> str:
 
 def _now_utc() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
@@ -131,10 +131,10 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     unchecked_found = False
 
     for line in lines:
-        if re.search(rf"^##.*\b{re.escape(wp_id)}\b", line):
+        if re.search(rf"^#{{2,4}}(?!#).*\b{re.escape(wp_id)}\b", line):
             in_wp_section = True
             continue
-        if in_wp_section and re.search(r"^##\s+", line):
+        if in_wp_section and re.search(r"^#{2,4}(?!#)\s+", line):
             break
         if not in_wp_section:
             continue
@@ -252,6 +252,7 @@ def emit_status_transition(
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
     policy_metadata: dict | None = None,
+    review_result: Any = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -277,6 +278,7 @@ def emit_status_transition(
         execution_mode: "worktree" or "direct_repo".
         repo_root: Repository root for SaaS fan-out (optional).
         policy_metadata: Orchestrator policy metadata dict (optional).
+        review_result: Structured ReviewResult for in_review -> * transitions (optional).
 
     Returns:
         The persisted StatusEvent.
@@ -348,6 +350,7 @@ def emit_status_transition(
         reason=reason,
         review_ref=review_ref,
         evidence=done_evidence,
+        review_result=review_result,
     )
     if not ok:
         raise TransitionError(error_msg)

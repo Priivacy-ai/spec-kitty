@@ -10,6 +10,7 @@
     "done": 1,
     "for_review": 0,
     "in_progress": 1,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

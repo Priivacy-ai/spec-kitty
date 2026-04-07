@@ -11,10 +11,13 @@ from .models import (
     Lane,
     RepoEvidence,
     ReviewApproval,
+    ReviewResult,
     StatusEvent,
     StatusSnapshot,
     ULID_PATTERN,
     VerificationResult,
+    get_all_lanes,
+    get_all_lane_values,
 )
 from .reducer import (
     SNAPSHOT_FILENAME,
@@ -38,9 +41,21 @@ from .transitions import (
     resolve_lane_alias,
     validate_transition,
 )
+from .transition_context import (
+    TransitionContext,
+)
+from .wp_state import (
+    InvalidTransitionError,
+    WPState,
+    wp_state_for,
+)
 from .emit import (
     TransitionError,
     emit_status_transition,
+)
+from .wp_metadata import (
+    WPMetadata,
+    read_wp_frontmatter,
 )
 from .lane_reader import (
     CanonicalStatusNotFoundError,
@@ -73,8 +88,12 @@ __all__ = [
     "ALLOWED_TRANSITIONS",
     "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",
+    "InvalidTransitionError",
     "ProgressResult",
+    "ReviewResult",
+    "TransitionContext",
     "WPProgress",
+    "WPState",
     "compute_weighted_progress",
     "generate_progress_json",
     "materialize_if_stale",
@@ -82,6 +101,8 @@ __all__ = [
     "DoneEvidence",
     "EVENTS_FILENAME",
     "Lane",
+    "get_all_lanes",
+    "get_all_lane_values",
     "LANE_ALIASES",
     "RepoEvidence",
     "ReviewApproval",
@@ -94,6 +115,7 @@ __all__ = [
     "ULID_PATTERN",
     "ValidationResult",
     "VerificationResult",
+    "WPMetadata",
     "append_event",
     "emit_status_transition",
     "generate_status_view",
@@ -105,6 +127,7 @@ __all__ = [
     "materialize_to_json",
     "read_events",
     "read_events_raw",
+    "read_wp_frontmatter",
     "reduce",
     "resolve_lane_alias",
     "validate_derived_views",
@@ -113,5 +136,6 @@ __all__ = [
     "validate_materialization_drift",
     "validate_transition",
     "validate_transition_legality",
+    "wp_state_for",
     "write_derived_views",
 ]

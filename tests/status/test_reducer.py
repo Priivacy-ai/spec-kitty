@@ -19,6 +19,7 @@ from specify_cli.status.store import append_event
 
 pytestmark = pytest.mark.fast
 
+
 def _make_event(
     *,
     event_id: str = "01HXYZ0000000000000000000A",
@@ -59,16 +60,7 @@ class TestReduceEmpty:
         assert snapshot.event_count == 0
         assert snapshot.last_event_id is None
         assert snapshot.work_packages == {}
-        assert snapshot.summary == {
-            "planned": 0,
-            "claimed": 0,
-            "in_progress": 0,
-            "for_review": 0,
-            "approved": 0,
-            "done": 0,
-            "blocked": 0,
-            "canceled": 0,
-        }
+        assert snapshot.summary == {lane.value: 0 for lane in Lane}
 
 
 class TestReduceSingleEvent:
@@ -340,6 +332,8 @@ class TestByteIdenticalOutput:
                 "claimed": 0,
                 "in_progress": 1,
                 "for_review": 0,
+                "in_review": 0,
+                "approved": 0,
                 "done": 0,
                 "blocked": 0,
                 "canceled": 0,
@@ -370,9 +364,7 @@ class TestByteIdenticalOutput:
         ]
 
         fixed_time = "2026-02-08T15:00:00+00:00"
-        with patch(
-            "specify_cli.status.reducer._now_utc", return_value=fixed_time
-        ):
+        with patch("specify_cli.status.reducer._now_utc", return_value=fixed_time):
             snapshot_a = reduce(events)
             snapshot_b = reduce(events)
 

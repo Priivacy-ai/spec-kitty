@@ -239,3 +239,45 @@ agent:
     task = lanes["planned"][0]
     assert task["agent"] == "codex"
     assert task["model"] == "gpt-5.4"
+
+
+# ── NFR-006: Dashboard kanban bucketing identity ───────────────────────────
+
+
+@pytest.mark.fast
+def test_display_category_matches_kanban_columns():
+    """All lanes produce the expected dashboard kanban column labels (NFR-006).
+
+    Verifies that WPState.display_category() returns the correct label for
+    every canonical lane, ensuring the dashboard kanban bucketing is
+    consistent with the WPState model.
+    """
+    from specify_cli.status import wp_state_for
+
+    expected_mapping = {
+        "planned": "Planned",
+        "claimed": "In Progress",
+        "in_progress": "In Progress",
+        "for_review": "Review",
+        "in_review": "In Progress",
+        "approved": "Approved",
+        "done": "Done",
+        "blocked": "Blocked",
+        "canceled": "Canceled",
+    }
+    for lane, expected_label in expected_mapping.items():
+        state = wp_state_for(lane)
+        assert state.display_category() == expected_label, (
+            f"Lane {lane}: expected {expected_label!r}, got {state.display_category()!r}"
+        )
+
+
+@pytest.mark.fast
+def test_kanban_column_map_covers_all_lanes():
+    """_KANBAN_COLUMN_FOR_LANE covers every Lane enum member (NFR-006)."""
+    from specify_cli.dashboard.scanner import _KANBAN_COLUMN_FOR_LANE
+
+    for member in Lane:
+        assert member in _KANBAN_COLUMN_FOR_LANE, (
+            f"Lane.{member.name} missing from _KANBAN_COLUMN_FOR_LANE"
+        )

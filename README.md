@@ -223,18 +223,26 @@ stateDiagram-v2
     planned --> claimed
     claimed --> in_progress
     in_progress --> for_review
-    for_review --> done
-    for_review --> in_progress: changes requested
-    for_review --> planned: replan
+    in_progress --> approved: direct approval
+    for_review --> in_review: reviewer claims
+    in_review --> approved: approved
+    in_review --> done: approved + done
+    in_review --> in_progress: changes requested
+    in_review --> planned: replan
+    approved --> done
     planned --> blocked
     claimed --> blocked
     in_progress --> blocked
     for_review --> blocked
+    in_review --> blocked
+    approved --> blocked
     blocked --> in_progress
     planned --> canceled
     claimed --> canceled
     in_progress --> canceled
     for_review --> canceled
+    in_review --> canceled
+    approved --> canceled
     blocked --> canceled
 ```
 

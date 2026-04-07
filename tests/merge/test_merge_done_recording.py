@@ -14,12 +14,7 @@ pytestmark = pytest.mark.fast
 def _write_wp(path: Path, *, review_status: str = "", reviewed_by: str = "") -> None:
     """Write a minimal WP file. Lane is tracked via event log, not frontmatter."""
     path.write_text(
-        "---\n"
-        'work_package_id: "WP01"\n'
-        f'review_status: "{review_status}"\n'
-        f'reviewed_by: "{reviewed_by}"\n'
-        "---\n"
-        "# WP01\n",
+        f'---\nwork_package_id: "WP01"\ntitle: "Test WP"\ndependencies: []\nreview_status: "{review_status}"\nreviewed_by: "{reviewed_by}"\n---\n# WP01\n',
         encoding="utf-8",
     )
 
@@ -49,9 +44,7 @@ def test_mark_wp_merged_done_emits_done_transition(tmp_path: Path, monkeypatch) 
     assert kwargs["evidence"]["review"]["reviewer"] == "reviewer-1"
 
 
-def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_evidence(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_evidence(tmp_path: Path, monkeypatch) -> None:
     """WPs in approved lane without review_status/reviewed_by should still transition to done."""
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"
@@ -76,9 +69,7 @@ def test_mark_wp_merged_done_approved_without_review_metadata_synthesizes_eviden
     assert kwargs["evidence"]["review"]["reference"] == "lane-approved:WP01"
 
 
-def test_mark_wp_merged_done_for_review_without_metadata_skips(
-    tmp_path: Path, monkeypatch
-) -> None:
+def test_mark_wp_merged_done_for_review_without_metadata_skips(tmp_path: Path, monkeypatch) -> None:
     """WPs in for_review lane without approval metadata should NOT transition to done."""
     repo_root = tmp_path
     feature_dir = repo_root / "kitty-specs" / "021-test"

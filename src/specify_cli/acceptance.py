@@ -434,8 +434,6 @@ def collect_feature_summary(
     metadata_issues: List[str] = []
     activity_issues: List[str] = []
 
-    use_legacy = is_legacy_format(feature_dir)
-
     # ── Canonical state validation via reducer-only snapshot ──────────────
     events_path = feature_dir / EVENTS_FILENAME
     if not events_path.exists():

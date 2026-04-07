@@ -800,6 +800,5 @@ class TestTransitionMatrixParity:
         """Terminal lanes (done, canceled) have no outbound transitions in the matrix."""
         from specify_cli.status.transitions import TERMINAL_LANES
 
-
         for from_lane, to_lane in ALLOWED_TRANSITIONS:
             assert from_lane not in TERMINAL_LANES, f"Terminal lane {from_lane} has outbound transition to {to_lane}"

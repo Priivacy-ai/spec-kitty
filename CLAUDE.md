@@ -567,17 +567,17 @@ Each line in `status.events.jsonl` is a JSON object with sorted keys:
 | `emit_status_transition()` | `status.emit` | Single entry point for all state changes (validate -> persist -> materialize -> views -> SaaS) |
 | `reduce()` | `status.reducer` | Deterministic reducer: same events always produce same snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
-| `validate_transition()` | `status.transitions` | Check (from, to) against 16-pair matrix + guard conditions |
+| `validate_transition()` | `status.transitions` | Check (from, to) against transition matrix + guard conditions |
 | `resolve_phase()` | `status.phase` | Phase resolution: meta.json > config.yaml > default(1) |
 | `resolve_lane_alias()` | `status.transitions` | Resolve `doing` -> `in_progress` at input boundaries |
 
-### 7-Lane State Machine
+### 9-Lane State Machine
 
 ```
-planned -> claimed -> in_progress -> for_review -> done
+planned -> claimed -> in_progress -> for_review -> in_review -> approved -> done
 ```
 
-Plus: `blocked` (reachable from planned/claimed/in_progress/for_review), `canceled` (reachable from all non-done lanes).
+Plus: `blocked` (reachable from planned/claimed/in_progress/for_review/in_review/approved), `canceled` (reachable from all non-terminal lanes).
 
 Alias: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events).
 
@@ -662,7 +662,7 @@ spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
 **What You Get:**
-- Kanban board (planned/doing/for_review/done lanes)
+- Kanban board (planned/claimed/in_progress/for_review/in_review/approved/done/blocked/canceled lanes)
 - Progress bar (█████░░░) with percentage
 - Summary metrics panel
 

@@ -11,8 +11,27 @@ from typing import Any, Dict, List, Optional
 
 from specify_cli.dashboard.charter_path import resolve_project_charter_path
 from specify_cli.legacy_detector import is_legacy_format
+from specify_cli.status import wp_state_for
+from specify_cli.status.models import Lane
 from specify_cli.template import parse_frontmatter
 from specify_cli.text_sanitization import sanitize_file
+
+
+# Dashboard kanban column mapping, driven by WPState.lane (Lane enum).
+# The dashboard renders 5 fixed columns; all 9 canonical lanes must map
+# into one of them.  ``approved`` gets its own column because the dashboard
+# distinguishes it from ``for_review`` (both have display_category "Review").
+_KANBAN_COLUMN_FOR_LANE: dict[Lane, str] = {
+    Lane.PLANNED: "planned",
+    Lane.CLAIMED: "planned",
+    Lane.IN_PROGRESS: "doing",
+    Lane.FOR_REVIEW: "for_review",
+    Lane.IN_REVIEW: "for_review",
+    Lane.APPROVED: "approved",
+    Lane.DONE: "done",
+    Lane.BLOCKED: "planned",
+    Lane.CANCELED: "done",
+}
 
 logger = logging.getLogger(__name__)
 
@@ -275,7 +294,6 @@ def resolve_feature_dir(project_dir: Path, feature_id: str) -> Optional[Path]:
 
 def resolve_active_feature(
     project_dir: Path,
-    features: Optional[List[Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Return None — active feature cannot be auto-detected; requires explicit --mission.
 
@@ -292,6 +310,9 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
     Raises ``CanonicalStatusNotFoundError`` when the event log is absent.
     WPs not present in the event log are counted as ``"planned"``
     (mapped from ``"uninitialized"``).
+
+    Lane-to-column mapping is driven by :meth:`WPState.display_category`
+    via :data:`_KANBAN_COLUMN_MAP`.
     """
     counts = {"planned": 0, "doing": 0, "for_review": 0, "approved": 0, "done": 0}
 
@@ -311,13 +332,14 @@ def _count_wps_by_lane(tasks_dir: Path) -> Dict[str, int]:
 
         lane = event_lanes.get(wp_id, "uninitialized")
 
-        # Map display aliases
-        if lane in ("claimed", "uninitialized"):
+        # Resolve via WPState — "uninitialized" is not a valid lane, so map
+        # it to "planned" before querying the state object.
+        if lane == "uninitialized":
             lane = "planned"
-        elif lane == "in_progress":
-            lane = "doing"
-        if lane in counts:
-            counts[lane] += 1
+        state = wp_state_for(lane)
+        column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
+        if column in counts:
+            counts[column] += 1
 
     return counts
 
@@ -574,14 +596,10 @@ def scan_feature_kanban(project_dir: Path, feature_id: str) -> Dict[str, List[Di
             try:
                 task_data = _process_wp_file(prompt_file, project_dir, "planned")
                 if task_data is not None:
-                    lane = task_data.get("lane", "planned")
-                    if lane == "claimed":
-                        lane = "planned"
-                    elif lane == "in_progress":
-                        lane = "doing"
-                    if lane not in lanes:
-                        lane = "planned"
-                    lanes[lane].append(task_data)
+                    raw_lane = task_data.get("lane", "planned")
+                    state = wp_state_for(raw_lane)
+                    column = _KANBAN_COLUMN_FOR_LANE.get(state.lane, "planned")
+                    lanes[column].append(task_data)
             except CanonicalStatusNotFoundError:
                 logger.warning(
                     "No event log for feature '%s' — cannot render kanban",

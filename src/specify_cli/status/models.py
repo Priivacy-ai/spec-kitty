@@ -1,6 +1,6 @@
 """Canonical status models for spec-kitty work package lifecycle.
 
-Defines the 8-lane state machine data types: Lane enum, StatusEvent,
+Defines the 9-lane state machine data types: Lane enum, StatusEvent,
 DoneEvidence (with ReviewApproval, RepoEvidence, VerificationResult),
 and StatusSnapshot.
 """
@@ -12,18 +12,38 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any, ClassVar
 
+from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+
 
 class Lane(StrEnum):
-    """8-lane canonical work package lifecycle states."""
+    """9-lane canonical work package lifecycle states."""
 
     PLANNED = "planned"
     CLAIMED = "claimed"
     IN_PROGRESS = "in_progress"
     FOR_REVIEW = "for_review"
+    IN_REVIEW = "in_review"
     APPROVED = "approved"
     DONE = "done"
     BLOCKED = "blocked"
     CANCELED = "canceled"
+
+
+def get_all_lanes() -> tuple[Lane, ...]:
+    """Return all Lane enum members as a tuple.
+
+    Use this instead of hardcoding lane lists or counts.
+    Tests and production code should derive lane-dependent values from this.
+    """
+    return tuple(Lane)
+
+
+def get_all_lane_values() -> frozenset[str]:
+    """Return all canonical lane string values as a frozenset.
+
+    Convenience for validators and mapping checks that operate on strings.
+    """
+    return frozenset(lane.value for lane in Lane)
 
 
 ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")
@@ -132,6 +152,20 @@ class DoneEvidence:
 
 
 @dataclass(frozen=True)
+class ReviewResult:
+    """Structured review outcome required for all outbound in_review transitions.
+
+    Unifies the currently asymmetric approval (DoneEvidence.review: ReviewApproval)
+    and rejection (review_ref: str) recording paths into a single typed contract.
+    """
+
+    reviewer: str
+    verdict: str  # "approved" or "changes_requested"
+    reference: str  # Approval ref or feedback:// URI
+    feedback_path: str | None = None  # Resolved path to feedback file (rejection only)
+
+
+@dataclass(frozen=True)
 class StatusEvent:
     """Immutable record of a single lane transition.
 
@@ -171,7 +205,9 @@ class StatusEvent:
         return d
 
     # Legacy lane name aliases from older event log formats.
-    _LANE_ALIASES: ClassVar[dict[str, str]] = {"in_review": "for_review"}
+    # Note: "in_review" was formerly aliased to "for_review" but is now a
+    # first-class Lane member (promoted in mission 065 WP05).
+    _LANE_ALIASES: ClassVar[dict[str, str]] = {}
 
     @classmethod
     def _coerce_lane(cls, value: str) -> Lane:
@@ -182,7 +218,7 @@ class StatusEvent:
         evidence_data = data.get("evidence")
         return cls(
             event_id=data["event_id"],
-            mission_slug=data.get("mission_slug") or data.get("mission_slug", ""),
+            mission_slug=data.get("mission_slug") or data.get("feature_slug", ""),
             wp_id=data["wp_id"],
             from_lane=cls._coerce_lane(data["from_lane"]),
             to_lane=cls._coerce_lane(data["to_lane"]),
@@ -212,22 +248,24 @@ class StatusSnapshot:
     summary: dict[str, int]  # lane -> count
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "mission_slug": self.mission_slug,
-            "materialized_at": self.materialized_at,
-            "event_count": self.event_count,
-            "last_event_id": self.last_event_id,
-            "work_packages": self.work_packages,
-            "summary": self.summary,
-        }
+        return with_tracked_mission_slug_aliases(
+            {
+                "mission_slug": self.mission_slug,
+                "materialized_at": self.materialized_at,
+                "event_count": self.event_count,
+                "last_event_id": self.last_event_id,
+                "work_packages": self.work_packages,
+                "summary": self.summary,
+            }
+        )
 
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> StatusSnapshot:
-        mission_slug = data.get("mission_slug") or data.get("mission_slug")
-        if mission_slug is None:
+        feature_slug = data.get("mission_slug") or data.get("feature_slug")
+        if feature_slug is None:
             raise KeyError("mission_slug")
         return cls(
-            mission_slug=mission_slug,
+            mission_slug=feature_slug,
             materialized_at=data["materialized_at"],
             event_count=data["event_count"],
             last_event_id=data.get("last_event_id"),
