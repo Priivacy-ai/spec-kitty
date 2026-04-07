@@ -72,9 +72,11 @@ src/specify_cli/
 ├── next/
 │   ├── decision.py            # MODIFY: add DecisionKind.query, Decision.is_query field
 │   ├── runtime_bridge.py      # MODIFY: add query_current_state() function
-│   └── next_cmd.py (cli)      # MODIFY: result default None, query mode branch
+│   └── next_cmd.py (cli)      # MODIFY: result default None, query mode branch; _print_human() query branch
 ├── schemas/
 │   └── wps.schema.json        # NEW: published JSON Schema for wps.yaml
+├── upgrade/migrations/
+│   └── m_3_2_0_update_planning_templates.py  # NEW: push template changes to existing installations
 └── missions/software-dev/command-templates/
     ├── tasks-outline.md       # MODIFY: produce wps.yaml only (not tasks.md)
     └── tasks-packages.md      # MODIFY: read/update wps.yaml, generate WP files
@@ -114,11 +116,11 @@ tests/specify_cli/
 **Dependencies**: WP02 (needs wps_manifest module)
 **Key changes**: See `data-model.md` §finalize-tasks integration
 
-### WP04 — Update tasks-outline and tasks-packages templates (#525 prompts)
-**Scope**: Rewrite both command templates to produce/consume `wps.yaml` instead of `tasks.md` prose.
-**Files**: `missions/software-dev/command-templates/tasks-outline.md`, `missions/software-dev/command-templates/tasks-packages.md`
+### WP04 — Update tasks-outline and tasks-packages templates + migration (#525 prompts)
+**Scope**: Rewrite both command templates; write a new migration to push the update to existing installations.
+**Files**: `missions/software-dev/command-templates/tasks-outline.md`, `missions/software-dev/command-templates/tasks-packages.md`, `upgrade/migrations/m_3_2_0_update_planning_templates.py` (new)
 **Dependencies**: WP02 (schema must exist before templates reference it)
-**Key changes**: tasks-outline → output wps.yaml only; tasks-packages → update wps.yaml, still generate WP prompt files
+**Key changes**: tasks-outline → output wps.yaml only; tasks-packages → update wps.yaml, still generate WP prompt files. **Migration required**: `m_2_1_3_restore_prompt_commands` only activates for thin shims — existing full prompts are skipped. A new migration must detect content-stale prompt files (check for old "Create `tasks.md`" text) and overwrite them from the source templates using `get_agent_dirs_for_project()`.
 
 ### WP05 — Implement query mode for next (#526)
 **Scope**: Change `result` default to `None`; add `query_current_state()`; add `DecisionKind.query`.
@@ -137,17 +139,19 @@ tests/specify_cli/
 ## Dependency Graph
 
 ```
-WP01 ───────────────────────────────────────── (independent)
-WP02 ────────────────────────────────────────── (independent)
-           WP03 depends on WP02
-           WP04 depends on WP02
-WP05 ───────────────────────────────────────── (independent)
-WP06 ───────────────────────────────────────── (independent)
+WP01 ─────────────────────────────────────────────────── (no deps)
+WP02 ─────────────────────────────────────────────────── (no deps)
+           WP03 depends on WP02   (different files: mission.py)
+           WP04 depends on WP02   (different files: templates + migration)
+WP05 ─────────────────────────────────────────────────── (no deps)
+WP06 ─────────────────────────────────────────────────── (no deps)
 ```
 
-Parallel execution possible:
-- **Lane A**: WP01, WP05, WP06 (all independent of each other and of WP02/03/04)
-- **Lane B**: WP02 → WP03, WP04 (WP03 and WP04 may run in parallel after WP02)
+WP03 and WP04 are independent of each other — they share only the WP02 dependency and touch entirely different files. They must be in separate lanes:
+
+- **Lane A**: WP01, WP05, WP06 (no inter-dependencies)
+- **Lane B**: WP02 → WP03
+- **Lane C**: WP02 → WP04
 
 ---
 
@@ -176,9 +180,16 @@ Parallel execution possible:
 - `test_finalize_tasks_regenerates_tasks_md`: after finalize, tasks.md content matches manifest
 - `test_finalize_tasks_legacy_fallback`: no wps.yaml → prose parser used, behavior unchanged
 
+**WP04** (additional):
+- `test_migration_detects_stale_tasks_outline`: file with `"Create \`tasks.md\`"` → `detect()` returns True
+- `test_migration_skips_fresh_tasks_outline`: file with new wps.yaml instructions → `detect()` returns False
+- `test_migration_apply_overwrites_stale`: apply() on stale file → new template content written
+- `test_migration_respects_agent_config`: unconfigured agent dirs skipped
+
 **WP05**:
 - `test_query_mode_does_not_advance`: state counter identical before/after bare call
-- `test_query_mode_output_has_label`: output contains `[QUERY — no result provided, state not advanced]`
+- `test_query_mode_output_begins_with_label`: stdout first line is `[QUERY — no result provided, state not advanced]`
+- `test_query_mode_output_shows_step`: stdout includes current step identifier
 - `test_result_success_still_advances`: `--result success` retains advancing behavior
 - `test_query_mode_json_output`: JSON output includes `"is_query": true`
 

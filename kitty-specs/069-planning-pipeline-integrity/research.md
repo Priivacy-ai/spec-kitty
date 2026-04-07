@@ -85,7 +85,7 @@ New 3-tier resolution in `finalize-tasks`:
 - Currently reads `tasks.md` and generates WP prompt files
 - **Change**: read from `wps.yaml`; update `wps.yaml` with per-WP fields (owned_files, requirement_refs, subtasks, prompt_file); still generate WP prompt files
 
-Template changes propagate to all 12 agent directories via `spec-kitty upgrade` migrations — no new migration needed, as both template files are sourced from `command-templates/` and copied by the existing migration chain.
+**A new migration is required.** `m_2_1_3_restore_prompt_commands` uses `_is_thin_shim()` as its activation gate — it skips files that are already full prompts (≥ 10 non-empty lines without the shim marker). Existing installations have full prompt files and will be skipped. Migration `m_3_2_0_update_planning_templates.py` must detect content-stale full prompts by checking for the string `"Create \`tasks.md\`"` (present in the old tasks-outline, absent in the new version) and overwrite them from the updated source templates.
 
 ---
 
@@ -141,7 +141,7 @@ This accepts:
 - `user-auth` ✓ (letter-prefixed, existing valid slugs unaffected)
 - `UPPER` ✗ (still rejected — uppercase)
 - `_under` ✗ (still rejected — underscore)
-- `123` ✓ (technically accepted, harmless — `create` will prefix the mission number anyway)
+- `123` ✓ (technically accepted, harmless — `create` always prefixes the mission number, so a bare-digit slug becomes `069-123`; worth a comment in the code documenting the intentional permissiveness)
 
 Error message at lines 202–211: remove the "starts with number" invalid example; add `068-fix-name` as a valid example.
 
