@@ -438,3 +438,7 @@ Covered in T032. Add one additional check in the query mode JSON test verifying 
 - Confirm the em dash in `[QUERY — no result provided, state not advanced]` is U+2014 (em dash), not two hyphens or en dash. Copy from this document.
 - Confirm `query_current_state()` does not emit a `MissionNextInvoked` event (the event emit block in `next_cmd.py` must not be reached in query mode — it is after the `return` statement).
 - Confirm `--answer` flows still work (T029's query branch correctly forwards `answered_id`).
+
+## Activity Log
+
+- 2026-04-07T11:57:38Z – unknown – shell_pid=9875 – T027-T034 complete: DecisionKind.query, query_current_state(), result=None default, _print_human() SC-003 label, tests
