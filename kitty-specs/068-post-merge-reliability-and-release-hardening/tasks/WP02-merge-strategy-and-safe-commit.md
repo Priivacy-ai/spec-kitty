@@ -23,6 +23,7 @@ subtasks:
 - T012
 - T013
 - T014
+shell_pid: '63539'
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
