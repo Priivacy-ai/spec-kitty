@@ -442,11 +442,11 @@ class TestGenerateTasksMd:
 
 ## Definition of Done
 
-- [ ] `src/specify_cli/core/wps_manifest.py` exists with all 4 public symbols exported: `WorkPackageEntry`, `WpsManifest`, `load_wps_manifest`, `dependencies_are_explicit`, `generate_tasks_md_from_manifest`
-- [ ] `src/specify_cli/schemas/wps.schema.json` exists and validates as JSON Schema Draft 2020-12
-- [ ] `tests/core/test_wps_manifest.py` passes with pytest
-- [ ] `mypy --strict src/specify_cli/core/wps_manifest.py` passes
-- [ ] `load_wps_manifest(absent_dir)` returns `None` in < 10ms (NFR-003)
+- [x] `src/specify_cli/core/wps_manifest.py` exists with all 4 public symbols exported: `WorkPackageEntry`, `WpsManifest`, `load_wps_manifest`, `dependencies_are_explicit`, `generate_tasks_md_from_manifest`
+- [x] `src/specify_cli/schemas/wps.schema.json` exists and validates as JSON Schema Draft 2020-12
+- [x] `tests/core/test_wps_manifest.py` passes with pytest
+- [x] `mypy --strict src/specify_cli/core/wps_manifest.py` passes
+- [x] `load_wps_manifest(absent_dir)` returns `None` in < 10ms (NFR-003)
 
 ## Reviewer Guidance
 
