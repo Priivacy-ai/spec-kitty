@@ -79,6 +79,9 @@ Documentation = "https://docs.spec-kitty.ai/"
 Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
+safe-re = [
+    "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention); platform-specific wheels
+]
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests

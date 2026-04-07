@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
-import re
+from kernel._safe_re import re
 import shutil
 from datetime import datetime, UTC
 from importlib.resources import files

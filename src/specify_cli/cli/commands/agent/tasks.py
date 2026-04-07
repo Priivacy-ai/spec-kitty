@@ -5,7 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import logging
-import re
+from kernel._safe_re import re
 import subprocess
 import traceback
 from datetime import datetime, UTC
