@@ -9,7 +9,8 @@ planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T022, T023, T024, T025, T026]
-shell_pid: '16944'
+shell_pid: "17254"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - date: '2026-04-07'
   event: created
@@ -427,3 +428,4 @@ class TestApply:
 ## Activity Log
 
 - 2026-04-07T12:09:57Z – unknown – shell_pid=16944 – T022-T026: templates rewritten for wps.yaml, migration m_3_2_0 with detect/apply/tests (16 tests, all passing)
+- 2026-04-07T12:10:19Z – claude:sonnet:reviewer:reviewer – shell_pid=17254 – Started review via action command
