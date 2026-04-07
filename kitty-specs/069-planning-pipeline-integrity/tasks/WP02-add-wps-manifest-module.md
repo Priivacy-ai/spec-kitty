@@ -10,7 +10,7 @@ requirement_refs:
 - NFR-003
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Plan and merge on main; execution worktree allocated by finalize-tasks lane computation.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks: [T007, T008, T009, T010, T011, T012, T013, T014]
 history:
 - date: '2026-04-07'
