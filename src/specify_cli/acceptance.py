@@ -25,6 +25,7 @@ from .tasks_support import (
     run_git,
     split_frontmatter,
 )
+from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
 from specify_cli.mission_metadata import load_meta, record_acceptance, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
@@ -489,7 +490,7 @@ def collect_feature_summary(
         if strict_metadata:
             if not wp.agent:
                 metadata_issues.append(f"{wp_id}: missing agent in frontmatter")
-            if canonical_lane in {"doing", "in_progress", "for_review"} and not wp.assignee:
+            if canonical_lane in {"doing", Lane.IN_PROGRESS, Lane.FOR_REVIEW} and not wp.assignee:
                 metadata_issues.append(f"{wp_id}: missing assignee in frontmatter")
             if not wp.shell_pid:
                 metadata_issues.append(f"{wp_id}: missing shell_pid in frontmatter")
@@ -513,7 +514,7 @@ def collect_feature_summary(
             wp_snapshot = snapshot_wps.get(wp_id)
             if wp_snapshot is None:
                 activity_issues.append(f"{wp_id}: no canonical state found in status.events.jsonl")
-            elif wp_snapshot.get("lane") not in {"approved", "done"}:
+            elif wp_snapshot.get("lane") not in {Lane.APPROVED, Lane.DONE}:
                 activity_issues.append(f"{wp_id}: canonical lane is '{wp_snapshot.get('lane')}', expected 'approved' or 'done'")
 
     unchecked_tasks = _find_unchecked_tasks(feature_dir / "tasks.md")

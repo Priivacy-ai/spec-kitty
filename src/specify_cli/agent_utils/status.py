@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.status.models import Lane
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
@@ -79,7 +80,7 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         snapshot = reduce(events)
         # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
         event_log_lanes: dict[str, str] = {
-            wp_id: str(state.get("lane", "planned"))
+            wp_id: Lane(state.get("lane", Lane.PLANNED))
             for wp_id, state in snapshot.work_packages.items()
         }
 

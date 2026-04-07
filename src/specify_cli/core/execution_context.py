@@ -13,6 +13,7 @@ from typing import Literal, Mapping, cast, get_args
 
 from specify_cli.core.dependency_graph import parse_wp_dependencies
 from specify_cli.core.paths import get_feature_target_branch, require_explicit_feature
+from specify_cli.status.models import Lane
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.tasks_support import extract_scalar, locate_work_package, split_frontmatter
 from specify_cli.workspace_context import resolve_workspace_for_wp
@@ -111,7 +112,7 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
         events = read_events(feature_dir)
         snapshot = reduce(events)
         event_log_lanes: dict[str, str] = {
-            wp_id_: resolve_lane_alias(str(state.get("lane", "planned")))
+            wp_id_: resolve_lane_alias(str(state.get("lane", Lane.PLANNED)))
             for wp_id_, state in snapshot.work_packages.items()
         }
     except Exception:
@@ -137,14 +138,14 @@ def _resolve_wp_id(
         return explicit_wp_id.upper().split("-", 1)[0]
 
     if action == "implement":
-        for lane in ("planned", "in_progress"):
+        for lane in (Lane.PLANNED, Lane.IN_PROGRESS):
             wp_id = _find_first_wp(feature_dir, lane)
             if wp_id:
                 return wp_id
         return None
 
     if action == "review":
-        for lane in ("for_review", "in_progress"):
+        for lane in (Lane.FOR_REVIEW, Lane.IN_PROGRESS):
             wp_id = _find_first_wp(feature_dir, lane)
             if wp_id:
                 return wp_id
@@ -206,7 +207,7 @@ def resolve_action_context(
         _ec_events = _ec_read_events(feature_dir)
         _ec_snapshot = _ec_reduce(_ec_events) if _ec_events else None
         _ec_state = _ec_snapshot.work_packages.get(normalized_wp_id) if _ec_snapshot else None
-        _ec_raw_lane = str(_ec_state.get("lane", "planned")) if _ec_state else "planned"
+        _ec_raw_lane = str(_ec_state.get("lane", Lane.PLANNED)) if _ec_state else Lane.PLANNED
     except Exception:
         _ec_raw_lane = "planned"
     lane = resolve_lane_alias(_ec_raw_lane)
