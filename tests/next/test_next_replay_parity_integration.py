@@ -18,7 +18,9 @@ def test_mission_next_replay_fixture_reduces_to_expected_state() -> None:
     reduced = reduce_mission_next_events(events)
 
     assert reduced.run_id == "replay-run-001"
-    assert reduced.mission_key == "replay-mission"
+    # mission_key (spec_kitty_events >=newer) or mission_type (older versions)
+    _mission = getattr(reduced, "mission_key", None) or getattr(reduced, "mission_type", None)
+    assert _mission == "replay-mission"
     assert reduced.run_status == MissionRunStatus.COMPLETED
     assert reduced.current_step_id is None
     assert reduced.completed_steps == ("step-setup-env", "step-configure-db")

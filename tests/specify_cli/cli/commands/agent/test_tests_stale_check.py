@@ -255,9 +255,13 @@ class TestAgentRegistration:
 
     def test_stale_check_help_reachable_from_agent(self) -> None:
         """spec-kitty agent tests stale-check --help must return help text."""
+        import re
         result = runner.invoke(agent_app, ["tests", "stale-check", "--help"])
         assert result.exit_code == 0, (
             f"Exit code {result.exit_code}:\n{result.output}"
         )
-        assert "--base" in result.output
-        assert "--json" in result.output
+        # Strip ANSI escape codes before checking option names — Rich may
+        # wrap individual characters in colour codes on some terminals.
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "--base" in plain
+        assert "--json" in plain
