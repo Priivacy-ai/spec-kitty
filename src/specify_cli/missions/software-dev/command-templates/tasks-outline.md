@@ -1,13 +1,16 @@
-# /spec-kitty.tasks-outline - Create Task Breakdown Document
+<!-- spec-kitty-command-version: 3.2.0 -->
+# /spec-kitty.tasks-outline - Create Work Package Manifest
 
-**Version**: 0.12.0+
+**Version**: 3.2.0
 
 ## Purpose
 
-Create `tasks.md` — the task breakdown document that defines work packages,
-subtask lists, dependency descriptions, and sizing estimates. This step
-produces the **outline only**; individual WP prompt files are generated in
-the next step.
+Create `wps.yaml` — the structured work package manifest that defines WP metadata,
+dependencies, and file ownership. `tasks.md` is generated automatically from this
+manifest by `finalize-tasks`.
+
+> ⚠️ DO NOT write `tasks.md`. The system generates it from `wps.yaml`. Writing
+> `tasks.md` manually will have it overwritten by `finalize-tasks`.
 
 ## ⚠️ CRITICAL: THIS IS THE MOST IMPORTANT PLANNING WORK
 
@@ -88,29 +91,94 @@ Group subtasks into work packages (IDs `WP01`, `WP02`, ...):
 - Ensure every subtask appears in exactly one work package
 - Name with succinct goal (e.g., "User Story 1 – Real-time chat happy path")
 - Record metadata: priority, success criteria, risks, dependencies, included subtasks, and requirement references
-- Every WP must include a `Requirement Refs` line listing IDs from `spec.md` (FR/NFR/C)
+- Every WP must include a `requirement_refs` list referencing IDs from `spec.md` (FR/NFR/C)
 
-### 5. Write `tasks.md`
+### 5. Write `wps.yaml`
 
-Write to `feature_dir/tasks.md` following the tasks template structure below (**do NOT write instructions to read a template file from `.kittify/`**):
-- Populate Work Package sections (setup, foundational, per-story, polish) with `WPxx` entries
-- Under each work package include:
-  - Summary (goal, priority, independent test)
-  - Requirement references (`Requirement Refs: FR-001, NFR-001, C-001`)
-  - Included subtasks (checkbox list referencing `Txxx`)
-  - Implementation sketch (high-level sequence)
-  - Parallel opportunities, dependencies, and risks
-  - **Estimated prompt size** (e.g., "~400 lines")
-- Add a `Requirements Coverage Summary` section mapping every requirement ID in `spec.md` to one or more WPs
-- Preserve the checklist style so implementers can mark progress
+Write to `feature_dir/wps.yaml` following the schema below. This is the **single
+authoritative source** for WP metadata in the planning pipeline.
+
+**Do NOT write `tasks.md` — it is generated automatically by `finalize-tasks` from `wps.yaml`.**
+
+**Schema**:
+
+```yaml
+work_packages:
+  - id: WP01
+    title: "Foundation Setup"
+    dependencies: []          # [] = explicitly no deps (authoritative)
+    owned_files:
+      - "src/myapp/core/**"
+    requirement_refs:
+      - FR-001
+      - FR-002
+    subtasks:
+      - T001
+      - T002
+      - T003
+    prompt_file: "tasks/WP01-foundation-setup.md"
+
+  - id: WP02
+    title: "API Layer"
+    dependencies:
+      - WP01
+    owned_files:
+      - "src/myapp/api/**"
+    requirement_refs:
+      - FR-003
+    subtasks:
+      - T004
+      - T005
+    prompt_file: "tasks/WP02-api-layer.md"
+
+  - id: WP03
+    title: "Frontend Integration"
+    dependencies:
+      - WP02
+    owned_files:
+      - "src/myapp/frontend/**"
+    requirement_refs:
+      - FR-004
+      - NFR-001
+    subtasks:
+      - T006
+      - T007
+      - T008
+    prompt_file: "tasks/WP03-frontend-integration.md"
+```
+
+**Field semantics**:
+- `id`: Work package identifier (`WP01`, `WP02`, …)
+- `title`: Short human-readable name
+- `dependencies`: List of WP IDs this WP depends on. `[]` = explicitly no deps (authoritative); if the key is **absent**, `tasks-packages` may fill it based on analysis.
+- `owned_files`: Glob patterns for files this WP touches — no two WPs may overlap.
+- `requirement_refs`: Requirement IDs from `spec.md` (FR/NFR/C) addressed by this WP.
+- `subtasks`: Ordered list of subtask IDs included in this WP.
+- `prompt_file`: Relative path (from `feature_dir`) to the WP prompt file — set by `tasks-packages` in the next step.
+
+**IMPORTANT**: Leave `prompt_file` as `null` or omit it — `tasks-packages` fills this field.
+
+### 6. Analyze Dependencies
+
+Analyze the spec and plan for dependency relationships. Express them in `wps.yaml`
+`dependencies` fields.
+
+**Do NOT include a Dependency Graph section in prose — it is not needed and cannot
+be parsed by `finalize-tasks`.**
+
+Rules:
+- A WP with no predecessors: `dependencies: []`
+- A WP that depends on another: `dependencies: [WP01]`
+- Phase grouping: Phase 2 WPs typically depend on Phase 1 WPs
 
 **DO NOT generate WP prompt files in this step.** That happens in the next step.
 
 ## Output
 
 After completing this step:
-- `feature_dir/tasks.md` exists with full work package definitions
-- Each WP has clear subtask lists, dependencies, and sizing estimates
+- `feature_dir/wps.yaml` exists with all work package definitions
+- Each WP has `id`, `title`, `dependencies`, `owned_files`, `requirement_refs`, `subtasks`
+- `prompt_file` fields are absent or `null` (filled by `tasks-packages`)
 - No WP prompt files have been created yet
 
 **Next step**: `spec-kitty next --agent <name>` will advance to work package generation.
@@ -132,14 +200,5 @@ After completing this step:
 - Combined would be <7 subtasks
 - Both address the same concern/component
 - No natural parallelization opportunity
-
-## Dependency Detection
-
-Analyze tasks.md for dependency relationships:
-- Explicit phrases: "Depends on WP##", "Dependencies: WP##"
-- Phase grouping: Phase 2 WPs typically depend on Phase 1
-- Default to empty if unclear
-
-Document dependencies clearly in each WP's section.
 
 Context for work-package planning: $ARGUMENTS

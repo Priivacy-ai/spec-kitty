@@ -138,12 +138,19 @@ def test_invalid_slug_raises(tmp_path: Path) -> None:
         create_mission_core(tmp_path, "Invalid_Slug")
 
 
-def test_slug_starting_with_number_raises(tmp_path: Path) -> None:
-    """Slug starting with a digit raises MissionCreationError."""
+def test_slug_starting_with_number_accepted(tmp_path: Path) -> None:
+    """Slug starting with a digit is now valid per FR-017 (e.g. '068-feature-name' convention)."""
     _init_git_repo(tmp_path)
 
-    with pytest.raises(MissionCreationError, match="Invalid feature slug"):
+    # Slug validation must pass; creation may succeed or fail for non-slug reasons,
+    # but must NOT raise MissionCreationError with "Invalid feature slug".
+    try:
         create_mission_core(tmp_path, "123-fix")
+    except MissionCreationError as exc:
+        assert "Invalid feature slug" not in str(exc), (
+            "Digit-prefixed slug '123-fix' must no longer be rejected for slug format. "
+            f"Got: {exc}"
+        )
 
 
 def test_uppercase_slug_raises(tmp_path: Path) -> None:
