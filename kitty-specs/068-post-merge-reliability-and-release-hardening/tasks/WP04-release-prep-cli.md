@@ -230,18 +230,18 @@ Tests are required by the spec (FR-013/014/015/015a, NFR-004, NFR-005). The zero
 
 ## Definition of Done
 
-- [ ] `src/specify_cli/release/` package exists with `version.py`, `changelog.py`, `payload.py`
-- [ ] `propose_version` implements all locked rules including stable→stable patch
-- [ ] `build_changelog_block` reads `kitty-specs/` and `git tag --list` only — no network
-- [ ] `build_release_prep_payload` returns a fully-populated `ReleasePrepPayload`
-- [ ] `agent/release.py` stub populated with the `prep` subcommand (text + JSON modes)
-- [ ] Stale "Deep implementation in WP05" comment removed/replaced
-- [ ] `agent/__init__.py` is NOT modified (the existing `release` registration still works)
-- [ ] All FR-013/014/015/015a tests pass
-- [ ] NFR-004 benchmark within 5s on synthetic 16-WP mission
-- [ ] Zero network calls (mocked)
+- [x] `src/specify_cli/release/` package exists with `version.py`, `changelog.py`, `payload.py`
+- [x] `propose_version` implements all locked rules including stable→stable patch
+- [x] `build_changelog_block` reads `kitty-specs/` and `git tag --list` only — no network
+- [x] `build_release_prep_payload` returns a fully-populated `ReleasePrepPayload`
+- [x] `agent/release.py` stub populated with the `prep` subcommand (text + JSON modes)
+- [x] Stale "Deep implementation in WP05" comment removed/replaced
+- [x] `agent/__init__.py` is NOT modified (the existing `release` registration still works)
+- [x] All FR-013/014/015/015a tests pass
+- [x] NFR-004 benchmark within 5s on synthetic 16-WP mission
+- [x] Zero network calls (mocked)
 - [ ] `mypy --strict` passes
-- [ ] `ruff` clean
+- [x] `ruff` clean
 - [ ] #457 closed with the FR-023 scope-cut comment listing automated vs manual steps
 
 ## Risks
