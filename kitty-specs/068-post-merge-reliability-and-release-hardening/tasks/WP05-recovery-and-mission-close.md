@@ -20,7 +20,8 @@ subtasks:
 - T026
 - T027
 - T028
-shell_pid: '42415'
+shell_pid: "63618"
+agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
   actor: claude
@@ -264,3 +265,4 @@ WP05 lands the mission close artifact. Once the ledger is committed and the issu
 
 - 2026-04-07T09:23:31Z – unknown – shell_pid=42415 – Claimed by claude orchestrator
 - 2026-04-07T09:36:24Z – unknown – shell_pid=42415 – Ready for review: recovery extension, --base flag, verification reports
+- 2026-04-07T09:37:53Z – claude:sonnet:reviewer:reviewer – shell_pid=63618 – Started review via action command
