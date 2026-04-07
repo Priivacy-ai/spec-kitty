@@ -36,14 +36,14 @@
 | T024 | Write `m_3_2_0_update_planning_templates.py` migration with detect + apply | WP04 | |
 | T025 | Migration unit tests: detect returns True/False correctly | WP04 | P |
 | T026 | Migration unit tests: apply overwrites stale files, respects agent config, is idempotent | WP04 | P |
-| T027 | Add `DecisionKind.query` constant and `is_query: bool = False` to `Decision` dataclass | WP05 | |
-| T028 | Implement `query_current_state()` in `runtime_bridge.py` — read state without advancing | WP05 | |
-| T029 | Change `result` default to `None` in `next_cmd.py`; add query mode branch | WP05 | |
-| T030 | Add explicit `is_query` branch to `_print_human()` — SC-003 verbatim label as first line | WP05 | |
-| T031 | Unit test: bare `spec-kitty next` does not advance state machine | WP05 | P |
-| T032 | Unit test: query output begins with `[QUERY — no result provided, state not advanced]` verbatim | WP05 | P |
-| T033 | Unit test: `--result success` still advances (no regression) | WP05 | P |
-| T034 | Unit test: JSON output includes `"is_query": true` | WP05 | P |
+| T027 | Add `DecisionKind.query` constant and `is_query: bool = False` to `Decision` dataclass | WP05 | | [D] |
+| T028 | Implement `query_current_state()` in `runtime_bridge.py` — read state without advancing | WP05 | | [D] |
+| T029 | Change `result` default to `None` in `next_cmd.py`; add query mode branch | WP05 | | [D] |
+| T030 | Add explicit `is_query` branch to `_print_human()` — SC-003 verbatim label as first line | WP05 | | [D] |
+| T031 | Unit test: bare `spec-kitty next` does not advance state machine | WP05 | P | [D] |
+| T032 | Unit test: query output begins with `[QUERY — no result provided, state not advanced]` verbatim | WP05 | P | [D] |
+| T033 | Unit test: `--result success` still advances (no regression) | WP05 | P | [D] |
+| T034 | Unit test: JSON output includes `"is_query": true` | WP05 | P | [D] |
 | T035 | Update `KEBAB_CASE_PATTERN` regex to accept digit-prefixed slugs | WP06 | | [D] |
 | T036 | Update error message — add valid digit-prefix example, remove invalid example, add comment | WP06 | | [D] |
 | T037 | Unit tests: digit-prefix slugs accepted; existing rejections unchanged | WP06 | P | [D] |
