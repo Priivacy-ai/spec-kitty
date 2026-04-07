@@ -184,7 +184,7 @@ class TestCheckUncheckedSubtasksHeaderDepth:
         repo_root = self._setup_feature(tmp_path, content)
         mock_main_root.return_value = repo_root
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", force=False)
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
         if expected_found:
             assert len(result) > 0, f"Header '{depth} WP01' should be detected, finding unchecked subtask"
         else:
@@ -199,7 +199,7 @@ class TestCheckUncheckedSubtasksHeaderDepth:
         repo_root = self._setup_feature(tmp_path, content)
         mock_main_root.return_value = repo_root
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", force=False)
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
         assert len(result) == 0, "WP01 section should have no unchecked (unchecked is in WP02)"
 
     @patch("specify_cli.cli.commands.agent.tasks.get_main_repo_root")
@@ -211,5 +211,5 @@ class TestCheckUncheckedSubtasksHeaderDepth:
         repo_root = self._setup_feature(tmp_path, content)
         mock_main_root.return_value = repo_root
 
-        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", force=False)
+        result = _check_unchecked_subtasks(repo_root, "060-test", "WP01", _force=False)
         assert len(result) == 0, "WP01 section should end at #### WP02 boundary"
