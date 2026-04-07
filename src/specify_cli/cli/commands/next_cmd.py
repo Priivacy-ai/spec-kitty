@@ -21,8 +21,15 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 def next_step(
     agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
     result: Annotated[
-        str, typer.Option("--result", help="Result of previous step: success|failed|blocked")
-    ] = "success",
+        str | None,
+        typer.Option(
+            "--result",
+            help=(
+                "Result of previous step: success|failed|blocked. "
+                "If omitted, returns current state without advancing (query mode)."
+            ),
+        ),
+    ] = None,
     feature: Annotated[str | None, typer.Option("--mission", "--mission-run", "--feature", help="Mission slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
@@ -43,11 +50,6 @@ def next_step(
         spec-kitty next --agent claude --answer "yes" --json
         spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
     """
-    # Validate --result
-    if result not in _VALID_RESULTS:
-        print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
-        raise typer.Exit(1)
-
     # Resolve repo root
     repo_root = locate_project_root()
     if repo_root is None:
@@ -60,6 +62,27 @@ def next_step(
     except ValueError as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
+
+    # Query mode: bare call without --result
+    if result is None:
+        from specify_cli.next.runtime_bridge import query_current_state
+        decision = query_current_state(agent, mission_slug, repo_root)
+        if json_output:
+            d = decision.to_dict()
+            if answer is not None:
+                d["answered"] = None
+                d["answer"] = answer
+            print(json.dumps(d, indent=2))
+        else:
+            if answer is not None:
+                print(f"  Answered decision: (no decision_id in query mode)")
+            _print_human(decision)
+        return   # No event emitted, no DAG advancement
+
+    # --result validation (only reached when result is not None)
+    if result not in _VALID_RESULTS:
+        print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
+        raise typer.Exit(1)
 
     # Handle --answer flow
     answered_id = None
@@ -165,6 +188,23 @@ def _handle_answer(
 
 def _print_human(decision) -> None:
     """Print a human-readable summary."""
+
+    # SC-003: query mode output must begin with the full verbatim label
+    if getattr(decision, "is_query", False):
+        print("[QUERY \u2014 no result provided, state not advanced]")
+        print(f"  Mission: {decision.mission} @ {decision.mission_state}")
+        if decision.progress:
+            p = decision.progress
+            total = p.get("total_wps", 0)
+            done = p.get("done_wps", 0)
+            if total > 0:
+                pct = int(p.get("weighted_percentage", 0))
+                print(f"  Progress: {pct}% ({done}/{total} done)")
+        if decision.run_id:
+            print(f"  Run ID: {decision.run_id}")
+        return
+
+    # --- Standard (non-query) output — unchanged below this line ---
     kind = decision.kind.upper()
     print(f"[{kind}] {decision.mission} @ {decision.mission_state}")
 

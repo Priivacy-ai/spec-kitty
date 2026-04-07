@@ -18,6 +18,8 @@ The status model uses a single canonical append-only event log per mission as th
 - `finalize-tasks` is the **canonical bootstrap point** -- it creates initial WP definitions; status transitions are tracked exclusively in the event log
 - Frontmatter `lane` is a **historical/migration-only** concept retained in migration code paths for backward compatibility
 
+**3.1.0 addition**: Read-only status commands (including `materialize()` and `spec-kitty agent status materialize`) no longer dirty the git working tree. `status.json` is only written when there is a new event to materialize. The `materialized_at` field in `status.json` reflects the timestamp of the last event in the log, not the wall clock at the time the command was run.
+
 ## CLI Commands
 
 All status commands live under `spec-kitty agent status`.
