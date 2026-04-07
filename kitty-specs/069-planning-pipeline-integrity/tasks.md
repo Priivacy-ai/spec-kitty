@@ -16,14 +16,14 @@
 | T004 | Unit tests: `reduce()` determinism — same events → same `materialized_at` | WP01 | P | [D] |
 | T005 | Unit tests: `materialize()` idempotency — two calls, one write | WP01 | P | [D] |
 | T006 | Integration test: clean git tree after read-only status commands | WP01 | P | [D] |
-| T007 | Define `WorkPackageEntry` and `WpsManifest` Pydantic models | WP02 | |
-| T008 | Implement `load_wps_manifest()` — ruamel.yaml loader with presence tracking | WP02 | |
-| T009 | Implement `dependencies_are_explicit()` helper — detect present-empty `[]` vs absent key | WP02 | |
-| T010 | Implement `generate_tasks_md_from_manifest()` — human-readable tasks.md generator | WP02 | |
-| T011 | Write `src/specify_cli/schemas/wps.schema.json` (JSON Schema Draft 2020-12) | WP02 | P |
-| T012 | Unit tests: load, absent returns None, malformed raises ValidationError with field name | WP02 | P |
-| T013 | Unit tests: `dependencies_are_explicit` for present-empty vs absent key | WP02 | P |
-| T014 | Unit tests: `generate_tasks_md_from_manifest` preserves WP titles, deps, subtask counts | WP02 | P |
+| T007 | Define `WorkPackageEntry` and `WpsManifest` Pydantic models | WP02 | | [D] |
+| T008 | Implement `load_wps_manifest()` — ruamel.yaml loader with presence tracking | WP02 | | [D] |
+| T009 | Implement `dependencies_are_explicit()` helper — detect present-empty `[]` vs absent key | WP02 | | [D] |
+| T010 | Implement `generate_tasks_md_from_manifest()` — human-readable tasks.md generator | WP02 | | [D] |
+| T011 | Write `src/specify_cli/schemas/wps.schema.json` (JSON Schema Draft 2020-12) | WP02 | P | [D] |
+| T012 | Unit tests: load, absent returns None, malformed raises ValidationError with field name | WP02 | P | [D] |
+| T013 | Unit tests: `dependencies_are_explicit` for present-empty vs absent key | WP02 | P | [D] |
+| T014 | Unit tests: `generate_tasks_md_from_manifest` preserves WP titles, deps, subtask counts | WP02 | P | [D] |
 | T015 | Add wps.yaml detection at top of `finalize_tasks()` — load manifest, build `wp_dependencies` | WP03 | |
 | T016 | Bypass prose parser when wps.yaml present (tier 0 takes precedence over tasks.md scanning) | WP03 | |
 | T017 | Add tasks.md regeneration step when wps.yaml present | WP03 | |
