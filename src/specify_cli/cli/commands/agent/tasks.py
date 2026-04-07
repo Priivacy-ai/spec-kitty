@@ -333,12 +333,12 @@ def _check_unchecked_subtasks(repo_root: Path, mission_slug: str, wp_id: str, _f
 
     for line in lines:
         # Check if we entered this WP's section
-        if re.search(rf"^#{{2,4}}(?!#).*{wp_id}\b", line):
+        if re.search(rf"^#{{2,4}}[^#].*{wp_id}\b", line):
             in_wp_section = True
             continue
 
         # Check if we entered a different WP section
-        if in_wp_section and re.search(r"^#{2,4}(?!#).*WP\d{2}\b", line):
+        if in_wp_section and re.search(r"^#{2,4}[^#].*WP\d{2}\b", line):
             break  # Left this WP's section
 
         # Look for unchecked tasks in this WP's section

@@ -77,19 +77,20 @@ def _write_event(feature_dir: Path, wp_id: str, from_lane: str, to_lane: str,
 def _make_six_wp_manifest(mission_slug: str) -> LanesManifest:
     """Build a LanesManifest with six placeholder WPs in a dependency chain.
 
-    WPa → WPb → WPc → WPd → WPe → WPf
-    Each WP lives in its own lane for simplicity.
+    WP01 → WP02 → WP03 → WP04 → WP05 → WP06
+    Each WP lives in its own lane.  Lane IDs use the canonical single-letter
+    format (lane-a … lane-f); WP IDs use the canonical numeric format (WP01 … WP06).
     """
     lanes = [
         ExecutionLane(
             lane_id=f"lane-{letter}",
-            wp_ids=(f"WP{letter.upper()}",),
+            wp_ids=(f"WP{idx + 1:02d}",),
             write_scope=("src/**",),
             predicted_surfaces=(),
             depends_on_lanes=(),
             parallel_group=idx,
         )
-        for idx, letter in enumerate(["a", "b", "c", "d", "e", "f"])
+        for idx, letter in enumerate("abcdef")
     ]
     return LanesManifest(
         version=1,
@@ -117,18 +118,18 @@ def _setup_six_wp_feature(repo: Path, mission_slug: str = "syn-six-wp") -> Path:
     tasks_dir = feature_dir / "tasks"
     tasks_dir.mkdir(exist_ok=True)
 
-    # WPa has no dependencies
-    (tasks_dir / "WPA-task.md").write_text("---\nwork_package_id: WPA\ndependencies: []\n---\n# WPA\n")
-    # WPb depends on WPa
-    (tasks_dir / "WPB-task.md").write_text("---\nwork_package_id: WPB\ndependencies: [WPA]\n---\n# WPB\n")
-    # WPc depends on WPb
-    (tasks_dir / "WPC-task.md").write_text("---\nwork_package_id: WPC\ndependencies: [WPB]\n---\n# WPC\n")
-    # WPd depends on WPc
-    (tasks_dir / "WPD-task.md").write_text("---\nwork_package_id: WPD\ndependencies: [WPC]\n---\n# WPD\n")
-    # WPe depends on WPd
-    (tasks_dir / "WPE-task.md").write_text("---\nwork_package_id: WPE\ndependencies: [WPD]\n---\n# WPE\n")
-    # WPf depends on WPe — this is the downstream WP
-    (tasks_dir / "WPF-task.md").write_text("---\nwork_package_id: WPF\ndependencies: [WPE]\n---\n# WPF\n")
+    # WP01 has no dependencies
+    (tasks_dir / "WP01-task.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01\n")
+    # WP02 depends on WP01
+    (tasks_dir / "WP02-task.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# WP02\n")
+    # WP03 depends on WP02
+    (tasks_dir / "WP03-task.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP02]\n---\n# WP03\n")
+    # WP04 depends on WP03
+    (tasks_dir / "WP04-task.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP03]\n---\n# WP04\n")
+    # WP05 depends on WP04
+    (tasks_dir / "WP05-task.md").write_text("---\nwork_package_id: WP05\ndependencies: [WP04]\n---\n# WP05\n")
+    # WP06 depends on WP05 — this is the downstream WP
+    (tasks_dir / "WP06-task.md").write_text("---\nwork_package_id: WP06\ndependencies: [WP05]\n---\n# WP06\n")
 
     (repo / ".kittify" / "workspaces").mkdir(parents=True, exist_ok=True)
 
@@ -168,7 +169,7 @@ class TestScanRecoveryStateMergedDeleted:
         feature_dir = _setup_six_wp_feature(repo, mission_slug)
 
         # Mark WPa..WPe as done in the event log (no live branches).
-        upstream_wps = ["WPA", "WPB", "WPC", "WPD", "WPE"]
+        upstream_wps = ["WP01", "WP02", "WP03", "WP04", "WP05"]
         _mark_wps_done_in_event_log(feature_dir, mission_slug, upstream_wps)
 
         # No lane branches exist (simulating post-merge-cleanup state).
@@ -176,8 +177,8 @@ class TestScanRecoveryStateMergedDeleted:
 
         ready = get_ready_to_start_from_target(states)
 
-        assert "WPF" in ready, (
-            "WPF should be in ready_to_start_from_target because all its deps (WPE) are done"
+        assert "WP06" in ready, (
+            "WP06 should be in ready_to_start_from_target because all its deps (WP05) are done"
         )
 
     def test_merged_deleted_wps_have_resolution_note(self, tmp_path: Path) -> None:
@@ -188,12 +189,12 @@ class TestScanRecoveryStateMergedDeleted:
 
         mission_slug = "syn-six-wp"
         feature_dir = _setup_six_wp_feature(repo, mission_slug)
-        _mark_wps_done_in_event_log(feature_dir, mission_slug, ["WPA"])
+        _mark_wps_done_in_event_log(feature_dir, mission_slug, ["WP01"])
 
         states = scan_recovery_state(repo, mission_slug, consult_status_events=True)
 
-        merged_states = [s for s in states if s.wp_id == "WPA"]
-        assert merged_states, "WPA should appear in states with resolution_note"
+        merged_states = [s for s in states if s.wp_id == "WP01"]
+        assert merged_states, "WP01 should appear in states with resolution_note"
         assert any(
             s.resolution_note == "merged_and_deleted" for s in merged_states
         ), f"Expected resolution_note='merged_and_deleted', got {[s.resolution_note for s in merged_states]}"
@@ -226,7 +227,7 @@ class TestScanRecoveryStateMergedDeleted:
         mission_slug = "syn-six-wp"
         feature_dir = _setup_six_wp_feature(repo, mission_slug)
 
-        # Create a mission branch + lane-a branch with a commit (no worktree).
+        # Create a mission branch + lane-01 branch with a commit (no worktree).
         mission_branch = f"kitty/mission-{mission_slug}"
         subprocess.run(
             ["git", "branch", mission_branch, "main"],
@@ -246,7 +247,7 @@ class TestScanRecoveryStateMergedDeleted:
         (tmp_wt / "feat.py").write_text("x = 1\n")
         subprocess.run(["git", "add", "."], cwd=str(tmp_wt), capture_output=True, check=True)
         subprocess.run(
-            ["git", "commit", "-m", "feat: wpa"],
+            ["git", "commit", "-m", "feat: wp01"],
             cwd=str(tmp_wt), capture_output=True, check=True,
         )
         subprocess.run(
@@ -255,8 +256,8 @@ class TestScanRecoveryStateMergedDeleted:
         )
 
         states_legacy = scan_recovery_state(repo, mission_slug, consult_status_events=False)
-        wpa_states = [s for s in states_legacy if s.wp_id == "WPA"]
-        assert wpa_states, "Legacy path should still detect orphaned lane-a branch for WPA"
+        wpa_states = [s for s in states_legacy if s.wp_id == "WP01"]
+        assert wpa_states, "Legacy path should still detect orphaned lane-01 branch for WP01"
         assert all(s.recovery_action == "recreate_worktree" for s in wpa_states)
 
 
@@ -281,15 +282,15 @@ class TestScenario7EndToEnd:
         # Step 2: simulate successful merge of WPa..WPe.
         # In a real merge, branches would be deleted after merge.
         # We only write done events to the event log — no live branches.
-        upstream_wps = ["WPA", "WPB", "WPC", "WPD", "WPE"]
+        upstream_wps = ["WP01", "WP02", "WP03", "WP04", "WP05"]
         _mark_wps_done_in_event_log(feature_dir, mission_slug, upstream_wps)
 
         # Step 3: run scan.
         states = scan_recovery_state(repo, mission_slug, consult_status_events=True)
         ready = get_ready_to_start_from_target(states)
 
-        assert "WPF" in ready, (
-            "WPF should be ready_to_start_from_target after all its deps are done"
+        assert "WP06" in ready, (
+            "WP06 should be ready_to_start_from_target after all its deps are done"
         )
 
         # Step 4: verify no manual .kittify/ edits were needed.
