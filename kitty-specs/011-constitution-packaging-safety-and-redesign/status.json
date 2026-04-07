@@ -1,8 +1,8 @@
 {
   "event_count": 6,
   "last_event_id": "01KJ5V38NVNSWGEKWK6RR64D4C",
-  "materialized_at": "2026-04-07T09:56:25.559485+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-01-12T12:30:00Z",
+  "mission_slug": "011-constitution-packaging-safety-and-redesign",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 6,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

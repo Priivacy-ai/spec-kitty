@@ -1,8 +1,8 @@
 {
   "event_count": 13,
   "last_event_id": "01KJPC54KR5XJMKVGAF70XSK2G",
-  "materialized_at": "2026-04-07T09:56:25.554624+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-03-02T04:15:58.584520+00:00",
+  "mission_slug": "047-mutmut-mutation-testing-ci",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 5,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

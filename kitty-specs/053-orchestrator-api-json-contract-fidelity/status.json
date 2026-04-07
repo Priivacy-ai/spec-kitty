@@ -1,8 +1,8 @@
 {
   "event_count": 14,
   "last_event_id": "01KM5N2TAMK1JD5JTCRMM9BNDM",
-  "materialized_at": "2026-04-07T09:56:25.551344+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-03-20T12:56:18.004216+00:00",
+  "mission_slug": "053-orchestrator-api-json-contract-fidelity",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 2,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

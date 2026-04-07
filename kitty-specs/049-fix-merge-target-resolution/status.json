@@ -1,8 +1,8 @@
 {
   "event_count": 9,
   "last_event_id": "01KKBT5ATFVXFNSGXGMX7KWZA8",
-  "materialized_at": "2026-04-07T09:56:25.571628+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-03-10T12:04:48.079345+00:00",
+  "mission_slug": "049-fix-merge-target-resolution",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 2,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

@@ -1,8 +1,8 @@
 {
   "event_count": 10,
   "last_event_id": "01KJ5V38N0KZKMA3XDHDR47Y69",
-  "materialized_at": "2026-04-07T09:56:25.572330+00:00",
-  "mission_slug": "",
+  "materialized_at": "2025-12-18T23:15:00Z",
+  "mission_slug": "008-unified-python-cli",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 7,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

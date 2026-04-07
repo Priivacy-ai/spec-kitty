@@ -1,8 +1,8 @@
 {
   "event_count": 14,
   "last_event_id": "01KN2376091Z51PV90Y7XRAQPC",
-  "materialized_at": "2026-04-07T09:56:25.565069+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-03-31T14:02:05.181939+00:00",
+  "mission_slug": "003-auto-protect-agent",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 5,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

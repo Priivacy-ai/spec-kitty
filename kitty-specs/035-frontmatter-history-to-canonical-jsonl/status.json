@@ -1,8 +1,8 @@
 {
   "event_count": 18,
   "last_event_id": "01KH0P68T8TDMGD0BVRTP34GVQ",
-  "materialized_at": "2026-04-07T09:56:25.539220+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-02-09T07:52:22.088122+00:00",
+  "mission_slug": "035-frontmatter-history-to-canonical-jsonl",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 6,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

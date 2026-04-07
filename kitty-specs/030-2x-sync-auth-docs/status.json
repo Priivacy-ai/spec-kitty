@@ -1,7 +1,7 @@
 {
   "event_count": 0,
   "last_event_id": null,
-  "materialized_at": "2026-04-07T09:56:25.544168+00:00",
+  "materialized_at": "",
   "mission_slug": "",
   "summary": {
     "approved": 0,
@@ -11,6 +11,7 @@
     "done": 0,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {}

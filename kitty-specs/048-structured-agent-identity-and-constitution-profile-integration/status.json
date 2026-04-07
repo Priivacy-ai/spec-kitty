@@ -1,8 +1,8 @@
 {
   "event_count": 17,
   "last_event_id": "01KK8M0KAWD3E3PDESQPC0GEQS",
-  "materialized_at": "2026-04-07T09:56:25.581747+00:00",
-  "mission_slug": "",
+  "materialized_at": "2026-03-09T06:19:38.204931+00:00",
+  "mission_slug": "048-structured-agent-identity-and-constitution-profile-integration",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 8,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {
