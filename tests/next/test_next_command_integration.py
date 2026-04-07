@@ -457,7 +457,7 @@ class TestNextCommandCLI:
         # First issue a step so runtime can complete it as blocked.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
         )
         assert first.exit_code == 0
 
@@ -478,7 +478,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -504,7 +504,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "999-nonexistent", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--feature", "999-nonexistent", "--json"],
         )
         # Feature detection may fail before decide_next, or decide_next returns blocked
         assert result.exit_code != 0 or "blocked" in result.output or "not found" in result.output.lower()
@@ -568,7 +568,7 @@ class TestNextCommandAnswerJSON:
         # First call creates a real pending decision.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--feature", "042-test-feature", "--json"],
         )
         assert first.exit_code == 0, first.output
         first_data = json.loads(first.output)
@@ -584,8 +584,6 @@ class TestNextCommandAnswerJSON:
                 "test",
                 "--feature",
                 "042-test-feature",
-                "--result",
-                "success",
                 "--answer",
                 "yes",
                 "--json",

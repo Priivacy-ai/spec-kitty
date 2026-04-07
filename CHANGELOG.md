@@ -9,6 +9,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-04-07
+
+### Added
+
+- **Planning pipeline integrity (mission 069)** — four structural fixes eliminating fragilities discovered during mission 068:
+  - **Dirty-git reads fix (WP01)** — `materialize()` now derives `materialized_at` from the last event timestamp (deterministic) and skips the write when content is byte-identical. `materialize_if_stale()` returns a read-only `reduce()` call. All read-only commands leave zero modified files in `git status`. Fixes #524.
+  - **Structured WP manifest — `wps.yaml` (WP02, WP03, WP04)** — new `src/specify_cli/core/wps_manifest.py` with Pydantic model, YAML loader, and `generate_tasks_md_from_manifest()`. JSON Schema at `src/specify_cli/schemas/wps.schema.json`. When `wps.yaml` is present, `finalize-tasks` derives dependencies exclusively from the manifest; `tasks.md` is regenerated as a derived artifact. `/spec-kitty.tasks-outline` and `/spec-kitty.tasks-packages` templates updated to produce/consume `wps.yaml`. Migration `m_3_2_0_update_planning_templates` propagates changes to existing installations. Fixes #525.
+  - **`spec-kitty next` query mode (WP05)** — bare `spec-kitty next` (no `--result`) enters query mode: returns current step with `[QUERY — no result provided, state not advanced]` prefix without advancing the state machine. Prevents ghost completions when agents call `next` while disoriented. Fixes #526.
+  - **Slug validator digit-prefix support (WP06)** — `KEBAB_CASE_PATTERN` updated to accept `NNN-*` slugs following spec-kitty's own naming convention. Fixes #527.
+
 ## [3.1.0a8] - 2026-04-07
 
 ### Added

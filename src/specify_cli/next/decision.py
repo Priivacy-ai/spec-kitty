@@ -36,7 +36,6 @@ class DecisionKind:
     decision_required = "decision_required"
     blocked = "blocked"
     terminal = "terminal"
-    query = "query"   # New: bare next call; state not advanced
 
 
 @dataclass
@@ -62,7 +61,6 @@ class Decision:
     input_key: str | None = None
     question: str | None = None
     options: list[str] | None = None
-    is_query: bool = False   # New: True when kind == DecisionKind.query
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -86,7 +84,6 @@ class Decision:
             "input_key": self.input_key,
             "question": self.question,
             "options": self.options,
-            "is_query": self.is_query,
         }
 
 
