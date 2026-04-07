@@ -210,3 +210,7 @@ Tests are required by the spec (FR-010 mandates the report; FR-011/FR-012 mandat
 ## Next steps after merge
 
 WP03 is verification-first and low-risk. Once it lands, #455 is permanently off the workflow-stabilization track.
+
+## Activity Log
+
+- 2026-04-07T09:23:28Z – unknown – shell_pid=42198 – Claimed by claude orchestrator
