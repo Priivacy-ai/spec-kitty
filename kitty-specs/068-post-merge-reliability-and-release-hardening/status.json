@@ -1,7 +1,7 @@
 {
-  "event_count": 27,
-  "last_event_id": "01KNKMT64A65ESY6C1WQ21ZAX6",
-  "materialized_at": "2026-04-07T09:37:06.548867+00:00",
+  "event_count": 29,
+  "last_event_id": "01KNKMV6A0ND73BR6RJBEJWR3M",
+  "materialized_at": "2026-04-07T09:37:12.000685+00:00",
   "mission_slug": "068-post-merge-reliability-and-release-hardening",
   "summary": {
     "approved": 3,
@@ -10,8 +10,8 @@
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 0,
-    "planned": 1
+    "in_progress": 1,
+    "planned": 0
   },
   "work_packages": {
     "WP01": {
@@ -22,11 +22,11 @@
       "last_transition_at": "2026-04-07T09:36:39.050944+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "user",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNKJZS3JJFQP2R3TJS3KRX3Y",
-      "last_transition_at": "2026-04-07T09:04:45.170548+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KNKMV6A0ND73BR6RJBEJWR3M",
+      "last_transition_at": "2026-04-07T09:37:12.000334+00:00"
     },
     "WP03": {
       "actor": "user",

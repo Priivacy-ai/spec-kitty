@@ -318,3 +318,7 @@ Tests are required by the spec. Use synthetic git fixtures (`tmp_path` + a fixtu
 ## Next steps after merge
 
 WP02 is the longest sequential chain. Once it lands, mission 068's two highest-impact code changes (FR-019 events fix + FR-005..FR-009 strategy wiring) are both shipped. The remaining WPs (WP03, WP04, WP05) can run in parallel lanes if they haven't already.
+
+## Activity Log
+
+- 2026-04-07T09:37:12Z – unknown – shell_pid=63539 – WP01 approved, starting WP02
