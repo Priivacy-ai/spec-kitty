@@ -66,7 +66,10 @@ def _read_current_version(repo_root: Path) -> str:
     pyproject_path = repo_root / "pyproject.toml"
     with pyproject_path.open("rb") as fh:
         data = tomllib.load(fh)
-    return data["project"]["version"]
+    version = data["project"]["version"]
+    if not isinstance(version, str):
+        raise TypeError(f"Expected version to be a string, got {type(version)!r}")
+    return version
 
 
 def build_release_prep_payload(
@@ -110,7 +113,7 @@ def build_release_prep_payload(
     }
 
     return ReleasePrepPayload(
-        channel=channel,  # type: ignore[arg-type]
+        channel=channel,
         current_version=current_version,
         proposed_version=proposed_version,
         changelog_block=changelog_block,

@@ -50,13 +50,16 @@ def _tag_commit_date(repo_root: Path, tag: str) -> str | None:
     return output if output else None
 
 
-def _read_meta_json(mission_dir: Path) -> dict:
+def _read_meta_json(mission_dir: Path) -> dict[str, object]:
     """Read and return the parsed meta.json for a mission directory, or {}."""
     meta_path = mission_dir / "meta.json"
     if not meta_path.exists():
         return {}
     try:
-        return json.loads(meta_path.read_text(encoding="utf-8"))
+        result = json.loads(meta_path.read_text(encoding="utf-8"))
+        if isinstance(result, dict):
+            return result
+        return {}
     except (json.JSONDecodeError, OSError):
         return {}
 
@@ -183,7 +186,7 @@ def build_changelog_block(
 
         # Filter by creation date if we have a reference date
         if since_date is not None:
-            created_at = meta.get("created_at", "")
+            created_at = str(meta.get("created_at", ""))
             if created_at and created_at <= since_date:
                 # Mission predates the tag; still include if it has WPs accepted
                 # after the tag date (best-effort: check any accepted WPs)
@@ -205,7 +208,7 @@ def build_changelog_block(
         if not accepted_wps:
             continue
 
-        friendly_name = meta.get("friendly_name", mission_slug)
+        friendly_name = str(meta.get("friendly_name", "")) or mission_slug
         spec_title = _read_spec_title(mission_dir)
         display_name = friendly_name or spec_title or mission_slug
 
