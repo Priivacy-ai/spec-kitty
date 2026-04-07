@@ -10,12 +10,12 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----|
-| T001 | Change `reduce()` to derive `materialized_at` from last event timestamp | WP01 | |
-| T002 | Add skip-write guard to `materialize()` — compare bytes, skip if identical | WP01 | |
-| T003 | Fix `materialize_if_stale()` return to call `reduce()` not `materialize()` | WP01 | |
-| T004 | Unit tests: `reduce()` determinism — same events → same `materialized_at` | WP01 | P |
-| T005 | Unit tests: `materialize()` idempotency — two calls, one write | WP01 | P |
-| T006 | Integration test: clean git tree after read-only status commands | WP01 | P |
+| T001 | Change `reduce()` to derive `materialized_at` from last event timestamp | WP01 | | [D] |
+| T002 | Add skip-write guard to `materialize()` — compare bytes, skip if identical | WP01 | | [D] |
+| T003 | Fix `materialize_if_stale()` return to call `reduce()` not `materialize()` | WP01 | | [D] |
+| T004 | Unit tests: `reduce()` determinism — same events → same `materialized_at` | WP01 | P | [D] |
+| T005 | Unit tests: `materialize()` idempotency — two calls, one write | WP01 | P | [D] |
+| T006 | Integration test: clean git tree after read-only status commands | WP01 | P | [D] |
 | T007 | Define `WorkPackageEntry` and `WpsManifest` Pydantic models | WP02 | |
 | T008 | Implement `load_wps_manifest()` — ruamel.yaml loader with presence tracking | WP02 | |
 | T009 | Implement `dependencies_are_explicit()` helper — detect present-empty `[]` vs absent key | WP02 | |
