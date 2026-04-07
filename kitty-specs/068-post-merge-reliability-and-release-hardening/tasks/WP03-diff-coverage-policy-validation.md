@@ -214,3 +214,4 @@ WP03 is verification-first and low-risk. Once it lands, #455 is permanently off 
 ## Activity Log
 
 - 2026-04-07T09:23:28Z – unknown – shell_pid=42198 – Claimed by claude orchestrator
+- 2026-04-07T09:29:21Z – unknown – shell_pid=42198 – Ready for review: diff-coverage policy validated and documented
