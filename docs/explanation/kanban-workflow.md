@@ -2,21 +2,21 @@
 
 Spec Kitty uses a kanban-style workflow to track work package progress. This document explains how lanes work, why we track status this way, and what happens when work moves between lanes.
 
-## The Eight Lanes
+## The Nine Lanes
 
-Work packages move through eight lanes during their lifecycle. Six lanes form the main progression, and two lanes handle exceptional states:
+Work packages move through nine lanes during their lifecycle. Seven lanes form the main progression, and two lanes handle exceptional states:
 
 ### Main progression
 
 ```
-planned -> claimed -> in_progress -> for_review -> approved -> done
+planned -> claimed -> in_progress -> for_review -> in_review -> approved -> done
 ```
 
 ### Exceptional states
 
 ```
-blocked    (reachable from planned, claimed, in_progress, for_review, approved)
-canceled   (reachable from planned, claimed, in_progress, for_review, approved, blocked)
+blocked    (reachable from planned, claimed, in_progress, for_review, in_review, approved)
+canceled   (reachable from planned, claimed, in_progress, for_review, in_review, approved, blocked)
 ```
 
 ### Lane definitions
@@ -74,9 +74,23 @@ canceled   (reachable from planned, claimed, in_progress, for_review, approved, 
 - Guard: requires completed subtasks and implementation evidence (or `--force`)
 
 **What happens**:
-- Review agent examines the implementation
-- Compares against spec and acceptance criteria
+- WP waits in the review queue
+- A reviewer claims it by transitioning `for_review -> in_review`
+- Can also be blocked (`-> blocked`) or canceled (`-> canceled`)
+
+#### in_review
+
+**Meaning**: A reviewer is actively examining this work package.
+
+**How it gets here**:
+- Reviewer claims WP from review queue: `for_review -> in_review`
+- Guard: requires actor identity (conflict detection prevents two reviewers claiming the same WP)
+
+**What happens**:
+- Reviewer examines the implementation against spec and acceptance criteria
+- All outbound transitions require a `ReviewResult` in the transition context
 - Either approves (`-> approved` or `-> done`) or requests changes (`-> in_progress` or `-> planned` with feedback)
+- Can also be blocked (`-> blocked`) or canceled (`-> canceled`)
 
 #### approved
 
@@ -110,7 +124,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, approved, 
 **Meaning**: Work package cannot proceed due to an external dependency or issue.
 
 **How it gets here**:
-- Any non-terminal lane can transition to `blocked` (planned, claimed, in_progress, for_review, approved)
+- Any non-terminal lane can transition to `blocked` (planned, claimed, in_progress, for_review, in_review, approved)
 
 **What happens**:
 - WP is parked until the blocker is resolved
@@ -122,40 +136,41 @@ canceled   (reachable from planned, claimed, in_progress, for_review, approved, 
 **Meaning**: Work package has been abandoned and will not be completed.
 
 **How it gets here**:
-- Any non-done lane can transition to `canceled` (planned, claimed, in_progress, for_review, approved, blocked)
+- Any non-done lane can transition to `canceled` (planned, claimed, in_progress, for_review, in_review, approved, blocked)
 
 **What happens**:
 - WP is removed from active work
 - `canceled` is a terminal lane (force required to leave)
 - Does not count toward feature completion
 
-## Allowed Transitions (24 pairs)
+## Allowed Transitions (27 pairs)
 
-The state machine enforces exactly 24 legal transitions. Any transition not in this list is rejected unless `--force` is used (which requires actor + reason for audit).
+The state machine enforces exactly 27 legal transitions. Any transition not in this list is rejected unless `--force` is used (which requires actor + reason for audit).
 
-### Forward progression (7)
+### Forward progression (8)
 
 | From | To | Guard |
 |------|----|-------|
 | planned | claimed | Actor identity required |
 | claimed | in_progress | Workspace context required |
 | in_progress | for_review | Subtasks complete + evidence (or force) |
+| for_review | in_review | Actor identity required (conflict detection) |
+| in_review | approved | ReviewResult required |
+| in_review | done | ReviewResult required |
 | in_progress | approved | Reviewer approval evidence |
-| for_review | approved | Reviewer approval evidence |
-| for_review | done | Reviewer approval evidence |
 | approved | done | Reviewer approval evidence |
 
 ### Rework / rollback (5)
 
 | From | To | Guard |
 |------|----|-------|
-| for_review | in_progress | Review reference required |
-| for_review | planned | Review reference required |
+| in_review | in_progress | ReviewResult required |
+| in_review | planned | ReviewResult required |
 | approved | in_progress | Review reference required |
 | approved | planned | Review reference required |
 | in_progress | planned | Reason required |
 
-### Blocking (6)
+### Blocking (7)
 
 | From | To | Guard |
 |------|----|-------|
@@ -163,10 +178,11 @@ The state machine enforces exactly 24 legal transitions. Any transition not in t
 | claimed | blocked | (none) |
 | in_progress | blocked | (none) |
 | for_review | blocked | (none) |
+| in_review | blocked | ReviewResult required |
 | approved | blocked | (none) |
 | blocked | in_progress | (none) |
 
-### Cancellation (6)
+### Cancellation (7)
 
 | From | To | Guard |
 |------|----|-------|
@@ -174,12 +190,13 @@ The state machine enforces exactly 24 legal transitions. Any transition not in t
 | claimed | canceled | (none) |
 | in_progress | canceled | (none) |
 | for_review | canceled | (none) |
+| in_review | canceled | ReviewResult required |
 | approved | canceled | (none) |
 | blocked | canceled | (none) |
 
 ### Force overrides
 
-Any transition not in the 24 allowed pairs can still be performed with `--force`, which requires both `actor` and `reason`. Force also bypasses guard conditions on allowed transitions. This is designed for administrative recovery, not normal workflow.
+Any transition not in the 27 allowed pairs can still be performed with `--force`, which requires both `actor` and `reason`. Force also bypasses guard conditions on allowed transitions. This is designed for administrative recovery, not normal workflow.
 
 ### Terminal lanes
 
@@ -187,7 +204,7 @@ Any transition not in the 24 allowed pairs can still be performed with `--force`
 
 ## How Work Moves Between Lanes
 
-### Normal Flow: planned -> claimed -> in_progress -> for_review -> approved -> done
+### Normal Flow: planned -> claimed -> in_progress -> for_review -> in_review -> approved -> done
 
 ```
 1. WP created by /spec-kitty.tasks
@@ -205,22 +222,28 @@ Any transition not in the 24 allowed pairs can still be performed with `--force`
    spec-kitty agent tasks move-task WP01 --to for_review
    lane: for_review
 
-5. Reviewer approves
+5. Reviewer claims WP for review
+   spec-kitty agent tasks move-task WP01 --to in_review --assignee reviewer
+   lane: in_review
+
+6. Reviewer approves
    spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
    lane: approved
 
-6. Reviewer marks done
+7. Reviewer marks done
    spec-kitty agent tasks move-task WP01 --to done
    lane: done
    (Once ALL WPs are done: /spec-kitty.accept validates entire feature)
 ```
 
-### Review Feedback: for_review -> planned (with feedback)
+### Review Feedback: in_review -> planned (with feedback)
 
 When review finds issues:
 
 ```
-1. WP in for_review, reviewer examines code
+1. WP in for_review, reviewer claims it
+   spec-kitty agent tasks move-task WP01 --to in_review --assignee reviewer
+   lane: in_review
 
 2. Reviewer finds problems
    /spec-kitty.review WP01
@@ -235,7 +258,7 @@ When review finds issues:
    Addresses issues
    lane: claimed -> in_progress -> for_review
 
-4. Reviewer re-reviews
+4. Reviewer re-reviews (claims again: for_review -> in_review)
    If good: lane: approved -> done
    If issues remain: repeat
 ```
@@ -352,21 +375,22 @@ The CLI status command displays a **5-column** kanban board:
 ```
 Feature: 012-user-authentication
 Kanban Board
-  Planned       Doing         For Review    Approved      Done
-  WP04-tests    WP03-front..  WP02-api      WP05-docs     WP01-database
+  Planned       Doing         For Review    In Review     Approved      Done
+  WP04-tests    WP03-front..  WP02-api      WP06-auth     WP05-docs     WP01-database
                 (stale: 15m)
 
-  1 WPs         1 WPs         1 WPs         1 WPs         1 WPs
-Progress: 1/5 (20.0%)
+  1 WPs         1 WPs         1 WPs         1 WPs         1 WPs         1 WPs
+Progress: 1/6 (16.7%)
 ```
 
-The display maps the 8 internal lanes to 5 board columns:
+The display maps the 9 internal lanes to 6 board columns:
 
 | Display Column | Internal Lane(s) |
 |----------------|------------------|
 | Planned | `planned` (claimed WPs are grouped here in the CLI view) |
 | Doing | `in_progress` (display name for the `in_progress` lane) |
 | For Review | `for_review` |
+| In Review | `in_review` (active review in progress) |
 | Approved | `approved` |
 | Done | `done` |
 
@@ -374,7 +398,7 @@ The display maps the 8 internal lanes to 5 board columns:
 
 ### Python API board (`agent_utils/status.py`)
 
-The Python API (`show_kanban_status()`) displays all 8 lanes as separate columns, giving full visibility into every state.
+The Python API (`show_kanban_status()`) displays all 9 lanes as separate columns, giving full visibility into every state.
 
 ## Who Moves Work?
 
@@ -397,24 +421,28 @@ spec-kitty agent tasks move-task WP01 --to for_review --note "Implementation com
 ### Reviewers Make Accept/Reject Decisions
 
 Reviewers are responsible for:
-- `for_review -> approved` - Approving work
-- `approved -> done` - Marking complete
-- `for_review -> done` - Approving and completing in one step
-- `for_review -> planned` - Requesting changes (adds feedback)
-- `for_review -> in_progress` - Requesting minor changes (keeps workspace)
+- `for_review -> in_review` - Claiming a WP for active review
+- `in_review -> approved` - Approving work (requires ReviewResult)
+- `in_review -> done` - Approving and completing in one step (requires ReviewResult)
+- `in_review -> planned` - Requesting changes with feedback (requires ReviewResult)
+- `in_review -> in_progress` - Requesting minor changes, keeps workspace (requires ReviewResult)
+- `approved -> done` - Marking an approved WP as complete
 
 Commands:
 ```bash
+# Claim a WP for review (for_review -> in_review)
+spec-kitty agent tasks move-task WP01 --to in_review --assignee reviewer
+
 # Review a WP (opens review workflow)
 /spec-kitty.review WP01
 
-# Approve
+# Approve (in_review -> approved)
 spec-kitty agent tasks move-task WP01 --to approved --approval-ref PR#42
 
 # Move WP to done after approval
 spec-kitty agent tasks move-task WP01 --to done
 
-# Request changes with feedback file
+# Request changes with feedback file (in_review -> planned)
 spec-kitty agent tasks move-task WP01 --to planned --review-feedback-file feedback.md
 
 # Once ALL WPs are done, validate entire feature
@@ -488,7 +516,7 @@ Multiple WPs in `in_progress` simultaneously. Different agents work in parallel.
 ### Review Feedback Loop
 
 ```
-planned -> claimed -> in_progress -> for_review -> planned -> claimed -> in_progress -> for_review -> approved -> done
+planned -> claimed -> in_progress -> for_review -> in_review -> planned -> claimed -> in_progress -> for_review -> in_review -> approved -> done
                                                        ^                                                           ^
                                                   (feedback)                                                  (approved)
 ```

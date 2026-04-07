@@ -16,6 +16,7 @@ from specify_cli.next.decision import (
     DecisionKind,
     _compute_wp_progress,
     _find_first_wp_by_lane,
+    _state_to_action,
     decide_next,
     derive_mission_state,
     evaluate_guards,
@@ -630,3 +631,141 @@ class TestDecisionQuestionOptions:
         d = decision.to_dict()
         assert d["question"] is None
         assert d["options"] is None
+
+
+# ---------------------------------------------------------------------------
+# in_review lane handling in _state_to_action (FR-012a)
+# ---------------------------------------------------------------------------
+
+
+class TestInReviewLaneDecision:
+    """Verify that _state_to_action explicitly reasons about in_review WPs.
+
+    FR-012a: in_review is a first-class lane.  WPs in in_review are actively
+    being reviewed by another agent and must NOT be picked up by another
+    reviewer.
+    """
+
+    @pytest.fixture
+    def feature_only_in_review(self, feature_dir: Path) -> Path:
+        """Feature dir where the only non-terminal WP is in_review."""
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\nlane: in_review\n---\nContent\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\nlane: done\n---\nContent\n",
+            encoding="utf-8",
+        )
+        _seed_wp_lane(feature_dir, "WP01", "in_review")
+        _seed_wp_lane(feature_dir, "WP02", "done")
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"))
+        return feature_dir
+
+    @pytest.fixture
+    def feature_for_review_and_in_review(self, feature_dir: Path) -> Path:
+        """Feature dir with both for_review and in_review WPs."""
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir()
+        (tasks_dir / "WP01.md").write_text(
+            "---\nwork_package_id: WP01\nlane: for_review\n---\nContent\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02.md").write_text(
+            "---\nwork_package_id: WP02\nlane: in_review\n---\nContent\n",
+            encoding="utf-8",
+        )
+        _seed_wp_lane(feature_dir, "WP01", "for_review")
+        _seed_wp_lane(feature_dir, "WP02", "in_review")
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01", "WP02"))
+        return feature_dir
+
+    def test_find_first_wp_by_lane_in_review(self, feature_only_in_review: Path) -> None:
+        """_find_first_wp_by_lane correctly resolves in_review WPs."""
+        assert _find_first_wp_by_lane(feature_only_in_review, "in_review") == "WP01"
+
+    def test_implement_skips_in_review_wp(self, feature_only_in_review: Path) -> None:
+        """Implement state must not pick up in_review WPs for review redirect."""
+        from unittest.mock import patch, MagicMock
+
+        repo_root = feature_only_in_review.parent.parent
+        action, wp_id, ws = _state_to_action(
+            "implement",
+            feature_only_in_review.name,
+            feature_only_in_review,
+            repo_root,
+            "software-dev",
+        )
+        # in_review WPs are not actionable — return None
+        assert action is None
+        assert wp_id is None
+
+    def test_implement_prefers_for_review_over_in_review(self, feature_for_review_and_in_review: Path) -> None:
+        """Implement fallback picks for_review WPs, not in_review ones."""
+        from unittest.mock import patch
+        from types import SimpleNamespace
+
+        repo_root = feature_for_review_and_in_review.parent.parent
+        fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
+
+        with patch(
+            "specify_cli.next.decision.resolve_workspace_for_wp",
+            return_value=fake_ws,
+        ):
+            action, wp_id, ws = _state_to_action(
+                "implement",
+                feature_for_review_and_in_review.name,
+                feature_for_review_and_in_review,
+                repo_root,
+                "software-dev",
+            )
+
+        assert action == "review"
+        assert wp_id == "WP01"  # for_review, not WP02 (in_review)
+
+    def test_review_picks_for_review_not_in_review(self, feature_for_review_and_in_review: Path) -> None:
+        """Review state picks for_review WPs, explicitly skipping in_review."""
+        from unittest.mock import patch
+        from types import SimpleNamespace
+
+        repo_root = feature_for_review_and_in_review.parent.parent
+        fake_ws = SimpleNamespace(worktree_path=Path("/tmp/fake-worktree"))
+
+        with patch(
+            "specify_cli.next.decision.resolve_workspace_for_wp",
+            return_value=fake_ws,
+        ):
+            action, wp_id, ws = _state_to_action(
+                "review",
+                feature_for_review_and_in_review.name,
+                feature_for_review_and_in_review,
+                repo_root,
+                "software-dev",
+            )
+
+        assert action == "review"
+        assert wp_id == "WP01"  # for_review, not WP02 (in_review)
+
+    def test_review_does_not_assign_in_review_wp(self, feature_only_in_review: Path) -> None:
+        """When only in_review WPs exist, review state must not assign them."""
+        from unittest.mock import patch
+
+        repo_root = feature_only_in_review.parent.parent
+        # review state falls through to generic template resolution
+        # when no for_review WPs exist — verify it doesn't pick up in_review
+        with patch(
+            "specify_cli.runtime.resolver.resolve_command",
+            side_effect=FileNotFoundError,
+        ):
+            action, wp_id, ws = _state_to_action(
+                "review",
+                feature_only_in_review.name,
+                feature_only_in_review,
+                repo_root,
+                "software-dev",
+            )
+
+        # No WP assigned — in_review WPs are not available for pickup
+        assert wp_id is None

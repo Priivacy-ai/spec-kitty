@@ -208,11 +208,12 @@ class TestEmitCommand:
         """Valid --evidence-json should be parsed and passed through."""
         patches = _patch_detection(tmp_path)
 
-        # Build up state: planned -> claimed -> in_progress -> for_review
+        # Build up state: planned -> claimed -> in_progress -> for_review -> in_review
         transitions = [
             "claimed",
             "in_progress",
             "for_review",
+            "in_review",
         ]
         for to_lane in transitions:
             with (
@@ -237,6 +238,9 @@ class TestEmitCommand:
                 assert r.exit_code == 0, f"Failed at {to_lane}: {r.output}"
 
         # Now transition to done with evidence
+        # NOTE: in_review -> done requires ReviewResult (guard),
+        # but the CLI doesn't expose --review-result-json yet.
+        # Use --force to bypass the guard while testing evidence parsing.
         evidence = {
             "review": {
                 "reviewer": "alice",
@@ -263,6 +267,9 @@ class TestEmitCommand:
                     "034-test-feature",
                     "--evidence-json",
                     json.dumps(evidence),
+                    "--force",
+                    "--reason",
+                    "test: bypassing review_result guard for evidence-json parsing test",
                     "--json",
                 ],
             )

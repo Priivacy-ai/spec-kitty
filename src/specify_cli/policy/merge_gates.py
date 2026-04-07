@@ -19,6 +19,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.policy.config import MergeGateConfig
+from specify_cli.status.models import Lane
 
 
 class GateVerdict(StrEnum):
@@ -134,7 +135,7 @@ def _evaluate_evidence_gate(
         approved_wps: set[str] = set()
         for event in events:
             data = event if isinstance(event, dict) else event.__dict__
-            if data.get("to_lane") in ("approved", "done"):
+            if data.get("to_lane") in (Lane.APPROVED, Lane.DONE):
                 wp = data.get("wp_id")
                 if wp:
                     approved_wps.add(wp)
@@ -235,7 +236,7 @@ def _evaluate_dependency_gate(
         for wp_id in wp_ids:
             for dep_id in graph.get(wp_id, []):
                 dep_lane = wp_lanes.get(dep_id, "unknown")
-                if dep_lane not in ("done", "approved"):
+                if dep_lane not in (Lane.DONE, Lane.APPROVED):
                     incomplete_deps.append(f"{dep_id} (lane={dep_lane})")
 
         if incomplete_deps:

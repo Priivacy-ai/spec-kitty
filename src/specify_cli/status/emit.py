@@ -25,14 +25,16 @@ from __future__ import annotations
 
 import logging
 import re
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
 import ulid as _ulid_mod
+from pydantic import ValidationError
 
 from specify_cli.mission_metadata import load_meta
 from specify_cli.frontmatter import FrontmatterError, read_frontmatter, write_frontmatter
+from .wp_metadata import read_wp_frontmatter
 
 from .models import (
     DoneEvidence,
@@ -58,13 +60,13 @@ class TransitionError(Exception):
 def _generate_ulid() -> str:
     """Generate a new ULID string."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
 def _now_utc() -> str:
     """Return the current UTC time as an ISO 8601 string."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
@@ -76,17 +78,17 @@ def _derive_from_lane(feature_dir: Path, wp_id: str) -> str:
     """
     events = _store.read_events(feature_dir)
     if not events:
-        return "planned"
+        return Lane.PLANNED
 
     snapshot = _reducer.reduce(events)
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
-        return "planned"
+        return Lane.PLANNED
 
     lane = wp_state.get("lane")
-    if isinstance(lane, str):
-        return lane
-    return "planned"
+    if lane is not None:
+        return Lane(lane)
+    return Lane.PLANNED
 
 
 def _build_done_evidence(evidence: dict[str, Any]) -> DoneEvidence:
@@ -131,10 +133,10 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
     unchecked_found = False
 
     for line in lines:
-        if re.search(rf"^##.*\b{re.escape(wp_id)}\b", line):
+        if re.search(rf"^#{{2,4}}(?!#).*\b{re.escape(wp_id)}\b", line):
             in_wp_section = True
             continue
-        if in_wp_section and re.search(r"^##\s+", line):
+        if in_wp_section and re.search(r"^#{2,4}(?!#)\s+", line):
             break
         if not in_wp_section:
             continue
@@ -148,10 +150,7 @@ def _infer_subtasks_complete(feature_dir: Path, wp_id: str) -> bool:
 
 def _infer_implementation_evidence(feature_dir: Path, wp_id: str) -> bool:
     """Infer implementation evidence from prior canonical events for this WP."""
-    for event in _store.read_events(feature_dir):
-        if event.wp_id == wp_id:
-            return True
-    return False
+    return any(event.wp_id == wp_id for event in _store.read_events(feature_dir))
 
 
 def _phase1_dual_write_enabled(feature_dir: Path) -> bool:
@@ -201,16 +200,18 @@ def _mirror_phase1_frontmatter_lane(feature_dir: Path, wp_id: str, lane: str) ->
         return
 
     try:
-        frontmatter, body = read_frontmatter(wp_file)
-    except FrontmatterError as exc:
+        wp_meta = read_wp_frontmatter(wp_file)
+    except (FrontmatterError, ValidationError) as exc:
         logger.warning("Failed to read %s for phase-1 lane mirror: %s", wp_file, exc)
         return
 
-    if _LEGACY_LANE_FIELD not in frontmatter:
-        return
-    if str(frontmatter.get(_LEGACY_LANE_FIELD)).strip() == lane:
+    wp_meta_dict, _ = wp_meta
+    if wp_meta_dict.lane is not None and str(wp_meta_dict.lane).strip() == lane:
         return
 
+    frontmatter, body = read_frontmatter(wp_file)
+    if _LEGACY_LANE_FIELD not in frontmatter:
+        return
     frontmatter[_LEGACY_LANE_FIELD] = lane
     try:
         write_frontmatter(wp_file, frontmatter, body)
@@ -244,14 +245,15 @@ def emit_status_transition(
     mission_slug: str | None = None,
     force: bool = False,
     reason: str | None = None,
-    evidence: dict | None = None,
+    evidence: dict[str, Any] | None = None,
     review_ref: str | None = None,
     workspace_context: str | None = None,
     subtasks_complete: bool | None = None,
     implementation_evidence_present: bool | None = None,
     execution_mode: str = "worktree",
     repo_root: Path | None = None,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
+    review_result: Any = None,
 ) -> StatusEvent:
     """Central orchestration function for all status state changes.
 
@@ -277,6 +279,7 @@ def emit_status_transition(
         execution_mode: "worktree" or "direct_repo".
         repo_root: Repository root for SaaS fan-out (optional).
         policy_metadata: Orchestrator policy metadata dict (optional).
+        review_result: Structured ReviewResult for in_review -> * transitions (optional).
 
     Returns:
         The persisted StatusEvent.
@@ -348,6 +351,7 @@ def emit_status_transition(
         reason=reason,
         review_ref=review_ref,
         evidence=done_evidence,
+        review_result=review_result,
     )
     if not ok:
         raise TransitionError(error_msg)
@@ -399,7 +403,7 @@ def emit_status_transition(
                 repo_root,
             )
         except Exception:
-            pass  # Never block status transitions
+            logger.debug("Dossier sync failed; never blocks status transitions", exc_info=True)
 
     # Step 9: Return the event
     return event
@@ -408,9 +412,9 @@ def emit_status_transition(
 def _saas_fan_out(
     event: StatusEvent,
     mission_slug: str,
-    repo_root: Path | None,
+    _repo_root: Path | None,
     *,
-    policy_metadata: dict | None = None,
+    policy_metadata: dict[str, Any] | None = None,
 ) -> None:
     """Conditionally emit a SaaS telemetry event via the sync pipeline.
 

@@ -378,11 +378,11 @@ def _get_structure_templates_dir() -> Path | None:
 
 
 def _load_doctrine_defaults() -> dict[str, object]:
-    """Load src/doctrine/charter/defaults.yaml, returning {} on any failure."""
+    """Load charter/defaults.yaml, returning {} on any failure."""
     try:
-        from charter.catalog import resolve_doctrine_root  # noqa: PLC0415
+        import importlib.resources  # noqa: PLC0415
 
-        defaults_path = resolve_doctrine_root() / "charter" / "defaults.yaml"
+        defaults_path = Path(str(importlib.resources.files("charter"))) / "defaults.yaml"
         if not defaults_path.exists():
             return {}
         yaml = YAML(typ="safe")
@@ -732,44 +732,24 @@ def init(  # noqa: C901
         None,
         help="Name for your new project directory (omit to initialize current directory, equivalent to --here)",
     ),
-    ai_assistant: str | None = typer.Option(
-        None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"
-    ),
-    script_type: str | None = typer.Option(
-        None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"
-    ),
-    preferred_implementer: str | None = typer.Option(
-        None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"
-    ),
-    preferred_reviewer: str | None = typer.Option(
-        None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"
-    ),
-    mission_type: str | None = typer.Option(
-        None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"
-    ),
-    ignore_agent_tools: bool = typer.Option(
-        False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"
-    ),
+    ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
+    script_type: str | None = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
+    preferred_implementer: str | None = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
+    preferred_reviewer: str | None = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
+    mission_type: str | None = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
+    ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
-    here: bool = typer.Option(
-        False, "--here", help="Initialize project in the current directory instead of creating a new one"
-    ),
+    here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
     force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
-    non_interactive: bool = typer.Option(
-        False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"
-    ),
+    non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
     skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
-    debug: bool = typer.Option(
-        False, "--debug", help="Show verbose diagnostic output for network and extraction failures"
-    ),
+    debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
     github_token: str | None = typer.Option(
         None,
         "--github-token",
         help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)",
     ),
-    template_root: str | None = typer.Option(
-        None, "--template-root", help="Override default template location (useful for development mode)"
-    ),
+    template_root: str | None = typer.Option(None, "--template-root", help="Override default template location (useful for development mode)"),
 ) -> None:
     """Initialize a new Spec Kitty project."""
     # Use the injected dependencies
@@ -801,17 +781,13 @@ def init(  # noqa: C901
         except (OSError, FileNotFoundError) as e:
             _console.print("[red]Error:[/red] Cannot access current directory")
             _console.print(f"[dim]{e}[/dim]")
-            _console.print(
-                "[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible"
-            )
+            _console.print("[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible")
             raise typer.Exit(1) from e
 
         existing_items = list(project_path.iterdir())
         if existing_items:
             _console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
-            _console.print(
-                "[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]"
-            )
+            _console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
             if force:
                 _console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
             else:
@@ -829,8 +805,7 @@ def init(  # noqa: C901
         project_path = Path(project_name).resolve()
         if project_path.exists():
             error_panel = Panel(
-                f"Directory '[cyan]{project_name}[/cyan]' already exists\n"
-                "Please choose a different project name or remove the existing directory.",
+                f"Directory '[cyan]{project_name}[/cyan]' already exists\nPlease choose a different project name or remove the existing directory.",
                 title="[red]Directory Conflict[/red]",
                 border_style="red",
                 padding=(1, 2),
@@ -891,10 +866,7 @@ def init(  # noqa: C901
                 selected_agents.append(key)
                 seen_agents.add(key)
         if invalid_agents:
-            _console.print(
-                f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. "
-                f"Choose from: {', '.join(AI_CHOICES.keys())}"
-            )
+            _console.print(f"[red]Error:[/red] Invalid AI assistant(s): {', '.join(invalid_agents)}. Choose from: {', '.join(AI_CHOICES.keys())}")
             raise typer.Exit(1)
     else:
         if non_interactive:
@@ -976,9 +948,7 @@ def init(  # noqa: C901
         _console.print()
         if len(selected_agents) > 1:
             # Default to a different agent for review
-            default_reviewer = next(
-                (a for a in selected_agents if a != selected_preferred_implementer), selected_agents[0]
-            )
+            default_reviewer = next((a for a in selected_agents if a != selected_preferred_implementer), selected_agents[0])
             if preferred_reviewer_value:
                 if preferred_reviewer_value not in selected_agents:
                     _console.print("[red]Error:[/red] --preferred-reviewer must be one of the selected agents")
@@ -993,9 +963,7 @@ def init(  # noqa: C901
                     default_key=default_reviewer,
                 )
             if selected_preferred_reviewer == selected_preferred_implementer and len(selected_agents) > 1:
-                _console.print(
-                    "[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)"
-                )
+                _console.print("[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)")
         else:
             # Only one agent - same for both
             selected_preferred_reviewer = selected_preferred_implementer
@@ -1157,13 +1125,9 @@ def init(  # noqa: C901
                             if not use_global:
                                 if template_mode == "local":
                                     assert local_repo is not None
-                                    copy_specify_base_from_local(
-                                        local_repo, project_path, selected_script
-                                    )
+                                    copy_specify_base_from_local(local_repo, project_path, selected_script)
                                 else:
-                                    copy_specify_base_from_package(
-                                        project_path, selected_script
-                                    )
+                                    copy_specify_base_from_package(project_path, selected_script)
                                 # Track templates root for later use (AGENTS.md, .claudeignore)
                                 pkg_templates = _get_package_templates_root()
                                 if pkg_templates is not None:
@@ -1174,9 +1138,7 @@ def init(  # noqa: C901
                             # Tier order: project override > legacy > global (~/.kittify/) > package source.
                             _scratch_parent = project_path / ".kittify" / ".scratch"
                             _scratch_parent.mkdir(parents=True, exist_ok=True)
-                            _resolved_cmd_templates_dir = _resolve_mission_command_templates_dir(
-                                project_path, selected_mission, _scratch_parent
-                            )
+                            _resolved_cmd_templates_dir = _resolve_mission_command_templates_dir(project_path, selected_mission, _scratch_parent)
                             base_prepared = True
                         # Hybrid install: render full prompt files for prompt-driven commands
                         # (specify, plan, tasks, etc.) using the 4-tier resolved templates.
@@ -1404,9 +1366,7 @@ def init(  # noqa: C901
         "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",  # noqa: E501
         "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]
-    enhancements_panel = Panel(
-        "\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2)
-    )
+    enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
     _console.print()
     _console.print(enhancements_panel)
 
@@ -1415,14 +1375,9 @@ def init(  # noqa: C901
     try:
         dashboard_url, port, started = ensure_dashboard_running(project_path)
 
-        title = (
-            "[bold green]Spec Kitty Dashboard Started[/bold green]"
-            if started
-            else "[bold green]Spec Kitty Dashboard Ready[/bold green]"
-        )
+        title = "[bold green]Spec Kitty Dashboard Started[/bold green]" if started else "[bold green]Spec Kitty Dashboard Ready[/bold green]"
         status_line = (
-            "[dim]The dashboard is running in the background and will continue even after\n"
-            "this command exits. It will automatically update as you work.[/dim]"
+            "[dim]The dashboard is running in the background and will continue even after\nthis command exits. It will automatically update as you work.[/dim]"
             if started
             else "[dim]An existing dashboard instance is running and ready.[/dim]"
         )
@@ -1561,9 +1516,7 @@ def init(  # noqa: C901
                 errors="replace",
             )
         except subprocess.CalledProcessError as e:
-            _console.print(
-                f"[dim]Note: Could not finalize clean init commit: {e.stderr.strip() if e.stderr else e}[/dim]"
-            )
+            _console.print(f"[dim]Note: Could not finalize clean init commit: {e.stderr.strip() if e.stderr else e}[/dim]")
 
 
 def register_init_command(

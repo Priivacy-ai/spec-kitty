@@ -69,6 +69,9 @@ def detect_lane_mismatch(task_file: Path) -> tuple[bool, str | None, str | None]
     except Exception:
         return False, expected_lane, None
 
+    # MIGRATION-ONLY: raw dict access is intentional here — this function
+    # reads-then-mutates-then-writes frontmatter for legacy repair and must
+    # operate on the mutable dict from parse_frontmatter(), not WPMetadata.
     actual_lane = frontmatter.get("lane", "").strip()
 
     has_mismatch = actual_lane != expected_lane
@@ -174,7 +177,7 @@ def repair_lane_mismatch(  # MIGRATION-ONLY
         return False, f"Failed to write file: {exc}"
 
 
-def validate_task_metadata(task_file: Path) -> list[str]:
+def validate_task_metadata(task_file: Path) -> list[str]:  # MIGRATION-ONLY: raw dict access is intentional — diagnostic validator
     """Validate task metadata and return list of issues.
 
     Args:

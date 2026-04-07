@@ -15,6 +15,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from .models import Lane
 from .reducer import SNAPSHOT_FILENAME, reduce
 from .store import read_events
 
@@ -123,7 +124,7 @@ def check_stale_claims(
 
         age_days = (now - transition_time).days
 
-        if lane == "claimed" and age_days > claimed_threshold_days:
+        if lane == Lane.CLAIMED and age_days > claimed_threshold_days:
             findings.append(
                 Finding(
                     severity=Severity.WARNING,
@@ -141,7 +142,7 @@ def check_stale_claims(
                 )
             )
 
-        if lane == "in_progress" and age_days > in_progress_threshold_days:
+        if lane == Lane.IN_PROGRESS and age_days > in_progress_threshold_days:
             findings.append(
                 Finding(
                     severity=Severity.WARNING,
@@ -175,7 +176,7 @@ def check_orphan_workspaces(
     if not work_packages:
         return findings
 
-    terminal_lanes = {"done", "canceled"}
+    terminal_lanes = {Lane.DONE, Lane.CANCELED}
     all_terminal = all(wp.get("lane") in terminal_lanes for wp in work_packages.values())
 
     if not all_terminal:

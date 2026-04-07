@@ -1,11 +1,7 @@
 ---
 work_package_id: WP06
 title: DoctrineService
-<<<<<<< HEAD
 lane: "done"
-=======
-lane: "for_review"
->>>>>>> 046-doctrine-artifact-domain-models-WP10
 dependencies: [WP01, WP02, WP03, WP04]
 base_branch: feature/agent-profile-implementation
 base_commit: 90feaf5c16d01c9d6ac526ce2f72538bc9e17226
@@ -16,18 +12,11 @@ subtasks:
 - T031
 phase: Phase 1 - Foundation
 assignee: ''
-<<<<<<< HEAD
 agent: claude-sonnet
 shell_pid: '1519834'
 review_status: "approved"
 reviewed_by: "Stijn Dejongh"
 review_feedback: "feedback://046-doctrine-artifact-domain-models/WP06/20260304T042932Z-6dcf5804.md"
-=======
-agent: "codex"
-shell_pid: '112867'
-review_status: ''
-reviewed_by: ''
->>>>>>> 046-doctrine-artifact-domain-models-WP10
 history:
 - timestamp: '2026-02-26T04:36:22Z'
   lane: planned
@@ -180,9 +169,6 @@ git merge feature/agent-profile-implementation-WP04
 ```
 - 2026-02-28T08:30:29Z – codex – shell_pid=112867 – lane=doing – Assigned agent via workflow command
 - 2026-02-28T08:33:48Z – codex – shell_pid=112867 – lane=for_review – Ready for review: directives 001-010 enriched and doctrine checks passing
-<<<<<<< HEAD
 - 2026-03-04T04:27:02Z – claude-sonnet – shell_pid=1519834 – lane=doing – Started review via workflow command
 - 2026-03-04T04:29:32Z – claude-sonnet – shell_pid=1519834 – lane=planned – Moved to planned
-=======
->>>>>>> 046-doctrine-artifact-domain-models-WP10
 - 2026-03-04T04:45:31Z – claude-sonnet – shell_pid=1519834 – lane=done – Deliverables present via WP05 branch merge: service.py (lazy @property +_cache), **init**.py export, 4 tests passing. DoctrineService fully aligned with Doctrine Catalog Loader pattern. | Done override: DoctrineService was implemented in the WP05 codex branch and merged via WP10. All 3 deliverables (service.py, **init**.py export, test_service.py) are present and tested.

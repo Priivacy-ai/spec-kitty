@@ -17,6 +17,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 
 from specify_cli.lanes.branch_naming import parse_lane_id_from_branch
+from specify_cli.status.models import Lane
 from specify_cli.workspace_context import (
     WorkspaceContext,
     list_contexts,
@@ -29,10 +30,10 @@ logger = logging.getLogger(__name__)
 RECOVERY_ACTOR = "recovery"
 
 # Status lanes that recovery can advance through (never past in_progress)
-_RECOVERY_CEILING = "in_progress"
+_RECOVERY_CEILING = Lane.IN_PROGRESS
 _RECOVERY_TRANSITIONS = {
-    "planned": ["claimed", "in_progress"],
-    "claimed": ["in_progress"],
+    Lane.PLANNED: [Lane.CLAIMED, Lane.IN_PROGRESS],
+    Lane.CLAIMED: [Lane.IN_PROGRESS],
 }
 
 
@@ -142,10 +143,10 @@ def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return str(state.get("lane", "planned"))
+                return Lane(state.get("lane", Lane.PLANNED))
     except Exception:
         logger.debug("Could not read status events for %s in %s", wp_id, feature_dir)
-    return "planned"
+    return Lane.PLANNED
 
 
 def _find_wp_ids_for_lane(
@@ -575,9 +576,9 @@ def reconcile_status(
 
     # Determine target lane based on evidence
     if state.has_commits:
-        target = "in_progress"
+        target = Lane.IN_PROGRESS
     elif state.context_exists:
-        target = "claimed"
+        target = Lane.CLAIMED
     else:
         return 0
 

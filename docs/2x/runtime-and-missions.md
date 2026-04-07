@@ -92,13 +92,13 @@ Implementation references:
 
 2.x status behavior is event-driven with canonical transition semantics and reducer materialization. Every lane transition is an immutable event appended to `status.events.jsonl`. The reducer deterministically produces a snapshot from the event log.
 
-The 8-lane state machine:
+The 9-lane state machine:
 
 ```
-planned --> claimed --> in_progress --> for_review --> approved --> done
+planned --> claimed --> in_progress --> for_review --> in_review --> approved --> done
 ```
 
-Plus `blocked` (reachable from planned/claimed/in_progress/for_review/approved) and `canceled` (reachable from all non-terminal lanes). Alias: `doing` → `in_progress`.
+Plus `blocked` (reachable from planned/claimed/in_progress/for_review/in_review/approved) and `canceled` (reachable from all non-terminal lanes). Alias: `doing` → `in_progress`.
 
 ADR references:
 

@@ -270,15 +270,18 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
     Raises ``CanonicalStatusNotFoundError`` when no event log exists.
     Returns ``"uninitialized"`` when the event log has no events for this WP.
     """
-    from specify_cli.frontmatter import FrontmatterError, read_frontmatter
+    from pydantic import ValidationError
+
+    from specify_cli.frontmatter import FrontmatterError
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
     try:
-        frontmatter, _body = read_frontmatter(file_path)
-    except (FrontmatterError, OSError):
-        frontmatter = {}
+        meta, _body = read_wp_frontmatter(file_path)
+        wp_id = meta.work_package_id
+    except (FrontmatterError, ValidationError, OSError):
+        wp_id = None
 
-    wp_id = frontmatter.get("work_package_id")
-    if not isinstance(wp_id, str) or not wp_id.strip():
+    if not wp_id:
         wp_id_match = re.match(r"^(WP\d+)(?=$|[-_.])", file_path.stem)
         if wp_id_match is None:
             return None
@@ -286,6 +289,7 @@ def _read_lane_from_frontmatter(file_path: Path) -> str | None:
     feature_dir = file_path.parent.parent  # tasks/ -> feature_dir
 
     from specify_cli.status.lane_reader import get_wp_lane
+
     return get_wp_lane(feature_dir, wp_id)
 
 
@@ -345,8 +349,7 @@ def compile_guards(config: dict[str, Any], feature_dir: Path | None = None) -> d
 
                 if func_name not in GUARD_REGISTRY:
                     raise MissionValidationError(
-                        f"Unknown guard expression: '{func_name}' in '{entry}'. "
-                        f"Supported guards: {', '.join(sorted(GUARD_REGISTRY.keys()))}"
+                        f"Unknown guard expression: '{func_name}' in '{entry}'. Supported guards: {', '.join(sorted(GUARD_REGISTRY.keys()))}"
                     )
 
                 factory = GUARD_REGISTRY[func_name]

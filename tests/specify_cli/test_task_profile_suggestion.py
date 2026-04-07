@@ -9,6 +9,7 @@ Scenarios:
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import yaml
 
@@ -43,12 +44,7 @@ def test_profile_suggested_in_generated_wp(tmp_path: Path) -> None:
     # WP file with task_type set (as an LLM would generate it)
     wp_file = tmp_path / "WP01-some-implementation.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Implement something\n"
-        "task_type: implement\n"
-        "lane: planned\n"
-        "---\n\n# WP01\n",
+        "---\nwork_package_id: WP01\ntitle: Implement something\ntask_type: implement\nlane: planned\n---\n\n# WP01\n",
         encoding="utf-8",
     )
 
@@ -75,7 +71,7 @@ def test_profile_suggested_in_generated_wp(tmp_path: Path) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_finalize_tasks_shows_profile_confirmation(capsys) -> None:
+def test_finalize_tasks_shows_profile_confirmation(capsys: Any) -> None:
     """display_profile_suggestions outputs a profile review section."""
     from io import StringIO
 
@@ -93,3 +89,84 @@ def test_finalize_tasks_shows_profile_confirmation(capsys) -> None:
     assert "Agent Profile Suggestions" in output or "profile" in output.lower()
     assert "implementer" in output
     assert "reviewer" in output
+
+
+# ---------------------------------------------------------------------------
+# Scenario 4 — typed WPMetadata integration
+# ---------------------------------------------------------------------------
+
+
+def test_apply_profile_uses_typed_frontmatter_read(tmp_path: Path) -> None:
+    """apply_profile_suggestions reads via WPMetadata-typed API."""
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
+    from specify_cli.task_profile import apply_profile_suggestions
+
+    # Write a WP file with all required WPMetadata fields
+    wp_file = tmp_path / "WP03-typed-read.md"
+    wp_file.write_text(
+        "---\nwork_package_id: WP03\ntitle: Research caching strategies\ntask_type: research\nlane: planned\ndependencies: []\n---\n\n# WP03\n",
+        encoding="utf-8",
+    )
+
+    mission_config = {
+        "task_types": {
+            "research": {"agent_role": "researcher"},
+        }
+    }
+
+    suggestions = apply_profile_suggestions([wp_file], mission_config)
+
+    assert len(suggestions) == 1
+    assert suggestions[0] == ("WP03", "researcher")
+
+    # Verify the file was updated — read back with typed API
+    metadata, _body = read_wp_frontmatter(wp_file)
+    assert metadata.agent_profile == "researcher"
+
+
+def test_apply_profile_skips_when_agent_profile_already_set(tmp_path: Path) -> None:
+    """apply_profile_suggestions skips WPs that already have agent_profile."""
+    from specify_cli.task_profile import apply_profile_suggestions
+
+    wp_file = tmp_path / "WP04-already-profiled.md"
+    wp_file.write_text(
+        "---\nwork_package_id: WP04\ntitle: Implement auth flow\ntask_type: implement\nagent_profile: designer\nlane: planned\ndependencies: []\n---\n\n# WP04\n",
+        encoding="utf-8",
+    )
+
+    mission_config = {
+        "task_types": {
+            "implement": {"agent_role": "implementer"},
+        }
+    }
+
+    suggestions = apply_profile_suggestions([wp_file], mission_config)
+
+    # Should be empty — profile already set
+    assert suggestions == []
+
+    # File content should be unchanged (agent_profile still designer)
+    content = wp_file.read_text(encoding="utf-8")
+    assert "agent_profile: designer" in content
+
+
+def test_apply_profile_infers_from_title_when_no_task_type(tmp_path: Path) -> None:
+    """apply_profile_suggestions infers task_type from title via typed access."""
+    from specify_cli.task_profile import apply_profile_suggestions
+
+    wp_file = tmp_path / "WP05-review-auth.md"
+    wp_file.write_text(
+        "---\nwork_package_id: WP05\ntitle: Review authentication implementation\nlane: planned\ndependencies: []\n---\n\n# WP05\n",
+        encoding="utf-8",
+    )
+
+    mission_config = {
+        "task_types": {
+            "review": {"agent_role": "reviewer"},
+        }
+    }
+
+    suggestions = apply_profile_suggestions([wp_file], mission_config)
+
+    assert len(suggestions) == 1
+    assert suggestions[0] == ("WP05", "reviewer")

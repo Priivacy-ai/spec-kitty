@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.status.models import Lane
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
 
@@ -79,7 +80,7 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         snapshot = reduce(events)
         # snapshot.work_packages: {wp_id: {"lane": ..., ...}}
         event_log_lanes: dict[str, str] = {
-            wp_id: str(state.get("lane", "planned"))
+            wp_id: Lane(state.get("lane", Lane.PLANNED))
             for wp_id, state in snapshot.work_packages.items()
         }
 
@@ -119,7 +120,7 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
 
         # Group by lane
         by_lane: dict[str, list] = {
-            "planned": [], "claimed": [], "in_progress": [],
+            "planned": [], "claimed": [], "in_progress": [], "in_review": [],
             "for_review": [], "approved": [], "done": [], "blocked": [], "canceled": [],
         }
         for wp in work_packages:
@@ -132,7 +133,7 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         # Calculate metrics
         total = len(work_packages)
         done_count = len(by_lane["done"])
-        in_progress = len(by_lane["claimed"]) + len(by_lane["in_progress"]) + len(by_lane["for_review"])
+        in_progress = len(by_lane["claimed"]) + len(by_lane["in_progress"]) + len(by_lane["in_review"]) + len(by_lane["for_review"])
         planned_count = len(by_lane["planned"])
         blocked_count = len(by_lane["blocked"])
         canceled_count = len(by_lane["canceled"])
@@ -180,7 +181,7 @@ def _analyze_parallelization(work_packages: list, done_wp_ids: set) -> dict:
     ready_wps = []
     for wp in work_packages:
         # Skip if already done or in progress
-        if wp["lane"] in ["done", "approved", "in_progress", "claimed", "for_review", "canceled"]:
+        if wp["lane"] in ["done", "approved", "in_progress", "claimed", "for_review", "in_review", "canceled"]:
             continue
 
         # Check if all dependencies are satisfied
@@ -262,6 +263,16 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
     console.print()
 
     # Kanban board table
+    # Note: in_review does NOT get its own column — it folds into "In Progress"
+    # with a bright_cyan colour marker to distinguish it visually.
+
+    # Merge in_review WPs into the in_progress display list with a marker
+    display_in_progress = list(by_lane.get("in_progress", []))
+    in_review_wps = by_lane.get("in_review", [])
+    for wp in in_review_wps:
+        wp["_display_in_review"] = True
+        display_in_progress.append(wp)
+
     kanban_lanes = [
         ("planned", "Planned", "yellow"),
         ("claimed", "Claimed", "bright_yellow"),
@@ -278,22 +289,31 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
         table.add_column(label, style=style, no_wrap=False, width=16)
 
     # Find max length for rows
-    max_rows = max(len(by_lane[lane_key]) for lane_key, _, _ in kanban_lanes) if work_packages else 0
+    max_rows = max(
+        (len(display_in_progress) if lk == "in_progress" else len(by_lane[lk]))
+        for lk, _, _ in kanban_lanes
+    ) if work_packages else 0
 
     # Add rows
     for i in range(max_rows):
         row = []
         for lane_key, _, _ in kanban_lanes:
-            if i < len(by_lane[lane_key]):
-                wp = by_lane[lane_key][i]
-                cell = f"{wp['id']}\n{wp['title'][:14]}..." if len(wp['title']) > 14 else f"{wp['id']}\n{wp['title']}"
+            lane_data = display_in_progress if lane_key == "in_progress" else by_lane[lane_key]
+            if i < len(lane_data):
+                wp = lane_data[i]
+                title_part = f"{wp['title'][:14]}..." if len(wp['title']) > 14 else wp['title']
+                # in_review WPs folded into "In Progress" get bright_cyan colour
+                if wp.get("_display_in_review"):
+                    cell = f"[bright_cyan]{wp['id']} (review)[/bright_cyan]\n{title_part}"
+                else:
+                    cell = f"{wp['id']}\n{title_part}"
                 row.append(cell)
             else:
                 row.append("")
         table.add_row(*row)
 
     # Add count row
-    count_row = [f"[bold]{len(by_lane[lane_key])} WPs[/bold]" for lane_key, _, _ in kanban_lanes]
+    count_row = [f"[bold]{len(display_in_progress) if lane_key == 'in_progress' else len(by_lane[lane_key])} WPs[/bold]" for lane_key, _, _ in kanban_lanes]
     table.add_row(*count_row, style="dim")
 
     console.print(table)
@@ -327,6 +347,12 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
     if by_lane["blocked"]:
         console.print("[bold red]🚫 Blocked:[/bold red]")
         for wp in by_lane["blocked"]:
+            console.print(f"  • {wp['id']} - {wp['title']}")
+        console.print()
+
+    if by_lane.get("in_review"):
+        console.print("[bold bright_cyan]🔍 In Review (shown in In Progress column):[/bold bright_cyan]")
+        for wp in by_lane["in_review"]:
             console.print(f"  • {wp['id']} - {wp['title']}")
         console.print()
 
@@ -370,7 +396,7 @@ def _display_status_board(mission_slug: str, work_packages: list, by_lane: dict,
                     console.print(f"       [dim]Waiting for: {', '.join(deps_in_ready)}[/dim]")
 
         console.print()
-    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"] and not by_lane["approved"]:
+    elif by_lane["planned"] and not by_lane["in_progress"] and not by_lane["claimed"] and not by_lane["for_review"] and not by_lane.get("in_review") and not by_lane["approved"]:
         # All planned WPs are blocked
         console.print("[bold red]⚠️  All remaining WPs are blocked[/bold red]")
         console.print("  Check dependency status above\n")

@@ -5,6 +5,7 @@ directives:
   - 028-search-tool-discipline
   - 029-agent-commit-signing-policy
   - 030-test-and-typecheck-quality-gate
+  - 034-test-first-development
 tactics:
   - acceptance-test-first
   - tdd-red-green-refactor

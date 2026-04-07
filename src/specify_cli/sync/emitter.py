@@ -124,8 +124,8 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
             "wp_id": lambda v: isinstance(v, str) and bool(_WP_ID_PATTERN.match(v)),
-            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
-            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "for_review", "approved", "done", "blocked", "canceled"},
+            "from_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
+            "to_lane": lambda v: v in {"planned", "claimed", "in_progress", "in_review", "for_review", "approved", "done", "blocked", "canceled"},
             "actor": lambda v: isinstance(v, str) if v is not None else True,
             "mission_slug": lambda v: _is_nullable_string(v),
             "policy_metadata": lambda v: v is None or isinstance(v, dict),

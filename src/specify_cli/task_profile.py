@@ -7,6 +7,7 @@ to a suggested agent_profile, using agent_role hints stored in mission YAML file
 from __future__ import annotations
 
 import re
+from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -29,10 +30,24 @@ _TITLE_KEYWORDS: list[tuple[str, list[str]]] = [
     ("specify", ["spec", "specification", "requirement", "scenario", "user story"]),
     ("plan", ["plan", "design", "architect", "outline", "structure"]),
     ("research", ["research", "investigate", "explore", "survey", "study"]),
-    ("implement", [
-        "implement", "implementation", "migration", "migrate", "integration",
-        "integrate", "add ", "create", "build", "write", "update", "fix", "refactor",
-    ]),
+    (
+        "implement",
+        [
+            "implement",
+            "implementation",
+            "migration",
+            "migrate",
+            "integration",
+            "integrate",
+            "add ",
+            "create",
+            "build",
+            "write",
+            "update",
+            "fix",
+            "refactor",
+        ],
+    ),
 ]
 
 
@@ -47,7 +62,7 @@ def _infer_task_type_from_title(title: str) -> str | None:
 
 def suggest_profile_for_wp(
     task_type: str | None,
-    mission_config: dict[str, object],
+    mission_config: Mapping[str, object],
 ) -> str | None:
     """Return the suggested agent_profile for *task_type* using mission config.
 
@@ -74,7 +89,7 @@ def suggest_profile_for_wp(
 
 def apply_profile_suggestions(
     wp_files: list[Path],
-    mission_config: dict[str, object],
+    mission_config: Mapping[str, object],
 ) -> list[tuple[str, str]]:
     """Suggest and write agent_profile into WP frontmatter files.
 
@@ -87,24 +102,25 @@ def apply_profile_suggestions(
     Returns:
         List of (wp_id, profile) pairs for WPs that received a suggestion.
     """
-    from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+    from specify_cli.frontmatter import update_field
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
     suggestions: list[tuple[str, str]] = []
 
     for wp_file in wp_files:
         try:
-            frontmatter, body = read_frontmatter(wp_file)
+            metadata, _body = read_wp_frontmatter(wp_file)
         except Exception:  # noqa: BLE001, S112
             continue
 
         # Skip if profile already set
-        if frontmatter.get("agent_profile"):
+        if metadata.agent_profile:
             continue
 
         # Determine task_type: explicit > title inference
-        task_type = frontmatter.get("task_type") or None
+        task_type: str | None = metadata.task_type or None
         if not task_type:
-            title = str(frontmatter.get("title") or wp_file.stem)
+            title = metadata.title or wp_file.stem
             task_type = _infer_task_type_from_title(title)
 
         profile = suggest_profile_for_wp(task_type, mission_config)
@@ -114,8 +130,7 @@ def apply_profile_suggestions(
         wp_id_match = re.match(r"(WP\d{2,})", wp_file.name)
         wp_id = wp_id_match.group(1) if wp_id_match else wp_file.stem
 
-        frontmatter["agent_profile"] = profile
-        write_frontmatter(wp_file, frontmatter, body)
+        update_field(wp_file, "agent_profile", profile)
         suggestions.append((wp_id, profile))
 
     return suggestions
@@ -134,11 +149,7 @@ def display_profile_suggestions(
     if not suggestions:
         return
     console.print("\n[bold]Agent Profile Suggestions[/bold]")
-    console.print(
-        "The following profiles were suggested based on task types in the mission template.\n"
-    )
+    console.print("The following profiles were suggested based on task types in the mission template.\n")
     for wp_id, profile in suggestions:
         console.print(f"  [cyan]{wp_id}[/cyan]: [green]{profile}[/green]")
-    console.print(
-        "\n[dim]To override a profile, edit the agent_profile field in the WP frontmatter.[/dim]"
-    )
+    console.print("\n[dim]To override a profile, edit the agent_profile field in the WP frontmatter.[/dim]")

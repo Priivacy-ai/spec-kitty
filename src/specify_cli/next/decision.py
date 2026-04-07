@@ -16,12 +16,13 @@ from __future__ import annotations
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
 from specify_cli.mission_v1.events import read_events
+from specify_cli.status import wp_state_for
+from specify_cli.status.models import Lane
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
@@ -32,6 +33,7 @@ from specify_cli.workspace_context import resolve_workspace_for_wp
 
 class DecisionKind:
     """String constants for decision kinds (avoids Enum import overhead)."""
+
     step = "step"
     decision_required = "decision_required"
     blocked = "blocked"
@@ -219,10 +221,7 @@ def _get_wp_lanes(feature_dir: Path) -> dict[str, str]:
         return {}
 
     snapshot = reduce(events)
-    return {
-        wp_id: str(state.get("lane", "planned"))
-        for wp_id, state in snapshot.work_packages.items()
-    }
+    return {wp_id: Lane(state.get("lane", Lane.PLANNED)) for wp_id, state in snapshot.work_packages.items()}
 
 
 def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
@@ -250,16 +249,17 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
         counts["total_wps"] += 1
         wp_match = re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        lane = wp_lanes.get(wp_id, "planned")
-        if lane == "done":
+        lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        state = wp_state_for(lane)
+        if state.lane == Lane.DONE:
             counts["done_wps"] += 1
-        elif lane == "approved":
+        elif state.lane == Lane.APPROVED:
             counts["approved_wps"] += 1
-        elif lane in ("doing", "in_progress"):
+        elif state.progress_bucket() == "in_flight" and not state.is_blocked:
             counts["in_progress_wps"] += 1
-        elif lane == "for_review":
+        elif state.progress_bucket() == "review":
             counts["for_review_wps"] += 1
-        elif lane == "planned":
+        elif state.progress_bucket() == "not_started":
             counts["planned_wps"] += 1
 
     # Compute weighted progress from the materialized snapshot
@@ -276,10 +276,17 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
 
 
 def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
-    """Find the first WP file with the given lane value (from event log)."""
+    """Find the first WP file with the given lane value (from event log).
+
+    Accepts canonical lane strings (e.g. ``"planned"``) or legacy aliases
+    (e.g. ``"doing"``).  Comparison is done via :func:`wp_state_for` so
+    that aliases resolve to their canonical ``Lane`` enum member.
+    """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.is_dir():
         return None
+
+    target_lane = wp_state_for(lane).lane
 
     wp_lanes = _get_wp_lanes(feature_dir)
     wp_files = sorted(tasks_dir.glob("WP*.md"))
@@ -288,8 +295,8 @@ def _find_first_wp_by_lane(feature_dir: Path, lane: str) -> str | None:
         if wp_match is None:
             continue
         wp_id = wp_match.group(1)
-        wp_lane = wp_lanes.get(wp_id, "planned")
-        if wp_lane == lane:
+        wp_lane = wp_lanes.get(wp_id, Lane.PLANNED)
+        if wp_state_for(wp_lane).lane == target_lane:
             return wp_id
     return None
 
@@ -349,29 +356,36 @@ def _state_to_action(
             wp_id = _find_first_wp_by_lane(feature_dir, "in_progress")
 
         if wp_id is None:
-            # Check for for_review WPs -- switch to review sub-action
+            # No implementable WPs — check for reviewable ones.
+            # Only for_review WPs are available for pickup; in_review WPs
+            # are already claimed by another reviewer and must NOT be
+            # reassigned (FR-012a).
             review_wp = _find_first_wp_by_lane(feature_dir, "for_review")
             if review_wp:
-                workspace_path = str(
-                    resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path
-                )
+                workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, review_wp).worktree_path)
                 return "review", review_wp, workspace_path
+            # in_review WPs exist but are not actionable by this agent —
+            # review is already in progress, nothing to pick up.
+            in_review_wp = _find_first_wp_by_lane(feature_dir, "in_review")
+            if in_review_wp:
+                return None, None, None
             return None, None, None
 
-        workspace_path = str(
-            resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path
-        )
+        workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
         return "implement", wp_id, workspace_path
 
-    # "review" state: WP-level if for_review WP exists, else template-level
+    # "review" state: WP-level if for_review WP exists, else template-level.
+    # in_review WPs are already being reviewed by another agent and must
+    # NOT be reassigned — only for_review WPs are available for pickup.
     if state == "review":
         wp_id = _find_first_wp_by_lane(feature_dir, "for_review")
         if wp_id is not None:
-            workspace_path = str(
-                resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path
-            )
+            workspace_path = str(resolve_workspace_for_wp(repo_root, mission_slug, wp_id).worktree_path)
             return "review", wp_id, workspace_path
-        # Fall through to generic template resolution below
+        # Explicitly skip in_review WPs — they are claimed by another
+        # reviewer (FR-012a).  Fall through to generic template resolution.
+        # Note: _find_first_wp_by_lane(feature_dir, "in_review") is
+        # intentionally not called here because we don't act on it.
 
     # "done" state -- terminal, no action
     if state == "done":

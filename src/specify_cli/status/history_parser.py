@@ -25,6 +25,7 @@ from typing import Any
 
 from .models import DoneEvidence, ReviewApproval
 from .transitions import resolve_lane_alias
+from .wp_metadata import WPMetadata
 
 logger = logging.getLogger(__name__)
 
@@ -191,21 +192,31 @@ def gap_fill(
     return result
 
 
-def extract_done_evidence(frontmatter: dict[str, Any], wp_id: str) -> DoneEvidence | None:
+def extract_done_evidence(
+    frontmatter: dict[str, Any] | WPMetadata,
+    wp_id: str,
+) -> DoneEvidence | None:
     """Build DoneEvidence from frontmatter review fields.
 
     Only produces evidence when review_status is "approved" AND
     reviewed_by is non-empty.
 
+    Accepts either a raw frontmatter dict (legacy migration callers)
+    or a typed :class:`WPMetadata` instance.
+
     Args:
-        frontmatter: Full WP frontmatter dict.
+        frontmatter: Full WP frontmatter dict or WPMetadata.
         wp_id: Work package ID for the reference field.
 
     Returns:
         DoneEvidence if review approval is present, None otherwise.
     """
-    review_status = frontmatter.get("review_status")
-    reviewed_by = frontmatter.get("reviewed_by")
+    if isinstance(frontmatter, WPMetadata):
+        review_status = frontmatter.review_status
+        reviewed_by = frontmatter.reviewed_by
+    else:
+        review_status = frontmatter.get("review_status")  # MIGRATION-ONLY: legacy dict caller branch
+        reviewed_by = frontmatter.get("reviewed_by")  # MIGRATION-ONLY: legacy dict caller branch
 
     if review_status == "approved" and reviewed_by and str(reviewed_by).strip():
         return DoneEvidence(
@@ -219,7 +230,7 @@ def extract_done_evidence(frontmatter: dict[str, Any], wp_id: str) -> DoneEviden
 
 
 def build_transition_chain(
-    frontmatter: dict[str, Any],
+    frontmatter: dict[str, Any] | WPMetadata,
     wp_id: str,
 ) -> TransitionChain:
     """Reconstruct a full transition chain from WP frontmatter.
@@ -227,36 +238,36 @@ def build_transition_chain(
     Main entry point that orchestrates: normalize -> collapse -> pair ->
     gap_fill -> attach evidence.
 
+    Accepts either a raw frontmatter dict (legacy callers) or a typed
+    :class:`WPMetadata` instance.
+
     Args:
-        frontmatter: Full WP frontmatter dict.
+        frontmatter: Full WP frontmatter dict or WPMetadata.
         wp_id: Work package ID.
 
     Returns:
         TransitionChain with all reconstructed transitions.
     """
-    history: list[dict[str, Any]] = frontmatter.get("history", [])
-    if not isinstance(history, list):
-        history = []
+    if isinstance(frontmatter, WPMetadata):
+        history = frontmatter.history if isinstance(frontmatter.history, list) else []
+        raw_lane = str(frontmatter.lane or "planned").strip() or "planned"
+    else:
+        history = frontmatter.get("history", [])  # MIGRATION-ONLY: legacy dict caller branch
+        if not isinstance(history, list):
+            history = []
+        raw_lane = str(frontmatter.get("lane", "planned")).strip() or "planned"  # MIGRATION-ONLY: legacy dict caller branch
 
-    raw_lane = str(frontmatter.get("lane", "planned")).strip() or "planned"
     current_lane = resolve_lane_alias(raw_lane)
 
-    # Step 1: Normalize
     normalized = normalize_entries(history)
-
-    # Step 2: Collapse consecutive duplicates
     collapsed = collapse_duplicates(normalized)
-
-    # Step 3: Pair into transitions
     transitions = pair_transitions(collapsed)
 
-    # Step 4: Gap-fill to current lane
     last_history_lane = collapsed[-1].lane if collapsed else None
     fallback_timestamp = collapsed[-1].timestamp if collapsed else datetime.now(UTC).isoformat()
 
     final_transitions = gap_fill(transitions, last_history_lane, current_lane, fallback_timestamp)
 
-    # Step 5: Attach DoneEvidence to transitions targeting "done"
     evidence = extract_done_evidence(frontmatter, wp_id)
     has_evidence = False
 

@@ -1,7 +1,7 @@
 """Version detection utilities for spec-kitty CLI."""
 
+from kernel._safe_re import re
 from pathlib import Path
-import re
 
 
 def read_version_from_pyproject() -> str | None:

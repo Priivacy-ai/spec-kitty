@@ -23,6 +23,7 @@ runner = CliRunner()
 
 # ── Fixtures ──────────────────────────────────────────────────────
 
+
 def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tuple[Path, Path]:
     """Create a minimal mission directory with tasks.
 
@@ -36,8 +37,7 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
 
     for wp_id in ("WP01", "WP02"):
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n"
-            f"lane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
+            f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n",
             encoding="utf-8",
         )
 
@@ -51,10 +51,9 @@ def _make_mission(tmp_path: Path, mission_slug: str = "099-test-mission") -> tup
         "created_at": "2026-03-18T00:00:00+00:00",
         "status_phase": 1,
     }
-    (mission_dir / "meta.json").write_text(
-        json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps(meta, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return repo_root, mission_dir
+
 
 def _valid_policy_json() -> str:
     return json.dumps(
@@ -69,15 +68,14 @@ def _valid_policy_json() -> str:
         }
     )
 
+
 def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, actor: str = "test") -> None:
     """Helper to emit a status event directly."""
     from specify_cli.status.emit import emit_status_transition
 
     if to_lane == "in_progress" and from_lane == "planned":
-        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name,
-                               wp_id, "claimed", actor)
-        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name,
-                               wp_id, "in_progress", actor)
+        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name, wp_id, "claimed", actor)
+        emit_status_transition(mission_dir, mission_dir.parent.parent.name + "-" + mission_dir.name, wp_id, "in_progress", actor)
     else:
         emit_status_transition(
             mission_dir,
@@ -87,6 +85,7 @@ def _emit_event(mission_dir: Path, wp_id: str, from_lane: str, to_lane: str, act
             actor,
         )
 
+
 def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, actor: str = "test") -> None:
     """Transition a WP all the way to done."""
     from specify_cli.status.emit import emit_status_transition
@@ -94,8 +93,16 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
     emit_status_transition(mission_dir, mission_slug, wp_id, "claimed", actor)
     emit_status_transition(mission_dir, mission_slug, wp_id, "in_progress", actor)
     emit_status_transition(mission_dir, mission_slug, wp_id, "for_review", actor)
+    emit_status_transition(mission_dir, mission_slug, wp_id, "in_review", actor)
+
+    from specify_cli.status.models import ReviewResult
+
     emit_status_transition(
-        mission_dir, mission_slug, wp_id, "done", actor,
+        mission_dir,
+        mission_slug,
+        wp_id,
+        "done",
+        actor,
         evidence={
             "review": {
                 "reviewer": "reviewer-agent",
@@ -103,9 +110,16 @@ def _emit_planned_to_done(mission_dir: Path, mission_slug: str, wp_id: str, acto
                 "reference": "review-001",
             }
         },
+        review_result=ReviewResult(
+            reviewer="reviewer-agent",
+            verdict="approved",
+            reference="review-001",
+        ),
     )
 
+
 # ── contract-version ──────────────────────────────────────────────
+
 
 class TestContractVersion:
     def test_envelope_shape_and_version(self, tmp_path):
@@ -118,7 +132,9 @@ class TestContractVersion:
         assert "min_supported_provider_version" in data["data"]
         assert data["command"] == "orchestrator-api.contract-version"
 
+
 # ── mission-state ─────────────────────────────────────────────────
+
 
 class TestMissionState:
     def test_mission_state_with_event_log(self, tmp_path):
@@ -127,6 +143,7 @@ class TestMissionState:
 
         # Emit one transition
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test-actor")
 
         with patch(
@@ -173,7 +190,9 @@ class TestMissionState:
         assert result.exit_code == 0, result.output
         assert not status_path.exists()
 
+
 # ── list-ready ────────────────────────────────────────────────────
+
 
 class TestListReady:
     def test_planned_wp_with_satisfied_deps_is_ready(self, tmp_path):
@@ -200,6 +219,7 @@ class TestListReady:
         mission_slug = "099-test-mission"
 
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "test")
         emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "test")
 
@@ -230,7 +250,9 @@ class TestListReady:
         assert result.exit_code == 0, result.output
         assert not status_path.exists()
 
+
 # ── start-implementation ──────────────────────────────────────────
+
 
 class TestStartImplementation:
     def test_no_policy_returns_error(self, tmp_path):
@@ -260,10 +282,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -281,6 +307,7 @@ class TestStartImplementation:
 
         # First put WP01 in_progress as claude
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
         emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
 
@@ -292,10 +319,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -310,6 +341,7 @@ class TestStartImplementation:
 
         # Put WP01 in claimed state as "other-agent"
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "other-agent")
 
         with patch(
@@ -320,10 +352,14 @@ class TestStartImplementation:
                 app,
                 [
                     "start-implementation",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -331,7 +367,9 @@ class TestStartImplementation:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_ALREADY_CLAIMED"
 
+
 # ── start-review ──────────────────────────────────────────────────
+
 
 class TestStartReview:
     def test_no_review_ref_rejected(self, tmp_path):
@@ -344,10 +382,14 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--mission", "099-test-mission",
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -361,6 +403,7 @@ class TestStartReview:
 
         # Put WP01 in for_review state
         from specify_cli.status.emit import emit_status_transition
+
         emit_status_transition(mission_dir, mission_slug, "WP01", "claimed", "claude")
         emit_status_transition(mission_dir, mission_slug, "WP01", "in_progress", "claude")
         emit_status_transition(mission_dir, mission_slug, "WP01", "for_review", "claude")
@@ -373,21 +416,28 @@ class TestStartReview:
                 app,
                 [
                     "start-review",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--actor", "reviewer",
-                    "--policy", _valid_policy_json(),
-                    "--review-ref", "review-feedback-001",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "reviewer",
+                    "--policy",
+                    _valid_policy_json(),
+                    "--review-ref",
+                    "review-feedback-001",
                 ],
             )
 
         assert result.exit_code == 0, result.output
         data = json.loads(result.output)
         assert data["success"] is True
-        assert data["data"]["to_lane"] == "in_progress"
+        assert data["data"]["to_lane"] == "in_review"
         assert data["data"]["policy_metadata_recorded"] is True
 
+
 # ── transition ────────────────────────────────────────────────────
+
 
 class TestTransition:
     def test_invalid_transition_rejected(self, tmp_path):
@@ -403,10 +453,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "done",
-                    "--actor", "claude",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -427,10 +481,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -452,10 +510,14 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "claimed",
-                    "--actor", "claude",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "claimed",
+                    "--actor",
+                    "claude",
                     # no --policy
                 ],
             )
@@ -469,22 +531,30 @@ class TestTransition:
         mission_slug = "099-test-feature"
 
         emit_mock = MagicMock()
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.status.emit.emit_status_transition",
-            emit_mock,
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.status.emit.emit_status_transition",
+                emit_mock,
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "for_review",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "for_review",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                     "--subtasks-complete",
                     "--implementation-evidence-present",
                 ],
@@ -500,23 +570,32 @@ class TestTransition:
         mission_slug = "099-test-feature"
 
         emit_mock = MagicMock()
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.status.emit.emit_status_transition",
-            emit_mock,
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.status.emit.emit_status_transition",
+                emit_mock,
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "done",
-                    "--actor", "reviewer",
-                    "--review-ref", "review-001",
-                    "--evidence-json", '{"review":{"reviewer":"reviewer","verdict":"approved","reference":"review-001"}}',
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "reviewer",
+                    "--review-ref",
+                    "review-001",
+                    "--evidence-json",
+                    '{"review":{"reviewer":"reviewer","verdict":"approved","reference":"review-001"}}',
                 ],
             )
 
@@ -543,11 +622,16 @@ class TestTransition:
                 app,
                 [
                     "transition",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--to", "done",
-                    "--actor", "reviewer",
-                    "--evidence-json", '{"review":',
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--to",
+                    "done",
+                    "--actor",
+                    "reviewer",
+                    "--evidence-json",
+                    '{"review":',
                 ],
             )
 
@@ -555,28 +639,37 @@ class TestTransition:
         data = json.loads(result.output)
         assert data["error_code"] == "USAGE_ERROR"
 
+
 # ── append-history ────────────────────────────────────────────────
+
 
 class TestAppendHistory:
     def test_appends_entry_and_returns_history_id(self, tmp_path):
         repo_root, mission_dir = _make_mission(tmp_path, "099-test-mission")
         mission_slug = "099-test-mission"
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.git.commit_helpers.safe_commit",
-            return_value=True,
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.git.commit_helpers.safe_commit",
+                return_value=True,
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "append-history",
-                    "--mission", mission_slug,
-                    "--wp", "WP01",
-                    "--actor", "claude",
-                    "--note", "Started implementation",
+                    "--mission",
+                    mission_slug,
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "Started implementation",
                 ],
             )
 
@@ -596,10 +689,14 @@ class TestAppendHistory:
                 app,
                 [
                     "append-history",
-                    "--mission", "099-test-mission",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--note", "nonexistent",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--note",
+                    "nonexistent",
                 ],
             )
 
@@ -607,7 +704,9 @@ class TestAppendHistory:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_NOT_FOUND"
 
+
 # ── accept-mission ────────────────────────────────────────────────
+
 
 class TestAcceptMission:
     def test_all_done_accepted(self, tmp_path):
@@ -626,8 +725,10 @@ class TestAcceptMission:
                 app,
                 [
                     "accept-mission",
-                    "--mission", mission_slug,
-                    "--actor", "claude",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -657,8 +758,10 @@ class TestAcceptMission:
                 app,
                 [
                     "accept-mission",
-                    "--mission", mission_slug,
-                    "--actor", "claude",
+                    "--mission",
+                    mission_slug,
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -667,7 +770,9 @@ class TestAcceptMission:
         assert data["error_code"] == "MISSION_NOT_READY"
         assert "WP02" in data["data"]["incomplete_wps"]
 
+
 # ── merge-mission ─────────────────────────────────────────────────
+
 
 class TestMergeMission:
     def test_preflight_fails_returns_error(self, tmp_path):
@@ -678,19 +783,24 @@ class TestMergeMission:
         mock_preflight.target_branch = "main"
         mock_preflight.errors = ["lanes.json is missing for this mission"]
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands._build_merge_preflight",
-            return_value=mock_preflight,
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                return_value=mock_preflight,
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-mission",
-                    "--mission", mission_slug,
-                    "--target", "main",
+                    "--mission",
+                    mission_slug,
+                    "--target",
+                    "main",
                 ],
             )
 
@@ -707,22 +817,29 @@ class TestMergeMission:
         mock_preflight.target_branch = "main"
         mock_preflight.errors = []
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands._build_merge_preflight",
-            return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands._execute_lane_merge",
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._execute_lane_merge",
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-mission",
-                    "--mission", mission_slug,
-                    "--target", "main",
-                    "--strategy", "merge",
+                    "--mission",
+                    mission_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "merge",
                 ],
             )
 
@@ -742,22 +859,29 @@ class TestMergeMission:
         mock_preflight.target_branch = "main"
         mock_preflight.errors = []
 
-        with patch(
-            "specify_cli.orchestrator_api.commands._get_main_repo_root",
-            return_value=repo_root,
-        ), patch(
-            "specify_cli.orchestrator_api.commands._build_merge_preflight",
-            return_value=mock_preflight,
-        ), patch(
-            "specify_cli.orchestrator_api.commands._execute_lane_merge",
+        with (
+            patch(
+                "specify_cli.orchestrator_api.commands._get_main_repo_root",
+                return_value=repo_root,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._build_merge_preflight",
+                return_value=mock_preflight,
+            ),
+            patch(
+                "specify_cli.orchestrator_api.commands._execute_lane_merge",
+            ),
         ):
             result = runner.invoke(
                 app,
                 [
                     "merge-mission",
-                    "--mission", mission_slug,
-                    "--target", "main",
-                    "--strategy", "rebase",
+                    "--mission",
+                    mission_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "rebase",
                 ],
             )
 
@@ -778,9 +902,12 @@ class TestMergeMission:
                 app,
                 [
                     "merge-mission",
-                    "--mission", mission_slug,
-                    "--target", "main",
-                    "--strategy", "octopus",
+                    "--mission",
+                    mission_slug,
+                    "--target",
+                    "main",
+                    "--strategy",
+                    "octopus",
                 ],
             )
 
@@ -790,7 +917,9 @@ class TestMergeMission:
         assert data["data"]["strategy"] == "octopus"
         assert "merge" in data["data"]["supported"]
 
+
 # ── contract-version (version mismatch) ───────────────────────────
+
 
 class TestContractVersionMismatch:
     def test_compatible_provider_version_succeeds(self, tmp_path):
@@ -825,7 +954,9 @@ class TestContractVersionMismatch:
         data = json.loads(result.output)
         assert data["error_code"] == "CONTRACT_VERSION_MISMATCH"
 
+
 # ── WP_NOT_FOUND for state-mutating commands ──────────────────────
+
 
 class TestWPNotFound:
     def test_start_implementation_ghost_wp_rejected(self, tmp_path):
@@ -838,10 +969,14 @@ class TestWPNotFound:
                 app,
                 [
                     "start-implementation",
-                    "--mission", "099-test-mission",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -859,11 +994,16 @@ class TestWPNotFound:
                 app,
                 [
                     "start-review",
-                    "--mission", "099-test-mission",
-                    "--wp", "WP99",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
-                    "--review-ref", "ref-001",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP99",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
+                    "--review-ref",
+                    "ref-001",
                 ],
             )
 
@@ -881,10 +1021,14 @@ class TestWPNotFound:
                 app,
                 [
                     "transition",
-                    "--mission", "099-test-mission",
-                    "--wp", "WP99",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP99",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -892,7 +1036,9 @@ class TestWPNotFound:
         data = json.loads(result.output)
         assert data["error_code"] == "WP_NOT_FOUND"
 
+
 # ── mission-state with no events ──────────────────────────────────
+
 
 class TestMissionStateNoEvents:
     def test_untouched_wps_appear_as_planned(self, tmp_path):
@@ -916,11 +1062,11 @@ class TestMissionStateNoEvents:
         assert wps["WP01"]["lane"] == "planned"
         assert wps["WP02"]["lane"] == "planned"
 
+
 # ── Suffixed WP filenames (P0 regression) ─────────────────────────
 
-def _make_mission_with_suffixed_wps(
-    tmp_path: Path, mission_slug: str = "040-test-mission"
-) -> tuple[Path, Path]:
+
+def _make_mission_with_suffixed_wps(tmp_path: Path, mission_slug: str = "040-test-mission") -> tuple[Path, Path]:
     """Create a mission directory whose WP files have hyphen-suffixed names.
 
     e.g. WP07-adapter-implementations.md instead of WP07.md
@@ -941,10 +1087,9 @@ def _make_mission_with_suffixed_wps(
     # Also include a non-WP file to verify it is excluded
     (tasks_dir / "README.md").write_text("# Tasks\n", encoding="utf-8")
 
-    (mission_dir / "meta.json").write_text(
-        json.dumps({"status_phase": 1}), encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps({"status_phase": 1}), encoding="utf-8")
     return repo_root, mission_dir
+
 
 class TestSuffixedWPFilenames:
     """Commands must accept WP IDs whose task files have hyphen-suffixed names."""
@@ -959,10 +1104,14 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "start-implementation",
-                    "--mission", "040-test-mission",
-                    "--wp", "WP07",
-                    "--actor", "claude",
-                    "--policy", _valid_policy_json(),
+                    "--mission",
+                    "040-test-mission",
+                    "--wp",
+                    "WP07",
+                    "--actor",
+                    "claude",
+                    "--policy",
+                    _valid_policy_json(),
                 ],
             )
 
@@ -989,10 +1138,14 @@ class TestSuffixedWPFilenames:
                 app,
                 [
                     "transition",
-                    "--mission", "040-test-mission",
-                    "--wp", "WP07",
-                    "--to", "canceled",
-                    "--actor", "claude",
+                    "--mission",
+                    "040-test-mission",
+                    "--wp",
+                    "WP07",
+                    "--to",
+                    "canceled",
+                    "--actor",
+                    "claude",
                 ],
             )
 
@@ -1028,7 +1181,85 @@ class TestSuffixedWPFilenames:
         assert "README" not in wp_ids
 
 
+# ── JSON-only stdout contract ─────────────────────────────────────
+
+
+class TestJsonOnlyStdoutContract:
+    """Orchestrator-api commands must emit exactly one JSON object on stdout.
+
+    Even when sync/event fan-out emits warnings (e.g. read-only filesystem),
+    those warnings must go to stderr — never polluting stdout.  The
+    ``sync/emitter.py`` console is ``Console(stderr=True)``, so in a real
+    terminal warnings go to fd 2.  CliRunner merges both streams into
+    ``result.output``, so these tests validate the contract by asserting
+    the *last* line of output is valid JSON (the envelope) and confirming
+    the envelope structure.
+    """
+
+    def test_start_implementation_last_line_is_valid_json(self, tmp_path):
+        """Even if non-JSON diagnostic lines precede the envelope,
+        the final line must be the JSON envelope."""
+        repo_root, mission_dir = _make_mission(tmp_path)
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "test-agent",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        # The canonical envelope is always the last non-empty line
+        last_line = result.output.strip().rsplit("\n", 1)[-1]
+        data = json.loads(last_line)
+        assert data["success"] is True
+        assert data["data"]["wp_id"] == "WP01"
+
+    def test_stdout_is_single_json_object(self, tmp_path):
+        """Under normal conditions, output must be exactly one JSON object."""
+        repo_root, mission_dir = _make_mission(tmp_path)
+
+        with patch(
+            "specify_cli.orchestrator_api.commands._get_main_repo_root",
+            return_value=repo_root,
+        ):
+            result = runner.invoke(
+                app,
+                [
+                    "start-implementation",
+                    "--mission",
+                    "099-test-mission",
+                    "--wp",
+                    "WP01",
+                    "--actor",
+                    "test-agent",
+                    "--policy",
+                    _valid_policy_json(),
+                ],
+            )
+
+        assert result.exit_code == 0, result.output
+        stripped = result.output.strip()
+        # Must parse as a single JSON object (no extra data)
+        data = json.loads(stripped)
+        assert isinstance(data, dict)
+        assert data["command"] == "orchestrator-api.start-implementation"
+
+
 # ── Old command names must fail ───────────────────────────────────
+
 
 class TestOldCommandNamesFail:
     """Old feature-era command names must fail as unknown commands."""
@@ -1048,6 +1279,7 @@ class TestOldCommandNamesFail:
 
 # ── Old --feature flag must fail ──────────────────────────────────
 
+
 class TestOldFeatureFlagFails:
     """The --feature flag must no longer be accepted on any command."""
 
@@ -1060,9 +1292,18 @@ class TestOldFeatureFlagFails:
         assert result.exit_code != 0
 
     def test_start_implementation_rejects_feature_flag(self, tmp_path):
-        result = runner.invoke(app, [
-            "start-implementation", "--feature", "dummy",
-            "--wp", "WP01", "--actor", "claude",
-            "--policy", _valid_policy_json(),
-        ])
+        result = runner.invoke(
+            app,
+            [
+                "start-implementation",
+                "--feature",
+                "dummy",
+                "--wp",
+                "WP01",
+                "--actor",
+                "claude",
+                "--policy",
+                _valid_policy_json(),
+            ],
+        )
         assert result.exit_code != 0

@@ -15,10 +15,13 @@ import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from specify_cli.frontmatter import FrontmatterError, read_frontmatter
+from pydantic import ValidationError
+
+from specify_cli.frontmatter import FrontmatterError
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.reducer import materialize
 from specify_cli.status.store import read_events
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 logger = logging.getLogger(__name__)
 
@@ -45,15 +48,15 @@ def _collect_wp_ids(tasks_dir: Path, result: BootstrapResult) -> list[str]:
     wp_ids: list[str] = []
     for wp_file in sorted(tasks_dir.glob("WP*.md")):
         try:
-            fm, _body = read_frontmatter(wp_file)
-        except FrontmatterError:
+            meta, _body = read_wp_frontmatter(wp_file)
+        except (FrontmatterError, ValidationError):
             logger.warning("Skipping %s: malformed frontmatter", wp_file.name)
             result.skipped += 1
             result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
             continue
 
-        wp_id = fm.get("work_package_id")
-        if not isinstance(wp_id, str) or not wp_id.strip():
+        wp_id = meta.work_package_id
+        if not wp_id:
             logger.warning(
                 "Skipping %s: missing or invalid work_package_id",
                 wp_file.name,
@@ -62,7 +65,7 @@ def _collect_wp_ids(tasks_dir: Path, result: BootstrapResult) -> list[str]:
             result.wp_details[wp_file.stem] = _SKIPPED_MALFORMED
             continue
 
-        wp_ids.append(wp_id.strip())
+        wp_ids.append(wp_id)
     return wp_ids
 
 

@@ -13,13 +13,13 @@ import io
 import json
 import re
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
 from specify_cli.agent_utils.directories import AGENT_DIRS
 from specify_cli.frontmatter import FrontmatterError, FrontmatterManager
 from specify_cli.runtime.doctor import check_stale_legacy_assets
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, reduce
+from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize
 from specify_cli.status.store import EVENTS_FILENAME, StoreError, read_events
 from specify_cli.status.transitions import CANONICAL_LANES, resolve_lane_alias
 from specify_cli.status.validate import (
@@ -52,10 +52,7 @@ class ConsistencySweepMigration(BaseMigration):
         if _has_legacy_worktree_assets(project_path):
             return True
 
-        for feature_dir in _iter_feature_dirs(project_path):
-            if _feature_requires_repair(feature_dir, project_path):
-                return True
-        return False
+        return any(_feature_requires_repair(feature_dir, project_path) for feature_dir in _iter_feature_dirs(project_path))
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:
         """Consistency repair only needs a spec project root."""
@@ -97,11 +94,7 @@ def _iter_feature_dirs(project_path: Path) -> list[Path]:
     kitty_specs = project_path / "kitty-specs"
     if not kitty_specs.exists():
         return []
-    return [
-        path
-        for path in sorted(kitty_specs.iterdir())
-        if path.is_dir()
-    ]
+    return [path for path in sorted(kitty_specs.iterdir()) if path.is_dir()]
 
 
 def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
@@ -124,9 +117,7 @@ def _feature_requires_repair(feature_dir: Path, repo_root: Path) -> bool:
         return True
     if _wp_frontmatter_needs_normalization(feature_dir):
         return True
-    if _feature_has_status_drift(feature_dir):
-        return True
-    return False
+    return bool(_feature_has_status_drift(feature_dir))
 
 
 def _repair_feature(
@@ -178,7 +169,7 @@ def _repair_feature(
             if unreadable_change or _feature_has_status_drift(feature_dir):
                 changes.append(f"{feature_dir.name}: would regenerate status.json")
         else:
-            snapshot = materialize(feature_dir)
+            materialize(feature_dir)
             if unreadable_change or _feature_has_status_drift(feature_dir):
                 changes.append(f"{feature_dir.name}: regenerated status.json")
 
@@ -207,7 +198,7 @@ def _normalize_wp_frontmatter(feature_dir: Path, dry_run: bool) -> tuple[int, li
             warnings.append(f"{wp_file.name}: {exc}")
             continue
 
-        raw_lane = frontmatter.get("lane") or "planned"
+        raw_lane = frontmatter.get("lane") or "planned"  # MIGRATION-ONLY: raw dict read-mutate-write
         canonical_lane = resolve_lane_alias(str(raw_lane))
         if canonical_lane in CANONICAL_LANES:
             frontmatter["lane"] = canonical_lane
@@ -312,7 +303,7 @@ def _wp_frontmatter_needs_normalization(feature_dir: Path) -> bool:
             frontmatter, _body = manager.read(wp_file)
         except FrontmatterError:
             return True
-        raw_lane = frontmatter.get("lane")
+        raw_lane = frontmatter.get("lane")  # MIGRATION-ONLY: raw dict read-mutate-write
         if raw_lane is None or not str(raw_lane).strip():
             return True
     return False
@@ -330,7 +321,7 @@ def _has_orphan_status_snapshot(feature_dir: Path) -> bool:
     return (
         data.get("event_count") == 0
         and data.get("work_packages") == {}
-        and data.get("summary") == {lane: 0 for lane in CANONICAL_LANES}
+        and data.get("summary") == dict.fromkeys(CANONICAL_LANES, 0)
         and data.get("feature_slug", "") in {"", feature_dir.name}
     )
 
@@ -342,7 +333,7 @@ def _cleanup_orphan_status_snapshot(feature_dir: Path, dry_run: bool) -> tuple[s
             return None, "status.json has no matching event log and could not be auto-repaired"
         return None, None
 
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     backup_name = f"{SNAPSHOT_FILENAME}.orphan.bak.{timestamp}"
     if not dry_run:
         status_path.rename(feature_dir / backup_name)
@@ -362,7 +353,7 @@ def _cleanup_unreadable_events_log(feature_dir: Path, dry_run: bool) -> tuple[st
         read_events(feature_dir)
         return None, None
     except StoreError as exc:
-        timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        timestamp = datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
         backup_name = f"{EVENTS_FILENAME}.unreadable.bak.{timestamp}"
         if not dry_run:
             events_path.rename(feature_dir / backup_name)
@@ -389,9 +380,7 @@ def _migrate_runtime_assets(project_path: Path, dry_run: bool) -> tuple[list[str
     removed = len(report.removed)
     if moved or removed:
         verb = "Would migrate" if dry_run else "Migrated"
-        changes.append(
-            f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)"
-        )
+        changes.append(f"{verb.lower()} {removed} identical and {moved} customized legacy runtime asset(s)")
     return changes, []
 
 

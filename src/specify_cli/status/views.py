@@ -15,7 +15,7 @@ import os
 from pathlib import Path
 from typing import Any
 
-from .models import StatusSnapshot
+from .models import Lane, StatusSnapshot
 from .reducer import materialize, reduce
 from .store import EVENTS_FILENAME, read_events
 
@@ -96,7 +96,7 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
     """
     lanes: dict[str, list[str]] = {}
     for wp_id, wp_state in sorted(snapshot.work_packages.items()):
-        lane = wp_state.get("lane", "planned")
+        lane = wp_state.get("lane", Lane.PLANNED)
         if lane not in lanes:
             lanes[lane] = []
         lanes[lane].append(wp_id)
