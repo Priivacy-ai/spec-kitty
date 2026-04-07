@@ -240,7 +240,7 @@ Tests are required by the spec (FR-013/014/015/015a, NFR-004, NFR-005). The zero
 - [x] All FR-013/014/015/015a tests pass
 - [x] NFR-004 benchmark within 5s on synthetic 16-WP mission
 - [x] Zero network calls (mocked)
-- [ ] `mypy --strict` passes
+- [x] `mypy --strict` passes
 - [x] `ruff` clean
 - [ ] #457 closed with the FR-023 scope-cut comment listing automated vs manual steps
 
