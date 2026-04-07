@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
+from pydantic import ValidationError
 
 from specify_cli.core.dependency_graph import (
     build_dependency_graph,
@@ -13,6 +14,7 @@ from specify_cli.core.dependency_graph import (
     parse_wp_dependencies,
     validate_dependencies,
 )
+from specify_cli.frontmatter import FrontmatterError
 
 pytestmark = pytest.mark.fast
 
@@ -84,19 +86,57 @@ lane: "planned"
         deps = parse_wp_dependencies(wp_file)
         assert deps == []  # Defaults to empty list
 
-    def test_parse_invalid_frontmatter(self, tmp_path: Path):
-        """Test parsing file with invalid/missing frontmatter."""
-        # No frontmatter
+    def test_parse_no_frontmatter_raises(self, tmp_path: Path):
+        """File with no frontmatter raises FrontmatterError."""
         wp_file = tmp_path / "WP01.md"
         wp_file.write_text("# Just content, no frontmatter")
 
-        deps = parse_wp_dependencies(wp_file)
-        assert deps == []  # Returns empty on error
+        with pytest.raises(FrontmatterError):
+            parse_wp_dependencies(wp_file)
 
-        # Malformed frontmatter
+    def test_parse_malformed_yaml_raises(self, tmp_path: Path):
+        """File with malformed YAML frontmatter raises FrontmatterError."""
+        wp_file = tmp_path / "WP01.md"
         wp_file.write_text("---\ninvalid yaml: [unclosed\n---\n")
+
+        with pytest.raises(FrontmatterError):
+            parse_wp_dependencies(wp_file)
+
+    def test_parse_invalid_wp_id_raises(self, tmp_path: Path):
+        """File with invalid work_package_id raises ValidationError."""
+        wp_content = """---
+work_package_id: "BAD"
+title: "Bad ID"
+dependencies: [WP01]
+---
+# Content
+"""
+        wp_file = tmp_path / "WP01.md"
+        wp_file.write_text(wp_content)
+
+        with pytest.raises(ValidationError, match="work_package_id"):
+            parse_wp_dependencies(wp_file)
+
+    def test_parse_nonexistent_file_raises(self, tmp_path: Path):
+        """Nonexistent file raises FrontmatterError."""
+        wp_file = tmp_path / "WP01.md"
+
+        with pytest.raises(FrontmatterError):
+            parse_wp_dependencies(wp_file)
+
+    def test_parse_without_title_succeeds(self, tmp_path: Path):
+        """WP file without title field is valid — title is optional."""
+        wp_content = """---
+work_package_id: "WP02"
+dependencies: [WP01]
+---
+# Content
+"""
+        wp_file = tmp_path / "WP02.md"
+        wp_file.write_text(wp_content)
+
         deps = parse_wp_dependencies(wp_file)
-        assert deps == []  # Returns empty on parse error
+        assert deps == ["WP01"]
 
 
 # T002: Tests for graph building
@@ -174,6 +214,30 @@ class TestBuildDependencyGraph:
 
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}
+
+    def test_build_graph_raises_on_malformed_wp(self, tmp_path: Path):
+        """build_dependency_graph raises when a WP file has broken YAML."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---")
+        (tasks_dir / "WP02.md").write_text("---\nbad yaml: [unclosed\n---\n")
+
+        with pytest.raises((FrontmatterError, ValidationError)):
+            build_dependency_graph(feature_dir)
+
+    def test_build_graph_without_title_succeeds(self, tmp_path: Path):
+        """WP files without title field build a valid graph."""
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
+        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---")
+
+        graph = build_dependency_graph(feature_dir)
+        assert graph == {"WP01": [], "WP02": ["WP01"]}
 
 
 # T003: Tests for cycle detection

@@ -34,7 +34,7 @@ class WPMetadata(BaseModel):
 
     # ── Required: identity ─────────────────────────────────────
     work_package_id: str
-    title: str
+    title: str | None = None
 
     # ── Required: dependency graph ─────────────────────────────
     dependencies: list[str] = Field(default_factory=list)
@@ -136,7 +136,9 @@ class WPMetadata(BaseModel):
 
     @field_validator("title")
     @classmethod
-    def validate_title(cls, v: str) -> str:
+    def validate_title(cls, v: str | None) -> str | None:
+        if v is None:
+            return None
         if not v.strip():
             raise ValueError("title must not be empty")
         return v

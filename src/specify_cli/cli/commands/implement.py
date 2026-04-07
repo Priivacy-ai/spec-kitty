@@ -6,19 +6,20 @@ import functools
 import json
 import re
 import subprocess
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from io import StringIO
 from pathlib import Path
+from typing import Annotated
 
 import typer
+from pydantic import ValidationError
 from rich.console import Console
-from typing_extensions import Annotated
 
 from specify_cli.cli import StepTracker
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import set_vcs_lock
-from specify_cli.frontmatter import update_fields
+from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
@@ -40,7 +41,7 @@ def _get_wp_lane_from_event_log(feature_dir: Path, wp_id: str) -> str:
             state = snapshot.work_packages.get(wp_id)
             if state:
                 return str(state.get("lane", "planned"))
-    except Exception:
+    except Exception:  # noqa: S110 — best-effort lane lookup, fallback is safe
         pass
     return "planned"
 
@@ -67,11 +68,7 @@ def _json_safe_output(func):
             return func(*args, **kwargs)
         except typer.Exit as exc:
             if json_output and getattr(exc, "exit_code", 1):
-                lines = [
-                    line.rstrip()
-                    for line in (capture_buffer.getvalue() if capture_buffer else "").splitlines()
-                    if line.strip()
-                ]
+                lines = [line.rstrip() for line in (capture_buffer.getvalue() if capture_buffer else "").splitlines() if line.strip()]
                 summary = "\n".join(lines[-20:]).strip() if lines else "implement command failed"
                 payload = {"status": "error", "error": summary or "implement command failed"}
                 if wp_id:
@@ -84,7 +81,7 @@ def _json_safe_output(func):
                 if wp_id:
                     payload["wp_id"] = str(wp_id)
                 print(json.dumps(payload))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from exc
         finally:
             console.quiet = previous_quiet
             # Reset _file to None so the console uses sys.stdout dynamically.
@@ -105,7 +102,7 @@ def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
         slug = require_explicit_feature(feature_flag, command_hint="--mission <slug>")
     except ValueError as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     match = _re.match(r"^(\d{3})-", slug)
     if not match:
@@ -257,7 +254,7 @@ def _ensure_planning_artifacts_committed_git(
     console.print(f"[green]✓[/green] Planning artifacts committed to {planning_branch}")
 
 
-def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
+def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
     """Ensure VCS is selected and locked in meta.json."""
     meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
@@ -269,10 +266,10 @@ def _ensure_vcs_in_meta(feature_dir: Path, repo_root: Path) -> VCSBackend:
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError as exc:
         console.print(f"[red]Error:[/red] Invalid JSON in meta.json: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     if "vcs" not in meta:
-        now_iso = datetime.now(timezone.utc).isoformat()
+        now_iso = datetime.now(UTC).isoformat()
         set_vcs_lock(feature_dir, vcs_type="git", locked_at=now_iso)
         console.print("[cyan]→ VCS locked to git in meta.json[/cyan]")
 
@@ -308,14 +305,18 @@ def _run_recover_mode(
 
     if not needs_recovery:
         if json_output:
-            print(json.dumps({
-                "status": "ok",
-                "message": "No crashed implementation sessions found.",
-                "recovered_wps": [],
-                "worktrees_recreated": 0,
-                "transitions_emitted": 0,
-                "errors": [],
-            }))
+            print(
+                json.dumps(
+                    {
+                        "status": "ok",
+                        "message": "No crashed implementation sessions found.",
+                        "recovered_wps": [],
+                        "worktrees_recreated": 0,
+                        "transitions_emitted": 0,
+                        "errors": [],
+                    }
+                )
+            )
         else:
             console.print("[green]No crashed implementation sessions found.[/green]")
         return
@@ -347,13 +348,17 @@ def _run_recover_mode(
     report = run_recovery(repo_root, mission_slug)
 
     if json_output:
-        print(json.dumps({
-            "status": "ok",
-            "recovered_wps": report.recovered_wps,
-            "worktrees_recreated": report.worktrees_recreated,
-            "transitions_emitted": report.transitions_emitted,
-            "errors": report.errors,
-        }))
+        print(
+            json.dumps(
+                {
+                    "status": "ok",
+                    "recovered_wps": report.recovered_wps,
+                    "worktrees_recreated": report.worktrees_recreated,
+                    "transitions_emitted": report.transitions_emitted,
+                    "errors": report.errors,
+                }
+            )
+        )
     else:
         console.print("[bold green]Recovery complete[/bold green]")
         console.print(f"  WPs recovered: {', '.join(report.recovered_wps) or 'none'}")
@@ -368,7 +373,7 @@ def _run_recover_mode(
 
 @_json_safe_output
 @require_main_repo
-def implement(
+def implement(  # noqa: C901 — orchestration function, complexity inherent
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
     feature: str = typer.Option(None, "--mission", "--feature", help="Mission slug (for example, 001-my-feature)"),
     auto_commit: Annotated[
@@ -414,10 +419,10 @@ def implement(
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
         tracker.complete("detect", f"Feature: {mission_slug}")
-    except (TaskCliError, FileNotFoundError, typer.Exit) as exc:
+    except (TaskCliError, FileNotFoundError, FrontmatterError, ValidationError, typer.Exit) as exc:
         tracker.error("detect", str(exc))
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     tracker.start("validate")
     try:
@@ -438,11 +443,11 @@ def implement(
     except (CorruptLanesError, MissingLanesError, ValueError, typer.Exit) as exc:
         tracker.error("validate", str(exc))
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
     except Exception as exc:
         tracker.error("validate", str(exc))
         console.print(tracker.render())
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     tracker.start("create")
     try:
@@ -486,7 +491,7 @@ def implement(
         tracker.error("create", f"lane allocation failed: {exc}")
         console.print(tracker.render())
         console.print(f"\n[red]Error:[/red] Lane worktree allocation failed: {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     try:
         import os
@@ -549,7 +554,7 @@ def implement(
         )
         return
 
-    console.print(f"\n[bold green]✓ Lane worktree ready[/bold green]")
+    console.print("\n[bold green]✓ Lane worktree ready[/bold green]")
     console.print()
     console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
     console.print("[bold yellow]CRITICAL: Change to the lane worktree before editing files[/bold yellow]")

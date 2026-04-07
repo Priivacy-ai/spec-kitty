@@ -83,9 +83,15 @@ class TestWPMetadataRequired:
         with pytest.raises(ValidationError, match="work_package_id"):
             WPMetadata(title="No ID")  # type: ignore[call-arg]
 
-    def test_missing_title(self) -> None:
-        with pytest.raises(ValidationError, match="title"):
-            WPMetadata(work_package_id="WP01")  # type: ignore[call-arg]
+    def test_missing_title_defaults_to_none(self) -> None:
+        """title is optional — many real WP files omit it."""
+        meta = WPMetadata(work_package_id="WP01")
+        assert meta.title is None
+
+    def test_title_none_explicit(self) -> None:
+        """Explicitly passing title=None is accepted."""
+        meta = WPMetadata(work_package_id="WP01", title=None)
+        assert meta.title is None
 
 
 class TestWPMetadataValidators:
