@@ -11,7 +11,6 @@ This module is a library -- it reports problems but never modifies data.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path

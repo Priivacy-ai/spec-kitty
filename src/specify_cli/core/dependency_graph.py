@@ -9,13 +9,16 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-from specify_cli.frontmatter import FrontmatterError, read_frontmatter
+from pydantic import ValidationError
+
+from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 
 
 def parse_wp_dependencies(wp_file: Path) -> list[str]:
     """Parse dependencies from WP frontmatter.
 
-    Uses FrontmatterManager for consistent parsing across CLI.
+    Uses :func:`read_wp_frontmatter` for typed, validated access.
 
     Args:
         wp_file: Path to work package markdown file
@@ -30,19 +33,10 @@ def parse_wp_dependencies(wp_file: Path) -> list[str]:
         >>> print(deps)  # ["WP01"]
     """
     try:
-        # Use FrontmatterManager for consistent parsing
-        frontmatter, _ = read_frontmatter(wp_file)
+        meta, _ = read_wp_frontmatter(wp_file)
+        return meta.dependencies
 
-        # Extract dependencies field (FrontmatterManager already defaults to [])
-        dependencies = frontmatter.get("dependencies", [])
-
-        # Validate dependencies is a list
-        if not isinstance(dependencies, list):
-            return []
-
-        return dependencies
-
-    except (FrontmatterError, OSError):
+    except (FrontmatterError, ValidationError, OSError):
         # Return empty list on any parsing error
         return []
 
@@ -83,18 +77,16 @@ def build_dependency_graph(feature_dir: Path) -> dict[str, list[str]]:
 
         # Parse frontmatter to get canonical work_package_id
         try:
-            frontmatter, _ = read_frontmatter(wp_file)
-            frontmatter_wp_id = frontmatter.get("work_package_id")
+            meta, _ = read_wp_frontmatter(wp_file)
+            frontmatter_wp_id = meta.work_package_id
 
             # Verify filename matches frontmatter (catch misnamed files)
             if frontmatter_wp_id and frontmatter_wp_id != filename_wp_id:
-                raise ValueError(
-                    f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} in {wp_file}"
-                )
+                raise ValueError(f"WP ID mismatch: filename {filename_wp_id} vs frontmatter {frontmatter_wp_id} in {wp_file}")
 
             wp_id = frontmatter_wp_id or filename_wp_id
 
-        except (FrontmatterError, OSError):
+        except (FrontmatterError, ValidationError, OSError):
             # If frontmatter read fails, skip this file
             continue
 

@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, TypedDict
 
 _REF_PATTERN = re.compile(r"^(?:FR|NFR|C)-\d+$", re.IGNORECASE)
+_REF_FIND_PATTERN = re.compile(r"\b(?:FR|NFR|C)-\d+\b", re.IGNORECASE)
 
 
 class CoverageSummary(TypedDict):
@@ -23,9 +24,7 @@ class CoverageSummary(TypedDict):
     unmapped_functional: list[str]
 
 
-def validate_refs(
-    refs: list[str], spec_requirement_ids: set[str]
-) -> tuple[list[str], list[str]]:
+def validate_refs(refs: list[str], spec_requirement_ids: set[str]) -> tuple[list[str], list[str]]:
     """Validate refs against spec.
 
     Returns:
@@ -59,9 +58,7 @@ def validate_ref_format(refs: list[str]) -> tuple[list[str], list[str]]:
     return well_formed, malformed
 
 
-def compute_coverage(
-    mappings: dict[str, list[str]], functional_ids: set[str]
-) -> CoverageSummary:
+def compute_coverage(mappings: dict[str, list[str]], functional_ids: set[str]) -> CoverageSummary:
     """Compute coverage summary: total, mapped, unmapped FRs."""
     mapped: set[str] = set()
     for refs in mappings.values():
@@ -83,10 +80,7 @@ def parse_requirement_ids_from_spec_md(spec_content: str) -> dict[str, list[str]
     Returns:
         {"all": [...], "functional": [...]}
     """
-    all_ids = {
-        req_id.upper()
-        for req_id in re.findall(r"\b(?:FR|NFR|C)-\d+\b", spec_content, re.IGNORECASE)
-    }
+    all_ids = {req_id.upper() for req_id in _REF_FIND_PATTERN.findall(spec_content)}
     functional_ids = {req_id for req_id in all_ids if req_id.startswith("FR-")}
     return {
         "all": sorted(all_ids),
@@ -104,19 +98,9 @@ def normalize_requirement_refs_value(value: Any) -> list[str]:
     if isinstance(value, list):
         for item in value:
             if isinstance(item, str):
-                refs.extend(
-                    ref_id.upper()
-                    for ref_id in re.findall(
-                        r"\b(?:FR|NFR|C)-\d+\b", item, re.IGNORECASE
-                    )
-                )
+                refs.extend(ref_id.upper() for ref_id in _REF_FIND_PATTERN.findall(item))
     elif isinstance(value, str):
-        refs.extend(
-            ref_id.upper()
-            for ref_id in re.findall(
-                r"\b(?:FR|NFR|C)-\d+\b", value, re.IGNORECASE
-            )
-        )
+        refs.extend(ref_id.upper() for ref_id in _REF_FIND_PATTERN.findall(value))
     return list(dict.fromkeys(refs))
 
 
@@ -125,6 +109,11 @@ def _read_all_wp_refs(
     extractor: Any,
 ) -> dict[str, list[str]]:
     """Shared reader for WP frontmatter requirement_refs.
+
+    This function intentionally uses raw frontmatter dict access rather than
+    typed :class:`WPMetadata` because the *extractor* callables are designed
+    to handle messy input types (scalar strings, non-string list items, etc.)
+    that Pydantic would coerce or reject.
 
     Args:
         tasks_dir: Directory containing WP*.md files.
@@ -171,17 +160,9 @@ def _extract_raw_tokens(value: Any) -> list[str]:
     if isinstance(value, list):
         for item in value:
             if isinstance(item, str):
-                tokens.extend(
-                    token
-                    for token in re.split(r"[,\s]+", item)
-                    if token.strip()
-                )
+                tokens.extend(token for token in re.split(r"[,\s]+", item) if token.strip())
             else:
                 tokens.append(f"<NON_STRING:{item}>")
     elif isinstance(value, str):
-        tokens.extend(
-            token
-            for token in re.split(r"[,\s]+", value)
-            if token.strip()
-        )
+        tokens.extend(token for token in re.split(r"[,\s]+", value) if token.strip())
     return tokens

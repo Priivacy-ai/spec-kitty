@@ -16,6 +16,7 @@ from specify_cli.core.dependency_graph import (
 
 pytestmark = pytest.mark.fast
 
+
 # T001: Tests for dependency parsing
 class TestParseWpDependencies:
     """Test parse_wp_dependencies() function."""
@@ -24,6 +25,7 @@ class TestParseWpDependencies:
         """Test parsing WP with no dependencies (empty list)."""
         wp_content = """---
 work_package_id: "WP01"
+title: "Setup"
 dependencies: []
 ---
 # Content
@@ -38,6 +40,7 @@ dependencies: []
         """Test parsing WP with single dependency."""
         wp_content = """---
 work_package_id: "WP02"
+title: "Core"
 dependencies: ["WP01"]
 ---
 # Content
@@ -52,6 +55,7 @@ dependencies: ["WP01"]
         """Test parsing WP with multiple dependencies."""
         wp_content = """---
 work_package_id: "WP04"
+title: "Integration"
 dependencies:
   - "WP01"
   - "WP02"
@@ -114,7 +118,7 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---")
 
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": []}
@@ -125,7 +129,7 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP02-mismatch.md").write_text("---\nwork_package_id: WP03\ndependencies: []\n---")
+        (tasks_dir / "WP02-mismatch.md").write_text("---\nwork_package_id: WP03\ntitle: Mismatch\ndependencies: []\n---")
 
         with pytest.raises(ValueError, match="WP ID mismatch"):
             build_dependency_graph(feature_dir)
@@ -136,9 +140,9 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
-        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---")
-        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP02]\n---")
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---")
+        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ntitle: Core\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ntitle: Tests\ndependencies: [WP02]\n---")
 
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP02"]}
@@ -149,10 +153,10 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
-        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---")
-        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP01]\n---")
-        (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---")
+        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ntitle: Core\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ntitle: Tests\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ntitle: Integration\ndependencies: [WP01]\n---")
 
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP01"]}
@@ -163,10 +167,10 @@ class TestBuildDependencyGraph:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
 
-        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ndependencies: []\n---")
-        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---")
-        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ndependencies: [WP01]\n---")
-        (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ndependencies: [WP02, WP03]\n---")
+        (tasks_dir / "WP01.md").write_text("---\nwork_package_id: WP01\ntitle: Setup\ndependencies: []\n---")
+        (tasks_dir / "WP02.md").write_text("---\nwork_package_id: WP02\ntitle: Core\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP03.md").write_text("---\nwork_package_id: WP03\ntitle: Tests\ndependencies: [WP01]\n---")
+        (tasks_dir / "WP04.md").write_text("---\nwork_package_id: WP04\ntitle: Integration\ndependencies: [WP02, WP03]\n---")
 
         graph = build_dependency_graph(feature_dir)
         assert graph == {"WP01": [], "WP02": ["WP01"], "WP03": ["WP01"], "WP04": ["WP02", "WP03"]}

@@ -267,8 +267,8 @@ class TestBootstrapStatsInJson:
 
         pytest.fail("No JSON output with 'result': 'success' found in captured output")
 
-    def test_validate_only_json_includes_bootstrap(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
-        """Verify --validate-only JSON output also contains bootstrap stats."""
+    def test_validate_only_json_includes_validation_preview(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        """Verify --validate-only JSON output contains validation.bootstrap_preview."""
         mission_slug = "060-test-feature"
         _setup_feature(tmp_path, mission_slug)
 
@@ -299,17 +299,18 @@ class TestBootstrapStatsInJson:
             try:
                 data = json.loads(line)
                 if data.get("result") == "validation_passed":
-                    assert "bootstrap" in data
-                    assert data["bootstrap"]["total_wps"] == 3
-                    assert data["bootstrap"]["newly_seeded"] == 3
-                    assert data["bootstrap"]["already_initialized"] == 0
+                    assert "bootstrap" not in data
+                    assert "validation" in data
+                    preview = data["validation"]["bootstrap_preview"]
+                    assert preview["total_wps"] == 3
+                    assert preview["newly_seeded"] == 3
+                    assert preview["already_initialized"] == 0
                     assert data["validate_only"] is True
                     return
             except json.JSONDecodeError:
                 continue
 
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
-
 
 # ---------------------------------------------------------------------------
 # WP01 regression tests (T009)
@@ -431,6 +432,9 @@ class TestWP01Regressions:
                     assert "would_modify" in data, "JSON must include would_modify"
                     assert "would_preserve" in data, "JSON must include would_preserve"
                     assert "unchanged" in data, "JSON must include unchanged"
+                    assert "bootstrap" not in data
+                    assert "validation" in data
+                    assert "bootstrap_preview" in data["validation"]
                     assert data["validate_only"] is True
                     return
             except json.JSONDecodeError:
@@ -568,3 +572,111 @@ class TestWP01Regressions:
             except json.JSONDecodeError:
                 continue
         pytest.fail("No JSON output with 'result': 'success' found")
+
+
+class TestValidateOnlyUsesInMemoryOwnership:
+    """Regression test for validate-only ownership inference and manifest reuse."""
+
+    def _setup_feature_no_ownership(self, tmp_path: Path, mission_slug: str = "060-test-feature") -> Path:
+        """Create WP files WITHOUT ownership fields."""
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+
+        spec_md = feature_dir / "spec.md"
+        spec_md.write_text(
+            "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First\n",
+            encoding="utf-8",
+        )
+
+        tasks_md = feature_dir / "tasks.md"
+        tasks_md.write_text(
+            "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
+            encoding="utf-8",
+        )
+
+        for wp_id, refs in [("WP01", ["FR-001"]), ("WP02", ["FR-001"])]:
+            wp_file = tasks_dir / f"{wp_id}-test.md"
+            refs_yaml = "\n".join(f"  - {r}" for r in refs)
+            wp_file.write_text(
+                f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\n'
+                f"requirement_refs:\n{refs_yaml}\ndependencies: []\n---\n\n# {wp_id}\n"
+                f"\n## Files\n\n- src/specify_cli/foo.py\n",
+                encoding="utf-8",
+            )
+
+        meta = feature_dir / "meta.json"
+        meta.write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
+
+        return feature_dir
+
+    def test_validate_only_infers_ownership_in_memory(self, tmp_path: Path) -> None:
+        """validate_ownership must receive non-empty manifests in validate-only mode."""
+        mission_slug = "060-test-feature"
+        self._setup_feature_no_ownership(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result(total=2, seeded=0, existing=2))
+        mock_validate = MagicMock(return_value=MagicMock(passed=True, warnings=[], errors=[]))
+        patches[f"{MODULE}.validate_ownership"] = mock_validate
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            finalize_tasks(
+                feature=mission_slug,
+                json_output=True,
+                validate_only=True,
+            )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        mock_validate.assert_called_once()
+        actual_manifests = mock_validate.call_args[0][0]
+        assert len(actual_manifests) > 0, (
+            "validate_ownership received empty wp_manifests in validate-only mode"
+        )
+
+    def test_validate_only_no_disk_mutation_even_with_ownership_inference(self, tmp_path: Path) -> None:
+        """Ownership inference in validate-only mode must not mutate WP files."""
+        mission_slug = "060-test-feature"
+        self._setup_feature_no_ownership(tmp_path, mission_slug)
+        tasks_dir = tmp_path / "kitty-specs" / mission_slug / "tasks"
+
+        wp_snapshots: dict[str, bytes] = {}
+        for wp_file in sorted(tasks_dir.glob("WP*.md")):
+            wp_snapshots[wp_file.name] = wp_file.read_bytes()
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result(total=2, seeded=0, existing=2))
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            finalize_tasks(
+                feature=mission_slug,
+                json_output=True,
+                validate_only=True,
+            )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        for wp_name, before_bytes in wp_snapshots.items():
+            after_bytes = (tasks_dir / wp_name).read_bytes()
+            assert after_bytes == before_bytes, (
+                f"{wp_name} was modified by --validate-only even though ownership inference should only operate in memory"
+            )

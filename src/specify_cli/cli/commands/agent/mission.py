@@ -1199,6 +1199,35 @@ def finalize_tasks(
     Use --validate-only to check for issues (missing requirement mappings, ownership overlaps,
     dependency cycles) without making any changes or committing.
 
+    Bootstrap Mutation Surface (FR-003 / SC-002)
+    =============================================
+    The following 8 frontmatter fields may be written or overwritten by this
+    command. When ``--validate-only`` is active, ALL writes are skipped — the
+    ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
+    mutation on disk.
+
+    +--------------------------+------------------------------+-----------------------------+
+    | Field                    | Source                       | Condition                   |
+    +--------------------------+------------------------------+-----------------------------+
+    | dependencies             | Parsed from tasks.md         | Written if absent or differs|
+    | planning_base_branch     | _resolve_planning_branch()   | Written if differs          |
+    | merge_target_branch      | Same as target_branch        | Written if differs          |
+    | branch_strategy          | Computed long-form string    | Written if differs          |
+    | requirement_refs         | WP frontmatter / tasks.md    | Written if absent or differs|
+    | execution_mode           | infer_ownership()            | Written only if absent      |
+    | owned_files              | infer_ownership()            | Written only if absent      |
+    | authoritative_surface    | infer_ownership()            | Written only if absent      |
+    +--------------------------+------------------------------+-----------------------------+
+
+    In validate-only mode, the bootstrap loop still infers all 8 fields in
+    memory so that downstream validation (ownership overlap checks, lane
+    preview) operates against the post-bootstrap state — not the stale
+    on-disk frontmatter.  The in-memory snapshots are stored in
+    ``_inmemory_frontmatter`` / ``_inmemory_bodies`` and consumed by the
+    manifest-building loop that follows.
+
+    See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
+    ``build_document() + write_text()`` — guarded the same way (T002).
     Examples:
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
@@ -1443,6 +1472,13 @@ def finalize_tasks(
 
         all_ownership_warnings: list[str] = []
 
+        # Accumulate in-memory post-bootstrap frontmatter for each WP.
+        # In validate-only mode the disk is not written, so downstream
+        # validation (ownership manifests, lane preview) must use these
+        # snapshots instead of re-reading the unchanged files.
+        _inmemory_frontmatter: dict[str, dict[str, object]] = {}
+        _inmemory_bodies: dict[str, str] = {}
+
         for wp_file in wp_files:
             # Extract WP ID from filename
             wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
@@ -1540,6 +1576,11 @@ def finalize_tasks(
                     frontmatter["authoritative_surface"] = ownership.authoritative_surface
                     frontmatter_changed = True
 
+            # Snapshot the post-bootstrap in-memory state for downstream
+            # validation (especially in validate-only mode where disk is untouched).
+            _inmemory_frontmatter[wp_id] = dict(frontmatter)
+            _inmemory_bodies[wp_id] = body
+
             if frontmatter_changed:
                 # Gate ALL file writes on validate_only (T006)
                 if not validate_only:
@@ -1564,6 +1605,11 @@ def finalize_tasks(
                 )
 
         # Validate ownership manifests across all WPs (hard errors block finalization)
+        #
+        # In validate-only mode the bootstrap loop above populates frontmatter
+        # in memory but does NOT write to disk.  Re-reading from disk would miss
+        # the inferred ownership fields, silently skipping ownership/lane
+        # validation.  We therefore use the in-memory state when available.
         wp_manifests: dict[str, object] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
@@ -1572,7 +1618,11 @@ def finalize_tasks(
                 continue
             wp_id = wp_id_match.group(1)
             try:
-                fm, wp_body = read_frontmatter(wp_file)
+                if wp_id in _inmemory_frontmatter:
+                    fm = _inmemory_frontmatter[wp_id]
+                    wp_body = _inmemory_bodies[wp_id]
+                else:
+                    fm, wp_body = read_frontmatter(wp_file)
                 wp_bodies[wp_id] = wp_body
                 if fm.get("execution_mode") and fm.get("owned_files"):
                     from specify_cli.ownership.models import OwnershipManifest
@@ -1678,9 +1728,11 @@ def finalize_tasks(
                         "would_preserve": preserved_wps,
                         "unchanged": unchanged_wps,
                         "updated_wp_count": updated_count,
-                        "bootstrap": bootstrap_stats,
-                        "lanes": lanes_stats,
                         "ownership_warnings": all_ownership_warnings,
+                        "validation": {
+                            "bootstrap_preview": bootstrap_stats,
+                            "lanes_preview": lanes_stats,
+                        },
                         "message": "All validations passed. Run without --validate-only to commit.",
                     }
                 )
@@ -1935,7 +1987,7 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     sections: dict[str, str] = {}
     matches = list(
         re.finditer(
-            r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)",
+            r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
             tasks_content,
         )
     )
@@ -2000,6 +2052,7 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
     """Parse requirement refs directly from WP prompt frontmatter."""
     from specify_cli.requirement_mapping import normalize_requirement_refs_value
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:
@@ -2008,11 +2061,11 @@ def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, lis
             continue
         wp_id = wp_id_match.group(1)
         try:
-            frontmatter, _ = read_frontmatter(wp_file)
+            meta, _ = read_wp_frontmatter(wp_file)
         except Exception:
             parsed.setdefault(wp_id, [])
             continue
-        refs = normalize_requirement_refs_value(frontmatter.get("requirement_refs"))
+        refs = normalize_requirement_refs_value(meta.requirement_refs)
         parsed[wp_id] = refs
     return parsed
 
