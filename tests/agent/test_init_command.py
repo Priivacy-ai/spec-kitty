@@ -66,14 +66,7 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
         pkg_dir.mkdir(parents=True, exist_ok=True)
         return pkg_dir
 
-    shim_calls: list[Path] = []
-
-    def fake_shims(repo_root: Path) -> list[Path]:  # noqa: D401
-        shim_calls.append(repo_root)
-        return []
-
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", fake_shims)
 
     _invoke(
         app,
@@ -89,8 +82,8 @@ def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest
         ],
     )
 
-    # WP10: shim generation replaces per-agent template copy
-    assert len(shim_calls) == 1
+    # Commands are now installed globally (not per-project); init completes without error.
+    assert (tmp_path / "pkg-demo" / ".kittify").is_dir()
 
 
 def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -165,7 +158,7 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
+    # generate_all_shims no longer called — commands are installed globally
 
     # Git available
     with patch.object(init_module, "is_git_available", return_value=True):
@@ -228,7 +221,7 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
+    # generate_all_shims no longer called — commands are installed globally
 
     runner = CliRunner()
     result = runner.invoke(
@@ -294,7 +287,7 @@ def test_init_non_interactive_no_project_name_allows_force_for_nonempty_director
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
+    # generate_all_shims no longer called — commands are installed globally
 
     runner = CliRunner()
     result = runner.invoke(
@@ -391,7 +384,7 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
+    # generate_all_shims no longer called — commands are installed globally
 
     runner = CliRunner()
     result = runner.invoke(
@@ -435,7 +428,7 @@ def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.M
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "generate_all_shims", lambda repo_root: [])
+    # generate_all_shims no longer called — commands are installed globally
     monkeypatch.setattr(init_module, "init_git_repo", fake_init_git_repo)
     monkeypatch.setattr(init_module, "is_git_repo", lambda path: (path / ".git").exists())
     monkeypatch.setattr(init_module.subprocess, "run", fake_subprocess_run)

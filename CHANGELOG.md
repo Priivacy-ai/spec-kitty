@@ -9,6 +9,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1a3] - 2026-04-07
+
+### Added
+
+- **Global slash command installation** — all 16 spec-kitty slash commands are now installed globally to `~/.<agent-dir>/` (e.g. `~/.claude/commands/`, `~/.gemini/commands/`, `~/.codex/prompts/`, etc.) at every CLI startup, for all 13 supported agents. No `spec-kitty init` or per-project `spec-kitty upgrade` is required for commands to be available. Commands update automatically when the CLI is upgraded.
+- **Migration `3.1.2_globalize_commands`** — removes existing per-project `spec-kitty.*` command files from `.claude/commands/`, `.gemini/commands/`, and equivalent directories in all configured agents. Runs automatically on `spec-kitty upgrade`.
+- **ADR `2026-04-07-1-global-slash-command-installation`** — documents the decision to install commands globally, the full 13-agent table with global roots, and the rationale.
+
+### Changed
+
+- `spec-kitty init` no longer writes per-project command files. Commands are managed exclusively by the global startup hook.
+
 ## [3.1.1a2] - 2026-04-07
 
 ### Fixed
