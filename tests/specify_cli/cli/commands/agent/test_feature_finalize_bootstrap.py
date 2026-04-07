@@ -40,9 +40,7 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Pa
     # spec.md with at least one requirement
     spec_md = feature_dir / "spec.md"
     spec_md.write_text(
-        "---\ntitle: Test Feature\n---\n\n"
-        "## Requirements\n\n"
-        "- FR-001: First requirement\n",
+        "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
         encoding="utf-8",
     )
 
@@ -58,9 +56,7 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Pa
         wp_file = tasks_dir / f"{wp_id}-test.md"
         refs_yaml = "\n".join(f"  - {r}" for r in refs)
         wp_file.write_text(
-            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"Test {wp_id}\"\n"
-            f"requirement_refs:\n{refs_yaml}\n"
-            f"dependencies: []\n---\n\n# {wp_id}\n",
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n{refs_yaml}\ndependencies: []\n---\n\n# {wp_id}\n',
             encoding="utf-8",
         )
 
@@ -72,7 +68,9 @@ def _setup_feature(tmp_path: Path, mission_slug: str = "060-test-feature") -> Pa
 
 
 def _make_bootstrap_result(
-    total: int = 2, seeded: int = 2, existing: int = 0,
+    total: int = 2,
+    seeded: int = 2,
+    existing: int = 0,
 ) -> BootstrapResult:
     """Create a BootstrapResult with given counts."""
     return BootstrapResult(
@@ -194,9 +192,7 @@ class TestValidateOnlyDryRun:
         _setup_feature(tmp_path, mission_slug)
 
         patches = _common_patches(tmp_path, mission_slug)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result(total=2, seeded=1, existing=1)
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result(total=2, seeded=1, existing=1))
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -312,6 +308,7 @@ class TestBootstrapStatsInJson:
 
         pytest.fail("No JSON output with 'result': 'validation_passed' found")
 
+
 # ---------------------------------------------------------------------------
 # WP01 regression tests (T009)
 # ---------------------------------------------------------------------------
@@ -328,18 +325,14 @@ def _setup_feature_with_existing_deps(
     tasks_dir.mkdir(parents=True)
 
     (feature_dir / "spec.md").write_text(
-        "---\ntitle: Test Feature\n---\n\n"
-        "## Requirements\n\n"
-        "- FR-001: First requirement\n",
+        "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
         encoding="utf-8",
     )
     (feature_dir / "tasks.md").write_text(
         "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nDepends on WP01.\n",
         encoding="utf-8",
     )
-    (feature_dir / "meta.json").write_text(
-        json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
-    )
+    (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
 
     for wp_id, refs in [("WP01", ["FR-001"]), ("WP02", ["FR-001"])]:
         dep_lines = ""
@@ -350,10 +343,7 @@ def _setup_feature_with_existing_deps(
             dep_lines = "dependencies: []\n"
         refs_yaml = "\n".join(f"  - {r}" for r in refs)
         (tasks_dir / f"{wp_id}-test.md").write_text(
-            f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"Test {wp_id}\"\n"
-            f"requirement_refs:\n{refs_yaml}\n"
-            f"{dep_lines}"
-            f"---\n\n# {wp_id}\n",
+            f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n{refs_yaml}\n{dep_lines}---\n\n# {wp_id}\n',
             encoding="utf-8",
         )
 
@@ -370,9 +360,7 @@ class TestWP01Regressions:
         tasks_dir = feature_dir / "tasks"
 
         # Capture checksums before
-        checksums_before = {
-            f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")
-        }
+        checksums_before = {f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")}
 
         patches = _common_patches(tmp_path, mission_slug)
         mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
@@ -392,24 +380,16 @@ class TestWP01Regressions:
                 p.stop()
 
         # Capture checksums after — must be identical
-        checksums_after = {
-            f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")
-        }
-        assert checksums_before == checksums_after, (
-            "validate_only=True must not modify any WP files on disk"
-        )
+        checksums_after = {f.name: f.read_bytes() for f in tasks_dir.glob("WP*.md")}
+        assert checksums_before == checksums_after, "validate_only=True must not modify any WP files on disk"
 
-    def test_validate_only_reports_would_modify(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_validate_only_reports_would_modify(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """--validate-only JSON output must include would_modify field."""
         mission_slug = "060-test-feature"
         _setup_feature(tmp_path, mission_slug)
 
         patches = _common_patches(tmp_path, mission_slug)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -445,14 +425,10 @@ class TestWP01Regressions:
         """Non-empty dep disagreement between tasks.md and frontmatter → exit 1."""
         mission_slug = "060-test-feature"
         # WP02 frontmatter says [WP99] but tasks.md says "Depends on WP01"
-        feature_dir = _setup_feature_with_existing_deps(
-            tmp_path, mission_slug, wp02_existing_deps=["WP99"]
-        )
+        _setup_feature_with_existing_deps(tmp_path, mission_slug, wp02_existing_deps=["WP99"])
 
         patches = _common_patches(tmp_path, mission_slug)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -470,9 +446,7 @@ class TestWP01Regressions:
 
         assert exit_code == 1, "Dependency disagreement must exit with code 1"
 
-    def test_empty_parse_preserves_existing_deps(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_empty_parse_preserves_existing_deps(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """When parser finds no deps but frontmatter has deps, preserve existing."""
         mission_slug = "060-test-feature"
         # tasks.md declares no dependencies for WP02; frontmatter has [WP01]
@@ -481,9 +455,7 @@ class TestWP01Regressions:
         tasks_dir.mkdir(parents=True)
 
         (feature_dir / "spec.md").write_text(
-            "---\ntitle: Test Feature\n---\n\n"
-            "## Requirements\n\n"
-            "- FR-001: First requirement\n",
+            "---\ntitle: Test Feature\n---\n\n## Requirements\n\n- FR-001: First requirement\n",
             encoding="utf-8",
         )
         # tasks.md has no dependency declaration for WP02
@@ -491,25 +463,18 @@ class TestWP01Regressions:
             "# Tasks\n\n## WP01\n\nNo dependencies.\n\n## WP02\n\nSome content, no dep line.\n",
             encoding="utf-8",
         )
-        (feature_dir / "meta.json").write_text(
-            json.dumps({"mission_slug": mission_slug}), encoding="utf-8"
-        )
+        (feature_dir / "meta.json").write_text(json.dumps({"mission_slug": mission_slug}), encoding="utf-8")
 
         for wp_id, refs in [("WP01", ["FR-001"]), ("WP02", ["FR-001"])]:
             dep_line = "dependencies: []\n" if wp_id == "WP01" else "dependencies:\n  - WP01\n"
             refs_yaml = "\n".join(f"  - {r}" for r in refs)
             (tasks_dir / f"{wp_id}-test.md").write_text(
-                f"---\nwork_package_id: \"{wp_id}\"\ntitle: \"Test {wp_id}\"\n"
-                f"requirement_refs:\n{refs_yaml}\n"
-                f"{dep_line}"
-                f"---\n\n# {wp_id}\n",
+                f'---\nwork_package_id: "{wp_id}"\ntitle: "Test {wp_id}"\nrequirement_refs:\n{refs_yaml}\n{dep_line}---\n\n# {wp_id}\n',
                 encoding="utf-8",
             )
 
         patches = _common_patches(tmp_path, mission_slug)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -528,21 +493,15 @@ class TestWP01Regressions:
         wp02_file = tasks_dir / "WP02-test.md"
         assert wp02_file.exists()
         content = wp02_file.read_text(encoding="utf-8")
-        assert "WP01" in content, (
-            "Existing WP01 dependency must be preserved when parser finds nothing"
-        )
+        assert "WP01" in content, "Existing WP01 dependency must be preserved when parser finds nothing"
 
-    def test_json_reports_modified_unchanged_preserved(
-        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
-    ) -> None:
+    def test_json_reports_modified_unchanged_preserved(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         """Success JSON output must include modified_wps, unchanged_wps, preserved_wps."""
         mission_slug = "060-test-feature"
         _setup_feature(tmp_path, mission_slug)
 
         patches = _common_patches(tmp_path, mission_slug)
-        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(
-            return_value=_make_bootstrap_result()
-        )
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
 
         from specify_cli.cli.commands.agent.mission import finalize_tasks
 
@@ -640,9 +599,7 @@ class TestValidateOnlyUsesInMemoryOwnership:
 
         mock_validate.assert_called_once()
         actual_manifests = mock_validate.call_args[0][0]
-        assert len(actual_manifests) > 0, (
-            "validate_ownership received empty wp_manifests in validate-only mode"
-        )
+        assert len(actual_manifests) > 0, "validate_ownership received empty wp_manifests in validate-only mode"
 
     def test_validate_only_no_disk_mutation_even_with_ownership_inference(self, tmp_path: Path) -> None:
         """Ownership inference in validate-only mode must not mutate WP files."""
@@ -677,6 +634,209 @@ class TestValidateOnlyUsesInMemoryOwnership:
 
         for wp_name, before_bytes in wp_snapshots.items():
             after_bytes = (tasks_dir / wp_name).read_bytes()
-            assert after_bytes == before_bytes, (
-                f"{wp_name} was modified by --validate-only even though ownership inference should only operate in memory"
+            assert after_bytes == before_bytes, f"{wp_name} was modified by --validate-only even though ownership inference should only operate in memory"
+
+
+# ---------------------------------------------------------------------------
+# Unit B: Typed frontmatter migration tests for finalize_tasks()
+# ---------------------------------------------------------------------------
+
+
+class TestTypedFrontmatterMigration:
+    """Verify finalize_tasks() uses WPMetadata typed reads instead of raw dicts.
+
+    These tests validate the consumer migration from raw ``read_frontmatter()``
+    to ``read_wp_frontmatter()`` and the builder pattern for mutations.
+    """
+
+    def test_finalize_reads_wp_via_typed_reader(self, tmp_path: Path) -> None:
+        """finalize_tasks() must use read_wp_frontmatter, not raw read_frontmatter."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        # Spy on read_wp_frontmatter to verify it is called
+        with patch(
+            f"{MODULE}.read_wp_frontmatter",
+            wraps=__import__("specify_cli.status.wp_metadata", fromlist=["read_wp_frontmatter"]).read_wp_frontmatter,
+        ) as spy_typed:
+            try:
+                finalize_tasks(
+                    feature=mission_slug,
+                    json_output=True,
+                    validate_only=False,
+                )
+            except (typer.Exit, SystemExit):
+                pass
+            finally:
+                for p in ctx_patches.values():
+                    p.stop()
+
+            assert spy_typed.call_count >= 2, f"Expected read_wp_frontmatter to be called at least twice (pre-loop + main loop), got {spy_typed.call_count}"
+
+    def test_finalize_does_not_call_raw_read_frontmatter(self, tmp_path: Path) -> None:
+        """After migration, finalize_tasks must NOT use raw read_frontmatter for WP files."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        # Spy on the frontmatter module's read_frontmatter to verify it is NOT called
+        # by finalize_tasks (which should use read_wp_frontmatter instead)
+        import specify_cli.frontmatter as _fm_mod
+
+        with patch.object(_fm_mod, "read_frontmatter", wraps=_fm_mod.read_frontmatter) as spy_raw:
+            try:
+                finalize_tasks(
+                    feature=mission_slug,
+                    json_output=True,
+                    validate_only=False,
+                )
+            except (typer.Exit, SystemExit):
+                pass
+            finally:
+                for p in ctx_patches.values():
+                    p.stop()
+
+            # read_wp_frontmatter internally calls FrontmatterManager.read(), not
+            # the module-level read_frontmatter function.  So spy_raw should be 0.
+            assert spy_raw.call_count == 0, f"Expected read_frontmatter to not be called after migration, but it was called {spy_raw.call_count} time(s)"
+
+    def test_written_frontmatter_validates_as_wp_metadata(self, tmp_path: Path) -> None:
+        """Frontmatter written by finalize_tasks must round-trip through WPMetadata."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            finalize_tasks(
+                feature=mission_slug,
+                json_output=True,
+                validate_only=False,
             )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        # After finalize, every WP file's frontmatter must be valid WPMetadata
+        from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+        tasks_dir = tmp_path / "kitty-specs" / mission_slug / "tasks"
+        for wp_file in sorted(tasks_dir.glob("WP*.md")):
+            wp_meta, _body = read_wp_frontmatter(wp_file)
+            assert wp_meta.work_package_id is not None
+            assert wp_meta.title.strip() != ""
+
+    def test_finalize_updates_branch_fields_via_typed_api(self, tmp_path: Path) -> None:
+        """Branch contract fields must be set correctly after finalize_tasks."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            finalize_tasks(
+                feature=mission_slug,
+                json_output=True,
+                validate_only=False,
+            )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+        tasks_dir = tmp_path / "kitty-specs" / mission_slug / "tasks"
+        for wp_file in sorted(tasks_dir.glob("WP*.md")):
+            wp_meta, _ = read_wp_frontmatter(wp_file)
+            # finalize_tasks sets these branch fields
+            assert wp_meta.planning_base_branch == "main"
+            assert wp_meta.merge_target_branch == "main"
+            assert wp_meta.branch_strategy is not None
+            assert "Planning artifacts" in wp_meta.branch_strategy
+
+    def test_ownership_manifest_receives_typed_metadata(self, tmp_path: Path) -> None:
+        """OwnershipManifest.from_frontmatter() must receive WPMetadata, not raw dict."""
+        mission_slug = "060-test-feature"
+        _setup_feature(tmp_path, mission_slug)
+
+        # Add ownership fields so the post-loop validation path is exercised
+        tasks_dir = tmp_path / "kitty-specs" / mission_slug / "tasks"
+        for wp_file in sorted(tasks_dir.glob("WP*.md")):
+            content = wp_file.read_text(encoding="utf-8")
+            # Insert ownership fields before the closing ---
+            content = content.replace(
+                "dependencies: []",
+                'dependencies: []\nexecution_mode: "code_change"\nowned_files:\n  - "src/**"',
+            )
+            wp_file.write_text(content, encoding="utf-8")
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(return_value=_make_bootstrap_result())
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+        from specify_cli.ownership.models import OwnershipManifest
+        from specify_cli.status.wp_metadata import WPMetadata
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        # Spy on OwnershipManifest.from_frontmatter to check arg types
+        original_from_fm = OwnershipManifest.from_frontmatter
+        received_args: list[object] = []
+
+        def spy_from_frontmatter(data: object) -> object:
+            received_args.append(data)
+            return original_from_fm(data)
+
+        with patch.object(OwnershipManifest, "from_frontmatter", staticmethod(spy_from_frontmatter)):
+            try:
+                finalize_tasks(
+                    feature=mission_slug,
+                    json_output=True,
+                    validate_only=False,
+                )
+            except (typer.Exit, SystemExit):
+                pass
+            finally:
+                for p in ctx_patches.values():
+                    p.stop()
+
+        assert len(received_args) >= 1, "OwnershipManifest.from_frontmatter was never called"
+        for arg in received_args:
+            assert isinstance(arg, WPMetadata), f"Expected WPMetadata instance, got {type(arg).__name__}"
