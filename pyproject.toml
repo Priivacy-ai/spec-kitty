@@ -70,6 +70,7 @@ dependencies = [
     "transitions>=0.9.2",  # State machine library for mission DSL v1
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
     "python-ulid>=3.0",  # ULID generation for event IDs
+    "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
 ]
 
 [project.urls]
@@ -79,9 +80,6 @@ Documentation = "https://docs.spec-kitty.ai/"
 Changelog = "https://github.com/Priivacy-ai/spec-kitty/blob/main/CHANGELOG.md"
 
 [project.optional-dependencies]
-safe-re = [
-    "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention); platform-specific wheels
-]
 test = [
     "pytest>=7.4",
     "pytest-asyncio>=0.21.0",  # Required for async tests
