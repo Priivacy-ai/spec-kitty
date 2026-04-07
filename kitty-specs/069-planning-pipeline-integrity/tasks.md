@@ -44,10 +44,10 @@
 | T032 | Unit test: query output begins with `[QUERY — no result provided, state not advanced]` verbatim | WP05 | P |
 | T033 | Unit test: `--result success` still advances (no regression) | WP05 | P |
 | T034 | Unit test: JSON output includes `"is_query": true` | WP05 | P |
-| T035 | Update `KEBAB_CASE_PATTERN` regex to accept digit-prefixed slugs | WP06 | |
-| T036 | Update error message — add valid digit-prefix example, remove invalid example, add comment | WP06 | |
-| T037 | Unit tests: digit-prefix slugs accepted; existing rejections unchanged | WP06 | P |
-| T038 | Integration test: `create "070-new-feature"` passes slug validation | WP06 | P |
+| T035 | Update `KEBAB_CASE_PATTERN` regex to accept digit-prefixed slugs | WP06 | | [D] |
+| T036 | Update error message — add valid digit-prefix example, remove invalid example, add comment | WP06 | | [D] |
+| T037 | Unit tests: digit-prefix slugs accepted; existing rejections unchanged | WP06 | P | [D] |
+| T038 | Integration test: `create "070-new-feature"` passes slug validation | WP06 | P | [D] |
 
 ---
 
