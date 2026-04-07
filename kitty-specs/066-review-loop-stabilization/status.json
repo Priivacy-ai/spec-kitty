@@ -1,7 +1,7 @@
 {
   "event_count": 47,
   "last_event_id": "01KNHX06Q46W8X4JKRRNGHG0WT",
-  "materialized_at": "2026-04-07T09:40:28.846058+00:00",
+  "materialized_at": "2026-04-07T09:51:31.557908+00:00",
   "mission_slug": "066-review-loop-stabilization",
   "summary": {
     "approved": 0,
