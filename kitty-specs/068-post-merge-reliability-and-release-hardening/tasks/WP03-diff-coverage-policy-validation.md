@@ -221,3 +221,4 @@ WP03 is verification-first and low-risk. Once it lands, #455 is permanently off 
 - 2026-04-07T09:33:46Z – claude:sonnet:reviewer:reviewer – shell_pid=59664 – Fixed: issue #455 closed with evidence comment
 - 2026-04-07T09:34:12Z – claude:sonnet:reviewer:reviewer – shell_pid=61930 – Started review via action command
 - 2026-04-07T09:35:24Z – claude:sonnet:reviewer:reviewer – shell_pid=61930 – Review passed: validation report complete, #455 closed with evidence, CI names tightened, 4 tests pass
+- 2026-04-07T09:55:53Z – claude:sonnet:reviewer:reviewer – shell_pid=61930 – Moved to done
