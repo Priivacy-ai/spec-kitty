@@ -1,8 +1,8 @@
-"""Linear-time regular expression engine with stdlib re fallback.
+"""Linear-time regular expression engine backed by Google RE2.
 
-Drop-in replacement for ``import re`` that uses Google's RE2 engine when
-available (``google-re2``).  RE2 guarantees O(n) matching time, preventing
-catastrophic backtracking (ReDoS).
+Drop-in replacement for ``import re`` that uses Google's RE2 engine
+(``google-re2``, a mandatory core dependency).  RE2 guarantees O(n)
+matching time, preventing catastrophic backtracking (ReDoS).
 
 Usage::
 
@@ -14,20 +14,23 @@ Usage::
     isinstance(obj, re.Pattern)
     re.MULTILINE | re.DOTALL
 
-When ``google-re2`` is not installed the module transparently falls back to
-stdlib ``re``.  Install the extra to enable RE2::
+RE2 routing policy
+------------------
+All patterns are compiled with RE2.  If RE2 rejects a pattern (e.g. it
+uses PCRE-only syntax such as lookahead/lookbehind assertions or
+back-references), ``re.error`` is raised immediately — the same
+exception type that stdlib ``re.compile`` raises for invalid patterns.
 
-    pip install "spec-kitty-cli[safe-re]"
+Files that genuinely require PCRE features must use ``import re`` from
+the stdlib directly and are deliberately excluded from the RE2 migration.
+There is no silent fallback; a failed compile is always an error.
 
-Limitations of RE2 (not supported, falls back to stdlib ``re``)
-----------------------------------------------------------------
-- Lookahead/lookbehind assertions (``(?=...)``, ``(?!...)``, ``(?<=...)``, ``(?<!...)``)
-- Back-references (``\\1``, ``\\g<name>``)
-- Possessive quantifiers
-- ``re.VERBOSE`` (``(?x)`` flag) -- RE2 does not support this syntax
-
-For those patterns the module silently delegates to stdlib ``re``.  Call
-:func:`is_re2_active` to determine which engine is in use at runtime.
+Flags
+-----
+``re.VERBOSE`` and ``re.LOCALE`` are not supported by RE2.  Passing
+them raises ``re.error``.  All other stdlib flags (``IGNORECASE``,
+``MULTILINE``, ``DOTALL``, ``ASCII``, ``UNICODE``, ``NOFLAG``) are
+translated to inline-flag prefixes understood by RE2.
 """
 
 from __future__ import annotations
@@ -38,20 +41,14 @@ import types
 
 __all__ = ["re", "is_re2_active"]
 
-# ── Attempt RE2 import ──────────────────────────────────────────────────────
+# ── RE2 import (hard dependency — fails loudly if google-re2 not installed) ──
 
-try:
-    import re2 as _re2_mod  # type: ignore[import-untyped]
-
-    _RE2_AVAILABLE = True
-except ImportError:  # pragma: no cover
-    _RE2_AVAILABLE = False
-    _re2_mod = None  # type: ignore[assignment]
+import re2 as _re2_mod  # type: ignore[import-untyped]  # noqa: E402
 
 
 # ── Inline-flag prefix map ───────────────────────────────────────────────────
-# RE2 does not expose re.MULTILINE / re.DOTALL etc. as constants.  Instead,
-# these must be expressed as inline flags prepended to the pattern string.
+# RE2 does not expose re.MULTILINE / re.DOTALL etc. as integer constants.
+# They must be expressed as inline flags prepended to the pattern string.
 
 _FLAG_TO_INLINE: dict[int, str] = {
     _stdlib_re.IGNORECASE: "i",
@@ -59,19 +56,26 @@ _FLAG_TO_INLINE: dict[int, str] = {
     _stdlib_re.DOTALL: "s",
 }
 
-# Flags that are NOT translatable to RE2 inline flags → fall back to stdlib re
+# Flags that RE2 does not support — using them is an error, not a fallback.
 _UNSUPPORTED_FLAGS: int = _stdlib_re.VERBOSE | _stdlib_re.LOCALE
 
 
-def _prepend_flags(pattern: str, flags: int) -> tuple[str, bool]:
-    """Return ``(modified_pattern, needs_fallback)``.
+def _prepend_flags(pattern: str, flags: int) -> str:
+    """Return *pattern* with RE2 inline-flag prefix applied.
 
-    Prepends inline-flag modifiers that RE2 understands and signals when
-    the flag set contains unsupported items so the caller can fall back to
-    stdlib ``re``.
+    Raises ``re.error`` for unsupported flags rather than silently
+    degrading to a different engine.
     """
     if flags & _UNSUPPORTED_FLAGS:
-        return pattern, True  # cannot handle in RE2
+        bad = []
+        if flags & _stdlib_re.VERBOSE:
+            bad.append("re.VERBOSE")
+        if flags & _stdlib_re.LOCALE:
+            bad.append("re.LOCALE")
+        raise _stdlib_re.error(
+            f"kernel._safe_re: {', '.join(bad)} not supported by RE2. "
+            "Use stdlib re directly for patterns that require these flags."
+        )
 
     inline: list[str] = []
     for flag_val, letter in _FLAG_TO_INLINE.items():
@@ -79,36 +83,28 @@ def _prepend_flags(pattern: str, flags: int) -> tuple[str, bool]:
             inline.append(letter)
 
     if inline:
-        prefix = "(?{})".format("".join(inline))
-        pattern = prefix + pattern
+        pattern = "(?{})".format("".join(inline)) + pattern
 
-    return pattern, False
-
-
-def _is_pcre_only(pattern: str) -> bool:
-    """Return True when the pattern contains RE2-incompatible PCRE syntax."""
-    # Lookahead/lookbehind assertions
-    if "(?=" in pattern or "(?!" in pattern:
-        return True
-    if "(?<=" in pattern or "(?<!" in pattern:
-        return True
-    return False
+    return pattern
 
 
-def _safe_compile(pattern: str, flags: int = 0) -> _stdlib_re.Pattern:  # type: ignore[type-arg]
-    """Compile *pattern* using RE2 when safe; otherwise fall back to stdlib."""
-    if not _RE2_AVAILABLE or _is_pcre_only(pattern) or flags & _UNSUPPORTED_FLAGS:
-        return _stdlib_re.compile(pattern, flags)
+def _re2_compile(pattern: str, flags: int = 0) -> _stdlib_re.Pattern:  # type: ignore[type-arg]
+    """Compile *pattern* with RE2.
 
-    re2_pattern, needs_fallback = _prepend_flags(pattern, flags)
-    if needs_fallback:
-        return _stdlib_re.compile(pattern, flags)
-
+    Raises ``re.error`` (the stdlib type) if RE2 rejects the pattern for
+    any reason, including PCRE-only syntax.  Never falls back silently.
+    """
+    re2_pattern = _prepend_flags(pattern, flags)
     try:
         return _re2_mod.compile(re2_pattern)  # type: ignore[no-any-return]
-    except Exception:  # noqa: BLE001
-        # RE2 rejected the pattern (e.g. unsupported syntax) — fall back
-        return _stdlib_re.compile(pattern, flags)
+    except Exception as exc:
+        # RE2 rejected the pattern — propagate as re.error so callers get a
+        # familiar exception type.  Do not fall back to stdlib re.
+        raise _stdlib_re.error(
+            f"kernel._safe_re: RE2 rejected pattern {pattern!r}: {exc}. "
+            "If this pattern requires PCRE features (lookahead, lookbehind, "
+            "back-references), use stdlib re directly."
+        ) from exc
 
 
 # ── Build a fake module that mirrors stdlib re ───────────────────────────────
@@ -146,39 +142,39 @@ _mod.NOFLAG = _stdlib_re.NOFLAG  # type: ignore[attr-defined]
 
 
 def _compile(pattern: str, flags: int = 0) -> _stdlib_re.Pattern:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags)
+    return _re2_compile(pattern, flags)
 
 
 def _search(pattern: str, string: str, flags: int = 0) -> _stdlib_re.Match | None:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags).search(string)
+    return _re2_compile(pattern, flags).search(string)
 
 
 def _match(pattern: str, string: str, flags: int = 0) -> _stdlib_re.Match | None:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags).match(string)
+    return _re2_compile(pattern, flags).match(string)
 
 
 def _fullmatch(pattern: str, string: str, flags: int = 0) -> _stdlib_re.Match | None:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags).fullmatch(string)
+    return _re2_compile(pattern, flags).fullmatch(string)
 
 
 def _findall(pattern: str, string: str, flags: int = 0) -> list:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags).findall(string)
+    return _re2_compile(pattern, flags).findall(string)
 
 
 def _finditer(pattern: str, string: str, flags: int = 0):  # type: ignore[return]
-    return _safe_compile(pattern, flags).finditer(string)
+    return _re2_compile(pattern, flags).finditer(string)
 
 
 def _sub(pattern: str, repl: str, string: str, count: int = 0, flags: int = 0) -> str:
-    return _safe_compile(pattern, flags).sub(repl, string, count)
+    return _re2_compile(pattern, flags).sub(repl, string, count)
 
 
 def _subn(pattern: str, repl: str, string: str, count: int = 0, flags: int = 0) -> tuple[str, int]:
-    return _safe_compile(pattern, flags).subn(repl, string, count)
+    return _re2_compile(pattern, flags).subn(repl, string, count)
 
 
 def _split(pattern: str, string: str, maxsplit: int = 0, flags: int = 0) -> list:  # type: ignore[type-arg]
-    return _safe_compile(pattern, flags).split(string, maxsplit)
+    return _re2_compile(pattern, flags).split(string, maxsplit)
 
 
 def _escape(pattern: str) -> str:
@@ -186,11 +182,10 @@ def _escape(pattern: str) -> str:
 
 
 def _purge() -> None:
-    if _re2_mod is not None:  # pragma: no cover
-        try:
-            _re2_mod.purge()
-        except AttributeError:
-            pass
+    try:
+        _re2_mod.purge()
+    except AttributeError:
+        pass
     _stdlib_re.purge()
 
 
@@ -211,12 +206,12 @@ sys.modules["kernel._safe_re.re"] = _mod
 
 # ── Public export ────────────────────────────────────────────────────────────
 
-#: Drop-in replacement for the ``re`` module.  Use as::
+#: Drop-in replacement for the ``re`` module backed by RE2.  Use as::
 #:
 #:     from kernel._safe_re import re
 re = _mod
 
 
 def is_re2_active() -> bool:
-    """Return True when the RE2 engine is active (``google-re2`` installed)."""
-    return _RE2_AVAILABLE
+    """Always returns True — google-re2 is a mandatory core dependency."""
+    return True
