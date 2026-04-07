@@ -43,6 +43,11 @@ from specify_cli.mission import get_mission_type
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
+from specify_cli.core.wps_manifest import (
+    load_wps_manifest,
+    dependencies_are_explicit,
+    generate_tasks_md_from_manifest,
+)
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
@@ -1265,17 +1270,37 @@ def finalize_tasks(
         all_spec_requirement_ids = set(spec_requirement_ids["all"])
         functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
+        # ─── TIER 0: wps.yaml manifest ────────────────────────────────────────
+        try:
+            wps_manifest = load_wps_manifest(feature_dir)
+        except Exception as exc:
+            error_msg = f"wps.yaml is present but could not be loaded: {exc}"
+            if json_output:
+                _emit_json({"error": error_msg})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 2-tier priority:
         # 1. WP frontmatter (primary — map-requirements writes here directly)
         # 2. tasks.md text parsing (backward compat for pre-API projects)
         tasks_md = feature_dir / "tasks.md"
-        wp_dependencies = {}
-        wp_requirement_refs = {}
+        wp_dependencies: dict[str, list[str]] = {}
+        wp_requirement_refs: dict[str, list[str]] = {}
+
+        if wps_manifest is not None:
+            # Build wp_dependencies from manifest (explicit deps only)
+            for entry in wps_manifest.work_packages:
+                if dependencies_are_explicit(entry):
+                    wp_dependencies[entry.id] = list(entry.dependencies)
+                else:
+                    wp_dependencies[entry.id] = []
 
         # PRIMARY: WP frontmatter (map-requirements writes here directly)
         wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
 
-        if tasks_md.exists():
+        if wps_manifest is None and tasks_md.exists():
             # Read tasks.md and parse dependency mapping (always needed)
             tasks_content = tasks_md.read_text(encoding="utf-8")
             from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
@@ -1448,7 +1473,9 @@ def finalize_tasks(
             parsed_deps = wp_dependencies.get(wp_id, [])
             existing_deps_raw = frontmatter.get("dependencies", [])
             existing_deps = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
-            if not parsed_deps and existing_deps:
+            # When wps.yaml is the authority, never fall back to existing frontmatter deps.
+            # The manifest is always authoritative regardless of whether parsed_deps is empty.
+            if wps_manifest is None and not parsed_deps and existing_deps:
                 # Parser found nothing but frontmatter has deps — preserve existing
                 deps = existing_deps
                 preserved_wps.append(wp_id)
@@ -1525,6 +1552,16 @@ def finalize_tasks(
             else:
                 if wp_id not in preserved_wps:
                     unchanged_wps.append(wp_id)
+
+        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
+        if wps_manifest is not None:
+            tasks_md_content = generate_tasks_md_from_manifest(wps_manifest, mission_slug)
+            tasks_md.write_text(tasks_md_content, encoding="utf-8")
+            if not json_output:
+                console.print(
+                    f"[green]Regenerated[/green] tasks.md from wps.yaml "
+                    f"({len(wps_manifest.work_packages)} WPs)"
+                )
 
         # Validate ownership manifests across all WPs (hard errors block finalization)
         wp_manifests: dict[str, object] = {}

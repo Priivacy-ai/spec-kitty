@@ -150,8 +150,8 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
         write_derived_views(feature_dir, derived_dir)
         generate_progress_json(feature_dir, derived_dir)
 
-    # Always return a fresh snapshot from the event log
-    return materialize(feature_dir)
+    # Return snapshot without writing (T002 covers any write needed by derived views)
+    return reduce(read_events(feature_dir))
 
 
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:

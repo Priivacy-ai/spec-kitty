@@ -38,17 +38,19 @@ def test_mission_slug_with_underscores_rejected():
     assert "kebab-case" in result.stdout.lower()
 
 
-def test_mission_slug_starting_with_number_rejected():
-    """Feature slugs must start with a letter."""
-    # Arrange
+def test_mission_slug_starting_with_number_accepted():
+    """Feature slugs may start with a digit (e.g. '068-feature-name' convention)."""
+    # Arrange — digit-prefix slugs are now valid per FR-017
     slug = "123-test-feature"
     # Assumption check
     assert slug[0].isdigit()
-    # Act
+    # The slug itself is valid; the CLI may reject for other reasons (not in a git repo,
+    # worktree context, etc.) but NOT for the slug format.
     result = runner.invoke(app, ["create", slug, "--json"])
-    # Assert
-    assert result.exit_code != 0, "Should reject slug starting with number"
-    assert "kebab-case" in result.stdout.lower()
+    # Assert: error must NOT be about the slug format
+    assert "Invalid feature slug" not in result.stdout, (
+        "Digit-prefixed slug '123-test-feature' must no longer be rejected for slug format"
+    )
 
 
 def test_mission_slug_with_uppercase_rejected():

@@ -44,7 +44,9 @@ class MissionCreationResult:
 # Constants
 # ---------------------------------------------------------------------------
 
-KEBAB_CASE_PATTERN = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
+KEBAB_CASE_PATTERN = re.compile(r"^[a-z0-9][a-z0-9]*(-[a-z0-9]+)*$")
+# Note: Intentionally permissive — bare-digit slugs like "069" are accepted.
+# create_mission_core() always prefixes the mission number, so "069" becomes "070-069" in practice.
 
 TASKS_README_TEMPLATE = """\
 # Tasks Directory
@@ -176,7 +178,7 @@ def create_mission_core(
         ``kitty-specs/``).  When *None*, ``locate_project_root()`` is called
         automatically.
     mission_slug:
-        Bare slug such as ``"user-auth"`` (kebab-case, no number prefix).
+        Bare slug such as ``"user-auth"`` or ``"068-feature"`` (kebab-case).
     mission:
         Optional mission key (e.g. ``"documentation"``, ``"software-dev"``).
         Defaults to ``"software-dev"`` when not provided.
@@ -204,11 +206,11 @@ def create_mission_core(
             "\n\nValid examples:"
             "\n  - user-auth"
             "\n  - fix-bug-123"
+            "\n  - 068-feature-name"
             "\n  - new-dashboard"
             "\n\nInvalid examples:"
             "\n  - User-Auth (uppercase)"
             "\n  - user_auth (underscores)"
-            "\n  - 123-fix (starts with number)"
         )
 
     # ------------------------------------------------------------------
