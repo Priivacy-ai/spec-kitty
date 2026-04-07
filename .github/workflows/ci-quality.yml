@@ -836,7 +836,7 @@ jobs:
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
       # dashboard, merge, next.
       # Coverage effort is proportional to risk — flat 80% incentivizes meaningless tests.
-      - name: "[ENFORCED] Critical-path diff coverage (90% on core modules)"
+      - name: "diff-coverage (critical-path, enforced)"
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
 
@@ -868,7 +868,7 @@ jobs:
               'src/specify_cli/merge/*' \
               'src/specify_cli/next/*'
 
-      - name: "[ADVISORY] Full diff coverage report (informational)"
+      - name: "diff-coverage (full-diff, advisory)"
         if: always()
         run: |
           coverage_reports=()
