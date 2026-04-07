@@ -17,7 +17,7 @@ subtasks:
 - T016
 - T017
 - T018
-shell_pid: "59664"
+shell_pid: "61930"
 agent: "claude:sonnet:reviewer:reviewer"
 history:
 - at: '2026-04-07T08:46:34Z'
@@ -219,3 +219,4 @@ WP03 is verification-first and low-risk. Once it lands, #455 is permanently off 
 - 2026-04-07T09:29:56Z – claude:sonnet:reviewer:reviewer – shell_pid=59664 – Started review via action command
 - 2026-04-07T09:31:42Z – claude:sonnet:reviewer:reviewer – shell_pid=59664 – Moved to planned
 - 2026-04-07T09:33:46Z – claude:sonnet:reviewer:reviewer – shell_pid=59664 – Fixed: issue #455 closed with evidence comment
+- 2026-04-07T09:34:12Z – claude:sonnet:reviewer:reviewer – shell_pid=61930 – Started review via action command
