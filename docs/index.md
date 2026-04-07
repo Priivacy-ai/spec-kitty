@@ -11,14 +11,28 @@ Spec-kitty is a spec-driven development tool that coordinates AI agents through 
 | **Reference** | Precise descriptions of CLI commands, configuration, and APIs. | [CLI Commands](reference/cli-commands.md) |
 | **Explanation** | Background concepts, architecture, and design decisions. | [Spec-Driven Development](explanation/spec-driven-development.md) |
 
-## Version Tracks
+## Latest Release: 3.1.0
 
-Spec-kitty ships two major version lines. Choose the track that matches the version you have installed.
+Spec Kitty 3.1.0 (released 2026-04-07) stabilises planning and execution reliability and adds recovery workflows. Key changes:
+
+- **Read-only commands no longer dirty the git tree** — `status`, `next` (query mode), and `dashboard` leave `git status --porcelain` clean
+- **`wps.yaml` manifest** — structured dependency source eliminates prose-parser lane corruption; `finalize-tasks` derives deps from YAML, `tasks.md` becomes a generated artifact
+- **`spec-kitty next` query mode** — bare call returns current step with `[QUERY]` label; does not advance the state machine
+- **Execution resilience** — `merge --resume`, `implement --recover`, `doctor` for stale-claim diagnostics
+- **Review resilience** — versioned review-cycle artifacts, focused fix prompts, dirty-state classification
+- **Charter** — `spec-kitty charter` replaces `spec-kitty constitution`; auto-migrated by `spec-kitty upgrade`
+- **`--mission`** — canonical flag everywhere; `--feature` retained as a backward-compatible alias
+
+**Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
+
+See the full [CHANGELOG](../CHANGELOG.md) for complete release notes.
+
+## Version Tracks
 
 | Track | Use when | Entry point |
 |---|---|---|
-| `1.x` | You are maintaining a deprecated legacy workflow that is now maintenance-only. | [Open 1.x docs](1x/index.md) |
-| `2.x` | You are building on the current stable line published from `main` and PyPI. | [Open 2.x docs](2x/index.md) |
+| `3.x` (current) | New projects and all projects on `main` or PyPI. | This documentation |
+| `1.x` | Maintaining a deprecated legacy workflow (maintenance-only). | [Open 1.x docs](1x/index.md) |
 
 ## Verification Notes
 

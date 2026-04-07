@@ -1,0 +1,60 @@
+{
+  "event_count": 31,
+  "last_event_id": "01KNKXQAWWRRBV9ATGTQ3KVXZW",
+  "materialized_at": "2026-04-07T12:12:22.812405+00:00",
+  "mission_slug": "069-planning-pipeline-integrity",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKXQAEKDXR2429XWN9BA3X0",
+      "last_transition_at": "2026-04-07T12:12:22.355916+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 3,
+      "lane": "done",
+      "last_event_id": "01KNKXQAP3D583KV3KKAM2TQY6",
+      "last_transition_at": "2026-04-07T12:12:22.595343+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKXQAQF9H25X5MQRHXEG3CC",
+      "last_transition_at": "2026-04-07T12:12:22.639846+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKXQASK9SJ5W8NRM0PPFZH8",
+      "last_transition_at": "2026-04-07T12:12:22.707431+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKXQAVAYKVMD0TTNDZSZGG3",
+      "last_transition_at": "2026-04-07T12:12:22.762327+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNKXQAWWRRBV9ATGTQ3KVXZW",
+      "last_transition_at": "2026-04-07T12:12:22.812037+00:00"
+    }
+  }
+}

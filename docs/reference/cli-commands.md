@@ -6,7 +6,8 @@ Terminology note:
 - `Mission Type` = reusable workflow blueprint
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- Current `--feature` flags and `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
+- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` remains a backward-compatibility alias and continues to work on all commands.
+- `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
 
 ## spec-kitty
 
@@ -132,7 +133,10 @@ spec-kitty upgrade --target 0.6.5
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; compatibility alias for software-dev missions) |
+| `--mission TEXT` | Mission slug (canonical flag; e.g., `001-my-feature`) |
+| `--feature TEXT` | Backward-compatibility alias for `--mission` |
+| `--recover` | Restore execution context for a WP stuck in `in_progress` after a crash |
+| `--base TEXT` | Override base ref for the worktree (advanced; normally auto-detected) |
 | `--auto-commit`, `--no-auto-commit` | Auto-commit lane change (default: from project config) |
 | `--json` | Output in JSON format |
 | `--help` | Show this message and exit |
@@ -141,8 +145,8 @@ spec-kitty upgrade --target 0.6.5
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02
-spec-kitty implement WP01 --feature 001-my-feature
-spec-kitty implement WP06 --force
+spec-kitty implement WP01 --mission 001-my-feature
+spec-kitty implement WP01 --recover
 spec-kitty implement WP01 --json
 ```
 
@@ -178,17 +182,29 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--strategy TEXT` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
+| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `MERGE`. Case-insensitive. |
+| `--mission TEXT` | Mission slug when merging from main branch (canonical flag) |
+| `--feature TEXT` | Backward-compatibility alias for `--mission` |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
 | `--remove-worktree`, `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target TEXT` | Target branch to merge into (auto-detected) |
 | `--dry-run` | Show what would be done without executing |
 | `--json` | Output deterministic JSON (dry-run mode) |
-| `--feature TEXT` | Mission slug when merging from main branch (legacy flag name) |
-| `--resume` | Resume an interrupted merge from saved state |
+| `--resume` | Resume an interrupted merge from saved state in `.kittify/merge-state.json` |
 | `--abort` | Abort and clear merge state |
 | `--help` | Show this message and exit |
+
+**Strategy notes**:
+- `MERGE` — creates a merge commit; preserves full history; default.
+- `SQUASH` — collapses all lane commits into a single commit on the target branch.
+- `REBASE` — replays lane commits on top of the target branch for a linear history; may be rejected by repos with linear-history branch protection if commits already exist on a remote.
+
+**Resume / abort**:
+```bash
+spec-kitty merge --resume   # continue from .kittify/merge-state.json
+spec-kitty merge --abort    # clear saved state and abort any in-progress git merge
+```
 
 ---
 
@@ -985,6 +1001,70 @@ spec-kitty agent config set auto_commit true
 
 ---
 
+### spec-kitty agent release
+
+**Synopsis**: `spec-kitty agent release [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Release management subcommands for AI agents.
+
+**Commands**:
+- `prep` - Prepare a release candidate (bump version, validate changelog, tag)
+
+#### spec-kitty agent release prep
+
+**Synopsis**: `spec-kitty agent release prep [OPTIONS]`
+
+**Description**: Prepare a release candidate: validates `CHANGELOG.md`, bumps version in `pyproject.toml`, creates an annotated git tag, and optionally opens a GitHub release draft. Added in 3.1.0 (mission 068).
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--channel TEXT` | Release channel: `alpha`, `beta`, or `stable` (default: `stable`) |
+| `--dry-run` | Show what would change without modifying files or creating a tag |
+| `--json` | Machine-readable JSON output |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty agent release prep --channel alpha --dry-run
+spec-kitty agent release prep --channel beta
+spec-kitty agent release prep --channel stable
+```
+
+---
+
+### spec-kitty agent tests
+
+**Synopsis**: `spec-kitty agent tests [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Test-suite utility subcommands for AI agents.
+
+**Commands**:
+- `stale-check` - Detect test assertions that reference version-dependent or environment-dependent values
+
+#### spec-kitty agent tests stale-check
+
+**Synopsis**: `spec-kitty agent tests stale-check [OPTIONS]`
+
+**Description**: Scan the test suite for stale assertions: version strings, hardcoded timestamps, or environment-specific values that would cause false failures after a release. Uses `ast`-based analysis (no test execution required). Added in 3.1.0 (mission 068).
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--base TEXT` | Base git ref to diff against (default: `HEAD~1`) |
+| `--head TEXT` | Head git ref to scan (default: `HEAD`) |
+| `--json` | Machine-readable JSON output |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty agent tests stale-check
+spec-kitty agent tests stale-check --base main --head HEAD
+spec-kitty agent tests stale-check --json
+```
+
+---
+
 ## spec-kitty specify
 
 **Synopsis**: `spec-kitty specify [OPTIONS] FEATURE`
@@ -1080,12 +1160,15 @@ spec-kitty config -m documentation
 
 **Description**: Decide and emit the next agent action for the current mission. Agents call this command repeatedly in a loop. The system inspects the mission state machine, evaluates guards, and returns a deterministic decision with an action and prompt file.
 
+As of 3.1.0, a bare call (no `--agent`) is **query mode**: it reads and prints the current mission state without advancing it or requiring `--result`. This is useful for inspection without side effects.
+
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--agent TEXT` | Agent name [required] |
+| `--agent TEXT` | Agent name. Omit for query mode (read-only, no state advance). |
 | `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked` (default: `success`) |
-| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--mission TEXT` | Mission slug (canonical flag; auto-detected if omitted) |
+| `--feature TEXT` | Backward-compatibility alias for `--mission` |
 | `--json` | Output JSON decision only |
 | `--answer TEXT` | Answer to a pending decision |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
@@ -1093,8 +1176,12 @@ spec-kitty config -m documentation
 
 **Examples**:
 ```bash
+# Query mode — inspect current state without advancing (3.1.0+)
+spec-kitty next --json
+
+# Normal agent loop
 spec-kitty next --agent claude --json
-spec-kitty next --agent codex --feature 034-my-feature
+spec-kitty next --agent codex --mission 034-my-feature
 spec-kitty next --agent gemini --result failed --json
 spec-kitty next --agent claude --answer "yes" --json
 spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
@@ -1183,7 +1270,7 @@ spec-kitty migrate --verbose
 
 **Synopsis**: `spec-kitty charter [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Charter management commands.
+**Description**: Charter management commands. As of 3.1.0 (mission 063), `spec-kitty charter` is the canonical command. `spec-kitty constitution` has been removed; all existing `constitution` references should be updated to `charter`.
 
 **Options**:
 | Flag | Description |
@@ -1353,11 +1440,19 @@ spec-kitty context cleanup
 
 **Synopsis**: `spec-kitty doctor [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Project health diagnostics.
+**Description**: Project health diagnostics. As of 3.1.0, running `spec-kitty doctor` (without a subcommand) also performs a full mission health scan: stale claims (WPs stuck in `claimed` or `in_progress` with no recent activity), orphaned worktrees (worktrees whose WPs are all terminal), and unresolved materialization drift. Use this as the first step when recovering from a crash or unexpected interruption.
+
+```bash
+# Full project health scan (3.1.0+)
+spec-kitty doctor
+spec-kitty doctor --mission 034-my-feature
+```
 
 **Options**:
 | Flag | Description |
 | --- | --- |
+| `--mission TEXT` | Restrict scan to a specific mission slug |
+| `--json` | Machine-readable JSON output |
 | `--help` | Show this message and exit |
 
 **Commands**:

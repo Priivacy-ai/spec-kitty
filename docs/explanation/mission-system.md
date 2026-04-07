@@ -8,6 +8,8 @@ Terminology note:
 - `Mission Run` = runtime/session instance
 - `Feature` = software-dev compatibility alias for a mission
 
+**3.1.0 naming updates**: The `--mission` flag is now canonical on all commands that previously used `--feature` (e.g., `spec-kitty implement`, `spec-kitty merge`, `spec-kitty next`). `--feature` remains a working backward-compatibility alias. Additionally, `spec-kitty constitution` has been renamed to `spec-kitty charter`; the old command name no longer exists.
+
 ## Why Different Missions?
 
 Not all projects are the same:
