@@ -353,3 +353,7 @@ Test that `dependencies: []` in wps.yaml → after finalize, WP01 frontmatter `d
 - The change is intentionally minimal: one block added before the prose parser, one guard condition (`wps_manifest is None and`) on the existing `if tasks_md.exists():`, and one regeneration block after frontmatter writing.
 - Verify the imports (`load_wps_manifest`, `dependencies_are_explicit`, `generate_tasks_md_from_manifest`) don't create a circular import chain. These are `core/` imports from a `cli/commands/agent/` module — no cycle expected.
 - Confirm the `wps_manifest is None and` guard correctly preserves legacy behavior: when wps.yaml is absent, the code executes identically to the pre-WP03 version.
+
+## Activity Log
+
+- 2026-04-07T12:01:54Z – unknown – shell_pid=13338 – T015-T021: wps.yaml tier-0 in finalize_tasks, prose parser bypassed when present, tasks.md regenerated, 4 unit tests all passing
