@@ -84,6 +84,40 @@ class TestQueryModeDoesNotAdvance:
         assert result.exit_code == 1
         assert "--agent is required when --result is provided" in result.output
 
+    def test_answer_requires_agent_when_used_without_result(self, tmp_path: Path) -> None:
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "069-test", "--answer", "yes", "--json"],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert "--agent is required when --answer is provided" in data["error"]
+
+    def test_answer_is_processed_before_query_output(self, tmp_path: Path) -> None:
+        mock_decision = _make_mock_decision(is_query=True, mission_state="not_started", preview_step="discovery")
+
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
+            patch("specify_cli.cli.commands.next_cmd._handle_answer", return_value="input:approval") as mock_answer,
+            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes", "--json"],
+            )
+
+        assert result.exit_code == 0
+        mock_answer.assert_called_once()
+        data = json.loads(result.output)
+        assert data["answered"] == "input:approval"
+        assert data["answer"] == "yes"
+
 
 class TestQueryModeOutput:
     def test_human_output_begins_with_query_label(self, tmp_path: Path) -> None:
@@ -173,15 +207,16 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.mission_state == "unknown"
         assert decision.kind == "query"
 
-    def test_get_or_start_run_exception_returns_unknown_state(self, tmp_path: Path) -> None:
-        """Lines 591-592: get_or_start_run() raises → Decision with mission_state='unknown'."""
+    def test_ephemeral_query_run_exception_returns_unknown_state(self, tmp_path: Path) -> None:
+        """Ephemeral fresh-query bootstrap failure degrades to an unknown decision."""
         from specify_cli.next.runtime_bridge import query_current_state
 
         feature_dir = tmp_path / "kitty-specs" / "069-test"
         feature_dir.mkdir(parents=True)
 
         with (
-            patch("specify_cli.next.runtime_bridge.get_or_start_run", side_effect=RuntimeError("run init failed")),
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=None),
+            patch("specify_cli.next.runtime_bridge._start_ephemeral_query_run", side_effect=RuntimeError("run init failed")),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
         ):
@@ -235,7 +270,7 @@ class TestQueryCurrentStateErrorPaths:
         blocked.step_id = None
 
         with (
-            patch("specify_cli.next.runtime_bridge.get_or_start_run", return_value=mock_run_ref),
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),

@@ -577,6 +577,24 @@ class TestNextCommandCLI:
         assert d2["agent"] == "compat-agent"
         assert before.model_dump(mode="json") == after.model_dump(mode="json")
 
+    def test_query_mode_does_not_create_runtime_index_on_first_use(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+        repo_root = _scaffold_project(tmp_path)
+        monkeypatch.chdir(repo_root)
+
+        runtime_index = repo_root / ".kittify" / "runtime" / "feature-runs.json"
+        assert not runtime_index.exists()
+
+        result = runner.invoke(
+            cli_app,
+            ["next", "--feature", "042-test-feature", "--json"],
+        )
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["mission_state"] == "not_started"
+        assert data["preview_step"] is not None
+        assert not runtime_index.exists()
+
     def test_json_output_includes_runtime_fields(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """JSON output includes new runtime fields."""
         repo_root = _scaffold_project(tmp_path)
@@ -685,7 +703,7 @@ class TestNextCommandAnswerJSON:
         _write_runtime_input_mission(repo_root, mission_type="input-mission")
         monkeypatch.chdir(repo_root)
 
-        # First, create a pending decision that can be answered successfully.
+        # First, advance once so a pending decision exists to answer.
         first = runner.invoke(
             cli_app,
             [
@@ -694,6 +712,8 @@ class TestNextCommandAnswerJSON:
                 "test",
                 "--feature",
                 "042-test-feature",
+                "--result",
+                "success",
                 "--json",
             ],
         )

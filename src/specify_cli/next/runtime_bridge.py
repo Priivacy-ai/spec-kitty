@@ -18,6 +18,8 @@ from __future__ import annotations
 import json
 import logging
 import os
+import shutil
+import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -350,6 +352,56 @@ def _runtime_template_key(mission_type: str, repo_root: Path) -> str:
     return mission_type
 
 
+def _existing_run_ref(
+    mission_slug: str,
+    repo_root: Path,
+    mission_type: str,
+) -> MissionRunRef | None:
+    """Return an existing run without creating a new one."""
+    index = _load_feature_runs(repo_root)
+
+    if mission_slug not in index:
+        return None
+
+    entry = index[mission_slug]
+    run_dir = Path(entry["run_dir"])
+    if not (run_dir / "state.json").exists():
+        return None
+
+    stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
+    return _build_run_ref(
+        run_id=entry["run_id"],
+        run_dir=entry["run_dir"],
+        mission_type=stored_mission_type,
+    )
+
+
+def _start_ephemeral_query_run(
+    mission_slug: str,
+    mission_type: str,
+    repo_root: Path,
+) -> tuple[MissionRunRef, Path]:
+    """Start a fresh query-only run outside the repository.
+
+    This keeps fresh query mode non-mutating for the project working tree and
+    `.kittify/runtime/feature-runs.json` while still using the runtime's own
+    snapshot/bootstrap behavior.
+    """
+    run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
+    template_key = _runtime_template_key(mission_type, repo_root)
+    context = _build_discovery_context(repo_root)
+
+    run_ref = start_mission_run(
+        template_key=template_key,
+        inputs={"mission_slug": mission_slug},
+        policy_snapshot=MissionPolicySnapshot(),
+        context=context,
+        run_store=run_store,
+        emitter=NullEmitter(),
+    )
+    return run_ref, run_store
+
+
 def get_or_start_run(
     mission_slug: str,
     repo_root: Path,
@@ -621,28 +673,28 @@ def query_current_state(
     mission_type = get_mission_type(feature_dir)
     progress = _compute_wp_progress(feature_dir)
 
-    try:
-        run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
-    except Exception:
-        return Decision(
-            kind=DecisionKind.query,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="unknown",
-            timestamp=now,
-            is_query=True,
-            reason=None,
-            progress=progress,
-        )
+    run_ref = _existing_run_ref(mission_slug, repo_root, mission_type)
+    ephemeral_run_store: Path | None = None
 
     # Read current step WITHOUT calling next_step(). When no step has been
     # issued yet, use the planner read-only to compute a truthful preview.
     try:
-        from spec_kitty_runtime.engine import _read_snapshot  # private API — see note
+        from spec_kitty_runtime import engine
         from spec_kitty_runtime.planner import plan_next
 
-        snapshot = _read_snapshot(Path(run_ref.run_dir))
+        if run_ref is None:
+            run_ref, ephemeral_run_store = _start_ephemeral_query_run(
+                mission_slug,
+                mission_type,
+                repo_root,
+            )
+            snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+            template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
+            template = load_mission_template_file(template_path)
+        else:
+            snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+            template_path = Path(snapshot.template_path)
+            template = load_mission_template_file(template_path)
         if snapshot.issued_step_id:
             return Decision(
                 kind=DecisionKind.query,
@@ -657,12 +709,11 @@ def query_current_state(
                 run_id=getattr(run_ref, "run_id", None),
             )
 
-        template = load_mission_template_file(Path(run_ref.run_dir) / "mission_template_frozen.yaml")
         runtime_decision = plan_next(
             snapshot,
             template,
             snapshot.policy_snapshot,
-            live_template_path=Path(snapshot.template_path),
+            live_template_path=template_path,
         )
     except QueryModeValidationError:
         raise
@@ -670,7 +721,7 @@ def query_current_state(
         runtime_decision = None
 
     if runtime_decision is None:
-        return Decision(
+        decision = Decision(
             kind=DecisionKind.query,
             agent=agent,
             mission_slug=mission_slug,
@@ -682,10 +733,13 @@ def query_current_state(
             progress=progress,
             run_id=getattr(run_ref, "run_id", None),
         )
+        if ephemeral_run_store is not None:
+            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+        return decision
 
     if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
         if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
-            return Decision(
+            decision = Decision(
                 kind=DecisionKind.query,
                 agent=agent,
                 mission_slug=mission_slug,
@@ -698,6 +752,11 @@ def query_current_state(
                 run_id=getattr(run_ref, "run_id", None),
                 preview_step=runtime_decision.step_id,
             )
+            if ephemeral_run_store is not None:
+                shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+            return decision
+        if ephemeral_run_store is not None:
+            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
         raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
     mission_state = runtime_decision.step_id or "unknown"
@@ -706,7 +765,7 @@ def query_current_state(
     elif runtime_decision.kind == "blocked":
         mission_state = snapshot.blocked_reason or "blocked"
 
-    return Decision(
+    decision = Decision(
         kind=DecisionKind.query,
         agent=agent,
         mission_slug=mission_slug,
@@ -718,6 +777,9 @@ def query_current_state(
         progress=progress,
         run_id=getattr(run_ref, "run_id", None),
     )
+    if ephemeral_run_store is not None:
+        shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+    return decision
 
 
 def answer_decision_via_runtime(

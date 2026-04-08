@@ -58,6 +58,20 @@ def next_step(
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
+    # Handle --answer flow before deciding whether the call is read-only or
+    # advancing. Answering a pending decision is a mutation and still requires
+    # agent identity, even when no --result is supplied.
+    answered_id = None
+    if answer is not None:
+        if not agent:
+            message = "Error: --agent is required when --answer is provided"
+            if json_output:
+                print(json.dumps({"error": message}))
+            else:
+                print(message, file=sys.stderr)
+            raise typer.Exit(1)
+        answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.
     if result is None:
@@ -73,13 +87,13 @@ def next_step(
             raise typer.Exit(1) from exc
         if json_output:
             d = decision.to_dict()
-            if answer is not None:
-                d["answered"] = None
+            if answered_id is not None:
+                d["answered"] = answered_id
                 d["answer"] = answer
             print(json.dumps(d, indent=2))
         else:
-            if answer is not None:
-                print(f"  Answered decision: (no decision_id in query mode)")
+            if answered_id is not None:
+                print(f"  Answered decision: {answered_id}")
             _print_human(decision)
         return  # No event emitted, no DAG advancement
 
@@ -91,11 +105,6 @@ def next_step(
     if not agent:
         print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
-
-    # Handle --answer flow
-    answered_id = None
-    if answer is not None:
-        answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
 
     # Core decision
     decision = decide_next(agent, mission_slug, result, repo_root)
