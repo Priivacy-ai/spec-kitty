@@ -59,7 +59,7 @@ def _fake_copy_local(local_repo: Path, project_path: Path, script: str) -> Path:
     return kittify / "templates" / "command-templates"
 
 
-def _fake_copy_package(project_path: Path, script: str) -> Path:
+def _fake_copy_package(project_path: Path) -> Path:
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     return kittify / "templates" / "command-templates"

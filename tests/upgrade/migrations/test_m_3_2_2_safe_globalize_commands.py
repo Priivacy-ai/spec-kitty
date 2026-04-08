@@ -50,11 +50,11 @@ def test_per_agent_skip(tmp_path: Path, migration: SafeGlobalizeCommandsMigratio
         ".codex/prompts/spec-kitty.implement.md": f"{_MARKER}# content",
     })
 
-    def mock_global_commands(agent_root: str, subdir: str) -> bool:
+    def mock_global_commands(agent_root: str, subdir: str, filename: str) -> bool:
         return agent_root == ".codex"
 
     with patch.object(migration, "_global_runtime_present", return_value=True), \
-         patch.object(migration, "_global_commands_present", side_effect=mock_global_commands):
+         patch.object(migration, "_global_command_file_present", side_effect=mock_global_commands):
         result = migration.apply(project)
 
     assert result.success
@@ -69,7 +69,7 @@ def test_no_version_header_skips_file(tmp_path: Path, migration: SafeGlobalizeCo
         ".claude/commands/spec-kitty.custom.md": "# no marker here\n# user-authored",
     })
     with patch.object(migration, "_global_runtime_present", return_value=True), \
-         patch.object(migration, "_global_commands_present", return_value=True):
+         patch.object(migration, "_global_command_file_present", return_value=True):
         result = migration.apply(project)
 
     assert not (project / ".claude/commands/spec-kitty.implement.md").exists()  # removed
@@ -82,7 +82,7 @@ def test_dry_run_no_deletions(tmp_path: Path, migration: SafeGlobalizeCommandsMi
         ".claude/commands/spec-kitty.implement.md": f"{_MARKER}# content",
     })
     with patch.object(migration, "_global_runtime_present", return_value=True), \
-         patch.object(migration, "_global_commands_present", return_value=True):
+         patch.object(migration, "_global_command_file_present", return_value=True):
         result = migration.apply(project, dry_run=True)
 
     assert result.success
@@ -98,11 +98,11 @@ def test_mixed_agents(tmp_path: Path, migration: SafeGlobalizeCommandsMigration)
         ".opencode/command/spec-kitty.implement.md": f"{_MARKER}# content",
     })
 
-    def mock_global(agent_root: str, subdir: str) -> bool:
+    def mock_global(agent_root: str, subdir: str, filename: str) -> bool:
         return agent_root in (".claude", ".opencode")  # codex has no global
 
     with patch.object(migration, "_global_runtime_present", return_value=True), \
-         patch.object(migration, "_global_commands_present", side_effect=mock_global):
+         patch.object(migration, "_global_command_file_present", side_effect=mock_global):
         result = migration.apply(project)
 
     assert not (project / ".claude/commands/spec-kitty.implement.md").exists()

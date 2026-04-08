@@ -44,7 +44,7 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     project_path = tmp_path / "project"
     project_path.mkdir()
 
-    commands_dir = copy_specify_base_from_local(repo_root, project_path, "sh")
+    commands_dir = copy_specify_base_from_local(repo_root, project_path)
 
     assert commands_dir.exists()
     assert (project_path / ".kittify" / "memory" / "seed.txt").read_text(encoding="utf-8") == "hello"
@@ -72,7 +72,7 @@ def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, mon
     project_path = tmp_path / "pkg-project"
     project_path.mkdir()
 
-    commands_dir = manager.copy_specify_base_from_package(project_path, "sh")
+    commands_dir = manager.copy_specify_base_from_package(project_path)
 
     assert commands_dir.exists()
     assert (commands_dir / "sample.md").exists()

@@ -24,6 +24,7 @@ from pathlib import Path
 from ..registry import MigrationRegistry
 from .base import BaseMigration, MigrationResult
 from .m_0_9_1_complete_lane_migration import get_agent_dirs_for_project
+from specify_cli.runtime.home import get_kittify_home
 
 _VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
 
@@ -52,19 +53,32 @@ class SafeGlobalizeCommandsMigration(BaseMigration):
 
     @staticmethod
     def _global_runtime_present() -> bool:
-        """Check if ~/.kittify/missions/ exists and has at least one mission subdir."""
-        missions_dir = Path.home() / ".kittify" / "missions"
+        """Check if the global runtime missions/ dir exists and has at least one subdir.
+
+        Uses get_kittify_home() so SPEC_KITTY_HOME overrides are respected in
+        tests, CI, and custom installation layouts — exactly as init/ensure_runtime do.
+        """
+        try:
+            missions_dir = get_kittify_home() / "missions"
+        except Exception:
+            return False
         if not missions_dir.is_dir():
             return False
         return any(p.is_dir() for p in missions_dir.iterdir())
 
     @staticmethod
-    def _global_commands_present(agent_root: str, subdir: str) -> bool:
-        """Check if global agent command directory has spec-kitty.* files."""
-        global_agent_dir = Path.home() / agent_root / subdir
-        if not global_agent_dir.is_dir():
+    def _global_command_file_present(agent_root: str, subdir: str, filename: str) -> bool:
+        """Check that a specific command file exists in the global agent command dir.
+
+        Verifies per-filename presence rather than 'at least one file exists',
+        because ensure_global_agent_commands() tolerates per-command render failures.
+        A partial global install must not cause local-only commands to be deleted.
+        """
+        try:
+            global_agent_dir = Path.home() / agent_root / subdir
+        except Exception:
             return False
-        return any(f.name.startswith("spec-kitty.") for f in global_agent_dir.iterdir())
+        return (global_agent_dir / filename).is_file()
 
     @staticmethod
     def _is_generated_file(path: Path) -> bool:
@@ -91,19 +105,21 @@ class SafeGlobalizeCommandsMigration(BaseMigration):
             if not agent_dir.is_dir():
                 continue
 
-            # Invariant 2: global agent commands must be present
-            if not self._global_commands_present(agent_root, subdir):
-                changes.append(
-                    f"Skipped {agent_root}/{subdir}/: "
-                    f"no spec-kitty.* files found in global ~/{agent_root}/{subdir}/"
-                )
-                continue
-
             # Find spec-kitty.* files in the local agent dir
             targets = sorted(f for f in agent_dir.iterdir() if f.name.startswith("spec-kitty."))
 
             for target in targets:
                 rel = target.relative_to(project_path)
+
+                # Invariant 2: global equivalent of this specific file must exist.
+                # A partial global install (ensure_global_agent_commands tolerates
+                # per-command failures) must not cause local-only commands to be lost.
+                if not self._global_command_file_present(agent_root, subdir, target.name):
+                    changes.append(
+                        f"Skipped {rel}: no global equivalent at "
+                        f"~/{agent_root}/{subdir}/{target.name}"
+                    )
+                    continue
 
                 # Invariant 3: file must be spec-kitty-generated
                 if not self._is_generated_file(target):
