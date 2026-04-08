@@ -28,8 +28,8 @@ subtasks:
 - T021
 - T022
 - T023
-agent: claude:sonnet:python-reviewer:reviewer
-shell_pid: '40911'
+agent: "codex:gpt-4o:python-reviewer:reviewer"
+shell_pid: "44790"
 history:
 - date: '2026-04-08'
   status: planned
@@ -194,3 +194,4 @@ Fix any issues found before marking this WP done.
 - 2026-04-08T06:25:38Z – claude:sonnet:python-reviewer:reviewer – shell_pid=39715 – Started review via action command
 - 2026-04-08T06:27:09Z – claude:sonnet:python-reviewer:reviewer – shell_pid=39715 – Moved to planned
 - 2026-04-08T06:34:44Z – claude:sonnet:python-reviewer:reviewer – shell_pid=40911 – Cycle 2: init.py reverted to WP02 state, get_local_repo_root deleted from __init__.py and restored to manager.py, 14th integration test added (test_ensure_runtime_success_bootstraps), all 14 tests pass
+- 2026-04-08T06:35:36Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=44790 – Started review via action command
