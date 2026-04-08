@@ -193,3 +193,4 @@ Fix any issues found before marking this WP done.
 - 2026-04-08T06:24:54Z – unknown – shell_pid=16554 – Ready: github_client.py deleted, manager.py cleaned (bash/powershell script-copy removed, get_local_repo_root moved to template/__init__.py), 13 new integration tests (FR-001 to FR-016), doctrine tests deleted, test suite 8689 passed 0 failed, mypy --strict clean on manager.py
 - 2026-04-08T06:25:38Z – claude:sonnet:python-reviewer:reviewer – shell_pid=39715 – Started review via action command
 - 2026-04-08T06:27:09Z – claude:sonnet:python-reviewer:reviewer – shell_pid=39715 – Moved to planned
+- 2026-04-08T06:34:44Z – claude:sonnet:python-reviewer:reviewer – shell_pid=40911 – Cycle 2: init.py reverted to WP02 state, get_local_repo_root deleted from __init__.py and restored to manager.py, 14th integration test added (test_ensure_runtime_success_bootstraps), all 14 tests pass
