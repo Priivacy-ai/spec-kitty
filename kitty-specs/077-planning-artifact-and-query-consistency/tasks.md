@@ -29,12 +29,12 @@
 | T015 | Update human-readable task status output for repo-root planning work and stale `n/a` display | WP03 | |
 | T016 | Bypass merge-ancestry gating for planning-artifact `--to done` while preserving code-change enforcement | WP03 | |
 | T017 | Tests for stale JSON compatibility and planning-artifact approved/done transitions | WP03 | [P] |
-| T018 | Make `--agent` optional in query mode and required only for advancing and answer flows | WP04 | |
-| T019 | Extend `Decision` and `to_dict()` with nullable `agent` and `preview_step` | WP04 | |
-| T020 | Implement fresh-run query resolution with `not_started` and `preview_step` in `runtime_bridge.py` | WP04 | |
-| T021 | Fail query mode clearly when a mission has no issuable first step | WP04 | |
-| T022 | Update human-readable query output to show `not_started` and the next step without `unknown` fallback | WP04 | |
-| T023 | Tests for non-mutating query mode, compatibility `--agent`, `preview_step`, and advancing regression | WP04 | [P] |
+| T018 | Make `--agent` optional in query mode and required only for advancing and answer flows | WP04 | | [D] |
+| T019 | Extend `Decision` and `to_dict()` with nullable `agent` and `preview_step` | WP04 | | [D] |
+| T020 | Implement fresh-run query resolution with `not_started` and `preview_step` in `runtime_bridge.py` | WP04 | | [D] |
+| T021 | Fail query mode clearly when a mission has no issuable first step | WP04 | | [D] |
+| T022 | Update human-readable query output to show `not_started` and the next step without `unknown` fallback | WP04 | | [D] |
+| T023 | Tests for non-mutating query mode, compatibility `--agent`, `preview_step`, and advancing regression | WP04 | [D] |
 | T024 | Update `docs/index.md` and `docs/reference/cli-commands.md` to the canonical query/runtime contract | WP05 | |
 | T025 | Update `docs/explanation/runtime-loop.md` and `docs/reference/agent-subcommands.md` for resolver distinction and query/advance split | WP05 | |
 | T026 | Add explicit compatibility notes for stale flat-field transition and fresh-run `unknown` removal | WP05 | |
