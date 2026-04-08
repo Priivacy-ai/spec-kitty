@@ -264,3 +264,4 @@ This is a gate task, not a code change.
 
 - 2026-04-08T05:31:48Z – unknown – shell_pid=6359 – WPMetadata cleaned, identity_aliases deleted, worktree reader fixed; mypy and tests green
 - 2026-04-08T05:32:37Z – opencode:opencode:reviewer:reviewer – shell_pid=8268 – Started review via action command
+- 2026-04-08T05:33:48Z – opencode:opencode:reviewer:reviewer – shell_pid=8268 – Moved to planned
