@@ -61,33 +61,22 @@ Terminology note:
 **Description**: Initialize a new Spec Kitty project from templates.
 
 **Arguments**:
-- `PROJECT_NAME`: Name for your new project directory (optional if using `--here`, or use `.` for current directory)
+- `PROJECT_NAME`: Name for your new project directory (use `.` for current directory)
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--ignore-agent-tools` | Skip checks for AI agent tools like Claude Code |
-| `--no-git` | Skip git repository initialization |
-| `--here` | Initialize project in the current directory instead of creating a new one |
-| `--force` | Force merge/overwrite when using `--here` (skip confirmation) |
-| `--skip-tls` | Skip SSL/TLS verification (not recommended) |
-| `--debug` | Show verbose diagnostic output for network and extraction failures |
-| `--github-token TEXT` | GitHub token to use for API requests (or set `GH_TOKEN`/`GITHUB_TOKEN`) |
-| `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
-| `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--preferred-implementer TEXT` | Preferred agent for implementation |
-| `--preferred-reviewer TEXT` | Preferred agent for review |
 | `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
+| `--no-git` | Skip git repository initialization |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty init my-project
 spec-kitty init my-project --ai codex
-spec-kitty init my-project --ai codex,claude --script sh
-spec-kitty init . --ai codex --force
-spec-kitty init --here --ai claude
+spec-kitty init my-project --ai codex,claude
+spec-kitty init . --ai codex
 spec-kitty init my-project --ai codex --non-interactive
 ```
 

@@ -192,13 +192,8 @@ spec-kitty agent config add claude codex
 **Enabling cross-review**:
 
 ```bash
-# Add a reviewer agent different from your implementer
+# Add a reviewer agent to use alongside your implementer
 spec-kitty agent config add codex
-# Configure in .kittify/config.yaml:
-# agents:
-#   selection:
-#     preferred_implementer: claude
-#     preferred_reviewer: codex
 ```
 
 ## Removing Agents
