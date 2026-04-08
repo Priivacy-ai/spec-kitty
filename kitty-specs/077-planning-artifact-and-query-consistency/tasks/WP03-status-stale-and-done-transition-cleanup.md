@@ -22,6 +22,7 @@ subtasks:
 - T015
 - T016
 - T017
+agent: "opencode:gpt-5.4:python-implementer:implementer"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -235,3 +236,7 @@ Verify the following during review:
 2. JSON output still contains the deprecated flat fields during the transition window.
 3. Human output shows `n/a` for planning-artifact stale state.
 4. `move-task --to done` behavior now branches on execution mode, not on a blanket ancestry rule.
+
+## Activity Log
+
+- 2026-04-08T18:26:04Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
