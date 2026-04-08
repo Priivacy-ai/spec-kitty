@@ -44,13 +44,13 @@
 | T032 | Implement apply() with all 4 safety invariants per-agent | WP05 | No |
 | T033 | Write test_m_3_2_2_safe_globalize_commands.py with 6 test cases | WP05 | No |
 | T034 | mypy check; verify m_3_1_2_globalize_commands.py is NOT modified (git diff must be clean for that file) | WP05 | No |
-| T035 | Determine ADR sequence number N; create ADR-A (global ~/.kittify/ as machine-level runtime) | WP06 | No |
-| T036 | Create ADR-B (package-bundled templates as sole source) | WP06 | [P] |
-| T037 | Create ADR-C (global skill installation with per-project symlinks) | WP06 | [P] |
-| T038 | Create ADR-D (charter and doctrine not init-time concerns) | WP06 | [P] |
-| T039 | Create ADR-E (shim generation supersedes script-type dispatch) | WP06 | [P] |
-| T040 | Create ADR-F (global agent commands supersede per-project copies; safe removal migration) | WP06 | [P] |
-| T041 | Create ADR-G (preferred agent roles removed as unused concept) | WP06 | [P] |
+| T035 | Determine ADR sequence number N; create ADR-A (global ~/.kittify/ as machine-level runtime) | WP06 | No | [D] |
+| T036 | Create ADR-B (package-bundled templates as sole source) | WP06 | [D] |
+| T037 | Create ADR-C (global skill installation with per-project symlinks) | WP06 | [D] |
+| T038 | Create ADR-D (charter and doctrine not init-time concerns) | WP06 | [D] |
+| T039 | Create ADR-E (shim generation supersedes script-type dispatch) | WP06 | [D] |
+| T040 | Create ADR-F (global agent commands supersede per-project copies; safe removal migration) | WP06 | [D] |
+| T041 | Create ADR-G (preferred agent roles removed as unused concept) | WP06 | [D] |
 | T042 | Update docs/how-to/non-interactive-init.md — remove preference flag examples | WP07 | [P] |
 | T043 | Update docs/reference/cli-commands.md — remove 11 removed flags from init table | WP07 | [P] |
 | T044 | Update docs/reference/configuration.md — remove selection block and all preference entries | WP07 | [P] |
