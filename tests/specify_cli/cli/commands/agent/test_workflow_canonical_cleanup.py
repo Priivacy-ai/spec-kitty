@@ -345,6 +345,25 @@ class TestReviewHardFailNoCanonical:
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"
 
+    def test_review_rejects_plain_in_progress_wp_without_review_claim(self, workflow_repo: Path) -> None:
+        mission_slug = "060-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
+        wp_path = tasks_dir / "WP01-test.md"
+        _write_wp_file(wp_path, "WP01", lane="doing")
+        _seed_wp_lane(feature_dir, "WP01", "doing")
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["review", "WP01", "--mission", mission_slug, "--agent", "test-reviewer"],
+        )
+
+        assert result.exit_code != 0
+        assert "still being implemented" in result.stdout
+
 
 class TestPlanningArtifactWorkflowPrompt:
     """Planning-artifact WPs should guide agents to the repository root."""

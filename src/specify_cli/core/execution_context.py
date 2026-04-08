@@ -136,10 +136,49 @@ def _resolve_wp_id(
         return None
 
     if action == "review":
-        for lane in (Lane.FOR_REVIEW, Lane.IN_PROGRESS):
-            wp_id = _find_first_wp(feature_dir, lane)
-            if wp_id:
-                return wp_id
+        try:
+            from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+            from specify_cli.status.lane_reader import get_wp_lane
+            from specify_cli.status.store import read_events
+            from specify_cli.tasks_support import extract_scalar, split_frontmatter
+
+            tasks_dir = feature_dir / "tasks"
+            if not tasks_dir.is_dir():
+                return None
+
+            events = read_events(feature_dir)
+
+            def _is_review_claimed(_wp_id: str) -> bool:
+                for event in reversed(events):
+                    if getattr(event, "wp_id", None) == _wp_id:
+                        return bool(event.to_lane == Lane.IN_PROGRESS and event.review_ref == "action-review-claim")
+                return False
+
+            for wp_file in sorted(tasks_dir.glob("WP*.md")):
+                content = wp_file.read_text(encoding="utf-8-sig")
+                frontmatter, _, _ = split_frontmatter(content)
+                candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
+                if not candidate_wp_id:
+                    continue
+                lane = get_wp_lane(feature_dir, candidate_wp_id)
+                if lane == Lane.FOR_REVIEW:
+                    return candidate_wp_id
+
+            for wp_file in sorted(tasks_dir.glob("WP*.md")):
+                content = wp_file.read_text(encoding="utf-8-sig")
+                frontmatter, _, _ = split_frontmatter(content)
+                candidate_wp_id = extract_scalar(frontmatter, "work_package_id")
+                if not candidate_wp_id:
+                    continue
+                lane = get_wp_lane(feature_dir, candidate_wp_id)
+                if lane == Lane.IN_PROGRESS and _is_review_claimed(candidate_wp_id):
+                    return candidate_wp_id
+        except CanonicalStatusNotFoundError as exc:
+            raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc
+        except ActionContextError:
+            raise
+        except Exception:
+            return None
         return None
 
     return None
@@ -224,6 +263,6 @@ def resolve_action_context(
     if agent:
         command += f" --agent {agent}"
     context.commands["workflow"] = command
-    context.commands["approve"] = f'spec-kitty agent tasks move-task {normalized_wp_id} --to approved --note "Review passed: <summary>"'
-    context.commands["reject"] = f"spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file <feedback-file>"
+    context.commands["approve"] = f'spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"'
+    context.commands["reject"] = f"spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}"
     return context

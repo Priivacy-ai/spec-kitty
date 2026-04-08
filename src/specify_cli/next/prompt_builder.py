@@ -12,6 +12,7 @@ from pathlib import Path
 
 from specify_cli.charter.context import build_charter_context
 from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
+from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.runtime.resolver import resolve_command
 from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.workspace_context import resolve_workspace_for_wp
@@ -118,6 +119,12 @@ def _build_wp_prompt(
     """Build prompt for implement or review actions with WP context."""
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     workspace_path = workspace.worktree_path
+    wp_files = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
+    wp_meta = None
+    if wp_files:
+        wp_meta, _ = read_wp_frontmatter(wp_files[0])
+    subtask_ids = [str(item) for item in (wp_meta.subtasks if wp_meta is not None else []) if isinstance(item, str)]
+    subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
     # Read WP file content
     wp_content = _read_wp_content(feature_dir, wp_id)
@@ -166,7 +173,6 @@ def _build_wp_prompt(
     if action == "review":
         review_paths = ""
         if not workspace.lane_id:
-            wp_files = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
             if wp_files:
                 wp_meta, _ = read_wp_frontmatter(wp_files[0])
                 if wp_meta.owned_files:
@@ -207,8 +213,11 @@ def _build_wp_prompt(
                     break
         lines.append("REVIEW COMMANDS:")
         if workspace.lane_id:
-            lines.append("  git log main..HEAD --oneline")
-            lines.append("  git diff main..HEAD --stat")
+            review_base = (
+                workspace.context.base_branch if workspace.context and workspace.context.base_branch else get_feature_target_branch(repo_root, mission_slug)
+            )
+            lines.append(f"  git log {review_base}..HEAD --oneline")
+            lines.append(f"  git diff {review_base}..HEAD --stat")
         elif review_base is None:
             lines.append("  unavailable: no deterministic implementation claim commit found for this WP")
         else:
@@ -231,11 +240,12 @@ def _build_wp_prompt(
     # Completion instructions
     lines.append("WHEN DONE:")
     if action == "implement":
-        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --note "Ready for review"')
+        lines.append(f"  spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
     else:
-        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --note "Review passed"')
+        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         lines.append("           approved means review-passed; merge will later record done")
-        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file>")
+        lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file> --mission {mission_slug}")
 
     return "\n".join(lines)
 

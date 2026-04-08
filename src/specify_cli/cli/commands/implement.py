@@ -24,9 +24,11 @@ from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.ownership.models import ExecutionMode
+from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
@@ -517,13 +519,37 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if current_lane == Lane.PLANNED:
             shell_pid = str(os.getppid())
             commit_msg = f"chore: {wp_id} claimed for implementation"
+            status_execution_mode = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
 
             update_fields(wp_file, {"shell_pid": shell_pid})
+
+            try:
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane=Lane.CLAIMED,
+                    actor="implement-command",
+                    execution_mode=status_execution_mode,
+                    repo_root=repo_root,
+                )
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane=Lane.IN_PROGRESS,
+                    actor="implement-command",
+                    execution_mode=status_execution_mode,
+                    repo_root=repo_root,
+                )
+            except Exception as exc:
+                console.print(f"[red]Error:[/red] Could not emit canonical status transition: {exc}")
+                raise typer.Exit(1) from exc
 
             if auto_commit:
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
-                files_to_commit = [wp_file.resolve()]
+                files_to_commit = [wp_file.resolve(), *[path.resolve() for path in _collect_status_artifacts(feature_dir)]]
                 if meta_file.exists():
                     files_to_commit.append(meta_file.resolve())
                 if config_file.exists():
@@ -541,16 +567,6 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
             else:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
-
-            try:
-                emit_wp_status_changed(
-                    wp_id=wp_id,
-                    from_lane=current_lane,
-                    to_lane=Lane.IN_PROGRESS,
-                    mission_slug=mission_slug,
-                )
-            except Exception as exc:
-                console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {exc}")
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {exc}")
 

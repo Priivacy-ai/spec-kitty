@@ -444,10 +444,14 @@ def implement(
         # Load work package
         try:
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
+            wp_meta, _ = read_wp_frontmatter(wp.path)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
                 raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
             raise
+
+        subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
+        subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
@@ -764,12 +768,12 @@ def implement(
         lines.append(f'     git commit -m "feat({normalized_wp_id}): <brief description>"')
         lines.append(f"     git log -1 --oneline  # Verify commit succeeded")
         lines.append(f"  2. Mark all subtasks as done:")
-        lines.append(f"     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append(f"     spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
         lines.append(f"  3. Move WP to review:")
-        lines.append(f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review"')
+        lines.append(f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         lines.append("")
         lines.append(f"✗ Blocked or cannot complete:")
-        lines.append(f'  spec-kitty agent tasks add-history {normalized_wp_id} --note "Blocked: <reason>"')
+        lines.append(f'  spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
@@ -849,12 +853,12 @@ def implement(
         lines.append(f"      git log -1 --oneline  # Verify commit succeeded")
         lines.append(f"      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
         lines.append(f"   2. Mark all subtasks as done:")
-        lines.append(f"      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append(f"      spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
         lines.append(f"   3. Move WP to review (will check for uncommitted changes):")
-        lines.append(f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review: <summary>"')
+        lines.append(f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review: <summary>"')
         lines.append("")
         lines.append(f"⚠️  Blocked or cannot complete:")
-        lines.append(f'   spec-kitty agent tasks add-history {normalized_wp_id} --note "Blocked: <reason>"')
+        lines.append(f'   spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("")
         lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
         lines.append("     Commit all implementation files BEFORE moving to for_review.")
@@ -887,8 +891,8 @@ def implement(
         print()
         print("After implementation, run:")
         print(f'  1. git status && git add <your-files> && git commit -m "feat({normalized_wp_id}): <description>"')
-        print(f"  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
-        print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note "Ready for review"')
+        print(f"  2. spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+        print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         print(f"     (Pre-flight check will verify no uncommitted changes)")
 
     except Exception as e:
@@ -1081,6 +1085,7 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 
     # Load lanes from canonical event log (lane is event-log-only)
     feature_dir = tasks_dir.parent
+    _fr_events = []
     try:
         from specify_cli.status.store import read_events as _fr_read_events
         from specify_cli.status.reducer import reduce as _fr_reduce
@@ -1094,14 +1099,25 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
     except Exception:
         _fr_lanes = {}
 
+    def _is_review_claimed(_wp_id: str) -> bool:
+        for _event in reversed(_fr_events):
+            if getattr(_event, "wp_id", None) == _wp_id:
+                return bool(_event.to_lane == Lane.IN_PROGRESS and _event.review_ref == "action-review-claim")
+        return False
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
         wp_id = extract_scalar(frontmatter, "work_package_id")
-        if wp_id:
-            lane = _fr_lanes.get(wp_id, Lane.PLANNED)
-            if lane == Lane.FOR_REVIEW:
-                return wp_id
+        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) == Lane.FOR_REVIEW:
+            return wp_id
+
+    for wp_file in wp_files:
+        content = wp_file.read_text(encoding="utf-8-sig")
+        frontmatter, _, _ = split_frontmatter(content)
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) == Lane.IN_PROGRESS and _is_review_claimed(wp_id):
+            return wp_id
 
     return None
 
@@ -1172,10 +1188,21 @@ def review(
         current_lane = "doing" if current_lane_raw == Lane.IN_PROGRESS else current_lane_raw
         review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
+        latest_event = None
+        for _event in reversed(_rv_events):
+            if getattr(_event, "wp_id", None) == normalized_wp_id:
+                latest_event = _event
+                break
+        is_review_claimed = bool(latest_event is not None and latest_event.to_lane == Lane.IN_PROGRESS and latest_event.review_ref == "action-review-claim")
+        if current_lane == "doing" and not is_review_claimed:
+            print(f"Error: {normalized_wp_id} is still being implemented, not claimed for review.")
+            print("Only work packages in 'for_review' (or already review-claimed doing) can start workflow review.")
+            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
+            raise typer.Exit(1)
         if current_lane not in {Lane.FOR_REVIEW, "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
             print("Only work packages in 'for_review' can start workflow review.")
-            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
+            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
 
         if current_lane != "doing":
@@ -1469,7 +1496,7 @@ def review(
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
         lines.append("✓ Review passed, no issues:")
-        lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to approved --note "Review passed"')
+        lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
         lines.append(f"  1. Write feedback to (in-repo, committed with the project):")
@@ -1519,7 +1546,7 @@ def review(
         lines.append("=" * 80)
         lines.append("")
         lines.append("✅ APPROVE (no issues found):")
-        lines.append(f'   spec-kitty agent tasks move-task {normalized_wp_id} --to approved --note "Review passed: <summary>"')
+        lines.append(f'   spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"')
         lines.append("")
         lines.append(f"❌ REQUEST CHANGES (issues found):")
         lines.append(f"   1. Write feedback to the in-repo path (committed with the project):")
@@ -1580,7 +1607,7 @@ def review(
         print(f"    cat {prompt_file}")
         print()
         print("After review, run:")
-        print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to approved --note "Review passed"')
+        print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:
