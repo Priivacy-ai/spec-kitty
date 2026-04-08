@@ -15,6 +15,8 @@ subtasks:
 - T039
 - T040
 - T041
+agent: "codex:gpt-4o:reviewer:reviewer"
+shell_pid: "13447"
 history:
 - date: '2026-04-08'
   status: planned
@@ -190,3 +192,4 @@ Author 7 ADRs in `architecture/adrs/` documenting all architectural decisions ma
 
 - 2026-04-08T05:44:44Z – unknown – Moved to in_progress
 - 2026-04-08T05:51:31Z – unknown – Ready: 7 ADRs authored in architecture/adrs/
+- 2026-04-08T05:52:06Z – codex:gpt-4o:reviewer:reviewer – shell_pid=13447 – Started review via action command
