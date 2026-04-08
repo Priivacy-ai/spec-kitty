@@ -36,7 +36,8 @@ subtasks:
 - T016
 - T017
 - T018
-shell_pid: '12419'
+shell_pid: "16511"
+agent: "codex:gpt-4o:python-reviewer:reviewer"
 history:
 - date: '2026-04-08'
   status: planned
@@ -353,3 +354,4 @@ Charter is per-project governance; the directory should not be created during gl
 ## Activity Log
 
 - 2026-04-08T05:59:37Z – unknown – shell_pid=12419 – Ready: init.py reduced from 1522 to 740 lines, 11 flags and 9 stages removed. All acceptance checks pass: --help shows <=4 option flags, non-interactive init exits 0, ensure_runtime hard-fails, no charter/ dir created, no AgentSelectionConfig references.
+- 2026-04-08T06:00:03Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=16511 – Started review via action command
