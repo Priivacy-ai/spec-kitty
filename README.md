@@ -46,7 +46,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
 | **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, `wps.yaml`, and `tasks.md` in `kitty-specs/<mission>/` |
-| **Work package execution** | Uses canonical lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `approved`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
+| **Work package execution** | Uses canonical lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
 | **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every mission executes through lane-based worktrees, with exactly one worktree per computed execution lane |
 | **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
 | **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
