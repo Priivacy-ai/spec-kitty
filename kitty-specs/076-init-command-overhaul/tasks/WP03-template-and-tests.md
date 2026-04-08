@@ -186,3 +186,7 @@ Fix any issues found before marking this WP done.
 
 - **Manager.py collateral:** `copy_specify_base_from_local()` and `copy_specify_base_from_package()` may have callers outside init.py that still pass `script_type`. Check: `grep -r "copy_specify_base_from" src/` and update any callers that no longer need the script_type parameter.
 - **Test mocking depth:** `ensure_runtime()` touches the filesystem. Mock at the right boundary — patch `specify_cli.cli.commands.init.ensure_runtime` not the underlying implementation. Same for `install_all_global_skills`.
+
+## Activity Log
+
+- 2026-04-08T06:24:54Z – unknown – shell_pid=16554 – Ready: github_client.py deleted, manager.py cleaned (bash/powershell script-copy removed, get_local_repo_root moved to template/__init__.py), 13 new integration tests (FR-001 to FR-016), doctrine tests deleted, test suite 8689 passed 0 failed, mypy --strict clean on manager.py
