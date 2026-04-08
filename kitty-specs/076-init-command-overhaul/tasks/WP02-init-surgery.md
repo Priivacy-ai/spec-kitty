@@ -356,3 +356,4 @@ Charter is per-project governance; the directory should not be created during gl
 - 2026-04-08T05:59:37Z – unknown – shell_pid=12419 – Ready: init.py reduced from 1522 to 740 lines, 11 flags and 9 stages removed. All acceptance checks pass: --help shows <=4 option flags, non-interactive init exits 0, ensure_runtime hard-fails, no charter/ dir created, no AgentSelectionConfig references.
 - 2026-04-08T06:00:03Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=16511 – Started review via action command
 - 2026-04-08T06:03:53Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=16511 – Moved to planned
+- 2026-04-08T06:08:11Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=17398 – Cycle 2: removed github_client import, no forward-dependency on WP03 deletion
