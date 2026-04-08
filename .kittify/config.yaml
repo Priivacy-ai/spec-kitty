@@ -13,9 +13,6 @@ project:
   uuid: 8a4a7da6-a97c-4bb4-893a-b31664abfee4
   slug: spec-kitty
   node_id: d036a097a835
-  build_id: f97f4d9b-d2fa-4ce6-a7ee-9bbca7308aab
-# Merge strategy for spec-kitty merge command (mission -> target step).
-# One of: merge | squash | rebase. Default: squash.
-# Lane -> mission merges always use merge commits regardless of this setting.
+  build_id: be82f560-aa05-403c-813c-5633db4ddd54
 merge:
   strategy: squash
