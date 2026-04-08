@@ -10,13 +10,13 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------|
-| T001 | Delete AgentSelectionConfig dataclass + select_implementer + select_reviewer from agent_config.py | WP01 | No |
-| T002 | Remove `selection: AgentSelectionConfig` field from AgentConfig | WP01 | No |
-| T003 | Remove selection construction from load_agent_config() | WP01 | No |
-| T004 | Remove selection serialization from save_agent_config() | WP01 | No |
-| T005 | Remove AgentSelectionConfig from __all__ | WP01 | No |
-| T006 | Fix load_agent_config() to try 'tools' key first, fallback to 'agents' | WP01 | No |
-| T007 | Update test_agent_config_unit.py — remove preference tests, add tools-key test | WP01 | No |
+| T001 | Delete AgentSelectionConfig dataclass + select_implementer + select_reviewer from agent_config.py | WP01 | No | [D] |
+| T002 | Remove `selection: AgentSelectionConfig` field from AgentConfig | WP01 | No | [D] |
+| T003 | Remove selection construction from load_agent_config() | WP01 | No | [D] |
+| T004 | Remove selection serialization from save_agent_config() | WP01 | No | [D] |
+| T005 | Remove AgentSelectionConfig from __all__ | WP01 | No | [D] |
+| T006 | Fix load_agent_config() to try 'tools' key first, fallback to 'agents' | WP01 | No | [D] |
+| T007 | Update test_agent_config_unit.py — remove preference tests, add tools-key test | WP01 | No | [D] |
 | T008 | Remove all 11 CLI flag definitions from init() signature | WP02 | No |
 | T009 | Remove _resolve_preferred_agents() helper function | WP02 | No |
 | T010 | Remove Stage 3: preferred agent selection block (lines 911–970) | WP02 | No |
