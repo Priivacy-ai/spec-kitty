@@ -23,14 +23,14 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------:|
-| T001 | Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` | WP01 | |
-| T002 | Write failing test: `StatusEvent.from_dict(legacy)` → `KeyError` | WP01 | |
-| T003 | Remove `feature_slug` fallback from `status/models.py` (StatusEvent) | WP01 | |
-| T004 | Write failing test: `StatusSnapshot.from_dict(legacy)` → `KeyError` | WP01 | |
-| T005 | Remove `feature_slug` fallback from `status/models.py` (StatusSnapshot) | WP01 | |
-| T006 | Write failing test: `validate_event_schema` rejects missing `mission_slug` without legacy mention | WP01 | |
-| T007 | Remove `feature_slug` branch from `status/validate.py` | WP01 | |
-| T008 | Remove `with_tracked_mission_slug_aliases` import + usage from `status/models.py` | WP01 | |
+| T001 | Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` | WP01 | | [D] |
+| T002 | Write failing test: `StatusEvent.from_dict(legacy)` → `KeyError` | WP01 | | [D] |
+| T003 | Remove `feature_slug` fallback from `status/models.py` (StatusEvent) | WP01 | | [D] |
+| T004 | Write failing test: `StatusSnapshot.from_dict(legacy)` → `KeyError` | WP01 | | [D] |
+| T005 | Remove `feature_slug` fallback from `status/models.py` (StatusSnapshot) | WP01 | | [D] |
+| T006 | Write failing test: `validate_event_schema` rejects missing `mission_slug` without legacy mention | WP01 | | [D] |
+| T007 | Remove `feature_slug` branch from `status/validate.py` | WP01 | | [D] |
+| T008 | Remove `with_tracked_mission_slug_aliases` import + usage from `status/models.py` | WP01 | | [D] |
 | T009 | Write failing test: `WPMetadata.model_dump()` has no `feature_slug` key | WP02 | |
 | T010 | Remove `feature_slug` field from `status/wp_metadata.py` | WP02 | |
 | T011 | Write failing test: `identity_aliases` no longer backfills `mission_slug` | WP02 | |
