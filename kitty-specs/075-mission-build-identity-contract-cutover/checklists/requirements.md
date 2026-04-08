@@ -42,4 +42,6 @@
 - NFR-003 measurement mechanism added: SaaS admin rejection log.
 - C-007 updated to identify the actual current violation (build_id in committed config.yaml) and the five remaining feature_slug files.
 - Assumption 2 corrected: prior cutover IS substantially on main.
-- All items passed on second validation pass. Spec is ready for `/spec-kitty.plan`.
+- v3 additions: FR-016 added for build_id migration out of committed config.yaml (was only in Risks table). Assumption 4 corrected: legacy-shaped event fixtures do not yet exist — creating them is explicitly called out as required implementation work.
+- 5-file enumeration in FR-013 verified by grep: exactly `core/identity_aliases.py`, `core/worktree.py`, `status/models.py`, `status/validate.py`, `status/wp_metadata.py` — no unlisted non-migration hits.
+- All items passed on third validation pass. Spec is ready for `/spec-kitty.plan`.

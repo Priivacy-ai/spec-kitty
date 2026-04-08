@@ -87,6 +87,7 @@ Requirements that are already implemented are marked **Already Implemented** to 
 | FR-013 | The following non-migration runtime files are cleaned of `feature_slug` read fallbacks: `core/identity_aliases.py`, `core/worktree.py`, `status/models.py`, `status/validate.py`, `status/wp_metadata.py`. After removal, these paths fail closed when they encounter a legacy-shaped input — they do not silently fall back. | Proposed |
 | FR-014 | The shared contract gate (`contract_gate.py`) validates every outbound remote-facing call against the upstream contract before any side effect (event emission, state write, sync request) occurs. | Already Implemented |
 | FR-015 | The gate policy is driven by `upstream_contract.json`, which is vendored in the package from the pinned spec-kitty-events 3.0.0 commit (`5b8e6dc`). The file is loaded via the package resource system (not from a user-editable path) and includes an embedded `schema_version` or provenance field that matches the pinned commit. No separate locally-maintained copy that contradicts the vendored file is permitted. | Proposed (provenance field not yet present) |
+| FR-016 | On the first invocation after upgrade, if `build_id` is found in `.kittify/config.yaml`, the system copies it to the chosen per-worktree storage location, removes it from `config.yaml`, and writes the updated config. Subsequent invocations read `build.id` exclusively from the per-worktree location. This migration is idempotent: running it on a config that has no `build_id` field is a no-op. | Proposed |
 
 ### Design Note: build.id Storage
 
@@ -173,7 +174,7 @@ An end-to-end smoke test runs `spec-kitty agent mission create`, `spec-kitty age
 1. spec-kitty-events 3.0.0 and spec-kitty-saas are immutable external dependencies for this mission. Their contracts will not change during implementation.
 2. The prior cutover's changes are substantially on `main`. The primary surfaces (event types, envelopes, orchestrator API, body sync, contract gate) are already clean. The remaining work is the five read-path fallback files and per-worktree build identity.
 3. `feature_slug` occurrences in `upgrade/feature_meta.py` and `migration/rebuild_state.py` are in the correct location (migration-only) and are not targets for removal in this mission.
-4. The test suite includes fixture `status.events.jsonl` files with legacy-shaped events (containing `feature_slug`) that can be used to verify Scenario 1.
+4. No fixture `status.events.jsonl` files with legacy-shaped events currently exist in the test suite. Writing at least one fixture event containing only `feature_slug` (no `mission_slug`) is required work — it is a prerequisite for Scenario 1's acceptance test and must be a dedicated task in the implementation plan.
 5. NFR-003 rejection signal is observable via the SaaS admin rejection log — no additional instrumentation is needed to verify this criterion.
 
 ## Risks
