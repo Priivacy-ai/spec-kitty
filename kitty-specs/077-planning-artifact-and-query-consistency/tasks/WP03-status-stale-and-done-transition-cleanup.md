@@ -22,7 +22,7 @@ subtasks:
 - T015
 - T016
 - T017
-agent: "opencode:gpt-5.4:python-reviewer:reviewer"
+agent: "opencode:gpt-5.4:orchestrator:orchestrator"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -242,3 +242,4 @@ Verify the following during review:
 - 2026-04-08T18:26:04Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
 - 2026-04-08T18:45:35Z – opencode:gpt-5.4:python-implementer:implementer – Ready for review
 - 2026-04-08T18:53:30Z – opencode:gpt-5.4:python-reviewer:reviewer – Review passed: stale payloads, planning-artifact handoff, and done transitions are correct
+- 2026-04-08T19:14:26Z – opencode:gpt-5.4:orchestrator:orchestrator – Done override: Changes already landed directly on main during orchestrated bootstrap implementation
