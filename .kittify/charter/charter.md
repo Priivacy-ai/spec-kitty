@@ -157,6 +157,12 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 - The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
 - Do not hardcode branch names in templates or scaffolding; use the resolved branch context
 
+### CI and Branch Protection
+
+`main` has a **Protect Main Branch** GitHub Actions workflow that fails whenever code is pushed directly without going through a PR. The `spec-kitty merge` command pushes directly to main by design. This causes a **known, expected** CI failure on every feature merge. It is not a code bug and must not be treated as one.
+
+**Rule for agents:** When CI shows "Protect Main Branch: failure" after `spec-kitty merge`, ignore it. Monitor **CI Quality** only — that is the authoritative signal for code correctness.
+
 ### Historical Context
 
 The 1.x/2.x branch split was originally documented in [ADR-12: Two-Branch Strategy for SaaS Transformation](../../architecture/adrs/2026-01-27-12-two-branch-strategy-for-saas-transformation.md). That strategy served its purpose during the SaaS transformation and is now superseded by single-branch development on `main`.

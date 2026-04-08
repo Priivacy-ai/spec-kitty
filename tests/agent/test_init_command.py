@@ -42,7 +42,6 @@ def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console, list[str]]
         activate_mission=fake_activate,
         ensure_executable_scripts=fake_ensure_scripts,
     )
-    monkeypatch.setattr(init_module, "ensure_dashboard_running", lambda project: ("http://localhost", 1111, True))
     monkeypatch.setattr(init_module, "check_tool", lambda *args, **kwargs: True)
     return app, console, outputs
 
@@ -53,89 +52,6 @@ def _invoke(cli: Typer, args: list[str]) -> CliRunner:
     if result.exit_code != 0:
         raise AssertionError(result.output)
     return runner
-
-
-def test_init_package_mode_falls_back_when_no_local(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
-
-    def fake_copy(project_path: Path, script: str):  # noqa: D401
-        pkg_dir = project_path / ".pkg"
-        pkg_dir.mkdir(parents=True, exist_ok=True)
-        return pkg_dir
-
-    monkeypatch.setattr(init_module, "copy_specify_base_from_package", fake_copy)
-
-    _invoke(
-        app,
-        [
-            "init",
-            "pkg-demo",
-            "--ai",
-            "gemini",
-            "--script",
-            "ps",
-            "--no-git",
-            "--non-interactive",
-        ],
-    )
-
-    # Commands are now installed globally (not per-project); init completes without error.
-    assert (tmp_path / "pkg-demo" / ".kittify").is_dir()
-
-
-def test_init_remote_mode_downloads_for_each_agent(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
-
-    calls: list[tuple[str, str, bool]] = []
-
-    skip_flags: list[bool] = []
-
-    class DummyClient:
-        def close(self):  # noqa: D401
-            calls.append(("close", "", False))
-
-    def fake_client(skip_tls: bool = False):  # noqa: D401
-        skip_flags.append(skip_tls)
-        return DummyClient()
-
-    monkeypatch.setattr(init_module, "build_http_client", fake_client)
-
-    def fake_download(project_path: Path, agent_key: str, script: str, is_current_dir: bool, **kwargs):  # noqa: D401
-        calls.append((agent_key, kwargs.get("repo_owner"), kwargs.get("repo_name"), is_current_dir))
-        (project_path / f"agent-{agent_key}").mkdir(parents=True, exist_ok=True)
-        return project_path
-
-    monkeypatch.setattr(init_module, "download_and_extract_template", fake_download)
-
-    monkeypatch.setenv("SPECIFY_TEMPLATE_REPO", "octo/spec-kit")
-
-    _invoke(
-        app,
-        [
-            "init",
-            "remote-demo",
-            "--ai",
-            "claude,gemini",
-            "--script",
-            "sh",
-            "--skip-tls",
-            "--no-git",
-            "--non-interactive",
-        ],
-    )
-
-    agent_calls = [c for c in calls if c[0] in {"claude", "gemini"}]
-    assert len(agent_calls) == 2
-    assert {owner for _, owner, _, _ in agent_calls} == {"octo"}
-    assert {repo for _, _, repo, _ in agent_calls} == {"spec-kit"}
-    assert skip_flags == [True]
-    monkeypatch.delenv("SPECIFY_TEMPLATE_REPO", raising=False)
 
 
 # =============================================================================
@@ -151,14 +67,13 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    # generate_all_shims no longer called — commands are installed globally
 
     # Git available
     with patch.object(init_module, "is_git_available", return_value=True):
@@ -170,8 +85,6 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
                 "config-project",
                 "--ai",
                 "claude",
-                "--script",
-                "sh",
                 "--no-git",
                 "--non-interactive",
             ],
@@ -214,14 +127,13 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    # generate_all_shims no longer called — commands are installed globally
 
     runner = CliRunner()
     result = runner.invoke(
@@ -230,8 +142,6 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
             "init",
             "--ai",
             "claude",
-            "--script",
-            "sh",
             "--no-git",
             "--non-interactive",
         ],
@@ -239,134 +149,8 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / ".templates").exists()
-    # WP10: shims replace rendered templates; no per-agent run.sh is created
     console_output = console.file.getvalue()
     assert "Target Path" not in console_output
-
-
-def test_init_non_interactive_no_project_name_requires_force_for_nonempty_directory(
-    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "--ai",
-            "claude",
-            "--script",
-            "sh",
-            "--no-git",
-            "--non-interactive",
-        ],
-    )
-
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "Non-interactive mode requires --force when using --here" in console_output
-
-
-def test_init_non_interactive_no_project_name_allows_force_for_nonempty_directory(
-    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    # generate_all_shims no longer called — commands are installed globally
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "--ai",
-            "claude",
-            "--script",
-            "sh",
-            "--no-git",
-            "--force",
-            "--non-interactive",
-        ],
-    )
-
-    assert result.exit_code == 0, result.output
-    assert (tmp_path / ".templates").exists()
-    console_output = console.file.getvalue()
-    assert "--force supplied: skipping confirmation and proceeding with merge" in console_output
-
-
-def test_init_interactive_no_project_name_prompts_for_nonempty_directory(
-    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
-    monkeypatch.setattr(init_module, "_is_non_interactive_mode", lambda flag: False)
-    confirm_prompts: list[str] = []
-
-    def fake_confirm(prompt: str) -> bool:
-        confirm_prompts.append(prompt)
-        return False
-
-    monkeypatch.setattr(init_module.typer, "confirm", fake_confirm)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "--ai",
-            "claude",
-            "--script",
-            "sh",
-            "--no-git",
-        ],
-    )
-
-    assert result.exit_code == 0, result.output
-    console_output = console.file.getvalue()
-    assert "Operation cancelled" in console_output
-    assert confirm_prompts
-
-
-def test_init_non_interactive_requires_force_for_nonempty_here(
-    cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    (tmp_path / "existing.txt").write_text("data", encoding="utf-8")
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "--here",
-            "--ai",
-            "claude",
-            "--script",
-            "sh",
-            "--no-git",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "Non-interactive mode requires --force when using --here" in console_output
 
 
 def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -377,14 +161,13 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
 
     monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
     monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    # generate_all_shims no longer called — commands are installed globally
 
     runner = CliRunner()
     result = runner.invoke(
@@ -394,63 +177,14 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
             "env-non-interactive",
             "--ai",
             "claude",
-            "--script",
-            "sh",
             "--no-git",
         ],
     )
     assert result.exit_code == 0, result.output
 
 
-def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Fresh git init should end in a clean amended initial commit."""
-    app, _, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        (project_path / ".kittify" / "templates").mkdir(parents=True, exist_ok=True)
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    def fake_init_git_repo(project_path: Path, quiet: bool = False, console=None):
-        (project_path / ".git").mkdir(parents=True, exist_ok=True)
-        return True
-
-    git_calls: list[list[str]] = []
-
-    def fake_subprocess_run(cmd, **kwargs):
-        git_calls.append(list(cmd))
-        return MagicMock(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    # generate_all_shims no longer called — commands are installed globally
-    monkeypatch.setattr(init_module, "init_git_repo", fake_init_git_repo)
-    monkeypatch.setattr(init_module, "is_git_repo", lambda path: (path / ".git").exists())
-    monkeypatch.setattr(init_module.subprocess, "run", fake_subprocess_run)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "git-clean-demo",
-            "--ai",
-            "codex",
-            "--script",
-            "sh",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 0, result.output
-    assert any(
-        call[:6] == ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit"]
-        for call in git_calls
-    )
+# test_init_amends_initial_commit_after_cleanup deleted in feature 076:
+# the initial git commit block was removed from init.py.
 
 
 def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
@@ -472,24 +206,3 @@ def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest
     assert result.exit_code == 2
     plain_output = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
     assert re.search(r"No such option:\s+-{1,2}agent-strategy", plain_output)
-
-
-def test_init_non_interactive_preferred_agent_not_selected(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    app, console, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "bad-preferred",
-            "--ai",
-            "codex",
-            "--preferred-implementer",
-            "gemini",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 1
-    console_output = console.file.getvalue()
-    assert "Preferred implementer must be one of the selected agents" in console_output

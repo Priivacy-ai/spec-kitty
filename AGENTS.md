@@ -299,13 +299,20 @@ Different agents use different argument placeholders:
 4. **Command validation**: Ensure generated commands work with the agent
 5. **Context update**: Test agent context update scripts
 
+## Branch Protection and CI
+
+`main` has a **Protect Main Branch** CI workflow that fails on any direct push. This is intentional branch-protection policy enforcement, not a code bug.
+
+- `spec-kitty merge` pushes directly to `main` by design. The "Protect Main Branch" failure this causes is **expected and known** — do not attempt to fix it.
+- The only CI result relevant to code health is **CI Quality**. If that passes, the commit is clean.
+- Do not create extra PRs, force-push, or revert commits to address the Protect Main Branch failure.
+
 ## Common Pitfalls
 
-1. **Forgetting update scripts**: Both bash and PowerShell scripts must be updated
-2. **Missing CLI checks**: Only add for agents that actually have CLI tools
-3. **Wrong argument format**: Use correct placeholder format for each agent type
-4. **Directory naming**: Follow agent-specific conventions exactly
-5. **Help text inconsistency**: Update all user-facing text consistently
+1. **Missing CLI checks**: Only add for agents that actually have CLI tools
+2. **Wrong argument format**: Use correct placeholder format for each agent type
+3. **Directory naming**: Follow agent-specific conventions exactly
+4. **Help text inconsistency**: Update all user-facing text consistently
 
 ## Future Considerations
 

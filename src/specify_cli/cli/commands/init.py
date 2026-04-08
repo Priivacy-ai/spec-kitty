@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 import shutil
-import subprocess
 import sys
-from datetime import date, datetime, UTC
+from datetime import datetime, UTC
 from pathlib import Path
 from collections.abc import Callable
 
@@ -18,14 +16,9 @@ from rich.live import Live
 from rich.panel import Panel
 from ruamel.yaml import YAML
 
-from specify_cli.cli import StepTracker, select_with_arrows, multi_select_with_arrows
+from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
-    AGENT_TOOL_REQUIREMENTS,
     AI_CHOICES,
-    DEFAULT_MISSION_KEY,
-    DEFAULT_TEMPLATE_REPO,
-    MISSION_CHOICES,
-    SCRIPT_TYPE_CHOICES,
     check_tool,
     init_git_repo,
     is_git_repo,
@@ -35,115 +28,26 @@ from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
 )
-from specify_cli.dashboard import ensure_dashboard_running
 from specify_cli.gitignore_manager import GitignoreManager
 from specify_cli.core.agent_config import (
     AgentConfig,
-    AgentSelectionConfig,
     save_agent_config,
 )
 from .init_help import INIT_COMMAND_DOC
 from specify_cli.template import (
-    build_http_client,
     copy_charter_templates,
     copy_specify_base_from_local,
     copy_specify_base_from_package,
     get_local_repo_root,
-    parse_repo_slug,
-)
-from specify_cli.template.github_client import (
-    download_and_extract_template as download_and_extract_template_github,
 )
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
-from specify_cli.runtime.resolver import resolve_command
-from specify_cli.skills.registry import SkillRegistry
 from specify_cli.skills.installer import install_skills_for_agent
 from specify_cli.skills.manifest import ManagedSkillManifest, save_manifest
 
 # Module-level variables to hold injected dependencies
 _console: Console | None = None
 _show_banner: Callable[[], None] | None = None
-_activate_mission: Callable[[Path, str, str, Console], str] | None = None
 _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = None
-
-# Backward-compatible symbol used by tests and older integrations.
-download_and_extract_template = download_and_extract_template_github
-
-
-# =============================================================================
-# 4-tier resolved template directory builder
-# =============================================================================
-
-
-def _resolve_mission_command_templates_dir(
-    project_path: Path,
-    mission_type: str,
-    scratch_parent: Path,
-) -> Path:
-    """Build a temporary directory of mission command templates resolved via the 4-tier resolver.
-
-    For each ``.md`` file discoverable across all four tiers (override, legacy,
-    global, package), ``resolve_command`` is called so that the highest-priority
-    version wins.  The resolved files are copied into a scratch directory that
-    ``prepare_command_templates`` can consume as ``mission_templates_dir``.
-
-    Args:
-        project_path: Root of the user project (contains ``.kittify/``).
-        mission_type: Mission identifier (e.g. ``"software-dev"``).
-        scratch_parent: A directory under which the scratch dir will be created.
-
-    Returns:
-        Path to the scratch directory containing the resolved command templates.
-        The directory may be empty if no command templates exist at any tier.
-    """
-    # Collect all unique .md filenames visible across tiers.
-    candidate_names: set[str] = set()
-    kittify = project_path / ".kittify"
-    subdir = "command-templates"
-
-    # Tier 1 -- override
-    override_dir = kittify / "overrides" / subdir
-    if override_dir.is_dir():
-        candidate_names.update(p.name for p in override_dir.glob("*.md"))
-
-    # Tier 2 -- legacy
-    legacy_dir = kittify / subdir
-    if legacy_dir.is_dir():
-        candidate_names.update(p.name for p in legacy_dir.glob("*.md"))
-
-    # Tier 3 -- global
-    try:
-        global_home = get_kittify_home()
-        global_dir = global_home / "missions" / mission_type / subdir
-        if global_dir.is_dir():
-            candidate_names.update(p.name for p in global_dir.glob("*.md"))
-    except RuntimeError:
-        pass
-
-    # Tier 4 -- package
-    try:
-        pkg_root = get_package_asset_root()
-        pkg_dir = pkg_root / mission_type / subdir
-        if pkg_dir.is_dir():
-            candidate_names.update(p.name for p in pkg_dir.glob("*.md"))
-    except FileNotFoundError:
-        pass
-
-    # Build scratch directory with the winning version of each file.
-    resolved_dir = scratch_parent / f".resolved-{mission_type}-cmd-templates"
-    if resolved_dir.exists():
-        shutil.rmtree(resolved_dir)
-    resolved_dir.mkdir(parents=True)
-
-    for name in sorted(candidate_names):
-        try:
-            result = resolve_command(name, project_path, mission=mission_type)
-            shutil.copy2(result.path, resolved_dir / name)
-        except FileNotFoundError:
-            # Should not happen (we discovered the name), but be safe.
-            pass
-
-    return resolved_dir
 
 
 # =============================================================================
@@ -181,12 +85,10 @@ def _prepare_project_minimal(project_path: Path) -> None:
     Creates:
         - .kittify/                (project root)
         - .kittify/memory/         (project-local memory/context files)
-        - .kittify/charter/        (for charter.md and structured config)
     """
     kittify = project_path / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "memory").mkdir(exist_ok=True)
-    (kittify / "charter").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
 
 
@@ -208,418 +110,10 @@ def _get_package_templates_root() -> Path | None:
     return None
 
 
-def _detect_languages(project_path: Path) -> str:
-    """Heuristically detect primary programming languages from indicator files."""
-    langs: list[str] = []
-    indicators = [
-        (project_path / "pyproject.toml", "Python"),
-        (project_path / "setup.py", "Python"),
-        (project_path / "Cargo.toml", "Rust"),
-        (project_path / "go.mod", "Go"),
-        (project_path / "pom.xml", "Java"),
-        (project_path / "build.gradle", "Java"),
-        (project_path / "build.gradle.kts", "Kotlin"),
-    ]
-    for path, lang in indicators:
-        if path.exists() and lang not in langs:
-            langs.append(lang)
 
-    # TypeScript before JavaScript (more specific)
-    if (project_path / "tsconfig.json").exists():
-        langs.append("TypeScript")
-    elif (project_path / "package.json").exists():
-        langs.append("JavaScript")
 
-    return ", ".join(langs) if langs else "_(fill in)_"
 
 
-def _detect_build_and_test(project_path: Path) -> str:
-    """Detect common build/test command entrypoints."""
-    hints: list[str] = []
-    if (project_path / "Makefile").exists():
-        hints.append("`make test`")
-    if (project_path / "pyproject.toml").exists():
-        hints.append("`pytest` (see pyproject.toml)")
-    if (project_path / "package.json").exists():
-        hints.append("`npm test`")
-    if (project_path / "Cargo.toml").exists():
-        hints.append("`cargo test`")
-    return ", ".join(hints) if hints else "_(fill in)_"
-
-
-def _detect_cli_entrypoints(project_path: Path) -> str:
-    """Extract CLI entry points from pyproject.toml [project.scripts]."""
-    pyproject = project_path / "pyproject.toml"
-    if not pyproject.exists():
-        return "_(fill in)_"
-    try:
-        text = pyproject.read_text(encoding="utf-8")
-        # Find [project.scripts] section and grab the keys
-        match = re.search(r"\[project\.scripts\](.*?)(?=\[|\Z)", text, re.DOTALL)
-        if not match:
-            return "_(fill in)_"
-        scripts = re.findall(r"^\s*(\S+)\s*=", match.group(1), re.MULTILINE)
-        return ", ".join(f"`{s}`" for s in scripts) if scripts else "_(fill in)_"
-    except OSError:
-        return "_(fill in)_"
-
-
-def _read_first_paragraph(path: Path) -> str:
-    """Return the first non-heading paragraph of a markdown file, or empty string."""
-    if not path.exists():
-        return ""
-    text = path.read_text(encoding="utf-8", errors="replace")
-    # Skip leading headings / blank lines
-    paragraph_lines: list[str] = []
-    in_para = False
-    for line in text.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("#"):
-            if in_para:
-                break
-            continue
-        if not stripped:
-            if in_para:
-                break
-            continue
-        paragraph_lines.append(stripped)
-        in_para = True
-    return " ".join(paragraph_lines)
-
-
-def _build_tree_snippet(project_path: Path) -> str:
-    """Build a simple top-level directory listing."""
-    entries: list[str] = []
-    try:
-        for entry in sorted(project_path.iterdir()):
-            if entry.name.startswith("."):
-                continue
-            marker = "/" if entry.is_dir() else ""
-            entries.append(f"{entry.name}{marker}")
-    except OSError:
-        pass
-    if not entries:
-        return "_(fill in)_"
-    return "```\n" + "\n".join(entries) + "\n```"
-
-
-def _dir_purpose(project_path: Path, name: str) -> str:
-    return "_(fill in)_" if not (project_path / name).is_dir() else f"_(fill in — {name}/ exists)_"
-
-
-def _gather_structure_template_vars(project_path: Path) -> dict[str, str]:
-    """Collect substitution values for REPO_MAP.md and SURFACES.md templates."""
-    readme_summary = _read_first_paragraph(project_path / "README.md") or "_(fill in)_"
-    agents_summary = _read_first_paragraph(project_path / "AGENTS.md") or "_(fill in)_"
-
-    pyproject_summary = "_(fill in)_"
-    pyproject = project_path / "pyproject.toml"
-    if pyproject.exists():
-        try:
-            text = pyproject.read_text(encoding="utf-8")
-            m = re.search(r'description\s*=\s*["\']([^"\']+)["\']', text)
-            if m:
-                pyproject_summary = m.group(1)
-        except OSError:
-            pass
-
-    return {
-        "{{DATE}}": date.today().isoformat(),
-        "{{PROJECT_NAME}}": project_path.resolve().name,
-        "{{PRIMARY_LANGUAGES}}": _detect_languages(project_path),
-        "{{BUILD_AND_TEST}}": _detect_build_and_test(project_path),
-        "{{TREE_SNIPPET}}": _build_tree_snippet(project_path),
-        "{{SRC_PURPOSE}}": _dir_purpose(project_path, "src"),
-        "{{TESTS_PURPOSE}}": _dir_purpose(project_path, "tests"),
-        "{{DOCS_PURPOSE}}": _dir_purpose(project_path, "docs"),
-        "{{README_SUMMARY}}": readme_summary,
-        "{{PYPROJECT_SUMMARY}}": pyproject_summary,
-        "{{AGENTS_SUMMARY}}": agents_summary,
-        "{{REPO_NOTES}}": "_(fill in)_",
-        "{{CLI_ENTRYPOINTS}}": _detect_cli_entrypoints(project_path),
-        "{{SERVICE_ENTRYPOINTS}}": "_(fill in)_",
-        "{{LIBRARY_ENTRYPOINTS}}": "_(fill in)_",
-        "{{EXTERNAL_INTEGRATIONS}}": "_(fill in)_",
-        "{{PUBLIC_INTERFACES}}": "_(fill in)_",
-        "{{LOG_SURFACES}}": "_(fill in)_",
-        "{{METRIC_SURFACES}}": "_(fill in)_",
-        "{{TRACE_SURFACES}}": "_(fill in)_",
-        "{{SECURITY_BOUNDARIES}}": "_(fill in)_",
-        "{{SURFACE_NOTES}}": "_(fill in)_",
-    }
-
-
-def _render_structure_template(template_path: Path, vars: dict[str, str]) -> str:
-    """Read template and substitute all {{TOKEN}} placeholders."""
-    content = template_path.read_text(encoding="utf-8")
-    for token, value in vars.items():
-        content = content.replace(token, value)
-    return content
-
-
-def _get_structure_templates_dir() -> Path | None:
-    """Return bundled doctrine structure templates directory, if available."""
-    try:
-        pkg_root = get_package_asset_root()  # .../doctrine/missions
-        structure_dir = pkg_root.parent / "templates" / "structure"
-        if structure_dir.is_dir():
-            return structure_dir
-    except FileNotFoundError:
-        pass
-
-    return None
-
-
-# =============================================================================
-# Doctrine stack init helpers (FR-001–FR-005, FR-015, FR-020)
-# =============================================================================
-
-
-def _load_doctrine_defaults() -> dict[str, object]:
-    """Load charter/defaults.yaml, returning {} on any failure."""
-    try:
-        import importlib.resources  # noqa: PLC0415
-
-        defaults_path = Path(str(importlib.resources.files("charter"))) / "defaults.yaml"
-        if not defaults_path.exists():
-            return {}
-        yaml = YAML(typ="safe")
-        return yaml.load(defaults_path.read_text(encoding="utf-8")) or {}
-    except Exception:
-        return {}
-
-
-def _apply_doctrine_defaults(project_path: Path, console: Console) -> bool:
-    """Generate a charter using the predefined doctrine defaults.
-
-    Returns True on success, False on failure (non-fatal -- user can run
-    ``spec-kitty charter interview`` later).
-    """
-    try:
-        from charter.interview import default_interview, apply_answer_overrides  # noqa: PLC0415
-        from charter.generator import build_charter_draft, write_charter  # noqa: PLC0415
-
-        defaults = _load_doctrine_defaults()
-        mission: str = str(defaults.get("mission", "software-dev"))
-        profile: str = str(defaults.get("profile", "minimal"))
-
-        interview_data = default_interview(mission=mission, profile=profile)
-
-        raw_paradigms = defaults.get("selected_paradigms")
-        raw_directives = defaults.get("selected_directives")
-        raw_tools = defaults.get("available_tools")
-
-        if raw_paradigms or raw_directives or raw_tools:
-            interview_data = apply_answer_overrides(
-                interview_data,
-                selected_paradigms=raw_paradigms if isinstance(raw_paradigms, list) else None,
-                selected_directives=raw_directives if isinstance(raw_directives, list) else None,
-                available_tools=raw_tools if isinstance(raw_tools, list) else None,
-            )
-
-        draft = build_charter_draft(mission=mission, interview=interview_data)
-
-        charter_path = project_path / ".kittify" / "charter" / "charter.md"
-        charter_path.parent.mkdir(parents=True, exist_ok=True)
-        write_charter(charter_path, draft.markdown)
-        console.print("[green]✓[/green] Charter generated at .kittify/charter/charter.md")
-        return True
-    except Exception as exc:
-        console.print(f"[yellow]Warning:[/yellow] Could not apply doctrine defaults: {exc}")
-        console.print("[dim]Run `spec-kitty charter interview` to configure governance later.[/dim]")
-        return False
-
-
-def _run_inline_interview(project_path: Path, console: Console) -> bool:
-    """Run the charter interview interactively during init.
-
-    Returns True on success or skip, False if interrupted without completing.
-    Satisfies C-002: this function calls the existing interview machinery;
-    ``spec-kitty charter interview`` continues to work independently.
-    """
-    try:
-        from charter.interview import (  # noqa: PLC0415
-            MINIMAL_QUESTION_ORDER,
-            QUESTION_ORDER,
-            QUESTION_PROMPTS,
-            apply_answer_overrides,
-            default_interview,
-            write_interview_answers,
-        )
-        from charter.generator import build_charter_draft, write_charter  # noqa: PLC0415
-        from kernel.atomic import atomic_write  # noqa: PLC0415
-
-        checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
-
-        console.print()
-        console.print(
-            "[cyan]This interview will configure your charter[/cyan] — which paradigms, "
-            "directives, and tool settings govern your project. "
-            "You can customise further after init by running "
-            "[cyan]spec-kitty charter interview[/cyan]."
-        )
-
-        depth_raw = typer.prompt(
-            "Interview depth",
-            default="minimal",
-        )
-        depth = depth_raw.strip().lower()
-        if depth not in ("minimal", "comprehensive"):
-            depth = "minimal"
-
-        interview_data = default_interview(mission="software-dev", profile=depth)
-        question_order = MINIMAL_QUESTION_ORDER if depth == "minimal" else QUESTION_ORDER
-
-        import io as _io  # noqa: PLC0415
-
-        checkpoint_yaml = YAML()
-        checkpoint_yaml.default_flow_style = False
-
-        answers_override: dict[str, str] = {}
-        try:
-            for question_id in question_order:
-                # Checkpoint after each answer so an interrupt is resumable.
-                buf = _io.StringIO()
-                checkpoint_yaml.dump(
-                    {"phase": "interview", "depth": depth, "answers_so_far": answers_override},
-                    buf,
-                )
-                atomic_write(checkpoint_path, buf.getvalue(), mkdir=True)
-
-                prompt_text = QUESTION_PROMPTS.get(question_id, question_id.replace("_", " ").title())
-                default_value = interview_data.answers.get(question_id, "")
-                answers_override[question_id] = typer.prompt(prompt_text, default=default_value)
-        except KeyboardInterrupt:
-            console.print("\n[yellow]Interview interrupted. Progress saved.[/yellow]")
-            console.print("[dim]Re-run `spec-kitty init` to resume or restart.[/dim]")
-            return False
-
-        interview_data = apply_answer_overrides(interview_data, answers=answers_override)
-        draft = build_charter_draft(mission="software-dev", interview=interview_data)
-
-        charter_path = project_path / ".kittify" / "charter" / "charter.md"
-        charter_path.parent.mkdir(parents=True, exist_ok=True)
-        write_charter(charter_path, draft.markdown)
-
-        # Persist answers for future re-generation.
-        answers_path = project_path / ".kittify" / "charter" / "interview" / "answers.yaml"
-        write_interview_answers(answers_path, interview_data)
-
-        # Remove checkpoint -- interview completed successfully.
-        if checkpoint_path.exists():
-            checkpoint_path.unlink()
-
-        console.print("[green]✓[/green] Charter generated at .kittify/charter/charter.md")
-        return True
-    except Exception as exc:
-        console.print(f"[yellow]Warning:[/yellow] Could not complete interview: {exc}")
-        console.print("[dim]Run `spec-kitty charter interview` to configure governance later.[/dim]")
-        return False
-
-
-def _run_doctrine_stack_init(project_path: Path, non_interactive: bool, console: Console) -> bool:
-    """Run the doctrine stack setup step during ``spec-kitty init``.
-
-    Decision tree
-    -------------
-    1. Charter already exists -- skip (FR-004).
-    2. Checkpoint exists → offer resume / restart (FR-020).
-    3. ``--non-interactive`` → apply defaults silently (FR-005, NFR-001).
-    4. Interactive → prompt for defaults / manual / skip (FR-001–FR-003).
-
-    Returns True if the step completed, was skipped, or was deferred.
-    """
-    charter_path = project_path / ".kittify" / "charter" / "charter.md"
-
-    # FR-004: skip if charter already exists.
-    if charter_path.exists():
-        console.print("[dim]Charter already exists -- skipping doctrine stack setup.[/dim]")
-        return True
-
-    checkpoint_path = project_path / ".kittify" / ".init-checkpoint.yaml"
-
-    # FR-020: offer resume/restart if a previous session was interrupted.
-    if checkpoint_path.exists():
-        console.print()
-        console.print("[yellow]A previous init session was interrupted.[/yellow]")
-        resume_raw = typer.prompt(
-            "Resume the previous interview session?",
-            default="resume",
-        )
-        if resume_raw.strip().lower() == "resume":
-            return _run_inline_interview(project_path, console)
-        else:
-            checkpoint_path.unlink()
-
-    # FR-005 / NFR-001: non-interactive → apply defaults (≤2 s target).
-    if non_interactive:
-        console.print("[dim]Applying doctrine defaults (non-interactive mode)...[/dim]")
-        return _apply_doctrine_defaults(project_path, console)
-
-    # FR-001–FR-003: interactive choice.
-    console.print()
-    choice_raw = typer.prompt(
-        "Doctrine stack: How would you like to configure project governance?",
-        default="defaults",
-    )
-    choice = choice_raw.strip().lower()
-
-    if choice == "defaults":
-        return _apply_doctrine_defaults(project_path, console)
-    elif choice == "manual":
-        return _run_inline_interview(project_path, console)
-    else:
-        console.print("[dim]Skipping doctrine stack setup. Run `spec-kitty charter interview` later.[/dim]")
-        return True
-
-
-def _maybe_generate_structure_templates(project_path: Path, non_interactive: bool, console: Console) -> None:
-    """Optionally generate REPO_MAP.md and SURFACES.md for a project."""
-    structure_dir = _get_structure_templates_dir()
-    if structure_dir is None:
-        return
-
-    templates = {
-        "REPO_MAP.md": structure_dir / "REPO_MAP.md",
-        "SURFACES.md": structure_dir / "SURFACES.md",
-    }
-
-    if non_interactive:
-        console.print("[dim]Skipping REPO_MAP/SURFACES generation in non-interactive mode[/dim]")
-        return
-
-    console.print()
-    should_generate = typer.confirm(
-        "Generate REPO_MAP.md and SURFACES.md from doctrine templates?",
-        default=False,
-    )
-    if not should_generate:
-        console.print("[dim]Skipped REPO_MAP/SURFACES generation[/dim]")
-        return
-
-    kittify_dir = project_path / ".kittify"
-    kittify_dir.mkdir(parents=True, exist_ok=True)
-
-    vars = _gather_structure_template_vars(project_path)
-    generated: list[str] = []
-    for target_name, template_path in templates.items():
-        target = kittify_dir / target_name
-        if target.exists():
-            console.print(f"[dim]Skipping existing .kittify/{target_name}[/dim]")
-            continue
-        rendered = _render_structure_template(template_path, vars)
-        target.write_text(rendered, encoding="utf-8")
-        console.print(f"[green]Generated[/green] .kittify/{target_name}")
-        generated.append(target_name)
-
-    if generated:
-        console.print()
-        console.print(
-            "[yellow]Note:[/yellow] Fields marked [dim]_(fill in)_[/dim] require manual input "
-            "or a follow-up interview. You can ask your AI agent to complete them by running:"
-        )
-        for name in generated:
-            console.print(f"  [cyan]Review [bold].kittify/{name}[/bold] and fill in the _(fill in)_ sections.[/cyan]")
 
 
 # =============================================================================
@@ -646,29 +140,6 @@ def _is_non_interactive_mode(flag: bool) -> bool:
         return True
     return not sys.stdin.isatty()
 
-
-def _resolve_preferred_agents(
-    selected_agents: list[str],
-    preferred_implementer: str | None,
-    preferred_reviewer: str | None,
-) -> tuple[str, str]:
-    if not selected_agents:
-        raise ValueError("At least one agent must be selected")
-
-    if preferred_implementer and preferred_implementer not in selected_agents:
-        raise ValueError("Preferred implementer must be one of the selected agents")
-    if preferred_reviewer and preferred_reviewer not in selected_agents:
-        raise ValueError("Preferred reviewer must be one of the selected agents")
-
-    if not preferred_implementer:
-        preferred_implementer = selected_agents[0]
-    if not preferred_reviewer:
-        if len(selected_agents) > 1:
-            preferred_reviewer = next(agent for agent in selected_agents if agent != preferred_implementer)
-        else:
-            preferred_reviewer = preferred_implementer
-
-    return preferred_implementer, preferred_reviewer
 
 
 def _detect_default_vcs() -> VCSBackend:
@@ -728,49 +199,27 @@ def _save_vcs_config(config_path: Path, _detected_vcs: VCSBackend) -> None:
 def init(  # noqa: C901
     project_name: str | None = typer.Argument(
         None,
-        help="Name for your new project directory (omit to initialize current directory, equivalent to --here)",
+        help="Name for your new project directory (omit to initialize current directory)",
     ),
     ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
-    script_type: str | None = typer.Option(None, "--script", help="Script type to use: sh or ps", rich_help_panel="Selection"),
-    preferred_implementer: str | None = typer.Option(None, "--preferred-implementer", help="Preferred agent for implementation", rich_help_panel="Selection"),
-    preferred_reviewer: str | None = typer.Option(None, "--preferred-reviewer", help="Preferred agent for review", rich_help_panel="Selection"),
-    mission_type: str | None = typer.Option(None, "--mission", hidden=True, help="[DEPRECATED] Mission selection moved to /spec-kitty.specify"),
-    ignore_agent_tools: bool = typer.Option(False, "--ignore-agent-tools", help="Skip checks for AI agent tools like Claude Code"),
     no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
-    here: bool = typer.Option(False, "--here", help="Initialize project in the current directory instead of creating a new one"),
-    force: bool = typer.Option(False, "--force", help="Force merge/overwrite when using --here (skip confirmation)"),
     non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
-    skip_tls: bool = typer.Option(False, "--skip-tls", help="Skip SSL/TLS verification (not recommended)"),
-    debug: bool = typer.Option(False, "--debug", help="Show verbose diagnostic output for network and extraction failures"),
-    github_token: str | None = typer.Option(
-        None,
-        "--github-token",
-        help="GitHub token to use for API requests (or set GH_TOKEN or GITHUB_TOKEN environment variable)",
-    ),
-    template_root: str | None = typer.Option(None, "--template-root", help="Override default template location (useful for development mode)"),
 ) -> None:
     """Initialize a new Spec Kitty project."""
     # Use the injected dependencies
     assert _console is not None
     assert _show_banner is not None
-    assert _activate_mission is not None
     assert _ensure_executable_scripts is not None
 
     _show_banner()
     non_interactive = _is_non_interactive_mode(non_interactive)
 
-    # Handle '.' as shorthand for current directory (equivalent to --here)
+    # Handle '.' as shorthand for current directory
     if project_name == ".":
-        here = True
-        project_name = None  # Clear project_name to use existing validation logic
+        project_name = None
 
     # Default behavior: no positional argument initializes in the current directory.
-    if not here and not project_name:
-        here = True
-
-    if here and project_name:
-        _console.print("[red]Error:[/red] Cannot specify both project name and --here flag")
-        raise typer.Exit(1)
+    here = project_name is None
 
     if here:
         try:
@@ -781,23 +230,6 @@ def init(  # noqa: C901
             _console.print(f"[dim]{e}[/dim]")
             _console.print("[yellow]Hint:[/yellow] Your current directory may have been deleted or is no longer accessible")
             raise typer.Exit(1) from e
-
-        existing_items = list(project_path.iterdir())
-        if existing_items:
-            _console.print(f"[yellow]Warning:[/yellow] Current directory is not empty ({len(existing_items)} items)")
-            _console.print("[yellow]Template files will be merged with existing content and may overwrite existing files[/yellow]")
-            if force:
-                _console.print("[cyan]--force supplied: skipping confirmation and proceeding with merge[/cyan]")
-            else:
-                if non_interactive:
-                    _console.print(
-                        "[red]Error:[/red] Non-interactive mode requires --force when using --here in a non-empty directory"  # noqa: E501
-                    )
-                    raise typer.Exit(1)
-                response = typer.confirm("Do you want to continue?")
-                if not response:
-                    _console.print("[yellow]Operation cancelled[/yellow]")
-                    raise typer.Exit(0)
     else:
         assert project_name is not None
         project_path = Path(project_name).resolve()
@@ -830,7 +262,6 @@ def init(  # noqa: C901
     # Check git only if we might need it (not --no-git)
     # Only set to True if the user wants it and the tool is available
     should_init_git = False
-    initialized_git_repo = False
     if not no_git:
         should_init_git = check_tool("git", "https://git-scm.com/downloads")
         if not should_init_git:
@@ -880,154 +311,19 @@ def init(  # noqa: C901
         _console.print("[red]Error:[/red] No AI assistants selected")
         raise typer.Exit(1)
 
-    # Check agent tools unless ignored
-    if not ignore_agent_tools:
-        missing_agents: list[tuple[str, str, str]] = []  # (agent key, display, url)
-        for agent_key in selected_agents:
-            requirement = AGENT_TOOL_REQUIREMENTS.get(agent_key)
-            if not requirement:
-                continue
-            tool_name, url = requirement
-            if not check_tool(tool_name, url, agent_name=agent_key):
-                missing_agents.append((agent_key, AI_CHOICES[agent_key], url))
-
-        if missing_agents:
-            lines = []
-            for agent_key, display_name, url in missing_agents:
-                lines.append(f"[cyan]{display_name}[/cyan] ({agent_key}) → install: [cyan]{url}[/cyan]")
-            lines.append("")
-            lines.append("These tools are optional. You can install them later to enable additional features.")
-            warning_panel = Panel(
-                "\n".join(lines),
-                title="[yellow]Optional Agent Tool(s) Not Found[/yellow]",
-                border_style="yellow",
-                padding=(1, 2),
-            )
-            _console.print()
-            _console.print(warning_panel)
-            # Continue with init instead of blocking
-
-    # Agent role preferences
-    preferred_implementer_value: str | None = preferred_implementer
-    preferred_reviewer_value: str | None = preferred_reviewer
-    selected_preferred_implementer: str | None = None
-    selected_preferred_reviewer: str | None = None
-
-    if non_interactive:
-        try:
-            preferred_implementer, preferred_reviewer = _resolve_preferred_agents(
-                selected_agents,
-                preferred_implementer_value,
-                preferred_reviewer_value,
-            )
-        except ValueError as exc:
-            _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
-    else:
-        # Ask for preferred implementer
-        agent_display_map = {key: AI_CHOICES[key] for key in selected_agents}
-
-        _console.print()
-        if preferred_implementer_value:
-            if preferred_implementer_value not in selected_agents:
-                _console.print("[red]Error:[/red] --preferred-implementer must be one of the selected agents")
-                raise typer.Exit(1)
-            selected_preferred_implementer = preferred_implementer_value
-        elif non_interactive:
-            selected_preferred_implementer = selected_agents[0]
-        else:
-            selected_preferred_implementer = select_with_arrows(
-                agent_display_map,
-                "Which agent should be the preferred IMPLEMENTER?",
-                default_key=selected_agents[0],
-            )
-
-        # Ask for preferred reviewer (prefer different from implementer)
-        _console.print()
-        if len(selected_agents) > 1:
-            # Default to a different agent for review
-            default_reviewer = next((a for a in selected_agents if a != selected_preferred_implementer), selected_agents[0])
-            if preferred_reviewer_value:
-                if preferred_reviewer_value not in selected_agents:
-                    _console.print("[red]Error:[/red] --preferred-reviewer must be one of the selected agents")
-                    raise typer.Exit(1)
-                selected_preferred_reviewer = preferred_reviewer_value
-            elif non_interactive:
-                selected_preferred_reviewer = default_reviewer
-            else:
-                selected_preferred_reviewer = select_with_arrows(
-                    agent_display_map,
-                    "Which agent should be the preferred REVIEWER?",
-                    default_key=default_reviewer,
-                )
-            if selected_preferred_reviewer == selected_preferred_implementer and len(selected_agents) > 1:
-                _console.print("[yellow]Note:[/yellow] Same agent for implementation and review (cross-review disabled)")
-        else:
-            # Only one agent - same for both
-            selected_preferred_reviewer = selected_preferred_implementer
-            if selected_preferred_implementer is not None:
-                _console.print(
-                    f"[dim]Single agent mode: {AI_CHOICES[selected_preferred_implementer]} will do both implementation and review[/dim]"  # noqa: E501
-                )
     # Build agent config to save later
     agent_config = AgentConfig(
         available=selected_agents,
-        selection=AgentSelectionConfig(
-            preferred_implementer=selected_preferred_implementer,
-            preferred_reviewer=selected_preferred_reviewer,
-        ),
+        auto_commit=True,
     )
 
-    # Determine script type (explicit or auto-detect)
-    if script_type:
-        if script_type not in SCRIPT_TYPE_CHOICES:
-            _console.print(
-                f"[red]Error:[/red] Invalid script type '{script_type}'. Choose from: {', '.join(SCRIPT_TYPE_CHOICES.keys())}"  # noqa: E501
-            )
-            raise typer.Exit(1)
-        selected_script = script_type
-    else:
-        # Auto-detect based on platform
-        selected_script = "ps" if os.name == "nt" else "sh"
-        _console.print(f"[dim]Auto-detected script type:[/dim] [cyan]{SCRIPT_TYPE_CHOICES[selected_script]}[/cyan]")
-
-    # Mission selection deprecated - missions are now per-mission
-    if mission_type:
-        _console.print(
-            "[yellow]Warning:[/yellow] The --mission flag is deprecated. Missions are now selected per-mission during /spec-kitty.specify"  # noqa: E501
-        )
-        _console.print("[dim]Ignoring --mission flag and continuing with initialization...[/dim]")
-        _console.print()
-
-    # No longer select a project-level mission - just use software-dev for initial setup
-    selected_mission = DEFAULT_MISSION_KEY
-    mission_display = MISSION_CHOICES.get(selected_mission, "Software Dev Kitty")
-
     template_mode = "package"
-    local_repo = get_local_repo_root(override_path=template_root)
+    local_repo = get_local_repo_root()
     if local_repo is not None:
         template_mode = "local"
-        if debug:
-            _console.print(f"[cyan]Using local templates from[/cyan] {local_repo}")
-
-    repo_owner = repo_name = None
-    remote_slug_env = os.environ.get("SPECIFY_TEMPLATE_REPO")
-    if remote_slug_env:
-        try:
-            repo_owner, repo_name = parse_repo_slug(remote_slug_env)
-        except ValueError as exc:
-            _console.print(f"[red]Error:[/red] {exc}")
-            raise typer.Exit(1) from exc
-        template_mode = "remote"
-        if debug:
-            _console.print(f"[cyan]Using remote templates from[/cyan] {repo_owner}/{repo_name}")
-    elif template_mode == "package" and debug:
-        _console.print("[cyan]Using templates bundled with specify_cli package[/cyan]")
 
     ai_display = ", ".join(AI_CHOICES[key] for key in selected_agents)
     _console.print(f"[cyan]Selected AI assistant(s):[/cyan] {ai_display}")
-    _console.print(f"[cyan]Selected script type:[/cyan] {selected_script}")
-    _console.print(f"[cyan]Selected mission:[/cyan] {mission_display}")
 
     # Download and set up project
     # New tree-based progress (no emojis); include earlier substeps
@@ -1039,11 +335,8 @@ def init(  # noqa: C901
     tracker.complete("precheck", "ok")
     tracker.add("ai-select", "Select AI assistant(s)")
     tracker.complete("ai-select", ai_display)
-    tracker.add("script-select", "Select script type")
-    tracker.complete("script-select", selected_script)
-    tracker.add("mission-select", "Select mission")
-    tracker.complete("mission-select", mission_display)
-    tracker.add("mission-activate", "Activate mission")
+    tracker.add("runtime", "Bootstrap global runtime")
+    tracker.add("skills", "Install skills globally")
     for agent_key in selected_agents:
         label = AI_CHOICES[agent_key]
         tracker.add(f"{agent_key}-fetch", f"{label}: fetch latest release")
@@ -1060,21 +353,47 @@ def init(  # noqa: C901
     ]:
         tracker.add(key, label)
 
-    if template_mode in ("local", "package") and not here and not project_path.exists():
+    if not here and not project_path.exists():
         project_path.mkdir(parents=True)
 
     templates_root: Path | None = None  # Track template source for later use
     base_prepared = False
-    # Resolved command-templates directory (set once during base preparation,
-    # consumed per-agent to generate full prompt files for prompt-driven commands).
-    if template_mode == "remote" and (repo_owner is None or repo_name is None):
-        repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
 
     with Live(tracker.render(), console=_console, refresh_per_second=8, transient=True) as live:
         tracker.attach_refresh(lambda: live.update(tracker.render()))
         try:
-            # Create a httpx client with verify based on skip_tls
-            local_client = build_http_client(skip_tls=skip_tls)
+            # Bootstrap global runtime — hard fail on error (FR-003)
+            tracker.start("runtime")
+            try:
+                from specify_cli.runtime.bootstrap import ensure_runtime
+
+                ensure_runtime()
+                tracker.complete("runtime", "ok")
+            except Exception as exc:
+                tracker.error("runtime", str(exc))
+                _console.print(f"[red]Error:[/red] Failed to bootstrap global runtime: {exc}")
+                raise typer.Exit(1) from exc
+
+            # Install skills globally (FR-007)
+            tracker.start("skills")
+            try:
+                from specify_cli.skills.registry import SkillRegistry
+                from specify_cli.skills.paths import iter_installable_agents
+                from specify_cli.skills.installer import _sync_global_skill
+
+                skill_registry = SkillRegistry.from_package()
+                skills = skill_registry.discover_skills()
+                for skill in skills:
+                    for agent_key in iter_installable_agents():
+                        from specify_cli.skills.paths import get_primary_global_skill_root
+                        global_root = get_primary_global_skill_root(agent_key)
+                        if global_root is not None:
+                            _sync_global_skill(skill, global_root)
+                tracker.complete("skills", f"{len(skills)} skills installed globally")
+            except Exception as exc:
+                tracker.error("skills", str(exc))
+                _console.print(f"[yellow]Warning:[/yellow] Skill installation incomplete: {exc}")
+                # Non-fatal: skills can be re-installed on next upgrade
 
             # Skill pack installation state
             from specify_cli import __version__ as _sk_version
@@ -1085,104 +404,71 @@ def init(  # noqa: C901
                 updated_at=_now_iso,
                 spec_kitty_version=_sk_version,
             )
-            skill_registry: SkillRegistry | None = None
+            skill_registry_per_agent: SkillRegistry | None = None
             shared_root_installed: set[str] = set()
 
-            for index, agent_key in enumerate(selected_agents):
-                if template_mode in ("local", "package"):
-                    source_detail = "local checkout" if template_mode == "local" else "packaged data"
-                    tracker.start(f"{agent_key}-fetch")
-                    tracker.complete(f"{agent_key}-fetch", source_detail)
-                    tracker.start(f"{agent_key}-download")
-                    tracker.complete(f"{agent_key}-download", "local files")
-                    tracker.start(f"{agent_key}-extract")
-                    try:
-                        if not base_prepared:
-                            # Bootstrap / update the global runtime so that
-                            # _has_global_runtime() reflects up-to-date state.
-                            try:
-                                from specify_cli.runtime.bootstrap import ensure_runtime
-
-                                ensure_runtime()
-                            except Exception:
-                                _logger.debug("ensure_runtime() failed; falling back to legacy init", exc_info=True)
-                            # Check if global runtime exists -- if so, skip
-                            # copying shared assets to the project and resolve
-                            # templates directly from the package / global.
-                            use_global = _has_global_runtime() and template_mode == "package"
-                            if use_global:
-                                _prepare_project_minimal(project_path)
-                                copy_charter_templates(project_path)
-                                pkg_templates = _get_package_templates_root()
-                                if pkg_templates is not None:
-                                    templates_root = pkg_templates
-                                else:
-                                    # Package templates not found -- fall back to full copy
-                                    use_global = False
-                            if not use_global:
-                                if template_mode == "local":
-                                    assert local_repo is not None
-                                    copy_specify_base_from_local(local_repo, project_path, selected_script)
-                                else:
-                                    copy_specify_base_from_package(project_path, selected_script)
-                                # Track templates root for later use (AGENTS.md, .claudeignore)
-                                pkg_templates = _get_package_templates_root()
-                                if pkg_templates is not None:
-                                    templates_root = pkg_templates
-                            base_prepared = True
-                    except Exception as exc:
-                        tracker.error(f"{agent_key}-extract", str(exc))
-                        raise
-                    else:
-                        tracker.complete(f"{agent_key}-extract", "agent configured (commands managed globally)")
-                        tracker.start(f"{agent_key}-zip-list")
-                        tracker.complete(f"{agent_key}-zip-list", "templates ready")
-                        tracker.start(f"{agent_key}-extracted-summary")
-                        tracker.complete(f"{agent_key}-extracted-summary", "commands ready")
-                        tracker.start(f"{agent_key}-cleanup")
-                        tracker.complete(f"{agent_key}-cleanup", "done")
+            for agent_key in selected_agents:
+                source_detail = "local checkout" if template_mode == "local" else "packaged data"
+                tracker.start(f"{agent_key}-fetch")
+                tracker.complete(f"{agent_key}-fetch", source_detail)
+                tracker.start(f"{agent_key}-download")
+                tracker.complete(f"{agent_key}-download", "local files")
+                tracker.start(f"{agent_key}-extract")
+                try:
+                    if not base_prepared:
+                        # Global runtime was bootstrapped above; use minimal project setup
+                        use_global = _has_global_runtime() and template_mode == "package"
+                        if use_global:
+                            _prepare_project_minimal(project_path)
+                            copy_charter_templates(project_path)
+                            pkg_templates = _get_package_templates_root()
+                            if pkg_templates is not None:
+                                templates_root = pkg_templates
+                            else:
+                                # Package templates not found -- fall back to full copy
+                                use_global = False
+                        if not use_global:
+                            if template_mode == "local":
+                                assert local_repo is not None
+                                copy_specify_base_from_local(local_repo, project_path)
+                            else:
+                                copy_specify_base_from_package(project_path)
+                            # Track templates root for later use (AGENTS.md, .claudeignore)
+                            pkg_templates = _get_package_templates_root()
+                            if pkg_templates is not None:
+                                templates_root = pkg_templates
+                        base_prepared = True
+                except Exception as exc:
+                    tracker.error(f"{agent_key}-extract", str(exc))
+                    raise
                 else:
-                    is_current_dir_flag = here if index == 0 else True
-                    allow_existing_flag = index > 0
-                    if repo_owner is None or repo_name is None:
-                        repo_owner, repo_name = parse_repo_slug(DEFAULT_TEMPLATE_REPO)
-                    download_and_extract_template(
-                        project_path,
-                        agent_key,
-                        selected_script,
-                        is_current_dir_flag,
-                        verbose=False,
-                        tracker=tracker,
-                        tracker_prefix=agent_key,
-                        allow_existing=allow_existing_flag,
-                        client=local_client,
-                        debug=debug,
-                        github_token=github_token,
-                        repo_owner=repo_owner,
-                        repo_name=repo_name,
-                    )
+                    tracker.complete(f"{agent_key}-extract", "agent configured (commands managed globally)")
+                    tracker.start(f"{agent_key}-zip-list")
+                    tracker.complete(f"{agent_key}-zip-list", "templates ready")
+                    tracker.start(f"{agent_key}-extracted-summary")
+                    tracker.complete(f"{agent_key}-extracted-summary", "commands ready")
+                    tracker.start(f"{agent_key}-cleanup")
+                    tracker.complete(f"{agent_key}-cleanup", "done")
 
                 # Install skill pack for this agent (non-fatal)
                 tracker.start(f"{agent_key}-skills")
                 try:
-                    if skill_registry is None:
+                    if skill_registry_per_agent is None:
                         if template_mode == "local" and local_repo is not None:
-                            skill_registry = SkillRegistry.from_local_repo(local_repo)
+                            skill_registry_per_agent = SkillRegistry.from_local_repo(local_repo)
                         else:
-                            skill_registry = SkillRegistry.from_package()
-                        if debug:
-                            _console.print(f"[cyan]Skill source:[/cyan] {skill_registry._skills_root}")
-                    skills = skill_registry.discover_skills()
-                    if skills:
+                            skill_registry_per_agent = SkillRegistry.from_package()
+                    agent_skills = skill_registry_per_agent.discover_skills()
+                    if agent_skills:
                         entries = install_skills_for_agent(
                             project_path,
                             agent_key,
-                            skills,
+                            agent_skills,
                             shared_root_installed=shared_root_installed,
                         )
                         for entry in entries:
                             skill_manifest.add_entry(entry)
-                        tracker.complete(f"{agent_key}-skills", f"{len(skills)} skills installed")
+                        tracker.complete(f"{agent_key}-skills", f"{len(agent_skills)} skills installed")
                     else:
                         tracker.complete(f"{agent_key}-skills", "no skills found")
                 except Exception as exc:
@@ -1190,25 +476,9 @@ def init(  # noqa: C901
                     _logger.warning("Skill installation failed for %s: %s", agent_key, exc)
                     # Non-fatal: wrappers are already installed
 
-            # Hybrid install: after all agents have received full prompt files via
-            # generate_agent_assets(), write thin 3-line shim files for the 7
             # Save managed skill manifest
             if skill_manifest.entries:
                 save_manifest(skill_manifest, project_path)
-
-            tracker.start("mission-activate")
-            try:
-                if _has_global_runtime():
-                    # In global runtime mode, missions resolve from ~/.kittify/
-                    # so we don't need to check the project's local missions dir.
-                    mission_status = f"{mission_display} (per-mission selection, global runtime)"
-                else:
-                    mission_status = _activate_mission(project_path, selected_mission, mission_display, _console)
-            except Exception as exc:
-                tracker.error("mission-activate", str(exc))
-                raise
-            else:
-                tracker.complete("mission-activate", mission_status)
 
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker)
@@ -1220,7 +490,6 @@ def init(  # noqa: C901
                     tracker.complete("git", "existing repo detected")
                 elif should_init_git:
                     if init_git_repo(project_path, quiet=True):
-                        initialized_git_repo = True
                         tracker.complete("git", "initialized")
                     else:
                         tracker.error("git", "init failed")
@@ -1235,18 +504,11 @@ def init(  # noqa: C901
                 exclude_from_git_index(project_path, [".worktrees/"])
 
             tracker.complete("final", "project ready")
+        except typer.Exit:
+            raise
         except Exception as e:
             tracker.error("final", str(e))
             _console.print(Panel(f"Initialization failed: {e}", title="Failure", border_style="red"))
-            if debug:
-                _env_pairs = [
-                    ("Python", sys.version.split()[0]),
-                    ("Platform", sys.platform),
-                    ("CWD", str(Path.cwd())),
-                ]
-                _label_width = max(len(k) for k, _ in _env_pairs)
-                env_lines = [f"{k.ljust(_label_width)} → [bright_black]{v}[/bright_black]" for k, v in _env_pairs]
-                _console.print(Panel("\n".join(env_lines), title="Debug Environment", border_style="magenta"))
             if not here and project_path.exists():
                 shutil.rmtree(project_path)
             raise typer.Exit(1) from e
@@ -1257,8 +519,6 @@ def init(  # noqa: C901
     # Final static tree (ensures finished state visible after Live context ends)
     _console.print(tracker.render())
     _console.print("\n[bold green]Project ready.[/bold green]")
-    _maybe_generate_structure_templates(project_path, non_interactive, _console)
-    _run_doctrine_stack_init(project_path, non_interactive, _console)
 
     # Agent folder security notice
     agent_folder_map = {
@@ -1340,33 +600,6 @@ def init(  # noqa: C901
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
     _console.print()
     _console.print(enhancements_panel)
-
-    # Start or reconnect to the dashboard server as a detached background process
-    _console.print()
-    try:
-        dashboard_url, port, started = ensure_dashboard_running(project_path)
-
-        title = "[bold green]Spec Kitty Dashboard Started[/bold green]" if started else "[bold green]Spec Kitty Dashboard Ready[/bold green]"
-        status_line = (
-            "[dim]The dashboard is running in the background and will continue even after\nthis command exits. It will automatically update as you work.[/dim]"
-            if started
-            else "[dim]An existing dashboard instance is running and ready.[/dim]"
-        )
-
-        dashboard_panel = Panel(
-            f"[bold cyan]Dashboard URL:[/bold cyan] {dashboard_url}\n"
-            f"[bold cyan]Port:[/bold cyan] {port}\n\n"
-            f"{status_line}\n\n"
-            f"[yellow]Tip:[/yellow] Run [cyan]/spec-kitty.dashboard[/cyan] or [cyan]spec-kitty dashboard[/cyan] to open it in your browser",  # noqa: E501
-            title=title,
-            border_style="green",
-            padding=(1, 2),
-        )
-        _console.print(dashboard_panel)
-        _console.print()
-    except Exception as e:
-        _console.print(f"[yellow]Warning: Could not start dashboard: {e}[/yellow]")
-        _console.print("[dim]Continuing without dashboard...[/dim]")
 
     # Protect ALL agent directories in .gitignore
     manager = GitignoreManager(project_path)
@@ -1465,29 +698,6 @@ def init(  # noqa: C901
                 except Exception:  # noqa: S110
                     pass  # best-effort cleanup
 
-    # Keep freshly initialized repos clean after post-init file updates and template cleanup.
-    if initialized_git_repo and is_git_repo(project_path):
-        try:
-            subprocess.run(
-                ["git", "add", "-A"],
-                cwd=project_path,
-                check=True,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-            subprocess.run(
-                ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit"],
-                cwd=project_path,
-                check=True,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-            )
-        except subprocess.CalledProcessError as e:
-            _console.print(f"[dim]Note: Could not finalize clean init commit: {e.stderr.strip() if e.stderr else e}[/dim]")
 
 
 def register_init_command(
@@ -1495,16 +705,15 @@ def register_init_command(
     *,
     console: Console,
     show_banner: Callable[[], None],
-    activate_mission: Callable[[Path, str, str, Console], str],
+    activate_mission: Callable[[Path, str, str, Console], str] | None = None,
     ensure_executable_scripts: Callable[[Path, StepTracker | None], None],
 ) -> None:
     """Register the init command with injected dependencies."""
-    global _console, _show_banner, _activate_mission, _ensure_executable_scripts
+    global _console, _show_banner, _ensure_executable_scripts
 
     # Store the dependencies
     _console = console
     _show_banner = show_banner
-    _activate_mission = activate_mission
     _ensure_executable_scripts = ensure_executable_scripts
 
     # Set the docstring
