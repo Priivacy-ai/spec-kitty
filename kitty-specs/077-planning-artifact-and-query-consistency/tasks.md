@@ -181,12 +181,12 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 
 #### Included Subtasks
 
-- [ ] T018 Make `--agent` optional in query mode and required only for advancing and answer flows (WP04)
-- [ ] T019 Extend `Decision` and `to_dict()` with nullable `agent` and `preview_step` (WP04)
-- [ ] T020 Implement fresh-run query resolution with `not_started` and `preview_step` in `runtime_bridge.py` (WP04)
-- [ ] T021 Fail query mode clearly when a mission has no issuable first step (WP04)
-- [ ] T022 Update human-readable query output to show `not_started` and the next step without `unknown` fallback (WP04)
-- [ ] T023 [P] Tests for non-mutating query mode, compatibility `--agent`, `preview_step`, and advancing regression (WP04)
+- [x] T018 Make `--agent` optional in query mode and required only for advancing and answer flows (WP04)
+- [x] T019 Extend `Decision` and `to_dict()` with nullable `agent` and `preview_step` (WP04)
+- [x] T020 Implement fresh-run query resolution with `not_started` and `preview_step` in `runtime_bridge.py` (WP04)
+- [x] T021 Fail query mode clearly when a mission has no issuable first step (WP04)
+- [x] T022 Update human-readable query output to show `not_started` and the next step without `unknown` fallback (WP04)
+- [x] T023 [P] Tests for non-mutating query mode, compatibility `--agent`, `preview_step`, and advancing regression (WP04)
 
 #### Implementation Sketch
 
