@@ -38,12 +38,12 @@
 | T026 | Handle both 'agents.selection' and 'tools.selection' key variants | WP04 | No | [D] |
 | T027 | Write test_m_3_2_1_strip_selection_config.py with 5 test cases | WP04 | No | [D] |
 | T028 | mypy check + verify migration ID unique in registry | WP04 | No | [D] |
-| T029 | Create m_3_2_2_safe_globalize_commands.py skeleton (new migration_id, do NOT touch m_3_1_2) | WP05 | No |
-| T030 | Implement detect() — same pattern as m_3_1_2 | WP05 | No |
-| T031 | Implement _global_commands_present() safety helper | WP05 | No |
-| T032 | Implement apply() with all 4 safety invariants per-agent | WP05 | No |
-| T033 | Write test_m_3_2_2_safe_globalize_commands.py with 6 test cases | WP05 | No |
-| T034 | mypy check; verify m_3_1_2_globalize_commands.py is NOT modified (git diff must be clean for that file) | WP05 | No |
+| T029 | Create m_3_2_2_safe_globalize_commands.py skeleton (new migration_id, do NOT touch m_3_1_2) | WP05 | No | [D] |
+| T030 | Implement detect() — same pattern as m_3_1_2 | WP05 | No | [D] |
+| T031 | Implement _global_commands_present() safety helper | WP05 | No | [D] |
+| T032 | Implement apply() with all 4 safety invariants per-agent | WP05 | No | [D] |
+| T033 | Write test_m_3_2_2_safe_globalize_commands.py with 6 test cases | WP05 | No | [D] |
+| T034 | mypy check; verify m_3_1_2_globalize_commands.py is NOT modified (git diff must be clean for that file) | WP05 | No | [D] |
 | T035 | Determine ADR sequence number N; create ADR-A (global ~/.kittify/ as machine-level runtime) | WP06 | No | [D] |
 | T036 | Create ADR-B (package-bundled templates as sole source) | WP06 | [D] |
 | T037 | Create ADR-C (global skill installation with per-project symlinks) | WP06 | [D] |
