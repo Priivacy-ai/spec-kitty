@@ -22,7 +22,7 @@ from tests.lane_test_utils import lane_worktree_path, write_single_lane_manifest
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
 from specify_cli.status.models import StatusEvent, Lane
-from specify_cli.status.store import append_event
+from specify_cli.status.store import append_event, read_events
 from specify_cli.tasks_support import split_frontmatter
 
 pytestmark = pytest.mark.fast
@@ -98,6 +98,7 @@ def workflow_repo(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
 # T011: implement body note does NOT contain lane=
 # ---------------------------------------------------------------------------
 
+
 class TestImplementBodyNoteLaneFree:
     """Implement history entries must not contain lane= segments."""
 
@@ -108,9 +109,7 @@ class TestImplementBodyNoteLaneFree:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="planned")
         # Seed canonical state so implement doesn't hard-fail
@@ -140,9 +139,7 @@ class TestImplementBodyNoteLaneFree:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="doing")
         # Seed canonical state as in_progress (= doing)
@@ -169,6 +166,7 @@ class TestImplementBodyNoteLaneFree:
 # T012: review body note does NOT contain lane=
 # ---------------------------------------------------------------------------
 
+
 class TestReviewBodyNoteLaneFree:
     """Review history entries must not contain lane= segments."""
 
@@ -179,9 +177,7 @@ class TestReviewBodyNoteLaneFree:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="for_review")
         # Seed canonical state
@@ -205,6 +201,7 @@ class TestReviewBodyNoteLaneFree:
 # T013: implement hard-fails when no canonical state
 # ---------------------------------------------------------------------------
 
+
 class TestImplementHardFailNoCanonical:
     """Implement must raise RuntimeError when WP has no canonical status."""
 
@@ -215,9 +212,7 @@ class TestImplementHardFailNoCanonical:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="planned")
         # NO event seeding -- WP has no canonical state
@@ -231,12 +226,8 @@ class TestImplementHardFailNoCanonical:
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
-        assert "no canonical status" in (result.stdout + str(result.exception or "")).lower(), (
-            f"Expected 'no canonical status' in output, got: {result.stdout}"
-        )
-        assert "finalize-tasks" in (result.stdout + str(result.exception or "")), (
-            f"Expected finalize-tasks guidance in output, got: {result.stdout}"
-        )
+        assert "no canonical status" in (result.stdout + str(result.exception or "")).lower(), f"Expected 'no canonical status' in output, got: {result.stdout}"
+        assert "finalize-tasks" in (result.stdout + str(result.exception or "")), f"Expected finalize-tasks guidance in output, got: {result.stdout}"
 
     def test_implement_hardfails_events_exist_but_not_for_wp(self, workflow_repo: Path) -> None:
         """Implement should fail when event log has events for other WPs but not this one."""
@@ -245,9 +236,7 @@ class TestImplementHardFailNoCanonical:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="planned")
         # Seed events for WP02 only — WP01 has no canonical state
@@ -271,9 +260,7 @@ class TestImplementHardFailNoCanonical:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="planned")
         # Seed canonical state
@@ -293,6 +280,7 @@ class TestImplementHardFailNoCanonical:
 # ---------------------------------------------------------------------------
 # T014: review hard-fails when no canonical state
 # ---------------------------------------------------------------------------
+
 
 class TestReviewHardFailNoCanonical:
     """Review must raise RuntimeError when WP has no canonical status."""
@@ -314,12 +302,8 @@ class TestReviewHardFailNoCanonical:
         )
 
         assert result.exit_code != 0, f"Expected failure, got exit_code=0: {result.stdout}"
-        assert "no canonical status" in (result.stdout + str(result.exception or "")).lower(), (
-            f"Expected 'no canonical status' in output, got: {result.stdout}"
-        )
-        assert "finalize-tasks" in (result.stdout + str(result.exception or "")), (
-            f"Expected finalize-tasks guidance in output, got: {result.stdout}"
-        )
+        assert "no canonical status" in (result.stdout + str(result.exception or "")).lower(), f"Expected 'no canonical status' in output, got: {result.stdout}"
+        assert "finalize-tasks" in (result.stdout + str(result.exception or "")), f"Expected finalize-tasks guidance in output, got: {result.stdout}"
 
     def test_review_hardfails_events_exist_but_not_for_wp(self, workflow_repo: Path) -> None:
         """Review should fail when event log has events for other WPs but not this one."""
@@ -348,9 +332,7 @@ class TestReviewHardFailNoCanonical:
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True)
         write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
-        (feature_dir / "tasks.md").write_text(
-            "## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8"
-        )
+        (feature_dir / "tasks.md").write_text("## WP01 Test\n\n- [x] T001 Placeholder task\n", encoding="utf-8")
         wp_path = tasks_dir / "WP01-test.md"
         _write_wp_file(wp_path, "WP01", lane="for_review")
         # Seed canonical state
@@ -362,3 +344,119 @@ class TestReviewHardFailNoCanonical:
         )
 
         assert result.exit_code == 0, f"Expected success: {result.stdout}"
+
+
+class TestPlanningArtifactWorkflowPrompt:
+    """Planning-artifact WPs should guide agents to the repository root."""
+
+    def test_implement_prompt_uses_repo_root_for_planning_artifact(self, workflow_repo: Path) -> None:
+        mission_slug = "077-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text(
+            "## WP01 Code\n\n- [x] T001 Placeholder task\n\n## WP02 Planning\n\n- [x] T002 Placeholder task\n",
+            encoding="utf-8",
+        )
+        _write_wp_file(tasks_dir / "WP01-code.md", "WP01", lane="planned")
+        (tasks_dir / "WP02-planning.md").write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: WP02 Planning\n"
+            "dependencies: []\n"
+            "execution_mode: planning_artifact\n"
+            "owned_files:\n"
+            f"  - kitty-specs/{mission_slug}/**\n"
+            f"authoritative_surface: kitty-specs/{mission_slug}/\n"
+            "---\n"
+            "# WP02 Planning Prompt\n",
+            encoding="utf-8",
+        )
+        _seed_wp_lane(feature_dir, "WP02", "planned")
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP02", "--mission", mission_slug, "--agent", "test-agent"],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        prompt_path = Path(next(line.split("cat ", 1)[1].strip() for line in result.stdout.splitlines() if line.strip().startswith("cat ")))
+        prompt = prompt_path.read_text(encoding="utf-8")
+
+        assert f"Workspace: {workflow_repo}" in prompt
+        assert "Workspace contract: repository root planning workspace" in prompt
+        assert f"cd {workflow_repo}" in prompt
+        assert "This WP runs in the repository root" in prompt
+        assert "<!-- WORKTREE_TOPOLOGY -->" in prompt
+        assert "runs in the repository root planning workspace" in prompt
+
+    def test_planning_artifact_implement_claim_emits_direct_repo_status_event(self, workflow_repo: Path) -> None:
+        mission_slug = "077-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text(
+            "## WP02 Planning\n\n- [x] T002 Placeholder task\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-planning.md").write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: WP02 Planning\n"
+            "dependencies: []\n"
+            "execution_mode: planning_artifact\n"
+            "owned_files:\n"
+            f"  - kitty-specs/{mission_slug}/**\n"
+            f"authoritative_surface: kitty-specs/{mission_slug}/\n"
+            "---\n"
+            "# WP02 Planning Prompt\n",
+            encoding="utf-8",
+        )
+        _seed_wp_lane(feature_dir, "WP02", "planned")
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["implement", "WP02", "--mission", mission_slug, "--agent", "test-agent"],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        latest = [event for event in read_events(feature_dir) if event.wp_id == "WP02"][-1]
+        assert latest.execution_mode == "direct_repo"
+
+    def test_review_prompt_reports_unavailable_diff_without_claim_commit_for_planning_artifact(self, workflow_repo: Path) -> None:
+        mission_slug = "077-test-feature"
+        feature_dir = workflow_repo / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        write_single_lane_manifest(feature_dir, wp_ids=("WP01",), predicted_surfaces=("workflow",))
+        (feature_dir / "tasks.md").write_text(
+            "## WP02 Planning\n\n- [x] T002 Placeholder task\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-planning.md").write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "title: WP02 Planning\n"
+            "dependencies: []\n"
+            "execution_mode: planning_artifact\n"
+            "owned_files:\n"
+            f"  - kitty-specs/{mission_slug}/**\n"
+            f"authoritative_surface: kitty-specs/{mission_slug}/\n"
+            "---\n"
+            "# WP02 Planning Prompt\n",
+            encoding="utf-8",
+        )
+        _seed_wp_lane(feature_dir, "WP02", "for_review")
+
+        result = CliRunner().invoke(
+            workflow.app,
+            ["review", "WP02", "--mission", mission_slug, "--agent", "test-reviewer"],
+        )
+
+        assert result.exit_code == 0, result.stdout
+        prompt_path = Path(next(line.split("cat ", 1)[1].strip() for line in result.stdout.splitlines() if line.strip().startswith("cat ")))
+        prompt = prompt_path.read_text(encoding="utf-8")
+
+        assert "Review commands unavailable: no deterministic implementation claim commit found for this WP." in prompt

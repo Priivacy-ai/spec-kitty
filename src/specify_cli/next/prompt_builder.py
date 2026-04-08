@@ -6,12 +6,14 @@ writes it to a temp file, and returns ``(prompt_text, prompt_file_path)``.
 
 from __future__ import annotations
 
+import subprocess
 import tempfile
 from pathlib import Path
 
 from specify_cli.charter.context import build_charter_context
 from specify_cli.charter.resolver import GovernanceResolutionError, resolve_governance
 from specify_cli.runtime.resolver import resolve_command
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
 
@@ -78,8 +80,11 @@ def build_decision_prompt(
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
-        "decision", None, prompt_text,
-        agent=agent, mission_slug=mission_slug,
+        "decision",
+        None,
+        prompt_text,
+        agent=agent,
+        mission_slug=mission_slug,
     )
     return prompt_text, prompt_file
 
@@ -129,6 +134,8 @@ def _build_wp_prompt(
     if workspace.lane_id:
         shared = ", ".join(workspace.lane_wp_ids or [wp_id])
         lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
+    else:
+        lines.append("Workspace contract: repository root planning workspace")
     lines.append("")
     lines.append(_governance_context(repo_root, action=action))
     lines.append("")
@@ -152,12 +159,61 @@ def _build_wp_prompt(
     # Working directory
     lines.append(f"WORKING DIRECTORY:")
     lines.append(f"  cd {workspace_path}")
+    if not workspace.lane_id:
+        lines.append("  # Planning-artifact work for this WP happens in the repository root")
     lines.append("")
 
     if action == "review":
+        review_paths = ""
+        if not workspace.lane_id:
+            wp_files = sorted((feature_dir / "tasks").glob(f"{wp_id}*.md"))
+            if wp_files:
+                wp_meta, _ = read_wp_frontmatter(wp_files[0])
+                if wp_meta.owned_files:
+                    review_pathspecs = list(wp_meta.owned_files)
+                    mission_root = f"kitty-specs/{mission_slug}/"
+                    if any(path.startswith(mission_root) for path in review_pathspecs):
+                        review_pathspecs.extend(
+                            [
+                                f":(exclude){mission_root}tasks/**",
+                                f":(exclude){mission_root}tasks.md",
+                                f":(exclude){mission_root}status.events.jsonl",
+                                f":(exclude){mission_root}status.json",
+                            ]
+                        )
+                    review_paths = " -- " + " ".join(review_pathspecs)
+            claim = subprocess.run(
+                [
+                    "git",
+                    "log",
+                    "--format=%H%x00%s",
+                    "--",
+                    *(str(path) for path in wp_files),
+                ],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+                check=False,
+            )
+            review_base = None
+            for raw in claim.stdout.splitlines():
+                commit_hash, _, subject = raw.partition("\x00")
+                if not commit_hash:
+                    continue
+                if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
+                    review_base = commit_hash.strip()
+                    break
         lines.append("REVIEW COMMANDS:")
-        lines.append(f"  git log main..HEAD --oneline")
-        lines.append(f"  git diff main..HEAD --stat")
+        if workspace.lane_id:
+            lines.append("  git log main..HEAD --oneline")
+            lines.append("  git diff main..HEAD --stat")
+        elif review_base is None:
+            lines.append("  unavailable: no deterministic implementation claim commit found for this WP")
+        else:
+            lines.append(f"  git log {review_base}..HEAD --oneline{review_paths}")
+            lines.append(f"  git diff {review_base}..HEAD --stat{review_paths}")
         lines.append("")
 
     # WP content
@@ -175,9 +231,9 @@ def _build_wp_prompt(
     # Completion instructions
     lines.append("WHEN DONE:")
     if action == "implement":
-        lines.append(f"  spec-kitty agent tasks move-task {wp_id} --to for_review --note \"Ready for review\"")
+        lines.append(f'  spec-kitty agent tasks move-task {wp_id} --to for_review --note "Ready for review"')
     else:
-        lines.append(f"  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --note \"Review passed\"")
+        lines.append(f'  APPROVE: spec-kitty agent tasks move-task {wp_id} --to approved --note "Review passed"')
         lines.append("           approved means review-passed; merge will later record done")
         lines.append(f"  REJECT:  spec-kitty agent tasks move-task {wp_id} --to planned --review-feedback-file <feedback-file>")
 
