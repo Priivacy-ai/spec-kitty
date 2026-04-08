@@ -1,0 +1,168 @@
+{
+  "version": 1,
+  "mission_slug": "077-mission-terminology-cleanup",
+  "mission_id": "077-mission-terminology-cleanup",
+  "mission_branch": "kitty/mission-077-mission-terminology-cleanup",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP09"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/mission.py",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/charter.py",
+        "src/specify_cli/cli/commands/lifecycle.py",
+        "src/specify_cli/cli/commands/mission.py",
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/cli/selector_resolution.py",
+        "tests/contract/test_terminology_guards.py",
+        "tests/specify_cli/cli/commands/test_agent_tasks_selectors.py",
+        "tests/specify_cli/cli/commands/test_inverse_drift_selectors.py",
+        "tests/specify_cli/cli/commands/test_mission_current.py",
+        "tests/specify_cli/cli/commands/test_next_cmd_selectors.py",
+        "tests/specify_cli/cli/commands/test_selector_resolution.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/skills/spec-kitty-implement-review/SKILL.md",
+        "src/doctrine/skills/spec-kitty-mission-system/SKILL.md",
+        "src/doctrine/skills/spec-kitty-runtime-next/SKILL.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP07"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "README.md",
+        "docs/explanation/**",
+        "docs/tutorials/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "docs/migration/feature-flag-deprecation.md",
+        "docs/migration/mission-type-flag-deprecation.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-e",
+      "wp_ids": [
+        "WP12",
+        "WP13"
+      ],
+      "write_scope": [
+        "docs/reference/event-envelope.md",
+        "docs/reference/orchestrator-api.md",
+        "kitty-specs/077-mission-terminology-cleanup/research/scope-b-acceptance.md",
+        "src/specify_cli/agent/**",
+        "src/specify_cli/next/**",
+        "src/specify_cli/status/**",
+        "tests/contract/test_machine_facing_canonical_fields.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-08T13:11:20.409136+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP01",
+    "WP10",
+    "WP11"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP02"
+      },
+      {
+        "wp_a": "WP13",
+        "wp_b": "WP12",
+        "rule": "dependency",
+        "evidence": "WP13 depends on WP12"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

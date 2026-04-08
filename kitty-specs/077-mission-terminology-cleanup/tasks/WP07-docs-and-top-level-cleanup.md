@@ -8,7 +8,7 @@ requirement_refs:
 - FR-022
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Lane workspace per execution lane (resolved by spec-kitty implement WP07)
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T028
 - T029
@@ -23,9 +23,7 @@ authoritative_surface: docs/
 execution_mode: code_change
 mission_slug: 077-mission-terminology-cleanup
 owned_files:
-- docs/explanation/runtime-loop.md
 - docs/explanation/**
-- docs/reference/**
 - docs/tutorials/**
 - README.md
 - CONTRIBUTING.md
@@ -85,8 +83,9 @@ The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<ve
    grep -rn "mission-run\|--feature" docs/explanation/ docs/reference/ docs/tutorials/ 2>/dev/null
    ```
 2. **Do not** include `docs/migration/**` in this scan (those are the deprecation docs themselves, owned by WP08).
-3. For each match, classify and fix as in T028.
-4. Re-run the grep until it returns zero unjustified matches.
+3. For each match in `docs/explanation/**` or `docs/tutorials/**`, classify and fix as in T028.
+4. **Special case for `docs/reference/**`**: this directory is **owned by WP13** (Scope B). WP07 must NOT modify any file under `docs/reference/`. If the audit finds drift in `docs/reference/event-envelope.md` or `docs/reference/orchestrator-api.md`, those will be fixed by WP13 — do not touch them. If the audit finds drift in some other `docs/reference/*.md` file, file an issue / leave a `TODO` and escalate to the planner; do not modify.
+5. Re-run the grep until it returns zero unjustified matches in `docs/explanation/**` and `docs/tutorials/**`. Matches in `docs/reference/**` are recorded but not fixed by this WP.
 
 ### T030 — Clean up `README.md:883` (legacy `--feature` example block) [P]
 
