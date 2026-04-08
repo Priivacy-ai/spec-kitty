@@ -23,7 +23,7 @@ subtasks:
 - T003
 - T004
 - T005
-agent: "opencode:gpt-5.4:python-implementer:implementer"
+agent: "opencode:gpt-5.4:python-reviewer:reviewer"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -234,3 +234,4 @@ Verify the following during review:
 
 - 2026-04-08T15:18:10Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
 - 2026-04-08T15:41:26Z – opencode:gpt-5.4:python-implementer:implementer – Ready for review
+- 2026-04-08T15:41:53Z – opencode:gpt-5.4:python-reviewer:reviewer – Review passed: normalized workspace resolution is deterministic and planning artifacts resolve to repo root
