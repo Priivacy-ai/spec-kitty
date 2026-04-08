@@ -59,7 +59,7 @@ def build_decision_prompt(
         "DECISION REQUIRED",
         "=" * 80,
         "",
-        f"Feature: {mission_slug}",
+        f"Mission: {mission_slug}",
         f"Agent: {agent}",
         f"Decision ID: {decision_id}",
         "",
@@ -74,7 +74,7 @@ def build_decision_prompt(
         lines.append("")
 
     lines.append("To answer:")
-    lines.append(f'  spec-kitty next --agent {agent} --mission-run {mission_slug} --answer "<your answer>" --decision-id "{decision_id}"')
+    lines.append(f'  spec-kitty next --agent {agent} --mission {mission_slug} --answer "<your answer>" --decision-id "{decision_id}"')
 
     prompt_text = "\n".join(lines)
     prompt_file = _write_to_temp(
@@ -96,7 +96,7 @@ def _build_template_prompt(
     result = resolve_command(f"{action}.md", repo_root, mission=mission_type)
     template_content = result.path.read_text(encoding="utf-8")
 
-    header = _feature_context_header(mission_slug, feature_dir, agent)
+    header = _mission_context_header(mission_slug, feature_dir, agent)
     governance = _governance_context(repo_root, action=action)
     return f"{header}\n\n{governance}\n\n{template_content}"
 
@@ -123,8 +123,8 @@ def _build_wp_prompt(
     lines.append("=" * 80)
     lines.append("")
     lines.append(f"Agent: {agent}")
-    lines.append(f"Feature: {mission_slug}")
-    lines.append(f"Mission: {mission_type}")
+    lines.append(f"Mission: {mission_slug}")
+    lines.append(f"Mission Type: {mission_type}")
     lines.append(f"Workspace: {workspace_path}")
     if workspace.lane_id:
         shared = ", ".join(workspace.lane_wp_ids or [wp_id])
@@ -184,13 +184,13 @@ def _build_wp_prompt(
     return "\n".join(lines)
 
 
-def _feature_context_header(mission_slug: str, feature_dir: Path, agent: str) -> str:
-    """Build a feature context header for template prompts."""
+def _mission_context_header(mission_slug: str, feature_dir: Path, agent: str) -> str:
+    """Build a mission context header for template prompts."""
     lines = [
         "=" * 80,
-        f"Feature: {mission_slug}",
+        f"Mission: {mission_slug}",
         f"Agent: {agent}",
-        f"Feature directory: {feature_dir}",
+        f"Mission directory: {feature_dir}",
         "=" * 80,
     ]
     return "\n".join(lines)

@@ -26,6 +26,7 @@ from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
+from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
@@ -70,7 +71,18 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
         msg = f"Neither mission_id nor mission_slug found in {meta_path}. The feature metadata is incomplete."
         raise MissingIdentityError(msg)
 
-    return {"mission_id": mission_id, "target_branch": target_branch}
+    identity = mission_identity_fields(
+        str(data.get("mission_slug") or data.get("slug") or feature_dir.name),
+        str(data.get("mission_number") or data.get("feature_number") or "").strip() or None,
+        str(data.get("mission_type") or data.get("mission") or "").strip() or None,
+    )
+
+    return {
+        "mission_id": mission_id,
+        "target_branch": target_branch,
+        "mission_number": identity["mission_number"],
+        "mission_type": identity["mission_type"],
+    }
 
 
 def _read_wp_metadata(feature_dir: Path, wp_code: str) -> WPMetadata:
@@ -192,6 +204,8 @@ def resolve_context(
         dependency_mode=dependency_mode,
         created_at=now,
         created_by=agent,
+        mission_number=meta["mission_number"],
+        mission_type=meta["mission_type"],
     )
 
     # Persist

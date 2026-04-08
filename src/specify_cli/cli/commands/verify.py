@@ -4,13 +4,14 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Annotated
 
 import typer
 from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli import StepTracker
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.tool_checker import check_tool_for_tracker
@@ -55,18 +56,29 @@ TOOL_LABELS = [
 
 
 def verify_setup(
-    feature: str | None = typer.Option(None, "--mission", "--feature", help="Mission slug to verify"),
-    json_output: bool = typer.Option(False, "--json", help="Output in JSON format for AI agents"),
-    check_files: bool = typer.Option(True, "--check-files", help="Check mission file integrity"),
-    check_tools: bool = typer.Option(True, "--check-tools", help="Check for installed development tools"),
-    diagnostics: bool = typer.Option(False, "--diagnostics", help="Show detailed diagnostics with dashboard health"),
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug to verify")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    json_output: Annotated[bool, typer.Option("--json", help="Output in JSON format for AI agents")] = False,
+    check_files: Annotated[bool, typer.Option("--check-files", help="Check mission file integrity")] = True,
+    check_tools: Annotated[bool, typer.Option("--check-tools", help="Check for installed development tools")] = True,
+    diagnostics: Annotated[bool, typer.Option("--diagnostics", help="Show detailed diagnostics with dashboard health")] = False,
 ) -> None:
     """Verify that the current environment matches Spec Kitty expectations."""
     output_data: dict[str, object] = {}
+    mission_slug = None
+    if mission is not None or feature is not None:
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
 
     # If diagnostics mode requested, use diagnostics output
     if diagnostics:
-        _run_diagnostics_mode(json_output, check_tools, feature=feature)
+        _run_diagnostics_mode(json_output, check_tools, feature=mission_slug)
         return
 
     # Check tools if requested
@@ -111,13 +123,13 @@ def verify_setup(
     cwd = Path.cwd()
 
     # Detect feature directory from --mission flag or current context
-    feature_dir = _resolve_feature_dir(project_root, feature)
+    feature_dir = _resolve_feature_dir(project_root, mission_slug)
 
     result = run_enhanced_verify(
         repo_root=repo_root,
         project_root=project_root,
         cwd=cwd,
-        feature=feature,
+        feature=mission_slug,
         json_output=json_output,
         check_files=check_files,
         console=console,

@@ -18,6 +18,7 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.status.models import Lane
 
@@ -45,6 +46,8 @@ class MergeGateEvaluation:
     mission_slug: str
     evaluated_at: str
     gates: list[GateResult] = field(default_factory=list)
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     @property
     def overall_pass(self) -> bool:
@@ -60,7 +63,11 @@ class MergeGateEvaluation:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "mission_slug": self.mission_slug,
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type,
+            ),
             "evaluated_at": self.evaluated_at,
             "overall_pass": self.overall_pass,
             "gates": [
@@ -99,6 +106,10 @@ def evaluate_merge_gates(
         mission_slug=mission_slug,
         evaluated_at=datetime.now(timezone.utc).isoformat(),
     )
+    identity = resolve_mission_identity(feature_dir)
+    evaluation.mission_slug = identity.mission_slug
+    evaluation.mission_number = identity.mission_number
+    evaluation.mission_type = identity.mission_type
 
     if not policy.enabled or policy.mode == "off":
         return evaluation

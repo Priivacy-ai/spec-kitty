@@ -36,7 +36,9 @@ _CANONICAL_EMPTY_STATUS = """\
   "event_count": 0,
   "last_event_id": null,
   "materialized_at": "",
+  "mission_number": "",
   "mission_slug": "",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -63,8 +65,12 @@ def _make_status_json(feature_dir: Path, materialized_at: str) -> Path:
     """
     feature_dir.mkdir(parents=True, exist_ok=True)
     path = feature_dir / "status.json"
+    mission_number = feature_dir.name.split("-", 1)[0] if "-" in feature_dir.name else ""
     if materialized_at == "":
-        path.write_text(_CANONICAL_EMPTY_STATUS, encoding="utf-8")
+        path.write_text(
+            _CANONICAL_EMPTY_STATUS.replace('"mission_number": ""', f'"mission_number": "{mission_number}"'),
+            encoding="utf-8",
+        )
     else:
         # Replace the materialized_at field to simulate a stale wall-clock timestamp.
         content = _CANONICAL_EMPTY_STATUS.replace(

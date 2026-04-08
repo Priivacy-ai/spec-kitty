@@ -21,7 +21,7 @@ Spec Kitty 3.1.0 (released 2026-04-07) stabilises planning and execution reliabi
 - **Execution resilience** — `merge --resume`, `implement --recover`, `doctor` for stale-claim diagnostics
 - **Review resilience** — versioned review-cycle artifacts, focused fix prompts, dirty-state classification
 - **Charter** — `spec-kitty charter` replaces `spec-kitty constitution`; auto-migrated by `spec-kitty upgrade`
-- **`--mission`** — canonical flag everywhere; `--feature` retained as a backward-compatible alias
+- **`--mission`** — canonical flag everywhere; `--feature` retained only as a hidden deprecated alias during migration
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 

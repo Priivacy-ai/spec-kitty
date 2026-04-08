@@ -117,7 +117,9 @@ class TestRenderTopologyJson:
         assert lines[-1] == "<!-- /WORKTREE_TOPOLOGY -->"
 
         payload = json.loads("\n".join(lines[1:-1]))
-        assert payload["feature"] == "002-feature"
+        assert payload["mission_slug"] == "002-feature"
+        assert payload["mission_number"] == "002"
+        assert payload["mission_type"] == "software-dev"
         assert payload["mission_branch"] == "kitty/mission-002-feature"
         assert payload["shared_lane"] is True
         assert payload["diff_command"] == "git diff kitty/mission-002-feature..HEAD"

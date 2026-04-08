@@ -10,8 +10,8 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.paths import locate_project_root
-from specify_cli.core.paths import require_explicit_feature
 from specify_cli.core.execution_context import (
     ACTION_NAMES,
     ActionName,
@@ -28,21 +28,35 @@ app = typer.Typer(
 console = Console()
 
 
-def _find_feature_directory(repo_root: Path, cwd: Path, explicit_feature: str | None = None) -> Path:
+def _find_feature_directory(
+    repo_root: Path,
+    cwd: Path,
+    explicit_mission: str | None = None,
+    explicit_feature: str | None = None,
+) -> Path:
     """Find the mission directory from an explicit mission slug.
 
     Args:
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
-        explicit_feature: Mission slug provided explicitly (required)
+        explicit_mission: Mission slug provided explicitly (required)
+        explicit_feature: Mission slug provided via hidden --feature alias.
 
     Returns:
         Path to mission directory
 
     Raises:
-        ValueError: If feature slug is not provided or directory doesn't exist
+        ValueError: If mission slug is not provided, selectors conflict, or directory doesn't exist
     """
-    slug = require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
+    resolved = resolve_selector(
+        canonical_value=explicit_mission,
+        canonical_flag="--mission",
+        alias_value=explicit_feature,
+        alias_flag="--feature",
+        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+        command_hint="--mission <slug>",
+    )
+    slug = resolved.canonical_value
     feature_dir = repo_root / "kitty-specs" / slug
     if not feature_dir.exists():
         raise ValueError(
@@ -64,7 +78,8 @@ def resolve_context(
             ),
         ),
     ],
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-feature')")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     wp_id: Annotated[Optional[str], typer.Option("--wp-id", help="Work package ID (e.g., WP01)")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name for exact command rendering")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON")] = False,
@@ -84,10 +99,19 @@ def resolve_context(
                 f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
             )
 
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
+
         context = resolve_action_context(
             repo_root,
             action=cast(ActionName, action),
-            feature=feature,
+            feature=mission_slug,
             wp_id=wp_id,
             agent=agent,
             cwd=Path.cwd(),

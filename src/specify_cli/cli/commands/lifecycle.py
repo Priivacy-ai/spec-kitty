@@ -11,6 +11,7 @@ from typing import Optional
 
 import typer
 
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.agent import mission as agent_feature
 
 
@@ -24,20 +25,44 @@ def _slugify_feature_input(value: str) -> str:
 
 def specify(
     feature: str = typer.Argument(..., help="Feature name or slug (e.g., user-authentication)"),
-    mission: Optional[str] = typer.Option(None, "--mission", help="Mission type (e.g., software-dev, research)"),
+    mission_type: Optional[str] = typer.Option(None, "--mission-type", help="Mission type (e.g., software-dev, research)"),
+    mission: Optional[str] = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Create a feature scaffold in kitty-specs/."""
     slug = _slugify_feature_input(feature)
-    agent_feature.create_mission(mission_slug=slug, mission=mission, json_output=json_output)
+    resolved_mission_type = mission_type
+    if mission_type is not None or mission is not None:
+        resolved = resolve_selector(
+            canonical_value=mission_type,
+            canonical_flag="--mission-type",
+            alias_value=mission,
+            alias_flag="--mission",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+            command_hint="--mission-type <name>",
+        )
+        resolved_mission_type = resolved.canonical_value
+    agent_feature.create_mission(mission_slug=slug, mission_type=resolved_mission_type, json_output=json_output)
 
 
 def plan(
-    feature: Optional[str] = typer.Option(None, "--mission", "--feature", help="Mission slug (e.g., 001-user-authentication)"),
+    mission: Optional[str] = typer.Option(None, "--mission", help="Mission slug (e.g., 001-user-authentication)"),
+    feature: Optional[str] = typer.Option(None, "--feature", hidden=True, help="(deprecated) Use --mission"),
     json_output: bool = typer.Option(False, "--json", help="Emit JSON result"),
 ) -> None:
     """Scaffold plan.md for a feature."""
-    agent_feature.setup_plan(feature=feature, json_output=json_output)
+    resolved_mission = None
+    if mission is not None or feature is not None:
+        resolved = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        )
+        resolved_mission = resolved.canonical_value
+    agent_feature.setup_plan(feature=resolved_mission, json_output=json_output)
 
 
 def tasks(

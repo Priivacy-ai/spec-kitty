@@ -1027,11 +1027,13 @@ jobs:
       - run: echo "Mutation testing is disabled."
 
   # ---------------------------------------------------------------------------
-  # sonarcloud: aggregates coverage from fast + integration + slow-e2e.
+  # sonarcloud: generates a single repo-relative coverage report for Sonar.
+  # The shard XMLs are good enough for diff-cover, but they flatten filenames
+  # in ways that Sonar mis-resolves on new-code coverage.
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core, fast-tests-status, integration-tests-doctrine, integration-tests-core, integration-tests-status, slow-and-e2e]
+    needs: [kernel-tests, fast-tests-doctrine, fast-tests-core, fast-tests-status, integration-tests-doctrine, integration-tests-core, integration-tests-status, slow-and-e2e]
     if: always()
 
     steps:
@@ -1113,6 +1115,8 @@ jobs:
           if [ -f sonar-project.properties ]; then
             grep -v '^sonar\.organization=' sonar-project.properties \
               | grep -v '^sonar\.projectKey=' \
+              | grep -v '^sonar\.python\.coverage\.reportPaths=' \
+              | grep -v '^sonar\.python\.xunit\.reportPath=' \
               > "$tmp_file"
           fi
 
@@ -1120,82 +1124,40 @@ jobs:
             echo "sonar.organization=${{ steps.sonar_settings.outputs.organization }}"
             echo "sonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}"
             echo "sonar.branch.name=${{ github.head_ref || github.ref_name }}"
+            echo "sonar.python.coverage.reportPaths=out/reports/coverage/coverage-sonar.xml"
+            echo "sonar.python.xunit.reportPath=out/reports/xunit-reports/xunit-result.xml"
           } >> "$tmp_file"
 
           mv "$tmp_file" sonar-project.properties
-      - name: "[ENFORCED] Download fast-doctrine coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-doctrine.result == 'success' || needs.fast-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v8
+      - name: "[ENFORCED] Set up Python"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/setup-python@v6
         with:
-          name: fast-test-doctrine-reports
-          path: out/reports/fast-doctrine
-        continue-on-error: true
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: "[ENFORCED] Download fast-core coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-core.result == 'success' || needs.fast-tests-core.result == 'failure')
-        uses: actions/download-artifact@v8
-        with:
-          name: fast-test-core-reports
-          path: out/reports/fast-core
-        continue-on-error: true
+      - name: "[ENFORCED] Install dependencies"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
 
-      - name: "[ENFORCED] Download integration-doctrine coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-test-doctrine-reports
-          path: out/reports/integration-doctrine
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download integration-core coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure')
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-test-core-reports
-          path: out/reports/integration-core
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download slow-and-e2e coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.slow-and-e2e.result == 'success' || needs.slow-and-e2e.result == 'failure')
-        uses: actions/download-artifact@v8
-        with:
-          name: slow-e2e-reports
-          path: out/reports/slow-e2e
-        continue-on-error: true
-
-      - name: "[ENFORCED] Merge coverage reports"
+      - name: "[ENFORCED] Generate unified Sonar coverage report"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
           mkdir -p out/reports/coverage
           mkdir -p out/reports/xunit-reports
 
-          # Merge all coverage files
-          find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
+          pytest \
+            --cov=src \
+            --cov-report=xml:out/reports/coverage/coverage-sonar.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result.xml \
+            -q
 
-          # Create combined coverage: prefer fast-core → fast-doctrine → integration → slow-e2e
-          if [ -f "out/reports/fast-core/coverage/coverage-fast-core.xml" ]; then
-            cp out/reports/fast-core/coverage/coverage-fast-core.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml" ]; then
-            cp out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/integration-core/coverage/coverage-integration-core.xml" ]; then
-            cp out/reports/integration-core/coverage/coverage-integration-core.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/slow-e2e/coverage/coverage-slow.xml" ]; then
-            cp out/reports/slow-e2e/coverage/coverage-slow.xml out/reports/coverage/coverage.xml
-          fi
-
-          # Merge all xUnit files
-          find out/reports -name "xunit-result-*.xml" -type f -exec cp {} out/reports/xunit-reports/ \;
-
-          # Create normalized xUnit file (use first available)
-          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-*.xml 2>/dev/null | head -n 1)"
-          if [ -n "$latest_file" ]; then
-            cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
-          fi
-
-          echo "Coverage files found:"
-          find out/reports/coverage -name "*.xml" -type f
-          echo "xUnit files found:"
-          find out/reports/xunit-reports -name "*.xml" -type f
+          echo "Sonar coverage report:"
+          ls -l out/reports/coverage/coverage-sonar.xml
+          echo "Sonar xUnit report:"
+          ls -l out/reports/xunit-reports/xunit-result.xml
 
       - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'

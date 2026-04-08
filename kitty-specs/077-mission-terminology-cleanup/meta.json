@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-04-08T11:55:53.213488+00:00",
+  "friendly_name": "mission terminology cleanup",
+  "mission_number": "077",
+  "mission_slug": "077-mission-terminology-cleanup",
+  "mission_type": "software-dev",
+  "slug": "077-mission-terminology-cleanup",
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-08T13:51:03.744200+00:00"
+}

@@ -322,7 +322,7 @@ def test_generate_progress_json_empty_feature(tmp_path):
 def test_generate_progress_json_falls_back_to_feature_dir_name_when_snapshot_slug_empty(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
-    from specify_cli import status as status_pkg
+    import specify_cli.status.progress as progress_module
 
     feature_dir = tmp_path / "kitty-specs" / "064-complete-mission-identity-cutover"
     feature_dir.mkdir(parents=True)
@@ -336,7 +336,7 @@ def test_generate_progress_json_falls_back_to_feature_dir_name_when_snapshot_slu
         work_packages={},
         summary={lane.value: 0 for lane in Lane},
     )
-    monkeypatch.setattr(status_pkg.progress, "materialize", lambda _: snapshot)
+    monkeypatch.setattr(progress_module, "materialize", lambda _: snapshot)
 
     generate_progress_json(feature_dir, derived_dir)
 

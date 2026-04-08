@@ -71,7 +71,7 @@ class TestMissionResolveCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--wp", "WP01", "--feature", "057-test-feature"],
+            ["mission-resolve", "--wp", "WP01", "--mission", "057-test-feature"],
             catch_exceptions=False,
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )
@@ -85,7 +85,7 @@ class TestMissionResolveCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--wp", "WP01", "--feature", "057-test-feature", "--json"],
+            ["mission-resolve", "--wp", "WP01", "--mission", "057-test-feature", "--json"],
             catch_exceptions=False,
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )
@@ -102,7 +102,7 @@ class TestMissionResolveCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--wp", "WP01", "--feature", "057-test-feature"],
+            ["mission-resolve", "--wp", "WP01", "--mission", "057-test-feature"],
             catch_exceptions=False,
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )
@@ -119,13 +119,13 @@ class TestMissionResolveCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--feature", "057-test-feature"],
+            ["mission-resolve", "--mission", "057-test-feature"],
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )
         assert result.exit_code != 0
 
     def test_resolve_missing_feature_fails(self, tmp_path: Path) -> None:
-        """Resolve without --feature exits non-zero (typer enforces required option)."""
+        """Resolve without --mission exits non-zero (typer enforces required option)."""
         repo_root = _make_project(tmp_path)
         runner = CliRunner()
         result = runner.invoke(
@@ -141,7 +141,7 @@ class TestMissionResolveCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--wp", "WP01", "--feature", "999-does-not-exist"],
+            ["mission-resolve", "--wp", "WP01", "--mission", "999-does-not-exist"],
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )
         assert result.exit_code != 0
@@ -161,7 +161,7 @@ class TestMissionShowCommand:
         runner = CliRunner()
         result = runner.invoke(
             app,
-            ["mission-resolve", "--wp", "WP01", "--feature", "057-test-feature"],
+            ["mission-resolve", "--wp", "WP01", "--mission", "057-test-feature"],
             catch_exceptions=False,
             env={"SPECIFY_REPO_ROOT": str(repo_root)},
         )

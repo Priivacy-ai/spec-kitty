@@ -301,7 +301,7 @@ with project artifacts taking precedence on field-level merge.
 - `documentation-default` — Documentation creation (Divio)
 - `research-default` — Research and evidence gathering
 
-**Default tool registry:** spec-kitty, git, python, pytest, ruff, mypy, poetry
+**Default tool registry:** spec-kitty, git, python, pytest, ruff, mypy, uv
 
 ### Interview Profiles
 
@@ -356,7 +356,7 @@ available_tools:
   - "pytest"
   - "ruff"
   - "mypy"
-  - "poetry"
+  - "uv"
 ```
 
 ---

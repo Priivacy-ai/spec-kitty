@@ -13,6 +13,7 @@ from enum import StrEnum
 from typing import Any, ClassVar
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+from specify_cli.mission_metadata import mission_identity_fields
 
 
 class Lane(StrEnum):
@@ -246,11 +247,17 @@ class StatusSnapshot:
     last_event_id: str | None
     work_packages: dict[str, dict[str, Any]]  # WP ID -> WPState
     summary: dict[str, int]  # lane -> count
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return with_tracked_mission_slug_aliases(
             {
-                "mission_slug": self.mission_slug,
+                **mission_identity_fields(
+                    self.mission_slug,
+                    self.mission_number,
+                    self.mission_type,
+                ),
                 "materialized_at": self.materialized_at,
                 "event_count": self.event_count,
                 "last_event_id": self.last_event_id,
@@ -271,4 +278,6 @@ class StatusSnapshot:
             last_event_id=data.get("last_event_id"),
             work_packages=data["work_packages"],
             summary=data["summary"],
+            mission_number=data.get("mission_number"),
+            mission_type=data.get("mission_type"),
         )

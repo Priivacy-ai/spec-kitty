@@ -22,7 +22,7 @@ selected_directives:
 available_tools:
   - git
   - mypy
-  - poetry
+  - uv
   - pytest
   - python
   - ruff

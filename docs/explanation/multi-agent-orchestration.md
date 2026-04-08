@@ -43,8 +43,8 @@ Automated coordination is run by external providers such as `spec-kitty-orchestr
 
 ```bash
 spec-kitty orchestrator-api contract-version
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
 Provider loop responsibilities:
@@ -62,8 +62,8 @@ All state-changing automation calls flow through `spec-kitty orchestrator-api`.
 - `start-review`
 - `transition`
 - `append-history`
-- `accept-feature`
-- `merge-feature`
+- `accept-mission`
+- `merge-mission`
 
 The host returns a stable JSON envelope with `success` and `error_code` for deterministic provider control flow.
 
