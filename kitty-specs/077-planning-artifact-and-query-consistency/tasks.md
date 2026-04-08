@@ -17,12 +17,12 @@
 | T003 | Expand `ResolvedWorkspace` and `resolve_workspace_for_wp()` for repo-root planning resolution | WP01 | | [D] |
 | T004 | Emit one actionable compatibility error when legacy normalization cannot classify a WP | WP01 | | [D] |
 | T005 | Unit tests for normalization, repo-root resolution, and repeated deterministic lookup | WP01 | [D] |
-| T006 | Replace lane-only validation in `src/specify_cli/cli/commands/implement.py` with execution-mode-aware validation | WP02 | |
-| T007 | Update `src/specify_cli/lanes/implement_support.py` to branch between lane worktree and repo-root planning execution | WP02 | |
-| T008 | Update `src/specify_cli/core/execution_context.py` and `src/specify_cli/next/prompt_builder.py` for nullable lane/branch metadata | WP02 | |
-| T009 | Update `src/specify_cli/cli/commands/agent/workflow.py` to surface repo-root planning work cleanly | WP02 | |
-| T010 | Update `src/specify_cli/core/worktree_topology.py` to represent repo-root planning entries in mixed missions | WP02 | |
-| T011 | Tests for implement, workflow, and topology behavior in mixed missions | WP02 | [P] |
+| T006 | Replace lane-only validation in `src/specify_cli/cli/commands/implement.py` with execution-mode-aware validation | WP02 | | [D] |
+| T007 | Update `src/specify_cli/lanes/implement_support.py` to branch between lane worktree and repo-root planning execution | WP02 | | [D] |
+| T008 | Update `src/specify_cli/core/execution_context.py` and `src/specify_cli/next/prompt_builder.py` for nullable lane/branch metadata | WP02 | | [D] |
+| T009 | Update `src/specify_cli/cli/commands/agent/workflow.py` to surface repo-root planning work cleanly | WP02 | | [D] |
+| T010 | Update `src/specify_cli/core/worktree_topology.py` to represent repo-root planning entries in mixed missions | WP02 | | [D] |
+| T011 | Tests for implement, workflow, and topology behavior in mixed missions | WP02 | [D] |
 | T012 | Refactor `src/specify_cli/core/stale_detection.py` to emit a structured stale payload with workspace kind | WP03 | |
 | T013 | Mark repo-root planning work as `stale.status = not_applicable` with the canonical reason code | WP03 | |
 | T014 | Preserve deprecated flat stale fields in `spec-kitty agent tasks status --json` during the transition window | WP03 | |
