@@ -376,12 +376,15 @@ spec-kitty agent tasks validate-workflow WP01 --json
 
 **Synopsis**: `spec-kitty agent tasks status [OPTIONS]`
 
-**Description**: Display kanban status board for all work packages in a feature. WPs in "doing" with no commits for `--stale-threshold` minutes are flagged as potentially stale (agent may have stopped).
+**Description**: Display kanban status board for all work packages in a mission. WPs in `doing` with no commits for `--stale-threshold` minutes are flagged as potentially stale (agent may have stopped).
+
+The canonical machine-readable payload now uses a nested `stale` object. Temporary flat stale fields remain available during the compatibility transition for callers that have not migrated yet.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT`, `-f` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--mission-run TEXT`, `-f` | Mission run slug (canonical flag; auto-detected if omitted) |
+| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--json` | Output as JSON |
 | `--stale-threshold INTEGER` | Minutes of inactivity before a WP is considered stale (default: `10`) |
 | `--help` | Show this message and exit |
@@ -389,7 +392,7 @@ spec-kitty agent tasks validate-workflow WP01 --json
 **Examples**:
 ```bash
 spec-kitty agent tasks status
-spec-kitty agent tasks status --feature 012-documentation-mission
+spec-kitty agent tasks status --mission-run 012-documentation-mission
 spec-kitty agent tasks status --json
 spec-kitty agent tasks status --stale-threshold 15
 ```
@@ -533,7 +536,7 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 
 **Synopsis**: `spec-kitty agent action implement [OPTIONS] [WP_ID]`
 
-**Description**: Display work package prompt with implementation instructions. Automatically moves WP from planned to doing lane (requires `--agent` to track who is working). The runtime resolves the lane workspace from `lanes.json`.
+**Description**: Display work package prompt with implementation instructions. Automatically moves the selected WP from `planned` to `doing` (requires `--agent` to track who is working). Workspace resolution is execution-mode-aware: `code_change` WPs run in lane worktrees, while `planning_artifact` WPs run in repository root outside the lane graph.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`, `wp01`, `WP01-slug`) - auto-detects first planned if omitted
@@ -541,22 +544,23 @@ spec-kitty agent context update-context --feature 020-my-feature --agent-type ge
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--mission-run TEXT` | Mission run slug (canonical flag; auto-detected if omitted) |
+| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--agent TEXT` | Agent name (required for auto-move to doing lane) |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent action implement WP01 --agent claude
-spec-kitty agent action implement WP02 --agent claude
-spec-kitty agent action implement --agent gemini
+spec-kitty agent action implement WP01 --mission-run 034-my-feature --agent claude
+spec-kitty agent action implement WP02 --mission-run 034-my-feature --agent claude
+spec-kitty agent action implement --mission-run 034-my-feature --agent gemini
 ```
 
 ### spec-kitty agent action review
 
 **Synopsis**: `spec-kitty agent action review [OPTIONS] [WP_ID]`
 
-**Description**: Display work package prompt with review instructions.
+**Description**: Display work package prompt with review instructions. Review uses the same execution-mode-aware resolver as implementation, so planning-artifact WPs stay in repository root instead of requiring lane membership.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`) - auto-detects first for_review if omitted
@@ -564,14 +568,15 @@ spec-kitty agent action implement --agent gemini
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--mission-run TEXT` | Mission run slug (canonical flag; auto-detected if omitted) |
+| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--agent TEXT` | Agent name (required for auto-move to doing lane) |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
-spec-kitty agent action review WP01 --agent claude
-spec-kitty agent action review --agent gemini
+spec-kitty agent action review WP01 --mission-run 034-my-feature --agent claude
+spec-kitty agent action review --mission-run 034-my-feature --agent gemini
 ```
 
 ---
@@ -594,7 +599,7 @@ spec-kitty agent action review --agent gemini
 
 **Synopsis**: `spec-kitty agent status emit [OPTIONS] WP_ID`
 
-**Description**: Emit a status transition event for a work package. Records a lane transition in the canonical event log, validates the transition against the state machine, materializes a snapshot, and updates legacy compatibility views.
+**Description**: Emit a status transition event for a work package. Records a lifecycle transition in the canonical event log, validates the transition against the state machine, materializes a snapshot, and updates legacy compatibility views. Planning-artifact WPs use the same lifecycle states but execute in repository root rather than a lane worktree.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`) [required]
@@ -604,7 +609,8 @@ spec-kitty agent action review --agent gemini
 | --- | --- |
 | `--to TEXT` | Target lane (e.g., `claimed`, `in_progress`, `for_review`, `approved`, `done`) [required] |
 | `--actor TEXT` | Who is making this transition [required] |
-| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--mission-run TEXT` | Mission run slug (canonical flag; auto-detected if omitted) |
+| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--force` | Force transition bypassing guards |
 | `--reason TEXT` | Reason for forced transition |
 | `--evidence-json TEXT` | JSON string with done evidence |
@@ -628,6 +634,8 @@ spec-kitty agent status emit WP01 --to in_progress --actor claude --force --reas
 **Synopsis**: `spec-kitty agent status materialize [OPTIONS]`
 
 **Description**: Rebuild status.json from the canonical event log. Reads all events from status.events.jsonl, applies the deterministic reducer to produce a snapshot, writes status.json, and updates legacy compatibility views.
+
+The canonical status snapshot uses a nested `stale` object. Flat stale fields may still be emitted temporarily for compatibility, but new callers should consume the nested object.
 
 **Options**:
 | Flag | Description |

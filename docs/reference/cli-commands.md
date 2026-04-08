@@ -1149,15 +1149,21 @@ spec-kitty config -m documentation
 
 **Description**: Decide and emit the next agent action for the current mission. Agents call this command repeatedly in a loop. The system inspects the mission state machine, evaluates guards, and returns a deterministic decision with an action and prompt file.
 
-As of 3.1.0, a bare call (no `--agent`) is **query mode**: it reads and prints the current mission state without advancing it or requiring `--result`. This is useful for inspection without side effects.
+The public contract distinguishes two forms:
+
+- **Query mode**: `spec-kitty next --mission-run <slug> --json`
+- **Advancing mode**: `spec-kitty next --agent <name> --mission-run <slug> [--result ...] --json`
+
+Query mode is read-only and does not advance runtime state. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` plus a non-null `preview_step`. `unknown` is no longer the canonical fresh-run query state.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--agent TEXT` | Agent name. Omit for query mode (read-only, no state advance). |
+| `--agent TEXT` | Agent name for advancing mode. Omit in query mode. |
 | `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked` (default: `success`) |
-| `--mission TEXT` | Mission slug (canonical flag; auto-detected if omitted) |
-| `--feature TEXT` | Backward-compatibility alias for `--mission` |
+| `--mission-run TEXT` | Canonical mission-run selector for query and advancing mode |
+| `--mission TEXT` | Compatibility alias for `--mission-run` |
+| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--json` | Output JSON decision only |
 | `--answer TEXT` | Answer to a pending decision |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
@@ -1165,16 +1171,22 @@ As of 3.1.0, a bare call (no `--agent`) is **query mode**: it reads and prints t
 
 **Examples**:
 ```bash
-# Query mode — inspect current state without advancing (3.1.0+)
-spec-kitty next --json
+# Query mode — inspect current state without advancing
+spec-kitty next --mission-run 034-my-feature --json
 
 # Normal agent loop
-spec-kitty next --agent claude --json
-spec-kitty next --agent codex --mission 034-my-feature
-spec-kitty next --agent gemini --result failed --json
-spec-kitty next --agent claude --answer "yes" --json
-spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
+spec-kitty next --agent claude --mission-run 034-my-feature --json
+spec-kitty next --agent codex --mission-run 034-my-feature
+spec-kitty next --agent gemini --mission-run 034-my-feature --result failed --json
+spec-kitty next --agent claude --mission-run 034-my-feature --answer "yes" --json
+spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" --decision-id "input:review" --json
 ```
+
+**Compatibility notes**:
+
+- Fresh-run query JSON is now `mission_state: "not_started"` plus `preview_step`; do not teach or depend on `unknown` as the primary fresh-run state.
+- Planning-artifact work packages execute in repository root outside the lane graph, so query and step responses may refer to the main checkout instead of a lane worktree.
+- Status payloads use a canonical nested `stale` object. Temporary flat stale fields remain available only as a transitional compatibility path for existing callers.
 
 ---
 

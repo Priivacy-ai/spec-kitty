@@ -3,8 +3,8 @@
 Spec Kitty offers two ways to advance work through a mission: slash commands and the runtime loop. This document explains the runtime loop -- what it is, when to use it, and how to interpret what it tells you.
 
 **Terminology note**
-- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
-- Current `spec-kitty next` examples still use `--feature` and `feature_slug` as legacy compatibility names for the tracked mission selector
+- Canonical 3.x model: `Mission Type -> Mission -> Mission Run`
+- Query-mode examples use `--mission-run <slug>` as the primary selector. `--mission` and `--feature` remain compatibility forms on some surfaces.
 
 ## What Is `spec-kitty next`?
 
@@ -51,9 +51,22 @@ The runtime considers several factors when making its decision:
 
 The two approaches are complementary. Slash commands give you direct control. The runtime loop gives you automation.
 
-## The Four Decision Kinds
+## Query Mode vs Advancing Mode
 
-Every call to `spec-kitty next` returns exactly one of four decision kinds. Each tells the agent something different about what to do.
+`spec-kitty next` has two distinct modes:
+
+- **Query mode** is the read-only form: `spec-kitty next --mission-run <slug> --json`
+- **Advancing mode** is the runtime loop form: `spec-kitty next --agent <name> --mission-run <slug> ...`
+
+Use query mode when you want to inspect the current run state without changing it. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` and a non-null `preview_step` telling you which step would be issued first. `unknown` is a legacy transitional value and is no longer the primary contract to teach or consume.
+
+Use advancing mode when an agent is actively executing the loop. In this mode, `--result` reports the outcome of the previous issued step and the runtime may advance mission state.
+
+Planning-artifact work packages follow the same runtime loop, but they execute in repository root outside the lane graph. Their workspace is the main checkout rather than a lane worktree.
+
+## The Four Advancing Decisions
+
+In advancing mode, every call to `spec-kitty next` returns exactly one of four decision kinds. Each tells the agent something different about what to do.
 
 ### `step` -- An action is available
 
@@ -67,7 +80,7 @@ The runtime has identified work to do. The decision includes an `action` (such a
 {
   "kind": "step",
   "agent": "claude",
-  "feature_slug": "042-test-feature",
+  "mission_slug": "042-test-feature",
   "mission": "software-dev",
   "action": "implement",
   "wp_id": "WP02",
@@ -93,7 +106,7 @@ The runtime has reached a point where it cannot proceed without a choice. It pro
 **What to do:** Read the question and options. Answer with:
 
 ```bash
-spec-kitty next --agent <agent> --feature <slug> \
+spec-kitty next --agent <agent> --mission-run <slug> \
   --answer "<your choice>" --decision-id "<decision_id>" --json
 ```
 
@@ -123,14 +136,15 @@ All work is done. There are no more steps to execute.
 
 At a conceptual level, an agent running the runtime loop follows this pattern:
 
-1. Call `spec-kitty next --agent <name> --feature <slug> --json`
-2. Read the decision kind
-3. If **step**: read the prompt file, do the work, report the result
-4. If **decision_required**: answer the question (or escalate to the user)
-5. If **blocked**: diagnose the blocker, attempt to resolve it
-6. If **terminal**: run acceptance and exit
-7. Report the result of the previous step with `--result success` (or `failed` or `blocked`)
-8. Go back to step 1
+1. Call `spec-kitty next --mission-run <slug> --json` if you need a read-only inspection first.
+2. Call `spec-kitty next --agent <name> --mission-run <slug> --json` to enter the mutating loop.
+3. Read the decision kind.
+4. If **step**: read the prompt file, do the work, report the result.
+5. If **decision_required**: answer the question (or escalate to the user).
+6. If **blocked**: diagnose the blocker, attempt to resolve it.
+7. If **terminal**: run acceptance and exit.
+8. Report the result of the previous step with `--result success` (or `failed` or `blocked`).
+9. Go back to step 2.
 
 The loop continues until the runtime returns `terminal` or the agent hits a blocker it cannot resolve.
 
@@ -153,13 +167,13 @@ After completing a step, tell the runtime what happened:
 
 ```bash
 # After successful work
-spec-kitty next --agent <name> --feature <slug> --result success --json
+spec-kitty next --agent <name> --mission-run <slug> --result success --json
 
 # After a failure
-spec-kitty next --agent <name> --feature <slug> --result failed --json
+spec-kitty next --agent <name> --mission-run <slug> --result failed --json
 
 # After hitting a blocker
-spec-kitty next --agent <name> --feature <slug> --result blocked --json
+spec-kitty next --agent <name> --mission-run <slug> --result blocked --json
 ```
 
 If `--result` is omitted, the runtime assumes `success`.
