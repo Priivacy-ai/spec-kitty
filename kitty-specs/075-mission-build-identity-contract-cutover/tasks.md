@@ -38,15 +38,15 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 | T013 | Write failing test: `core/worktree.py` reads `mission_slug` not `feature_slug` | WP02 | | [D] |
 | T014 | Update `core/worktree.py:123` — `.feature_slug or ""` → `.mission_slug or ""` | WP02 | | [D] |
 | T015 | Full test + mypy --strict pass for all WP01+WP02 changes | WP02 | | [D] |
-| T016 | Add `_build_id_path() -> Path` to `sync/project_identity.py` | WP03 | [P] |
-| T017 | Add `load_build_id(git_dir: Path) -> str` | WP03 | [P] |
-| T018 | Add `_migrate_build_id_from_config(config_path, git_dir)` | WP03 | [P] |
-| T019 | Update `ensure_identity(repo_root)` to use new build.id functions | WP03 | |
-| T020 | Update `atomic_write_config` to exclude `build_id` from `config.yaml` | WP03 | |
-| T021 | Write test: two monkeypatched git-dir paths → distinct `build_id` values | WP03 | |
-| T022 | Write test: 100 invocations of `load_build_id()` → stable value | WP03 | |
-| T023 | Write test: `_migrate_build_id_from_config` idempotency | WP03 | |
-| T024 | Write test: `BuildIdentityError` when `git rev-parse --git-dir` fails | WP03 | |
+| T016 | Add `_build_id_path() -> Path` to `sync/project_identity.py` | WP03 | [D] |
+| T017 | Add `load_build_id(git_dir: Path) -> str` | WP03 | [D] |
+| T018 | Add `_migrate_build_id_from_config(config_path, git_dir)` | WP03 | [D] |
+| T019 | Update `ensure_identity(repo_root)` to use new build.id functions | WP03 | | [D] |
+| T020 | Update `atomic_write_config` to exclude `build_id` from `config.yaml` | WP03 | | [D] |
+| T021 | Write test: two monkeypatched git-dir paths → distinct `build_id` values | WP03 | | [D] |
+| T022 | Write test: 100 invocations of `load_build_id()` → stable value | WP03 | | [D] |
+| T023 | Write test: `_migrate_build_id_from_config` idempotency | WP03 | | [D] |
+| T024 | Write test: `BuildIdentityError` when `git rev-parse --git-dir` fails | WP03 | | [D] |
 | T025 | Extend `SaaSTrackerClient.bind_mission_origin()` signature to accept `build_id: str` | WP04 | |
 | T026 | Load `ProjectIdentity` in `bind_mission_origin()`; pass `build_id` to client | WP04 | |
 | T027 | Write test: captured bind call payload contains `build_id` (Scenario 3) | WP04 | |
