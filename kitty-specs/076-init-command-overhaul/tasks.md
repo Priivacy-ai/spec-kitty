@@ -10,7 +10,7 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------|
-| T001 | Delete AgentSelectionConfig dataclass + select_implementer + select_reviewer from agent_config.py | WP01 | No | [D] |
+| T001 | Delete AgentSelectionConfig dataclass + select_implementer + select_reviewer from agent_config.py | WP01 | No | [D] | [D] |
 | T002 | Remove `selection: AgentSelectionConfig` field from AgentConfig | WP01 | No | [D] |
 | T003 | Remove selection construction from load_agent_config() | WP01 | No | [D] |
 | T004 | Remove selection serialization from save_agent_config() | WP01 | No | [D] |
