@@ -229,3 +229,7 @@ Both must pass cleanly.
 
 - **Import chain:** `init.py` imports `AgentSelectionConfig`. Until WP02 cleans up `init.py`, mypy will fail on `init.py`. This is expected and acceptable within the same lane — WP02 fixes it.
 - **Other callers:** Run `grep -r "AgentSelectionConfig" src/ tests/` to confirm the only remaining reference is in `init.py`. If others are found, they must be cleaned up in this WP.
+
+## Activity Log
+
+- 2026-04-08T05:47:20Z – unknown – shell_pid=9919 – Ready for review: removed AgentSelectionConfig, dead methods, fixed tools/agents key
