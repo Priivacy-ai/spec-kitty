@@ -1,16 +1,16 @@
 {
-  "event_count": 14,
-  "last_event_id": "01KNNT6ERGPMRDZVYPEYSA0KZJ",
-  "materialized_at": "2026-04-08T05:49:12.848544+00:00",
+  "event_count": 15,
+  "last_event_id": "01KNNT81P7J1XCZSHWPHGENSB8",
+  "materialized_at": "2026-04-08T05:50:04.999330+00:00",
   "mission_slug": "076-init-command-overhaul",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 2,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 4
   },
@@ -37,11 +37,11 @@
       "last_transition_at": "2026-04-08T05:42:51.161094+00:00"
     },
     "WP04": {
-      "actor": "codex:gpt-4o:python-reviewer:reviewer",
-      "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNNT4ZQXJ10RJFT4QF85BCWD",
-      "last_transition_at": "2026-04-08T05:48:24.701918+00:00"
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KNNT81P7J1XCZSHWPHGENSB8",
+      "last_transition_at": "2026-04-08T05:50:04.999330+00:00"
     },
     "WP05": {
       "actor": "finalize-tasks",
