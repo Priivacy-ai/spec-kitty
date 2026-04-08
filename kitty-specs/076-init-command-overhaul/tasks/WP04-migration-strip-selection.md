@@ -16,7 +16,8 @@ subtasks:
 - T026
 - T027
 - T028
-shell_pid: '9949'
+shell_pid: "11949"
+agent: "codex:gpt-4o:python-reviewer:reviewer"
 history:
 - date: '2026-04-08'
   status: planned
@@ -342,3 +343,4 @@ def test_dry_run_no_write(tmp_path, migration):
 ## Activity Log
 
 - 2026-04-08T05:48:08Z – unknown – shell_pid=9949 – Ready: migration strips agents.selection and tools.selection from config.yaml
+- 2026-04-08T05:48:25Z – codex:gpt-4o:python-reviewer:reviewer – shell_pid=11949 – Started review via action command
