@@ -721,25 +721,10 @@ def query_current_state(
         )
     except QueryModeValidationError:
         raise
-    except Exception:
-        runtime_decision = None
-
-    if runtime_decision is None:
-        decision = Decision(
-            kind=DecisionKind.query,
-            agent=agent,
-            mission_slug=mission_slug,
-            mission=mission_type,
-            mission_state="unknown",
-            timestamp=now,
-            is_query=True,
-            reason=None,
-            progress=progress,
-            run_id=getattr(run_ref, "run_id", None),
-        )
+    except Exception as exc:
         if ephemeral_run_store is not None:
             shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-        return decision
+        raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
 
     if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
         if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:

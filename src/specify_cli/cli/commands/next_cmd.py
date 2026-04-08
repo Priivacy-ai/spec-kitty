@@ -60,6 +60,10 @@ def next_step(
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
+    if result is not None and result not in _VALID_RESULTS:
+        print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
+        raise typer.Exit(1)
+
     # Handle --answer flow before deciding whether the call is read-only or
     # advancing. Answering a pending decision is a mutation and still requires
     # agent identity, even when no --result is supplied.
@@ -113,11 +117,6 @@ def next_step(
             if answered_id is not None:
                 print(f"  Answered decision: {answered_id}")
         return  # No event emitted, no DAG advancement
-
-    # --result validation (only reached when result is not None)
-    if result not in _VALID_RESULTS:
-        print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
-        raise typer.Exit(1)
 
     if not agent:
         print("Error: --agent is required when --result is provided", file=sys.stderr)

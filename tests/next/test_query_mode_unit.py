@@ -276,9 +276,9 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.mission_state == "unknown"
         assert decision.kind == "query"
 
-    def test_ephemeral_query_run_exception_returns_unknown_state(self, tmp_path: Path) -> None:
-        """Ephemeral fresh-query bootstrap failure degrades to an unknown decision."""
-        from specify_cli.next.runtime_bridge import query_current_state
+    def test_ephemeral_query_run_exception_raises_validation_error(self, tmp_path: Path) -> None:
+        """Fresh-query bootstrap failures surface an actionable query error."""
+        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
 
         feature_dir = tmp_path / "kitty-specs" / "069-test"
         feature_dir.mkdir(parents=True)
@@ -289,14 +289,12 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
         ):
-            decision = query_current_state("claude", "069-test", tmp_path)
+            with pytest.raises(QueryModeValidationError, match="Could not read query state"):
+                query_current_state("claude", "069-test", tmp_path)
 
-        assert decision.is_query is True
-        assert decision.mission_state == "unknown"
-
-    def test_read_snapshot_exception_returns_unknown_step(self, tmp_path: Path) -> None:
-        """Lines 610-611: _read_snapshot raises → step falls back to 'unknown', query still works."""
-        from specify_cli.next.runtime_bridge import query_current_state
+    def test_read_snapshot_exception_raises_validation_error(self, tmp_path: Path) -> None:
+        """Corrupted runtime state should fail query mode loudly, not return unknown."""
+        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
         from unittest.mock import MagicMock
 
         feature_dir = tmp_path / "kitty-specs" / "069-test"
@@ -311,10 +309,8 @@ class TestQueryCurrentStateErrorPaths:
             patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
             patch("spec_kitty_runtime.engine._read_snapshot", side_effect=Exception("snapshot read failed")),
         ):
-            decision = query_current_state("claude", "069-test", tmp_path)
-
-        assert decision.is_query is True
-        assert decision.mission_state == "unknown"  # graceful fallback
+            with pytest.raises(QueryModeValidationError, match="Could not read query state"):
+                query_current_state("claude", "069-test", tmp_path)
 
     def test_invalid_first_step_raises_clear_validation_error(self, tmp_path: Path) -> None:
         from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
