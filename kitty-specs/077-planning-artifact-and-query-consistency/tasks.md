@@ -218,11 +218,11 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 
 #### Included Subtasks
 
-- [ ] T024 Update `docs/index.md` and `docs/reference/cli-commands.md` to the canonical query/runtime contract (WP05)
-- [ ] T025 Update `docs/explanation/runtime-loop.md` and `docs/reference/agent-subcommands.md` for resolver distinction and query/advance split (WP05)
-- [ ] T026 Add explicit compatibility notes for stale flat-field transition and fresh-run `unknown` removal (WP05)
-- [ ] T027 [P] Sweep active docs for contradictory lane-membership and query-mode wording (WP05)
-- [ ] T028 [P] Validate examples against current CLI help and the final implemented contract (WP05)
+- [x] T024 Update `docs/index.md` and `docs/reference/cli-commands.md` to the canonical query/runtime contract (WP05)
+- [x] T025 Update `docs/explanation/runtime-loop.md` and `docs/reference/agent-subcommands.md` for resolver distinction and query/advance split (WP05)
+- [x] T026 Add explicit compatibility notes for stale flat-field transition and fresh-run `unknown` removal (WP05)
+- [x] T027 [P] Sweep active docs for contradictory lane-membership and query-mode wording (WP05)
+- [x] T028 [P] Validate examples against current CLI help and the final implemented contract (WP05)
 
 #### Implementation Sketch
 
