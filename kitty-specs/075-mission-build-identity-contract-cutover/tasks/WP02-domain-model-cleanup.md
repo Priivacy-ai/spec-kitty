@@ -258,3 +258,7 @@ This is a gate task, not a code change.
 - `grep -r "feature_slug" src/specify_cli/ --include="*.py"` must return only migration-path files
 - `WPMetadata` Pydantic model no longer has a `feature_slug` field — check the class definition
 - `core/worktree.py:123` (post-change line number may shift) reads `.mission_slug`
+
+## Activity Log
+
+- 2026-04-08T05:31:48Z – unknown – shell_pid=6359 – WPMetadata cleaned, identity_aliases deleted, worktree reader fixed; mypy and tests green
