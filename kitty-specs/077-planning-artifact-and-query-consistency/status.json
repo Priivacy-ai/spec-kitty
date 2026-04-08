@@ -1,0 +1,54 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KNPTR8EPFY7JB84H9GBGPQEQ",
+  "materialized_at": "2026-04-08T15:18:10.646977+00:00",
+  "mission_slug": "077-planning-artifact-and-query-consistency",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 1,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "opencode:gpt-5.4:python-implementer:implementer",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KNPTR8EPFY7JB84H9GBGPQEQ",
+      "last_transition_at": "2026-04-08T15:18:10.646977+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNPTHF34NP2N8FEV878NJRR4",
+      "last_transition_at": "2026-04-08T15:14:28.068609+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNPTHF39A5XFMC6608CRGMA7",
+      "last_transition_at": "2026-04-08T15:14:28.073487+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNPTHF3DQCZ71WB6JB2K6K12",
+      "last_transition_at": "2026-04-08T15:14:28.077623+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNPTHF3H6AR5RJRH767A9EG7",
+      "last_transition_at": "2026-04-08T15:14:28.081119+00:00"
+    }
+  }
+}
