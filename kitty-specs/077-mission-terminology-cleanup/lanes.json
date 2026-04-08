@@ -6,6 +6,21 @@
   "target_branch": "main",
   "lanes": [
     {
+      "lane_id": "lane-f",
+      "wp_ids": [
+        "WP01"
+      ],
+      "write_scope": [
+        "kitty-specs/077-mission-terminology-cleanup/research/selector-audit.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
       "lane_id": "lane-a",
       "wp_ids": [
         "WP02",
@@ -36,7 +51,9 @@
         "tests",
         "tracker-integration"
       ],
-      "depends_on_lanes": [],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
       "parallel_group": 0
     },
     {
@@ -54,7 +71,9 @@
         "artifact-rendering",
         "legacy-cleanup"
       ],
-      "depends_on_lanes": [],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
       "parallel_group": 0
     },
     {
@@ -74,7 +93,9 @@
         "artifact-rendering",
         "legacy-cleanup"
       ],
-      "depends_on_lanes": [],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
       "parallel_group": 0
     },
     {
@@ -91,7 +112,47 @@
         "artifact-rendering",
         "legacy-cleanup"
       ],
-      "depends_on_lanes": [],
+      "depends_on_lanes": [
+        "lane-f"
+      ],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-g",
+      "wp_ids": [
+        "WP10"
+      ],
+      "write_scope": [
+        "kitty-specs/077-mission-terminology-cleanup/spec.md",
+        "kitty-specs/077-mission-terminology-cleanup/research/scope-a-acceptance.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [
+        "lane-a",
+        "lane-b",
+        "lane-c",
+        "lane-d"
+      ],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-h",
+      "wp_ids": [
+        "WP11"
+      ],
+      "write_scope": [
+        "kitty-specs/077-mission-terminology-cleanup/research/scope-b-inventory.md"
+      ],
+      "predicted_surfaces": [
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [
+        "lane-g"
+      ],
       "parallel_group": 0
     },
     {
@@ -115,7 +176,9 @@
         "legacy-cleanup",
         "tests"
       ],
-      "depends_on_lanes": [],
+      "depends_on_lanes": [
+        "lane-h"
+      ],
       "parallel_group": 0
     }
   ],
