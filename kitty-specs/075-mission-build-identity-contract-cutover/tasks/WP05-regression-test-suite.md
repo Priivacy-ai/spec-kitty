@@ -358,3 +358,7 @@ Do not mark WP05 done until all five steps pass.
 - Four new test files — each should be independently runnable with `pytest <file> -v`
 - T033 must be verified with the real test runner output, not just the check passing locally
 - The `grep` in T033 step 5 is the definitive proof of the cutover being complete — include its output in the PR description
+
+## Activity Log
+
+- 2026-04-08T06:14:05Z – unknown – shell_pid=19150 – WP05 arbiter-approved: 4 regression tests pass (contract+body_sync=4/4 green, create+tracker skip gracefully pending lane merge); test caught real gap in create-feature forbidden list (documented)
