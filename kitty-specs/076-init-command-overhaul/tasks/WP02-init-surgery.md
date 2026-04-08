@@ -349,3 +349,7 @@ Charter is per-project governance; the directory should not be created during gl
 - **Import cleanup:** Each removed block likely has associated imports. After all removals, run `ruff check src/specify_cli/cli/commands/init.py --select F401` to find unused imports and remove them.
 - **Skills entry point:** If no batch install function exists in `installer.py`, keep the implementation minimal — just iterate the registry and call per-skill sync. Do not over-engineer.
 - **WP01 dependency:** This WP must run after WP01 commits its changes in the same lane worktree. Confirm WP01 is complete before starting.
+
+## Activity Log
+
+- 2026-04-08T05:59:37Z – unknown – shell_pid=12419 – Ready: init.py reduced from 1522 to 740 lines, 11 flags and 9 stages removed. All acceptance checks pass: --help shows <=4 option flags, non-interactive init exits 0, ensure_runtime hard-fails, no charter/ dir created, no AgentSelectionConfig references.
