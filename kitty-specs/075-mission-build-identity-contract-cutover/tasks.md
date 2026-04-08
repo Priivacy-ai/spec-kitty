@@ -67,14 +67,14 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 **Dependencies**: none
 **Prompt file**: `tasks/WP01-status-model-read-path-cleanup.md`
 
-- [ ] T001 Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` (WP01)
-- [ ] T002 Write failing test: `StatusEvent.from_dict(legacy)` → `KeyError` (WP01)
-- [ ] T003 Remove `feature_slug` fallback from `status/models.py` (StatusEvent) (WP01)
-- [ ] T004 Write failing test: `StatusSnapshot.from_dict(legacy)` → `KeyError` (WP01)
-- [ ] T005 Remove `feature_slug` fallback from `status/models.py` (StatusSnapshot) (WP01)
-- [ ] T006 Write failing test: `validate_event_schema` rejects missing `mission_slug` without legacy mention (WP01)
-- [ ] T007 Remove `feature_slug` branch from `status/validate.py` (WP01)
-- [ ] T008 Remove `with_tracked_mission_slug_aliases` import + usage from `status/models.py` (WP01)
+- [x] T001 Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` (WP01)
+- [x] T002 Write failing test: `StatusEvent.from_dict(legacy)` → `KeyError` (WP01)
+- [x] T003 Remove `feature_slug` fallback from `status/models.py` (StatusEvent) (WP01)
+- [x] T004 Write failing test: `StatusSnapshot.from_dict(legacy)` → `KeyError` (WP01)
+- [x] T005 Remove `feature_slug` fallback from `status/models.py` (StatusSnapshot) (WP01)
+- [x] T006 Write failing test: `validate_event_schema` rejects missing `mission_slug` without legacy mention (WP01)
+- [x] T007 Remove `feature_slug` branch from `status/validate.py` (WP01)
+- [x] T008 Remove `with_tracked_mission_slug_aliases` import + usage from `status/models.py` (WP01)
 
 **Implementation sketch**: Create fixture first (prerequisite for T002, T004). Work models.py top-to-bottom: StatusEvent deserialization (lines 221+), StatusSnapshot deserialization (lines 264+), then the to_dict() alias wrapper (line 251). Fix validate.py last. All changes in one commit per concern.
 
