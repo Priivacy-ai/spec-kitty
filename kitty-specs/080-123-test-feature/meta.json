@@ -1,0 +1,9 @@
+{
+  "created_at": "2026-04-08T16:55:11.959268+00:00",
+  "friendly_name": "123 test feature",
+  "mission_number": "080",
+  "mission_slug": "080-123-test-feature",
+  "mission_type": "software-dev",
+  "slug": "080-123-test-feature",
+  "target_branch": "mission-077-terminology-cleanup"
+}
