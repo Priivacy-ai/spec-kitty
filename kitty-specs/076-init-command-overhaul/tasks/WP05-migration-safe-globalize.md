@@ -379,3 +379,7 @@ def test_detect_false_when_no_files(tmp_path, migration):
 - **Home directory in tests:** The helpers `_global_runtime_present()` and `_global_commands_present()` read from `Path.home()`. Tests must mock these methods (not `Path.home()`) to avoid depending on the developer's machine state.
 - **File permissions:** Some command files may be read-only (written with `chmod ~0o222` by the shim generator). The `target.chmod(target.stat().st_mode | 0o222)` line handles this — keep it.
 - **Encoding:** Non-UTF-8 files in agent dirs should not crash the migration. The `_is_generated_file()` method handles `UnicodeDecodeError` and returns False — those files are skipped safely.
+
+## Activity Log
+
+- 2026-04-08T05:54:11Z – unknown – shell_pid=12731 – Ready: m_3_2_2 implements 4 safety invariants before removing local command files
