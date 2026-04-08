@@ -279,3 +279,7 @@ After T003 and T005 are done, `with_tracked_mission_slug_aliases` in `models.py`
 - Confirm `data["mission_slug"]` (bracket, not `.get()`) is used in both StatusEvent and StatusSnapshot deserialization
 - Confirm no import of `identity_aliases` remains in `status/models.py` or `status/validate.py`
 - Grep for `feature_slug` in both files — must be zero remaining hits (excluding comments)
+
+## Activity Log
+
+- 2026-04-08T05:30:03Z – unknown – shell_pid=6207 – Status model fallbacks removed; all fail-closed; mypy and tests green
