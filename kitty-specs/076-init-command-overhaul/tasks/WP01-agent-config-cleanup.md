@@ -235,3 +235,4 @@ Both must pass cleanly.
 
 - 2026-04-08T05:47:20Z – unknown – shell_pid=9919 – Ready for review: removed AgentSelectionConfig, dead methods, fixed tools/agents key
 - 2026-04-08T05:47:39Z – opencode:opencode:python-reviewer:reviewer – shell_pid=11061 – Started review via action command
+- 2026-04-08T05:49:13Z – opencode:opencode:python-reviewer:reviewer – shell_pid=11061 – Review passed: AgentSelectionConfig removed cleanly, tools/agents key fix correct, tests green (8/8), mypy clean on agent_config.py, init.py change minimal and correct
