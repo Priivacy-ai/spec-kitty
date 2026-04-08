@@ -1,0 +1,91 @@
+{
+  "version": 1,
+  "mission_slug": "077-planning-artifact-and-query-consistency",
+  "mission_id": "077-planning-artifact-and-query-consistency",
+  "mission_branch": "kitty/mission-077-planning-artifact-and-query-consistency",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/core/execution_context.py",
+        "src/specify_cli/core/stale_detection.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/core/worktree_topology.py",
+        "src/specify_cli/lanes/implement_support.py",
+        "src/specify_cli/next/prompt_builder.py",
+        "src/specify_cli/ownership/inference.py",
+        "src/specify_cli/workspace_context.py",
+        "tests/agent/test_implement_command.py",
+        "tests/runtime/test_workspace_context_unit.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py",
+        "tests/specify_cli/cli/commands/agent/test_tasks_planning_artifact_lifecycle.py",
+        "tests/specify_cli/cli/commands/agent/test_tests_stale_check.py",
+        "tests/specify_cli/cli/commands/agent/test_workflow_canonical_cleanup.py",
+        "tests/specify_cli/core/test_worktree_topology.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/next_cmd.py",
+        "src/specify_cli/next/decision.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/next/test_next_command_integration.py",
+        "tests/next/test_query_mode_unit.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-08T15:14:28.087879+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP05"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      }
+    ],
+    "total_merges": 2,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 2
+    }
+  }
+}

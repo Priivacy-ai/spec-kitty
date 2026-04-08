@@ -14,7 +14,7 @@ requirement_refs:
 - NFR-005
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Planning artifacts for this mission were generated on main. This WP intentionally dogfoods the planning-artifact runtime contract after the earlier code WPs land, so it must not start until WP01-WP04 are complete. Completed changes still merge back into main unless the human explicitly redirects the landing branch.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T024
 - T025
