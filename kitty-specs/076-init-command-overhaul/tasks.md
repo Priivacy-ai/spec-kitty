@@ -191,12 +191,12 @@
 
 **Goal:** Remove all references to removed flags and the deleted preference system from user-facing documentation.
 
-- [ ] T042 Update docs/how-to/non-interactive-init.md — remove preference flag examples (WP07)
-- [ ] T043 Update docs/reference/cli-commands.md — remove 11 removed flags from init table (WP07)
-- [ ] T044 Update docs/reference/configuration.md — remove selection block and all preference entries (WP07)
-- [ ] T045 Update docs/how-to/manage-agents.md — remove preference field references (WP07)
-- [ ] T046 Update docs/2x/model-discipline-routing.md — remove static preference config reference (WP07)
-- [ ] T047 Verification grep: confirm zero preference references remain in docs/ (WP07)
+- [x] T042 Update docs/how-to/non-interactive-init.md — remove preference flag examples (WP07)
+- [x] T043 Update docs/reference/cli-commands.md — remove 11 removed flags from init table (WP07)
+- [x] T044 Update docs/reference/configuration.md — remove selection block and all preference entries (WP07)
+- [x] T045 Update docs/how-to/manage-agents.md — remove preference field references (WP07)
+- [x] T046 Update docs/2x/model-discipline-routing.md — remove static preference config reference (WP07)
+- [x] T047 Verification grep: confirm zero preference references remain in docs/ (WP07)
 
 **Definition of done:** `grep -r "preferred_implementer\|preferred_reviewer\|--preferred\|--script " docs/` → 0 results; all 5 files render valid markdown.
 
