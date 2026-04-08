@@ -51,12 +51,12 @@
 | T039 | Create ADR-E (shim generation supersedes script-type dispatch) | WP06 | [D] |
 | T040 | Create ADR-F (global agent commands supersede per-project copies; safe removal migration) | WP06 | [D] |
 | T041 | Create ADR-G (preferred agent roles removed as unused concept) | WP06 | [D] |
-| T042 | Update docs/how-to/non-interactive-init.md — remove preference flag examples | WP07 | [P] |
-| T043 | Update docs/reference/cli-commands.md — remove 11 removed flags from init table | WP07 | [P] |
-| T044 | Update docs/reference/configuration.md — remove selection block and all preference entries | WP07 | [P] |
-| T045 | Update docs/how-to/manage-agents.md — remove preference field references | WP07 | [P] |
-| T046 | Update docs/2x/model-discipline-routing.md — remove static preference config reference | WP07 | [P] |
-| T047 | Verification grep: confirm zero preference references remain in docs/ | WP07 | No |
+| T042 | Update docs/how-to/non-interactive-init.md — remove preference flag examples | WP07 | [D] |
+| T043 | Update docs/reference/cli-commands.md — remove 11 removed flags from init table | WP07 | [D] |
+| T044 | Update docs/reference/configuration.md — remove selection block and all preference entries | WP07 | [D] |
+| T045 | Update docs/how-to/manage-agents.md — remove preference field references | WP07 | [D] |
+| T046 | Update docs/2x/model-discipline-routing.md — remove static preference config reference | WP07 | [D] |
+| T047 | Verification grep: confirm zero preference references remain in docs/ | WP07 | No | [D] |
 
 ---
 
