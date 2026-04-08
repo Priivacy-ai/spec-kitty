@@ -47,10 +47,10 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 | T022 | Write test: 100 invocations of `load_build_id()` → stable value | WP03 | | [D] |
 | T023 | Write test: `_migrate_build_id_from_config` idempotency | WP03 | | [D] |
 | T024 | Write test: `BuildIdentityError` when `git rev-parse --git-dir` fails | WP03 | | [D] |
-| T025 | Extend `SaaSTrackerClient.bind_mission_origin()` signature to accept `build_id: str` | WP04 | |
-| T026 | Load `ProjectIdentity` in `bind_mission_origin()`; pass `build_id` to client | WP04 | |
-| T027 | Write test: captured bind call payload contains `build_id` (Scenario 3) | WP04 | |
-| T028 | Write test: `_load_contract()` provenance fields (Scenario 4) | WP04 | [P] |
+| T025 | Extend `SaaSTrackerClient.bind_mission_origin()` signature to accept `build_id: str` | WP04 | | [D] |
+| T026 | Load `ProjectIdentity` in `bind_mission_origin()`; pass `build_id` to client | WP04 | | [D] |
+| T027 | Write test: captured bind call payload contains `build_id` (Scenario 3) | WP04 | | [D] |
+| T028 | Write test: `_load_contract()` provenance fields (Scenario 4) | WP04 | [D] |
 | T029 | Write CLI integration test (CliRunner): mission create → events.jsonl clean | WP05 | |
 | T030 | Write orchestrator API contract test via `upstream_contract.json` + Typer introspection | WP05 | [P] |
 | T031 | Write body sync test: mock `SaaSBodyClient`; assert canonical namespace | WP05 | [P] |
