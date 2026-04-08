@@ -366,6 +366,44 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.question == "Approve?"
         assert decision.options == ["yes", "no"]
 
+    def test_blocked_query_keeps_step_id_and_reason_separate(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        mock_run_ref = MagicMock()
+        mock_run_ref.run_dir = str(tmp_path / "run")
+        mock_run_ref.run_id = "run-123"
+
+        snapshot = MagicMock()
+        snapshot.completed_steps = ["discovery"]
+        snapshot.pending_decisions = {}
+        snapshot.decisions = {}
+        snapshot.issued_step_id = "collect_input"
+        snapshot.blocked_reason = "Waiting on external approval"
+        snapshot.policy_snapshot = MagicMock()
+
+        blocked = MagicMock()
+        blocked.kind = "blocked"
+        blocked.step_id = "collect_input"
+        blocked.reason = "Waiting on external approval"
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("spec_kitty_runtime.planner.plan_next", return_value=blocked),
+        ):
+            decision = query_current_state("claude", "069-test", tmp_path)
+
+        assert decision.mission_state == "collect_input"
+        assert decision.step_id == "collect_input"
+        assert decision.reason == "Waiting on external approval"
+
 
 class TestQueryModeErrorOutput:
     def test_json_query_validation_failure_returns_error_document(self, tmp_path: Path) -> None:

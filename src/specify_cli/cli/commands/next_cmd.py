@@ -70,7 +70,18 @@ def next_step(
             else:
                 print(message, file=sys.stderr)
             raise typer.Exit(1)
-        answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+        try:
+            answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+        except typer.Exit as exc:
+            if json_output:
+                message = str(exc) or "Answer handling failed"
+                print(json.dumps({"error": message}))
+            raise
+        except Exception as exc:
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+                raise typer.Exit(1) from exc
+            raise
 
     # Query mode: bare call without --result remains read-only and does not
     # require agent identity.

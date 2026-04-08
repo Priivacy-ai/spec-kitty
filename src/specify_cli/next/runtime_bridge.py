@@ -768,10 +768,12 @@ def query_current_state(
         return decision
 
     mission_state = runtime_decision.step_id or "unknown"
+    blocked_reason: str | None = None
     if runtime_decision.kind == "terminal":
         mission_state = "done"
     elif runtime_decision.kind == "blocked":
-        mission_state = snapshot.blocked_reason or "blocked"
+        mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
+        blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
 
     decision = Decision(
         kind=DecisionKind.query,
@@ -781,7 +783,7 @@ def query_current_state(
         mission_state=mission_state,
         timestamp=now,
         is_query=True,
-        reason=None,  # label printed by _print_human(); not in reason field
+        reason=blocked_reason,
         progress=progress,
         run_id=getattr(run_ref, "run_id", None),
         step_id=snapshot.issued_step_id or runtime_decision.step_id,
