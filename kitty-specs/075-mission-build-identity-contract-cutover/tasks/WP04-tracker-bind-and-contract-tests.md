@@ -14,6 +14,7 @@ subtasks:
 - T026
 - T027
 - T028
+shell_pid: '16647'
 history:
 - date: '2026-04-08'
   actor: planner
