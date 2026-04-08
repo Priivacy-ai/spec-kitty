@@ -107,12 +107,12 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 
 #### Included Subtasks
 
-- [ ] T006 Replace lane-only validation in `src/specify_cli/cli/commands/implement.py` with execution-mode-aware validation (WP02)
-- [ ] T007 Update `src/specify_cli/lanes/implement_support.py` to branch between lane worktree and repo-root planning execution (WP02)
-- [ ] T008 Update `src/specify_cli/core/execution_context.py` and `src/specify_cli/next/prompt_builder.py` for nullable lane/branch metadata (WP02)
-- [ ] T009 Update `src/specify_cli/cli/commands/agent/workflow.py` to surface repo-root planning work cleanly (WP02)
-- [ ] T010 Update `src/specify_cli/core/worktree_topology.py` to represent repo-root planning entries in mixed missions (WP02)
-- [ ] T011 [P] Tests for implement, workflow, and topology behavior in mixed missions (WP02)
+- [x] T006 Replace lane-only validation in `src/specify_cli/cli/commands/implement.py` with execution-mode-aware validation (WP02)
+- [x] T007 Update `src/specify_cli/lanes/implement_support.py` to branch between lane worktree and repo-root planning execution (WP02)
+- [x] T008 Update `src/specify_cli/core/execution_context.py` and `src/specify_cli/next/prompt_builder.py` for nullable lane/branch metadata (WP02)
+- [x] T009 Update `src/specify_cli/cli/commands/agent/workflow.py` to surface repo-root planning work cleanly (WP02)
+- [x] T010 Update `src/specify_cli/core/worktree_topology.py` to represent repo-root planning entries in mixed missions (WP02)
+- [x] T011 [P] Tests for implement, workflow, and topology behavior in mixed missions (WP02)
 
 #### Implementation Sketch
 
