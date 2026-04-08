@@ -20,7 +20,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: '9919'
+shell_pid: "11061"
+agent: "opencode:opencode:python-reviewer:reviewer"
 history:
 - date: '2026-04-08'
   status: planned
@@ -233,3 +234,4 @@ Both must pass cleanly.
 ## Activity Log
 
 - 2026-04-08T05:47:20Z – unknown – shell_pid=9919 – Ready for review: removed AgentSelectionConfig, dead methods, fixed tools/agents key
+- 2026-04-08T05:47:39Z – opencode:opencode:python-reviewer:reviewer – shell_pid=11061 – Started review via action command
