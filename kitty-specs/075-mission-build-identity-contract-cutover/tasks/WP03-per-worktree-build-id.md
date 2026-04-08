@@ -375,3 +375,4 @@ def test_build_id_path_raises_when_no_git_repo(tmp_path):
 
 - 2026-04-08T05:52:29Z – unknown – shell_pid=10307 – Per-worktree build_id via git rev-parse; migration idempotent; fail-closed on no git; 10 tests green; build_id excluded from to_dict/config.yaml
 - 2026-04-08T05:53:01Z – opencode:opencode:reviewer:reviewer – shell_pid=13816 – Started review via action command
+- 2026-04-08T05:54:11Z – opencode:opencode:reviewer:reviewer – shell_pid=13816 – Moved to planned
