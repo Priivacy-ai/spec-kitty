@@ -116,6 +116,8 @@ class TestResolveContext:
         assert isinstance(ctx, MissionContext)
         assert ctx.wp_code == "WP01"
         assert ctx.mission_slug == "057-test-feature"
+        assert ctx.mission_number == "057"
+        assert ctx.mission_type == "software-dev"
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == str(repo)

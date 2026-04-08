@@ -9,7 +9,8 @@ import pytest
 
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.prompt_builder import (
-    _feature_context_header,
+    _mission_context_header,
+    build_decision_prompt,
     _governance_context,
     _read_wp_content,
     _write_to_temp,
@@ -42,22 +43,42 @@ def feature_with_wp(feature_dir: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# _feature_context_header
+# _mission_context_header
 # ---------------------------------------------------------------------------
 
 
-class TestFeatureContextHeader:
+class TestMissionContextHeader:
     def test_contains_slug(self, feature_dir: Path) -> None:
-        header = _feature_context_header("042-test-feature", feature_dir, "claude")
+        header = _mission_context_header("042-test-feature", feature_dir, "claude")
         assert "042-test-feature" in header
 
     def test_contains_agent(self, feature_dir: Path) -> None:
-        header = _feature_context_header("042-test-feature", feature_dir, "claude")
+        header = _mission_context_header("042-test-feature", feature_dir, "claude")
         assert "claude" in header
 
     def test_contains_directory(self, feature_dir: Path) -> None:
-        header = _feature_context_header("042-test-feature", feature_dir, "claude")
+        header = _mission_context_header("042-test-feature", feature_dir, "claude")
         assert str(feature_dir) in header
+
+    def test_uses_mission_label(self, feature_dir: Path) -> None:
+        header = _mission_context_header("042-test-feature", feature_dir, "claude")
+        assert "Mission: 042-test-feature" in header
+        assert "Mission directory:" in header
+
+
+class TestBuildDecisionPrompt:
+    def test_uses_mission_flag_in_answer_command(self) -> None:
+        text, path = build_decision_prompt(
+            question="Ship it?",
+            options=["yes", "no"],
+            decision_id="dec-123",
+            mission_slug="042-test-feature",
+            agent="claude",
+        )
+        assert "Mission: 042-test-feature" in text
+        assert "--mission 042-test-feature" in text
+        assert "--mission-run" not in text
+        path.unlink()
 
 
 # ---------------------------------------------------------------------------

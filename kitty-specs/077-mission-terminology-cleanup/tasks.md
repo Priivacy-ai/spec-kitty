@@ -64,68 +64,68 @@ This MVP would not satisfy spec §10.1 acceptance (which requires WP04..WP10 too
 
 ## Subtask Index
 
-| ID | Description | WP | Parallel |
-|---|---|---|---|
-| T001 | Inventory tracked-mission selector sites in `src/specify_cli/cli/commands/**` | WP01 | |
-| T002 | Inventory inverse-drift sites where `--mission` means blueprint/template | WP01 | [P] |
-| T003 | Cross-reference helper consumers and `require_explicit_feature` callers | WP01 | [P] |
-| T004 | Produce canonical map document (research artifact) | WP01 | |
-| T005 | Create `selector_resolution.py` module shell with `SelectorResolution` dataclass | WP02 | |
-| T006 | Implement `_emit_deprecation_warning` sub-helper with single-warning guarantee | WP02 | |
-| T007 | Implement `resolve_selector` public function with conflict detection | WP02 | |
-| T008 | Wire suppression env vars for both directions | WP02 | |
-| T009 | Create `test_selector_resolution.py` with 12 unit test cases | WP02 | |
-| T010 | Verify mypy --strict + ≥90% coverage | WP02 | |
-| T011 | Refactor `mission.py:172-194` (`mission current`) — split into two parameters | WP03 | |
-| T012 | Wire `mission current` through `resolve_selector` | WP03 | |
-| T013 | Add 6 integration tests for `mission current` (canonical/alias/conflict cases) | WP03 | |
-| T014 | Manually reproduce verified dual-flag bug → confirm fixed | WP03 | |
-| T015 | Refactor `next_cmd.py:33` (drop `--mission-run`/`--feature` aliases, add hidden) | WP04 | [P] |
-| T016 | Update `next_cmd.py:48` example help text | WP04 | [P] |
-| T017 | Refactor `agent/tasks.py` 9 selector sites (lines 842, 1389, 1572, 1655, 1726, 1945, 2205, 2295, 2659) | WP04 | |
-| T018 | Replace "Mission run slug" help text with "Mission slug" across these files | WP04 | |
-| T019 | Add integration tests for representative `next_cmd` and `agent/tasks` commands | WP04 | |
-| T020 | Refactor `agent/mission.py:488` (`agent mission create` — `--mission` → `--mission-type`) | WP05 | [P] |
-| T021 | Refactor `charter.py:67` (`charter interview`) | WP05 | [P] |
-| T022 | Refactor `lifecycle.py:27` (`lifecycle.specify`) | WP05 | [P] |
-| T023 | Add 9 integration tests (3 sites × canonical/alias/conflict) | WP05 | |
-| T024 | Verify `--mission` help text on these sites references the deprecation | WP05 | |
-| T025 | Update `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP06 | |
-| T026 | Audit other doctrine skills under `src/doctrine/skills/**` for similar drift | WP06 | |
-| T027 | Update any drifted doctrine skills found | WP06 | |
-| T028 | Update `docs/explanation/runtime-loop.md` — drop legacy selector teaching | WP07 | [P] |
-| T029 | Audit `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**` and fix drift | WP07 | |
-| T030 | Clean up `README.md:883` (legacy `--feature` example block) | WP07 | [P] |
-| T031 | Clean up `README.md:910` (`--feature` row in `spec-kitty accept` Options table) | WP07 | [P] |
-| T032 | Audit `CONTRIBUTING.md` and `CHANGELOG.md` Unreleased section | WP07 | [P] |
-| T033 | Create `docs/migration/feature-flag-deprecation.md` | WP08 | [P] |
-| T034 | Create `docs/migration/mission-type-flag-deprecation.md` | WP08 | [P] |
-| T035 | Verify deprecation warning paths in `selector_resolution.py` match the new doc paths | WP08 | |
-| T036 | Create `tests/contract/test_terminology_guards.py` shell with helpers | WP09 | |
-| T037 | Implement guards 1-3 (CLI command file checks) | WP09 | [P] |
-| T038 | Implement guards 4-5 (doctrine skills + agent-facing docs checks) | WP09 | [P] |
-| T039 | Implement guard 5b (top-level project docs) + guard 6 (inverse drift) | WP09 | [P] |
-| T040 | Implement guards 7-8 (orchestrator-api envelope + meta-guard for historical-artifact safety) | WP09 | [P] |
-| T041 | Run all 9 guards against current state and verify pass/fail behavior | WP09 | |
-| T042 | Edit spec.md §11.1 — change "deprecated compatibility alias" → "hidden deprecated compatibility alias" | WP10 | |
-| T043 | Run all 15 acceptance gates from spec §10.1 | WP10 | |
-| T044 | Verify orchestrator-api files unchanged (read-only check) | WP10 | |
-| T045 | Verify no historical artifacts modified (C-011 check) | WP10 | |
-| T046 | Capture acceptance evidence and document Scope A completion | WP10 | |
-| T047 | Inventory first-party machine-facing surfaces emitting tracked-mission identity | WP11 | |
-| T048 | Identify residual `feature_*` fields in payloads | WP11 | |
-| T049 | Cross-reference findings with `upstream_contract.json` | WP11 | |
-| T050 | Produce Scope B alignment plan (research artifact) | WP11 | |
-| T051 | Ensure `mission_slug`/`mission_number`/`mission_type` present in first-party payloads | WP12 | |
-| T052 | For each residual `feature_*` field, decide remove/dual-write/deprecate and execute | WP12 | |
-| T053 | Add contract tests asserting canonical fields are present | WP12 | |
-| T054 | Add contract test that fails if `mission_run_slug` is introduced (FR-019) | WP12 | |
-| T055 | Verify `MissionCreated`/`MissionClosed` event names unchanged (FR-017) | WP12 | |
-| T056 | Verify `aggregate_type="Mission"` unchanged (locked non-goal §3.3) | WP12 | |
-| T057 | Update `docs/reference/event-envelope.md` and `docs/reference/orchestrator-api.md` | WP13 | [P] |
-| T058 | Run cross-repo first-party consumer fixtures and verify NFR-006 (zero breakages) | WP13 | |
-| T059 | Run all spec §10.2 acceptance criteria and capture evidence | WP13 | |
-| T060 | Document Scope B completion and close `#543` | WP13 | |
+| ID | Description | WP | Parallel | Status |
+|---|---|---|---|---|
+| T001 | Inventory tracked-mission selector sites in `src/specify_cli/cli/commands/**` | WP01 |  | [D] |
+| T002 | Inventory inverse-drift sites where `--mission` means blueprint/template | WP01 | [P] | [D] |
+| T003 | Cross-reference helper consumers and `require_explicit_feature` callers | WP01 | [P] | [D] |
+| T004 | Produce canonical map document (research artifact) | WP01 |  | [D] |
+| T005 | Create `selector_resolution.py` module shell with `SelectorResolution` dataclass | WP02 |  | [D] |
+| T006 | Implement `_emit_deprecation_warning` sub-helper with single-warning guarantee | WP02 |  | [D] |
+| T007 | Implement `resolve_selector` public function with conflict detection | WP02 |  | [D] |
+| T008 | Wire suppression env vars for both directions | WP02 |  | [D] |
+| T009 | Create `test_selector_resolution.py` with 12 unit test cases | WP02 |  | [D] |
+| T010 | Verify mypy --strict + ≥90% coverage | WP02 |  | [D] |
+| T011 | Refactor `mission.py:172-194` (`mission current`) — split into two parameters | WP03 |  | [D] |
+| T012 | Wire `mission current` through `resolve_selector` | WP03 |  | [D] |
+| T013 | Add 6 integration tests for `mission current` (canonical/alias/conflict cases) | WP03 |  | [D] |
+| T014 | Manually reproduce verified dual-flag bug → confirm fixed | WP03 |  | [D] |
+| T015 | Refactor `next_cmd.py:33` (drop `--mission-run`/`--feature` aliases, add hidden) | WP04 | [P] | [D] |
+| T016 | Update `next_cmd.py:48` example help text | WP04 | [P] | [D] |
+| T017 | Refactor `agent/tasks.py` 9 selector sites (lines 842, 1389, 1572, 1655, 1726, 1945, 2205, 2295, 2659) | WP04 |  | [D] |
+| T018 | Replace "Mission run slug" help text with "Mission slug" across these files | WP04 |  | [D] |
+| T019 | Add integration tests for representative `next_cmd` and `agent/tasks` commands | WP04 |  | [D] |
+| T020 | Refactor `agent/mission.py:488` (`agent mission create` — `--mission` → `--mission-type`) | WP05 | [P] | [D] |
+| T021 | Refactor `charter.py:67` (`charter interview`) | WP05 | [P] | [D] |
+| T022 | Refactor `lifecycle.py:27` (`lifecycle.specify`) | WP05 | [P] | [D] |
+| T023 | Add 9 integration tests (3 sites × canonical/alias/conflict) | WP05 |  | [D] |
+| T024 | Verify `--mission` help text on these sites references the deprecation | WP05 |  | [D] |
+| T025 | Update `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` | WP06 |  | [D] |
+| T026 | Audit other doctrine skills under `src/doctrine/skills/**` for similar drift | WP06 |  | [D] |
+| T027 | Update any drifted doctrine skills found | WP06 |  | [D] |
+| T028 | Update `docs/explanation/runtime-loop.md` — drop legacy selector teaching | WP07 | [P] | [D] |
+| T029 | Audit `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**` and fix drift | WP07 |  | [D] |
+| T030 | Clean up `README.md:883` (legacy `--feature` example block) | WP07 | [P] | [D] |
+| T031 | Clean up `README.md:910` (`--feature` row in `spec-kitty accept` Options table) | WP07 | [P] | [D] |
+| T032 | Audit `CONTRIBUTING.md` and `CHANGELOG.md` Unreleased section | WP07 | [P] | [D] |
+| T033 | Create `docs/migration/feature-flag-deprecation.md` | WP08 | [P] | [D] |
+| T034 | Create `docs/migration/mission-type-flag-deprecation.md` | WP08 | [P] | [D] |
+| T035 | Verify deprecation warning paths in `selector_resolution.py` match the new doc paths | WP08 |  | [D] |
+| T036 | Create `tests/contract/test_terminology_guards.py` shell with helpers | WP09 |  | [D] |
+| T037 | Implement guards 1-3 (CLI command file checks) | WP09 | [P] | [D] |
+| T038 | Implement guards 4-5 (doctrine skills + agent-facing docs checks) | WP09 | [P] | [D] |
+| T039 | Implement guard 5b (top-level project docs) + guard 6 (inverse drift) | WP09 | [P] | [D] |
+| T040 | Implement guards 7-8 (orchestrator-api envelope + meta-guard for historical-artifact safety) | WP09 | [P] | [D] |
+| T041 | Run all 9 guards against current state and verify pass/fail behavior | WP09 |  | [D] |
+| T042 | Edit spec.md §11.1 — change "deprecated compatibility alias" → "hidden deprecated compatibility alias" | WP10 |  | [D] |
+| T043 | Run all 15 acceptance gates from spec §10.1 | WP10 |  | [D] |
+| T044 | Verify orchestrator-api files unchanged (read-only check) | WP10 |  | [D] |
+| T045 | Verify no historical artifacts modified (C-011 check) | WP10 |  | [D] |
+| T046 | Capture acceptance evidence and document Scope A completion | WP10 |  | [D] |
+| T047 | Inventory first-party machine-facing surfaces emitting tracked-mission identity | WP11 |  | [D] |
+| T048 | Identify residual `feature_*` fields in payloads | WP11 |  | [D] |
+| T049 | Cross-reference findings with `upstream_contract.json` | WP11 |  | [D] |
+| T050 | Produce Scope B alignment plan (research artifact) | WP11 |  | [D] |
+| T051 | Ensure `mission_slug`/`mission_number`/`mission_type` present in first-party payloads | WP12 |  | [D] |
+| T052 | For each residual `feature_*` field, decide remove/dual-write/deprecate and execute | WP12 |  | [D] |
+| T053 | Add contract tests asserting canonical fields are present | WP12 |  | [D] |
+| T054 | Add contract test that fails if `mission_run_slug` is introduced (FR-019) | WP12 |  | [D] |
+| T055 | Verify `MissionCreated`/`MissionClosed` event names unchanged (FR-017) | WP12 |  | [D] |
+| T056 | Verify `aggregate_type="Mission"` unchanged (locked non-goal §3.3) | WP12 |  | [D] |
+| T057 | Update `docs/reference/event-envelope.md` and `docs/reference/orchestrator-api.md` | WP13 | [P] | [D] |
+| T058 | Run cross-repo first-party consumer fixtures and verify NFR-006 (zero breakages) | WP13 |  | [D] |
+| T059 | Run all spec §10.2 acceptance criteria and capture evidence | WP13 |  | [D] |
+| T060 | Document Scope B completion and close `#543` | WP13 |  | [D] |
 
 The `[P]` marker in this index indicates parallelizable subtasks within a WP. It is **not** a status marker — `mark-status` tracks status via the per-WP checkbox rows below, not via this index.
 
@@ -148,10 +148,10 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: none.
 
 **Included subtasks**:
-- [ ] T001 Inventory tracked-mission selector sites in `src/specify_cli/cli/commands/**` (WP01)
-- [ ] T002 Inventory inverse-drift sites where `--mission` means blueprint/template (WP01)
-- [ ] T003 Cross-reference helper consumers and `require_explicit_feature` callers (WP01)
-- [ ] T004 Produce canonical map document (research artifact) (WP01)
+- [x] T001 Inventory tracked-mission selector sites in `src/specify_cli/cli/commands/**` (WP01)
+- [x] T002 Inventory inverse-drift sites where `--mission` means blueprint/template (WP01)
+- [x] T003 Cross-reference helper consumers and `require_explicit_feature` callers (WP01)
+- [x] T004 Produce canonical map document (research artifact) (WP01)
 
 **Implementation sketch**:
 1. Use `Grep` over `src/specify_cli/cli/commands/**/*.py` for `typer.Option` declarations that mention `--mission`, `--feature`, or `--mission-run`.
@@ -180,12 +180,12 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP01 (audit informs which call sites will consume the helper).
 
 **Included subtasks**:
-- [ ] T005 Create `selector_resolution.py` module shell with `SelectorResolution` dataclass (WP02)
-- [ ] T006 Implement `_emit_deprecation_warning` sub-helper with single-warning guarantee (WP02)
-- [ ] T007 Implement `resolve_selector` public function with conflict detection (WP02)
-- [ ] T008 Wire suppression env vars for both directions (WP02)
-- [ ] T009 Create `test_selector_resolution.py` with 12 unit test cases (WP02)
-- [ ] T010 Verify mypy --strict + ≥90% coverage (WP02)
+- [x] T005 Create `selector_resolution.py` module shell with `SelectorResolution` dataclass (WP02)
+- [x] T006 Implement `_emit_deprecation_warning` sub-helper with single-warning guarantee (WP02)
+- [x] T007 Implement `resolve_selector` public function with conflict detection (WP02)
+- [x] T008 Wire suppression env vars for both directions (WP02)
+- [x] T009 Create `test_selector_resolution.py` with 12 unit test cases (WP02)
+- [x] T010 Verify mypy --strict + ≥90% coverage (WP02)
 
 **Implementation sketch**: Follow `data-model.md` and `contracts/selector_resolver.md` exactly. The whole module is ~80 lines. Test cases come from `contracts/selector_resolver.md` §"Required Test Coverage" (cases 1-12 are the unit tests).
 
@@ -210,10 +210,10 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP02.
 
 **Included subtasks**:
-- [ ] T011 Refactor `mission.py:172-194` (`mission current`) — split into two parameters (WP03)
-- [ ] T012 Wire `mission current` through `resolve_selector` (WP03)
-- [ ] T013 Add 6 integration tests for `mission current` (canonical/alias/conflict cases) (WP03)
-- [ ] T014 Manually reproduce verified dual-flag bug → confirm fixed (WP03)
+- [x] T011 Refactor `mission.py:172-194` (`mission current`) — split into two parameters (WP03)
+- [x] T012 Wire `mission current` through `resolve_selector` (WP03)
+- [x] T013 Add 6 integration tests for `mission current` (canonical/alias/conflict cases) (WP03)
+- [x] T014 Manually reproduce verified dual-flag bug → confirm fixed (WP03)
 
 **Implementation sketch**: Follow the "Tracked-Mission Command" pattern in `contracts/selector_resolver.md` §"Call-Site Pattern". Use `quickstart.md` Step 3 as the line-by-line guide.
 
@@ -236,11 +236,11 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP02.
 
 **Included subtasks**:
-- [ ] T015 Refactor `next_cmd.py:33` (drop `--mission-run`/`--feature` aliases, add hidden) (WP04)
-- [ ] T016 Update `next_cmd.py:48` example help text (WP04)
-- [ ] T017 Refactor `agent/tasks.py` 9 selector sites (lines 842, 1389, 1572, 1655, 1726, 1945, 2205, 2295, 2659) (WP04)
-- [ ] T018 Replace "Mission run slug" help text with "Mission slug" across these files (WP04)
-- [ ] T019 Add integration tests for representative `next_cmd` and `agent/tasks` commands (WP04)
+- [x] T015 Refactor `next_cmd.py:33` (drop `--mission-run`/`--feature` aliases, add hidden) (WP04)
+- [x] T016 Update `next_cmd.py:48` example help text (WP04)
+- [x] T017 Refactor `agent/tasks.py` 9 selector sites (lines 842, 1389, 1572, 1655, 1726, 1945, 2205, 2295, 2659) (WP04)
+- [x] T018 Replace "Mission run slug" help text with "Mission slug" across these files (WP04)
+- [x] T019 Add integration tests for representative `next_cmd` and `agent/tasks` commands (WP04)
 
 **Implementation sketch**: Apply the same pattern from WP03 to each site. The 9 sites in `agent/tasks.py` are mechanical; do them in one focused pass. Update help strings together.
 
@@ -263,11 +263,11 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP02.
 
 **Included subtasks**:
-- [ ] T020 Refactor `agent/mission.py:488` (`agent mission create` — `--mission` → `--mission-type`) (WP05)
-- [ ] T021 Refactor `charter.py:67` (`charter interview`) (WP05)
-- [ ] T022 Refactor `lifecycle.py:27` (`lifecycle.specify`) (WP05)
-- [ ] T023 Add 9 integration tests (3 sites × canonical/alias/conflict) (WP05)
-- [ ] T024 Verify `--mission` help text on these sites references the deprecation (WP05)
+- [x] T020 Refactor `agent/mission.py:488` (`agent mission create` — `--mission` → `--mission-type`) (WP05)
+- [x] T021 Refactor `charter.py:67` (`charter interview`) (WP05)
+- [x] T022 Refactor `lifecycle.py:27` (`lifecycle.specify`) (WP05)
+- [x] T023 Add 9 integration tests (3 sites × canonical/alias/conflict) (WP05)
+- [x] T024 Verify `--mission` help text on these sites references the deprecation (WP05)
 
 **Implementation sketch**: Follow the "Inverse-Drift Command" pattern in `contracts/selector_resolver.md` §"Call-Site Pattern". Use `quickstart.md` Step 5 as the line-by-line guide.
 
@@ -292,9 +292,9 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP01.
 
 **Included subtasks**:
-- [ ] T025 Update `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` (WP06)
-- [ ] T026 Audit other doctrine skills under `src/doctrine/skills/**` for similar drift (WP06)
-- [ ] T027 Update any drifted doctrine skills found (WP06)
+- [x] T025 Update `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md` (WP06)
+- [x] T026 Audit other doctrine skills under `src/doctrine/skills/**` for similar drift (WP06)
+- [x] T027 Update any drifted doctrine skills found (WP06)
 
 **Implementation sketch**: Read `src/doctrine/skills/spec-kitty-runtime-next/SKILL.md`, find every mention of `--mission-run` for tracked-mission selection, replace with `--mission`. Then grep `src/doctrine/skills/**` for similar patterns and fix any matches.
 
@@ -317,11 +317,11 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP01.
 
 **Included subtasks**:
-- [ ] T028 Update `docs/explanation/runtime-loop.md` — drop legacy selector teaching (WP07)
-- [ ] T029 Audit `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**` and fix drift (WP07)
-- [ ] T030 Clean up `README.md:883` (legacy `--feature` example block) (WP07)
-- [ ] T031 Clean up `README.md:910` (`--feature` row in `spec-kitty accept` Options table) (WP07)
-- [ ] T032 Audit `CONTRIBUTING.md` and `CHANGELOG.md` Unreleased section (WP07)
+- [x] T028 Update `docs/explanation/runtime-loop.md` — drop legacy selector teaching (WP07)
+- [x] T029 Audit `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**` and fix drift (WP07)
+- [x] T030 Clean up `README.md:883` (legacy `--feature` example block) (WP07)
+- [x] T031 Clean up `README.md:910` (`--feature` row in `spec-kitty accept` Options table) (WP07)
+- [x] T032 Audit `CONTRIBUTING.md` and `CHANGELOG.md` Unreleased section (WP07)
 
 **Implementation sketch**: Use `quickstart.md` Step 7a/7b as the line-by-line guide. **Critical**: do not scan or modify `kitty-specs/**` or `architecture/**` (C-011). For `CHANGELOG.md`, only the Unreleased section above the first `## [<version>]` heading is in scope.
 
@@ -344,9 +344,9 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP01.
 
 **Included subtasks**:
-- [ ] T033 Create `docs/migration/feature-flag-deprecation.md` (WP08)
-- [ ] T034 Create `docs/migration/mission-type-flag-deprecation.md` (WP08)
-- [ ] T035 Verify deprecation warning paths in `selector_resolution.py` match the new doc paths (WP08)
+- [x] T033 Create `docs/migration/feature-flag-deprecation.md` (WP08)
+- [x] T034 Create `docs/migration/mission-type-flag-deprecation.md` (WP08)
+- [x] T035 Verify deprecation warning paths in `selector_resolution.py` match the new doc paths (WP08)
 
 **Implementation sketch**: Both docs follow the same structure (problem → why → migration commands → suppression → removal criteria). Cross-link to spec.md, ADR, and the initiative README.
 
@@ -371,12 +371,12 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP02 (helper must exist for guard 3 to verify against canonical state).
 
 **Included subtasks**:
-- [ ] T036 Create `tests/contract/test_terminology_guards.py` shell with helpers (WP09)
-- [ ] T037 Implement guards 1-3 (CLI command file checks) (WP09)
-- [ ] T038 Implement guards 4-5 (doctrine skills + agent-facing docs checks) (WP09)
-- [ ] T039 Implement guard 5b (top-level project docs) + guard 6 (inverse drift) (WP09)
-- [ ] T040 Implement guards 7-8 (orchestrator-api envelope + meta-guard for historical-artifact safety) (WP09)
-- [ ] T041 Run all 9 guards against current state and verify pass/fail behavior (WP09)
+- [x] T036 Create `tests/contract/test_terminology_guards.py` shell with helpers (WP09)
+- [x] T037 Implement guards 1-3 (CLI command file checks) (WP09)
+- [x] T038 Implement guards 4-5 (doctrine skills + agent-facing docs checks) (WP09)
+- [x] T039 Implement guard 5b (top-level project docs) + guard 6 (inverse drift) (WP09)
+- [x] T040 Implement guards 7-8 (orchestrator-api envelope + meta-guard for historical-artifact safety) (WP09)
+- [x] T041 Run all 9 guards against current state and verify pass/fail behavior (WP09)
 
 **Implementation sketch**: Follow `contracts/grep_guards.md` exactly. Use the `_extract_changelog_unreleased` helper for the CHANGELOG check. Guard 7 must use the actual envelope keys: `contract_version`, `command`, `timestamp`, `correlation_id`, `success`, `error_code`, `data` (verified at HEAD `35d43a25`).
 
@@ -399,11 +399,11 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP03, WP04, WP05, WP06, WP07, WP08, WP09 (everything else in Scope A).
 
 **Included subtasks**:
-- [ ] T042 Edit spec.md §11.1 — change "deprecated compatibility alias" → "hidden deprecated compatibility alias" (WP10)
-- [ ] T043 Run all 15 acceptance gates from spec §10.1 (WP10)
-- [ ] T044 Verify orchestrator-api files unchanged (read-only check) (WP10)
-- [ ] T045 Verify no historical artifacts modified (C-011 check) (WP10)
-- [ ] T046 Capture acceptance evidence and document Scope A completion (WP10)
+- [x] T042 Edit spec.md §11.1 — change "deprecated compatibility alias" → "hidden deprecated compatibility alias" (WP10)
+- [x] T043 Run all 15 acceptance gates from spec §10.1 (WP10)
+- [x] T044 Verify orchestrator-api files unchanged (read-only check) (WP10)
+- [x] T045 Verify no historical artifacts modified (C-011 check) (WP10)
+- [x] T046 Capture acceptance evidence and document Scope A completion (WP10)
 
 **Implementation sketch**: The spec edit is one line (and one short clarification phrase). The acceptance gates are listed in spec §10.1; each one is a mechanical check (grep, file existence, test pass, etc.). Capture evidence as a markdown report in `kitty-specs/077-mission-terminology-cleanup/research/scope-a-acceptance.md`.
 
@@ -430,10 +430,10 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP10 (Scope B is gated).
 
 **Included subtasks**:
-- [ ] T047 Inventory first-party machine-facing surfaces emitting tracked-mission identity (WP11)
-- [ ] T048 Identify residual `feature_*` fields in payloads (WP11)
-- [ ] T049 Cross-reference findings with `upstream_contract.json` (WP11)
-- [ ] T050 Produce Scope B alignment plan (research artifact) (WP11)
+- [x] T047 Inventory first-party machine-facing surfaces emitting tracked-mission identity (WP11)
+- [x] T048 Identify residual `feature_*` fields in payloads (WP11)
+- [x] T049 Cross-reference findings with `upstream_contract.json` (WP11)
+- [x] T050 Produce Scope B alignment plan (research artifact) (WP11)
 
 ---
 
@@ -452,12 +452,12 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP11.
 
 **Included subtasks**:
-- [ ] T051 Ensure `mission_slug`/`mission_number`/`mission_type` present in first-party payloads (WP12)
-- [ ] T052 For each residual `feature_*` field, decide remove/dual-write/deprecate and execute (WP12)
-- [ ] T053 Add contract tests asserting canonical fields are present (WP12)
-- [ ] T054 Add contract test that fails if `mission_run_slug` is introduced (FR-019) (WP12)
-- [ ] T055 Verify `MissionCreated`/`MissionClosed` event names unchanged (FR-017) (WP12)
-- [ ] T056 Verify `aggregate_type="Mission"` unchanged (locked non-goal §3.3) (WP12)
+- [x] T051 Ensure `mission_slug`/`mission_number`/`mission_type` present in first-party payloads (WP12)
+- [x] T052 For each residual `feature_*` field, decide remove/dual-write/deprecate and execute (WP12)
+- [x] T053 Add contract tests asserting canonical fields are present (WP12)
+- [x] T054 Add contract test that fails if `mission_run_slug` is introduced (FR-019) (WP12)
+- [x] T055 Verify `MissionCreated`/`MissionClosed` event names unchanged (FR-017) (WP12)
+- [x] T056 Verify `aggregate_type="Mission"` unchanged (locked non-goal §3.3) (WP12)
 
 ---
 
@@ -476,10 +476,10 @@ The `[P]` marker in this index indicates parallelizable subtasks within a WP. It
 **Dependencies**: WP12.
 
 **Included subtasks**:
-- [ ] T057 Update `docs/reference/event-envelope.md` and `docs/reference/orchestrator-api.md` (WP13)
-- [ ] T058 Run cross-repo first-party consumer fixtures and verify NFR-006 (zero breakages) (WP13)
-- [ ] T059 Run all spec §10.2 acceptance criteria and capture evidence (WP13)
-- [ ] T060 Document Scope B completion and close `#543` (WP13)
+- [x] T057 Update `docs/reference/event-envelope.md` and `docs/reference/orchestrator-api.md` (WP13)
+- [x] T058 Run cross-repo first-party consumer fixtures and verify NFR-006 (zero breakages) (WP13)
+- [x] T059 Run all spec §10.2 acceptance criteria and capture evidence (WP13)
+- [x] T060 Document Scope B completion and close `#543` (WP13)
 
 ---
 

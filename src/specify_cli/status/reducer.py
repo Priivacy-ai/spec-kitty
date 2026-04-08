@@ -13,6 +13,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import resolve_mission_identity
+
 from .models import Lane, StatusEvent, StatusSnapshot
 from .store import read_events
 
@@ -192,6 +194,9 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     """
     events = read_events(feature_dir)
     snapshot = reduce(events)
+    identity = resolve_mission_identity(feature_dir)
+    snapshot.mission_number = identity.mission_number
+    snapshot.mission_type = identity.mission_type
     json_str = materialize_to_json(snapshot)
 
     out_path = feature_dir / SNAPSHOT_FILENAME

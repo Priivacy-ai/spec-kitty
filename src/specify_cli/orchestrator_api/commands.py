@@ -31,6 +31,7 @@ import typer
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
 
@@ -144,7 +145,7 @@ class _JSONErrorGroup(TyperGroup):
 app = typer.Typer(
     name="orchestrator-api",
     help="Machine-contract API for external orchestrators (JSON-first)",
-    no_args_is_help=True,
+    no_args_is_help=False,
     cls=_JSONErrorGroup,
 )
 
@@ -207,6 +208,16 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
     if not mission_dir.exists():
         return None
     return mission_dir
+
+
+def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
+    """Return canonical mission identity fields for machine-facing payloads."""
+    identity = resolve_mission_identity(mission_dir)
+    return {
+        "mission_slug": identity.mission_slug,
+        "mission_number": identity.mission_number,
+        "mission_type": identity.mission_type,
+    }
 
 
 def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
@@ -487,7 +498,7 @@ def mission_state(
         )
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "summary": snapshot.summary,
         "work_packages": work_packages,
     }
@@ -554,7 +565,7 @@ def list_ready(
     ready_wps = [wp for wp in ready_wps if wp["dependencies_satisfied"]]
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "ready_work_packages": ready_wps,
     }
     validate_outbound_payload(data, "orchestrator_api")
@@ -645,7 +656,11 @@ def start_implementation(
                     cmd,
                     "WP_ALREADY_CLAIMED",
                     f"WP {wp} is already claimed by '{last_actor}'",
-                    {"claimed_by": last_actor, "requesting_actor": actor},
+                    {
+                        **_mission_identity_payload(mission_dir),
+                        "claimed_by": last_actor,
+                        "requesting_actor": actor,
+                    },
                 )
                 return
             emit_status_transition(
@@ -667,7 +682,11 @@ def start_implementation(
                     cmd,
                     "WP_ALREADY_CLAIMED",
                     f"WP {wp} is already in_progress by '{last_actor}'",
-                    {"claimed_by": last_actor, "requesting_actor": actor},
+                    {
+                        **_mission_identity_payload(mission_dir),
+                        "claimed_by": last_actor,
+                        "requesting_actor": actor,
+                    },
                 )
                 return
             # Idempotent success
@@ -687,7 +706,7 @@ def start_implementation(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane_reported,
         "to_lane": Lane.IN_PROGRESS,
@@ -767,7 +786,7 @@ def start_review(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane,
         "to_lane": Lane.IN_REVIEW,
@@ -885,7 +904,7 @@ def transition(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane,
         "to_lane": to_lane,
@@ -949,7 +968,7 @@ def append_history(
     entry_id = "hist-" + uuid.uuid4().hex
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "history_entry_id": entry_id,
     }
@@ -993,7 +1012,10 @@ def accept_mission(
             cmd,
             "MISSION_NOT_READY",
             f"Mission has {len(incomplete)} incomplete WP(s)",
-            {"incomplete_wps": sorted(incomplete)},
+            {
+                **_mission_identity_payload(mission_dir),
+                "incomplete_wps": sorted(incomplete),
+            },
         )
         return
 
@@ -1008,7 +1030,7 @@ def accept_mission(
     )
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "accepted": True,
         "mode": "auto",
         "accepted_at": accepted_at,
@@ -1058,7 +1080,7 @@ def merge_mission(
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "mission_slug": mission,
+                **_mission_identity_payload(mission_dir),
                 "target_branch": preflight.target_branch,
                 "errors": preflight.errors,
             },
@@ -1081,7 +1103,7 @@ def merge_mission(
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "mission_slug": mission,
+                **_mission_identity_payload(mission_dir),
                 "target_branch": preflight.target_branch,
                 "errors": [str(exc)],
             },
@@ -1089,7 +1111,7 @@ def merge_mission(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "merged": True,
         "target_branch": preflight.target_branch,
         "strategy": strategy,

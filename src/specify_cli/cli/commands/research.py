@@ -10,8 +10,8 @@ import typer
 from rich.panel import Panel
 
 from specify_cli.acceptance import AcceptanceError
-from specify_cli.core.paths import require_explicit_feature
 from specify_cli.cli import StepTracker
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit, show_banner
 from specify_cli.core import MISSION_CHOICES
 from specify_cli.core.project_resolver import resolve_template_path, resolve_worktree_aware_feature_dir
@@ -21,11 +21,16 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def research(
-    feature: Optional[str] = typer.Option(
+    mission: Optional[str] = typer.Option(
         None,
         "--mission",
-        "--feature",
         help="Mission slug to target",
+    ),
+    feature: Optional[str] = typer.Option(
+        None,
+        "--feature",
+        hidden=True,
+        help="(deprecated) Use --mission",
     ),
     force: bool = typer.Option(False, "--force", help="Overwrite existing research artifacts"),
 ) -> None:
@@ -56,8 +61,15 @@ def research(
 
     tracker.start("feature")
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
-    except ValueError as exc:
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
+    except typer.BadParameter as exc:
         tracker.error("feature", str(exc))
         console.print(tracker.render())
         console.print(f"[red]Error:[/red] {exc}")

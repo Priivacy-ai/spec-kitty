@@ -202,3 +202,7 @@ This WP depends on WP01. After WP01 is merged, WP07 can run in parallel with WP0
 - Spec §8.1 — `docs/explanation/runtime-loop.md` cited as drift site
 - Reviewer feedback (Finding 2 in this session): verified drift at `README.md:883`, `README.md:910`, and `CHANGELOG.md:172` (historical, out of scope)
 - `quickstart.md` Step 7a/7b — line-by-line walkthrough
+
+## Activity Log
+
+- 2026-04-08T15:01:33Z – unknown – Done override: Mission completed in main checkout

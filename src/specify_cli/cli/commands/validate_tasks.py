@@ -11,7 +11,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.acceptance import AcceptanceError
-from specify_cli.core.paths import require_explicit_feature
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.task_metadata_validation import (
@@ -24,8 +24,11 @@ from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 
 def validate_tasks(
+    mission: Optional[str] = typer.Option(
+        None, "--mission", help="Mission slug to validate"
+    ),
     feature: Optional[str] = typer.Option(
-        None, "--mission", "--feature", help="Mission slug to validate"
+        None, "--feature", hidden=True, help="(deprecated) Use --mission"
     ),
     fix: bool = typer.Option(False, "--fix", help="Automatically repair metadata inconsistencies"),
     check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
@@ -103,10 +106,17 @@ def validate_tasks(
 
     # Validate single feature
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
-    except ValueError as exc:
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
+    except typer.BadParameter as exc:
         console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from exc
 
     feature_dir = resolve_worktree_aware_feature_dir(repo_root, mission_slug, Path.cwd(), console)
 

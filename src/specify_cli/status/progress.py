@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+from specify_cli.mission_metadata import mission_identity_fields
 
 from .models import Lane, StatusSnapshot
 from .reducer import materialize
@@ -70,11 +71,17 @@ class ProgressResult:
     total_count: int
     per_lane_counts: dict[str, int] = field(default_factory=dict)
     per_wp: list[WPProgress] = field(default_factory=list)
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return with_tracked_mission_slug_aliases(
             {
-                "mission_slug": self.mission_slug,
+                **mission_identity_fields(
+                    self.mission_slug,
+                    self.mission_number,
+                    self.mission_type,
+                ),
                 "percentage": round(self.percentage, 4),
                 "done_count": self.done_count,
                 "total_count": self.total_count,
@@ -125,6 +132,8 @@ def compute_weighted_progress(
             total_count=0,
             per_lane_counts={},
             per_wp=[],
+            mission_number=snapshot.mission_number,
+            mission_type=snapshot.mission_type,
         )
 
     per_lane_counts: dict[str, int] = {}
@@ -165,6 +174,8 @@ def compute_weighted_progress(
         total_count=len(work_packages),
         per_lane_counts=per_lane_counts,
         per_wp=per_wp,
+        mission_number=snapshot.mission_number,
+        mission_type=snapshot.mission_type,
     )
 
 

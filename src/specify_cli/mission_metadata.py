@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import datetime as _dt
 import json
+import re
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypedDict
 
@@ -70,6 +72,16 @@ class MissionMetaOptional(TypedDict, total=False):
 
 REQUIRED_FIELDS: frozenset[str] = frozenset(MissionMetaRequired.__annotations__)
 HISTORY_CAP: int = 20
+_MISSION_NUMBER_PATTERN = re.compile(r"^(?P<number>\d+)-")
+
+
+@dataclass(frozen=True, slots=True)
+class MissionIdentity:
+    """Canonical machine-facing mission identity fields."""
+
+    mission_slug: str
+    mission_number: str
+    mission_type: str
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +92,41 @@ HISTORY_CAP: int = 20
 def _now_iso() -> str:
     """Current UTC time in ISO 8601."""
     return _dt.datetime.now(_dt.UTC).isoformat()
+
+
+def mission_number_from_slug(mission_slug: str) -> str:
+    """Extract the numeric mission prefix from a mission slug when present."""
+    match = _MISSION_NUMBER_PATTERN.match(str(mission_slug).strip())
+    if match is None:
+        return ""
+    return match.group("number")
+
+
+def mission_identity_fields(
+    mission_slug: str,
+    mission_number: str | None = None,
+    mission_type: str | None = None,
+) -> dict[str, str]:
+    """Normalize canonical mission identity fields for machine-facing payloads."""
+    resolved_slug = str(mission_slug).strip()
+    resolved_number = str(mission_number or "").strip() or mission_number_from_slug(resolved_slug)
+    resolved_type = str(mission_type or "").strip() or "software-dev"
+    return {
+        "mission_slug": resolved_slug,
+        "mission_number": resolved_number,
+        "mission_type": resolved_type,
+    }
+
+
+def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
+    """Resolve canonical mission identity fields from a mission directory."""
+    meta = load_meta(feature_dir) or {}
+    fields = mission_identity_fields(
+        str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name),
+        str(meta.get("mission_number") or "").strip() or None,
+        str(meta.get("mission_type") or meta.get("mission") or "").strip() or None,
+    )
+    return MissionIdentity(**fields)
 
 
 # ---------------------------------------------------------------------------

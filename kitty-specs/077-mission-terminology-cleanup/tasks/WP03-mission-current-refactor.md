@@ -357,3 +357,7 @@ This WP depends on WP02. Wait for WP02 to be merged before starting.
 - `contracts/selector_resolver.md` §"Tracked-Mission Command" — the call-site pattern
 - `quickstart.md` Step 3 — line-by-line implementation guide
 - `quickstart.md` Step 13 — manual repro commands
+
+## Activity Log
+
+- 2026-04-08T15:01:30Z – unknown – Moved to done

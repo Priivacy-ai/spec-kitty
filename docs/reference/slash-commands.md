@@ -21,7 +21,7 @@ Syntax format in this reference:
 **What it does**:
 - Runs a discovery interview and confirms an intent summary.
 - Determines mission (software-dev or research).
-- Calls `spec-kitty agent mission create-feature` to create mission scaffolding.
+- Calls `spec-kitty agent mission create` to create mission scaffolding.
 
 **Creates/updates**:
 - `kitty-specs/<feature>/spec.md`

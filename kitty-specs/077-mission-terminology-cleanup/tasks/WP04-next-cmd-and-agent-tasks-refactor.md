@@ -304,3 +304,7 @@ This WP depends on WP02. Wait for WP02 to be merged. WP04 can run in parallel wi
 - WP01 audit document (`research/selector-audit.md`)
 - `contracts/selector_resolver.md` §"Tracked-Mission Command"
 - `quickstart.md` Step 4 — bulk refactor walkthrough
+
+## Activity Log
+
+- 2026-04-08T15:01:31Z – unknown – Moved to done

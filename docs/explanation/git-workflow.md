@@ -34,7 +34,7 @@ Every execution workspace passes through five stages.
 spec-kitty implement WP01
 ```
 
-Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, creates a workspace context file at `.kittify/workspaces/<feature>-<workspace>.json`, and sets the WP status to `in_progress`.
+Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, creates a workspace context file at `.kittify/workspaces/<mission>-<workspace>.json`, and sets the WP status to `in_progress`.
 
 For dependent WPs, rely on task finalization to place the work in the correct execution lane:
 
@@ -68,7 +68,7 @@ Python auto-commits the WP frontmatter change to record the lane transition. Bef
 ### 4. Merged
 
 ```bash
-spec-kitty merge --feature 042-feature
+spec-kitty merge --mission 042-feature
 ```
 
 Python merges execution branches into the target branch in dependency order. In lane mode, it first merges lane branches into the mission branch, then merges the mission branch into the target branch. For each execution worktree:
@@ -89,7 +89,7 @@ Spec Kitty auto-commits in two situations. Both are controlled by the `auto_comm
 
 ### Planning Artifact Commits
 
-Before creating a worktree, Python checks whether `kitty-specs/<feature>/` has uncommitted changes on the primary branch. If so, it commits them automatically:
+Before creating a worktree, Python checks whether `kitty-specs/<mission>/` has uncommitted changes on the primary branch. If so, it commits them automatically:
 
 ```
 chore: Planning artifacts for 042-feature

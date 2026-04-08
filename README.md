@@ -107,7 +107,7 @@ graph LR
 - **Tasks stabilization** — dependency preservation, lane-graph completeness, parallelism protection, and consistent `--mission` flag naming across all commands
 - **Merge strategy** — MERGE / SQUASH / REBASE via `--strategy` flag or `config.yaml`; linear-history protection hint on push failures
 - **Charter** — `spec-kitty charter` replaces `spec-kitty constitution` across all surfaces; auto-migrated by `spec-kitty upgrade`
-- **Mission identity** — `--mission` is now the canonical flag; `--feature` retained as a backward-compatible alias
+- **Mission identity** — `--mission` is now the canonical flag; `--feature` is retained only as a hidden deprecated alias during migration
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -143,7 +143,7 @@ Terminology note:
 - `Mission Type` = reusable blueprint
 - `Mission` = concrete tracked item
 - `Mission Run` = runtime/session instance
-- `--mission` is the canonical flag in 3.1.x; `--feature` is a retained backward-compatible alias
+- `--mission` is the canonical flag in 3.1.x; `--feature` is retained only as a hidden deprecated alias
 
 ```bash
 # Verify host contract
@@ -845,12 +845,12 @@ spec-kitty upgrade --no-worktrees
 The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
 
 **Feature Management:**
-- `spec-kitty agent mission create-feature <name>` – Create new feature with worktree
-- `spec-kitty agent mission check-prerequisites` – Validate project setup and feature context
-- `spec-kitty agent mission setup-plan` – Initialize plan template for feature
+- `spec-kitty agent mission create <name>` – Create a new mission with worktree support
+- `spec-kitty agent mission check-prerequisites` – Validate project setup and mission context
+- `spec-kitty agent mission setup-plan` – Initialize the plan template for a mission
 - `spec-kitty agent context update` – Update agent context files
 - `spec-kitty agent mission accept` – Run acceptance workflow
-- `spec-kitty agent mission merge` – Merge feature branch and cleanup
+- `spec-kitty agent mission merge` – Merge the mission branch and clean up
 
 **Task Workflow:**
 - `spec-kitty agent action implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
@@ -868,8 +868,8 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 
 **Example Usage:**
 ```bash
-# Create feature (agent-friendly)
-spec-kitty agent mission create-feature "Payment Flow" --json
+# Create mission (agent-friendly)
+spec-kitty agent mission create "Payment Flow" --json
 
 # Display WP prompt and auto-move to in_progress ("Doing")
 spec-kitty agent action implement WP01 --agent __AGENT__
@@ -880,7 +880,7 @@ spec-kitty agent action implement WP01 --agent __AGENT__
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
 
-# Accept mission (legacy `--feature` flag name)
+# Accept mission
 spec-kitty agent mission accept --json
 ```
 
@@ -907,7 +907,7 @@ spec-kitty dashboard --kill
 
 | Option | Description |
 |--------|-------------|
-| `--feature <slug>` | Mission slug to accept. Legacy flag name retained as a software-dev compatibility alias. |
+| `--mission <slug>` | Mission slug to accept |
 | `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor <name>` | Name to record as the acceptance actor |
 | `--test <command>` | Validation command to execute (repeatable) |
@@ -922,7 +922,7 @@ spec-kitty dashboard --kill
 spec-kitty accept
 
 # Validate specific mission
-spec-kitty accept --feature 001-auth-system
+spec-kitty accept --mission 001-auth-system
 
 # Get checklist only (no commit)
 spec-kitty accept --mode checklist

@@ -193,3 +193,4 @@ This WP has no dependencies. Start it as soon as the tasks.md is committed.
 ## Activity Log
 
 - 2026-04-08T13:13:58Z – unknown – Starting WP01 audit (planning artifact, runs in main checkout)
+- 2026-04-08T15:01:20Z – unknown – Done override: Mission completed in main checkout

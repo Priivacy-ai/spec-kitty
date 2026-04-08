@@ -355,3 +355,7 @@ This WP depends on WP01. After WP01 is merged, WP08 can run in parallel with WP0
 - Spec §15 Q1 — named conditions, not date
 - `contracts/deprecation_warning.md` §"Migration Documentation"
 - WP02 T006 — `_MIGRATION_DOCS` dict (path constants)
+
+## Activity Log
+
+- 2026-04-08T15:01:34Z – unknown – Done override: Mission completed in main checkout

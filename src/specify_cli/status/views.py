@@ -15,6 +15,8 @@ import os
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import resolve_mission_identity
+
 from .models import Lane, StatusSnapshot
 from .reducer import materialize, reduce
 from .store import EVENTS_FILENAME, read_events
@@ -37,6 +39,9 @@ def generate_status_view(feature_dir: Path) -> dict[str, Any]:
     """
     events = read_events(feature_dir)
     snapshot = reduce(events)
+    identity = resolve_mission_identity(feature_dir)
+    snapshot.mission_number = identity.mission_number
+    snapshot.mission_type = identity.mission_type
     return snapshot.to_dict()
 
 
@@ -103,6 +108,8 @@ def _build_board_summary(snapshot: Any) -> dict[str, Any]:
 
     return {
         "mission_slug": snapshot.mission_slug,
+        "mission_number": snapshot.mission_number,
+        "mission_type": snapshot.mission_type,
         "total_wps": len(snapshot.work_packages),
         "summary": snapshot.summary,
         "lanes": lanes,
@@ -151,7 +158,11 @@ def materialize_if_stale(feature_dir: Path, repo_root: Path) -> StatusSnapshot:
         generate_progress_json(feature_dir, derived_dir)
 
     # Return snapshot without writing (T002 covers any write needed by derived views)
-    return reduce(read_events(feature_dir))
+    snapshot = reduce(read_events(feature_dir))
+    identity = resolve_mission_identity(feature_dir)
+    snapshot.mission_number = identity.mission_number
+    snapshot.mission_type = identity.mission_type
+    return snapshot
 
 
 def _atomic_write_json(path: Path, data: dict[str, Any]) -> None:

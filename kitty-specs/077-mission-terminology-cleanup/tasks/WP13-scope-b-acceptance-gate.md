@@ -212,3 +212,7 @@ This WP depends on WP12. Do not start until WP12 is merged on `main`.
 - Spec §13.2 — Scope B work package outline
 - WP11 inventory + WP12 implementation
 - `upstream_contract.json` — canonical contract
+
+## Activity Log
+
+- 2026-04-08T15:01:38Z – unknown – Done override: Mission completed in main checkout

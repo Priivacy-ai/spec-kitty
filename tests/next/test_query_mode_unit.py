@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
@@ -20,10 +21,11 @@ def _make_mock_decision(is_query: bool = False, mission_state: str = "specify"):
         kind=DecisionKind.query if is_query else DecisionKind.step,
         agent="claude",
         mission_slug="069-test",
-        mission="069-test",
+        mission="software-dev",
         mission_state=mission_state,
         timestamp="2026-04-07T00:00:00+00:00",
         is_query=is_query,
+        mission_type="software-dev",
     )
 
 
@@ -34,8 +36,8 @@ class TestQueryModeDoesNotAdvance:
 
         with patch("specify_cli.cli.commands.next_cmd.locate_project_root",
                    return_value=tmp_path), \
-             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature",
-                   return_value="069-test"), \
+             patch("specify_cli.cli.commands.next_cmd.resolve_selector",
+                   return_value=SimpleNamespace(canonical_value="069-test")), \
              patch("specify_cli.next.runtime_bridge.query_current_state",
                    return_value=mock_decision) as mock_query, \
              patch("specify_cli.cli.commands.next_cmd.decide_next") as mock_decide:
@@ -56,8 +58,8 @@ class TestQueryModeOutput:
 
         with patch("specify_cli.cli.commands.next_cmd.locate_project_root",
                    return_value=tmp_path), \
-             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature",
-                   return_value="069-test"), \
+             patch("specify_cli.cli.commands.next_cmd.resolve_selector",
+                   return_value=SimpleNamespace(canonical_value="069-test")), \
              patch("specify_cli.next.runtime_bridge.query_current_state",
                    return_value=mock_decision):
 
@@ -68,6 +70,8 @@ class TestQueryModeOutput:
 
         lines = result.output.strip().split("\n")
         assert lines[0] == "[QUERY \u2014 no result provided, state not advanced]"
+        assert lines[1] == "  Mission: 069-test @ specify"
+        assert lines[2] == "  Mission Type: software-dev"
 
     def test_json_output_includes_is_query_true(self, tmp_path: Path) -> None:
         """JSON output includes is_query: true."""
@@ -75,8 +79,8 @@ class TestQueryModeOutput:
 
         with patch("specify_cli.cli.commands.next_cmd.locate_project_root",
                    return_value=tmp_path), \
-             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature",
-                   return_value="069-test"), \
+             patch("specify_cli.cli.commands.next_cmd.resolve_selector",
+                   return_value=SimpleNamespace(canonical_value="069-test")), \
              patch("specify_cli.next.runtime_bridge.query_current_state",
                    return_value=mock_decision):
 
@@ -94,8 +98,8 @@ class TestQueryModeOutput:
 
         with patch("specify_cli.cli.commands.next_cmd.locate_project_root",
                    return_value=tmp_path), \
-             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature",
-                   return_value="069-test"), \
+             patch("specify_cli.cli.commands.next_cmd.resolve_selector",
+                   return_value=SimpleNamespace(canonical_value="069-test")), \
              patch("specify_cli.next.runtime_bridge.query_current_state",
                    return_value=mock_decision):
 
@@ -183,8 +187,8 @@ class TestResultSuccessStillAdvances:
 
         with patch("specify_cli.cli.commands.next_cmd.locate_project_root",
                    return_value=tmp_path), \
-             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature",
-                   return_value="069-test"), \
+             patch("specify_cli.cli.commands.next_cmd.resolve_selector",
+                   return_value=SimpleNamespace(canonical_value="069-test")), \
              patch("specify_cli.cli.commands.next_cmd.decide_next",
                    return_value=mock_decision) as mock_decide, \
              patch("specify_cli.next.runtime_bridge.query_current_state") as mock_query, \

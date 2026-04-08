@@ -18,6 +18,7 @@ from rich.console import Console
 from typing import Annotated
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
@@ -52,6 +53,7 @@ from specify_cli.core.wps_manifest import (
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
+from specify_cli.merge.config import MergeStrategy
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)
 
@@ -485,7 +487,14 @@ def branch_context(
 @app.command(name="create")
 def create_mission(
     mission_slug: Annotated[str, typer.Argument(help="Mission slug (e.g., 'user-auth')")],
-    mission: Annotated[str | None, typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
+    mission_type: Annotated[
+        str | None,
+        typer.Option("--mission-type", help="Mission type (e.g., 'documentation', 'software-dev')"),
+    ] = None,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", hidden=True, help="(deprecated) Use --mission-type"),
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
@@ -503,12 +512,31 @@ def create_mission(
     )
 
     repo_root = locate_project_root()
+    resolved_mission_type = mission_type
+
+    if mission_type is not None or mission is not None:
+        try:
+            resolved = resolve_selector(
+                canonical_value=mission_type,
+                canonical_flag="--mission-type",
+                alias_value=mission,
+                alias_flag="--mission",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+                command_hint="--mission-type <name>",
+            )
+            resolved_mission_type = resolved.canonical_value
+        except typer.BadParameter as exc:
+            if json_output:
+                _emit_json({"error": str(exc)})
+            else:
+                console.print(f"[bold red]Error:[/bold red] {exc}")
+            raise typer.Exit(1) from exc
 
     try:
         result = create_mission_core(
             repo_root=repo_root,
             mission_slug=mission_slug,
-            mission=mission,
+            mission=resolved_mission_type,
             target_branch=target_branch,
         )
     except MissionCreationError as exc:
@@ -542,7 +570,7 @@ def create_mission(
     # -- Output formatting (stays in the CLI layer) --
     if not json_output:
         console.print(f"[bold cyan]Branch:[/bold cyan] {result.target_branch} (target for this mission)")
-        if mission == "documentation":
+        if resolved_mission_type == "documentation":
             console.print("[cyan]\u2192 Documentation state initialized in meta.json[/cyan]")
 
     if json_output:
@@ -1019,19 +1047,20 @@ def accept_feature(
 
     Examples:
         # Run acceptance workflow
-        spec-kitty agent mission accept
+        spec-kitty agent mission accept --mission 077-my-mission
 
         # With JSON output for agents
-        spec-kitty agent mission accept --json
+        spec-kitty agent mission accept --mission 077-my-mission --json
 
         # Lenient mode (skip strict validation)
-        spec-kitty agent mission accept --lenient --json
+        spec-kitty agent mission accept --mission 077-my-mission --lenient --json
     """
     # Delegate to top-level accept command
     try:
         # Call top-level accept with mapped parameters
         top_level_accept(
             mission=feature,
+            feature=None,
             mode=mode,
             actor=None,  # Agent commands don't use --actor
             test=[],  # Agent commands don't use --test
@@ -1080,16 +1109,16 @@ def merge_feature(
 
     Examples:
         # Merge into main branch
-        spec-kitty agent mission merge
+        spec-kitty agent mission merge --mission 077-my-mission
 
         # Merge into specific branch with push
-        spec-kitty agent mission merge --target develop --push
+        spec-kitty agent mission merge --mission 077-my-mission --target develop --push
 
         # Dry-run mode
-        spec-kitty agent mission merge --dry-run
+        spec-kitty agent mission merge --mission 077-my-mission --dry-run
 
         # Keep worktree and branch after merge
-        spec-kitty agent mission merge --keep-worktree --keep-branch
+        spec-kitty agent mission merge --mission 077-my-mission --keep-worktree --keep-branch
     """
     try:
         repo_root = locate_project_root()
@@ -1153,15 +1182,19 @@ def merge_feature(
         #       So we need to invert the logic
         try:
             top_level_merge(
-                strategy=strategy,
+                strategy=MergeStrategy(strategy),
                 delete_branch=not keep_branch,  # Invert: keep -> delete
                 remove_worktree=not keep_worktree,  # Invert: keep -> remove
                 push=push,
                 target_branch=target,  # Note: parameter name differs
                 dry_run=dry_run,
+                json_output=False,
                 mission=(feature or ""),
+                feature=None,
                 resume=False,  # Agent commands don't support resume
                 abort=False,  # Agent commands don't support abort
+                context_token=None,
+                keep_workspace=False,
             )
         except typer.Exit:
             # Propagate typer.Exit cleanly
@@ -1170,6 +1203,8 @@ def merge_feature(
             print(json.dumps({"error": str(e), "success": False}))
             raise typer.Exit(1) from None
 
+    except typer.Exit:
+        raise
     except Exception as e:
         print(json.dumps({"error": str(e), "success": False}))
         raise typer.Exit(1) from None

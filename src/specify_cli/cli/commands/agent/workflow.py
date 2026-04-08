@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 import typer
 from typing_extensions import Annotated
 
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.paths import require_explicit_feature
 from specify_cli.git import safe_commit
 from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition, TransitionError
@@ -233,21 +233,33 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     return main_repo_root, resolution.current
 
 
-def _find_mission_slug(explicit_feature: str | None = None) -> str:
-    """Require an explicit feature slug (no auto-detection).
+def _find_mission_slug(
+    explicit_mission: str | None = None,
+    explicit_feature: str | None = None,
+) -> str:
+    """Require an explicit mission slug (no auto-detection).
 
     Args:
-        explicit_feature: Mission slug provided explicitly.
+        explicit_mission: Mission slug provided explicitly.
+        explicit_feature: Mission slug provided via hidden --feature alias.
 
     Returns:
         Mission slug (e.g., "008-unified-python-cli")
 
     Raises:
-        typer.Exit: If feature slug is not provided.
+        typer.Exit: If mission slug is not provided or selectors conflict.
     """
     try:
-        return require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
-    except ValueError as e:
+        resolved = resolve_selector(
+            canonical_value=explicit_mission,
+            canonical_flag="--mission",
+            alias_value=explicit_feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        )
+        return resolved.canonical_value
+    except typer.BadParameter as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
 
@@ -345,7 +357,8 @@ def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
 @app.command(name="implement")
 def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
@@ -368,7 +381,7 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
@@ -413,7 +426,7 @@ def implement(
             try:
                 top_level_implement(
                     wp_id=normalized_wp_id,
-                    feature=mission_slug,
+                    mission=mission_slug,
                     json_output=False
                 )
             except typer.Exit:
@@ -1049,7 +1062,8 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 @app.command(name="review")
 def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
-    feature: Annotated[Optional[str], typer.Option("--mission", "--mission-run", help="Mission run slug")] = None,
+    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
@@ -1071,7 +1085,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)

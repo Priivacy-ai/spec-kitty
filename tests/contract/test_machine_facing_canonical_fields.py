@@ -1,0 +1,324 @@
+"""Contract tests for canonical mission identity fields in machine-facing payloads."""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+from typer.testing import CliRunner
+
+from specify_cli.acceptance_matrix import AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.context.models import MissionContext
+from specify_cli.next.decision import Decision, DecisionKind
+from specify_cli.orchestrator_api.commands import app as orchestrator_app
+from specify_cli.policy.config import MergeGateConfig
+from specify_cli.policy.merge_gates import evaluate_merge_gates
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.progress import generate_progress_json
+from specify_cli.status.reducer import materialize
+from specify_cli.status.store import append_event
+from specify_cli.status.views import write_derived_views
+
+
+runner = CliRunner()
+
+
+def _make_mission(
+    tmp_path: Path,
+    mission_slug: str = "064-complete-mission-identity-cutover",
+) -> tuple[Path, Path]:
+    """Create a minimal mission directory with meta.json and two task files."""
+    repo_root = tmp_path / "repo"
+    mission_dir = repo_root / "kitty-specs" / mission_slug
+    tasks_dir = mission_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+
+    for wp_id in ("WP01", "WP02"):
+        (tasks_dir / f"{wp_id}.md").write_text(
+            (
+                f"---\nwork_package_id: {wp_id}\n"
+                f"title: Test {wp_id}\nlane: planned\ndependencies: []\n---\n\n# {wp_id}\n"
+            ),
+            encoding="utf-8",
+        )
+
+    meta = {
+        "mission_number": mission_slug.split("-")[0],
+        "slug": mission_slug,
+        "mission_slug": mission_slug,
+        "friendly_name": "Canonical Mission Identity Cutover",
+        "mission_type": "software-dev",
+        "target_branch": "main",
+        "created_at": "2026-04-08T00:00:00+00:00",
+    }
+    (mission_dir / "meta.json").write_text(
+        json.dumps(meta, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+    return repo_root, mission_dir
+
+
+def _append_lane_event(
+    mission_dir: Path,
+    *,
+    wp_id: str = "WP01",
+    to_lane: str = "done",
+    event_id: str = "01TESTAAAAAAAAAAAAAAAAAAA1",
+) -> None:
+    mission_slug = mission_dir.name
+    append_event(
+        mission_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            from_lane=Lane.PLANNED,
+            to_lane=Lane(to_lane),
+            at="2026-04-08T12:00:00+00:00",
+            actor="test-agent",
+            force=False,
+            execution_mode="worktree",
+        ),
+    )
+
+
+def _valid_policy_json() -> str:
+    return json.dumps(
+        {
+            "orchestrator_id": "test-orch",
+            "orchestrator_version": "0.1.0",
+            "agent_family": "claude",
+            "approval_mode": "supervised",
+            "sandbox_mode": "sandbox",
+            "network_mode": "restricted",
+            "dangerous_flags": [],
+        }
+    )
+
+
+def _invoke_orchestrator(args: list[str], repo_root: Path) -> dict[str, object]:
+    with patch(
+        "specify_cli.orchestrator_api.commands._get_main_repo_root",
+        return_value=repo_root,
+    ):
+        result = runner.invoke(orchestrator_app, args, catch_exceptions=False)
+    assert result.exit_code in (0, 1), result.output
+    return json.loads(result.output)
+
+
+def test_status_snapshot_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    _repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir)
+
+    payload = materialize(mission_dir).to_dict()
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_board_summary_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    _repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir, to_lane="claimed")
+    derived_dir = tmp_path / ".kittify" / "derived"
+
+    write_derived_views(mission_dir, derived_dir)
+    payload = json.loads((derived_dir / mission_dir.name / "board-summary.json").read_text(encoding="utf-8"))
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_progress_json_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    _repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir)
+    derived_dir = tmp_path / ".kittify" / "derived"
+
+    generate_progress_json(mission_dir, derived_dir)
+    payload = json.loads((derived_dir / mission_dir.name / "progress.json").read_text(encoding="utf-8"))
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_context_payload_emits_canonical_mission_fields() -> None:
+    payload = MissionContext(
+        token="ctx-01TEST000000000000000000AA",
+        project_uuid="8a4a7da6-a97c-4bb4-893a-b31664abfee4",
+        mission_id="064-complete-mission-identity-cutover",
+        work_package_id="WP01",
+        wp_code="WP01",
+        mission_slug="064-complete-mission-identity-cutover",
+        mission_number="064",
+        mission_type="software-dev",
+        target_branch="main",
+        authoritative_repo="/tmp/repo",
+        authoritative_ref="kitty/mission-064-complete-mission-identity-cutover-lane-a",
+        owned_files=("src/specify_cli/**",),
+        execution_mode="code_change",
+        dependency_mode="independent",
+        created_at="2026-04-08T12:00:00+00:00",
+        created_by="codex",
+    ).to_dict()
+
+    assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_acceptance_matrix_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    _repo_root, mission_dir = _make_mission(tmp_path)
+    matrix = AcceptanceMatrix(mission_slug=mission_dir.name)
+
+    write_acceptance_matrix(mission_dir, matrix)
+    payload = json.loads((mission_dir / "acceptance-matrix.json").read_text(encoding="utf-8"))
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_merge_gate_evaluation_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir, to_lane="approved")
+
+    payload = evaluate_merge_gates(
+        mission_dir,
+        mission_dir.name,
+        ["WP01"],
+        MergeGateConfig(mode="warn"),
+        repo_root,
+    ).to_dict()
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_next_decision_payload_emits_canonical_mission_fields() -> None:
+    payload = Decision(
+        kind=DecisionKind.step,
+        agent="codex",
+        mission_slug="064-complete-mission-identity-cutover",
+        mission="software-dev",
+        mission_state="implement",
+        timestamp="2026-04-08T12:00:00+00:00",
+    ).to_dict()
+
+    assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_orchestrator_query_payloads_emit_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir, to_lane="done")
+
+    for args in (
+        ["mission-state", "--mission", mission_dir.name],
+        ["list-ready", "--mission", mission_dir.name],
+    ):
+        envelope = _invoke_orchestrator(args, repo_root)
+        payload = envelope["data"]
+        assert payload["mission_slug"] == mission_dir.name
+        assert payload["mission_number"] == "064"
+        assert payload["mission_type"] == "software-dev"
+
+
+def test_orchestrator_transition_payloads_emit_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+
+    envelope = _invoke_orchestrator(
+        [
+            "start-implementation",
+            "--mission",
+            mission_dir.name,
+            "--wp",
+            "WP01",
+            "--actor",
+            "claude",
+            "--policy",
+            _valid_policy_json(),
+        ],
+        repo_root,
+    )
+    payload = envelope["data"]
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+
+    incomplete = _invoke_orchestrator(
+        ["accept-mission", "--mission", mission_dir.name, "--actor", "claude"],
+        repo_root,
+    )
+    incomplete_payload = incomplete["data"]
+    assert incomplete["error_code"] == "MISSION_NOT_READY"
+    assert incomplete_payload["mission_slug"] == mission_dir.name
+    assert incomplete_payload["mission_number"] == "064"
+    assert incomplete_payload["mission_type"] == "software-dev"
+
+    mock_preflight = MagicMock(target_branch="main", errors=["lanes.json is missing for this mission"])
+    with patch(
+        "specify_cli.orchestrator_api.commands._build_merge_preflight",
+        return_value=mock_preflight,
+    ):
+        preflight = _invoke_orchestrator(
+            ["merge-mission", "--mission", mission_dir.name, "--target", "main"],
+            repo_root,
+        )
+    preflight_payload = preflight["data"]
+    assert preflight["error_code"] == "PREFLIGHT_FAILED"
+    assert preflight_payload["mission_slug"] == mission_dir.name
+    assert preflight_payload["mission_number"] == "064"
+    assert preflight_payload["mission_type"] == "software-dev"
+
+
+def test_no_mission_run_slug_in_first_party_payloads() -> None:
+    """No first-party machine-facing payload may introduce mission_run_slug."""
+    repo_root = Path(__file__).resolve().parents[2]
+    offending = [
+        str(path.relative_to(repo_root))
+        for path in repo_root.glob("src/specify_cli/**/*.py")
+        if "mission_run_slug" in path.read_text(encoding="utf-8")
+    ]
+    assert not offending, (
+        "mission_run_slug introduced in: "
+        f"{offending}. Forbidden by C-009/FR-019."
+    )
+
+
+def test_mission_created_and_closed_event_names_unchanged() -> None:
+    """The canonical catalog event names must not be renamed."""
+    repo_root = Path(__file__).resolve().parents[2]
+    offending = [
+        str(path.relative_to(repo_root))
+        for path in repo_root.glob("src/specify_cli/**/*.py")
+        if "MissionRunCreated" in path.read_text(encoding="utf-8")
+        or "MissionRunClosed" in path.read_text(encoding="utf-8")
+    ]
+    assert not offending, (
+        "MissionRun* catalog event rename detected in: "
+        f"{offending}. Forbidden by FR-017/§3.3."
+    )
+
+
+def test_aggregate_type_mission_unchanged() -> None:
+    """aggregate_type must remain 'Mission'; no rename to 'MissionRun'."""
+    repo_root = Path(__file__).resolve().parents[2]
+    offending = [
+        str(path.relative_to(repo_root))
+        for path in repo_root.glob("src/specify_cli/**/*.py")
+        if 'aggregate_type="MissionRun"' in path.read_text(encoding="utf-8")
+        or "aggregate_type='MissionRun'" in path.read_text(encoding="utf-8")
+    ]
+    assert not offending, (
+        "aggregate_type renamed to MissionRun in: "
+        f"{offending}. Forbidden by §3.3."
+    )

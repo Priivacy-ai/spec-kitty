@@ -204,3 +204,7 @@ This WP depends on WP10. **Do not start until WP10 is merged on `main`.** Per sp
 - Spec §13.2 — Scope B work package outline
 - `src/specify_cli/core/upstream_contract.json` — authoritative contract
 - WP10 — Scope A acceptance gate (must be green)
+
+## Activity Log
+
+- 2026-04-08T15:01:36Z – unknown – Done override: Mission completed in main checkout

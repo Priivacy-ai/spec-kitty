@@ -154,3 +154,7 @@ This WP depends on WP01. After WP01 is merged, WP06 can run in parallel with WP0
 - Spec FR-009, FR-022
 - Spec §8.1 — `spec-kitty-runtime-next/SKILL.md` cited as drift site
 - WP01 audit (informs the T026 search)
+
+## Activity Log
+
+- 2026-04-08T15:01:33Z – unknown – Done override: Mission completed in main checkout

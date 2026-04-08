@@ -237,3 +237,7 @@ This WP depends on WP11. Do not start until WP11 is merged on `main`.
 - Spec §10.2 — Scope B acceptance criteria
 - WP11 inventory document
 - `src/specify_cli/core/upstream_contract.json`
+
+## Activity Log
+
+- 2026-04-08T15:01:37Z – unknown – Done override: Mission completed in main checkout

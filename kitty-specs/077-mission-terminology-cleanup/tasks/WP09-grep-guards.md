@@ -354,3 +354,7 @@ This WP depends on WP02 (the helper must exist before guard 3 can verify against
 - Spec FR-022, C-010, C-011, NFR-005
 - Charter §Terminology Canon hyper-vigilance rules
 - `src/specify_cli/orchestrator_api/envelope.py:66-74` — canonical envelope keys
+
+## Activity Log
+
+- 2026-04-08T15:01:35Z – unknown – Moved to done

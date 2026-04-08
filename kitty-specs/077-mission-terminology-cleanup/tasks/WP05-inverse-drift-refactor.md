@@ -428,3 +428,7 @@ This WP depends on WP02. Wait for WP02 to be merged. WP05 can run in parallel wi
 - WP01 audit document
 - `contracts/selector_resolver.md` §"Inverse-Drift Command"
 - `quickstart.md` Step 5
+
+## Activity Log
+
+- 2026-04-08T15:01:32Z – unknown – Moved to done

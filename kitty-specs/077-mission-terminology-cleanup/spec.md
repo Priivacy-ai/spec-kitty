@@ -168,8 +168,8 @@ If any contributor or reviewer requests a change in any of the above directions,
 | FR-001 | Every tracked-mission command surface in the main CLI accepts `--mission <slug>` as the canonical selector. | Required |
 | FR-002 | No tracked-mission command surface in the main CLI lists `--mission-run` as an alias for tracked-mission selection. | Required |
 | FR-003 | `--mission-run` is reserved exclusively for runtime/session selectors and is documented as such in every help string where it appears. | Required |
-| FR-004 | `--mission-type` is the canonical selector wherever the argument is the reusable blueprint or template, and no surface uses bare `--mission` to mean blueprint selection. The verified inverse-drift sites in §8.1 are converted to `--mission-type` (with `--mission` accepted as a deprecated alias on those sites during the migration window, mirroring the §11 policy applied in the inverse direction). | Required |
-| FR-005 | `--feature` is accepted only as a deprecated compatibility alias on tracked-mission commands during the migration window, and emits exactly one explicit deprecation warning per invocation. | Required |
+| FR-004 | `--mission-type` is the canonical selector wherever the argument is the reusable blueprint or template, and no surface uses bare `--mission` to mean blueprint selection. The verified inverse-drift sites in §8.1 are converted to `--mission-type` (with `--mission` accepted only as a hidden deprecated alias on those sites during the migration window, mirroring the §11 policy applied in the inverse direction). | Required |
+| FR-005 | `--feature` is accepted only as a hidden deprecated compatibility alias on tracked-mission commands during the migration window, and emits exactly one explicit deprecation warning per invocation. | Required |
 | FR-006 | Passing `--mission X` and `--feature Y` with different values to the same tracked-mission command fails deterministically with a non-zero exit and a conflict error that names both flags and both values. | Required |
 | FR-007 | Passing `--mission X` and `--feature X` with the same value succeeds, but still emits the deprecation warning for `--feature`. | Required |
 | FR-008 | All tracked-mission help strings that previously read "Mission run slug" now read "Mission slug" (or an equivalent canonical phrasing) and reference `--mission` first. | Required |
@@ -335,11 +335,11 @@ The migration policy is **deliberately asymmetric** between the human-facing mai
 
 **Main CLI (`src/specify_cli/cli/commands/**`)**:
 
-- `--feature` is accepted as a compatibility alias on every tracked-mission command surface.
+- `--feature` is accepted as a hidden compatibility alias on every tracked-mission command surface (that is: declared with `typer.Option(..., hidden=True)` and not advertised in `--help`, examples, tutorials, or docs).
 - Every invocation that uses `--feature` emits exactly one deprecation warning to stderr. The warning names `--mission` as the canonical replacement and links to the migration policy doc.
 - Passing `--mission` and `--feature` with different values is a deterministic error (FR-006). Passing them with the same value succeeds with the warning still emitted (FR-007).
 - The deprecation warning is suppressible via an opt-in environment variable (`SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION=1`) for legacy CI consumers that cannot tolerate stderr noise during the cutover. The default behavior is to emit the warning.
-- The same single-warning, deterministic-conflict, opt-in-suppression policy applies in the inverse direction (FR-021) for the inverse-drift sites in §8.1.2: `--mission` is accepted as a deprecated alias for `--mission-type`, with the warning suppressible by `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION=1`.
+- The same single-warning, deterministic-conflict, opt-in-suppression policy applies in the inverse direction (FR-021) for the inverse-drift sites in §8.1.2: `--mission` is accepted only as a hidden deprecated alias for `--mission-type`, with the warning suppressible by `SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION=1`.
 
 **Orchestrator-api (`src/specify_cli/orchestrator_api/**`)**:
 
