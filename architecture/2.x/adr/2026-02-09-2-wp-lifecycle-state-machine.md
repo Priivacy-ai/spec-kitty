@@ -10,10 +10,14 @@
 
 ---
 
-> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`.
-> This ADR encoded `for_review -> done` as reviewer approval. The current
-> lifecycle model separates reviewer approval (`approved`) from integrated
-> completion (`done`).
+> Superseded by `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md`,
+> which is itself partially superseded by `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`.
+> `2026-04-06-1` is the current authority for the full 9-lane state machine.
+>
+> This ADR encoded a 7-lane model with `for_review -> done` as reviewer approval.
+> The current lifecycle separates reviewer approval (`approved`) from integrated
+> completion (`done`), promotes `in_review` to a first-class 9th lane, and
+> encapsulates all lane behavior in the `WPState` ABC.
 
 ## Context and Problem Statement
 

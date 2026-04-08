@@ -3,10 +3,12 @@
 | Field | Value |
 |---|---|
 | Filename | `2026-04-03-2-review-approval-and-integration-completion-are-distinct.md` |
-| Status | Accepted |
+| Status | Partially superseded |
 | Date | 2026-04-03 |
 | Deciders | Spec Kitty Architecture Team |
 | Technical Story | Reliability remediation after Feature 028 — align lifecycle semantics with integrated shipping reality |
+
+> **Partial supersession (2026-04-06):** The core decision of this ADR — adding an explicit `approved` lane and separating reviewer approval from integration-complete — remains in force. However, the `in_review` lane promotion section is superseded by `2026-04-06-1-wp-state-pattern-for-lane-behavior.md`, which promotes `in_review` from an alias for `for_review` to a first-class 9th lane with its own concrete `WPState` class and conflict-detection guard. The transition model in the *Decision Outcome* section below reflects the pre-`in_review`-promotion design; see `2026-04-06-1` for the current canonical transition set.
 
 ---
 
@@ -178,6 +180,9 @@ Use a distinct lane for reviewer approval before final integrated completion.
 **Supersedes:**
 - `2026-02-09-2-wp-lifecycle-state-machine.md`
 - `2026-02-09-4-cross-repo-evidence-completion.md`
+
+**Partially superseded by:**
+- `2026-04-06-1-wp-state-pattern-for-lane-behavior.md` — supersedes the `in_review`-as-alias approach; `in_review` is now a first-class lane
 
 **Interprets alongside:**
 - `2026-02-09-3-event-log-merge-semantics.md` — rollback-aware merge semantics
