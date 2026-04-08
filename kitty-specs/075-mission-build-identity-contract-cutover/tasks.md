@@ -31,13 +31,13 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 | T006 | Write failing test: `validate_event_schema` rejects missing `mission_slug` without legacy mention | WP01 | | [D] |
 | T007 | Remove `feature_slug` branch from `status/validate.py` | WP01 | | [D] |
 | T008 | Remove `with_tracked_mission_slug_aliases` import + usage from `status/models.py` | WP01 | | [D] |
-| T009 | Write failing test: `WPMetadata.model_dump()` has no `feature_slug` key | WP02 | |
-| T010 | Remove `feature_slug` field from `status/wp_metadata.py` | WP02 | |
-| T011 | Write failing test: `identity_aliases` no longer backfills `mission_slug` | WP02 | |
-| T012 | Remove `identity_aliases` import from `status/progress.py`; delete `core/identity_aliases.py` | WP02 | |
-| T013 | Write failing test: `core/worktree.py` reads `mission_slug` not `feature_slug` | WP02 | |
-| T014 | Update `core/worktree.py:123` — `.feature_slug or ""` → `.mission_slug or ""` | WP02 | |
-| T015 | Full test + mypy --strict pass for all WP01+WP02 changes | WP02 | |
+| T009 | Write failing test: `WPMetadata.model_dump()` has no `feature_slug` key | WP02 | | [D] |
+| T010 | Remove `feature_slug` field from `status/wp_metadata.py` | WP02 | | [D] |
+| T011 | Write failing test: `identity_aliases` no longer backfills `mission_slug` | WP02 | | [D] |
+| T012 | Remove `identity_aliases` import from `status/progress.py`; delete `core/identity_aliases.py` | WP02 | | [D] |
+| T013 | Write failing test: `core/worktree.py` reads `mission_slug` not `feature_slug` | WP02 | | [D] |
+| T014 | Update `core/worktree.py:123` — `.feature_slug or ""` → `.mission_slug or ""` | WP02 | | [D] |
+| T015 | Full test + mypy --strict pass for all WP01+WP02 changes | WP02 | | [D] |
 | T016 | Add `_build_id_path() -> Path` to `sync/project_identity.py` | WP03 | [P] |
 | T017 | Add `load_build_id(git_dir: Path) -> str` | WP03 | [P] |
 | T018 | Add `_migrate_build_id_from_config(config_path, git_dir)` | WP03 | [P] |
