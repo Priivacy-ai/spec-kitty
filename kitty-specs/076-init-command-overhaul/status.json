@@ -1,16 +1,16 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KNNTSGMJT2K23H3G90217ARV",
-  "materialized_at": "2026-04-08T05:59:37.362789+00:00",
+  "event_count": 27,
+  "last_event_id": "01KNNTT42VMF9KQA7081NGTW1W",
+  "materialized_at": "2026-04-08T05:59:57.275577+00:00",
   "mission_slug": "076-init-command-overhaul",
   "summary": {
-    "approved": 4,
+    "approved": 5,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 1,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 1
   },
@@ -58,11 +58,11 @@
       "last_transition_at": "2026-04-08T05:54:09.636358+00:00"
     },
     "WP07": {
-      "actor": "opencode:opencode:reviewer:reviewer",
-      "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNNTMW4W3BSE4VXP74NJKJ35",
-      "last_transition_at": "2026-04-08T05:57:05.308924+00:00"
+      "actor": "user",
+      "force_count": 4,
+      "lane": "approved",
+      "last_event_id": "01KNNTT42VMF9KQA7081NGTW1W",
+      "last_transition_at": "2026-04-08T05:59:57.275577+00:00"
     }
   }
 }
