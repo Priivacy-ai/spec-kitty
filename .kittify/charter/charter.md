@@ -71,7 +71,7 @@ This charter captures the technical standards, architectural principles, and dev
    ```toml
    spec-kitty-events = { git = "https://github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234" }
    ```
-5. Run `poetry lock --no-update && poetry install`
+5. Run `uv sync` (the project uses PEP 621 + Hatch via `pyproject.toml`; `uv` is the canonical dependency manager — see `CONTRIBUTING.md`)
 6. Test integration, commit spec-kitty changes
 
 **Local rapid iteration (use sparingly):**
