@@ -258,3 +258,7 @@ This test requires no production changes — it documents and locks the existing
 - Confirm `SaaSTrackerClient.bind_mission_origin()` signature includes `build_id: str` (keyword-only after `*`)
 - Confirm T028 test asserts all three provenance fields (`_schema_version`, `_source_events_commit`, `_source_saas_commit`)
 - Run `pytest tests/specify_cli/tracker/test_origin_bind.py tests/specify_cli/core/test_contract_gate.py -v` — all green
+
+## Activity Log
+
+- 2026-04-08T06:07:42Z – unknown – shell_pid=16647 – build_id added to tracker bind; provenance test added; scoped tests pass
