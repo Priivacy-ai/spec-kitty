@@ -50,6 +50,10 @@ from specify_cli.next.decision import (
 logger = logging.getLogger(__name__)
 
 
+class QueryModeValidationError(ValueError):
+    """Raised when query mode cannot produce a truthful read-only preview."""
+
+
 # ---------------------------------------------------------------------------
 # Feature → Run index
 # ---------------------------------------------------------------------------
@@ -189,17 +193,12 @@ def _check_cli_guards(step_id: str, feature_dir: Path) -> list[str]:
             else:
                 for wp_file in wp_files:
                     if not _has_raw_dependencies_field(wp_file):
-                        failures.append(
-                            f"WP {wp_file.stem} missing 'dependencies' in frontmatter "
-                            f"(run 'spec-kitty agent mission finalize-tasks')"
-                        )
+                        failures.append(f"WP {wp_file.stem} missing 'dependencies' in frontmatter (run 'spec-kitty agent mission finalize-tasks')")
                         break  # One failure message is enough
 
     elif step_id == "implement":
         if not _should_advance_wp_step("implement", feature_dir):
-            failures.append(
-                "Not all work packages have required status (for_review, approved, or done)"
-            )
+            failures.append("Not all work packages have required status (for_review, approved, or done)")
 
     elif step_id == "review":
         if not _should_advance_wp_step("review", feature_dir):
@@ -271,14 +270,16 @@ def _candidate_templates_for_root(root: Path, mission_type: str) -> list[Path]:
         if root.name in {"mission-runtime.yaml", "mission.yaml"}:
             candidates.append(root)
     elif root.exists() and root.is_dir():
-        candidates.extend([
-            root / mission_type / "mission-runtime.yaml",
-            root / mission_type / "mission.yaml",
-            root / "missions" / mission_type / "mission-runtime.yaml",
-            root / "missions" / mission_type / "mission.yaml",
-            root / "mission-runtime.yaml",
-            root / "mission.yaml",
-        ])
+        candidates.extend(
+            [
+                root / mission_type / "mission-runtime.yaml",
+                root / mission_type / "mission.yaml",
+                root / "missions" / mission_type / "mission-runtime.yaml",
+                root / "missions" / mission_type / "mission.yaml",
+                root / "mission-runtime.yaml",
+                root / "mission.yaml",
+            ]
+        )
 
     # De-duplicate while preserving order.
     unique: list[Path] = []
@@ -365,11 +366,7 @@ def get_or_start_run(
         entry = index[mission_slug]
         run_dir = Path(entry["run_dir"])
         if (run_dir / "state.json").exists():
-            stored_mission_type = (
-                entry.get("mission_type")
-                or entry.get("mission_key")
-                or mission_type
-            )
+            stored_mission_type = entry.get("mission_type") or entry.get("mission_key") or mission_type
             return _build_run_ref(
                 run_id=entry["run_id"],
                 run_dir=entry["run_dir"],
@@ -445,6 +442,7 @@ def decide_next_via_runtime(
     origin: dict[str, Any] = {}
     try:
         from specify_cli.runtime.resolver import resolve_mission as resolve_mission_path
+
         mission_result = resolve_mission_path(mission_type, repo_root)
         origin = {
             "mission_tier": getattr(mission_result.tier, "value", str(mission_result.tier)),
@@ -475,6 +473,7 @@ def decide_next_via_runtime(
     # Read current run state
     try:
         from spec_kitty_runtime.engine import _read_snapshot
+
         snapshot = _read_snapshot(Path(run_ref.run_dir))
         current_step_id = snapshot.issued_step_id
     except Exception:
@@ -485,15 +484,31 @@ def decide_next_via_runtime(
         if not _should_advance_wp_step(current_step_id, feature_dir):
             # Stay in current step, return WP-level action
             return _build_wp_iteration_decision(
-                current_step_id, agent, mission_slug, mission_type,
-                feature_dir, repo_root, now, progress, origin, run_ref,
+                current_step_id,
+                agent,
+                mission_slug,
+                mission_type,
+                feature_dir,
+                repo_root,
+                now,
+                progress,
+                origin,
+                run_ref,
             )
         # All WPs done for this step — check guards before advancing
         guard_failures = _check_cli_guards(current_step_id, feature_dir)
         if guard_failures:
             return _build_wp_iteration_decision(
-                current_step_id, agent, mission_slug, mission_type,
-                feature_dir, repo_root, now, progress, origin, run_ref,
+                current_step_id,
+                agent,
+                mission_slug,
+                mission_type,
+                feature_dir,
+                repo_root,
+                now,
+                progress,
+                origin,
+                run_ref,
                 guard_failures=guard_failures,
             )
 
@@ -502,12 +517,25 @@ def decide_next_via_runtime(
         guard_failures = _check_cli_guards(current_step_id, feature_dir)
         if guard_failures:
             action, wp_id, workspace_path = _state_to_action(
-                current_step_id, mission_slug, feature_dir, repo_root, mission_type,
+                current_step_id,
+                mission_slug,
+                feature_dir,
+                repo_root,
+                mission_type,
             )
-            prompt_file = _build_prompt_safe(
-                action or current_step_id, feature_dir, mission_slug,
-                wp_id, agent, repo_root, mission_type,
-            ) if action else None
+            prompt_file = (
+                _build_prompt_safe(
+                    action or current_step_id,
+                    feature_dir,
+                    mission_slug,
+                    wp_id,
+                    agent,
+                    repo_root,
+                    mission_type,
+                )
+                if action
+                else None
+            )
             return Decision(
                 kind=DecisionKind.step,
                 agent=agent,
@@ -548,13 +576,20 @@ def decide_next_via_runtime(
         )
 
     return _map_runtime_decision(
-        runtime_decision, agent, mission_slug, mission_type,
-        repo_root, feature_dir, now, progress, origin,
+        runtime_decision,
+        agent,
+        mission_slug,
+        mission_type,
+        repo_root,
+        feature_dir,
+        now,
+        progress,
+        origin,
     )
 
 
 def query_current_state(
-    agent: str,
+    agent: str | None,
     mission_slug: str,
     repo_root: Path,
 ) -> Decision:
@@ -601,24 +636,85 @@ def query_current_state(
             progress=progress,
         )
 
-    # Read current step WITHOUT calling next_step()
-    current_step_id = "unknown"
+    # Read current step WITHOUT calling next_step(). When no step has been
+    # issued yet, use the planner read-only to compute a truthful preview.
     try:
         from spec_kitty_runtime.engine import _read_snapshot  # private API — see note
+        from spec_kitty_runtime.planner import plan_next
+
         snapshot = _read_snapshot(Path(run_ref.run_dir))
-        current_step_id = snapshot.issued_step_id or "unknown"
+        if snapshot.issued_step_id:
+            return Decision(
+                kind=DecisionKind.query,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=snapshot.issued_step_id,
+                timestamp=now,
+                is_query=True,
+                reason=None,
+                progress=progress,
+                run_id=getattr(run_ref, "run_id", None),
+            )
+
+        template = load_mission_template_file(Path(run_ref.run_dir) / "mission_template_frozen.yaml")
+        runtime_decision = plan_next(
+            snapshot,
+            template,
+            snapshot.policy_snapshot,
+            live_template_path=Path(snapshot.template_path),
+        )
+    except QueryModeValidationError:
+        raise
     except Exception:
-        pass  # Unknown step is safe — query mode still returns useful output
+        runtime_decision = None
+
+    if runtime_decision is None:
+        return Decision(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state="unknown",
+            timestamp=now,
+            is_query=True,
+            reason=None,
+            progress=progress,
+            run_id=getattr(run_ref, "run_id", None),
+        )
+
+    if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
+        if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
+            return Decision(
+                kind=DecisionKind.query,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state="not_started",
+                timestamp=now,
+                is_query=True,
+                reason=None,
+                progress=progress,
+                run_id=getattr(run_ref, "run_id", None),
+                preview_step=runtime_decision.step_id,
+            )
+        raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
+
+    mission_state = runtime_decision.step_id or "unknown"
+    if runtime_decision.kind == "terminal":
+        mission_state = "done"
+    elif runtime_decision.kind == "blocked":
+        mission_state = snapshot.blocked_reason or "blocked"
 
     return Decision(
         kind=DecisionKind.query,
         agent=agent,
         mission_slug=mission_slug,
         mission=mission_type,
-        mission_state=current_step_id,
+        mission_state=mission_state,
         timestamp=now,
         is_query=True,
-        reason=None,   # label printed by _print_human(); not in reason field
+        reason=None,  # label printed by _print_human(); not in reason field
         progress=progress,
         run_id=getattr(run_ref, "run_id", None),
     )
@@ -642,7 +738,10 @@ def answer_decision_via_runtime(
     run_ref = get_or_start_run(mission_slug, repo_root, mission_type)
     actor = ActorIdentity(actor_id=agent, actor_type=actor_type)
     runtime_provide_decision_answer(
-        run_ref, decision_id, answer, actor,
+        run_ref,
+        decision_id,
+        answer,
+        actor,
         emitter=NullEmitter(),
     )
 
@@ -667,7 +766,11 @@ def _build_wp_iteration_decision(
 ) -> Decision:
     """Build a Decision for WP iteration within a step."""
     action, wp_id, workspace_path = _state_to_action(
-        step_id, mission_slug, feature_dir, repo_root, mission_type,
+        step_id,
+        mission_slug,
+        feature_dir,
+        repo_root,
+        mission_type,
     )
 
     if action is None:
@@ -687,7 +790,13 @@ def _build_wp_iteration_decision(
         )
 
     prompt_file = _build_prompt_safe(
-        action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type,
+        action,
+        feature_dir,
+        mission_slug,
+        wp_id,
+        agent,
+        repo_root,
+        mission_type,
     )
 
     return Decision(
@@ -758,6 +867,7 @@ def _map_runtime_decision(
         prompt_file = None
         if decision.question:
             from specify_cli.next.prompt_builder import build_decision_prompt
+
             try:
                 _, prompt_path = build_decision_prompt(
                     question=decision.question,
@@ -793,7 +903,11 @@ def _map_runtime_decision(
     if step_id and _is_wp_iteration_step(step_id):
         # WP step: map to implement/review action with WP selection
         action, wp_id, workspace_path = _state_to_action(
-            step_id, mission_slug, feature_dir, repo_root, mission_type,
+            step_id,
+            mission_slug,
+            feature_dir,
+            repo_root,
+            mission_type,
         )
         if action is None:
             return Decision(
@@ -810,7 +924,13 @@ def _map_runtime_decision(
                 step_id=step_id,
             )
         prompt_file = _build_prompt_safe(
-            action, feature_dir, mission_slug, wp_id, agent, repo_root, mission_type,
+            action,
+            feature_dir,
+            mission_slug,
+            wp_id,
+            agent,
+            repo_root,
+            mission_type,
         )
         return Decision(
             kind=DecisionKind.step,
@@ -831,12 +951,25 @@ def _map_runtime_decision(
 
     # Non-WP step: map step_id to action via template resolution
     action, wp_id, workspace_path = _state_to_action(
-        step_id or "unknown", mission_slug, feature_dir, repo_root, mission_type,
+        step_id or "unknown",
+        mission_slug,
+        feature_dir,
+        repo_root,
+        mission_type,
     )
-    prompt_file = _build_prompt_safe(
-        action or step_id or "unknown", feature_dir, mission_slug,
-        wp_id, agent, repo_root, mission_type,
-    ) if action or step_id else None
+    prompt_file = (
+        _build_prompt_safe(
+            action or step_id or "unknown",
+            feature_dir,
+            mission_slug,
+            wp_id,
+            agent,
+            repo_root,
+            mission_type,
+        )
+        if action or step_id
+        else None
+    )
 
     return Decision(
         kind=DecisionKind.step,

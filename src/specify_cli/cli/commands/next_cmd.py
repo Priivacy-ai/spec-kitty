@@ -19,23 +19,18 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 
 @require_main_repo
 def next_step(
-    agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for advancing mode)")] = None,
     result: Annotated[
         str | None,
         typer.Option(
             "--result",
-            help=(
-                "Result of previous step: success|failed|blocked. "
-                "If omitted, returns current state without advancing (query mode)."
-            ),
+            help=("Result of previous step: success|failed|blocked. If omitted, returns current state without advancing (query mode)."),
         ),
     ] = None,
     feature: Annotated[str | None, typer.Option("--mission", "--mission-run", "--feature", help="Mission slug")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[
-        str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")
-    ] = None,
+    decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -63,10 +58,19 @@ def next_step(
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
-    # Query mode: bare call without --result
+    # Query mode: bare call without --result remains read-only and does not
+    # require agent identity.
     if result is None:
-        from specify_cli.next.runtime_bridge import query_current_state
-        decision = query_current_state(agent, mission_slug, repo_root)
+        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+
+        try:
+            decision = query_current_state(agent, mission_slug, repo_root)
+        except QueryModeValidationError as exc:
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+            else:
+                print(f"Error: {exc}", file=sys.stderr)
+            raise typer.Exit(1) from exc
         if json_output:
             d = decision.to_dict()
             if answer is not None:
@@ -77,11 +81,15 @@ def next_step(
             if answer is not None:
                 print(f"  Answered decision: (no decision_id in query mode)")
             _print_human(decision)
-        return   # No event emitted, no DAG advancement
+        return  # No event emitted, no DAG advancement
 
     # --result validation (only reached when result is not None)
     if result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
+        raise typer.Exit(1)
+
+    if not agent:
+        print("Error: --agent is required when --result is provided", file=sys.stderr)
         raise typer.Exit(1)
 
     # Handle --answer flow
@@ -163,8 +171,7 @@ def _handle_answer(
             else:
                 pending_ids = sorted(pending.keys())
                 print(
-                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). "
-                    f"Use --decision-id to specify which one.",
+                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). Use --decision-id to specify which one.",
                     file=sys.stderr,
                 )
                 raise typer.Exit(1)
@@ -193,6 +200,8 @@ def _print_human(decision) -> None:
     if getattr(decision, "is_query", False):
         print("[QUERY \u2014 no result provided, state not advanced]")
         print(f"  Mission: {decision.mission} @ {decision.mission_state}")
+        if getattr(decision, "preview_step", None):
+            print(f"  Next step: {decision.preview_step}")
         if decision.progress:
             p = decision.progress
             total = p.get("total_wps", 0)
