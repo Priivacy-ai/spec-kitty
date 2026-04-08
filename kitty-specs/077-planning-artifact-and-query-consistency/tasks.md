@@ -23,12 +23,12 @@
 | T009 | Update `src/specify_cli/cli/commands/agent/workflow.py` to surface repo-root planning work cleanly | WP02 | | [D] |
 | T010 | Update `src/specify_cli/core/worktree_topology.py` to represent repo-root planning entries in mixed missions | WP02 | | [D] |
 | T011 | Tests for implement, workflow, and topology behavior in mixed missions | WP02 | [D] |
-| T012 | Refactor `src/specify_cli/core/stale_detection.py` to emit a structured stale payload with workspace kind | WP03 | |
-| T013 | Mark repo-root planning work as `stale.status = not_applicable` with the canonical reason code | WP03 | |
-| T014 | Preserve deprecated flat stale fields in `spec-kitty agent tasks status --json` during the transition window | WP03 | |
-| T015 | Update human-readable task status output for repo-root planning work and stale `n/a` display | WP03 | |
-| T016 | Bypass merge-ancestry gating for planning-artifact `--to done` while preserving code-change enforcement | WP03 | |
-| T017 | Tests for stale JSON compatibility and planning-artifact approved/done transitions | WP03 | [P] |
+| T012 | Refactor `src/specify_cli/core/stale_detection.py` to emit a structured stale payload with workspace kind | WP03 | | [D] |
+| T013 | Mark repo-root planning work as `stale.status = not_applicable` with the canonical reason code | WP03 | | [D] |
+| T014 | Preserve deprecated flat stale fields in `spec-kitty agent tasks status --json` during the transition window | WP03 | | [D] |
+| T015 | Update human-readable task status output for repo-root planning work and stale `n/a` display | WP03 | | [D] |
+| T016 | Bypass merge-ancestry gating for planning-artifact `--to done` while preserving code-change enforcement | WP03 | | [D] |
+| T017 | Tests for stale JSON compatibility and planning-artifact approved/done transitions | WP03 | [D] |
 | T018 | Make `--agent` optional in query mode and required only for advancing and answer flows | WP04 | | [D] |
 | T019 | Extend `Decision` and `to_dict()` with nullable `agent` and `preview_step` | WP04 | | [D] |
 | T020 | Implement fresh-run query resolution with `not_started` and `preview_step` in `runtime_bridge.py` | WP04 | | [D] |
