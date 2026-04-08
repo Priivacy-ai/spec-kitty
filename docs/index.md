@@ -23,7 +23,7 @@ Spec Kitty 3.1.0 (released 2026-04-07) stabilises planning and execution reliabi
 - **Stale status JSON** — the canonical shape now uses a nested `stale` object; temporary flat stale fields remain as a compatibility surface during the transition
 - **Review resilience** — versioned review-cycle artifacts, focused fix prompts, dirty-state classification
 - **Charter** — `spec-kitty charter` replaces `spec-kitty constitution`; auto-migrated by `spec-kitty upgrade`
-- **`--mission`** — canonical flag everywhere; `--feature` retained as a backward-compatible alias
+- **Mission selectors** — `--mission` is the canonical selector on mission and agent-management surfaces, while `--mission-run` remains canonical on runtime/query surfaces; `--feature` persists only as a legacy compatibility alias on some commands
 
 **Upgrading from 3.0.x?** Run `spec-kitty upgrade` — all renames happen automatically.
 

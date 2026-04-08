@@ -6,7 +6,7 @@ Terminology note:
 - `Mission Type` = reusable workflow blueprint
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` remains a backward-compatibility alias and continues to work on all commands.
+- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug on active command surfaces. Some commands still accept `--feature` as a legacy compatibility alias, but new docs should prefer `--mission` or `--mission-run`.
 - `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
 
 ## spec-kitty
@@ -150,7 +150,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to accept (legacy flag name; compatibility alias for software-dev missions) |
+| `--mission TEXT` | Mission slug to accept |
 | `--mode TEXT` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor TEXT` | Name to record as the acceptance actor |
 | `--test TEXT` | Validation command executed (repeatable) |
@@ -171,7 +171,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `MERGE`. Case-insensitive. |
+| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `SQUASH`. Case-insensitive. |
 | `--mission TEXT` | Mission slug when merging from main branch (canonical flag) |
 | `--feature TEXT` | Backward-compatibility alias for `--mission` |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
@@ -185,7 +185,7 @@ spec-kitty implement WP01 --json
 | `--help` | Show this message and exit |
 
 **Strategy notes**:
-- `MERGE` — creates a merge commit; preserves full history; default.
+- `MERGE` — creates a merge commit; preserves full history.
 - `SQUASH` — collapses all lane commits into a single commit on the target branch.
 - `REBASE` — replays lane commits on top of the target branch for a linear history; may be rejected by repos with linear-history branch protection if commits already exist on a remote.
 
@@ -222,7 +222,8 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to target (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to target |
+| `--feature TEXT` | Legacy compatibility alias for `--mission` |
 | `--force` | Overwrite existing research artifacts |
 | `--help` | Show this message and exit |
 
@@ -241,14 +242,14 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 
 **Commands**:
 - `contract-version` - Return host contract version and provider compatibility minimum
-- `feature-state` - Return full mission/WP state snapshot
+- `mission-state` - Return full mission/WP state snapshot
 - `list-ready` - Return `planned` WPs whose dependencies are `done`
 - `start-implementation` - Composite claim/start transition for a WP
 - `start-review` - Move rejected WP from `for_review` back to `in_progress`
 - `transition` - Apply explicit lane transition with state-machine validation
 - `append-history` - Append activity history to a WP prompt
-- `accept-feature` - Accept a mission when all WPs are `done`
-- `merge-feature` - Run preflight and land the mission into the target branch
+- `accept-mission` - Accept a mission when all WPs are `done`
+- `merge-mission` - Run preflight and land the mission into the target branch
 
 **See Also**: [Orchestrator API Reference](orchestrator-api.md)
 
