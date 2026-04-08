@@ -9,7 +9,6 @@ import pytest
 from specify_cli.core.agent_config import (
     AgentConfig,
     AgentConfigError,
-    AgentSelectionConfig,
     get_auto_commit_default,
     load_agent_config,
     save_agent_config,
@@ -49,23 +48,19 @@ class TestUnknownAgentKey:
         assert "Valid agents" in message
 
 
-class TestStrategyRemoval:
-    def test_save_agent_config_does_not_persist_selection_strategy(self, tmp_path: Path) -> None:
-        """Persisted agent config should not include a selection.strategy field."""
+class TestSaveAgentConfig:
+    def test_save_agent_config_no_selection_block(self, tmp_path: Path) -> None:
+        """Persisted agent config must not include a selection block."""
         config = AgentConfig(
             available=["claude", "codex"],
-            selection=AgentSelectionConfig(
-                preferred_implementer="claude",
-                preferred_reviewer="codex",
-            ),
         )
 
         save_agent_config(tmp_path, config)
         content = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
 
-        assert "strategy:" not in content
-        assert "preferred_implementer: claude" in content
-        assert "preferred_reviewer: codex" in content
+        assert "selection:" not in content
+        assert "preferred_implementer" not in content
+        assert "preferred_reviewer" not in content
 
 
 class TestAutoCommitLoading:
@@ -88,4 +83,34 @@ class TestAutoCommitLoading:
 
         config = load_agent_config(tmp_path)
 
+        assert config.auto_commit is True
+
+
+class TestToolsKeyFallback:
+    def test_load_agent_config_tools_key(self, tmp_path: Path) -> None:
+        """load_agent_config() reads from 'tools' key (post-m_2_0_1 migration)."""
+        config_dir = tmp_path / ".kittify"
+        config_dir.mkdir()
+        (config_dir / "config.yaml").write_text(
+            "tools:\n  available:\n    - opencode\n  auto_commit: false\n"
+        )
+        config = load_agent_config(tmp_path)
+        assert config.available == ["opencode"]
+        assert config.auto_commit is False
+
+    def test_load_agent_config_agents_key_takes_precedence(self, tmp_path: Path) -> None:
+        """'agents' key takes precedence over 'tools' key when both present."""
+        _write_config(
+            tmp_path,
+            "agents:\n  available:\n    - claude\n  auto_commit: true\ntools:\n  available:\n    - opencode\n  auto_commit: false\n",
+        )
+        config = load_agent_config(tmp_path)
+        assert config.available == ["claude"]
+        assert config.auto_commit is True
+
+    def test_load_agent_config_neither_key_returns_defaults(self, tmp_path: Path) -> None:
+        """Config with neither 'agents' nor 'tools' key returns defaults."""
+        _write_config(tmp_path, "vcs:\n  base_branch: main\n")
+        config = load_agent_config(tmp_path)
+        assert config.available == []
         assert config.auto_commit is True

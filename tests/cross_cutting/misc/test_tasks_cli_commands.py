@@ -226,6 +226,10 @@ def test_merge_command_dry_run(merge_repo: tuple[Path, Path, str]) -> None:
     assert feature in branches.stdout
 
 
+@pytest.mark.xfail(
+    reason="Script copy logic removed from copy_specify_base_from_local in WP03 (076-init-command-overhaul)",
+    strict=True,
+)
 def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     import types
 

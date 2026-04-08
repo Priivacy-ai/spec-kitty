@@ -43,7 +43,7 @@ def test_detect_false_when_tools_already_present(tmp_path: Path) -> None:
 def test_apply_renames_agents_to_tools(tmp_path: Path) -> None:
     config = _write_config(
         tmp_path,
-        "agents:\n  available:\n    - claude\n  selection:\n    preferred_implementer: claude\n",
+        "agents:\n  available:\n    - claude\n",
     )
     migration = ToolConfigKeyRenameMigration()
 

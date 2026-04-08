@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.template import manager
-from specify_cli.template.manager import copy_specify_base_from_local, get_local_repo_root
+from specify_cli.template import manager, get_local_repo_root
+from specify_cli.template.manager import copy_specify_base_from_local
 
 
 def test_get_local_repo_root_prefers_env(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
@@ -32,12 +32,6 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
     memory_src.mkdir(parents=True, exist_ok=True)
     (memory_src / "seed.txt").write_text("hello", encoding="utf-8")
 
-    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
-    (scripts_src / "bash").mkdir(parents=True)
-    (scripts_src / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
-    (scripts_src / "tasks").mkdir()
-    (scripts_src / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
-
     templates_src = repo_root / "src" / "doctrine" / "templates" / "command-templates"
     templates_src.mkdir(parents=True)
     (templates_src / "sample.md").write_text("content", encoding="utf-8")
@@ -54,8 +48,6 @@ def test_copy_specify_base_from_local_copies_expected_assets(tmp_path: Path) -> 
 
     assert commands_dir.exists()
     assert (project_path / ".kittify" / "memory" / "seed.txt").read_text(encoding="utf-8") == "hello"
-    assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
-    assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "templates" / "command-templates" / "sample.md").exists()
     assert (project_path / ".kittify" / "missions" / "default" / "rules.md").exists()
 
@@ -64,12 +56,6 @@ def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, mon
     fake_pkg = tmp_path / "package_data"
     (fake_pkg / "memory").mkdir(parents=True)
     (fake_pkg / "memory" / "seed.txt").write_text("seed", encoding="utf-8")
-
-    scripts_root = fake_pkg / "scripts"
-    (scripts_root / "bash").mkdir(parents=True)
-    (scripts_root / "bash" / "bootstrap.sh").write_text("echo hi", encoding="utf-8")
-    (scripts_root / "tasks").mkdir()
-    (scripts_root / "tasks" / "tasks_cli.py").write_text("print('ok')", encoding="utf-8")
 
     # Package uses templates/command-templates
     templates_root = fake_pkg / "templates" / "command-templates"
@@ -90,6 +76,4 @@ def test_copy_specify_base_from_package_uses_packaged_assets(tmp_path: Path, mon
 
     assert commands_dir.exists()
     assert (commands_dir / "sample.md").exists()
-    assert (project_path / ".kittify" / "scripts" / "bash" / "bootstrap.sh").exists()
-    assert (project_path / ".kittify" / "scripts" / "tasks" / "tasks_cli.py").exists()
     assert (project_path / ".kittify" / "memory" / "seed.txt").exists()

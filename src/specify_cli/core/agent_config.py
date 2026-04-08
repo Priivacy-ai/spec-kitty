@@ -3,7 +3,8 @@
 This module manages agent configuration that is set during `spec-kitty init`
 and used by commands and migrations to select agents for implementation and review.
 
-The configuration is stored in .kittify/config.yaml under the `agents` key.
+The configuration is stored in .kittify/config.yaml under the `agents` key
+(or `tools` key for projects that ran migration 2.0.1).
 """
 
 from __future__ import annotations
@@ -25,25 +26,11 @@ class AgentConfigError(RuntimeError):
 
 
 @dataclass
-class AgentSelectionConfig:
-    """Configuration for preferred role assignment.
-
-    Attributes:
-        preferred_implementer: Agent ID to prefer for implementation tasks.
-        preferred_reviewer: Agent ID to prefer for review tasks.
-    """
-
-    preferred_implementer: str | None = None
-    preferred_reviewer: str | None = None
-
-
-@dataclass
 class AgentConfig:
     """Full agent configuration.
 
     Attributes:
         available: List of agent IDs that are available for use
-        selection: Configuration for how to select agents
         auto_commit: Whether agents should auto-commit status changes.
             When False, agents may stage changes but MUST NOT create
             commits unless explicitly instructed. Per-command flags
@@ -51,56 +38,14 @@ class AgentConfig:
     """
 
     available: list[str] = field(default_factory=list)
-    selection: AgentSelectionConfig = field(default_factory=AgentSelectionConfig)
     auto_commit: bool = True
-
-    def select_implementer(self, exclude: str | None = None) -> str | None:
-        """Select an agent for implementation.
-
-        Args:
-            exclude: Optional agent ID to exclude from selection
-
-        Returns:
-            Selected agent ID or None if no agents available
-        """
-        candidates = [a for a in self.available if a != exclude]
-        if not candidates:
-            return None
-
-        if self.selection.preferred_implementer in candidates:
-            return self.selection.preferred_implementer
-        # Fall back to first available
-        return candidates[0]
-
-    def select_reviewer(self, implementer: str | None = None) -> str | None:
-        """Select an agent for review.
-
-        Prefers a different agent than the implementer for cross-review.
-
-        Args:
-            implementer: Agent that did implementation (prefer different agent)
-
-        Returns:
-            Selected agent ID or None if no agents available
-        """
-        # Prefer different agent for cross-review
-        candidates = [a for a in self.available if a != implementer]
-
-        # Fall back to same agent if no other available
-        if not candidates:
-            candidates = self.available.copy()
-
-        if not candidates:
-            return None
-
-        if self.selection.preferred_reviewer in candidates:
-            return self.selection.preferred_reviewer
-        # Fall back to first available that's not the implementer
-        return candidates[0]
 
 
 def load_agent_config(repo_root: Path) -> AgentConfig:
     """Load agent configuration from .kittify/config.yaml.
+
+    Reads from 'agents' key first, then falls back to 'tools' key for
+    projects that ran migration 2.0.1 (which renamed 'agents' -> 'tools').
 
     Args:
         repo_root: Repository root directory
@@ -124,7 +69,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         logger.error(f"Failed to load config: {e}")
         raise AgentConfigError(f"Invalid YAML in {config_file}: {e}") from e
 
-    agents_data = data.get("agents", {})
+    agents_data = data.get("agents") or data.get("tools") or {}
 
     # Parse auto_commit setting first so top-level configs still work
     # when no agents section is present.
@@ -152,17 +97,7 @@ def load_agent_config(repo_root: Path) -> AgentConfig:
         unknown = ", ".join(sorted(invalid_agents))
         raise AgentConfigError(f"Unknown agent key(s) in config.yaml: {unknown}. Valid agents: {valid_agents}")
 
-    # Parse selection config (legacy strategy field ignored)
-    selection_data = agents_data.get("selection", {})
-    if not isinstance(selection_data, dict):
-        selection_data = {}
-
-    selection = AgentSelectionConfig(
-        preferred_implementer=selection_data.get("preferred_implementer"),
-        preferred_reviewer=selection_data.get("preferred_reviewer"),
-    )
-
-    return AgentConfig(available=available, selection=selection, auto_commit=auto_commit)
+    return AgentConfig(available=available, auto_commit=auto_commit)
 
 
 def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
@@ -191,10 +126,6 @@ def save_agent_config(repo_root: Path, config: AgentConfig) -> None:
     # Update agents section
     data["agents"] = {
         "available": config.available,
-        "selection": {
-            "preferred_implementer": config.selection.preferred_implementer,
-            "preferred_reviewer": config.selection.preferred_reviewer,
-        },
         "auto_commit": config.auto_commit,
     }
 
@@ -238,7 +169,6 @@ def get_auto_commit_default(repo_root: Path) -> bool:
 
 
 __all__ = [
-    "AgentSelectionConfig",
     "AgentConfig",
     "AgentConfigError",
     "load_agent_config",

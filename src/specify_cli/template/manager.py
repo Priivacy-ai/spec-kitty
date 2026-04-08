@@ -68,50 +68,6 @@ def copy_charter_templates(project_path: Path, repo_root: Path | None = None) ->
         pass
 
 
-def get_local_repo_root(override_path: str | None = None) -> Path | None:
-    """Return repository root when running from a local checkout, else None.
-
-    Args:
-        override_path: Optional override path (e.g., from --template-root flag)
-
-    Returns:
-        Path to repository root containing src/doctrine/templates/command-templates, or None
-    """
-    # Check override path first (from --template-root flag)
-    if override_path:
-        override = Path(override_path).expanduser().resolve()
-        if (override / "src" / "doctrine" / "templates" / "command-templates").exists():
-            return override
-        # Legacy fallback for old template structure
-        if (override / ".kittify" / "templates" / "command-templates").exists():
-            return override
-        console.print(
-            f"[yellow]--template-root set to {override}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
-        )
-
-    # Check environment variable
-    env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
-    if env_root:
-        root_path = Path(env_root).expanduser().resolve()
-        if (root_path / "src" / "doctrine" / "templates" / "command-templates").exists():
-            return root_path
-        # Legacy fallback for old template structure
-        if (root_path / ".kittify" / "templates" / "command-templates").exists():
-            return root_path
-        console.print(
-            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
-        )
-
-    # Check package location
-    candidate = Path(__file__).resolve().parents[2]
-    if (candidate / "src" / "doctrine" / "templates" / "command-templates").exists():
-        return candidate
-    # Legacy fallback for old template structure
-    if (candidate / ".kittify" / "templates" / "command-templates").exists():
-        return candidate
-    return None
-
-
 def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
     """Copy the embedded .kittify assets from a local repository checkout."""
     specify_root = project_path / ".kittify"
@@ -124,30 +80,6 @@ def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_typ
         if memory_dest.exists():
             shutil.rmtree(memory_dest)
         shutil.copytree(memory_src, memory_dest)
-
-    # Copy from src/specify_cli/scripts/ (not root /scripts/)
-    # The src/specify_cli/scripts/ directory has the full implementation including
-    # worktree symlink code for shared charter
-    scripts_src = repo_root / "src" / "specify_cli" / "scripts"
-    if scripts_src.exists():
-        scripts_dest = specify_root / "scripts"
-        if scripts_dest.exists():
-            shutil.rmtree(scripts_dest)
-        scripts_dest.mkdir(parents=True, exist_ok=True)
-        variant = "bash" if script_type == "sh" else "powershell"
-        variant_src = scripts_src / variant
-        if variant_src.exists():
-            shutil.copytree(variant_src, scripts_dest / variant)
-        tasks_src = scripts_src / "tasks"
-        if tasks_src.exists():
-            shutil.copytree(tasks_src, scripts_dest / "tasks")
-        for item in scripts_src.iterdir():
-            if item.is_file():
-                shutil.copy2(item, scripts_dest / item.name)
-        (scripts_dest / ".spec-kitty-src-root").write_text(
-            str((repo_root / "src").resolve()) + "\n",
-            encoding="utf-8",
-        )
 
     # Copy from src/doctrine/templates/ (doctrine artifacts)
     # The src/doctrine/templates/ directory contains:
@@ -202,24 +134,6 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     if _resource_exists(memory_resource):
         copy_package_tree(memory_resource, specify_root / "memory")
 
-    scripts_resource = data_root.joinpath("scripts")
-    if _resource_exists(scripts_resource):
-        scripts_dest = specify_root / "scripts"
-        if scripts_dest.exists():
-            shutil.rmtree(scripts_dest)
-        scripts_dest.mkdir(parents=True, exist_ok=True)
-        variant_name = "bash" if script_type == "sh" else "powershell"
-        variant_resource = scripts_resource.joinpath(variant_name)
-        if _resource_exists(variant_resource):
-            copy_package_tree(variant_resource, scripts_dest / variant_name)
-        tasks_resource = scripts_resource.joinpath("tasks")
-        if _resource_exists(tasks_resource):
-            copy_package_tree(tasks_resource, scripts_dest / "tasks")
-        for resource_file in scripts_resource.iterdir():
-            if resource_file.is_file():
-                with resource_file.open("rb") as src, open(scripts_dest / resource_file.name, "wb") as dst:
-                    shutil.copyfileobj(src, dst)
-
     templates_resource = data_root.joinpath("templates")
     if _resource_exists(templates_resource):
         templates_dest = specify_root / "templates"
@@ -242,6 +156,50 @@ def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path
     copy_charter_templates(project_path)
 
     return specify_root / "templates" / "command-templates"
+
+
+def get_local_repo_root(override_path: str | None = None) -> Path | None:
+    """Return repository root when running from a local checkout, else None.
+
+    Args:
+        override_path: Optional override path (e.g., from --template-root flag)
+
+    Returns:
+        Path to repository root containing src/doctrine/templates/command-templates, or None
+    """
+    # Check override path first (from --template-root flag)
+    if override_path:
+        override = Path(override_path).expanduser().resolve()
+        if (override / "src" / "doctrine" / "templates" / "command-templates").exists():
+            return override
+        # Legacy fallback for old template structure
+        if (override / ".kittify" / "templates" / "command-templates").exists():
+            return override
+        console.print(
+            f"[yellow]--template-root set to {override}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
+        )
+
+    # Check environment variable
+    env_root = os.environ.get("SPEC_KITTY_TEMPLATE_ROOT")
+    if env_root:
+        root_path = Path(env_root).expanduser().resolve()
+        if (root_path / "src" / "doctrine" / "templates" / "command-templates").exists():
+            return root_path
+        # Legacy fallback for old template structure
+        if (root_path / ".kittify" / "templates" / "command-templates").exists():
+            return root_path
+        console.print(
+            f"[yellow]SPEC_KITTY_TEMPLATE_ROOT set to {root_path}, but src/doctrine/templates/command-templates not found there. Ignoring.[/yellow]"  # noqa: E501
+        )
+
+    # Check package location
+    candidate = Path(__file__).resolve().parents[2]
+    if (candidate / "src" / "doctrine" / "templates" / "command-templates").exists():
+        return candidate
+    # Legacy fallback for old template structure
+    if (candidate / ".kittify" / "templates" / "command-templates").exists():
+        return candidate
+    return None
 
 
 __all__ = [
