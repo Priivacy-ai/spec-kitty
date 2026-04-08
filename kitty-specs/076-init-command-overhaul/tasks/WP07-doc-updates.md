@@ -192,3 +192,7 @@ If any grep returns results, go back to the appropriate subtask and fix them.
 
 - **False-positive grep hits:** `--script` and `--debug` appear in other command docs. The verification step (T047) uses context-aware greps. Do not over-remove — check surrounding context before deleting any line.
 - **Downstream doc links:** If any doc file links to a removed section within another doc file (e.g., "see the --preferred-implementer section"), the link will be broken. Check for cross-file references to removed sections.
+
+## Activity Log
+
+- 2026-04-08T05:52:07Z – unknown – Moved to in_progress
