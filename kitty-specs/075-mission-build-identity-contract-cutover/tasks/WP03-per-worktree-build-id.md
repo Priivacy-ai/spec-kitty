@@ -3,8 +3,10 @@ work_package_id: WP03
 title: Per-Worktree Build Identity
 dependencies: []
 requirement_refs:
+- FR-004
 - FR-007
 - FR-008
+- FR-012
 - FR-016
 planning_base_branch: main
 merge_target_branch: main
