@@ -87,94 +87,9 @@ def _make_package_asset_root_with_templates(pkg_root: Path) -> Path:
 
 
 # ---------------------------------------------------------------------------
-# T013: 4-tier resolution finds the restored templates
+# T013: _resolve_mission_command_templates_dir was removed in feature 076.
+# The 4-tier resolution class (TestResolveMissionCommandTemplatesDir) is deleted.
 # ---------------------------------------------------------------------------
-
-
-class TestResolveMissionCommandTemplatesDir:
-    """Verify _resolve_mission_command_templates_dir uses the 4-tier chain."""
-
-    def test_resolves_from_package_tier(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Package tier (tier 4) is used when no higher tiers exist."""
-        pkg_root = tmp_path / "pkg"
-        _make_package_asset_root_with_templates(pkg_root)
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root))
-        monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "empty-home"))
-
-        project = tmp_path / "project"
-        project.mkdir()
-        (project / ".kittify").mkdir()
-
-        from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
-
-        scratch = project / ".kittify" / ".scratch"
-        scratch.mkdir()
-        result = _resolve_mission_command_templates_dir(project, "software-dev", scratch)
-
-        assert result.is_dir(), "Resolved dir must exist"
-        templates = list(result.glob("*.md"))
-        assert len(templates) == 9, f"Expected 9 templates, got {len(templates)}: {[t.name for t in templates]}"
-
-    def test_resolves_from_global_tier(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Global tier (tier 3) wins over package tier when both exist."""
-        # Set up global runtime with a command-templates directory
-        global_home = tmp_path / "global"
-        _make_fake_global_runtime(global_home)
-        global_cmd_tmpl = global_home / "missions" / "software-dev" / "command-templates"
-        global_cmd_tmpl.mkdir(parents=True, exist_ok=True)
-        # Write a unique file only in global tier
-        (global_cmd_tmpl / "specify.md").write_text("# Global specify\nGlobal tier content.\n")
-
-        monkeypatch.setenv("SPEC_KITTY_HOME", str(global_home))
-
-        # Package tier also has specify.md (lower priority)
-        pkg_root = tmp_path / "pkg"
-        _make_package_asset_root_with_templates(pkg_root)
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root))
-
-        project = tmp_path / "project"
-        project.mkdir()
-        (project / ".kittify").mkdir()
-
-        from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
-
-        scratch = project / ".kittify" / ".scratch"
-        scratch.mkdir()
-        result = _resolve_mission_command_templates_dir(project, "software-dev", scratch)
-
-        # Global tier's specify.md should win
-        specify_resolved = result / "specify.md"
-        assert specify_resolved.exists()
-        content = specify_resolved.read_text()
-        assert "Global tier content" in content, "Global tier should override package tier"
-
-    def test_project_override_wins(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """Project override tier (tier 1) wins over all other tiers."""
-        # Package tier
-        pkg_root = tmp_path / "pkg"
-        _make_package_asset_root_with_templates(pkg_root)
-        monkeypatch.setenv("SPEC_KITTY_TEMPLATE_ROOT", str(pkg_root))
-
-        project = tmp_path / "project"
-        project.mkdir()
-        kittify = project / ".kittify"
-        kittify.mkdir()
-
-        # Project override tier (tier 1)
-        override_dir = kittify / "overrides" / "command-templates"
-        override_dir.mkdir(parents=True)
-        (override_dir / "specify.md").write_text("# Override specify\nProject override wins.\n")
-
-        from specify_cli.cli.commands.init import _resolve_mission_command_templates_dir
-
-        scratch = kittify / ".scratch"
-        scratch.mkdir()
-        result = _resolve_mission_command_templates_dir(project, "software-dev", scratch)
-
-        specify_resolved = result / "specify.md"
-        assert specify_resolved.exists()
-        content = specify_resolved.read_text()
-        assert "Project override wins" in content, "Project override tier should win"
 
 
 # ---------------------------------------------------------------------------

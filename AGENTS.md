@@ -309,11 +309,10 @@ Different agents use different argument placeholders:
 
 ## Common Pitfalls
 
-1. **Forgetting update scripts**: Both bash and PowerShell scripts must be updated
-2. **Missing CLI checks**: Only add for agents that actually have CLI tools
-3. **Wrong argument format**: Use correct placeholder format for each agent type
-4. **Directory naming**: Follow agent-specific conventions exactly
-5. **Help text inconsistency**: Update all user-facing text consistently
+1. **Missing CLI checks**: Only add for agents that actually have CLI tools
+2. **Wrong argument format**: Use correct placeholder format for each agent type
+3. **Directory naming**: Follow agent-specific conventions exactly
+4. **Help text inconsistency**: Update all user-facing text consistently
 
 ## Future Considerations
 

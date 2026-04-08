@@ -42,7 +42,6 @@ def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console, list[str]]
         activate_mission=fake_activate,
         ensure_executable_scripts=fake_ensure_scripts,
     )
-    monkeypatch.setattr(init_module, "ensure_dashboard_running", lambda project: ("http://localhost", 1111, True))
     monkeypatch.setattr(init_module, "check_tool", lambda *args, **kwargs: True)
     return app, console, outputs
 
@@ -68,7 +67,7 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
@@ -128,7 +127,7 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
@@ -162,7 +161,7 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
     def fake_local_repo(override_path=None):
         return tmp_path / "templates"
 
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
+    def fake_copy(local_repo: Path, project_path: Path):
         commands_dir = project_path / ".templates"
         commands_dir.mkdir(parents=True, exist_ok=True)
         return commands_dir
@@ -184,52 +183,8 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
     assert result.exit_code == 0, result.output
 
 
-def test_init_amends_initial_commit_after_cleanup(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
-    """Fresh git init should end in a clean amended initial commit."""
-    app, _, _ = cli_app
-    monkeypatch.chdir(tmp_path)
-
-    def fake_local_repo(override_path=None):
-        return tmp_path / "templates"
-
-    def fake_copy(local_repo: Path, project_path: Path, script: str):
-        (project_path / ".kittify" / "templates").mkdir(parents=True, exist_ok=True)
-        commands_dir = project_path / ".templates"
-        commands_dir.mkdir(parents=True, exist_ok=True)
-        return commands_dir
-
-    def fake_init_git_repo(project_path: Path, quiet: bool = False, console=None):
-        (project_path / ".git").mkdir(parents=True, exist_ok=True)
-        return True
-
-    git_calls: list[list[str]] = []
-
-    def fake_subprocess_run(cmd, **kwargs):
-        git_calls.append(list(cmd))
-        return MagicMock(returncode=0, stdout="", stderr="")
-
-    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
-    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
-    monkeypatch.setattr(init_module, "init_git_repo", fake_init_git_repo)
-    monkeypatch.setattr(init_module, "is_git_repo", lambda path: (path / ".git").exists())
-    monkeypatch.setattr(init_module.subprocess, "run", fake_subprocess_run)
-
-    runner = CliRunner()
-    result = runner.invoke(
-        app,
-        [
-            "init",
-            "git-clean-demo",
-            "--ai",
-            "codex",
-            "--non-interactive",
-        ],
-    )
-    assert result.exit_code == 0, result.output
-    assert any(
-        call[:6] == ["git", "-c", "commit.gpgsign=false", "commit", "--amend", "--no-edit"]
-        for call in git_calls
-    )
+# test_init_amends_initial_commit_after_cleanup deleted in feature 076:
+# the initial git commit block was removed from init.py.
 
 
 def test_init_rejects_removed_agent_strategy_option(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_path: Path):
