@@ -71,11 +71,11 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 
 #### Included Subtasks
 
-- [ ] T001 Create a mission-scoped normalized WP metadata loader and cache in `src/specify_cli/workspace_context.py` (WP01)
-- [ ] T002 Infer missing `execution_mode` once per mission/session and record `mode_source` diagnostics (WP01)
-- [ ] T003 Expand `ResolvedWorkspace` and `resolve_workspace_for_wp()` for repo-root planning resolution (WP01)
-- [ ] T004 Emit one actionable compatibility error when legacy normalization cannot classify a WP (WP01)
-- [ ] T005 [P] Unit tests for normalization, repo-root resolution, and repeated deterministic lookup (WP01)
+- [x] T001 Create a mission-scoped normalized WP metadata loader and cache in `src/specify_cli/workspace_context.py` (WP01)
+- [x] T002 Infer missing `execution_mode` once per mission/session and record `mode_source` diagnostics (WP01)
+- [x] T003 Expand `ResolvedWorkspace` and `resolve_workspace_for_wp()` for repo-root planning resolution (WP01)
+- [x] T004 Emit one actionable compatibility error when legacy normalization cannot classify a WP (WP01)
+- [x] T005 [P] Unit tests for normalization, repo-root resolution, and repeated deterministic lookup (WP01)
 
 #### Implementation Sketch
 
