@@ -44,8 +44,8 @@ def next_step(
         spec-kitty next --agent claude --json
         spec-kitty next --agent codex --mission-run 034-my-feature
         spec-kitty next --agent gemini --result failed --json
-        spec-kitty next --agent claude --answer "yes" --json
-        spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
+        spec-kitty next --agent claude --answer "yes" --result success --json
+        spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --result success --json
     """
     # Resolve repo root
     repo_root = locate_project_root()
@@ -62,6 +62,14 @@ def next_step(
 
     if result is not None and result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
+        raise typer.Exit(1)
+
+    if answer is not None and result is None:
+        message = "Error: --answer requires --result because query mode is read-only"
+        if json_output:
+            print(json.dumps({"error": message}))
+        else:
+            print(message, file=sys.stderr)
         raise typer.Exit(1)
 
     # Handle --answer flow before deciding whether the call is read-only or

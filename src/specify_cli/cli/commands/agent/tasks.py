@@ -27,6 +27,7 @@ from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
+from specify_cli.lanes.persistence import MissingLanesError
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
 from specify_cli.core.paths import (
     get_feature_target_branch,
@@ -2429,9 +2430,11 @@ def status(
                 workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
                 execution_mode = workspace.execution_mode
                 workspace_kind = workspace.resolution_kind
-            except Exception:
+            except MissingLanesError:
                 execution_mode = extract_scalar(front, "execution_mode") or ""
                 workspace_kind = "unknown"
+            except Exception:
+                raise
 
             work_packages.append(
                 {
@@ -2465,7 +2468,7 @@ def status(
                     doing_wps=doing_wps,
                     threshold_minutes=stale_threshold,
                 )
-            except Exception as exc:
+            except MissingLanesError as exc:
                 stale_results = _build_stale_fallback_results(doing_wps, exc)
 
             # Add staleness info to WPs
@@ -2508,7 +2511,7 @@ def status(
                 doing_wps=by_lane[Lane.IN_PROGRESS],
                 threshold_minutes=stale_threshold,
             )
-        except Exception as exc:
+        except MissingLanesError as exc:
             stale_results = _build_stale_fallback_results(by_lane[Lane.IN_PROGRESS], exc)
 
         try:

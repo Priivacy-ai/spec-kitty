@@ -134,7 +134,16 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
     tasks_dir.mkdir(exist_ok=True)
     for wp_id, lane in wps.items():
         (tasks_dir / f"{wp_id}.md").write_text(
-            f"---\nwork_package_id: {wp_id}\nlane: {lane}\ntitle: {wp_id} task\n---\n# {wp_id}\nDo something.\n",
+            f"---\n"
+            f"work_package_id: {wp_id}\n"
+            f"lane: {lane}\n"
+            f"title: {wp_id} task\n"
+            f"execution_mode: code_change\n"
+            f"owned_files:\n  - src/{wp_id.lower()}/**\n"
+            f"authoritative_surface: src/{wp_id.lower()}/\n"
+            f"---\n"
+            f"# {wp_id}\n"
+            f"Do something in src/{wp_id.lower()}/module.py.\n",
             encoding="utf-8",
         )
         # Seed event log for non-planned lanes
@@ -757,6 +766,8 @@ class TestNextCommandAnswerJSON:
                 "test",
                 "--feature",
                 "042-test-feature",
+                "--result",
+                "success",
                 "--answer",
                 "yes",
                 "--json",

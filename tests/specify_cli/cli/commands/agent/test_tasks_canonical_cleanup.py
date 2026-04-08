@@ -817,3 +817,56 @@ class TestStatusCanonicalStaleFields:
         result = runner.invoke(app, ["status", "--mission", mission_slug])
         assert result.exit_code == 0, f"CLI error: {result.output}"
         assert "stale: n/a (repo-root planning work)" in result.output
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_json_falls_back_only_for_missing_lanes(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        mission_slug = "077-status-missing-lanes"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01")
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        data = json.loads(result.output)
+        wp = data["work_packages"][0]
+        assert wp["execution_mode"] == "code_change"
+        assert wp["workspace_kind"] == "unknown"
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_json_fails_for_ambiguous_legacy_execution_mode(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        mission_slug = "077-status-ambiguous-legacy"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+        (tasks_dir / "WP01-legacy.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Legacy WP01\n---\n\nLegacy body without src, tests, docs, or planning references.\n",
+            encoding="utf-8",
+        )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 1
+        assert "Could not classify execution_mode" in result.output

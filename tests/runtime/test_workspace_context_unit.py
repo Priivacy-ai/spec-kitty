@@ -440,3 +440,16 @@ class TestContextIndexAndResolution:
 
         with pytest.raises(ValueError, match="Could not classify execution_mode"):
             resolve_workspace_for_wp(kittify_project, "001-feature", "WP07")
+
+    def test_resolve_workspace_for_wp_errors_when_legacy_wp_has_no_classification_signals(self, kittify_project: Path) -> None:
+        feature_dir = _seed_mission(kittify_project)
+        tasks_dir = feature_dir / "tasks"
+        _write_wp(
+            tasks_dir,
+            "WP08",
+            "Legacy ambiguous work package",
+            "Legacy body without src, tests, docs, or planning artifact references.",
+        )
+
+        with pytest.raises(ValueError, match="Could not classify execution_mode"):
+            resolve_workspace_for_wp(kittify_project, "001-feature", "WP08")

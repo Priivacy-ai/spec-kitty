@@ -24,7 +24,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from specify_cli.core.atomic import atomic_write
-from specify_cli.ownership.inference import infer_execution_mode
+from specify_cli.ownership.inference import infer_execution_mode, score_execution_mode_signals
 from specify_cli.ownership.models import ExecutionMode
 from specify_cli.ownership.workspace_strategy import create_planning_workspace
 from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
@@ -330,6 +330,14 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
     raw_mode = metadata.execution_mode
     if raw_mode is None:
         raw_content = wp_file.read_text(encoding="utf-8")
+        planning_score, code_score = score_execution_mode_signals(raw_content, list(metadata.owned_files))
+        if planning_score == 0 and code_score == 0:
+            raise ValueError(
+                "Could not classify execution_mode for legacy work package "
+                f"{metadata.work_package_id} in mission {mission_slug}. "
+                "Add execution_mode to the WP frontmatter or rerun "
+                f"`spec-kitty agent tasks finalize-tasks --mission {mission_slug}`."
+            )
         try:
             inferred_mode = infer_execution_mode(raw_content, list(metadata.owned_files))
             execution_mode = ExecutionMode(inferred_mode)
@@ -338,7 +346,7 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
                 "Could not classify execution_mode for legacy work package "
                 f"{metadata.work_package_id} in mission {mission_slug}. "
                 "Add execution_mode to the WP frontmatter or rerun "
-                f"`spec-kitty agent mission finalize-tasks --mission {mission_slug}`."
+                f"`spec-kitty agent tasks finalize-tasks --mission {mission_slug}`."
             ) from exc
 
         normalized_meta = normalized_meta.update(execution_mode=str(execution_mode))

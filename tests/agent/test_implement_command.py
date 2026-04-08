@@ -113,7 +113,16 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -131,7 +140,16 @@ class TestImplementCommand:
         create_lanes_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -174,7 +192,16 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
@@ -205,7 +232,16 @@ class TestImplementCommand:
         create_lanes_json(feature_dir, wp_ids=("WP01", "WP02"))
         wp_file = feature_dir / "tasks" / "WP02-api.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# WP02")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "dependencies: [WP01]\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp02/**\n"
+            "authoritative_surface: src/wp02/\n"
+            "---\n# WP02",
+            encoding="utf-8",
+        )
 
         with (
             patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),

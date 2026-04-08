@@ -87,7 +87,7 @@ class TestQueryModeDoesNotAdvance:
         assert result.exit_code == 1
         assert "--agent is required when --result is provided" in result.output
 
-    def test_answer_requires_agent_when_used_without_result(self, tmp_path: Path) -> None:
+    def test_answer_requires_result_when_used_without_result(self, tmp_path: Path) -> None:
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
@@ -99,29 +99,29 @@ class TestQueryModeDoesNotAdvance:
 
         assert result.exit_code == 1
         data = json.loads(result.output)
-        assert "--agent is required when --answer is provided" in data["error"]
+        assert "--answer requires --result because query mode is read-only" in data["error"]
 
-    def test_answer_is_processed_before_query_output(self, tmp_path: Path) -> None:
+    def test_answer_without_result_does_not_invoke_query_or_answer_handling(self, tmp_path: Path) -> None:
         mock_decision = _make_mock_decision(is_query=True, mission_state="not_started", preview_step="discovery")
 
         with (
             patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
             patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
             patch("specify_cli.cli.commands.next_cmd._handle_answer", return_value="input:approval") as mock_answer,
-            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
+            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision) as mock_query,
         ):
             result = runner.invoke(
                 cli_app,
                 ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes", "--json"],
             )
 
-        assert result.exit_code == 0
-        mock_answer.assert_called_once()
+        assert result.exit_code == 1
+        mock_answer.assert_not_called()
+        mock_query.assert_not_called()
         data = json.loads(result.output)
-        assert data["answered"] == "input:approval"
-        assert data["answer"] == "yes"
+        assert "--answer requires --result because query mode is read-only" in data["error"]
 
-    def test_human_output_still_begins_with_query_label_after_answer(self, tmp_path: Path) -> None:
+    def test_answer_without_result_human_output_is_error_not_query(self, tmp_path: Path) -> None:
         mock_decision = _make_mock_decision(is_query=True, mission_state="not_started", preview_step="discovery")
 
         with (
@@ -135,9 +135,8 @@ class TestQueryModeDoesNotAdvance:
                 ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes"],
             )
 
-        first_line = result.output.splitlines()[0]
-        assert first_line == "[QUERY — no result provided, state not advanced]"
-        assert "Answered decision: input:approval" in result.output
+        assert result.exit_code == 1
+        assert "--answer requires --result because query mode is read-only" in result.output
 
 
 class TestQueryModeOutput:
@@ -456,7 +455,7 @@ class TestQueryModeErrorOutput:
         ):
             result = runner.invoke(
                 cli_app,
-                ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes", "--json"],
+                ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes", "--result", "success", "--json"],
             )
 
         assert result.exit_code == 1

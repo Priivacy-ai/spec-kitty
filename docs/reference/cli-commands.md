@@ -1166,7 +1166,7 @@ Query mode is read-only and does not advance runtime state. On a fresh run, the 
 | `--mission TEXT` | Compatibility alias for `--mission-run` |
 | `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
 | `--json` | Output JSON decision only |
-| `--answer TEXT` | Answer to a pending decision |
+| `--answer TEXT` | Answer to a pending decision. This is a mutating operation and should be used with `--agent` and `--result`. |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
 | `--help` | Show this message and exit |
 
@@ -1181,8 +1181,8 @@ spec-kitty next --agent claude --mission-run 034-my-feature --json
 # Advancing loop examples
 spec-kitty next --agent codex --mission-run 034-my-feature --result success --json
 spec-kitty next --agent gemini --mission-run 034-my-feature --result failed --json
-spec-kitty next --agent claude --mission-run 034-my-feature --answer "yes" --json
-spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" --decision-id "input:review" --json
+spec-kitty next --agent claude --mission-run 034-my-feature --answer "yes" --result success --json
+spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
 ```
 
 **Compatibility notes**:

@@ -107,7 +107,7 @@ The runtime has reached a point where it cannot proceed without a choice. It pro
 
 ```bash
 spec-kitty next --agent <agent> --mission-run <slug> \
-  --answer "<your choice>" --decision-id "<decision_id>" --json
+  --answer "<your choice>" --decision-id "<decision_id>" --result success --json
 ```
 
 If the agent cannot determine the answer, escalate to the user.
