@@ -51,11 +51,11 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 | T026 | Load `ProjectIdentity` in `bind_mission_origin()`; pass `build_id` to client | WP04 | | [D] |
 | T027 | Write test: captured bind call payload contains `build_id` (Scenario 3) | WP04 | | [D] |
 | T028 | Write test: `_load_contract()` provenance fields (Scenario 4) | WP04 | [D] |
-| T029 | Write CLI integration test (CliRunner): mission create → events.jsonl clean | WP05 | |
-| T030 | Write orchestrator API contract test via `upstream_contract.json` + Typer introspection | WP05 | [P] |
-| T031 | Write body sync test: mock `SaaSBodyClient`; assert canonical namespace | WP05 | [P] |
-| T032 | Write tracker bind non-regression: no `feature_slug` in bind kwargs | WP05 | [P] |
-| T033 | Full test suite run; ≥90% coverage on modified modules; mypy --strict | WP05 | |
+| T029 | Write CLI integration test (CliRunner): mission create → events.jsonl clean | WP05 | | [D] |
+| T030 | Write orchestrator API contract test via `upstream_contract.json` + Typer introspection | WP05 | [D] |
+| T031 | Write body sync test: mock `SaaSBodyClient`; assert canonical namespace | WP05 | [D] |
+| T032 | Write tracker bind non-regression: no `feature_slug` in bind kwargs | WP05 | [D] |
+| T033 | Full test suite run; ≥90% coverage on modified modules; mypy --strict | WP05 | | [D] |
 
 ---
 
