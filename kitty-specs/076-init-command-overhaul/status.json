@@ -1,0 +1,68 @@
+{
+  "event_count": 7,
+  "last_event_id": "01KNNSTT1AA7PB9CKG2C1TG4WH",
+  "materialized_at": "2026-04-08T05:42:51.178060+00:00",
+  "mission_slug": "076-init-command-overhaul",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTSX81SB9M3ACR31DA5KN",
+      "last_transition_at": "2026-04-08T05:42:51.048562+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT0MNXSYP8C19CAZZW0C",
+      "last_transition_at": "2026-04-08T05:42:51.156487+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT0SGTY33A05KE28PJEM",
+      "last_transition_at": "2026-04-08T05:42:51.161094+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT0X73QEXGA243GM141B",
+      "last_transition_at": "2026-04-08T05:42:51.165480+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT11ZY08HA5FCVZ32XK2",
+      "last_transition_at": "2026-04-08T05:42:51.169595+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT15KPA6GWNCM1BKZFMC",
+      "last_transition_at": "2026-04-08T05:42:51.173382+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNNSTT1AA7PB9CKG2C1TG4WH",
+      "last_transition_at": "2026-04-08T05:42:51.178060+00:00"
+    }
+  }
+}
