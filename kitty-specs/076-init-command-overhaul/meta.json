@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-04-08T05:06:33.687235+00:00",
+  "friendly_name": "Init Command Overhaul",
+  "mission_number": "076",
+  "mission_slug": "076-init-command-overhaul",
+  "mission_type": "software-dev",
+  "slug": "init-command-overhaul",
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Redesign spec-kitty init as a global machine-level bootstrapper: remove dead code, simplify CLI surface, establish ~/.kittify as canonical runtime, and document architectural decisions as ADRs."
+}
