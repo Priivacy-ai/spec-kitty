@@ -21,7 +21,7 @@ subtasks:
 - T026
 - T027
 - T028
-agent: "opencode:gpt-5.4:python-implementer:implementer"
+agent: "opencode:gpt-5.4:python-reviewer:reviewer"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -222,3 +222,4 @@ Verify the following during review:
 
 - 2026-04-08T18:54:01Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
 - 2026-04-08T18:59:28Z – opencode:gpt-5.4:python-implementer:implementer – Ready for review
+- 2026-04-08T19:13:55Z – opencode:gpt-5.4:python-reviewer:reviewer – Arbiter decision: scoped docs are internally consistent; remaining mismatches are against the stale global install rather than unresolved branch content
