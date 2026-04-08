@@ -185,3 +185,7 @@ Author 7 ADRs in `architecture/adrs/` documenting all architectural decisions ma
 ## Risks
 
 - **ADR numbering conflict:** If another feature adds ADRs before WP06 merges, the date-based number sequence may collide. Determine N at execution time from the actual directory listing — do not hardcode `1` through `7` without checking.
+
+## Activity Log
+
+- 2026-04-08T05:44:44Z – unknown – Moved to in_progress
