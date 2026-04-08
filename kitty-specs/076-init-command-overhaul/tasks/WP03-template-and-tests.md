@@ -28,8 +28,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: "39715"
-agent: "claude:sonnet:python-reviewer:reviewer"
+agent: claude:sonnet:python-reviewer:reviewer
+shell_pid: '40911'
 history:
 - date: '2026-04-08'
   status: planned
