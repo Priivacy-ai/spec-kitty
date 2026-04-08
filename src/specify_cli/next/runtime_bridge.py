@@ -695,20 +695,6 @@ def query_current_state(
             snapshot = engine._read_snapshot(Path(run_ref.run_dir))
             template_path = Path(snapshot.template_path)
             template = load_mission_template_file(template_path)
-        if snapshot.issued_step_id:
-            return Decision(
-                kind=DecisionKind.query,
-                agent=agent,
-                mission_slug=mission_slug,
-                mission=mission_type,
-                mission_state=snapshot.issued_step_id,
-                timestamp=now,
-                is_query=True,
-                reason=None,
-                progress=progress,
-                run_id=getattr(run_ref, "run_id", None),
-            )
-
         runtime_decision = plan_next(
             snapshot,
             template,
@@ -759,6 +745,28 @@ def query_current_state(
             shutil.rmtree(ephemeral_run_store, ignore_errors=True)
         raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
+    if runtime_decision.kind == DecisionKind.decision_required:
+        decision = Decision(
+            kind=DecisionKind.query,
+            agent=agent,
+            mission_slug=mission_slug,
+            mission=mission_type,
+            mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
+            timestamp=now,
+            is_query=True,
+            reason=None,
+            progress=progress,
+            run_id=getattr(run_ref, "run_id", None),
+            step_id=snapshot.issued_step_id or runtime_decision.step_id,
+            decision_id=runtime_decision.decision_id,
+            input_key=runtime_decision.input_key,
+            question=runtime_decision.question,
+            options=runtime_decision.options,
+        )
+        if ephemeral_run_store is not None:
+            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
+        return decision
+
     mission_state = runtime_decision.step_id or "unknown"
     if runtime_decision.kind == "terminal":
         mission_state = "done"
@@ -776,6 +784,7 @@ def query_current_state(
         reason=None,  # label printed by _print_human(); not in reason field
         progress=progress,
         run_id=getattr(run_ref, "run_id", None),
+        step_id=snapshot.issued_step_id or runtime_decision.step_id,
     )
     if ephemeral_run_store is not None:
         shutil.rmtree(ephemeral_run_store, ignore_errors=True)

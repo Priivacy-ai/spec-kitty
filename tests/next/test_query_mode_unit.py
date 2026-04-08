@@ -207,6 +207,31 @@ class TestQueryModeOutput:
         assert data.get("is_query") is True
 
 
+class TestBuildPromptSafe:
+    def test_build_prompt_safe_suppresses_stdout_noise(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
+        from specify_cli.next.decision import _build_prompt_safe
+
+        def noisy_build_prompt(**_kwargs):
+            print("noisy stdout")
+            return None, tmp_path / "prompt.md"
+
+        with patch("specify_cli.next.prompt_builder.build_prompt", side_effect=noisy_build_prompt):
+            result = _build_prompt_safe(
+                action="implement",
+                feature_dir=tmp_path,
+                mission_slug="069-test",
+                wp_id="WP01",
+                agent="claude",
+                repo_root=tmp_path,
+                mission_type="software-dev",
+            )
+
+        assert result == str(tmp_path / "prompt.md")
+        captured = capsys.readouterr()
+        assert captured.out == ""
+        assert captured.err == ""
+
+
 class TestQueryCurrentStateErrorPaths:
     """Cover the three error-handling branches in query_current_state() (runtime_bridge.py).
 
@@ -297,6 +322,49 @@ class TestQueryCurrentStateErrorPaths:
         ):
             with pytest.raises(QueryModeValidationError, match="has no issuable first step"):
                 query_current_state("claude", "069-test", tmp_path)
+
+    def test_pending_decision_metadata_is_preserved_in_query_mode(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        mock_run_ref = MagicMock()
+        mock_run_ref.run_dir = str(tmp_path / "run")
+        mock_run_ref.run_id = "run-123"
+
+        snapshot = MagicMock()
+        snapshot.completed_steps = ["discovery"]
+        snapshot.pending_decisions = {"input:approval": {"status": "pending"}}
+        snapshot.decisions = {"input:approval": {"status": "pending"}}
+        snapshot.issued_step_id = "collect_input"
+        snapshot.policy_snapshot = MagicMock()
+
+        decision_required = MagicMock()
+        decision_required.kind = "decision_required"
+        decision_required.step_id = "collect_input"
+        decision_required.decision_id = "input:approval"
+        decision_required.input_key = "approval"
+        decision_required.question = "Approve?"
+        decision_required.options = ["yes", "no"]
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("spec_kitty_runtime.planner.plan_next", return_value=decision_required),
+        ):
+            decision = query_current_state("claude", "069-test", tmp_path)
+
+        assert decision.mission_state == "collect_input"
+        assert decision.step_id == "collect_input"
+        assert decision.decision_id == "input:approval"
+        assert decision.input_key == "approval"
+        assert decision.question == "Approve?"
+        assert decision.options == ["yes", "no"]
 
 
 class TestQueryModeErrorOutput:

@@ -14,6 +14,8 @@ preserved for backward compatibility and tests but are no longer called by
 
 from __future__ import annotations
 
+import contextlib
+import io
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -448,15 +450,16 @@ def _build_prompt_safe(
     try:
         from specify_cli.next.prompt_builder import build_prompt
 
-        _, prompt_path = build_prompt(
-            action=action,
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            agent=agent,
-            repo_root=repo_root,
-            mission_type=mission_type,
-        )
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            _, prompt_path = build_prompt(
+                action=action,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                agent=agent,
+                repo_root=repo_root,
+                mission_type=mission_type,
+            )
         return str(prompt_path)
     except Exception:
         return None
