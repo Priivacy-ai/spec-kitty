@@ -23,7 +23,7 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------:|
-| T001 | Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` | WP01 | | [D] |
+| T001 | Create `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` | WP01 | | [D] | [D] |
 | T002 | Write failing test: `StatusEvent.from_dict(legacy)` → `KeyError` | WP01 | | [D] |
 | T003 | Remove `feature_slug` fallback from `status/models.py` (StatusEvent) | WP01 | | [D] |
 | T004 | Write failing test: `StatusSnapshot.from_dict(legacy)` → `KeyError` | WP01 | | [D] |
