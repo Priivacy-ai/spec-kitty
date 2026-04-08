@@ -15,7 +15,7 @@ requirement_refs:
 - FR-014
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Execute in lane worktree after WP02 and WP04 both merge; merge to main when WP complete
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T029
 - T030
