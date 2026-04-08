@@ -25,6 +25,7 @@ subtasks:
 - T021
 - T022
 - T023
+agent: "opencode:gpt-5.4:python-implementer:implementer"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -241,3 +242,7 @@ Verify the following during review:
 2. Fresh runs return `not_started` and `preview_step` in JSON.
 3. Human-readable output names the next step for fresh runs.
 4. Advancing mode still requires `--agent` and `--result`.
+
+## Activity Log
+
+- 2026-04-08T15:42:19Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
