@@ -1,7 +1,7 @@
 {
-  "event_count": 34,
-  "last_event_id": "01KNNW94E7KJF2MHCYTVA0APV4",
-  "materialized_at": "2026-04-08T06:25:37.735074+00:00",
+  "event_count": 35,
+  "last_event_id": "01KNNWBXNMN0NMP2JNVYVDJR1D",
+  "materialized_at": "2026-04-08T06:27:09.109022+00:00",
   "mission_slug": "076-init-command-overhaul",
   "summary": {
     "approved": 6,
@@ -10,9 +10,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -30,11 +30,11 @@
       "last_transition_at": "2026-04-08T06:10:45.252851+00:00"
     },
     "WP03": {
-      "actor": "claude:sonnet:python-reviewer:reviewer",
+      "actor": "user",
       "force_count": 3,
-      "lane": "in_progress",
-      "last_event_id": "01KNNW94E7KJF2MHCYTVA0APV4",
-      "last_transition_at": "2026-04-08T06:25:37.735074+00:00"
+      "lane": "planned",
+      "last_event_id": "01KNNWBXNMN0NMP2JNVYVDJR1D",
+      "last_transition_at": "2026-04-08T06:27:09.109022+00:00"
     },
     "WP04": {
       "actor": "user",
