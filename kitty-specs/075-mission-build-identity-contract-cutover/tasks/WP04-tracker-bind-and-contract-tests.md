@@ -14,7 +14,8 @@ subtasks:
 - T026
 - T027
 - T028
-shell_pid: '16647'
+shell_pid: "18378"
+agent: "opencode:opencode:reviewer:reviewer"
 history:
 - date: '2026-04-08'
   actor: planner
@@ -262,3 +263,4 @@ This test requires no production changes — it documents and locks the existing
 ## Activity Log
 
 - 2026-04-08T06:07:42Z – unknown – shell_pid=16647 – build_id added to tracker bind; provenance test added; scoped tests pass
+- 2026-04-08T06:08:11Z – opencode:opencode:reviewer:reviewer – shell_pid=18378 – Started review via action command
