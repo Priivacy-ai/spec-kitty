@@ -183,10 +183,10 @@ If any grep returns results, go back to the appropriate subtask and fix them.
 
 ## Definition of Done
 
-- [ ] `grep -r "preferred_implementer\|preferred_reviewer" docs/` → 0 results
-- [ ] `grep -r "\-\-preferred-implementer\|\-\-preferred-reviewer" docs/` → 0 results
-- [ ] All 5 doc files render valid markdown (no broken table rows, no dangling section headings)
-- [ ] The `config.yaml` example in configuration.md has no `selection` block
+- [x] `grep -r "preferred_implementer\|preferred_reviewer" docs/` → 0 results
+- [x] `grep -r "\-\-preferred-implementer\|\-\-preferred-reviewer" docs/` → 0 results
+- [x] All 5 doc files render valid markdown (no broken table rows, no dangling section headings)
+- [x] The `config.yaml` example in configuration.md has no `selection` block
 
 ## Risks
 
