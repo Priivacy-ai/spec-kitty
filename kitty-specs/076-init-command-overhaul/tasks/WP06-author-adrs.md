@@ -2,7 +2,8 @@
 work_package_id: WP06
 title: Author 7 Architecture Decision Records
 dependencies: []
-requirement_refs: []
+requirement_refs:
+- FR-026
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Independent Lane C. No code dependencies. Merge before Lane B and Lane A.

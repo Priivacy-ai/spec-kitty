@@ -3,7 +3,8 @@ work_package_id: WP07
 title: Documentation Updates
 dependencies:
 - WP06
-requirement_refs: []
+requirement_refs:
+- FR-027
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Sequential after WP06 in Lane C. Merge before Lane B and Lane A.
