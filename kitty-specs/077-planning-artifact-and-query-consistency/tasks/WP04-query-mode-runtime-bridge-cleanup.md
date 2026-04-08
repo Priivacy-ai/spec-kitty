@@ -25,7 +25,7 @@ subtasks:
 - T021
 - T022
 - T023
-agent: "opencode:gpt-5.4:python-reviewer:reviewer"
+agent: "opencode:gpt-5.4:orchestrator:orchestrator"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -248,3 +248,4 @@ Verify the following during review:
 - 2026-04-08T15:42:19Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
 - 2026-04-08T15:57:45Z – opencode:gpt-5.4:python-implementer:implementer – Ready for review
 - 2026-04-08T16:39:53Z – opencode:gpt-5.4:python-reviewer:reviewer – Review passed: query mode is now non-mutating and machine-safe
+- 2026-04-08T19:14:27Z – opencode:gpt-5.4:orchestrator:orchestrator – Done override: Changes already landed directly on main during orchestrated bootstrap implementation
