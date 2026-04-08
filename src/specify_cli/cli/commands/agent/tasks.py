@@ -2233,8 +2233,6 @@ def map_requirements(
 
     except typer.Exit:
         raise
-    except typer.Exit:
-        raise
     except Exception as exc:
         _output_error(json_output, str(exc))
         raise typer.Exit(1) from None
