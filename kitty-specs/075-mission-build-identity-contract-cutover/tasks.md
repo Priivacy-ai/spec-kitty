@@ -90,13 +90,13 @@ Lane B:  WP03 (per-worktree build.id) → WP04 (tracker bind + contract) ──�
 **Dependencies**: none
 **Prompt file**: `tasks/WP02-domain-model-cleanup.md`
 
-- [ ] T009 Write failing test: `WPMetadata.model_dump()` has no `feature_slug` key (WP02)
-- [ ] T010 Remove `feature_slug` field from `status/wp_metadata.py` (WP02)
-- [ ] T011 Write failing test: `identity_aliases` no longer backfills `mission_slug` (WP02)
-- [ ] T012 Remove `identity_aliases` import from `status/progress.py`; delete `core/identity_aliases.py` (WP02)
-- [ ] T013 Write failing test: `core/worktree.py` reads `mission_slug` not `feature_slug` (WP02)
-- [ ] T014 Update `core/worktree.py:123` — `.feature_slug or ""` → `.mission_slug or ""` (WP02)
-- [ ] T015 Full test + mypy --strict pass for all WP01+WP02 changes (WP02)
+- [x] T009 Write failing test: `WPMetadata.model_dump()` has no `feature_slug` key (WP02)
+- [x] T010 Remove `feature_slug` field from `status/wp_metadata.py` (WP02)
+- [x] T011 Write failing test: `identity_aliases` no longer backfills `mission_slug` (WP02)
+- [x] T012 Remove `identity_aliases` import from `status/progress.py`; delete `core/identity_aliases.py` (WP02)
+- [x] T013 Write failing test: `core/worktree.py` reads `mission_slug` not `feature_slug` (WP02)
+- [x] T014 Update `core/worktree.py:123` — `.feature_slug or ""` → `.mission_slug or ""` (WP02)
+- [x] T015 Full test + mypy --strict pass for all WP01+WP02 changes (WP02)
 
 **Implementation sketch**: T009-T010 (WPMetadata field removal) first — after WP01 removes the WPMetadata.feature_slug access in identity_aliases, the model field is the only remaining use. T011-T012 (delete module) second — remove progress.py import, then delete the file. T013-T014 (worktree reader) last — trivially follows from WPMetadata field removal.
 
