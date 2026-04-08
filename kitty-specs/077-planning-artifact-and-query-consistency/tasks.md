@@ -144,12 +144,12 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 
 #### Included Subtasks
 
-- [ ] T012 Refactor `src/specify_cli/core/stale_detection.py` to emit a structured stale payload with workspace kind (WP03)
-- [ ] T013 Mark repo-root planning work as `stale.status = not_applicable` with the canonical reason code (WP03)
-- [ ] T014 Preserve deprecated flat stale fields in `spec-kitty agent tasks status --json` during the transition window (WP03)
-- [ ] T015 Update human-readable task status output for repo-root planning work and stale `n/a` display (WP03)
-- [ ] T016 Bypass merge-ancestry gating for planning-artifact `--to done` while preserving code-change enforcement (WP03)
-- [ ] T017 [P] Tests for stale JSON compatibility and planning-artifact approved/done transitions (WP03)
+- [x] T012 Refactor `src/specify_cli/core/stale_detection.py` to emit a structured stale payload with workspace kind (WP03)
+- [x] T013 Mark repo-root planning work as `stale.status = not_applicable` with the canonical reason code (WP03)
+- [x] T014 Preserve deprecated flat stale fields in `spec-kitty agent tasks status --json` during the transition window (WP03)
+- [x] T015 Update human-readable task status output for repo-root planning work and stale `n/a` display (WP03)
+- [x] T016 Bypass merge-ancestry gating for planning-artifact `--to done` while preserving code-change enforcement (WP03)
+- [x] T017 [P] Tests for stale JSON compatibility and planning-artifact approved/done transitions (WP03)
 
 #### Implementation Sketch
 
