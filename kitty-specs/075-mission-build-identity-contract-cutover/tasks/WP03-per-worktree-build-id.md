@@ -21,8 +21,8 @@ subtasks:
 - T022
 - T023
 - T024
-shell_pid: "13816"
-agent: "opencode:opencode:reviewer:reviewer"
+agent: opencode:opencode:reviewer:reviewer
+shell_pid: '14396'
 history:
 - date: '2026-04-08'
   actor: planner
