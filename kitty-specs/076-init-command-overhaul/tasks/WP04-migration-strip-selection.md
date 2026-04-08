@@ -338,3 +338,7 @@ def test_dry_run_no_write(tmp_path, migration):
 
 - **ruamel.yaml comment preservation:** ruamel.yaml should preserve comments and formatting. Verify on a config with inline comments — the test fixtures don't have comments so add one manually to check.
 - **Auto-commit field:** Ensure `auto_commit` at the `agents` level is not accidentally removed. The loop only touches the `selection` key; `available` and `auto_commit` must be untouched.
+
+## Activity Log
+
+- 2026-04-08T05:48:08Z – unknown – shell_pid=9949 – Ready: migration strips agents.selection and tools.selection from config.yaml
