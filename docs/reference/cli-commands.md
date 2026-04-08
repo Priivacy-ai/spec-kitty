@@ -1159,8 +1159,8 @@ Query mode is read-only and does not advance runtime state. On a fresh run, the 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--agent TEXT` | Agent name for advancing mode. Omit in query mode. |
-| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked` (default: `success`) |
+| `--agent TEXT` | Agent name for advancing mode. Query mode does not require it, but callers may still pass it as a compatibility form without changing query behavior. |
+| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked`. If omitted, the command stays in read-only query mode. |
 | `--mission-run TEXT` | Canonical mission-run selector for query and advancing mode |
 | `--mission TEXT` | Compatibility alias for `--mission-run` |
 | `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
@@ -1174,9 +1174,11 @@ Query mode is read-only and does not advance runtime state. On a fresh run, the 
 # Query mode — inspect current state without advancing
 spec-kitty next --mission-run 034-my-feature --json
 
-# Normal agent loop
+# Compatibility query form (still read-only)
 spec-kitty next --agent claude --mission-run 034-my-feature --json
-spec-kitty next --agent codex --mission-run 034-my-feature
+
+# Advancing loop examples
+spec-kitty next --agent codex --mission-run 034-my-feature --result success --json
 spec-kitty next --agent gemini --mission-run 034-my-feature --result failed --json
 spec-kitty next --agent claude --mission-run 034-my-feature --answer "yes" --json
 spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" --decision-id "input:review" --json
@@ -1185,6 +1187,7 @@ spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" -
 **Compatibility notes**:
 
 - Fresh-run query JSON is now `mission_state: "not_started"` plus `preview_step`; do not teach or depend on `unknown` as the primary fresh-run state.
+- Query mode still accepts `--agent` as a compatibility form for existing callers, but `spec-kitty next --mission-run <slug>` is the primary contract to teach and automate against.
 - Planning-artifact work packages execute in repository root outside the lane graph, so query and step responses may refer to the main checkout instead of a lane worktree.
 - Status payloads use a canonical nested `stale` object. Temporary flat stale fields remain available only as a transitional compatibility path for existing callers.
 

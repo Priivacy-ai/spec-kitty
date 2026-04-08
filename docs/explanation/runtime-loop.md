@@ -137,7 +137,7 @@ All work is done. There are no more steps to execute.
 At a conceptual level, an agent running the runtime loop follows this pattern:
 
 1. Call `spec-kitty next --mission-run <slug> --json` if you need a read-only inspection first.
-2. Call `spec-kitty next --agent <name> --mission-run <slug> --json` to enter the mutating loop.
+2. Call `spec-kitty next --agent <name> --mission-run <slug> --result success --json` only when you are reporting the outcome of a previously issued step and intend to advance the loop.
 3. Read the decision kind.
 4. If **step**: read the prompt file, do the work, report the result.
 5. If **decision_required**: answer the question (or escalate to the user).
@@ -176,7 +176,7 @@ spec-kitty next --agent <name> --mission-run <slug> --result failed --json
 spec-kitty next --agent <name> --mission-run <slug> --result blocked --json
 ```
 
-If `--result` is omitted, the runtime assumes `success`.
+If `--result` is omitted, the command stays in read-only query mode. Query mode may still accept `--agent` as a compatibility form, but it does not advance mission state.
 
 ## Things to Be Aware Of
 

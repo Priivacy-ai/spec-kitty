@@ -376,7 +376,7 @@ spec-kitty agent tasks validate-workflow WP01 --json
 
 **Synopsis**: `spec-kitty agent tasks status [OPTIONS]`
 
-**Description**: Display kanban status board for all work packages in a mission. WPs in `doing` with no commits for `--stale-threshold` minutes are flagged as potentially stale (agent may have stopped).
+**Description**: Display kanban status board for all work packages in a mission. Code-change WPs in `doing` with no commits for `--stale-threshold` minutes are flagged as potentially stale (agent may have stopped). Planning-artifact WPs running in repository root instead report `stale.status = not_applicable` because shared-repo activity is not a valid freshness signal for them.
 
 The canonical machine-readable payload now uses a nested `stale` object. Temporary flat stale fields remain available during the compatibility transition for callers that have not migrated yet.
 
