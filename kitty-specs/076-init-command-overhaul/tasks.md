@@ -17,17 +17,17 @@
 | T005 | Remove AgentSelectionConfig from __all__ | WP01 | No | [D] |
 | T006 | Fix load_agent_config() to try 'tools' key first, fallback to 'agents' | WP01 | No | [D] |
 | T007 | Update test_agent_config_unit.py — remove preference tests, add tools-key test | WP01 | No | [D] |
-| T008 | Remove all 11 CLI flag definitions from init() signature | WP02 | No |
-| T009 | Remove _resolve_preferred_agents() helper function | WP02 | No |
-| T010 | Remove Stage 3: preferred agent selection block (lines 911–970) | WP02 | No |
-| T011 | Remove Stage 4: script type selection (lines 982–992) | WP02 | No |
-| T012 | Remove Stage 5 + Stage 9: mission selection and _activate_mission() call | WP02 | No |
-| T013 | Remove --ignore-agent-tools block (lines 884–908) | WP02 | No |
-| T014 | Remove remote template mode branch (lines 1006–1021, 1144–1163) | WP02 | No |
-| T015 | Remove _apply_doctrine_defaults, _run_inline_interview, _run_doctrine_stack_init (defs + call) | WP02 | No |
-| T016 | Remove _maybe_generate_structure_templates definition + call | WP02 | No |
-| T017 | Remove ensure_dashboard_running call + initial git commit block | WP02 | No |
-| T018 | Fix ensure_runtime() error handling; add global skill installation; fix charter dir in _prepare_project_minimal | WP02 | No |
+| T008 | Remove all 11 CLI flag definitions from init() signature | WP02 | No | [D] |
+| T009 | Remove _resolve_preferred_agents() helper function | WP02 | No | [D] |
+| T010 | Remove Stage 3: preferred agent selection block (lines 911–970) | WP02 | No | [D] |
+| T011 | Remove Stage 4: script type selection (lines 982–992) | WP02 | No | [D] |
+| T012 | Remove Stage 5 + Stage 9: mission selection and _activate_mission() call | WP02 | No | [D] |
+| T013 | Remove --ignore-agent-tools block (lines 884–908) | WP02 | No | [D] |
+| T014 | Remove remote template mode branch (lines 1006–1021, 1144–1163) | WP02 | No | [D] |
+| T015 | Remove _apply_doctrine_defaults, _run_inline_interview, _run_doctrine_stack_init (defs + call) | WP02 | No | [D] |
+| T016 | Remove _maybe_generate_structure_templates definition + call | WP02 | No | [D] |
+| T017 | Remove ensure_dashboard_running call + initial git commit block | WP02 | No | [D] |
+| T018 | Fix ensure_runtime() error handling; add global skill installation; fix charter dir in _prepare_project_minimal | WP02 | No | [D] |
 | T019 | Delete github_client.py; clean template/manager.py (get_local_repo_root + script-copy logic) | WP03 | No |
 | T020 | Delete test_init_doctrine.py; update test_init_command.py (remove removed-flag tests) | WP03 | [P] |
 | T021 | Update test_m_2_0_1_tool_config_key_rename.py fixtures | WP03 | [P] |
