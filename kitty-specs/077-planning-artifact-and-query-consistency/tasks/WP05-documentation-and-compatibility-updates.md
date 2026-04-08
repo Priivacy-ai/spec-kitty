@@ -21,6 +21,7 @@ subtasks:
 - T026
 - T027
 - T028
+agent: "opencode:gpt-5.4:python-implementer:implementer"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -216,3 +217,7 @@ Verify the following during review:
 2. Fresh-run query documentation uses `not_started + preview_step`, not `unknown`.
 3. Planning-artifact execution is described as repository-root work outside the lane graph.
 4. Compatibility notes clearly distinguish canonical nested stale JSON from deprecated flat fields.
+
+## Activity Log
+
+- 2026-04-08T18:54:01Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
