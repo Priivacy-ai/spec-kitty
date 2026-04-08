@@ -1,16 +1,16 @@
 {
-  "event_count": 19,
-  "last_event_id": "01KNNSNRC0607TWSNCMXXNBMKQ",
-  "materialized_at": "2026-04-08T05:40:05.632952+00:00",
+  "event_count": 20,
+  "last_event_id": "01KNNT0HSK9RAYVZ6424EKP9E6",
+  "materialized_at": "2026-04-08T05:45:59.347208+00:00",
   "mission_slug": "075-mission-build-identity-contract-cutover",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 3
   },
@@ -23,11 +23,11 @@
       "last_transition_at": "2026-04-08T05:32:36.361924+00:00"
     },
     "WP02": {
-      "actor": "opencode:opencode:reviewer:reviewer",
-      "force_count": 4,
-      "lane": "in_progress",
-      "last_event_id": "01KNNSNRC0607TWSNCMXXNBMKQ",
-      "last_transition_at": "2026-04-08T05:40:05.632952+00:00"
+      "actor": "user",
+      "force_count": 5,
+      "lane": "approved",
+      "last_event_id": "01KNNT0HSK9RAYVZ6424EKP9E6",
+      "last_transition_at": "2026-04-08T05:45:59.347208+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
