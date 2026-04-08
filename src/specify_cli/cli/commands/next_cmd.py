@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 
@@ -70,12 +72,16 @@ def next_step(
             else:
                 print(message, file=sys.stderr)
             raise typer.Exit(1)
+        stderr_buffer = io.StringIO() if json_output else None
+        redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
         try:
-            answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+            with redirect:
+                answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
         except typer.Exit as exc:
             if json_output:
-                message = str(exc) or "Answer handling failed"
+                message = (stderr_buffer.getvalue().strip() if stderr_buffer is not None else "") or str(exc) or "Answer handling failed"
                 print(json.dumps({"error": message}))
+                raise typer.Exit(1)
             raise
         except Exception as exc:
             if json_output:

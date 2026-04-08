@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
+from unittest.mock import patch
 
 from typer.testing import CliRunner
 
@@ -439,6 +440,35 @@ class TestNextCommandKnownBlockedMissions:
         decision = decide_next("test-agent", "044-docs-feature", "success", repo_root)
         assert decision.kind == DecisionKind.step
         assert decision.action is not None
+
+    def test_missing_canonical_status_during_wp_iteration_returns_structured_decision(self, tmp_path: Path) -> None:
+        repo_root = _scaffold_project(tmp_path)
+
+        from specify_cli.next.runtime_bridge import decide_next_via_runtime
+        from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
+
+        class RunRef:
+            run_id = "run-123"
+            run_dir = str(tmp_path / "run")
+
+        class Snapshot:
+            issued_step_id = "implement"
+
+        with (
+            patch("specify_cli.next.runtime_bridge.get_or_start_run", return_value=RunRef()),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=Snapshot()),
+            patch(
+                "specify_cli.next.runtime_bridge._should_advance_wp_step",
+                side_effect=CanonicalStatusNotFoundError(
+                    "Canonical status not found for feature '042-test-feature'. Run 'spec-kitty agent mission finalize-tasks --mission 042-test-feature' to bootstrap the event log."
+                ),
+            ),
+        ):
+            decision = decide_next_via_runtime("test-agent", "042-test-feature", "success", repo_root)
+
+        assert decision.kind in {DecisionKind.step, DecisionKind.blocked}
+        assert any("finalize-tasks" in failure for failure in decision.guard_failures)
 
 
 # ---------------------------------------------------------------------------

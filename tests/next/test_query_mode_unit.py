@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+import typer
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
@@ -425,6 +426,21 @@ class TestQueryModeErrorOutput:
         assert result.exit_code == 1
         data = json.loads(result.output)
         assert "has no issuable first step" in data["error"]
+
+    def test_json_answer_failure_returns_single_error_document(self, tmp_path: Path) -> None:
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
+            patch("specify_cli.cli.commands.next_cmd._handle_answer", side_effect=typer.Exit("No pending decisions to answer")),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes", "--json"],
+            )
+
+        assert result.exit_code == 1
+        data = json.loads(result.output)
+        assert "No pending decisions to answer" in data["error"]
 
 
 class TestResultSuccessStillAdvances:

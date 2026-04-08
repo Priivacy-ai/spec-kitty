@@ -39,6 +39,7 @@ from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
+from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.next.decision import (
     Decision,
@@ -533,7 +534,23 @@ def decide_next_via_runtime(
 
     # WP iteration check: if we're on a WP step and WPs remain, don't advance runtime
     if result == "success" and current_step_id and _is_wp_iteration_step(current_step_id):
-        if not _should_advance_wp_step(current_step_id, feature_dir):
+        try:
+            should_advance = _should_advance_wp_step(current_step_id, feature_dir)
+        except CanonicalStatusNotFoundError as exc:
+            return _build_wp_iteration_decision(
+                current_step_id,
+                agent,
+                mission_slug,
+                mission_type,
+                feature_dir,
+                repo_root,
+                now,
+                progress,
+                origin,
+                run_ref,
+                guard_failures=[str(exc)],
+            )
+        if not should_advance:
             # Stay in current step, return WP-level action
             return _build_wp_iteration_decision(
                 current_step_id,
