@@ -1,9 +1,0 @@
-{
-  "created_at": "2026-04-08T05:06:33.687235+00:00",
-  "friendly_name": "init command overhaul",
-  "mission_number": "075",
-  "mission_slug": "075-init-command-overhaul",
-  "mission_type": "software-dev",
-  "slug": "075-init-command-overhaul",
-  "target_branch": "main"
-}
