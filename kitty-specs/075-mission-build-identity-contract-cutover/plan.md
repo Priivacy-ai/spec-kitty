@@ -152,7 +152,8 @@ ProjectIdentity
 ├── project_uuid: str           # from committed config.yaml [project.uuid]
 ├── project_slug: str           # from committed config.yaml [project.slug]
 ├── node_id: str                # from committed config.yaml [project.node_id]
-├── repo_slug: str              # from committed config.yaml [project.slug] (alias)
+├── repo_slug: str | None       # optional user override for git remote owner/repo (e.g., "priivacy-ai/spec-kitty")
+│                               # NOT derived from project_slug; omitted from config if None
 └── build_id: str               # from {git-dir}/spec-kitty-build-id (NON-COMMITTED)
 ```
 
@@ -226,15 +227,19 @@ Scope: remove `feature_slug` acceptance from all five named runtime files; creat
 
 Tasks (test-first order per DIRECTIVE_034):
 1. Write `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` — synthetic JSONL event with `feature_slug` only (no `mission_slug`)
-2. Write failing test: `StatusEvent.from_dict(legacy_event)` raises `KeyError`
+2. Write failing test: `StatusEvent.from_dict(legacy_event)` raises `KeyError` (test must fail before step 3)
 3. Remove `data.get("feature_slug", "")` fallback from `status/models.py:221`
-4. Remove `data.get("feature_slug")` fallback from `status/models.py:264`
-5. Write failing test: `StatusSnapshot.from_dict(legacy_event)` raises `KeyError`
-6. Remove `"feature_slug" not in event` branch from `status/validate.py:72`
-7. Remove `feature_slug: str | None = None` field from `status/wp_metadata.py:74`
-8. Remove `feature_slug` backfill from `core/identity_aliases.py:21-22`; verify callers
-9. Remove `.feature_slug` read from `core/worktree.py:123`; replace with `.mission_slug`
-10. All tests green; mypy --strict passes on modified files
+4. Write failing test: `StatusSnapshot.from_dict(legacy_event)` raises `KeyError` (test must fail before step 5)
+5. Remove `data.get("feature_slug")` fallback from `status/models.py:264`
+6. Write failing test: `validate_event_schema({"feature_slug": "x"})` returns a finding for missing `mission_slug`; no mention of legacy fallback in finding message (test must fail before step 7)
+7. Remove `"feature_slug" not in event` branch from `status/validate.py:72`
+8. Write failing test: `WPMetadata(wp_id="WP01", ...).model_dump()` contains no `feature_slug` key — Scenario 5 acceptance (test must fail before step 9)
+9. Remove `feature_slug: str | None = None` field from `status/wp_metadata.py:74`
+10. Write failing test: calling `with_tracked_mission_slug_aliases({"feature_slug": "x"})` returns a dict without `mission_slug` (i.e., the backfill does NOT occur — test must fail before step 11)
+11. Delete or empty `core/identity_aliases.py`; audit all callers — any that expected backfill must be updated to use `mission_slug` directly
+12. Write failing test: the worktree resolution path uses `wp_frontmatter.mission_slug` (not `.feature_slug`); assert `AttributeError` is not raised when `feature_slug` absent from frontmatter (test must fail before step 13 if WPMetadata still has the field, but mypy will also catch this after step 9)
+13. Update `core/worktree.py:123` — replace `wp_frontmatter.feature_slug or ""` with `wp_frontmatter.mission_slug or ""`
+14. All tests green; mypy --strict passes on all modified files
 
 ---
 
@@ -243,15 +248,15 @@ Tasks (test-first order per DIRECTIVE_034):
 Scope: implement `_build_id_path()` via `git rev-parse --git-dir`; update `ProjectIdentity` load/save; migrate `build_id` from `config.yaml` idempotently.
 
 Tasks:
-1. Add `_build_id_path() -> Path` to `sync/project_identity.py` (raises `BuildIdentityError` if no `.git`)
-2. Add `load_build_id() -> str` (read file or generate-and-persist fresh UUID4)
-3. Add `_migrate_build_id_from_config(config_path, git_dir_path)` — copy then remove, noop if absent
-4. Update `ProjectIdentity.from_config()` to call migration then `load_build_id()` instead of reading `config.yaml["project"]["build_id"]`
-5. Update `ProjectIdentity.save()` to NOT write `build_id` to `config.yaml`
-6. Write test: two simulated worktrees (different `git-dir` paths via monkeypatch) produce different `build_id` values
-7. Write test: 100 invocations of `load_build_id()` on same path return identical value
-8. Write test: migration from `config.yaml` copies to git-dir path, removes from config, is idempotent on second call
-9. Write test: `BuildIdentityError` raised when `git rev-parse --git-dir` fails
+1. Add `_build_id_path() -> Path` to `sync/project_identity.py` — runs `git rev-parse --git-dir`, raises `BuildIdentityError` if subprocess fails
+2. Add `load_build_id(git_dir: Path) -> str` — reads `git_dir / "spec-kitty-build-id"` or generates and persists a fresh UUID4
+3. Add `_migrate_build_id_from_config(config_path: Path, git_dir: Path) -> None` — copies `build_id` from `config.yaml[project]` to `git_dir / "spec-kitty-build-id"` (if not already there), removes it from `config.yaml`; noop if `build_id` absent from config
+4. Update `ensure_identity(repo_root)` to: call `_build_id_path()` to get `git_dir`, then `_migrate_build_id_from_config(...)`, then `load_build_id(git_dir)` — replaces the current `config.yaml["project"]["build_id"]` read path
+5. Update `atomic_write_config(config_path, identity)` to NOT write `build_id` into the `config.yaml` `[project]` section
+6. Write test: two calls with different monkeypatched `git-dir` paths produce different `build_id` files (Scenario 2 — per-worktree distinctness)
+7. Write test: 100 invocations of `load_build_id()` on the same path return identical value (NFR-004)
+8. Write test: `_migrate_build_id_from_config` copies value, removes from config, second call is noop (FR-016 idempotency)
+9. Write test: `BuildIdentityError` raised when `git rev-parse --git-dir` exits non-zero
 10. All tests green; mypy --strict passes
 
 ---
@@ -274,10 +279,10 @@ Tasks:
 Scope: end-to-end smoke assertions that already-clean surfaces have not regressed. Depends on WP01, WP02, WP03.
 
 Tasks:
-1. Write end-to-end test: run `spec-kitty agent mission create` against a test fixture; assert emitted `status.events.jsonl` entry contains no `feature_slug`, no `FeatureCreated`, no `FeatureCompleted`, no `aggregate_type=Feature`
-2. Write orchestrator API contract test: iterate all command names, error codes, and response fields in the orchestrator API schema; assert zero occurrences of `accept-feature`, `merge-feature`, `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `feature_slug` (Scenario 6 part b)
-3. Write body sync test: mock outbound sync call; assert payload contains `mission_slug` + `mission_type` and no `mission_key` or `feature_slug` (Scenario 5)
-4. Write tracker bind payload non-regression test: assert `feature_slug` absent from bind payload
+1. Write CLI integration test using `typer.testing.CliRunner`: invoke `spec-kitty agent mission create` with a temp fixture repo; assert the written `status.events.jsonl` entry contains none of `feature_slug`, `FeatureCreated`, `FeatureCompleted`, `aggregate_type=Feature` (Scenario 6 part a)
+2. Write orchestrator API contract test: load `upstream_contract.json["orchestrator_api"]` and assert `allowed_commands` contains no legacy names; assert `forbidden_commands` includes `accept-feature` and `merge-feature`; also introspect the registered Typer subcommand names and assert none match the legacy pattern (Scenario 6 part b)
+3. Write body sync test: mock `SaaSBodyClient` outbound call; assert payload sent to the mock contains `mission_slug` + `mission_type` and no `mission_key` or `feature_slug` (Scenario 5)
+4. Write tracker bind non-regression test: mock `SaaSTrackerClient.bind_mission_origin`; assert the captured call kwargs contain no `feature_slug` key
 5. Run full test suite; confirm ≥90% coverage on all modified modules; mypy --strict clean
 
 ---

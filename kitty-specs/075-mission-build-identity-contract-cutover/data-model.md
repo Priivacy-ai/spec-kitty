@@ -16,14 +16,18 @@ ProjectIdentity
 ├── project_uuid: str       # .kittify/config.yaml → project.uuid (unchanged)
 ├── project_slug: str       # .kittify/config.yaml → project.slug (unchanged)
 ├── node_id: str            # .kittify/config.yaml → project.node_id (unchanged)
-├── repo_slug: str          # derived from project_slug (unchanged)
-└── build_id: str           # {git-dir}/spec-kitty-build-id  ← MOVED
+├── repo_slug: str | None   # .kittify/config.yaml → project.repo_slug (optional user override,
+│                           # e.g., "priivacy-ai/spec-kitty"; NOT derived from project_slug;
+│                           # omitted from serialized config if None — unchanged)
+└── build_id: str           # {git-dir}/spec-kitty-build-id  ← MOVED (was project.build_id)
 ```
 
-**Load sequence**:
-1. `git rev-parse --git-dir` → `BuildIdentityError` if subprocess fails (no .git)
-2. Read `{git-dir}/spec-kitty-build-id` → return if present
-3. Generate `uuid4()`, write to `{git-dir}/spec-kitty-build-id`, return
+**Load sequence** (executed inside `ensure_identity(repo_root)`):
+1. `git rev-parse --git-dir` → `BuildIdentityError` if subprocess fails (no `.git`)
+2. `_migrate_build_id_from_config(config_path, git_dir)` — copy-then-remove from config (idempotent noop if absent)
+3. `load_build_id(git_dir)`:
+   - Read `{git-dir}/spec-kitty-build-id` → return if present
+   - Generate `uuid4()`, write to `{git-dir}/spec-kitty-build-id`, return
 
 **Migration (FR-016, runs once at load time)**:
 ```
