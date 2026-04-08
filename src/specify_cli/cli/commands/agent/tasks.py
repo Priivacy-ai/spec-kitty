@@ -482,6 +482,49 @@ def _behind_commits_touch_only_planning_artifacts(
     return all(path.startswith(allowed_prefixes) or path in allowed_exact_paths for path in changed_files)
 
 
+def _apply_stale_status_fields(wp: dict, stale_result: object) -> None:
+    """Populate canonical and deprecated stale fields from one source of truth."""
+    stale_payload = stale_result.stale.to_dict()
+    wp["stale"] = stale_payload
+    wp["is_stale"] = stale_result.is_stale
+    wp["minutes_since_commit"] = stale_payload["minutes_since_commit"]
+    wp["worktree_exists"] = stale_result.worktree_exists
+
+
+def _build_stale_fallback_results(doing_wps: list[dict], error: Exception) -> dict[str, object]:
+    """Return per-WP stale fallbacks when stale detection cannot run."""
+    from specify_cli.core.stale_detection import StaleCheckResult, StaleState
+
+    results: dict[str, object] = {}
+    for wp in doing_wps:
+        wp_id = wp.get("id") or wp.get("work_package_id")
+        if not wp_id:
+            continue
+        results[wp_id] = StaleCheckResult(
+            wp_id=wp_id,
+            stale=StaleState(status="not_applicable"),
+            workspace_exists=False,
+            workspace_kind=str(wp.get("workspace_kind", "unknown")),
+            error=str(error),
+        )
+    return results
+
+
+def _render_stale_status(stale_result: object | None) -> str | None:
+    """Return a human-readable stale label for in-progress work packages."""
+    if stale_result is None:
+        return None
+
+    if stale_result.stale.status == "not_applicable":
+        return "stale: n/a (repo-root planning work)"
+
+    if stale_result.is_stale:
+        mins = stale_result.minutes_since_commit
+        return f"stale: {mins}m"
+
+    return None
+
+
 def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, force: bool) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
@@ -569,6 +612,9 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
     # Check 2: For software-dev missions, check worktree for implementation commits
     if mission_type == "software-dev":
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        if workspace.resolution_kind == "repo_root":
+            return True, []
+
         worktree_path = workspace.worktree_path
 
         if worktree_path.exists():
@@ -1011,11 +1057,13 @@ def move_task(
                 _output_error(json_output, error_msg)
                 raise typer.Exit(1)
 
-        # Guardrail: done transitions require merge ancestry or explicit override reason.
+        # Guardrail: code-change done transitions require merge ancestry or explicit override reason.
         user_note = note.strip() if isinstance(note, str) else note
         note_text = user_note
         override_reason = done_override_reason.strip() if isinstance(done_override_reason, str) else done_override_reason
         if target_lane == Lane.DONE:
+            workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, task_id)
+        if target_lane == Lane.DONE and workspace.execution_mode == "code_change":
             merged, merge_msg = _wp_branch_merged_into_target(
                 repo_root=main_repo_root,
                 mission_slug=mission_slug,
@@ -1163,7 +1211,7 @@ def move_task(
                 # No canonical state for this WP — finalize-tasks must be run first
                 raise RuntimeError(
                     f"WP {task_id} has no canonical status in feature {mission_slug}. "
-                    f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
+                    f"Run `spec-kitty agent tasks finalize-tasks --mission {mission_slug}` to initialize."
                 )
 
             for target in transition_targets:
@@ -2368,6 +2416,13 @@ def status(
             agent = extract_scalar(front, "agent") or ""
             agent_profile = extract_scalar(front, "agent_profile") or ""
             shell_pid = extract_scalar(front, "shell_pid") or ""
+            try:
+                workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+                execution_mode = workspace.execution_mode
+                workspace_kind = workspace.resolution_kind
+            except Exception:
+                execution_mode = extract_scalar(front, "execution_mode") or ""
+                workspace_kind = "unknown"
 
             work_packages.append(
                 {
@@ -2379,6 +2434,8 @@ def status(
                     "agent": agent,
                     "agent_profile": agent_profile,
                     "shell_pid": shell_pid,
+                    "execution_mode": execution_mode,
+                    "workspace_kind": workspace_kind,
                 }
             )
 
@@ -2392,20 +2449,20 @@ def status(
             from specify_cli.core.stale_detection import check_doing_wps_for_staleness
 
             doing_wps = [wp for wp in work_packages if wp["lane"] == Lane.IN_PROGRESS]
-            stale_results = check_doing_wps_for_staleness(
-                main_repo_root=main_repo_root,
-                mission_slug=mission_slug,
-                doing_wps=doing_wps,
-                threshold_minutes=stale_threshold,
-            )
+            try:
+                stale_results = check_doing_wps_for_staleness(
+                    main_repo_root=main_repo_root,
+                    mission_slug=mission_slug,
+                    doing_wps=doing_wps,
+                    threshold_minutes=stale_threshold,
+                )
+            except Exception as exc:
+                stale_results = _build_stale_fallback_results(doing_wps, exc)
 
             # Add staleness info to WPs
             for wp in work_packages:
                 if wp["lane"] == Lane.IN_PROGRESS and wp["id"] in stale_results:
-                    result = stale_results[wp["id"]]
-                    wp["is_stale"] = result.is_stale
-                    wp["minutes_since_commit"] = result.minutes_since_commit
-                    wp["worktree_exists"] = result.worktree_exists
+                    _apply_stale_status_fields(wp, stale_results[wp["id"]])
 
             lane_counts = Counter(wp["lane"] for wp in work_packages)
             stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
@@ -2435,12 +2492,15 @@ def status(
         # Check for stale WPs in "doing" lane
         from specify_cli.core.stale_detection import check_doing_wps_for_staleness
 
-        stale_results = check_doing_wps_for_staleness(
-            main_repo_root=main_repo_root,
-            mission_slug=mission_slug,
-            doing_wps=by_lane[Lane.IN_PROGRESS],
-            threshold_minutes=stale_threshold,
-        )
+        try:
+            stale_results = check_doing_wps_for_staleness(
+                main_repo_root=main_repo_root,
+                mission_slug=mission_slug,
+                doing_wps=by_lane[Lane.IN_PROGRESS],
+                threshold_minutes=stale_threshold,
+            )
+        except Exception as exc:
+            stale_results = _build_stale_fallback_results(by_lane[Lane.IN_PROGRESS], exc)
 
         try:
             from doctrine.agent_profiles.repository import AgentProfileRepository
@@ -2453,10 +2513,7 @@ def status(
         for wp in by_lane[Lane.IN_PROGRESS]:
             wp_id = wp["id"]
             if wp_id in stale_results:
-                result = stale_results[wp_id]
-                wp["is_stale"] = result.is_stale
-                wp["minutes_since_commit"] = result.minutes_since_commit
-                wp["worktree_exists"] = result.worktree_exists
+                _apply_stale_status_fields(wp, stale_results[wp_id])
             else:
                 wp["is_stale"] = False
 
@@ -2594,11 +2651,13 @@ def status(
             stale_wps = []
             for wp in by_lane[Lane.IN_PROGRESS]:
                 marker = _get_hic_marker(wp.get("agent_profile"), main_repo_root, repo=profile_repo)
+                stale_label = _render_stale_status(stale_results.get(wp["id"]))
+                agent = wp.get("agent", "unknown")
                 if wp.get("is_stale"):
-                    mins = wp.get("minutes_since_commit", "?")
-                    agent = wp.get("agent", "unknown")
-                    console.print(f"  • [red]⚠️ {marker}{wp['id']}[/red] - {wp['title']} [dim](stale: {mins}m, agent: {agent})[/dim]")
+                    console.print(f"  • [red]⚠️ {marker}{wp['id']}[/red] - {wp['title']} [dim]({stale_label}, agent: {agent})[/dim]")
                     stale_wps.append(wp)
+                elif stale_label:
+                    console.print(f"  • {marker}{wp['id']} - {wp['title']} [dim]({stale_label}, agent: {agent})[/dim]")
                 else:
                     console.print(f"  • {marker}{wp['id']} - {wp['title']}")
             console.print()
