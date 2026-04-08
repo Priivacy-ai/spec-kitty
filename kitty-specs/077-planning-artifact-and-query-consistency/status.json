@@ -1,14 +1,14 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KNQ88SP3CNJFP7381PSKSMPD",
-  "materialized_at": "2026-04-08T19:14:24.068029+00:00",
+  "event_count": 27,
+  "last_event_id": "01KNQ88TQF6XPFNS5PKTBSN2MB",
+  "materialized_at": "2026-04-08T19:14:25.136044+00:00",
   "mission_slug": "077-planning-artifact-and-query-consistency",
   "summary": {
-    "approved": 4,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 1,
+    "done": 2,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -23,11 +23,11 @@
       "last_transition_at": "2026-04-08T19:14:24.068029+00:00"
     },
     "WP02": {
-      "actor": "opencode:gpt-5.4:python-reviewer:reviewer",
-      "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KNQ5FF8DWJZYA0JKGJPAXHF5",
-      "last_transition_at": "2026-04-08T18:25:37.037242+00:00"
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ88TQF6XPFNS5PKTBSN2MB",
+      "last_transition_at": "2026-04-08T19:14:25.136044+00:00"
     },
     "WP03": {
       "actor": "opencode:gpt-5.4:python-reviewer:reviewer",

@@ -23,7 +23,7 @@ subtasks:
 - T009
 - T010
 - T011
-agent: "opencode:gpt-5.4:python-reviewer:reviewer"
+agent: "opencode:gpt-5.4:orchestrator:orchestrator"
 history:
 - timestamp: '2026-04-08T15:01:02Z'
   event: created
@@ -254,3 +254,4 @@ Verify the following during review:
 - 2026-04-08T15:58:07Z – opencode:gpt-5.4:python-implementer:implementer – Moved to in_progress
 - 2026-04-08T17:47:39Z – opencode:gpt-5.4:python-implementer:implementer – Ready for review
 - 2026-04-08T18:25:37Z – opencode:gpt-5.4:python-reviewer:reviewer – Arbiter decision: review concerns resolved or not reproducible against the canonical event-log model; WP02 meets acceptance criteria
+- 2026-04-08T19:14:25Z – opencode:gpt-5.4:orchestrator:orchestrator – Done override: Changes already landed directly on main during orchestrated bootstrap implementation
