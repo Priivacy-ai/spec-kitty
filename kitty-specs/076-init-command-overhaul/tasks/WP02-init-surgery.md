@@ -36,8 +36,8 @@ subtasks:
 - T016
 - T017
 - T018
-shell_pid: "16511"
-agent: "codex:gpt-4o:python-reviewer:reviewer"
+agent: codex:gpt-4o:python-reviewer:reviewer
+shell_pid: '17398'
 history:
 - date: '2026-04-08'
   status: planned
