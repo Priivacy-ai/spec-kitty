@@ -5,5 +5,7 @@
   "mission_slug": "077-mission-terminology-cleanup",
   "mission_type": "software-dev",
   "slug": "077-mission-terminology-cleanup",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-08T13:51:03.744200+00:00"
 }
