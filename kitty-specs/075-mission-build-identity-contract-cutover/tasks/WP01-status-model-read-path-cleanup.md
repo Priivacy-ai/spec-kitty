@@ -19,7 +19,8 @@ subtasks:
 - T006
 - T007
 - T008
-shell_pid: '6207'
+shell_pid: "7623"
+agent: "opencode:opencode:reviewer:reviewer"
 history:
 - date: '2026-04-08'
   actor: planner
@@ -283,3 +284,4 @@ After T003 and T005 are done, `with_tracked_mission_slug_aliases` in `models.py`
 ## Activity Log
 
 - 2026-04-08T05:30:03Z – unknown – shell_pid=6207 – Status model fallbacks removed; all fail-closed; mypy and tests green
+- 2026-04-08T05:30:38Z – opencode:opencode:reviewer:reviewer – shell_pid=7623 – Started review via action command
