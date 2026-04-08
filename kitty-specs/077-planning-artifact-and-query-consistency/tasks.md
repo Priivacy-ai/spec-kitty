@@ -35,11 +35,11 @@
 | T021 | Fail query mode clearly when a mission has no issuable first step | WP04 | | [D] |
 | T022 | Update human-readable query output to show `not_started` and the next step without `unknown` fallback | WP04 | | [D] |
 | T023 | Tests for non-mutating query mode, compatibility `--agent`, `preview_step`, and advancing regression | WP04 | [D] |
-| T024 | Update `docs/index.md` and `docs/reference/cli-commands.md` to the canonical query/runtime contract | WP05 | |
-| T025 | Update `docs/explanation/runtime-loop.md` and `docs/reference/agent-subcommands.md` for resolver distinction and query/advance split | WP05 | |
-| T026 | Add explicit compatibility notes for stale flat-field transition and fresh-run `unknown` removal | WP05 | |
-| T027 | Sweep active docs for contradictory lane-membership and query-mode wording | WP05 | [P] |
-| T028 | Validate examples against current CLI help and the final implemented contract | WP05 | [P] |
+| T024 | Update `docs/index.md` and `docs/reference/cli-commands.md` to the canonical query/runtime contract | WP05 | | [D] |
+| T025 | Update `docs/explanation/runtime-loop.md` and `docs/reference/agent-subcommands.md` for resolver distinction and query/advance split | WP05 | | [D] |
+| T026 | Add explicit compatibility notes for stale flat-field transition and fresh-run `unknown` removal | WP05 | | [D] |
+| T027 | Sweep active docs for contradictory lane-membership and query-mode wording | WP05 | [D] |
+| T028 | Validate examples against current CLI help and the final implemented contract | WP05 | [D] |
 
 ---
 
