@@ -12,11 +12,11 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Create a mission-scoped normalized WP metadata loader and cache in `src/specify_cli/workspace_context.py` | WP01 | |
-| T002 | Infer missing `execution_mode` once per mission/session and record `mode_source` diagnostics | WP01 | |
-| T003 | Expand `ResolvedWorkspace` and `resolve_workspace_for_wp()` for repo-root planning resolution | WP01 | |
-| T004 | Emit one actionable compatibility error when legacy normalization cannot classify a WP | WP01 | |
-| T005 | Unit tests for normalization, repo-root resolution, and repeated deterministic lookup | WP01 | [P] |
+| T001 | Create a mission-scoped normalized WP metadata loader and cache in `src/specify_cli/workspace_context.py` | WP01 | | [D] |
+| T002 | Infer missing `execution_mode` once per mission/session and record `mode_source` diagnostics | WP01 | | [D] |
+| T003 | Expand `ResolvedWorkspace` and `resolve_workspace_for_wp()` for repo-root planning resolution | WP01 | | [D] |
+| T004 | Emit one actionable compatibility error when legacy normalization cannot classify a WP | WP01 | | [D] |
+| T005 | Unit tests for normalization, repo-root resolution, and repeated deterministic lookup | WP01 | [D] |
 | T006 | Replace lane-only validation in `src/specify_cli/cli/commands/implement.py` with execution-mode-aware validation | WP02 | |
 | T007 | Update `src/specify_cli/lanes/implement_support.py` to branch between lane worktree and repo-root planning execution | WP02 | |
 | T008 | Update `src/specify_cli/core/execution_context.py` and `src/specify_cli/next/prompt_builder.py` for nullable lane/branch metadata | WP02 | |
