@@ -33,11 +33,11 @@
 | T021 | Update test_m_2_0_1_tool_config_key_rename.py fixtures | WP03 | [P] |
 | T022 | Write new init integration tests covering the 14-case positive flow | WP03 | No |
 | T023 | Run full test suite + mypy --strict on all Lane A touched files | WP03 | No |
-| T024 | Create m_3_2_1_strip_selection_config.py skeleton (migration_id, target_version, imports) | WP04 | No |
-| T025 | Implement detect() + apply() with dry_run support | WP04 | No |
-| T026 | Handle both 'agents.selection' and 'tools.selection' key variants | WP04 | No |
-| T027 | Write test_m_3_2_1_strip_selection_config.py with 5 test cases | WP04 | No |
-| T028 | mypy check + verify migration ID unique in registry | WP04 | No |
+| T024 | Create m_3_2_1_strip_selection_config.py skeleton (migration_id, target_version, imports) | WP04 | No | [D] |
+| T025 | Implement detect() + apply() with dry_run support | WP04 | No | [D] |
+| T026 | Handle both 'agents.selection' and 'tools.selection' key variants | WP04 | No | [D] |
+| T027 | Write test_m_3_2_1_strip_selection_config.py with 5 test cases | WP04 | No | [D] |
+| T028 | mypy check + verify migration ID unique in registry | WP04 | No | [D] |
 | T029 | Create m_3_2_2_safe_globalize_commands.py skeleton (new migration_id, do NOT touch m_3_1_2) | WP05 | No |
 | T030 | Implement detect() — same pattern as m_3_1_2 | WP05 | No |
 | T031 | Implement _global_commands_present() safety helper | WP05 | No |
