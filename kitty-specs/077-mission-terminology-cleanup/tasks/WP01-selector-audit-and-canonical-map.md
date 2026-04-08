@@ -189,3 +189,7 @@ This WP has no dependencies. Start it as soon as the tasks.md is committed.
 - Spec §3 — Canonical model
 - Plan §"Phase 0" — research method
 - `contracts/selector_resolver.md` — helper interface this audit informs
+
+## Activity Log
+
+- 2026-04-08T13:13:58Z – unknown – Starting WP01 audit (planning artifact, runs in main checkout)
