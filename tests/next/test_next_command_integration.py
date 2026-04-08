@@ -467,7 +467,7 @@ class TestNextCommandKnownBlockedMissions:
         ):
             decision = decide_next_via_runtime("test-agent", "042-test-feature", "success", repo_root)
 
-        assert decision.kind in {DecisionKind.step, DecisionKind.blocked}
+        assert decision.kind == DecisionKind.blocked
         assert any("finalize-tasks" in failure for failure in decision.guard_failures)
 
 

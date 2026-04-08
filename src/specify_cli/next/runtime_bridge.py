@@ -537,18 +537,19 @@ def decide_next_via_runtime(
         try:
             should_advance = _should_advance_wp_step(current_step_id, feature_dir)
         except CanonicalStatusNotFoundError as exc:
-            return _build_wp_iteration_decision(
-                current_step_id,
-                agent,
-                mission_slug,
-                mission_type,
-                feature_dir,
-                repo_root,
-                now,
-                progress,
-                origin,
-                run_ref,
+            return Decision(
+                kind=DecisionKind.blocked,
+                agent=agent,
+                mission_slug=mission_slug,
+                mission=mission_type,
+                mission_state=current_step_id,
+                timestamp=now,
+                reason=str(exc),
                 guard_failures=[str(exc)],
+                progress=progress,
+                origin=origin,
+                run_id=run_ref.run_id,
+                step_id=current_step_id,
             )
         if not should_advance:
             # Stay in current step, return WP-level action
