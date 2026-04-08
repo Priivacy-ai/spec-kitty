@@ -264,3 +264,4 @@ This test requires no production changes — it documents and locks the existing
 
 - 2026-04-08T06:07:42Z – unknown – shell_pid=16647 – build_id added to tracker bind; provenance test added; scoped tests pass
 - 2026-04-08T06:08:11Z – opencode:opencode:reviewer:reviewer – shell_pid=18378 – Started review via action command
+- 2026-04-08T06:09:05Z – opencode:opencode:reviewer:reviewer – shell_pid=18378 – Moved to planned
