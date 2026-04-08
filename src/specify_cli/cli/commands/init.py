@@ -317,9 +317,6 @@ def init(  # noqa: C901
         auto_commit=True,
     )
 
-    # Auto-detect script type based on platform
-    selected_script = "ps" if os.name == "nt" else "sh"
-
     template_mode = "package"
     local_repo = get_local_repo_root()
     if local_repo is not None:
@@ -433,9 +430,9 @@ def init(  # noqa: C901
                         if not use_global:
                             if template_mode == "local":
                                 assert local_repo is not None
-                                copy_specify_base_from_local(local_repo, project_path, selected_script)
+                                copy_specify_base_from_local(local_repo, project_path)
                             else:
-                                copy_specify_base_from_package(project_path, selected_script)
+                                copy_specify_base_from_package(project_path)
                             # Track templates root for later use (AGENTS.md, .claudeignore)
                             pkg_templates = _get_package_templates_root()
                             if pkg_templates is not None:

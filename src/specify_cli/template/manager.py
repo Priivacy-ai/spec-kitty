@@ -68,7 +68,7 @@ def copy_charter_templates(project_path: Path, repo_root: Path | None = None) ->
         pass
 
 
-def copy_specify_base_from_local(repo_root: Path, project_path: Path, script_type: str) -> Path:
+def copy_specify_base_from_local(repo_root: Path, project_path: Path) -> Path:
     """Copy the embedded .kittify assets from a local repository checkout."""
     specify_root = project_path / ".kittify"
     specify_root.mkdir(parents=True, exist_ok=True)
@@ -124,7 +124,7 @@ def copy_package_tree(resource: Traversable, dest: Path) -> None:
                 shutil.copyfileobj(src, dst)
 
 
-def copy_specify_base_from_package(project_path: Path, script_type: str) -> Path:
+def copy_specify_base_from_package(project_path: Path) -> Path:
     """Copy the packaged .kittify assets that ship with the CLI."""
     data_root = files("specify_cli")
     specify_root = project_path / ".kittify"
