@@ -92,9 +92,9 @@ def next_step(
                 d["answer"] = answer
             print(json.dumps(d, indent=2))
         else:
+            _print_human(decision)
             if answered_id is not None:
                 print(f"  Answered decision: {answered_id}")
-            _print_human(decision)
         return  # No event emitted, no DAG advancement
 
     # --result validation (only reached when result is not None)

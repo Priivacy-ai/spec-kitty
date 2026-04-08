@@ -118,6 +118,24 @@ class TestQueryModeDoesNotAdvance:
         assert data["answered"] == "input:approval"
         assert data["answer"] == "yes"
 
+    def test_human_output_still_begins_with_query_label_after_answer(self, tmp_path: Path) -> None:
+        mock_decision = _make_mock_decision(is_query=True, mission_state="not_started", preview_step="discovery")
+
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
+            patch("specify_cli.cli.commands.next_cmd._handle_answer", return_value="input:approval"),
+            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "069-test", "--agent", "claude", "--answer", "yes"],
+            )
+
+        first_line = result.output.splitlines()[0]
+        assert first_line == "[QUERY — no result provided, state not advanced]"
+        assert "Answered decision: input:approval" in result.output
+
 
 class TestQueryModeOutput:
     def test_human_output_begins_with_query_label(self, tmp_path: Path) -> None:
