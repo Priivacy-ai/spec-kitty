@@ -12,7 +12,7 @@
 
 ## Summary
 
-Redesign `spec-kitty init` from a per-project installer into a global machine-level bootstrapper. Remove 11 CLI flags, 9 processing stages, dead template infrastructure, and the entirely unused `preferred_implementer`/`preferred_reviewer` preference system from the full codebase. Harden an existing but unsafe migration (`m_3_1_2_globalize_commands.py`) with the four safety invariants required before deleting per-project command files. Author 7 ADRs documenting all decisions made during the overhaul.
+Redesign `spec-kitty init` from a per-project installer into a global machine-level bootstrapper. Remove 11 CLI flags, 9 processing stages, dead template infrastructure, and the entirely unused `preferred_implementer`/`preferred_reviewer` preference system from the full codebase. Add a new migration (`m_3_2_2`) that implements the safe per-project command removal with all four safety invariants (the existing `m_3_1_2` cannot be hardened in-place — see Critical Findings). Author 7 ADRs documenting all decisions made during the overhaul.
 
 ---
 
@@ -27,11 +27,20 @@ Redesign `spec-kitty init` from a per-project installer into a global machine-le
 **Storage:** filesystem only (`.kittify/config.yaml`, migration files, ADR markdown)
 **Target platform:** macOS, Linux, WSL
 
-**Key research finding — Migration B already exists:**
-`src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` removes per-project `spec-kitty.*` command files but lacks all four safety invariants. WP04 hardens it in-place; no new migration file needed.
+**Critical finding — Migration B cannot be hardened in-place:**
+`m_3_1_2_globalize_commands.py` lacks all four safety invariants but **cannot be modified in-place**. The migration runner (runner.py:182–190) tracks applied migrations by `migration_id`. Projects that already ran `"3.1.2_globalize_commands"` will skip any changes to that file. WP04 must create `m_3_2_2_harden_globalize_commands.py` with a new ID. The existing 3.1.2 file is left as-is.
+
+**Critical finding — `agents → tools` rename vs load_agent_config() mismatch:**
+`m_2_0_1_tool_config_key_rename.py` renames `agents` to `tools` in config.yaml, but `load_agent_config()` only reads from `agents`. On post-2.0.1 projects, agent config silently returns empty defaults. WP01 must patch `load_agent_config()` to try `tools` first, then fall back to `agents`. Migration A (WP03) already handles both keys for the selection cleanup; this fix ensures the underlying read path is consistent.
+
+**Critical finding — skills installation loses its home in WP02:**
+`install_skills_for_agent()` is called inside the per-agent loop that WP02 removes (init.py:1177). `ensure_runtime()` in bootstrap.py copies missions and scripts but does **not** install agent skills. After WP02, nothing calls `_sync_global_skill()` during init. WP02 must add a global skill installation pass to `ensure_runtime()` or a dedicated call after the global runtime bootstrap, before the per-agent loop is removed.
 
 **Key research finding — version marker:**
 A file is spec-kitty-generated iff its first line starts with `<!-- spec-kitty-command-version:` (written by `shims/generator.py:101`, read by `m_2_1_4_enforce_command_file_state.py:39`).
+
+**Key research finding — migration version ordering:**
+The migration registry orders by `packaging.version.Version(target_version)`. WP03 uses `3.2.1`, WP04 uses `3.2.2`. No collision.
 
 ---
 
@@ -107,9 +116,12 @@ Three lanes run in parallel. Sequential ordering within each lane.
 ```
 Lane A ──── WP01 ──────────── WP02 ──────────────────────────────► merge last
              agent_config       init.py + template
+             (+ load_agent_config  (+ global skill install)
+              tools/agents fix)
 
 Lane B ──── WP03 ──────────── WP04 ──────────────────────────────► merge second
-             Migration A        Migration B hardening
+             Migration A        Migration B (NEW FILE m_3_2_2)
+             (3.2.1)            (3.2.2 — new ID, not in-place edit)
 
 Lane C ──── WP05 ──────────── WP06 ──────────────────────────────► merge first
              7 ADRs             doc updates
@@ -132,7 +144,7 @@ Lane C ──── WP05 ──────────── WP06 ────�
 
 ---
 
-### WP01 — Remove `AgentSelectionConfig` and Dead Methods
+### WP01 — Remove `AgentSelectionConfig`, Dead Methods, and Fix `load_agent_config`
 
 **Lane:** A · **Position:** 1 of 2 · **Depends on:** nothing
 
@@ -149,10 +161,12 @@ Lane C ──── WP05 ──────────── WP06 ────�
 5. Remove `selection` construction in `load_agent_config()` (lines 158–162)
 6. Remove `selection` block in `save_agent_config()` (lines 195–196)
 7. Remove `AgentSelectionConfig` from `__all__`
-8. In `test_agent_config_unit.py`: remove all `preferred_implementer` / `preferred_reviewer` fixture data and assertions
+8. **Fix `load_agent_config()` for the `agents → tools` rename:** `m_2_0_1_tool_config_key_rename.py` renames the config root key from `agents` to `tools`, but `load_agent_config()` only reads `agents`. Patch it to try `data.get("agents") or data.get("tools", {})` so both old and new config layouts work correctly.
+9. In `test_agent_config_unit.py`: remove all `preferred_implementer` / `preferred_reviewer` fixture data and assertions; add tests confirming that a `tools`-keyed config is read correctly
 
 **Acceptance gate:**
 - `grep -r "AgentSelectionConfig\|select_implementer\|select_reviewer" src/` → zero results
+- `load_agent_config()` returns correct `available` list for both `agents`-keyed and `tools`-keyed config files
 - `mypy --strict src/specify_cli/core/agent_config.py` → clean
 - `pytest tests/agent/test_agent_config_unit.py` → green
 
@@ -211,6 +225,29 @@ except Exception as exc:
     raise typer.Exit(1)
 ```
 
+**Global skill installation (FR-007):**
+The per-agent loop being removed (lines ~1165–1191) is currently the only call site for `_sync_global_skill()`. After WP02, nothing installs skills globally during init. Fix: immediately after `ensure_runtime()` succeeds, call a batch global skill install. Inspect `src/specify_cli/skills/installer.py` for a suitable entry point; if none exists, add `install_all_global_skills(global_skills_root)` that iterates the skill registry and calls `_sync_global_skill()` for each. This is required for FR-007.
+
+**Positive flow of the redesigned init (after all removals):**
+```
+1. Show banner
+2. Resolve project path (current dir or new subdir from project_name arg)
+3. Validate target path (no conflict)
+4. Check git availability
+5. Detect/prompt AI agents (global scope — show existing, allow add/remove, warn machine-wide)
+6. bootstrap global runtime: ensure_runtime() — hard fail on error
+7. Install all skills globally
+8. Write minimal per-project scaffolding:
+   a. Create project dir if needed
+   b. Write .gitignore (FR-011)
+   c. Write .claudeignore (FR-012)
+   d. Write .kittify/metadata.yaml (FR-013)
+   e. Write .kittify/config.yaml VCS + agent list (FR-014)
+9. Initialize git repo if needed (FR-010)
+10. Save agent config globally
+11. Exit cleanly
+```
+
 **Template module:**
 - Delete `src/specify_cli/template/github_client.py`
 - In `manager.py`: remove `get_local_repo_root()` function and all callers; remove `bash/` and `powershell/` branch logic from `copy_specify_base_from_local()` and `copy_specify_base_from_package()`
@@ -240,7 +277,7 @@ except Exception as exc:
 
 ```
 migration_id = "3.2.1_strip_selection_config"
-target_version = "3.2.1"
+target_version = "3.2.1"   # WP04 uses 3.2.2 — no collision
 description = "Remove agents.selection.preferred_implementer/reviewer from config.yaml"
 
 detect():
@@ -267,15 +304,29 @@ apply():
 
 ---
 
-### WP04 — Migration B: Harden `m_3_1_2_globalize_commands.py`
+### WP04 — Migration B: New Safe Local Command Removal (`m_3_2_2`)
 
 **Lane:** B · **Position:** 2 of 2 · **Depends on:** nothing (sequential for lane order only)
 
-**File:**
-- `src/specify_cli/upgrade/migrations/m_3_1_2_globalize_commands.py` (MODIFY)
-- `tests/upgrade/migrations/test_m_3_1_2_globalize_commands.py` (ADD test cases)
+**⚠ Do NOT modify `m_3_1_2_globalize_commands.py`.** The migration runner tracks applied migrations by `migration_id`. Projects that already ran `"3.1.2_globalize_commands"` will never re-execute changes to that file. A new migration file with a new ID is required.
 
-**Safety invariants to add (must all pass per-agent before any deletion):**
+**Files:**
+- `src/specify_cli/upgrade/migrations/m_3_2_2_safe_globalize_commands.py` (NEW)
+- `tests/upgrade/migrations/test_m_3_2_2_safe_globalize_commands.py` (NEW)
+- `m_3_1_2_globalize_commands.py` — **do not touch**
+
+**New migration spec (`m_3_2_2_safe_globalize_commands.py`):**
+```
+migration_id = "3.2.2_safe_globalize_commands"
+target_version = "3.2.2"
+description = "Safe removal of per-project spec-kitty command files with global-presence checks"
+```
+
+`detect()`: same as 3.1.2 — returns True if any `spec-kitty.*` file exists in any configured agent command dir.
+
+`apply()`: iterate configured agents with four safety invariants per-agent.
+
+**Safety invariants (must all pass per-agent before any deletion):**
 
 1. **Global runtime present:** `Path.home() / ".kittify" / "missions"` exists and contains at least one subdirectory
 2. **Global agent commands present:** `Path.home() / agent_root / subdir` exists and contains at least one `spec-kitty.*` file
@@ -356,18 +407,46 @@ Each ADR must include:
 
 ---
 
+## Test Strategy for Redesigned Init (WP02)
+
+The deleted `test_init_doctrine.py` and removed flag tests must be replaced with tests covering the new positive flow. Required test cases by FR:
+
+| Test case | FR |
+|-----------|-----|
+| `init` with no args creates project in current dir | FR-001 |
+| `init my-project` creates subdirectory | FR-002 |
+| `init` when `~/.kittify/` absent → ensure_runtime() called, global runtime created | FR-003 |
+| `init` when ensure_runtime() raises → exits 1 with error message (not silent) | FR-003 |
+| Interactive agent selection shows existing global agents | FR-004 |
+| `--ai claude,codex` selects without prompt | FR-008 |
+| `--non-interactive --ai claude` exits 0, no stdin required | FR-009 |
+| `--no-git` skips git init | FR-010 |
+| `.gitignore` contains all agent dir entries after init | FR-011 |
+| `.claudeignore` exists after init | FR-012 |
+| `.kittify/metadata.yaml` exists with version/timestamp | FR-013 |
+| `.kittify/config.yaml` has no `selection` block | FR-014 |
+| Re-running init on already-initialized project → zero file changes | FR-016 |
+| Global skills are installed to `~/.kittify/agent-skills/` after init | FR-007 |
+
+---
+
 ## Post-Merge Verification Checklist
 
-- [ ] `spec-kitty init --help` lists ≤4 option flags
+- [ ] `spec-kitty init --help` lists ≤4 option flags (`--ai`, `--non-interactive`, `--no-git`, `--help`)
 - [ ] `grep -r "AgentSelectionConfig\|select_implementer\|select_reviewer\|preferred_implementer\|preferred_reviewer" src/` → 0 results
 - [ ] `grep -r "preferred_implementer\|preferred_reviewer" docs/` → 0 results
 - [ ] `architecture/adrs/` has 7 new files dated 2026-04-08
 - [ ] `src/specify_cli/template/github_client.py` does not exist
 - [ ] `tests/specify_cli/cli/commands/test_init_doctrine.py` does not exist
+- [ ] `src/specify_cli/upgrade/migrations/m_3_2_2_safe_globalize_commands.py` exists (WP04 new file)
+- [ ] `m_3_1_2_globalize_commands.py` is unchanged (WP04 must not touch it)
 - [ ] `spec-kitty init --non-interactive --ai claude` exits 0
+- [ ] `~/.kittify/agent-skills/` is populated after init (skills installed globally)
+- [ ] `load_agent_config()` returns correct agents for both `agents`-keyed and `tools`-keyed config
+- [ ] `spec-kitty upgrade` on a project with no global runtime → `m_3_2_2` skips all deletions
+- [ ] `.kittify/config.yaml` written by new init has no `selection` block
 - [ ] `pytest` full suite exits 0
 - [ ] `mypy --strict src/` exits 0
-- [ ] `spec-kitty upgrade` on a project with no global runtime → no local command files deleted
 
 ---
 

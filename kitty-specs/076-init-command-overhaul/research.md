@@ -31,7 +31,7 @@ Also used in `m_2_1_4_enforce_command_file_state.py:39` as `_VERSION_MARKER_PREF
 3. Does NOT verify the version marker header before deleting
 4. Does NOT emit per-agent skip warnings when invariants fail
 
-**Decision:** WP04 hardens `m_3_1_2_globalize_commands.py` in-place rather than creating a new migration. This is safer (idempotent re-run) and avoids a second migration doing overlapping work.
+**Decision:** WP04 must create a NEW migration `m_3_2_2_safe_globalize_commands.py` with `migration_id = "3.2.2_safe_globalize_commands"`. The migration runner (runner.py:182–190) tracks applied migrations by ID — projects that already ran `"3.1.2_globalize_commands"` will never re-execute changes to that file. In-place modification would silently fail for all existing projects. The existing `m_3_1_2` file is left untouched.
 
 ---
 
