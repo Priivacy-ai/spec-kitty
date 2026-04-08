@@ -494,17 +494,23 @@ def _apply_stale_status_fields(wp: dict, stale_result: object) -> None:
 def _build_stale_fallback_results(doing_wps: list[dict], error: Exception) -> dict[str, object]:
     """Return per-WP stale fallbacks when stale detection cannot run."""
     from specify_cli.core.stale_detection import StaleCheckResult, StaleState
+    from specify_cli.core.stale_detection import PLANNING_ARTIFACT_REPO_ROOT_REASON
 
     results: dict[str, object] = {}
     for wp in doing_wps:
         wp_id = wp.get("id") or wp.get("work_package_id")
         if not wp_id:
             continue
+        workspace_kind = str(wp.get("workspace_kind", "unknown"))
+        execution_mode = str(wp.get("execution_mode", ""))
+        fallback_reason = (
+            PLANNING_ARTIFACT_REPO_ROOT_REASON if workspace_kind == "repo_root" and execution_mode == "planning_artifact" else "stale_detection_unavailable"
+        )
         results[wp_id] = StaleCheckResult(
             wp_id=wp_id,
-            stale=StaleState(status="not_applicable"),
+            stale=StaleState(status="not_applicable", reason=fallback_reason),
             workspace_exists=False,
-            workspace_kind=str(wp.get("workspace_kind", "unknown")),
+            workspace_kind=workspace_kind,
             error=str(error),
         )
     return results
@@ -515,8 +521,11 @@ def _render_stale_status(stale_result: object | None) -> str | None:
     if stale_result is None:
         return None
 
-    if stale_result.stale.status == "not_applicable":
+    if stale_result.stale.status == "not_applicable" and stale_result.stale.reason == "planning_artifact_repo_root_shared_workspace":
         return "stale: n/a (repo-root planning work)"
+
+    if getattr(stale_result, "error", None):
+        return "stale: unavailable"
 
     if stale_result.is_stale:
         mins = stale_result.minutes_since_commit
