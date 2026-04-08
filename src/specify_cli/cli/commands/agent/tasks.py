@@ -33,6 +33,7 @@ from specify_cli.core.paths import (
     get_feature_target_branch,
     require_explicit_feature,
 )
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
@@ -214,6 +215,15 @@ def _output_error(json_mode: bool, error_message: str):
         print(json.dumps({"error": error_message}))
     else:
         console.print(f"[red]Error:[/red] {error_message}")
+
+
+def _mission_identity_payload(feature_dir: Path) -> dict[str, str]:
+    identity = resolve_mission_identity(feature_dir)
+    return {
+        "mission_slug": identity.mission_slug,
+        "mission_number": identity.mission_number,
+        "mission_type": identity.mission_type,
+    }
 
 
 def _detect_reviewer_name() -> str:
@@ -1899,7 +1909,7 @@ def finalize_tasks(
                 "unchanged": unchanged_wps,
                 "updated_wp_count": updated_count,
                 "dependencies": dependencies_map,
-                "feature": mission_slug,
+                **_mission_identity_payload(feature_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -1916,7 +1926,7 @@ def finalize_tasks(
                 "unchanged_wps": unchanged_wps,
                 "preserved_wps": preserved_wps,
                 "dependencies": dependencies_map,
-                "feature": mission_slug,
+                **_mission_identity_payload(feature_dir),
                 "bootstrap": {
                     "total_wps": bootstrap_result.total_wps,
                     "already_initialized": bootstrap_result.already_initialized,
@@ -2203,6 +2213,7 @@ def map_requirements(
 
         payload = {
             "result": "success",
+            **_mission_identity_payload(feature_dir),
             "mapped": {wp_id: sorted(refs) for wp_id, refs in new_mappings.items()},
             "total_mappings": {wp_id: sorted(refs) for wp_id, refs in all_wp_refs.items() if refs},
             "coverage": coverage,
@@ -2445,7 +2456,7 @@ def status(
             stale_count = sum(1 for wp in work_packages if wp.get("is_stale"))
             auto_commit_enabled = get_auto_commit_default(main_repo_root)
             result = {
-                "feature": mission_slug,
+                **_mission_identity_payload(feature_dir),
                 "total_wps": len(work_packages),
                 "by_lane": dict(lane_counts),
                 "work_packages": work_packages,

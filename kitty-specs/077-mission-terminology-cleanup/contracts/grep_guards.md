@@ -20,9 +20,7 @@ Per spec FR-022, the guards scan **live first-party surfaces** including the top
 | `src/specify_cli/cli/commands/**/*.py` | Yes | Live CLI command surface |
 | `src/specify_cli/orchestrator_api/**/*.py` | Yes (read-only verification) | Verifies orchestrator-api stays canonical (C-010) |
 | `src/doctrine/skills/**/*.md` | Yes | Live doctrine skills |
-| `docs/explanation/**/*.md` | Yes | Live explanation docs |
-| `docs/reference/**/*.md` | Yes | Live reference docs |
-| `docs/tutorials/**/*.md` | Yes | Live tutorials |
+| `docs/**/*.md` | Yes | Live first-party docs of every kind; `docs/migration/**` is excluded separately |
 | `README.md` (top-level) | Yes | Live primary user-facing doc — explicitly in scope per FR-022 |
 | `CONTRIBUTING.md` (top-level) | Yes | Live contributor doc — explicitly in scope per FR-022 |
 | `CHANGELOG.md` (top-level) | **Partial** — only the "Unreleased" section above the first `## [<version>]` heading | Historical version entries are excluded by FR-022's "CHANGELOG-style historical entries" carve-out. The "Unreleased" section is live; everything below the first version heading is frozen history. |
@@ -118,9 +116,8 @@ def test_no_mission_run_instructions_in_agent_facing_docs():
     """Live docs must teach --mission for tracked-mission selection.
 
     Authority: FR-010, FR-022, spec §12.2.
-    Scope: docs/explanation/**, docs/reference/**, docs/tutorials/**, top-level
-    README.md, top-level CONTRIBUTING.md, and the Unreleased section of
-    top-level CHANGELOG.md.
+    Scope: docs/**, top-level README.md, top-level CONTRIBUTING.md, and the
+    Unreleased section of top-level CHANGELOG.md.
     EXCLUDES: docs/migration/** (migration docs may name --feature and
     --mission-run by necessity).
     """
@@ -130,12 +127,12 @@ def test_no_mission_run_instructions_in_agent_facing_docs():
         r"--mission-run\s+<mission",
     ]
     scan_targets: list[Path] = []
-    for glob_pattern in [
-        "docs/explanation/**/*.md",
-        "docs/reference/**/*.md",
-        "docs/tutorials/**/*.md",
-    ]:
+    for glob_pattern in ["docs/**/*.md"]:
         scan_targets.extend(_glob(glob_pattern))
+    scan_targets = [
+        path for path in scan_targets
+        if not path.relative_to(REPO_ROOT).as_posix().startswith("docs/migration/")
+    ]
     for top_level in ["README.md", "CONTRIBUTING.md"]:
         path = REPO_ROOT / top_level
         if path.exists():
@@ -157,18 +154,18 @@ def test_no_mission_run_instructions_in_agent_facing_docs():
                 fail(f"{path}: instructs --mission-run for tracked-mission selection at offset {match.start()}")
 ```
 
-### Guard 5b: No live `--feature` instructions in top-level project docs
+### Guard 5b: No live `--feature` instructions in first-party docs
 
 ```python
-def test_no_feature_flag_in_live_top_level_docs():
-    """Top-level README.md and CONTRIBUTING.md must not document --feature
-    as a current/canonical CLI option.
+def test_no_feature_flag_in_live_first_party_docs():
+    """Live first-party docs must not document --feature as a
+    current/canonical CLI option.
 
     Authority: FR-005, FR-022, charter §Terminology Canon hyper-vigilance.
-    Scope: top-level README.md, top-level CONTRIBUTING.md, and the Unreleased
-    section of top-level CHANGELOG.md.
-    EXCLUDES: docs/migration/** (migration docs name --feature by necessity),
-    historical version sections of CHANGELOG.md.
+    Scope: docs/**, top-level README.md, top-level CONTRIBUTING.md, and the
+    Unreleased section of top-level CHANGELOG.md.
+    EXCLUDES: docs/migration/** (migration docs name --feature by necessity)
+    and historical version sections of CHANGELOG.md.
 
     A future PR that legitimately needs to mention --feature in a live top-level
     doc (e.g., to point users at the migration doc) must do so by linking to
@@ -184,6 +181,10 @@ def test_no_feature_flag_in_live_top_level_docs():
         r"\|\s*`--feature[\s|<>`]",       # `--feature` cell in a markdown options table
     ]
     scan_targets: list[Path | tuple[str, Path]] = []
+    for path in _glob("docs/**/*.md"):
+        if path.relative_to(REPO_ROOT).as_posix().startswith("docs/migration/"):
+            continue
+        scan_targets.append(path)
     for top_level in ["README.md", "CONTRIBUTING.md"]:
         path = REPO_ROOT / top_level
         if path.exists():

@@ -172,7 +172,7 @@ The envelope guard (Guard 7) **must** use the actual envelope keys at HEAD `35d4
    - `--mission-run\s+<slug>`
    - `--mission-run\s+<mission`
 
-2. Add Guard 5 — `test_no_mission_run_instructions_in_agent_facing_docs`. Scan `docs/explanation/**/*.md`, `docs/reference/**/*.md`, `docs/tutorials/**/*.md`, top-level `README.md`, top-level `CONTRIBUTING.md`, and the Unreleased section of `CHANGELOG.md` (use `_extract_changelog_unreleased` from T036). **Do not** scan `docs/migration/**`.
+2. Add Guard 5 — `test_no_mission_run_instructions_in_agent_facing_docs`. Scan live `docs/**/*.md`, top-level `README.md`, top-level `CONTRIBUTING.md`, and the Unreleased section of `CHANGELOG.md` (use `_extract_changelog_unreleased` from T036). **Do not** scan `docs/migration/**`.
 
 3. The CHANGELOG handling is the tricky part:
    ```python
@@ -196,7 +196,7 @@ The envelope guard (Guard 7) **must** use the actual envelope keys at HEAD `35d4
 **Purpose**: Implement the two guards that catch top-level docs drift and inverse-drift respectively.
 
 **Steps**:
-1. Add Guard 5b — `test_no_feature_flag_in_live_top_level_docs`. Scan top-level `README.md`, `CONTRIBUTING.md`, and the Unreleased section of `CHANGELOG.md` for raw `--feature` declarations. Patterns from `contracts/grep_guards.md`:
+1. Add Guard 5b — `test_no_feature_flag_in_live_first_party_docs`. Scan live `docs/**/*.md`, top-level `README.md`, `CONTRIBUTING.md`, and the Unreleased section of `CHANGELOG.md` for raw `--feature` declarations. Patterns from `contracts/grep_guards.md`:
    - `--feature\s+<slug>`
    - `--feature\s+\d{3}`
    - `--feature\s+[a-z][a-z0-9-]*` (slug-like token)
@@ -208,7 +208,7 @@ The envelope guard (Guard 7) **must** use the actual envelope keys at HEAD `35d4
 
 4. Run:
    ```bash
-   PWHEADLESS=1 uv run pytest tests/contract/test_terminology_guards.py::test_no_feature_flag_in_live_top_level_docs tests/contract/test_terminology_guards.py::test_no_mission_used_to_mean_mission_type_in_cli_commands -v
+   PWHEADLESS=1 uv run pytest tests/contract/test_terminology_guards.py::test_no_feature_flag_in_live_first_party_docs tests/contract/test_terminology_guards.py::test_no_mission_used_to_mean_mission_type_in_cli_commands -v
    ```
 
 ### T040 — Implement guards 7-8 (envelope width + meta-guard) [P]

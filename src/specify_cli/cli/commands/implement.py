@@ -19,7 +19,7 @@ from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
-from specify_cli.mission_metadata import set_vcs_lock
+from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
@@ -552,13 +552,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
     if json_output:
         workspace_rel = str(workspace_path.relative_to(repo_root))
+        identity = resolve_mission_identity(feature_dir)
         print(
             json.dumps(
                 {
                     "workspace": workspace_rel,
                     "workspace_path": workspace_rel,
                     "branch": branch_name,
-                    "feature": mission_slug,
+                    "mission_slug": identity.mission_slug,
+                    "mission_number": identity.mission_number,
+                    "mission_type": identity.mission_type,
                     "wp_id": wp_id,
                     "lane_id": result.lane_id,
                     "status": "created",

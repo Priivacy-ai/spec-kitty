@@ -15,6 +15,7 @@ from pathlib import Path
 
 from specify_cli.core.dependency_graph import build_dependency_graph, topological_sort
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
+from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
@@ -41,6 +42,8 @@ class FeatureTopology:
     mission_slug: str
     target_branch: str
     mission_branch: str
+    mission_number: str = ""
+    mission_type: str = "software-dev"
     entries: list[WPTopologyEntry] = field(default_factory=list)
 
     @property
@@ -100,6 +103,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, mission_slug)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
+    identity = resolve_mission_identity(feature_dir)
     lanes_manifest = require_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
 
@@ -135,7 +139,9 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
         )
 
     return FeatureTopology(
-        mission_slug=mission_slug,
+        mission_slug=identity.mission_slug,
+        mission_number=identity.mission_number,
+        mission_type=identity.mission_type,
         target_branch=target_branch,
         mission_branch=lanes_manifest.mission_branch,
         entries=entries,
@@ -146,6 +152,11 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
     """Render lane topology as structured JSON for prompt injection."""
     current_entry = topology.get_entry(current_wp_id)
     diff_base = topology.get_actual_base_for_wp(current_wp_id)
+    identity = mission_identity_fields(
+        topology.mission_slug,
+        topology.mission_number,
+        topology.mission_type,
+    )
 
     entries_json = []
     for entry in topology.entries:
@@ -164,7 +175,9 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
         entries_json.append(entry_data)
 
     payload = {
-        "feature": topology.mission_slug,
+        "mission_slug": identity["mission_slug"],
+        "mission_number": identity["mission_number"],
+        "mission_type": identity["mission_type"],
         "target_branch": topology.target_branch,
         "mission_branch": topology.mission_branch,
         "current_wp": current_wp_id,

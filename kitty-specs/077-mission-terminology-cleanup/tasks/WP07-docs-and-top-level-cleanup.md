@@ -23,8 +23,7 @@ authoritative_surface: docs/
 execution_mode: code_change
 mission_slug: 077-mission-terminology-cleanup
 owned_files:
-- docs/explanation/**
-- docs/tutorials/**
+- docs/**
 - README.md
 - CONTRIBUTING.md
 - CHANGELOG.md
@@ -47,7 +46,7 @@ This is FR-010 + FR-022 from the spec.
 ## Context
 
 **Critical scope rule (FR-022, C-011)**:
-- ✅ **In scope**: `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**`, top-level `README.md`, top-level `CONTRIBUTING.md`, and the **Unreleased section only** of top-level `CHANGELOG.md`.
+- ✅ **In scope**: `docs/**` (excluding `docs/migration/**`), top-level `README.md`, top-level `CONTRIBUTING.md`, and the **Unreleased section only** of top-level `CHANGELOG.md`.
 - ❌ **Out of scope**: `kitty-specs/**`, `architecture/**`, `docs/migration/**` (owned by WP08), `.kittify/**`.
 
 The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<version>]` heading. Historical version entries are explicitly excluded by FR-022's "CHANGELOG-style historical entries" carve-out and by C-011 (no rewriting historical artifacts).
@@ -80,12 +79,12 @@ The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<ve
 **Steps**:
 1. Run a targeted grep:
    ```bash
-   grep -rn "mission-run\|--feature" docs/explanation/ docs/reference/ docs/tutorials/ 2>/dev/null
+   grep -rn "mission-run\|--feature" docs/ 2>/dev/null
    ```
 2. **Do not** include `docs/migration/**` in this scan (those are the deprecation docs themselves, owned by WP08).
-3. For each match in `docs/explanation/**` or `docs/tutorials/**`, classify and fix as in T028.
-4. **Special case for `docs/reference/**`**: this directory is **owned by WP13** (Scope B). WP07 must NOT modify any file under `docs/reference/`. If the audit finds drift in `docs/reference/event-envelope.md` or `docs/reference/orchestrator-api.md`, those will be fixed by WP13 — do not touch them. If the audit finds drift in some other `docs/reference/*.md` file, file an issue / leave a `TODO` and escalate to the planner; do not modify.
-5. Re-run the grep until it returns zero unjustified matches in `docs/explanation/**` and `docs/tutorials/**`. Matches in `docs/reference/**` are recorded but not fixed by this WP.
+3. For each match in a live `docs/**` file, classify and fix as in T028.
+4. `docs/reference/event-envelope.md` and `docs/reference/orchestrator-api.md` may also be touched by WP13, but WP07 is still responsible for removing live legacy selector teaching anywhere under `docs/**`. Coordinate rather than deferring the drift.
+5. Re-run the grep until it returns zero unjustified matches in live `docs/**`.
 
 ### T030 — Clean up `README.md:883` (legacy `--feature` example block) [P]
 
@@ -148,7 +147,7 @@ The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<ve
 | File | Action | Notes |
 |---|---|---|
 | `docs/explanation/runtime-loop.md` | MODIFY | Verified drift site |
-| Other files under `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**` | MODIFY (as needed) | Per T029 audit |
+| Other files under `docs/**` | MODIFY (as needed) | Per T029 audit; exclude `docs/migration/**` |
 | `README.md` | MODIFY | Lines 883 and 910 (verified) + any others found |
 | `CONTRIBUTING.md` | MODIFY (if drift found) | Full-file scan |
 | `CHANGELOG.md` | MODIFY (if drift in Unreleased section only) | Historical entries excluded |
@@ -163,7 +162,7 @@ The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<ve
 ## Definition of Done
 
 - [ ] `docs/explanation/runtime-loop.md` no longer teaches `--mission-run` for tracked-mission selection
-- [ ] T029 audit returns zero unjustified matches across `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**`
+- [ ] T029 audit returns zero unjustified matches across live `docs/**` (excluding `docs/migration/**`)
 - [ ] `README.md:883` legacy comment is cleaned up
 - [ ] `README.md:910` Options table row uses `--mission`, not `--feature`
 - [ ] Any other drift in `README.md` is fixed
@@ -182,7 +181,7 @@ The Unreleased section of `CHANGELOG.md` is the portion above the first `## [<ve
 - The CHANGELOG.md Unreleased section may not exist (the file may go straight to historical entries). If so, T032 is a no-op for CHANGELOG.
 
 **Reviewer checklist**:
-- [ ] All edits are in `docs/explanation/**`, `docs/reference/**`, `docs/tutorials/**`, `README.md`, `CONTRIBUTING.md`, or the Unreleased section of `CHANGELOG.md`
+- [ ] All edits are in `docs/**` (excluding `docs/migration/**`), `README.md`, `CONTRIBUTING.md`, or the Unreleased section of `CHANGELOG.md`
 - [ ] No edits in `kitty-specs/**`, `architecture/**`, `docs/migration/**`, or historical CHANGELOG sections
 - [ ] README.md verified drift sites at lines 883 and 910 are both fixed
 - [ ] Internal links in modified files are not broken

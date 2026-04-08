@@ -13,6 +13,7 @@ from rich.table import Table
 from rich.panel import Panel
 
 from .manifest import FileManifest, WorktreeStatus
+from .mission_metadata import resolve_mission_identity
 from .skills.manifest import load_manifest as load_skill_manifest
 from .skills.verifier import verify_installed_skills
 
@@ -207,10 +208,14 @@ def run_enhanced_verify(
         if not feature:
             raise ValueError("No --mission provided; skipping feature analysis.")
         mission_slug = feature.strip()
+        resolved_feature_dir = feature_dir or project_root / "kitty-specs" / mission_slug
+        identity = resolve_mission_identity(resolved_feature_dir)
 
         output_data["feature_detection"] = {
             "detected": True,
-            "feature": mission_slug
+            "mission_slug": identity.mission_slug,
+            "mission_number": identity.mission_number,
+            "mission_type": identity.mission_type,
         }
 
         # Get detailed status for this feature

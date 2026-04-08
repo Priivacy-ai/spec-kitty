@@ -31,7 +31,7 @@ return "021-feature-b"  # Wrong! Selects 021 instead of 020
 # core/feature_detection.py is deterministic
 if len(features) > 1:
     raise MultipleFeaturesError(
-        "Multiple features found, use --feature flag"
+        "Multiple features found, use --mission flag"
     )
 ```
 
@@ -41,7 +41,7 @@ if len(features) > 1:
 
 1. **Single Source of Truth**: One canonical implementation in `core/feature_detection.py`
 2. **Deterministic by Default**: No guessing or heuristics
-3. **Explicit When Ambiguous**: Clear error messages guide users to `--feature` flag
+3. **Explicit When Ambiguous**: Clear error messages guide users to the canonical `--mission` flag
 4. **Flexible Modes**: Strict (raise errors) vs lenient (return None)
 5. **Rich Results**: FeatureContext dataclass with all relevant information
 6. **Well-Tested**: Comprehensive unit and integration tests
@@ -50,8 +50,8 @@ if len(features) > 1:
 
 The detection follows a strict priority order:
 
-1. **Explicit `--feature` parameter** (highest priority)
-   - User explicitly specifies: `--feature 020-my-feature`
+1. **Explicit `--mission` parameter** (highest priority)
+   - User explicitly specifies: `--mission 020-my-feature`
    - Always wins over auto-detection
 
 2. **`SPECIFY_FEATURE` environment variable**
@@ -164,9 +164,9 @@ Replaced 10 scattered implementations with imports from centralized module:
 
 ### Phase 4: Template Updates
 
-- Updated `plan.md` template with feature detection instructions
+- Updated `plan.md` template with mission detection instructions
 - Created migration to regenerate all 12 agent templates
-- Agents now pass `--feature` explicitly to avoid auto-detection
+- Agents now pass `--mission` explicitly to avoid auto-detection
 
 ## Breaking Changes
 
@@ -188,7 +188,7 @@ Error: Multiple features found (2), cannot auto-detect:
   - 021-feature-b
 
 Please specify explicitly using:
-  --feature <feature-slug>  (e.g., --feature 020-feature-a)
+  --mission <mission-slug>  (e.g., --mission 020-feature-a)
   SPECIFY_FEATURE=<feature-slug>  (environment variable)
   Or run from inside a feature directory or worktree
 ```
@@ -199,7 +199,7 @@ Please specify explicitly using:
 
 **Mitigation**:
 1. Clear error message with guidance
-2. Multiple ways to specify (--feature flag, env var, directory context)
+2. Multiple ways to specify (`--mission`, env var, directory context)
 3. Documentation updated with examples
 
 **Benefits**:
@@ -217,7 +217,7 @@ from specify_cli.core.feature_detection import detect_feature, FeatureDetectionE
 try:
     ctx = detect_feature(
         repo_root,
-        explicit_feature=feature_flag,  # From --feature parameter
+        explicit_feature=feature_flag,  # From --mission parameter
         cwd=Path.cwd(),
         mode="strict"  # Raise error if ambiguous
     )
@@ -282,7 +282,7 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 
 **Error message quality**:
 - Multiple features error lists all options
-- Error messages mention `--feature` flag
+- Error messages mention the canonical `--mission` flag
 - Error messages provide examples
 
 ### Integration Tests (13 tests)
@@ -298,7 +298,7 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
 - Error types converted appropriately
 
 **Command validation**:
-- All agent commands accept `--feature` parameter
+- All agent commands accept the canonical mission selector
 - Commands call centralized detection
 - Error handling works correctly
 
@@ -328,7 +328,7 @@ def detect_feature_slug(repo_root: Path, **kwargs) -> str:
    - Benefit: Convenience for specific workflows
 
 3. **Fuzzy matching**: Suggest features when user typos slug
-   - Use case: `--feature 20-my-feature` → "Did you mean 020-my-feature?"
+   - Use case: `--mission 20-my-feature` → "Did you mean 020-my-feature?"
    - Complexity: Low
    - Benefit: Better UX
 

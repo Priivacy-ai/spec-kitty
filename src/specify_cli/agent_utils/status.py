@@ -16,6 +16,7 @@ from rich.table import Table
 from rich.text import Text
 
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
+from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.status.models import Lane
 from specify_cli.status.progress import compute_weighted_progress
 from specify_cli.tasks_support import extract_scalar, split_frontmatter
@@ -72,6 +73,8 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         if not tasks_dir.exists():
             console.print(f"[red]Error:[/red] Tasks directory not found: {tasks_dir}")
             return {"error": f"Tasks directory not found: {tasks_dir}"}
+
+        identity = resolve_mission_identity(feature_dir)
 
         # Build lane map from event log (canonical source of truth)
         from specify_cli.status.reducer import reduce
@@ -151,7 +154,9 @@ def show_kanban_status(mission_slug: Optional[str] = None) -> dict:
         # Return structured data
         lane_counts = Counter(wp["lane"] for wp in work_packages)
         return {
-            "feature": mission_slug,
+            "mission_slug": identity.mission_slug,
+            "mission_number": identity.mission_number,
+            "mission_type": identity.mission_type,
             "total_wps": total,
             "by_lane": dict(lane_counts),
             "work_packages": work_packages,

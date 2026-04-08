@@ -88,7 +88,9 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     status = run_tasks_cli(["status", "--feature", mission_slug, "--json"], cwd=feature_repo)
     assert_success(status)
     data = json.loads(status.stdout)
-    assert data["feature"] == mission_slug
+    assert data["mission_slug"] == mission_slug
+    assert data["mission_number"] == mission_slug.split("-")[0]
+    assert data["mission_type"] == "software-dev"
 
     verify = run_tasks_cli(["verify", "--feature", mission_slug, "--json", "--lenient"], cwd=feature_repo)
     assert_success(verify)
@@ -110,7 +112,9 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     )
     assert_success(accept)
     accept_payload = json.loads(accept.stdout)
-    assert accept_payload.get("feature") == mission_slug
+    assert accept_payload["mission_slug"] == mission_slug
+    assert accept_payload["mission_number"] == mission_slug.split("-")[0]
+    assert accept_payload["mission_type"] == "software-dev"
 
 
 def _prepare_done_work_package(feature_repo: Path, mission_slug: str) -> None:

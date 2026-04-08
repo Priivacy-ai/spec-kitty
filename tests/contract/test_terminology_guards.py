@@ -24,16 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 
 CLI_COMMAND_GLOBS = ("src/specify_cli/cli/commands/**/*.py",)
 DOCTRINE_SKILL_GLOBS = ("src/doctrine/skills/**/*.md",)
-AGENT_DOC_GLOBS = (
-    "docs/1x/**/*.md",
-    "docs/2x/**/*.md",
-    "docs/explanation/**/*.md",
-    "docs/how-to/**/*.md",
-    "docs/*.md",
-    "docs/reference/**/*.md",
-    "docs/tutorials/**/*.md",
-    "docs/index.md",
-)
+AGENT_DOC_GLOBS = ("docs/**/*.md",)
 TOP_LEVEL_DOCS = ("README.md", "CONTRIBUTING.md")
 FORBIDDEN_SCAN_ROOTS = ("kitty-specs/", "architecture/", ".kittify/", "tests/", "docs/migration/")
 
@@ -76,6 +67,9 @@ def _live_doc_scan_targets() -> list[tuple[Path, str]]:
     scan_targets: list[tuple[Path, str]] = []
     for path_pattern in AGENT_DOC_GLOBS:
         for path in _glob(path_pattern):
+            relative_path = path.relative_to(REPO_ROOT).as_posix()
+            if relative_path.startswith("docs/migration/"):
+                continue
             scan_targets.append((path, _read(path)))
     for top_level in TOP_LEVEL_DOCS:
         path = REPO_ROOT / top_level

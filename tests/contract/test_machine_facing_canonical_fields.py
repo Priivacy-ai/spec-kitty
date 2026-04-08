@@ -8,12 +8,16 @@ from unittest.mock import MagicMock, patch
 
 from typer.testing import CliRunner
 
+from specify_cli.acceptance import AcceptanceSummary
 from specify_cli.acceptance_matrix import AcceptanceMatrix, write_acceptance_matrix
+from specify_cli.agent_utils.status import show_kanban_status
+from specify_cli.core.worktree_topology import FeatureTopology, WPTopologyEntry, render_topology_json
 from specify_cli.context.models import MissionContext
 from specify_cli.next.decision import Decision, DecisionKind
 from specify_cli.orchestrator_api.commands import app as orchestrator_app
 from specify_cli.policy.config import MergeGateConfig
 from specify_cli.policy.merge_gates import evaluate_merge_gates
+from specify_cli.verify_enhanced import run_enhanced_verify
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.progress import generate_progress_json
 from specify_cli.status.reducer import materialize
@@ -211,6 +215,117 @@ def test_next_decision_payload_emits_canonical_mission_fields() -> None:
     assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
     assert payload["mission_number"] == "064"
     assert payload["mission_type"] == "software-dev"
+
+
+def test_acceptance_summary_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+    summary = AcceptanceSummary(
+        feature=mission_dir.name,
+        repo_root=repo_root,
+        feature_dir=mission_dir,
+        tasks_dir=mission_dir / "tasks",
+        branch="main",
+        worktree_root=repo_root / ".worktrees",
+        primary_repo_root=repo_root,
+        lanes={"done": ["WP01"]},
+        work_packages=[],
+        metadata_issues=[],
+        activity_issues=[],
+        unchecked_tasks=[],
+        needs_clarification=[],
+        missing_artifacts=[],
+        optional_missing=[],
+        git_dirty=[],
+        path_violations=[],
+        warnings=[],
+    )
+
+    payload = summary.to_dict()
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_worktree_topology_payload_emits_canonical_mission_fields() -> None:
+    topology = FeatureTopology(
+        mission_slug="064-complete-mission-identity-cutover",
+        target_branch="main",
+        mission_branch="kitty/mission-064-complete-mission-identity-cutover",
+        mission_number="064",
+        mission_type="software-dev",
+        entries=[
+            WPTopologyEntry(
+                wp_id="WP01",
+                lane_id="lane-a",
+                lane_wp_ids=["WP01"],
+                branch_name="kitty/mission-064-complete-mission-identity-cutover-lane-a",
+                base_branch="kitty/mission-064-complete-mission-identity-cutover",
+            )
+        ],
+    )
+
+    payload = json.loads("\n".join(render_topology_json(topology, "WP01")[1:-1]))
+    assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_agent_status_payload_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    repo_root, mission_dir = _make_mission(tmp_path)
+    _append_lane_event(mission_dir, to_lane="claimed")
+
+    with (
+        patch("specify_cli.agent_utils.status.locate_project_root", return_value=repo_root),
+        patch("specify_cli.agent_utils.status.get_main_repo_root", return_value=repo_root),
+    ):
+        payload = show_kanban_status(mission_dir.name)
+
+    assert payload["mission_slug"] == mission_dir.name
+    assert payload["mission_number"] == "064"
+    assert payload["mission_type"] == "software-dev"
+
+
+def test_verify_enhanced_feature_detection_emits_canonical_mission_fields(tmp_path: Path) -> None:
+    from rich.console import Console
+
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / ".kittify").mkdir()
+    mission_dir = project_root / "kitty-specs" / "064-complete-mission-identity-cutover"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_number": "064",
+                "mission_slug": mission_dir.name,
+                "slug": mission_dir.name,
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "friendly_name": "Canonical Mission Identity Cutover",
+                "created_at": "2026-04-08T00:00:00+00:00",
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    console = Console(file=open("/dev/null", "w"))  # noqa: SIM115
+    with patch("subprocess.run") as mock_run:
+        mock_run.return_value = MagicMock(stdout="main\n", returncode=0)
+        payload = run_enhanced_verify(
+            repo_root=project_root,
+            project_root=project_root,
+            cwd=project_root,
+            feature=mission_dir.name,
+            json_output=True,
+            check_files=False,
+            console=console,
+            feature_dir=mission_dir,
+        )
+
+    detected = payload["feature_detection"]
+    assert detected["mission_slug"] == mission_dir.name
+    assert detected["mission_number"] == "064"
+    assert detected["mission_type"] == "software-dev"
 
 
 def test_orchestrator_query_payloads_emit_canonical_mission_fields(tmp_path: Path) -> None:

@@ -7,13 +7,19 @@
 
 ## Summary
 
-The active first-party machine-facing code is already canonical on `mission_slug`.
-The remaining Scope B drift falls into two buckets:
+The original Scope B inventory undercounted the active first-party machine-facing
+emitters. The final implementation needed to align two classes of drift:
 
-1. Several machine-facing serializers identify a mission with `mission_slug` only and still omit the canonical companion fields `mission_number` and `mission_type`.
-2. Contract docs still describe legacy `feature_slug` compatibility behavior that the current code no longer emits.
+1. Several machine-facing serializers identified a mission with `mission_slug`
+   only and omitted the canonical companion fields `mission_number` and
+   `mission_type`.
+2. A second set of first-party JSON payloads outside the original status/context
+   cluster still emitted mission identity under a raw `"feature"` field.
 
-I did **not** find any active first-party emitter in the Scope B surfaces that still writes `feature_slug` today. The remaining `feature_slug` references in code are read-compat or migration-only paths.
+The shipped reroll removes those residual `"feature"` outputs from active
+first-party JSON producers and normalizes them onto canonical mission identity
+fields. Remaining `feature_slug` references in code are read-compat or
+migration-only paths.
 
 ## Surfaces Inventory
 
@@ -27,6 +33,12 @@ I did **not** find any active first-party emitter in the Scope B surfaces that s
 | Merge gate evaluation JSON | `src/specify_cli/policy/merge_gates.py` | `MergeGateEvaluation.to_dict()` | `mission_slug` | `mission_slug`, `mission_number`, `mission_type` | Yes, missing `mission_number` + `mission_type` |
 | `spec-kitty next --json` decision payload | `src/specify_cli/next/decision.py` | `Decision.to_dict()` | `mission_slug`, legacy-ish `mission` field for mission type | `mission_slug`, `mission_number`, `mission_type` | Yes, missing canonical `mission_type` field name and missing `mission_number` |
 | Orchestrator API response payloads | `src/specify_cli/orchestrator_api/commands.py` | `mission-state`, `list-ready`, `start-implementation`, `start-review`, `transition`, `append-history`, `accept-mission`, `merge-mission`, merge failures | `mission_slug` | `mission_slug`, `mission_number`, `mission_type` | Yes, missing `mission_number` + `mission_type` |
+| Acceptance checklist JSON | `src/specify_cli/acceptance.py` | `AcceptanceSummary.to_dict()` | `"feature"` | `mission_slug`, `mission_number`, `mission_type` | Yes, legacy mission identity field removed in reroll |
+| Kanban/status JSON | `src/specify_cli/agent_utils/status.py` | `show_kanban_status()` | `"feature"` | `mission_slug`, `mission_number`, `mission_type` | Yes, legacy mission identity field removed in reroll |
+| Implement command JSON | `src/specify_cli/cli/commands/implement.py` | `implement()` JSON branch | `"feature"` | `mission_slug`, `mission_number`, `mission_type` | Yes, legacy mission identity field removed in reroll |
+| Agent tasks JSON | `src/specify_cli/cli/commands/agent/tasks.py` | `finalize-tasks`, `map-requirements`, `status` JSON payloads | `"feature"` or mission-less payload | `mission_slug`, `mission_number`, `mission_type` | Yes, normalized in reroll |
+| Worktree topology JSON | `src/specify_cli/core/worktree_topology.py` | `render_topology_json()` | `mission_slug` only | `mission_slug`, `mission_number`, `mission_type` | Yes, enriched in reroll |
+| Enhanced verify JSON | `src/specify_cli/verify_enhanced.py` | `run_enhanced_verify()` feature detection payload | `"feature"` | `mission_slug`, `mission_number`, `mission_type` | Yes, legacy mission identity field removed in reroll |
 | Orchestrator API envelope | `src/specify_cli/orchestrator_api/envelope.py` | top-level envelope | fixed 7-key envelope | fixed 7-key envelope | No drift; locked by C-010 |
 | Status event readers | `src/specify_cli/status/models.py` | `StatusEvent.from_dict()`, `StatusSnapshot.from_dict()` | accept `mission_slug` or legacy `feature_slug` | canonical output only; read-compat allowed for history | No emit drift; keep read-compat |
 | Status event validator | `src/specify_cli/status/validate.py` | event validation | accepts `mission_slug` or legacy `feature_slug` | canonical output only; read-compat allowed for history | No emit drift; keep read-compat |
@@ -46,7 +58,7 @@ I did **not** find any active first-party emitter in the Scope B surfaces that s
 | `upstream_contract.json` section | Forbidden fields | Required fields | First-party surfaces |
 |---|---|---|---|
 | `envelope` | `feature_slug`, `feature_number` | `schema_version`, `build_id`, `aggregate_type`, `event_type` | Orchestrator envelope, event-envelope docs |
-| `payload.mission_scoped` | `feature_slug`, `feature_number`, `feature_type` | `mission_slug`, `mission_number`, `mission_type` | Status snapshot, board summary, progress JSON, context JSON, acceptance matrix, merge gate evaluation, next decision payload, orchestrator response payloads |
+| `payload.mission_scoped` | `feature_slug`, `feature_number`, `feature_type`, raw `"feature"` mission identity | `mission_slug`, `mission_number`, `mission_type` | Status snapshot, board summary, progress JSON, context JSON, acceptance matrix, merge gate evaluation, next decision payload, orchestrator response payloads, acceptance/status/implement/tasks JSON, worktree topology JSON, enhanced verify payload |
 | `body_sync` | `feature_slug`, `mission_key` | `project_uuid`, `mission_slug`, `target_branch`, `mission_type`, `manifest_version` | Sync/body transport surfaces (already canonical; not part of current drift set) |
 | `orchestrator_api` | `feature_slug` | `mission_slug` | `src/specify_cli/orchestrator_api/commands.py`, `docs/reference/orchestrator-api.md` |
 
@@ -89,7 +101,7 @@ I did **not** find any active first-party emitter in the Scope B surfaces that s
 
 ## WP12 Write Set
 
-Planned code-change write set based on the inventory above:
+Planned code-change write set based on the final implemented inventory:
 
 - `src/specify_cli/mission_metadata.py` or adjacent helper module
 - `src/specify_cli/status/models.py`
@@ -98,14 +110,25 @@ Planned code-change write set based on the inventory above:
 - `src/specify_cli/status/progress.py`
 - `src/specify_cli/context/models.py`
 - `src/specify_cli/context/resolver.py`
+- `src/specify_cli/acceptance.py`
 - `src/specify_cli/acceptance_matrix.py`
+- `src/specify_cli/agent_utils/status.py`
+- `src/specify_cli/cli/commands/agent/tasks.py`
+- `src/specify_cli/cli/commands/implement.py`
+- `src/specify_cli/core/worktree_topology.py`
 - `src/specify_cli/policy/merge_gates.py`
 - `src/specify_cli/next/decision.py`
 - `src/specify_cli/next/runtime_bridge.py`
 - `src/specify_cli/orchestrator_api/commands.py`
+- `src/specify_cli/verify_enhanced.py`
 - `tests/contract/test_machine_facing_canonical_fields.py`
 
 ## Review Notes
 
-- The planning assumption that active drift lives under `src/specify_cli/agent/**` does not match the current repo layout. The real Scope B emitters are under `status/`, `context/`, `next/`, `policy/`, and `orchestrator_api/`.
-- The code-side machine-facing drift is mostly omission drift (`mission_number` / `mission_type` missing), not alias drift (`feature_slug` still emitted).
+- The planning assumption that active drift lives mostly under `status/`, `context/`,
+  `next/`, `policy/`, and `orchestrator_api/` was incomplete. The final reroll
+  also had to touch `acceptance.py`, `agent_utils/status.py`, `agent/tasks.py`,
+  `implement.py`, `core/worktree_topology.py`, and `verify_enhanced.py`.
+- The code-side machine-facing drift was a mix of omission drift
+  (`mission_number` / `mission_type` missing) and residual raw `"feature"`
+  mission identity fields in active JSON payloads.
