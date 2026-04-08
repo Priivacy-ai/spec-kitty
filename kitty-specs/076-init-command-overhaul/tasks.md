@@ -28,11 +28,11 @@
 | T016 | Remove _maybe_generate_structure_templates definition + call | WP02 | No | [D] |
 | T017 | Remove ensure_dashboard_running call + initial git commit block | WP02 | No | [D] |
 | T018 | Fix ensure_runtime() error handling; add global skill installation; fix charter dir in _prepare_project_minimal | WP02 | No | [D] |
-| T019 | Delete github_client.py; clean template/manager.py (get_local_repo_root + script-copy logic) | WP03 | No |
-| T020 | Delete test_init_doctrine.py; update test_init_command.py (remove removed-flag tests) | WP03 | [P] |
-| T021 | Update test_m_2_0_1_tool_config_key_rename.py fixtures | WP03 | [P] |
-| T022 | Write new init integration tests covering the 14-case positive flow | WP03 | No |
-| T023 | Run full test suite + mypy --strict on all Lane A touched files | WP03 | No |
+| T019 | Delete github_client.py; clean template/manager.py (get_local_repo_root + script-copy logic) | WP03 | No | [D] |
+| T020 | Delete test_init_doctrine.py; update test_init_command.py (remove removed-flag tests) | WP03 | [D] |
+| T021 | Update test_m_2_0_1_tool_config_key_rename.py fixtures | WP03 | [D] |
+| T022 | Write new init integration tests covering the 14-case positive flow | WP03 | No | [D] |
+| T023 | Run full test suite + mypy --strict on all Lane A touched files | WP03 | No | [D] |
 | T024 | Create m_3_2_1_strip_selection_config.py skeleton (migration_id, target_version, imports) | WP04 | No | [D] |
 | T025 | Implement detect() + apply() with dry_run support | WP04 | No | [D] |
 | T026 | Handle both 'agents.selection' and 'tools.selection' key variants | WP04 | No | [D] |
