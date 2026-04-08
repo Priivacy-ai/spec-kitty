@@ -1,7 +1,7 @@
 {
-  "event_count": 20,
-  "last_event_id": "01KNNT0HSK9RAYVZ6424EKP9E6",
-  "materialized_at": "2026-04-08T05:45:59.347208+00:00",
+  "event_count": 21,
+  "last_event_id": "01KNNTCEYABRXTXMSGXMVPF0P4",
+  "materialized_at": "2026-04-08T05:52:29.642181+00:00",
   "mission_slug": "075-mission-build-identity-contract-cutover",
   "summary": {
     "approved": 2,
@@ -9,10 +9,10 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
+    "for_review": 1,
     "in_progress": 0,
     "in_review": 0,
-    "planned": 3
+    "planned": 2
   },
   "work_packages": {
     "WP01": {
@@ -30,11 +30,11 @@
       "last_transition_at": "2026-04-08T05:45:59.347208+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
-      "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNNRM8SHHGM468QRCTVYPMZM",
-      "last_transition_at": "2026-04-08T05:21:48.337037+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNNTCEYABRXTXMSGXMVPF0P4",
+      "last_transition_at": "2026-04-08T05:52:29.642181+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",

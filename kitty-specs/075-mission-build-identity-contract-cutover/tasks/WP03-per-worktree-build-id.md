@@ -369,3 +369,7 @@ def test_build_id_path_raises_when_no_git_repo(tmp_path):
 - Verify `{git-dir}/spec-kitty-build-id` is created and contains a UUID4 string
 - Run `git worktree add /tmp/test-wt HEAD && cd /tmp/test-wt && spec-kitty agent tasks status` — confirm a different `build_id` than the main checkout's events
 - Confirm `BuildIdentityError` is raised in a bare-repo or no-repo test environment
+
+## Activity Log
+
+- 2026-04-08T05:52:29Z – unknown – shell_pid=10307 – Per-worktree build_id via git rev-parse; migration idempotent; fail-closed on no git; 10 tests green; build_id excluded from to_dict/config.yaml
