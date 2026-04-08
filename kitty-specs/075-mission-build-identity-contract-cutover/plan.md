@@ -1,108 +1,302 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Mission & Build Identity Contract Cutover
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `main` | **Date**: 2026-04-08 | **Spec**: [spec.md](spec.md)
+**Mission**: 075-mission-build-identity-contract-cutover | **Merge target**: `main`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+The primary contract surfaces (event types, envelopes, orchestrator API, body sync, contract gate) were cleaned by a prior cutover and are already on `main`. This plan closes the three remaining gaps:
+
+1. **Read-path fallbacks** (FR-013): five non-migration runtime files still accept `feature_slug` as a fallback on inbound reads. These are removed; the paths fail closed on legacy input.
+2. **Per-worktree build identity** (FR-007, FR-008, FR-016): `build_id` currently lives in committed `config.yaml` (shared across worktrees). Moved to `{git-dir}/spec-kitty-build-id` — per-worktree by construction, immune to `git clean`, migrated idempotently from the committed location.
+3. **Tracker bind** (FR-009): `bind_mission_origin` does not include `build_id` in its SaaS call payload. Added.
+
+FR-015 (contract provenance) is already implemented: `upstream_contract.json` carries `_schema_version: "3.0.0"` and `_source_events_commit: "5b8e6dc"`. Work is a test only (Scenario 4 acceptance).
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
+**Language/Version**: Python 3.11+
+**Primary Dependencies**: typer (CLI), ruamel.yaml (config parsing), pytest + mypy --strict (quality gates)
+**Storage**: `.git/spec-kitty-build-id` (per-worktree, non-committed); `.kittify/config.yaml` (committed, build_id removed from this file)
+**Testing**: pytest, ≥90% coverage on modified modules
+**Target Platform**: All platforms where `git rev-parse --git-dir` succeeds. Fail closed in environments without a `.git` directory (some Docker/CI shallow-clone setups).
+**Performance Goals**: No latency regression on orchestrator API (NFR-005); build_id load adds one `git rev-parse` subprocess per first access (cached thereafter)
+**Constraints**: mypy --strict, fail-closed on legacy input shapes, no compatibility bridges on live paths, no fallback on missing `.git`
 
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+### Key Decision: build.id Storage (FR-007, FR-008)
+
+**Decision**: Option B — `{git-dir}/spec-kitty-build-id`
+
+**Resolution**:
+```python
+def _build_id_path() -> Path:
+    result = subprocess.run(
+        ["git", "rev-parse", "--git-dir"],
+        capture_output=True, text=True, check=True
+    )
+    return Path(result.stdout.strip()) / "spec-kitty-build-id"
+```
+
+In the main checkout: `.git/spec-kitty-build-id`
+In any git worktree: `.git/worktrees/<name>/spec-kitty-build-id`
+
+Both are per-worktree by construction. No `.gitignore` entry needed. Immune to `git clean -fdx`.
+
+**CI environments without `.git`**: `subprocess.CalledProcessError` from `git rev-parse --git-dir` is caught and re-raised as a clear domain error (`BuildIdentityError: No git repository found. spec-kitty requires a git checkout.`). No silent fallback to a shared path.
+
+**Rationale**: NFR-004 stability is not just a test metric — `build_id` stability is the invariant that lets the SaaS match `started`/`complete` event pairs for Phase 4 profile invocations. Option A (`.kittify/build_id.local`) fails silently under `git clean -fdx`, which CI pipelines routinely execute. A silently regenerated `build_id` produces orphaned `started` events with no matching `complete` — a correctness failure with no visible error. Option B is immune to this failure mode.
 
 ## Charter Check
 
-*GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
+Active directives (from charter compact context):
 
-[Gates determined based on charter file]
+| Directive | Implication for This Plan |
+|-----------|--------------------------|
+| DIRECTIVE_010 (Specification Fidelity) | Implementation must match the 6 acceptance scenarios in spec.md exactly |
+| DIRECTIVE_003 (Decision Documentation) | build.id storage decision and FR-015 "already done" finding documented above |
+| DIRECTIVE_030 (Test & Typecheck Quality Gate) | All modified modules: ≥90% coverage + mypy --strict before merging |
+| DIRECTIVE_034 (Test-First Development) | Tests for fail-closed behavior written before the removal code |
+| DIRECTIVE_024 (Locality of Change) | Each WP targets a single concern; cross-cutting regression suite is its own WP |
+
+No charter violations. No complexity justification required.
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/075-mission-build-identity-contract-cutover/
+├── spec.md              # Approved specification
+├── plan.md              # This file
+├── research.md          # Phase 0 output (below)
+├── data-model.md        # Phase 1 output (below)
+└── tasks/               # Generated by /spec-kitty.tasks
 ```
 
-### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+### Source Code — Files Modified
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/
+├── core/
+│   ├── identity_aliases.py        # WP01: remove feature_slug backfill (FR-013)
+│   ├── worktree.py                # WP01: remove .feature_slug fallback (FR-013)
+│   ├── contract_gate.py           # WP03: expose _schema_version accessor (FR-015 test)
+│   └── upstream_contract.json     # WP03: no content change; provenance already present
+├── sync/
+│   └── project_identity.py        # WP02: add _build_id_path(), migrate from config.yaml
+├── status/
+│   ├── models.py                  # WP01: remove feature_slug fallback reads (FR-013)
+│   ├── validate.py                # WP01: remove feature_slug accept-either (FR-013)
+│   └── wp_metadata.py             # WP01: remove feature_slug field (FR-013)
+└── tracker/
+    └── origin.py                  # WP03: add build_id to bind_mission_origin SaaS call
 
 tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+├── specify_cli/
+│   ├── core/
+│   │   └── test_identity_aliases.py   # WP01: fail-closed assertion
+│   ├── sync/
+│   │   └── test_project_identity.py   # WP02: per-worktree distinctness, 100-invocation stability
+│   └── status/
+│       └── test_models.py             # WP01: fail-closed on legacy event fixture
+├── cross_branch/
+│   └── fixtures/
+│       └── legacy_feature_slug_event.jsonl  # WP01: new fixture (feature_slug only, no mission_slug)
+├── tracker/
+│   └── test_origin_bind.py            # WP03: build_id in bind payload
+└── contract/
+    └── test_contract_gate.py          # WP03: Scenario 4 (_schema_version == "3.0.0")
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+---
 
-## Complexity Tracking
+## Phase 0: Research
 
-*Fill ONLY if Charter Check has violations that must be justified*
+*All decisions resolved during spec review and planning interrogation. No outstanding unknowns.*
 
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+### research.md
+
+**Decision 1 — build.id storage location**
+- Decision: `{git-dir}/spec-kitty-build-id` via `git rev-parse --git-dir`
+- Rationale: immune to `git clean`; per-worktree by construction; consistent with git's own use of this directory for refs like `ORIG_HEAD`, `MERGE_HEAD`; no `.gitignore` maintenance
+- Rejected: `.kittify/build_id.local` — silently wiped by `git clean -fdx`, breaking `started`/`complete` event correlation in Phase 4
+
+**Decision 2 — FR-015 provenance status**
+- Decision: already done; `upstream_contract.json` carries `_schema_version: "3.0.0"` and `_source_events_commit: "5b8e6dc"`
+- Remaining work: write Scenario 4 test asserting `_load_contract()["_schema_version"] == "3.0.0"`
+- Rationale: the contract gate already loads the file via `importlib.resources`; the provenance fields are present
+
+**Decision 3 — FR-013 file enumeration**
+- Decision: exactly five files, verified by grep; all confirmed non-migration runtime paths
+- Files: `core/identity_aliases.py`, `core/worktree.py`, `status/models.py`, `status/validate.py`, `status/wp_metadata.py`
+- No unlisted non-migration hits; `upgrade/feature_meta.py` and `migration/rebuild_state.py` are correct locations and are out of scope
+
+**Decision 4 — Fixture requirement for Scenario 1**
+- Decision: new fixture file `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` with a synthetic event containing only `feature_slug` (no `mission_slug`). Written as first task of WP01.
+- Rationale: no such fixture exists; Scenario 1's acceptance test cannot be written without it
+
+**Decision 5 — Tracker bind integration point**
+- Decision: `bind_mission_origin` in `tracker/origin.py` is the write point for `build_id`. Load `ProjectIdentity` at the repo root (already available via `_resolve_repo_root`) and pass `build_id` to `actual_client.bind_mission_origin()`
+- Rationale: `SaaSTrackerClient.bind_mission_origin` signature requires extension; `build_id` must come from the per-worktree source (WP02 prerequisite)
+
+---
+
+## Phase 1: Design & Contracts
+
+### data-model.md
+
+#### ProjectIdentity (revised)
+
+```
+ProjectIdentity
+├── project_uuid: str           # from committed config.yaml [project.uuid]
+├── project_slug: str           # from committed config.yaml [project.slug]
+├── node_id: str                # from committed config.yaml [project.node_id]
+├── repo_slug: str              # from committed config.yaml [project.slug] (alias)
+└── build_id: str               # from {git-dir}/spec-kitty-build-id (NON-COMMITTED)
+```
+
+**Load sequence for `build_id`**:
+1. Run `git rev-parse --git-dir` → fail with `BuildIdentityError` if no `.git`
+2. Read `{git-dir}/spec-kitty-build-id` → if present, return value
+3. Generate new UUID4, write to `{git-dir}/spec-kitty-build-id`, return value
+
+**Migration at load time (FR-016)**:
+- If `build_id` found in `config.yaml[project]`:
+  1. Copy to `{git-dir}/spec-kitty-build-id`
+  2. Remove `build_id` from `config.yaml[project]`
+  3. Write updated config
+- This runs once, is idempotent (noop if `build_id` already absent from config)
+
+**Invariants**:
+- `config.yaml` never contains `build_id` after first load post-upgrade
+- Different worktrees always yield different `build_id` values
+- Same worktree always yields the same `build_id` across invocations (unless `.git/worktrees/<name>/spec-kitty-build-id` is manually deleted)
+
+#### StatusEvent (revised — inbound deserialization)
+
+```
+StatusEvent.from_dict(data)
+├── mission_slug = data["mission_slug"]   # KeyError if absent — no feature_slug fallback
+├── feature_slug                          # field removed entirely from deserialization
+└── ... (all other fields unchanged)
+```
+
+**Fail-closed rule**: any event dict that lacks `mission_slug` raises `KeyError("mission_slug")`. The legacy fallback `data.get("mission_slug") or data.get("feature_slug", "")` is removed.
+
+#### WPMetadata (revised)
+
+```
+WPMetadata
+├── mission_slug: str | None = None   # canonical (unchanged)
+├── feature_slug                      # REMOVED — field deleted from model
+└── ... (all other fields unchanged)
+```
+
+#### TrackerBindPayload (revised — SaaS call)
+
+```
+bind_mission_origin SaaS call
+├── provider: str
+├── project_slug: str
+├── mission_slug: str
+├── build_id: str              # NEW — from ProjectIdentity.build_id
+├── external_issue_id: str
+├── external_issue_key: str
+├── external_issue_url: str
+├── title: str
+└── external_status: str
+```
+
+### Work Package Outline
+
+Four work packages. WP01 and WP02 are independent (parallel lanes). WP03 depends on WP02. WP04 depends on WP01, WP02, and WP03.
+
+```
+Lane A:  WP01 ──────────────────────────────────────────────────────┐
+                                                                      ├── WP04
+Lane B:  WP02 ──── WP03 ────────────────────────────────────────────┘
+```
+
+---
+
+**WP01 — Feature_slug read-path cleanup** *(FR-013, Scenario 1)*
+
+Scope: remove `feature_slug` acceptance from all five named runtime files; create legacy event fixture; write fail-closed tests.
+
+Tasks (test-first order per DIRECTIVE_034):
+1. Write `tests/cross_branch/fixtures/legacy_feature_slug_event.jsonl` — synthetic JSONL event with `feature_slug` only (no `mission_slug`)
+2. Write failing test: `StatusEvent.from_dict(legacy_event)` raises `KeyError`
+3. Remove `data.get("feature_slug", "")` fallback from `status/models.py:221`
+4. Remove `data.get("feature_slug")` fallback from `status/models.py:264`
+5. Write failing test: `StatusSnapshot.from_dict(legacy_event)` raises `KeyError`
+6. Remove `"feature_slug" not in event` branch from `status/validate.py:72`
+7. Remove `feature_slug: str | None = None` field from `status/wp_metadata.py:74`
+8. Remove `feature_slug` backfill from `core/identity_aliases.py:21-22`; verify callers
+9. Remove `.feature_slug` read from `core/worktree.py:123`; replace with `.mission_slug`
+10. All tests green; mypy --strict passes on modified files
+
+---
+
+**WP02 — Per-worktree build.id storage** *(FR-007, FR-008, FR-016, Scenario 2)*
+
+Scope: implement `_build_id_path()` via `git rev-parse --git-dir`; update `ProjectIdentity` load/save; migrate `build_id` from `config.yaml` idempotently.
+
+Tasks:
+1. Add `_build_id_path() -> Path` to `sync/project_identity.py` (raises `BuildIdentityError` if no `.git`)
+2. Add `load_build_id() -> str` (read file or generate-and-persist fresh UUID4)
+3. Add `_migrate_build_id_from_config(config_path, git_dir_path)` — copy then remove, noop if absent
+4. Update `ProjectIdentity.from_config()` to call migration then `load_build_id()` instead of reading `config.yaml["project"]["build_id"]`
+5. Update `ProjectIdentity.save()` to NOT write `build_id` to `config.yaml`
+6. Write test: two simulated worktrees (different `git-dir` paths via monkeypatch) produce different `build_id` values
+7. Write test: 100 invocations of `load_build_id()` on same path return identical value
+8. Write test: migration from `config.yaml` copies to git-dir path, removes from config, is idempotent on second call
+9. Write test: `BuildIdentityError` raised when `git rev-parse --git-dir` fails
+10. All tests green; mypy --strict passes
+
+---
+
+**WP03 — Tracker bind build_id + contract provenance test** *(FR-009, FR-015, Scenarios 3 & 4)*
+
+Scope: add `build_id` to `bind_mission_origin` SaaS call; write Scenario 4 contract provenance test. Depends on WP02.
+
+Tasks:
+1. Extend `SaaSTrackerClient.bind_mission_origin()` signature to accept `build_id: str`
+2. Load `ProjectIdentity` from `repo_root` in `bind_mission_origin` function; pass `build_id` to client call
+3. Write test: captured `bind_mission_origin` SaaS call payload contains `build_id` matching `ProjectIdentity.build_id` (Scenario 3)
+4. Write test: `_load_contract()["_schema_version"] == "3.0.0"` and `_load_contract()["_source_events_commit"] == "5b8e6dc"` (Scenario 4)
+5. All tests green; mypy --strict passes
+
+---
+
+**WP04 — Regression test suite** *(Scenario 6 + non-regression)*
+
+Scope: end-to-end smoke assertions that already-clean surfaces have not regressed. Depends on WP01, WP02, WP03.
+
+Tasks:
+1. Write end-to-end test: run `spec-kitty agent mission create` against a test fixture; assert emitted `status.events.jsonl` entry contains no `feature_slug`, no `FeatureCreated`, no `FeatureCompleted`, no `aggregate_type=Feature`
+2. Write orchestrator API contract test: iterate all command names, error codes, and response fields in the orchestrator API schema; assert zero occurrences of `accept-feature`, `merge-feature`, `FEATURE_NOT_FOUND`, `FEATURE_NOT_READY`, `feature_slug` (Scenario 6 part b)
+3. Write body sync test: mock outbound sync call; assert payload contains `mission_slug` + `mission_type` and no `mission_key` or `feature_slug` (Scenario 5)
+4. Write tracker bind payload non-regression test: assert `feature_slug` absent from bind payload
+5. Run full test suite; confirm ≥90% coverage on all modified modules; mypy --strict clean
+
+---
+
+### Quickstart for Implementers
+
+**Setup**: `cd /private/tmp/doctrine-shed/spec-kitty && poetry install`
+
+**Test run**: `pytest tests/ -x --tb=short`
+
+**Type check**: `mypy --strict src/specify_cli/`
+
+**Key invariant to test manually before marking WP02 done**:
+```bash
+# In two separate worktrees, run any spec-kitty command and compare build_id in emitted events
+git worktree add /tmp/test-wt-a HEAD
+git worktree add /tmp/test-wt-b HEAD
+# Run in each, check .git/worktrees/test-wt-a/spec-kitty-build-id vs .../test-wt-b/...
+# Must differ
+```
+
+**Order note**: WP01 and WP02 have no shared files and can be developed in parallel. WP03 requires WP02 to be merged first (tracker bind uses per-worktree build_id). WP04 requires all prior WPs.
