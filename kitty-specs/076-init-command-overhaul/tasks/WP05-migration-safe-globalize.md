@@ -9,7 +9,7 @@ requirement_refs:
 - FR-023
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Sequential after WP04 in Lane B. Do NOT modify m_3_1_2_globalize_commands.py.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T029
 - T030
