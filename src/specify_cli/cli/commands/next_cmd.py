@@ -228,6 +228,14 @@ def _print_human(decision) -> None:
         print(f"  Mission: {decision.mission} @ {decision.mission_state}")
         if getattr(decision, "preview_step", None):
             print(f"  Next step: {decision.preview_step}")
+        if getattr(decision, "question", None):
+            print(f"  Question: {decision.question}")
+            if getattr(decision, "options", None):
+                print(f"  Options: {', '.join(decision.options)}")
+            if getattr(decision, "decision_id", None):
+                print(f"  Decision ID: {decision.decision_id}")
+        elif getattr(decision, "reason", None):
+            print(f"  Reason: {decision.reason}")
         if decision.progress:
             p = decision.progress
             total = p.get("total_wps", 0)

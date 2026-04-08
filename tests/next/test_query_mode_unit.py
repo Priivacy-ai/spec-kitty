@@ -22,6 +22,7 @@ def _make_mock_decision(
     *,
     agent: str | None = "claude",
     preview_step: str | None = None,
+    **overrides,
 ):
     from specify_cli.next.decision import Decision, DecisionKind
 
@@ -34,6 +35,7 @@ def _make_mock_decision(
         timestamp="2026-04-07T00:00:00+00:00",
         is_query=is_query,
         preview_step=preview_step,
+        **overrides,
     )
 
 
@@ -188,6 +190,29 @@ class TestQueryModeOutput:
 
         assert "Mission: 069-test @ not_started" in result.output
         assert "Next step: discovery" in result.output
+
+    def test_human_output_shows_pending_decision_details(self, tmp_path: Path) -> None:
+        mock_decision = _make_mock_decision(
+            is_query=True,
+            mission_state="collect_input",
+            question="Approve?",
+            options=["yes", "no"],
+            decision_id="input:approval",
+        )
+
+        with (
+            patch("specify_cli.cli.commands.next_cmd.locate_project_root", return_value=tmp_path),
+            patch("specify_cli.cli.commands.next_cmd.require_explicit_feature", return_value="069-test"),
+            patch("specify_cli.next.runtime_bridge.query_current_state", return_value=mock_decision),
+        ):
+            result = runner.invoke(
+                cli_app,
+                ["next", "--mission", "069-test"],
+            )
+
+        assert "Question: Approve?" in result.output
+        assert "Options: yes, no" in result.output
+        assert "Decision ID: input:approval" in result.output
 
     def test_json_kind_is_query(self, tmp_path: Path) -> None:
         """JSON output kind field is 'query'."""
