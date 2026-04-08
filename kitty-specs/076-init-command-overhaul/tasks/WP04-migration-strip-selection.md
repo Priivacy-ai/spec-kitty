@@ -7,12 +7,16 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-076-init-command-overhaul
+base_commit: 00e15448146d25e00995886babf77deac6a68025
+created_at: '2026-04-08T05:44:25.561589+00:00'
 subtasks:
 - T024
 - T025
 - T026
 - T027
 - T028
+shell_pid: '9949'
 history:
 - date: '2026-04-08'
   status: planned
