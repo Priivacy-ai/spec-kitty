@@ -28,7 +28,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: '16554'
+shell_pid: "39715"
+agent: "claude:sonnet:python-reviewer:reviewer"
 history:
 - date: '2026-04-08'
   status: planned
@@ -190,3 +191,4 @@ Fix any issues found before marking this WP done.
 ## Activity Log
 
 - 2026-04-08T06:24:54Z – unknown – shell_pid=16554 – Ready: github_client.py deleted, manager.py cleaned (bash/powershell script-copy removed, get_local_repo_root moved to template/__init__.py), 13 new integration tests (FR-001 to FR-016), doctrine tests deleted, test suite 8689 passed 0 failed, mypy --strict clean on manager.py
+- 2026-04-08T06:25:38Z – claude:sonnet:python-reviewer:reviewer – shell_pid=39715 – Started review via action command
