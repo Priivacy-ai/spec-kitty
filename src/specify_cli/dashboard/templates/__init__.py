@@ -6,10 +6,11 @@ import json
 from pathlib import Path
 from typing import Dict, Optional
 
-__all__ = ["get_dashboard_html"]
+__all__ = ["get_dashboard_html", "get_dashboard_html_bytes"]
 
 _TEMPLATE_PATH = Path(__file__).with_name('index.html')
 _DASHBOARD_HTML_CACHE: Optional[str] = None
+_DASHBOARD_HTML_BYTES_CACHE: Optional[bytes] = None
 _MISSION_PLACEHOLDER = "window.__INITIAL_MISSION__ = null;"
 
 
@@ -41,3 +42,11 @@ def get_dashboard_html(*, mission_context: Optional[Dict[str, str]] = None) -> s
         return base_html
 
     return base_html.replace(_MISSION_PLACEHOLDER, f"window.__INITIAL_MISSION__ = {mission_json};", 1)
+
+
+def get_dashboard_html_bytes() -> bytes:
+    """Return the static dashboard shell as UTF-8 bytes."""
+    global _DASHBOARD_HTML_BYTES_CACHE
+    if _DASHBOARD_HTML_BYTES_CACHE is None:
+        _DASHBOARD_HTML_BYTES_CACHE = _load_dashboard_template().encode("utf-8")
+    return _DASHBOARD_HTML_BYTES_CACHE

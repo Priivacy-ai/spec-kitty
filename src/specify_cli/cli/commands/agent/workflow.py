@@ -29,6 +29,7 @@ from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
+from specify_cli.core.utils import write_text_within_directory
 from specify_cli.tasks_support import (
     append_activity_log,
     build_document,
@@ -1278,7 +1279,7 @@ def review(
 
                 # Build and write updated document
                 updated_doc = build_document(updated_front, updated_body, updated_padding)
-                wp.path.write_text(updated_doc, encoding="utf-8")
+                write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
 
                 # Atomic commit: WP file + all status artifacts (#211, #212)
                 actual_wp_path = wp.path.resolve()

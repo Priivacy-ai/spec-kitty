@@ -40,6 +40,7 @@ from specify_cli.git import safe_commit
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.core.agent_config import get_auto_commit_default
 from specify_cli.status.bootstrap import bootstrap_canonical_state
+from specify_cli.core.utils import write_text_within_directory
 from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
 
 
@@ -1365,7 +1366,7 @@ def move_task(
                 try:
                     actual_file_path = wp.path.resolve()
 
-                    wp.path.write_text(updated_doc, encoding="utf-8")
+                    write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
                     file_written = True
 
                     # Commit the WP file together with all status artifacts
@@ -1388,11 +1389,11 @@ def move_task(
 
                 except Exception as e:
                     if not file_written:
-                        wp.path.write_text(updated_doc, encoding="utf-8")
+                        write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Auto-commit skipped: {e}")
             else:
-                wp.path.write_text(updated_doc, encoding="utf-8")
+                write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
 
         # Release review lock when review completes (approved or rejected back to planned)
         if old_lane in (Lane.FOR_REVIEW, Lane.IN_PROGRESS) and target_lane in (Lane.APPROVED, Lane.PLANNED):
