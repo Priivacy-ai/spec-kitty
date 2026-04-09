@@ -24,6 +24,7 @@ history: []
 authoritative_surface: src/specify_cli/auth/
 execution_mode: code_change
 owned_files:
+- pyproject.toml
 - src/specify_cli/auth/__init__.py
 - src/specify_cli/auth/config.py
 - src/specify_cli/auth/errors.py
@@ -67,6 +68,45 @@ TokenManager API is what caused WP09 to ship stubs.
 ---
 
 ## Subtask Guidance
+
+### T001 (preflight): Add keyring + cryptography to pyproject.toml
+
+**Purpose**: Both libraries are imported by WP01 modules but neither is
+declared in `pyproject.toml`. The mission's earlier plan was wrong on this
+point. Add them as the very first action of WP01.
+
+**Steps**:
+
+1. Edit `pyproject.toml`. Find the `dependencies = [...]` array under
+   `[project]`. Add the two new entries (alphabetical order):
+   ```toml
+   dependencies = [
+       ...
+       "cryptography>=42.0",   # NEW: AES-256-GCM + scrypt KDF for file fallback (per C-011)
+       ...
+       "keyring>=24.0",         # NEW: OS keystore abstraction for secure storage backends
+       ...
+   ]
+   ```
+
+2. Verify the imports work:
+   ```bash
+   pip install -e .
+   python -c "import keyring; import cryptography; print('ok')"
+   ```
+
+3. The `pip install` may fail if a CI sandbox blocks network. In that case,
+   document the blocker in the WP activity log and have the implementer
+   re-run after the sandbox is opened. The dependency declaration itself is
+   the deliverable; actual install happens in CI.
+
+**Files**: `pyproject.toml` (add 2 lines)
+
+**Validation**:
+- [ ] `pyproject.toml` declares `cryptography>=42.0` and `keyring>=24.0`
+- [ ] `python -c "import keyring; import cryptography"` succeeds (after install)
+
+---
 
 ### T001: Create `auth/__init__.py` with `get_token_manager()` factory
 
@@ -303,13 +343,19 @@ WPs import from here, never from flow-internal modules.
 **Purpose**: The data model for an authenticated session. Every WP that
 returns a session uses this exact shape.
 
+**IMPORTANT**: The field is `email` (NOT `username`) — it is sourced from the
+SaaS `GET /api/v1/me` response's `.email` field. The field
+`refresh_token_expires_at` is `Optional[datetime]` and may be `None`; see
+constraint C-012 in spec.md and `contracts/saas-amendment-refresh-ttl.md`
+for the binding to the SaaS contract amendment.
+
 **Steps**:
 
 1. Create `src/specify_cli/auth/session.py`:
    ```python
    from __future__ import annotations
    from dataclasses import dataclass, field, asdict
-   from datetime import datetime, timezone
+   from datetime import datetime, timedelta, timezone
    from typing import Literal, Optional
    import json
 
@@ -333,10 +379,10 @@ returns a session uses this exact shape.
    @dataclass
    class StoredSession:
        user_id: str
-       username: str
+       email: str                       # ← from /api/v1/me .email (NOT "username")
        name: str
        teams: list[Team]
-       default_team_id: str
+       default_team_id: str             # ← CLIENT-PICKED, not server-supplied
 
        access_token: str
        refresh_token: str
@@ -344,7 +390,9 @@ returns a session uses this exact shape.
 
        issued_at: datetime
        access_token_expires_at: datetime
-       refresh_token_expires_at: datetime
+       refresh_token_expires_at: Optional[datetime]
+       # ↑ None when SaaS does not provide refresh_token_expires_in.
+       # The CLI never hardcodes a TTL. See C-012 in spec.md.
 
        scope: str
        storage_backend: StorageBackend
@@ -353,10 +401,17 @@ returns a session uses this exact shape.
 
        def is_access_token_expired(self, buffer_seconds: int = 0) -> bool:
            now = datetime.now(timezone.utc)
-           return self.access_token_expires_at <= now.replace(microsecond=0) + \
-               timedelta(seconds=buffer_seconds)
+           return self.access_token_expires_at <= now + timedelta(seconds=buffer_seconds)
 
        def is_refresh_token_expired(self) -> bool:
+           """Return True ONLY if we have a known refresh expiry and it has passed.
+
+           When refresh_token_expires_at is None (SaaS amendment not landed),
+           this method returns False. The CLI then learns about expiry from a
+           400 invalid_grant response on a refresh attempt. See C-012.
+           """
+           if self.refresh_token_expires_at is None:
+               return False  # server-managed; client cannot decide
            return self.refresh_token_expires_at <= datetime.now(timezone.utc)
 
        def touch(self) -> None:
@@ -366,7 +421,7 @@ returns a session uses this exact shape.
        def to_dict(self) -> dict:
            return {
                "user_id": self.user_id,
-               "username": self.username,
+               "email": self.email,
                "name": self.name,
                "teams": [t.to_dict() for t in self.teams],
                "default_team_id": self.default_team_id,
@@ -375,7 +430,11 @@ returns a session uses this exact shape.
                "session_id": self.session_id,
                "issued_at": self.issued_at.isoformat(),
                "access_token_expires_at": self.access_token_expires_at.isoformat(),
-               "refresh_token_expires_at": self.refresh_token_expires_at.isoformat(),
+               "refresh_token_expires_at": (
+                   self.refresh_token_expires_at.isoformat()
+                   if self.refresh_token_expires_at is not None
+                   else None
+               ),
                "scope": self.scope,
                "storage_backend": self.storage_backend,
                "last_used_at": self.last_used_at.isoformat(),
@@ -384,9 +443,13 @@ returns a session uses this exact shape.
 
        @classmethod
        def from_dict(cls, data: dict) -> "StoredSession":
+           refresh_exp_raw = data.get("refresh_token_expires_at")
+           refresh_exp = (
+               datetime.fromisoformat(refresh_exp_raw) if refresh_exp_raw else None
+           )
            return cls(
                user_id=data["user_id"],
-               username=data["username"],
+               email=data["email"],
                name=data["name"],
                teams=[Team.from_dict(t) for t in data["teams"]],
                default_team_id=data["default_team_id"],
@@ -395,7 +458,7 @@ returns a session uses this exact shape.
                session_id=data["session_id"],
                issued_at=datetime.fromisoformat(data["issued_at"]),
                access_token_expires_at=datetime.fromisoformat(data["access_token_expires_at"]),
-               refresh_token_expires_at=datetime.fromisoformat(data["refresh_token_expires_at"]),
+               refresh_token_expires_at=refresh_exp,
                scope=data["scope"],
                storage_backend=data["storage_backend"],
                last_used_at=datetime.fromisoformat(data["last_used_at"]),
@@ -416,12 +479,19 @@ returns a session uses this exact shape.
 3. `to_dict()` / `from_dict()` are used by the file fallback backend.
    `to_json()` is used by the keychain backend (which stores a single string).
 
-**Files**: `src/specify_cli/auth/session.py` (~150 lines), `tests/auth/test_session.py` (~80 lines)
+4. **Critical**: tests must cover both branches of `is_refresh_token_expired`:
+   - When `refresh_token_expires_at` is None → returns False unconditionally
+   - When `refresh_token_expires_at` is set and in the past → returns True
+   - When `refresh_token_expires_at` is set and in the future → returns False
+
+**Files**: `src/specify_cli/auth/session.py` (~170 lines), `tests/auth/test_session.py` (~120 lines)
 
 **Validation**:
-- [ ] Round-trip: `StoredSession.from_dict(s.to_dict()) == s`
+- [ ] Round-trip: `StoredSession.from_dict(s.to_dict()) == s` (with and without `refresh_token_expires_at`)
 - [ ] Round-trip: `StoredSession.from_json(s.to_json()) == s`
 - [ ] `is_access_token_expired(buffer_seconds=10)` returns True when expiry is 5 seconds from now
+- [ ] `is_refresh_token_expired()` returns False when `refresh_token_expires_at is None`
+- [ ] No hardcoded "90 days" anywhere in this module
 
 ---
 
@@ -779,6 +849,12 @@ calls `await get_token_manager().get_access_token()`.
 
        @property
        def is_authenticated(self) -> bool:
+           """Return True if we have a session and (when known) the refresh token is still valid.
+
+           When refresh_token_expires_at is None (SaaS amendment not landed),
+           we cannot proactively decide the session is invalid. The caller will
+           learn about expiry from a 400 invalid_grant on the next refresh attempt.
+           """
            if self._session is None:
                return False
            if self._session.is_refresh_token_expired():

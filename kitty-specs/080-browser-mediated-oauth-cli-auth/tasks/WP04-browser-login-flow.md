@@ -72,17 +72,51 @@ import dispatch shell.
 
 ### T020: REWRITE `cli/commands/auth.py` as deferred-import dispatch shell
 
-**Purpose**: Remove the legacy `login`/`logout`/`status` implementations and
-replace with thin Typer command wrappers that defer to per-command modules.
+**Purpose**: Remove the legacy password-based `login`/`logout`/`status`
+implementations and replace with thin Typer command wrappers that defer to
+per-command modules.
+
+**Verified current state of `src/specify_cli/cli/commands/auth.py`** (read on
+2026-04-09 from the actual repo at `f0663139`):
+
+The existing `login()` Typer command at line ~68 declares:
+```python
+@app.command()
+def login(
+    username: str | None = typer.Option(None, "--username", "-u", help="Your username or email"),
+    password: str | None = typer.Option(
+        None,
+        "--password",
+        "-p",
+        hide_input=True,
+        help="Your password",
+    ),
+    force: bool = typer.Option(False, "--force", "-f", help="Re-authenticate even if already logged in"),
+) -> None:
+    """Log in to the sync service."""
+    if not is_saas_sync_enabled():
+        ...
+    if not username:
+        username = typer.prompt("Username")
+    if not password:
+        password = typer.prompt("Password", hide_input=True)
+    # ... constructs AuthClient(...) and calls obtain_tokens(username, password)
+```
+
+The file currently imports:
+- `AuthClient`, `AuthenticationError` from `specify_cli.sync.auth`
+- `is_saas_sync_enabled`, `saas_sync_disabled_message`, `SAAS_SYNC_ENV_VAR` (config helpers)
+- `read_queue_scope_from_credentials`, `write_active_scope`, `read_active_scope` (account-switch helpers)
+- `pending_events_for_scope` (queue helper)
+
+**T020's job**: DELETE all of those imports and DELETE the entire body of
+`login()`, `logout()`, and `status()` (which currently uses `AuthClient` similarly).
+Replace each command with a deferred-import dispatch shell that calls into
+the per-command implementation modules.
 
 **Steps**:
 
-1. Read the current `src/specify_cli/cli/commands/auth.py` to understand what
-   it currently does. It currently imports:
-   - `AuthClient`, `AuthenticationError` from `specify_cli.sync.auth`
-   - `is_saas_sync_enabled`, `saas_sync_disabled_message`, `SAAS_SYNC_ENV_VAR` (config helpers)
-   - `read_queue_scope_from_credentials`, `write_active_scope`, `read_active_scope` (account-switch helpers)
-   - `pending_events_for_scope` (queue helper)
+1. Read the current `src/specify_cli/cli/commands/auth.py` (cited above)
 
 2. REPLACE the entire file with a deferred-import dispatch shell:
    ```python
@@ -222,7 +256,7 @@ dispatch shell.
 
        if tm.is_authenticated and not force:
            session = tm.get_current_session()
-           console.print(f"[green]✓ Already logged in as {session.username}[/green]")
+           console.print(f"[green]✓ Already logged in as {session.email}[/green]")
            console.print("Run [bold]spec-kitty auth login --force[/bold] to re-authenticate, or [bold]spec-kitty auth logout[/bold] first.")
            return
 
@@ -293,7 +327,7 @@ dispatch shell.
    def _print_success(session) -> None:
        """Print the post-login success message."""
        console.print()
-       console.print(f"[green]✓ Authenticated as {session.username}[/green]")
+       console.print(f"[green]✓ Authenticated as {session.email}[/green]")
        if session.teams:
            default_team = next((t for t in session.teams if t.id == session.default_team_id), None)
            if default_team:
@@ -491,16 +525,30 @@ browser launch, code exchange, user info fetch, and session creation.
            )
 
        def _update_session(self, session: StoredSession, tokens: dict) -> StoredSession:
+           """Build an updated session from a refresh response.
+
+           Per C-012, refresh_token_expires_at is sourced from the SaaS-provided
+           `refresh_token_expires_in` field if present, else preserved from the
+           previous session value (which itself may be None). The CLI never
+           hardcodes a TTL.
+           """
            now = datetime.now(timezone.utc)
            new_access = tokens["access_token"]
            new_refresh = tokens.get("refresh_token", session.refresh_token)  # May not rotate
            expires_in = int(tokens.get("expires_in", 3600))
-           # Refresh token TTL from spec C-008: ~90 days. SaaS may communicate
-           # this in a future field; for now derive from policy.
-           refresh_ttl = timedelta(days=90)
+
+           # Refresh expiry: prefer the new field if SaaS provides it; else
+           # preserve the previous value (which may be None until SaaS adds
+           # the field — see contracts/saas-amendment-refresh-ttl.md)
+           refresh_expires_in = tokens.get("refresh_token_expires_in")
+           if refresh_expires_in is not None:
+               refresh_token_expires_at = now + timedelta(seconds=int(refresh_expires_in))
+           else:
+               refresh_token_expires_at = session.refresh_token_expires_at  # may be None
+
            return StoredSession(
                user_id=session.user_id,
-               username=session.username,
+               email=session.email,
                name=session.name,
                teams=session.teams,
                default_team_id=session.default_team_id,
@@ -509,7 +557,7 @@ browser launch, code exchange, user info fetch, and session creation.
                session_id=session.session_id,
                issued_at=now,
                access_token_expires_at=now + timedelta(seconds=expires_in),
-               refresh_token_expires_at=now + refresh_ttl,
+               refresh_token_expires_at=refresh_token_expires_at,
                scope=tokens.get("scope", session.scope),
                storage_backend=session.storage_backend,
                last_used_at=now,
@@ -582,6 +630,22 @@ browser launch, code exchange, user info fetch, and session creation.
 1. Add to `src/specify_cli/auth/flows/authorization_code.py`:
    ```python
    async def _build_session(self, tokens: dict) -> StoredSession:
+       """Fetch user info from /api/v1/me and assemble StoredSession.
+
+       SaaS contract (from protected-endpoints.md GET /api/v1/me):
+           returns: user_id, email, name, teams[], session_id, authenticated_at,
+                    access_token_expires_at, auth_flow
+
+       NOTE: SaaS does NOT return `default_team_id` — the CLI picks the default
+       on first login (teams[0].id) and persists it locally. A future mission
+       can add `spec-kitty auth set-default-team` to let the user override.
+
+       NOTE: refresh_token_expires_at is OPTIONAL. Per C-012 in spec.md, the
+       CLI does not hardcode a TTL. We read `tokens.get("refresh_token_expires_in")`
+       and only set `refresh_token_expires_at` if SaaS provides it. Otherwise
+       we set None and the CLI treats refresh expiry as server-managed.
+       See contracts/saas-amendment-refresh-ttl.md.
+       """
        url = f"{self._saas_base_url}/api/v1/me"
        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
        async with httpx.AsyncClient(timeout=10.0) as client:
@@ -603,16 +667,24 @@ browser launch, code exchange, user info fetch, and session creation.
            raise AuthenticationError(
                "User has no team memberships. Contact your administrator."
            )
-       default_team_id = me.get("default_team_id") or teams[0].id
+       # Client-picked default: SaaS does not return default_team_id
+       default_team_id = teams[0].id
 
        now = datetime.now(timezone.utc)
        expires_in = int(tokens["expires_in"])
-       refresh_ttl = timedelta(days=90)
+
+       # Refresh expiry: ONLY set if SaaS provides it (per C-012)
+       refresh_expires_in = tokens.get("refresh_token_expires_in")
+       refresh_token_expires_at = (
+           now + timedelta(seconds=int(refresh_expires_in))
+           if refresh_expires_in is not None
+           else None
+       )
 
        return StoredSession(
            user_id=me["user_id"],
-           username=me["username"],
-           name=me.get("name", me["username"]),
+           email=me["email"],                         # ← from /api/v1/me .email
+           name=me.get("name", me["email"]),
            teams=teams,
            default_team_id=default_team_id,
            access_token=tokens["access_token"],
@@ -620,7 +692,7 @@ browser launch, code exchange, user info fetch, and session creation.
            session_id=tokens["session_id"],
            issued_at=now,
            access_token_expires_at=now + timedelta(seconds=expires_in),
-           refresh_token_expires_at=now + refresh_ttl,
+           refresh_token_expires_at=refresh_token_expires_at,  # may be None
            scope=tokens.get("scope", "offline_access"),
            storage_backend="keychain",  # Will be overwritten by storage backend
            last_used_at=now,

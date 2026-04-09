@@ -86,8 +86,8 @@ when `spec-kitty auth status` is invoked. This WP provides that module.
 
        console.print("[green]✓ Authenticated[/green]")
        console.print()
-       console.print(f"  User:           {session.username}")
-       if session.name and session.name != session.username:
+       console.print(f"  User:           {session.email}")
+       if session.name and session.name != session.email:
            console.print(f"  Name:           {session.name}")
        console.print(f"  User ID:        {session.user_id}")
        console.print()
@@ -118,9 +118,18 @@ when `spec-kitty auth status` is invoked. This WP provides that module.
    def _print_token_expiry(session: StoredSession) -> None:
        now = datetime.now(timezone.utc)
        access_remaining = (session.access_token_expires_at - now).total_seconds()
-       refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()
        console.print(f"  Access token:   {format_duration(access_remaining)}")
-       console.print(f"  Refresh token:  {format_duration(refresh_remaining)}")
+       # Refresh token: per C-012 the CLI does not hardcode a TTL.
+       # Display "server-managed" if SaaS hasn't shipped refresh_token_expires_in yet.
+       if session.refresh_token_expires_at is None:
+           console.print(
+               "  Refresh token:  [dim]server-managed (no client-known TTL — "
+               "blocked on SaaS contract amendment, see "
+               "contracts/saas-amendment-refresh-ttl.md)[/dim]"
+           )
+       else:
+           refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()
+           console.print(f"  Refresh token:  {format_duration(refresh_remaining)}")
 
 
    def _print_storage_backend(session: StoredSession) -> None:
@@ -248,7 +257,7 @@ when `spec-kitty auth status` is invoked. This WP provides that module.
        now = datetime.now(timezone.utc)
        return StoredSession(
            user_id="u_alice",
-           username="alice@example.com",
+           email="alice@example.com",
            name="Alice Developer",
            teams=[
                Team(id="tm_acme", name="Acme Corp", role="admin"),

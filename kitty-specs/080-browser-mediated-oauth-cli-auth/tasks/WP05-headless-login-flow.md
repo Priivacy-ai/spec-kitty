@@ -170,7 +170,13 @@ in WP04 is correct from day one and needs no changes.
            )
 
        async def _build_session(self, tokens: dict) -> StoredSession:
-           """Fetch user info and assemble StoredSession."""
+           """Fetch user info from /api/v1/me and assemble StoredSession.
+
+           Same SaaS contract as WP04's AuthorizationCodeFlow._build_session():
+           uses `me["email"]` (NOT username), client-picks default_team_id
+           (NOT server-supplied), and reads optional refresh_token_expires_in
+           per C-012. See WP04 T025 docstring for full notes.
+           """
            url = f"{self._saas_base_url}/api/v1/me"
            headers = {"Authorization": f"Bearer {tokens['access_token']}"}
            async with httpx.AsyncClient(timeout=10.0) as client:
@@ -189,15 +195,24 @@ in WP04 is correct from day one and needs no changes.
            ]
            if not teams:
                raise AuthenticationError("User has no team memberships.")
-           default_team_id = me.get("default_team_id") or teams[0].id
+           # Client-picked default: SaaS does not return default_team_id
+           default_team_id = teams[0].id
 
            now = datetime.now(timezone.utc)
            expires_in = int(tokens["expires_in"])
-           refresh_ttl = timedelta(days=90)
+
+           # Refresh expiry: ONLY set if SaaS provides it (per C-012)
+           refresh_expires_in = tokens.get("refresh_token_expires_in")
+           refresh_token_expires_at = (
+               now + timedelta(seconds=int(refresh_expires_in))
+               if refresh_expires_in is not None
+               else None
+           )
+
            return StoredSession(
                user_id=me["user_id"],
-               username=me["username"],
-               name=me.get("name", me["username"]),
+               email=me["email"],                       # ← from /api/v1/me .email
+               name=me.get("name", me["email"]),
                teams=teams,
                default_team_id=default_team_id,
                access_token=tokens["access_token"],
@@ -205,7 +220,7 @@ in WP04 is correct from day one and needs no changes.
                session_id=tokens["session_id"],
                issued_at=now,
                access_token_expires_at=now + timedelta(seconds=expires_in),
-               refresh_token_expires_at=now + refresh_ttl,
+               refresh_token_expires_at=refresh_token_expires_at,  # may be None
                scope=tokens.get("scope", "offline_access"),
                storage_backend="keychain",  # Will be set by TokenManager
                last_used_at=now,
@@ -311,7 +326,7 @@ verification.
    def _me_response():
        return {
            "user_id": "u_alice",
-           "username": "alice@example.com",
+           "email": "alice@example.com",
            "name": "Alice Developer",
            "teams": [{"id": "tm_acme", "name": "Acme", "role": "admin"}],
            "default_team_id": "tm_acme",

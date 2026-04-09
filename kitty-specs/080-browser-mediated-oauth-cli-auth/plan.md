@@ -31,10 +31,11 @@ place — no parallel command set.
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (existing spec-kitty codebase requirement)
-**Primary new dependencies** (already present in repo):
-- `httpx` — async HTTP client for SaaS calls
-- `keyring` — OS keystore abstraction (Keychain/Credential Manager/Secret Service)
-- `cryptography` — AES-256-GCM for file fallback, scrypt for key derivation
+**Primary dependencies**:
+- `httpx` — already present (sync/client.py uses it)
+- `filelock` — already present (used by existing CredentialStore for cross-process locking)
+- `keyring>=24.0` — **NEW** dependency. OS keystore abstraction (Keychain/Credential Manager/Secret Service). NOT currently in `pyproject.toml`. WP01 adds it.
+- `cryptography>=42.0` — **NEW** dependency. AES-256-GCM AEAD + scrypt KDF for the encrypted file fallback (per C-011). NOT currently in `pyproject.toml`. WP01 adds it.
 - `asyncio` (stdlib) — single-flight refresh, async coordination
 - `secrets` (stdlib) — PKCE verifier and CSRF state generation
 - `webbrowser` (stdlib) — open browser cross-platform
@@ -267,6 +268,37 @@ grep -rn 'get_token_manager\b' src/specify_cli/ --include='*.py' \
 **Rationale**: The "passing tests, dead code" failure is the most expensive
 defect because it survives review. A built-in grep audit per WP makes the
 defect impossible to ship undetected.
+
+### D-9: Refresh token TTL is server-driven, never client-hardcoded (NEW)
+
+**Decision**: The CLI MUST NOT hardcode any refresh-token TTL (90 days, 30
+days, or otherwise). The CLI reads `refresh_token_expires_in` from the SaaS
+token response when present and computes
+`refresh_token_expires_at = now + timedelta(seconds=refresh_token_expires_in)`.
+If the field is absent, `refresh_token_expires_at` is set to `None` and the
+CLI treats refresh expiry as server-managed: the client never proactively
+decides the refresh token is expired; it only learns about expiry from a
+`400 invalid_grant` response on a refresh attempt.
+
+**Rationale**: A pre-implementation review found that the SaaS side currently
+mixes 30-day, 90-day, and "renewable indefinitely" semantics across different
+code paths. Hardcoding 90 days in the CLI would codify drift, not resolve it.
+Spec.md C-008 says "refresh TTL is ~90 days (SaaS token policy)" but that
+language is policy intent, not contract. Until the SaaS side ships the
+amendment described in `contracts/saas-amendment-refresh-ttl.md`, the CLI
+operates contract-agnostic with respect to refresh TTL.
+
+**Consequence**: TTL-sensitive UX is BLOCKED on the SaaS contract amendment:
+- `auth status` "expires in N days" for the refresh token shows
+  "server-managed (no client-known TTL)" instead of a duration
+- proactive expiry warnings are not issued
+- session-end countdowns are not displayed
+
+These are not bugs — they are deliberate degraded behavior that improves
+automatically once SaaS ships `refresh_token_expires_in` in the token
+response. No CLI code changes required at that point; only verification.
+
+**Note**: Spec.md constraint C-012 documents this binding contractually.
 
 ### D-8: File fallback uses scrypt key derivation with random salt
 

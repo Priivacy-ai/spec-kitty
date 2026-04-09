@@ -41,6 +41,7 @@ call the logout endpoint.
 **Acceptance Criteria**:
 - [ ] `from specify_cli.cli.commands._auth_logout import logout_impl` works after this WP
 - [ ] `spec-kitty auth logout` calls POST `get_saas_base_url() + '/api/v1/logout'` with the bearer token
+- [ ] **No request body** — the SaaS contract is bearer-only. The session being revoked is identified server-side by the bound session_id of the token, not by a client-provided field
 - [ ] On 200 OK response: prints success, clears local session
 - [ ] On non-200 response: prints warning, STILL clears local session (FR-014)
 - [ ] On network error: prints warning, STILL clears local session (FR-014)
@@ -100,7 +101,7 @@ call the logout endpoint.
                    f"Proceeding with local logout only.[/yellow]"
                )
            else:
-               await _call_server_logout(saas_url, session.access_token, session.session_id)
+               await _call_server_logout(saas_url, session.access_token)
        else:
            console.print("[dim]Skipping server revocation (--force).[/dim]")
 
@@ -109,14 +110,18 @@ call the logout endpoint.
        console.print("[green]✓ Logged out.[/green]")
 
 
-   async def _call_server_logout(saas_url: str, access_token: str, session_id: str) -> None:
-       """Call POST /api/v1/logout. On any failure, log a warning but do not raise."""
+   async def _call_server_logout(saas_url: str, access_token: str) -> None:
+       """Call POST /api/v1/logout. On any failure, log a warning but do not raise.
+
+       Per the SaaS contract (protected-endpoints.md), the logout endpoint is
+       bearer-only with NO request body. The session being revoked is identified
+       server-side by the bound session_id of the token.
+       """
        url = f"{saas_url}/api/v1/logout"
        headers = {"Authorization": f"Bearer {access_token}"}
-       payload = {"session_id": session_id}
        try:
            async with httpx.AsyncClient(timeout=10.0) as client:
-               response = await client.post(url, json=payload, headers=headers)
+               response = await client.post(url, headers=headers)  # NO body
        except httpx.RequestError as exc:
            console.print(
                f"[yellow]⚠ Server logout failed (network error: {exc}). "
@@ -242,7 +247,7 @@ about edge case coverage and fault tolerance.
        now = datetime.now(timezone.utc)
        return StoredSession(
            user_id="u_alice",
-           username="alice@example.com",
+           email="alice@example.com",
            name="Alice",
            teams=[Team(id="tm_acme", name="Acme", role="admin")],
            default_team_id="tm_acme",

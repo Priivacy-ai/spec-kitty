@@ -280,7 +280,7 @@ function to exist before it can rewire the WS code path.
        now = datetime.now(timezone.utc)
        return StoredSession(
            user_id="u_alice",
-           username="alice",
+           email="alice@example.com",
            name="Alice",
            teams=[Team(id="tm_acme", name="Acme", role="admin")],
            default_team_id="tm_acme",

@@ -125,7 +125,7 @@ T063 audit and the WP is rejected.
    def _me_response():
        return {
            "user_id": "u_alice",
-           "username": "alice@example.com",
+           "email": "alice@example.com",
            "name": "Alice Developer",
            "teams": [{"id": "tm_acme", "name": "Acme Corp", "role": "admin"}],
            "default_team_id": "tm_acme",
@@ -280,7 +280,7 @@ T063 audit and the WP is rejected.
            }
            me_response = {
                "user_id": "u_alice",
-               "username": "alice@example.com",
+               "email": "alice@example.com",
                "name": "Alice",
                "teams": [{"id": "tm_acme", "name": "Acme", "role": "admin"}],
                "default_team_id": "tm_acme",
@@ -444,7 +444,7 @@ result in exactly 1 refresh network call.
        now = datetime.now(timezone.utc)
        return StoredSession(
            user_id="u",
-           username="u@example.com",
+           email="u@example.com",
            name="U",
            teams=[Team(id="tm", name="T", role="admin")],
            default_team_id="tm",
@@ -483,7 +483,7 @@ result in exactly 1 refresh network call.
            now = datetime.now(timezone.utc)
            refreshed_session = StoredSession(
                user_id=session.user_id,
-               username=session.username,
+               email=session.email,
                name=session.name,
                teams=session.teams,
                default_team_id=session.default_team_id,
@@ -548,7 +548,7 @@ result in exactly 1 refresh network call.
        now = datetime.now(timezone.utc)
        return StoredSession(
            user_id="u",
-           username="u@example.com",
+           email="u@example.com",
            name="U",
            teams=[Team(id="tm", name="T", role="admin")],
            default_team_id="tm",
