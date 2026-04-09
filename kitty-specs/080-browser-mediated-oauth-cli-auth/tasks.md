@@ -117,11 +117,11 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T049 | Create `auth/websocket/token_provisioning.py` (TokenProvisioner) | WP09 | | [D] |
 | T050 | Add 403/404/5xx error handling for ws-token endpoint | WP09 | | [D] |
 | T051 | Write unit tests for WebSocketTokenProvisioner | WP09 | | [D] |
-| T052 | DELETE `src/specify_cli/sync/auth.py`; verify no imports remain | WP10 | |
-| T053 | Update or remove `tests/sync/test_auth.py` | WP10 | |
-| T054 | Search and remove any password-prompt code | WP10 | |
-| T055 | Verify `spec-kitty auth login --help` does not mention password | WP10 | |
-| T056 | Regression test asserting Typer app has login/logout/status commands | WP10 | |
+| T052 | DELETE `src/specify_cli/sync/auth.py`; verify no imports remain | WP10 | | [D] |
+| T053 | Update or remove `tests/sync/test_auth.py` | WP10 | | [D] |
+| T054 | Search and remove any password-prompt code | WP10 | | [D] |
+| T055 | Verify `spec-kitty auth login --help` does not mention password | WP10 | | [D] |
+| T056 | Regression test asserting Typer app has login/logout/status commands | WP10 | | [D] |
 | T057 | Create `test_browser_login_e2e.py` (CliRunner + mock SaaS) | WP11 | |
 | T058 | Create `test_headless_login_e2e.py` (CliRunner + mock device flow) | WP11 | |
 | T059 | Create `test_logout_e2e.py` and `test_status_e2e.py` (CliRunner) | WP11 | |
@@ -420,11 +420,11 @@ prompts remain anywhere.
 **Estimated prompt size**: ~260 lines | **Subtasks**: 5
 
 **Included subtasks**:
-- [ ] T052 DELETE `src/specify_cli/sync/auth.py`; verify no imports remain (WP10)
-- [ ] T053 Update or remove `tests/sync/test_auth.py` (WP10)
-- [ ] T054 Search and remove any password-prompt code (WP10)
-- [ ] T055 Verify `spec-kitty auth login --help` does not mention password (WP10)
-- [ ] T056 Regression test asserting Typer app has login/logout/status commands (WP10)
+- [x] T052 DELETE `src/specify_cli/sync/auth.py`; verify no imports remain (WP10)
+- [x] T053 Update or remove `tests/sync/test_auth.py` (WP10)
+- [x] T054 Search and remove any password-prompt code (WP10)
+- [x] T055 Verify `spec-kitty auth login --help` does not mention password (WP10)
+- [x] T056 Regression test asserting Typer app has login/logout/status commands (WP10)
 
 **Dependencies**: WP04, WP05, WP06, WP07, WP08 (everything that used to import
 sync/auth.py must be done first)
