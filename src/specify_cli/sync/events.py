@@ -239,6 +239,7 @@ def emit_mission_created(
     wp_count: int,
     created_at: str | None = None,
     causation_id: str | None = None,
+    mission_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionCreated event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
@@ -249,6 +250,7 @@ def emit_mission_created(
         wp_count=wp_count,
         created_at=created_at,
         causation_id=causation_id,
+        mission_id=mission_id,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)

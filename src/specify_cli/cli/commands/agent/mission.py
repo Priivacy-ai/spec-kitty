@@ -582,6 +582,7 @@ def create_mission(
             "result": "success",
             "mission_slug": result.mission_slug,
             "mission_number": result.mission_number,
+            "mission_id": str(result.meta.get("mission_id", "")),
             "mission_type": str(result.meta.get("mission_type", result.meta.get("mission", ""))),
             "slug": str(result.meta.get("slug", "")),
             "friendly_name": str(result.meta.get("friendly_name", "")),
