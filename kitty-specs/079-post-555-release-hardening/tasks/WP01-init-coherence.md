@@ -296,3 +296,7 @@ Verify:
 2. The string `"Initial commit from Specify template"` is truly gone from `src/`.
 3. The next-steps output is accurate: names `spec-kitty next` and `agent action implement`, does NOT name bare `spec-kitty implement`.
 4. All 6 subtask tests pass without modification to the test assertions.
+
+## Activity Log
+
+- 2026-04-09T07:50:34Z – unknown – shell_pid=59532 – Dispatching claude implementation agent
