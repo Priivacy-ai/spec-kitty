@@ -17,7 +17,8 @@ subtasks:
 - T017
 - T018
 - T019
-shell_pid: '114'
+shell_pid: "2994"
+agent: "claude:opus:reviewer:reviewer"
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
@@ -319,3 +320,4 @@ def test_emit_mission_created_includes_mission_id():
 
 - 2026-04-09T09:00:05Z – unknown – shell_pid=114 – Dispatching implementation
 - 2026-04-09T09:04:45Z – unknown – shell_pid=114 – ULID mission_id minted at creation, 079 meta.json dogfood updated, 4 regression tests pass (12 total assertions)
+- 2026-04-09T09:05:17Z – claude:opus:reviewer:reviewer – shell_pid=2994 – Started review via action command
