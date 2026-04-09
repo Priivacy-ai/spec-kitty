@@ -21,8 +21,8 @@ subtasks:
 - T013
 - T014
 - T015
-agent: "claude:opus:reviewer:reviewer"
-shell_pid: "87673"
+agent: claude:opus:reviewer:reviewer
+shell_pid: '98348'
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
