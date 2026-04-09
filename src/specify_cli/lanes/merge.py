@@ -24,6 +24,9 @@ from specify_cli.lanes.persistence import read_lanes_json
 from specify_cli.lanes.stale_check import StaleCheckResult, check_lane_staleness
 from specify_cli.merge.config import MergeStrategy
 
+_EVENT_LOG_DRIVER_NAME = "Spec Kitty event log union merge"
+_EVENT_LOG_DRIVER_COMMAND = "spec-kitty merge-driver-event-log %O %A %B"
+
 
 @dataclass
 class LaneMergeResult:
@@ -200,6 +203,48 @@ def _branch_exists(repo_root: Path, branch: str) -> bool:
     return result.returncode == 0
 
 
+def _git_config_get(repo_root: Path, key: str) -> str | None:
+    """Return a local git config value or ``None`` when unset/unreadable."""
+    result = subprocess.run(
+        ["git", "config", "--local", "--get", key],
+        cwd=str(repo_root),
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def _ensure_event_log_merge_driver_config(repo_root: Path) -> None:
+    """Ensure the local semantic merge driver is configured before git merges.
+
+    ``spec-kitty init`` may run before the project becomes a git repository, so
+    the upgrade migration cannot always install the local merge-driver config at
+    init time. The merge path self-heals that gap here so status.events.jsonl
+    merges stay semantic for freshly initialized repos too.
+    """
+    if not (repo_root / ".git").exists():
+        return
+
+    if _git_config_get(repo_root, "merge.spec-kitty-event-log.name") != _EVENT_LOG_DRIVER_NAME:
+        subprocess.run(
+            ["git", "config", "--local", "merge.spec-kitty-event-log.name", _EVENT_LOG_DRIVER_NAME],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+    if _git_config_get(repo_root, "merge.spec-kitty-event-log.driver") != _EVENT_LOG_DRIVER_COMMAND:
+        subprocess.run(
+            ["git", "config", "--local", "merge.spec-kitty-event-log.driver", _EVENT_LOG_DRIVER_COMMAND],
+            cwd=str(repo_root),
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+
+
 def _rev_parse(repo_root: Path, ref: str) -> str | None:
     result = subprocess.run(
         ["git", "rev-parse", ref],
@@ -237,6 +282,8 @@ def _merge_branch_into(
     tmp_path = Path(tmp_dir)
 
     try:
+        _ensure_event_log_merge_driver_config(repo_root)
+
         # Create detached worktree at target branch tip.
         result = subprocess.run(
             ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
