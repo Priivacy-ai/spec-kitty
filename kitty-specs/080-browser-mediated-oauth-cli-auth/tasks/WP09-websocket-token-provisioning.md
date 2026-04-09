@@ -430,3 +430,4 @@ function to exist before it can rewire the WS code path.
 ## Activity Log
 
 - 2026-04-09T17:31:45Z – opus:opus:implementer:implementer – shell_pid=67527 – Started implementation via action command
+- 2026-04-09T17:39:41Z – opus:opus:implementer:implementer – shell_pid=67527 – WebSocket token provisioning complete, pre-connect refresh buffer 5 minutes, all error paths covered
