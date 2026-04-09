@@ -20,12 +20,12 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------:|
-| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] |
-| T002 | Remove `.agents/skills/` seeding from `init.py` | WP01 | [P] |
-| T003 | Rewrite `init` next-steps output (name `spec-kitty next` + agent action verbs) | WP01 | [P] |
-| T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [P] |
-| T005 | Update `init --help` text to describe the new model accurately | WP01 | [P] |
-| T006 | Regression tests for Track 1 (T1.1–T1.7 from test-contracts.md) | WP01 | [P] |
+| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] | [D] | [D] |
+| T002 | Remove `.agents/skills/` seeding from `init.py` | WP01 | [D] |
+| T003 | Rewrite `init` next-steps output (name `spec-kitty next` + agent action verbs) | WP01 | [D] |
+| T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [D] |
+| T005 | Update `init --help` text to describe the new model accurately | WP01 | [D] |
+| T006 | Regression tests for Track 1 (T1.1–T1.7 from test-contracts.md) | WP01 | [D] |
 | T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [P] |
 | T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [P] |
 | T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [P] |

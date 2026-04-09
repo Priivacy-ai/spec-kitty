@@ -440,7 +440,7 @@ def implement(
 
             print(f"Creating workspace for {normalized_wp_id}...")
             try:
-                top_level_implement(wp_id=normalized_wp_id, mission=mission_slug, json_output=False)
+                top_level_implement(wp_id=normalized_wp_id, mission=mission_slug, json_output=False, recover=False)
             except typer.Exit:
                 # Worktree creation failed - propagate error
                 raise
