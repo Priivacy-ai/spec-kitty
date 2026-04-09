@@ -2,7 +2,9 @@
   "event_count": 6,
   "last_event_id": "01KJ5V38VJMDYQH3CJC9V99BSX",
   "materialized_at": "2026-02-07T00:00:00Z",
+  "mission_number": "032",
   "mission_slug": "032-identity-aware-cli-event-sync",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -2,7 +2,9 @@
   "event_count": 8,
   "last_event_id": "01KJ5V38KCJYBFSFFR9MVSXMK4",
   "materialized_at": "2026-02-23T18:10:00.428011+00:00",
+  "mission_number": "004",
   "mission_slug": "004-modular-code-refactoring",
+  "mission_type": "research",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -2,7 +2,9 @@
   "event_count": 127,
   "last_event_id": "01KNC79CSC8SHDZQN7EVS9MNKS",
   "materialized_at": "2026-04-04T12:25:36.300779+00:00",
+  "mission_number": "062",
   "mission_slug": "062-tracker-binding-context-discovery",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 13,
     "blocked": 0,

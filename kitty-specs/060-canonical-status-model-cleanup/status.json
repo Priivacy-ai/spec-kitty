@@ -2,7 +2,9 @@
   "event_count": 33,
   "last_event_id": "01KN1DYA7FDVQNFSN7XF9670CZ",
   "materialized_at": "2026-03-31T07:50:14.511341+00:00",
+  "mission_number": "060",
   "mission_slug": "060-canonical-status-model-cleanup",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 7,
     "blocked": 0,

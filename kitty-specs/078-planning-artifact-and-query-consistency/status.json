@@ -2,7 +2,9 @@
   "event_count": 30,
   "last_event_id": "01KNQ89CGY23P16V09CP8XP866",
   "materialized_at": "2026-04-08T19:14:43.358672+00:00",
+  "mission_number": "078",
   "mission_slug": "078-planning-artifact-and-query-consistency",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

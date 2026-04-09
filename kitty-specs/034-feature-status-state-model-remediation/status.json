@@ -2,7 +2,9 @@
   "event_count": 17,
   "last_event_id": "01KJ5V38WJK5HZHWGSDWY3AJAV",
   "materialized_at": "2026-02-08T14:07:18Z",
+  "mission_number": "034",
   "mission_slug": "034-feature-status-state-model-remediation",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
