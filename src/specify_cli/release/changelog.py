@@ -11,6 +11,9 @@ import re
 import subprocess
 from pathlib import Path
 
+# Accepted lanes in the 3.x event-log model (FR-605)
+_ACCEPTED_LANES: frozenset[str] = frozenset({"approved", "done"})
+
 
 def _run_git(args: list[str], cwd: Path) -> str:
     """Run a git command and return stripped stdout. Raises on non-zero exit."""
@@ -132,8 +135,52 @@ def _parse_wp_id(wp_file: Path) -> str:
     return wp_file.stem
 
 
+def _wp_lane_from_event_log(mission_dir: Path, wp_id: str) -> str | None:
+    """Return the current lane for *wp_id* from the event log, or None.
+
+    Uses the event log (status.events.jsonl) as the canonical source per the
+    3.x status model (FR-605).  Falls back gracefully when the event log is
+    absent (pre-3.x features) or the WP has no events yet.
+    """
+    events_path = mission_dir / "status.events.jsonl"
+    if not events_path.exists():
+        return None
+    try:
+        last_lane: str | None = None
+        with events_path.open(encoding="utf-8") as fh:
+            for raw_line in fh:
+                raw_line = raw_line.strip()
+                if not raw_line:
+                    continue
+                try:
+                    event = json.loads(raw_line)
+                except json.JSONDecodeError:
+                    continue
+                if event.get("wp_id") == wp_id:
+                    to_lane = event.get("to_lane")
+                    if to_lane:
+                        last_lane = str(to_lane)
+        return last_lane
+    except OSError:
+        return None
+
+
 def _is_accepted_wp(wp_file: Path) -> bool:
-    """Return True if the WP frontmatter status indicates it is accepted/done."""
+    """Return True if the WP is in an accepted/done state.
+
+    Checks the 3.x event-log first (canonical source per FR-605).  Falls back
+    to the legacy YAML frontmatter ``status`` field for pre-3.x features that
+    have not been migrated to the event-log model.
+    """
+    # 3.x path: check event log (status.events.jsonl lives in mission_dir, the
+    # parent of the tasks/ directory that contains wp_file).
+    mission_dir = wp_file.parent.parent
+    wp_id = _parse_wp_id(wp_file)
+    event_log_lane = _wp_lane_from_event_log(mission_dir, wp_id)
+    if event_log_lane is not None:
+        return event_log_lane in _ACCEPTED_LANES
+
+    # Legacy fallback: check YAML frontmatter ``status`` field.
     status = _parse_wp_frontmatter_status(wp_file)
     if status is None:
         return False
