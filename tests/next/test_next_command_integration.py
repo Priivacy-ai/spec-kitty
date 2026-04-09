@@ -636,7 +636,14 @@ class TestNextCommandCLI:
         assert not runtime_index.exists()
 
     def test_json_output_includes_runtime_fields(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-        """JSON output includes new runtime fields."""
+        """JSON output includes new runtime fields.
+
+        For a fresh-run query, the run is bootstrapped in an ephemeral temp
+        store and torn down before the function returns. ``run_id`` is
+        therefore intentionally ``null`` so machine consumers don't try to
+        advance state against a run that no longer exists on disk. The field
+        is still present in the JSON shape — only its value is null.
+        """
         repo_root = _scaffold_project(tmp_path)
         monkeypatch.chdir(repo_root)
 
@@ -647,7 +654,7 @@ class TestNextCommandCLI:
         assert result.exit_code == 0
         data = json.loads(result.output)
         assert "run_id" in data
-        assert data["run_id"] is not None
+        assert data["run_id"] is None  # ephemeral query run, not persisted
         assert "step_id" in data
         assert "preview_step" in data
 

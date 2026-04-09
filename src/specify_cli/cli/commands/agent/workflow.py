@@ -1001,16 +1001,27 @@ def _resolve_review_context(
     if workspace.context and workspace.context.base_branch:
         candidates.append(workspace.context.base_branch)
 
-    # From WP dependencies (e.g., dependencies: ["WP01"])
+    # From WP dependencies (e.g., dependencies: ["WP01"]). Skip dependencies
+    # whose workspace has no branch — that's the case for planning-artifact
+    # WPs that resolve to the repository root (FR-002/FR-004). Their lack of
+    # a branch is intentional and they cannot serve as a merge-base candidate
+    # for the current code-change branch. Letting None flow into the
+    # candidates list crashes git merge-base with TypeError.
     dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
     if dep_match:
         dep_content = dep_match.group(1).strip()
         if dep_content:
             dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
             for dep_id in dep_ids:
-                dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
-                if dep_workspace.branch_name != branch:
-                    candidates.append(dep_workspace.branch_name)
+                try:
+                    dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
+                except (ValueError, FileNotFoundError):
+                    # A malformed or missing dependency workspace must not
+                    # poison the review-context resolution for the current WP.
+                    continue
+                dep_branch = dep_workspace.branch_name
+                if dep_branch and dep_branch != branch:
+                    candidates.append(dep_branch)
 
     # Common base branches
     candidates.extend(["main", "2.x", "master", "develop"])

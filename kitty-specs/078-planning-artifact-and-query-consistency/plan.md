@@ -234,7 +234,7 @@ WP05 should not start until both the resolver contract and query contract are st
 
 **WP04**
 
-- `spec-kitty next --mission-run <slug> --json` succeeds without `--agent` in query mode.
+- `spec-kitty next --mission <slug> --json` succeeds without `--agent` in query mode.
 - Fresh runs return `mission_state = "not_started"` plus `preview_step`.
 - Query mode does not advance runtime state.
 - Query mode fails clearly when the mission definition has no issuable first step.
@@ -250,7 +250,7 @@ WP05 should not start until both the resolver contract and query contract are st
 - Start a planning-artifact WP from `planned` using `spec-kitty agent action implement <wp-id>` and verify repo-root resolution.
 - Move a planning-artifact WP through `approved` to `done` and verify no merge-ancestry guardrail blocks completion.
 - Run `spec-kitty agent tasks status --json` on a mixed mission and verify planning-artifact WPs appear in lifecycle status output without missing-lane errors.
-- Run `spec-kitty next --mission-run <slug> --json` against a fresh run and verify `not_started` plus `preview_step`.
+- Run `spec-kitty next --mission <slug> --json` against a fresh run and verify `not_started` plus `preview_step`.
 - Run the same query twice and verify no runtime state change between calls.
 
 ### Verification commands

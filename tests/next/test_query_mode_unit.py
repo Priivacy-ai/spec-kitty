@@ -391,6 +391,95 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.question == "Approve?"
         assert decision.options == ["yes", "no"]
 
+    def test_fresh_run_query_omits_ephemeral_run_id(self, tmp_path: Path) -> None:
+        """Bootstrapping an ephemeral run for fresh-mode query must NOT leak
+        the temp run_id into the response. The temp dir is torn down before
+        the function returns, so a non-null ``run_id`` would mislead callers
+        into thinking they can advance state against a run that no longer
+        exists on disk."""
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        ephemeral_ref = MagicMock()
+        ephemeral_ref.run_dir = str(tmp_path / "ephemeral_run")
+        ephemeral_ref.run_id = "ephemeral-123-DO-NOT-LEAK"
+
+        snapshot = MagicMock()
+        snapshot.completed_steps = []
+        snapshot.pending_decisions = {}
+        snapshot.decisions = {}
+        snapshot.template_path = str(tmp_path / "template.yaml")
+        snapshot.policy_snapshot = MagicMock()
+
+        first_step = MagicMock()
+        first_step.kind = "step"
+        first_step.step_id = "discovery"
+
+        ephemeral_store = tmp_path / "ephemeral_store"
+        ephemeral_store.mkdir()
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=None),
+            patch(
+                "specify_cli.next.runtime_bridge._start_ephemeral_query_run",
+                return_value=(ephemeral_ref, ephemeral_store),
+            ),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("spec_kitty_runtime.planner.plan_next", return_value=first_step),
+        ):
+            decision = query_current_state(None, "069-test", tmp_path)
+
+        assert decision.mission_state == "not_started"
+        assert decision.preview_step == "discovery"
+        # The crux: the ephemeral run_id must not be exposed.
+        assert decision.run_id is None
+        # And the temp store is cleaned up.
+        assert not ephemeral_store.exists()
+
+    def test_persisted_run_query_keeps_run_id(self, tmp_path: Path) -> None:
+        """Counter-test for the omission above: when the run is real and
+        persisted (not ephemeral), the run_id must still be emitted."""
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        persisted_ref = MagicMock()
+        persisted_ref.run_dir = str(tmp_path / "real_run")
+        persisted_ref.run_id = "real-run-id-456"
+
+        snapshot = MagicMock()
+        snapshot.completed_steps = ["discovery"]
+        snapshot.pending_decisions = {}
+        snapshot.decisions = {}
+        snapshot.template_path = str(tmp_path / "template.yaml")
+        snapshot.issued_step_id = "plan"
+        snapshot.policy_snapshot = MagicMock()
+
+        next_step = MagicMock()
+        next_step.kind = "step"
+        next_step.step_id = "plan"
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=persisted_ref),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("spec_kitty_runtime.planner.plan_next", return_value=next_step),
+        ):
+            decision = query_current_state(None, "069-test", tmp_path)
+
+        # Real persisted run → run_id is the real one (callers can advance against it).
+        assert decision.run_id == "real-run-id-456"
+
     def test_inner_query_validation_error_propagates_unwrapped(self, tmp_path: Path) -> None:
         """A QueryModeValidationError raised inside the bootstrap should propagate
         as-is rather than being wrapped in a generic 'Could not read query state'

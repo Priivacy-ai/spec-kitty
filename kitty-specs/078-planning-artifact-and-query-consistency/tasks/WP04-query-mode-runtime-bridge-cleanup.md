@@ -56,10 +56,10 @@ Turn query mode into an explicit, read-only status surface:
 
 The following behaviors all hold at once:
 
-1. `spec-kitty next --mission-run <slug> --json` succeeds without `--agent`
+1. `spec-kitty next --mission <slug> --json` succeeds without `--agent`
 2. a fresh run returns `mission_state = not_started` and a non-null `preview_step`
 3. repeated query calls leave the run state unchanged
-4. `spec-kitty next --agent <name> --mission-run <slug> --result success` still advances normally
+4. `spec-kitty next --agent <name> --mission <slug> --result success` still advances normally
 
 ## Context
 
@@ -238,7 +238,7 @@ Test surfaces:
 
 Verify the following during review:
 
-1. Query mode succeeds with `spec-kitty next --mission-run <slug>` and no agent.
+1. Query mode succeeds with `spec-kitty next --mission <slug>` and no agent.
 2. Fresh runs return `not_started` and `preview_step` in JSON.
 3. Human-readable output names the next step for fresh runs.
 4. Advancing mode still requires `--agent` and `--result`.

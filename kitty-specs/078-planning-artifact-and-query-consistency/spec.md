@@ -12,7 +12,7 @@
 Spec Kitty currently applies two conflicting runtime models to valid work packages and mission runs:
 
 - Planning-artifact work packages are intentionally excluded from the execution lane graph, but some downstream workflow and workspace consumers still treat lane membership as mandatory.
-- Fresh mission-run query mode can report an "unknown" state even when the mission definition itself is valid and the next step is deterministically knowable.
+- Fresh mission run query mode can report an "unknown" state even when the mission definition itself is valid and the next step is deterministically knowable.
 
 This mission establishes one explicit contract across planning, runtime, workflow, stale detection, and documentation:
 
@@ -100,7 +100,7 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 ### Scenario 4 - Fresh Query Mode Reports Not-Started State Honestly
 
 **Given** a valid mission run with no issued step yet
-**When** the operator runs `spec-kitty next --mission-run <slug>` with no `--result`
+**When** the operator runs `spec-kitty next --mission <slug>` with no `--result`
 **Then** the command stays read-only and reports that the run is `not_started` while also previewing the first issuable step.
 
 **Acceptance**: For a valid mission definition, human-readable output uses the shape below, and JSON output exposes `mission_state: "not_started"` and `preview_step: "<first-step-id>"` without advancing state. If the mission definition has no issuable first step, query mode fails with an actionable validation error instead of returning `unknown` or an empty success response.
@@ -115,7 +115,7 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 ### Scenario 5 - Query Mode Does Not Require An Agent Identifier
 
 **Given** an operator or automation that wants a read-only answer about a mission run
-**When** it calls `spec-kitty next --mission-run <slug>` without `--result`
+**When** it calls `spec-kitty next --mission <slug>` without `--result`
 **Then** the command succeeds without requiring `--agent`.
 
 **Acceptance**: Query mode is documented and supported without `--agent`. If an existing caller still supplies `--agent` in query mode, the command remains read-only and returns the same state answer.
@@ -127,8 +127,8 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 **Then** they see one consistent public contract:
 
 - planning-artifact work packages remain outside the execution lane graph and resolve to repository root
-- query mode is `spec-kitty next --mission-run <slug>`
-- advancing mode is `spec-kitty next --agent <agent> --mission-run <slug> --result <outcome>`
+- query mode is `spec-kitty next --mission <slug>`
+- advancing mode is `spec-kitty next --agent <agent> --mission <slug> --result <outcome>`
 
 **Acceptance**: Active docs and command reference examples contain no contradictory syntax or behavioral explanation for these flows.
 
@@ -171,7 +171,7 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 | ID | Requirement | Status |
 |----|-------------|--------|
 | FR-011 | Calling `spec-kitty next` without `--result` enters read-only query mode. Query mode does not advance mission state. | Proposed |
-| FR-012 | The public query-mode contract is `spec-kitty next --mission-run <slug>`. `--agent` is not required in query mode. | Proposed |
+| FR-012 | The public query-mode contract is `spec-kitty next --mission <slug>`. `--agent` is not required in query mode. | Proposed |
 | FR-013 | If a caller provides `--agent` in query mode for compatibility, the command still behaves as query mode and does not treat the agent identifier as a required lifecycle input. | Proposed |
 | FR-014 | For a mission run with no issued step yet, query mode returns `mission_state: "not_started"` and a separate `preview_step` that names the first issuable step. | Proposed |
 | FR-014a | If a mission definition has no issuable first step, fresh-run query mode fails with an actionable validation error instead of returning `unknown`, omitting the preview, or fabricating a step. | Proposed |
@@ -210,7 +210,7 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 | C-003 | Query mode must remain read-only; only calls with `--result` may advance mission state. | Required |
 | C-004 | The public query-mode contract must not require `--agent`. Compatibility support for callers that still pass `--agent` may remain, but that form is not the primary documented interface. | Required |
 | C-005 | The lifecycle status-lane model remains unchanged and continues to apply to all valid work packages, including planning-artifact work. | Required |
-| C-006 | Existing mission artifacts and mission-run records must remain usable without a mandatory migration step. | Required |
+| C-006 | Existing mission artifacts and mission run records must remain usable without a mandatory migration step. | Required |
 | C-007 | Deterministic mission-step ordering must be preserved. Query preview may reveal the first issuable step but must not issue it. | Required |
 | C-008 | Shared repository-root activity must not be used as a freshness proxy for planning-artifact work packages. | Required |
 
@@ -231,7 +231,7 @@ If these contracts remain ambiguous, Spec Kitty continues to teach one model, pe
 
 1. Operators can list, implement, review, and complete any valid planning-artifact work package without encountering a lane-membership or lane-merge failure.
 2. Planning-artifact work packages do not receive misleading stale/fresh classifications from shared repository-root activity; workspace-based staleness is explicitly not applicable unless a work-package-scoped rule exists.
-3. A fresh mission run queried with `spec-kitty next --mission-run <slug>` returns a not-started state and names the next step without advancing runtime state.
+3. A fresh mission run queried with `spec-kitty next --mission <slug>` returns a not-started state and names the next step without advancing runtime state.
 4. Operators can use query mode without inventing a placeholder agent identifier.
 5. Existing missions and mission runs continue working without mandatory artifact edits.
 6. Active docs and command reference surfaces present one consistent workspace-resolution and query-mode contract, with zero contradictory examples.

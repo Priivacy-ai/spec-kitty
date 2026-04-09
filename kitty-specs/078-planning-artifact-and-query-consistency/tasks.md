@@ -175,7 +175,7 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 **Priority**: P0
 **Dependencies**: None
 **Estimated prompt size**: ~410 lines
-**Independent Test**: `spec-kitty next --mission-run <slug> --json` on a fresh run returns `mission_state = not_started` plus `preview_step`, does not advance runtime state, and still allows `spec-kitty next --agent <name> --mission-run <slug> --result success` to advance normally.
+**Independent Test**: `spec-kitty next --mission <slug> --json` on a fresh run returns `mission_state = not_started` plus `preview_step`, does not advance runtime state, and still allows `spec-kitty next --agent <name> --mission <slug> --result success` to advance normally.
 **Requirement Refs**: FR-011, FR-012, FR-013, FR-014, FR-014a, FR-015, FR-016, FR-019
 **Prompt**: `tasks/WP04-query-mode-runtime-bridge-cleanup.md`
 
@@ -212,7 +212,7 @@ Recommended start: WP01 and WP04 in parallel. WP05 intentionally stays last beca
 **Priority**: P1
 **Dependencies**: WP01, WP02, WP03, WP04
 **Estimated prompt size**: ~300 lines
-**Independent Test**: Active docs consistently teach `spec-kitty next --mission-run <slug>` for query mode, explain `not_started + preview_step`, describe planning-artifact work as repository-root execution outside the lane graph, and this docs-only WP itself can be implemented as planning-artifact work after WP01-WP04 land.
+**Independent Test**: Active docs consistently teach `spec-kitty next --mission <slug>` for query mode, explain `not_started + preview_step`, describe planning-artifact work as repository-root execution outside the lane graph, and this docs-only WP itself can be implemented as planning-artifact work after WP01-WP04 land.
 **Requirement Refs**: FR-017, FR-018, FR-020
 **Prompt**: `tasks/WP05-documentation-and-compatibility-updates.md`
 

@@ -43,7 +43,7 @@ tags: []
 Update the active user-facing docs so they teach exactly one public contract for:
 
 - planning-artifact work as repository-root execution outside the execution lane graph
-- query mode as `spec-kitty next --mission-run <slug>`
+- query mode as `spec-kitty next --mission <slug>`
 - fresh-run query JSON as `not_started + preview_step`
 - the stale JSON transition from flat fields to the canonical nested `stale` object
 
@@ -53,7 +53,7 @@ This WP is intentionally `planning_artifact` so the mission dogfoods its own run
 
 After WP01-WP04 land, the active docs under `docs/` consistently:
 
-- show `spec-kitty next --mission-run <slug>` for query mode
+- show `spec-kitty next --mission <slug>` for query mode
 - explain that fresh runs return `mission_state = not_started` plus `preview_step`
 - explain that callers still passing `--agent` in query mode are using a compatibility form, not the primary contract
 - describe planning-artifact work as repository-root execution outside the lane graph
@@ -104,7 +104,7 @@ Do not edit `README.md` in this WP unless a reviewer explicitly extends scope la
 
 **Steps**:
 
-1. Replace any query-mode examples that require `--agent` with the canonical `--mission-run` form.
+1. Replace any query-mode examples that require `--agent` with the canonical `--mission` form.
 2. Update any explanation that treats `unknown` as the valid fresh-run query state.
 3. Add the `not_started + preview_step` language where query-mode JSON is described.
 4. Keep advancing-mode examples explicit: `--agent` plus `--result`.
@@ -198,7 +198,7 @@ Do not edit `README.md` in this WP unless a reviewer explicitly extends scope la
 ## Definition of Done
 
 - The four active docs in scope all teach the same workspace and query contract
-- Query mode is documented as `spec-kitty next --mission-run <slug>`
+- Query mode is documented as `spec-kitty next --mission <slug>`
 - Fresh-run query JSON is documented as `not_started + preview_step`
 - The stale nested-object transition is documented explicitly
 - This planning-artifact WP can itself be implemented through the repository-root planning path after WP01-WP04 land

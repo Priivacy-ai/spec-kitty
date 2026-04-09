@@ -113,7 +113,7 @@ WP01 should land before any caller-specific fixes. WP04 can run in parallel with
 
 **Change sequence**
 
-1. Update all active docs so query mode is shown as `spec-kitty next --mission-run <slug>`.
+1. Update all active docs so query mode is shown as `spec-kitty next --mission <slug>`.
 2. Document the intentional fresh-run query contract change from `unknown` to `not_started` + `preview_step`.
 3. Document planning-artifact repo-root resolution and stale `not_applicable` semantics.
 4. Remove contradictory examples that imply every WP must belong to an execution lane.

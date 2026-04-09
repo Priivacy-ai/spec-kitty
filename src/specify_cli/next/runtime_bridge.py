@@ -732,6 +732,16 @@ def query_current_state(
         except Exception as exc:
             raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
 
+        # Query mode never persists the ephemeral run it bootstraps for a
+        # not-yet-started mission. Returning that run's id in the JSON would
+        # mislead callers into thinking they can issue ``spec-kitty next
+        # --mission <slug> --result …`` against it; in reality the run state
+        # is wiped in the finally block before the function returns. Only
+        # emit ``run_id`` when the run is a real, persisted one.
+        emitted_run_id: str | None = None
+        if ephemeral_run_store is None:
+            emitted_run_id = getattr(run_ref, "run_id", None)
+
         if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
             if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
                 return Decision(
@@ -744,7 +754,7 @@ def query_current_state(
                     is_query=True,
                     reason=None,
                     progress=progress,
-                    run_id=getattr(run_ref, "run_id", None),
+                    run_id=emitted_run_id,
                     preview_step=runtime_decision.step_id,
                 )
             raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
@@ -760,7 +770,7 @@ def query_current_state(
                 is_query=True,
                 reason=None,
                 progress=progress,
-                run_id=getattr(run_ref, "run_id", None),
+                run_id=emitted_run_id,
                 step_id=snapshot.issued_step_id or runtime_decision.step_id,
                 decision_id=runtime_decision.decision_id,
                 input_key=runtime_decision.input_key,
@@ -786,7 +796,7 @@ def query_current_state(
             is_query=True,
             reason=blocked_reason,
             progress=progress,
-            run_id=getattr(run_ref, "run_id", None),
+            run_id=emitted_run_id,
             step_id=snapshot.issued_step_id or runtime_decision.step_id,
         )
     finally:
