@@ -62,6 +62,13 @@ def write_release_files(tmp_path: Path, version: str, changelog_body: str) -> No
         encoding="utf-8",
     )
     (tmp_path / "CHANGELOG.md").write_text(changelog_body, encoding="utf-8")
+    # FR-601/FR-602: keep .kittify/metadata.yaml in sync so validate_release.py passes
+    kittify_dir = tmp_path / ".kittify"
+    kittify_dir.mkdir(exist_ok=True)
+    (kittify_dir / "metadata.yaml").write_text(
+        f"spec_kitty:\n  version: {version}\n",
+        encoding="utf-8",
+    )
 
 
 def stage_and_commit(tmp_path: Path, message: str) -> None:
