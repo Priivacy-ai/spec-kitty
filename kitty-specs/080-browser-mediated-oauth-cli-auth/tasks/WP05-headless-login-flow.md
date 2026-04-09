@@ -518,3 +518,4 @@ end-to-end via the dispatch shell.
 ## Activity Log
 
 - 2026-04-09T18:54:32Z – claude:opus-4-6:python-implementer:implementer – shell_pid=51858 – Started implementation via action command
+- 2026-04-09T19:16:02Z – claude:opus-4-6:python-implementer:implementer – shell_pid=51858 – Headless device-code login wired end-to-end: DeviceCodeFlow orchestrates WP03 poller + /api/v1/me + StoredSession with landed refresh-TTL contract
