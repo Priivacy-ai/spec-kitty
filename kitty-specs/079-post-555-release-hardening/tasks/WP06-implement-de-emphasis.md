@@ -248,3 +248,4 @@ def test_implement_command_still_runs(runner):
 ## Activity Log
 
 - 2026-04-09T09:14:04Z – unknown – shell_pid=5038 – Dispatching implementation
+- 2026-04-09T09:20:11Z – unknown – shell_pid=5038 – README, templates, docs updated to name spec-kitty next as canonical; 2 regression tests pass (T6.4, T6.5)
