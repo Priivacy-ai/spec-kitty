@@ -184,6 +184,7 @@ def feature_with_planning_artifact_wp_no_owned_files(feature_dir: Path) -> Path:
 class TestBuildPromptWPPlanningArtifact:
     """Coverage for the repo-root planning-artifact branch in _build_wp_prompt."""
 
+    @pytest.mark.fast
     def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
@@ -201,6 +202,7 @@ class TestBuildPromptWPPlanningArtifact:
         assert "Planning-artifact work for this WP happens in the repository root" in text
         path.unlink()
 
+    @pytest.mark.fast
     def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
@@ -220,6 +222,7 @@ class TestBuildPromptWPPlanningArtifact:
         assert "no deterministic implementation claim commit found" in text
         path.unlink()
 
+    @pytest.mark.git_repo
     def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
@@ -252,6 +255,7 @@ class TestBuildPromptWPPlanningArtifact:
         assert ":(exclude)kitty-specs/042-test-feature/status.events.jsonl" in text
         path.unlink()
 
+    @pytest.mark.git_repo
     def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(
         self, feature_with_planning_artifact_wp_no_owned_files: Path
     ) -> None:
