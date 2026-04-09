@@ -25,6 +25,8 @@ owned_files:
 - tests/auth/test_device_code_flow.py
 status: pending
 tags: []
+agent: "claude:opus-4-6:python-implementer:implementer"
+shell_pid: "51858"
 ---
 
 # WP05: Headless Login Flow (`auth login --headless`)
@@ -512,3 +514,7 @@ end-to-end via the dispatch shell.
 - **Risk**: SaaS device endpoint returns `verification_uri_complete` (not standard) → not all clients support it. **Mitigation**: optional field; we display it as a "Or open" hint.
 - **Risk**: User reads the wrong code from the terminal. **Mitigation**: format with hyphens for readability; print in bold green.
 - **Edge case**: User approves between polls but the next poll happens to fail with a network error. **Mitigation**: poller retries on NetworkError.
+
+## Activity Log
+
+- 2026-04-09T18:54:32Z – claude:opus-4-6:python-implementer:implementer – shell_pid=51858 – Started implementation via action command
