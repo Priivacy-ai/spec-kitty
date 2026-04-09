@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-09T13:37:18.687152+00:00",
+  "friendly_name": "browser mediated oauth cli auth",
+  "mission_id": "01KNS7C9AZP1MPCFZWM25KV6TM",
+  "mission_number": "080",
+  "mission_slug": "080-browser-mediated-oauth-cli-auth",
+  "mission_type": "software-dev",
+  "slug": "080-browser-mediated-oauth-cli-auth",
+  "target_branch": "main"
+}
