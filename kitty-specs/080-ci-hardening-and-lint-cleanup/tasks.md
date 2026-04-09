@@ -1,6 +1,6 @@
 # Tasks: CI Hardening and Lint Cleanup (Mission 079)
 
-**Branch**: `feat/079-ci-hardening-and-lint-cleanup` → merges into `main`
+**Branch**: `feat/080-ci-hardening-and-lint-cleanup` → merges into `main`
 **Spec**: [spec.md](spec.md) | **Plan**: [plan.md](plan.md) | **Research**: [research.md](research.md)
 
 ---

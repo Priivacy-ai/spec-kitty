@@ -6,9 +6,9 @@ dependencies:
 requirement_refs:
 - FR-014
 - FR-015
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T051
 - T052
@@ -226,7 +226,7 @@ verify:
 - [ ] Docs-only PR validation: Python test jobs not triggered; markdownlint/commitlint run; CI completes in ≤ 2 minutes
 - [ ] `quality-gate` passes on `main` after full migration
 - [ ] All YAML files parse without error
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

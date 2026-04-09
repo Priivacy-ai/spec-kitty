@@ -4,9 +4,9 @@ title: 'Remove Stale type: ignore Comments'
 dependencies: []
 requirement_refs:
 - FR-002
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T014
 - T015
@@ -210,7 +210,7 @@ If tests fail:
 - [ ] `no-any-return` violations in `backfill_identity.py` and `policy/audit.py` are fixed
 - [ ] All tests in affected modules pass
 - [ ] Any comment that turned out to be a valid suppression is restored with `# type: ignore[<code>]` and a `# TODO` comment
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

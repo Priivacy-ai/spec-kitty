@@ -5,9 +5,9 @@ dependencies:
 - WP07
 requirement_refs:
 - FR-017
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T037
 - T038
@@ -220,7 +220,7 @@ Compare the output percentages against the values in `coverage-baseline.md`.
 - [ ] Coverage for `next` and `missions` modules is NOT lower than the values in `coverage-baseline.md`
 - [ ] Every test that could NOT be shifted has a comment explaining why
 - [ ] All tests in `tests/next/` and `tests/missions/` still pass (no regressions)
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

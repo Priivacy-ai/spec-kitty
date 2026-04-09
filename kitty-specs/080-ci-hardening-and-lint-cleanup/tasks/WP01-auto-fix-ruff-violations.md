@@ -4,9 +4,9 @@ title: Auto-Fix Ruff Violations
 dependencies: []
 requirement_refs:
 - FR-001
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002
@@ -208,7 +208,7 @@ If any command fails:
 - [ ] `mypy` exits 0 for all four files
 - [ ] Affected test suites pass (`tests/charter/`, `tests/kernel/`)
 - [ ] No new ruff or mypy violations introduced in any of the four files
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

@@ -1,6 +1,6 @@
 # Implementation Plan: CI Hardening and Lint Cleanup
 
-**Branch**: `feat/079-ci-hardening-and-lint-cleanup` | **Date**: 2026-04-09
+**Branch**: `feat/080-ci-hardening-and-lint-cleanup` | **Date**: 2026-04-09
 **Spec**: [spec.md](spec.md) | **Research**: [research.md](research.md)
 **Mission type**: software-dev
 
@@ -157,7 +157,7 @@ correct from the first split run.
 ### Documentation (this mission)
 
 ```
-kitty-specs/079-ci-hardening-and-lint-cleanup/
+kitty-specs/080-ci-hardening-and-lint-cleanup/
 ├── spec.md              # Mission specification
 ├── plan.md              # This file
 ├── research.md          # Module graph, tier classification, shift-left findings
@@ -369,7 +369,7 @@ pytest tests/<module>/ \
   --cov-report=term-missing -q
 ```
 
-Record results in `kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md`.
+Record results in `kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md`.
 
 **Floor formula per module:**
 ```
@@ -381,7 +381,7 @@ Where tier minimums are:
 - Normal (next, review, merge, cli, missions, upgrade): 60%
 - Glue (dashboard, release, orchestrator_api, post_merge, core-misc): 40%
 
-**Output:** `kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md` with one row
+**Output:** `kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md` with one row
 per module: `| module | tier | measured | floor |`
 
 **Acceptance criteria:**
@@ -626,8 +626,8 @@ because the path filter's per-module `if:` conditions reference job names that W
 
 ## Branch Contract (repeated per skill requirement)
 
-- **Current branch at plan start:** `feat/079-ci-hardening-and-lint-cleanup`
-- **Planning/base branch:** `feat/079-ci-hardening-and-lint-cleanup`
+- **Current branch at plan start:** `feat/080-ci-hardening-and-lint-cleanup`
+- **Planning/base branch:** `feat/080-ci-hardening-and-lint-cleanup`
 - **Final merge target for completed changes:** `main`
 - `branch_matches_target`: true (we are on the feature branch throughout)
 

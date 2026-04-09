@@ -23,9 +23,9 @@ Each WP file **MUST** use YAML frontmatter:
 work_package_id: "WP01"
 title: "Work Package Title"
 dependencies: []
-planning_base_branch: "feat/079-ci-hardening-and-lint-cleanup"
-merge_target_branch: "feat/079-ci-hardening-and-lint-cleanup"
-branch_strategy: "Planning artifacts were generated on feat/079-ci-hardening-and-lint-cleanup; completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup."
+planning_base_branch: "feat/080-ci-hardening-and-lint-cleanup"
+merge_target_branch: "feat/080-ci-hardening-and-lint-cleanup"
+branch_strategy: "Planning artifacts were generated on feat/080-ci-hardening-and-lint-cleanup; completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup."
 subtasks:
   - "T001"
   - "T002"

@@ -16,9 +16,9 @@ requirement_refs:
 - FR-011
 - FR-012
 - FR-013
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T042
 - T043
@@ -439,7 +439,7 @@ to verify YAML syntax before committing.
 - [ ] Skip-pass shim jobs added for all required-check jobs
 - [ ] YAML parses without error
 - [ ] **NFR-002 validated:** Open a draft PR touching only `src/specify_cli/dashboard/` (or any single module); confirm all relevant CI jobs complete within 5 minutes from push to `quality-gate` passing
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

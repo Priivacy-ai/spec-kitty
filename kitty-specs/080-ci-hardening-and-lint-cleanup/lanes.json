@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "mission_slug": "079-ci-hardening-and-lint-cleanup",
-  "mission_id": "079-ci-hardening-and-lint-cleanup",
-  "mission_branch": "kitty/mission-079-ci-hardening-and-lint-cleanup",
+  "mission_slug": "080-ci-hardening-and-lint-cleanup",
+  "mission_id": "080-ci-hardening-and-lint-cleanup",
+  "mission_branch": "kitty/mission-080-ci-hardening-and-lint-cleanup",
   "target_branch": "main",
   "lanes": [
     {
@@ -101,7 +101,7 @@
         "WP08"
       ],
       "write_scope": [
-        "kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md",
+        "kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md",
         "tests/lanes/**",
         "tests/review/**",
         "tests/merge/**",

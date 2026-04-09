@@ -9,9 +9,9 @@ dependencies:
 - WP05
 requirement_refs:
 - FR-006
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T027
 - T028
@@ -22,10 +22,10 @@ history:
 - date: '2026-04-09'
   action: created
   actor: claude-sonnet-4-6
-authoritative_surface: kitty-specs/079-ci-hardening-and-lint-cleanup/
+authoritative_surface: kitty-specs/080-ci-hardening-and-lint-cleanup/
 execution_mode: planning_artifact
 owned_files:
-- kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md
+- kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md
 tags: []
 ---
 
@@ -34,7 +34,7 @@ tags: []
 ## Objective
 
 Run the full test suite (all markers) per module cluster and produce
-`kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md` with measured coverage
+`kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md` with measured coverage
 percentages and calibrated per-module coverage floors.
 
 This artifact is the input to WP09 (per-module CI job split) — the CI jobs will configure
@@ -191,14 +191,14 @@ explore `tests/` to find the residual test directories.
 
 After collecting all measurements, create the output file:
 
-**File to create:** `kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md`
+**File to create:** `kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md`
 
 **Format:**
 ```markdown
 # Coverage Baseline — Mission 079
 
 **Date measured:** 2026-04-09
-**Branch:** feat/079-ci-hardening-and-lint-cleanup (post WP01–WP05)
+**Branch:** feat/080-ci-hardening-and-lint-cleanup (post WP01–WP05)
 **Formula:** floor = max(tier_minimum, measured_coverage - 2)
 
 ## Results
@@ -254,12 +254,12 @@ and any known failures are documented.
 
 ## Definition of Done
 
-- [ ] `coverage-baseline.md` exists at `kitty-specs/079-ci-hardening-and-lint-cleanup/coverage-baseline.md`
+- [ ] `coverage-baseline.md` exists at `kitty-specs/080-ci-hardening-and-lint-cleanup/coverage-baseline.md`
 - [ ] Every module listed in the plan has a measured coverage percentage recorded
 - [ ] Floor values are calculated using `max(tier_minimum, measured - 2)`
 - [ ] Modules with zero markers (lanes, review, merge, cli) are noted as "measured without marker filter"
 - [ ] Zero test failures in the baseline run (or known failures documented with module exclusions)
-- [ ] File committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] File committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 

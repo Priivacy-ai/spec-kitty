@@ -5,9 +5,9 @@ dependencies:
 - WP06
 requirement_refs:
 - FR-016
-planning_base_branch: feat/079-ci-hardening-and-lint-cleanup
-merge_target_branch: feat/079-ci-hardening-and-lint-cleanup
-branch_strategy: Planning artifacts for this feature were generated on feat/079-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/079-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
+planning_base_branch: feat/080-ci-hardening-and-lint-cleanup
+merge_target_branch: feat/080-ci-hardening-and-lint-cleanup
+branch_strategy: Planning artifacts for this feature were generated on feat/080-ci-hardening-and-lint-cleanup. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into feat/080-ci-hardening-and-lint-cleanup unless the human explicitly redirects the landing branch.
 subtasks:
 - T032
 - T033
@@ -216,7 +216,7 @@ verify the marker decorator syntax is correct (common mistake: missing `@pytest.
 - [ ] `pytest -m fast tests/lanes/ tests/review/ tests/merge/ tests/cli/` collects and passes tests from all four directories
 - [ ] All existing tests still pass (no regressions from marker addition)
 - [ ] `coverage-baseline.md` coverage measurements can now be reproduced with the marker filter (for modules that had zero markers)
-- [ ] Changes committed to `feat/079-ci-hardening-and-lint-cleanup`
+- [ ] Changes committed to `feat/080-ci-hardening-and-lint-cleanup`
 
 ## Risks
 
