@@ -363,3 +363,4 @@ def test_implement_help_marks_command_as_internal(runner):
 - 2026-04-09T08:43:24Z – claude:opus:reviewer:reviewer – shell_pid=87673 – Started review via action command
 - 2026-04-09T08:53:16Z – claude:opus:reviewer:reviewer – shell_pid=87673 – Moved to planned
 - 2026-04-09T08:53:56Z – claude:opus:reviewer:reviewer – shell_pid=98348 – Fixing final stale test (cycle 3)
+- 2026-04-09T08:56:59Z – claude:opus:reviewer:reviewer – shell_pid=98348 – Cycle 3: Fixed final stale test in test_workflow_canonical_cleanup. Updated 2 assertions in TestPlanningArtifactWorkflowPrompt to match new workspace contract format (lane lane-planning / workspace_kind repo_root). All 13 tests pass.
