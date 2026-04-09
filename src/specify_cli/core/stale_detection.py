@@ -291,29 +291,6 @@ def check_wp_staleness(
         )
 
 
-def find_worktree_for_wp(
-    main_repo_root: Path,
-    mission_slug: str,
-    wp_id: str,
-) -> Path | None:
-    """
-    Find the worktree path for a given work package.
-
-    Args:
-        main_repo_root: Root of the main repository
-        mission_slug: Feature slug (e.g., "001-my-feature")
-        wp_id: Work package ID (e.g., "WP01")
-
-    Returns:
-        Path to worktree if found, None otherwise
-    """
-    resolved = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-    if resolved.exists:
-        return resolved.worktree_path
-
-    return None
-
-
 def check_doing_wps_for_staleness(
     main_repo_root: Path,
     mission_slug: str,

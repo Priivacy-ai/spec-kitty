@@ -55,8 +55,8 @@ The two approaches are complementary. Slash commands give you direct control. Th
 
 `spec-kitty next` has two distinct modes:
 
-- **Query mode** is the read-only form: `spec-kitty next --mission-run <slug> --json`
-- **Advancing mode** is the runtime loop form: `spec-kitty next --agent <name> --mission-run <slug> ...`
+- **Query mode** is the read-only form: `spec-kitty next --mission <slug> --json`
+- **Advancing mode** is the runtime loop form: `spec-kitty next --agent <name> --mission <slug> ...`
 
 Use query mode when you want to inspect the current run state without changing it. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` and a non-null `preview_step` telling you which step would be issued first. `unknown` is a legacy transitional value and is no longer the primary contract to teach or consume.
 

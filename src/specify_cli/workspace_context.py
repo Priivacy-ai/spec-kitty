@@ -331,13 +331,6 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
     if raw_mode is None:
         raw_content = wp_file.read_text(encoding="utf-8")
         planning_score, code_score = score_execution_mode_signals(raw_content, list(metadata.owned_files))
-        if planning_score == 0 and code_score == 0:
-            raise ValueError(
-                "Could not classify execution_mode for legacy work package "
-                f"{metadata.work_package_id} in mission {mission_slug}. "
-                "Add execution_mode to the WP frontmatter or rerun "
-                f"`spec-kitty agent tasks finalize-tasks --mission {mission_slug}`."
-            )
         try:
             inferred_mode = infer_execution_mode(raw_content, list(metadata.owned_files))
             execution_mode = ExecutionMode(inferred_mode)
@@ -351,7 +344,16 @@ def _normalize_wp_file(wp_file: Path, mission_slug: str) -> NormalizedWorkPackag
 
         normalized_meta = normalized_meta.update(execution_mode=str(execution_mode))
         mode_source = "inferred_legacy"
-        diagnostic = f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
+        if planning_score == 0 and code_score == 0:
+            diagnostic = (
+                f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} "
+                "by default — neither planning nor code signals were present in the WP body. "
+                "Add an explicit execution_mode in the WP frontmatter to silence this default."
+            )
+        else:
+            diagnostic = (
+                f"Inferred execution_mode={execution_mode.value!r} for {metadata.work_package_id} from existing mission content."
+            )
     else:
         try:
             execution_mode = ExecutionMode(raw_mode)

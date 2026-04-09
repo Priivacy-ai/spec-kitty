@@ -1,6 +1,6 @@
 # Research: Planning Artifact and Query Consistency
 
-**Mission**: 077-planning-artifact-and-query-consistency
+**Mission**: 078-planning-artifact-and-query-consistency
 **Date**: 2026-04-08
 **Method**: Codebase exploration plus planning decisions confirmed during `/spec-kitty.plan`
 

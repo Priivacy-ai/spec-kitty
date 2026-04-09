@@ -1,10 +1,10 @@
 # Work Packages: Planning Artifact and Query Consistency
 
-**Mission**: 077-planning-artifact-and-query-consistency
+**Mission**: 078-planning-artifact-and-query-consistency
 **Date**: 2026-04-08
 **Target branch**: main
 **Total**: 28 subtasks across 5 work packages
-**Prerequisites**: `kitty-specs/077-planning-artifact-and-query-consistency/spec.md`, `kitty-specs/077-planning-artifact-and-query-consistency/plan.md`, `kitty-specs/077-planning-artifact-and-query-consistency/research.md`, `kitty-specs/077-planning-artifact-and-query-consistency/data-model.md`, `kitty-specs/077-planning-artifact-and-query-consistency/quickstart.md`, `kitty-specs/077-planning-artifact-and-query-consistency/contracts/`
+**Prerequisites**: `kitty-specs/078-planning-artifact-and-query-consistency/spec.md`, `kitty-specs/078-planning-artifact-and-query-consistency/plan.md`, `kitty-specs/078-planning-artifact-and-query-consistency/research.md`, `kitty-specs/078-planning-artifact-and-query-consistency/data-model.md`, `kitty-specs/078-planning-artifact-and-query-consistency/quickstart.md`, `kitty-specs/078-planning-artifact-and-query-consistency/contracts/`
 
 ---
 

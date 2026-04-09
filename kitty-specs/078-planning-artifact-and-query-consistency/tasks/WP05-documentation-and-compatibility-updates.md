@@ -68,7 +68,7 @@ Why:
 - it is itself a planning-artifact WP, so running it exercises the repo-root planning path introduced by this mission
 - docs drift is one of the core user-facing problems this mission is fixing
 
-Use the contract docs in `kitty-specs/077-planning-artifact-and-query-consistency/contracts/` as the source of truth while updating the active docs.
+Use the contract docs in `kitty-specs/078-planning-artifact-and-query-consistency/contracts/` as the source of truth while updating the active docs.
 
 ## Branch Strategy
 

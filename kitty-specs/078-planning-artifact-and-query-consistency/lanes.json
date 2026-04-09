@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "mission_slug": "077-planning-artifact-and-query-consistency",
-  "mission_id": "077-planning-artifact-and-query-consistency",
-  "mission_branch": "kitty/mission-077-planning-artifact-and-query-consistency",
+  "mission_slug": "078-planning-artifact-and-query-consistency",
+  "mission_id": "078-planning-artifact-and-query-consistency",
+  "mission_branch": "kitty/mission-078-planning-artifact-and-query-consistency",
   "target_branch": "main",
   "lanes": [
     {

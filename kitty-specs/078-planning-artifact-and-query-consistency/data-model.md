@@ -1,6 +1,6 @@
 # Data Model: Planning Artifact and Query Consistency
 
-**Mission**: 077-planning-artifact-and-query-consistency
+**Mission**: 078-planning-artifact-and-query-consistency
 **Date**: 2026-04-08
 
 ## State Changes By Domain
@@ -246,7 +246,7 @@ Decision
 {
   "kind": "query",
   "agent": null,
-  "mission_slug": "077-planning-artifact-and-query-consistency",
+  "mission_slug": "078-planning-artifact-and-query-consistency",
   "mission": "software-dev",
   "mission_state": "not_started",
   "preview_step": "research",

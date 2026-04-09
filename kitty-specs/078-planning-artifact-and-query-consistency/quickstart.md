@@ -1,6 +1,6 @@
 # Quickstart: Planning Artifact and Query Consistency
 
-**Mission**: 077-planning-artifact-and-query-consistency
+**Mission**: 078-planning-artifact-and-query-consistency
 **Date**: 2026-04-08
 
 ## Getting Started
@@ -73,7 +73,7 @@ WP01 should land before any caller-specific fixes. WP04 can run in parallel with
 3. `src/specify_cli/cli/commands/agent/tasks.py:1014-1043`
 4. `src/specify_cli/cli/commands/agent/tasks.py:2390-2459`
 5. `src/specify_cli/cli/commands/agent/tasks.py:2592-2610`
-6. `kitty-specs/077-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`
+6. `kitty-specs/078-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`
 
 **Change sequence**
 
@@ -91,7 +91,7 @@ WP01 should land before any caller-specific fixes. WP04 can run in parallel with
 1. `src/specify_cli/cli/commands/next_cmd.py:20-80`
 2. `src/specify_cli/next/runtime_bridge.py:556-624`
 3. `src/specify_cli/next/decision.py:34-92`
-4. `kitty-specs/077-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`
+4. `kitty-specs/078-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`
 
 **Change sequence**
 
@@ -109,7 +109,7 @@ WP01 should land before any caller-specific fixes. WP04 can run in parallel with
 2. `docs/explanation/runtime-loop.md`
 3. `docs/reference/cli-commands.md`
 4. `docs/reference/agent-subcommands.md`
-5. `kitty-specs/077-planning-artifact-and-query-consistency/contracts/workspace-resolution.md`
+5. `kitty-specs/078-planning-artifact-and-query-consistency/contracts/workspace-resolution.md`
 
 **Change sequence**
 

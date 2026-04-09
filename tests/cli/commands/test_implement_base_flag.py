@@ -178,6 +178,8 @@ class TestImplementBaseFlagIntegration:
             mission_branch="main",  # the explicit base was used
             is_reuse=False,
             vcs_backend_value="git",
+            execution_mode="code_change",
+            resolution_kind="lane_workspace",
         )
 
         with (

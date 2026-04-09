@@ -96,7 +96,7 @@ class TestPlanningArtifactLifecycle:
         mock_emit: MagicMock,
         tmp_path: Path,
     ):
-        mission_slug = "077-planning-approved"
+        mission_slug = "078-planning-approved"
         feature_dir, wp_file = _build_wp(tmp_path, mission_slug, "WP03", "planning_artifact")
         _seed_event(feature_dir, mission_slug, "WP03", Lane.PLANNED, Lane.FOR_REVIEW, "direct_repo")
 
@@ -150,7 +150,7 @@ class TestPlanningArtifactLifecycle:
         mock_merge_check: MagicMock,
         tmp_path: Path,
     ):
-        mission_slug = "077-planning-done"
+        mission_slug = "078-planning-done"
         feature_dir, wp_file = _build_wp(tmp_path, mission_slug, "WP03", "planning_artifact")
         _seed_event(feature_dir, mission_slug, "WP03", Lane.FOR_REVIEW, Lane.APPROVED, "direct_repo")
 
@@ -205,7 +205,7 @@ class TestPlanningArtifactLifecycle:
         mock_resolve_workspace: MagicMock,
         tmp_path: Path,
     ):
-        mission_slug = "077-code-change-done"
+        mission_slug = "078-code-change-done"
         feature_dir, wp_file = _build_wp(tmp_path, mission_slug, "WP03", "code_change")
         _seed_event(feature_dir, mission_slug, "WP03", Lane.FOR_REVIEW, Lane.APPROVED, "worktree")
 

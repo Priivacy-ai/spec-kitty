@@ -86,9 +86,10 @@ def next_step(
             print(message, file=sys.stderr)
         raise typer.Exit(1)
 
-    # Handle --answer flow before deciding whether the call is read-only or
-    # advancing. Answering a pending decision is a mutation and still requires
-    # agent identity, even when no --result is supplied.
+    # Handle --answer flow before invoking decide_next. Answering a pending
+    # decision is a mutation and requires agent identity. The earlier validation
+    # has already rejected --answer without --result, so we are guaranteed to
+    # be in advancing mode by the time we get here.
     answered_id = None
     if answer is not None:
         if not agent:

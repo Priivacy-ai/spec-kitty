@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spec-kitty.dev/contracts/077/next-query-response.schema.json",
+  "$id": "https://spec-kitty.dev/contracts/078/next-query-response.schema.json",
   "title": "SpecKittyNextQueryResponse",
   "type": "object",
   "required": [

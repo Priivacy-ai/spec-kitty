@@ -1,6 +1,6 @@
 # Spec: Planning Artifact and Query Consistency
 
-**Mission:** 077-planning-artifact-and-query-consistency
+**Mission:** 078-planning-artifact-and-query-consistency
 **Mission type:** software-dev
 **Status:** Specified
 **Target branch:** main

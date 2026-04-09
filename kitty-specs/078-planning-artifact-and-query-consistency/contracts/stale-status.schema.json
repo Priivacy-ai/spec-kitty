@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://spec-kitty.dev/contracts/077/stale-status.schema.json",
+  "$id": "https://spec-kitty.dev/contracts/078/stale-status.schema.json",
   "title": "SpecKittyStaleStatus",
   "type": "object",
   "required": [

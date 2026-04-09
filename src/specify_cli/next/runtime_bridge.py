@@ -386,20 +386,25 @@ def _start_ephemeral_query_run(
 
     This keeps fresh query mode non-mutating for the project working tree and
     `.kittify/runtime/feature-runs.json` while still using the runtime's own
-    snapshot/bootstrap behavior.
+    snapshot/bootstrap behavior. The temp run store is cleaned up if any
+    bootstrap step raises so we never leak directories on failure paths.
     """
     run_store = Path(tempfile.mkdtemp(prefix="spec-kitty-query-run-"))
-    template_key = _runtime_template_key(mission_type, repo_root)
-    context = _build_discovery_context(repo_root)
+    try:
+        template_key = _runtime_template_key(mission_type, repo_root)
+        context = _build_discovery_context(repo_root)
 
-    run_ref = start_mission_run(
-        template_key=template_key,
-        inputs={"mission_slug": mission_slug},
-        policy_snapshot=MissionPolicySnapshot(),
-        context=context,
-        run_store=run_store,
-        emitter=NullEmitter(),
-    )
+        run_ref = start_mission_run(
+            template_key=template_key,
+            inputs={"mission_slug": mission_slug},
+            policy_snapshot=MissionPolicySnapshot(),
+            context=context,
+            run_store=run_store,
+            emitter=NullEmitter(),
+        )
+    except Exception:
+        shutil.rmtree(run_store, ignore_errors=True)
+        raise
     return run_ref, run_store
 
 
@@ -696,104 +701,97 @@ def query_current_state(
 
     # Read current step WITHOUT calling next_step(). When no step has been
     # issued yet, use the planner read-only to compute a truthful preview.
+    # The try/finally below guarantees the ephemeral run store is cleaned up
+    # on every return path (success, raise, or early exit).
     try:
-        from spec_kitty_runtime import engine
-        from spec_kitty_runtime.planner import plan_next
+        try:
+            from spec_kitty_runtime import engine
+            from spec_kitty_runtime.planner import plan_next
 
-        if run_ref is None:
-            run_ref, ephemeral_run_store = _start_ephemeral_query_run(
-                mission_slug,
-                mission_type,
-                repo_root,
+            if run_ref is None:
+                run_ref, ephemeral_run_store = _start_ephemeral_query_run(
+                    mission_slug,
+                    mission_type,
+                    repo_root,
+                )
+                snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+                template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
+                template = load_mission_template_file(template_path)
+            else:
+                snapshot = engine._read_snapshot(Path(run_ref.run_dir))
+                template_path = Path(snapshot.template_path)
+                template = load_mission_template_file(template_path)
+            runtime_decision = plan_next(
+                snapshot,
+                template,
+                snapshot.policy_snapshot,
+                live_template_path=template_path,
             )
-            snapshot = engine._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(run_ref.run_dir) / "mission_template_frozen.yaml"
-            template = load_mission_template_file(template_path)
-        else:
-            snapshot = engine._read_snapshot(Path(run_ref.run_dir))
-            template_path = Path(snapshot.template_path)
-            template = load_mission_template_file(template_path)
-        runtime_decision = plan_next(
-            snapshot,
-            template,
-            snapshot.policy_snapshot,
-            live_template_path=template_path,
-        )
-    except QueryModeValidationError:
-        raise
-    except Exception as exc:
-        if ephemeral_run_store is not None:
-            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-        raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
+        except QueryModeValidationError:
+            raise
+        except Exception as exc:
+            raise QueryModeValidationError(f"Could not read query state for mission '{mission_slug}': {exc}") from exc
 
-    if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
-        if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
-            decision = Decision(
+        if not snapshot.completed_steps and not snapshot.pending_decisions and not snapshot.decisions:
+            if runtime_decision.kind in {"step", "decision_required"} and runtime_decision.step_id:
+                return Decision(
+                    kind=DecisionKind.query,
+                    agent=agent,
+                    mission_slug=mission_slug,
+                    mission=mission_type,
+                    mission_state="not_started",
+                    timestamp=now,
+                    is_query=True,
+                    reason=None,
+                    progress=progress,
+                    run_id=getattr(run_ref, "run_id", None),
+                    preview_step=runtime_decision.step_id,
+                )
+            raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
+
+        if runtime_decision.kind == DecisionKind.decision_required:
+            return Decision(
                 kind=DecisionKind.query,
                 agent=agent,
                 mission_slug=mission_slug,
                 mission=mission_type,
-                mission_state="not_started",
+                mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
                 timestamp=now,
                 is_query=True,
                 reason=None,
                 progress=progress,
                 run_id=getattr(run_ref, "run_id", None),
-                preview_step=runtime_decision.step_id,
+                step_id=snapshot.issued_step_id or runtime_decision.step_id,
+                decision_id=runtime_decision.decision_id,
+                input_key=runtime_decision.input_key,
+                question=runtime_decision.question,
+                options=runtime_decision.options,
             )
-            if ephemeral_run_store is not None:
-                shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-            return decision
-        if ephemeral_run_store is not None:
-            shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-        raise QueryModeValidationError(f"Mission '{mission_type}' has no issuable first step for run '{mission_slug}'")
 
-    if runtime_decision.kind == DecisionKind.decision_required:
-        decision = Decision(
+        mission_state = runtime_decision.step_id or "unknown"
+        blocked_reason: str | None = None
+        if runtime_decision.kind == "terminal":
+            mission_state = "done"
+        elif runtime_decision.kind == "blocked":
+            mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
+            blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
+
+        return Decision(
             kind=DecisionKind.query,
             agent=agent,
             mission_slug=mission_slug,
             mission=mission_type,
-            mission_state=snapshot.issued_step_id or runtime_decision.step_id or "unknown",
+            mission_state=mission_state,
             timestamp=now,
             is_query=True,
-            reason=None,
+            reason=blocked_reason,
             progress=progress,
             run_id=getattr(run_ref, "run_id", None),
             step_id=snapshot.issued_step_id or runtime_decision.step_id,
-            decision_id=runtime_decision.decision_id,
-            input_key=runtime_decision.input_key,
-            question=runtime_decision.question,
-            options=runtime_decision.options,
         )
+    finally:
         if ephemeral_run_store is not None:
             shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-        return decision
-
-    mission_state = runtime_decision.step_id or "unknown"
-    blocked_reason: str | None = None
-    if runtime_decision.kind == "terminal":
-        mission_state = "done"
-    elif runtime_decision.kind == "blocked":
-        mission_state = snapshot.issued_step_id or runtime_decision.step_id or "blocked"
-        blocked_reason = snapshot.blocked_reason or getattr(runtime_decision, "reason", None)
-
-    decision = Decision(
-        kind=DecisionKind.query,
-        agent=agent,
-        mission_slug=mission_slug,
-        mission=mission_type,
-        mission_state=mission_state,
-        timestamp=now,
-        is_query=True,
-        reason=blocked_reason,
-        progress=progress,
-        run_id=getattr(run_ref, "run_id", None),
-        step_id=snapshot.issued_step_id or runtime_decision.step_id,
-    )
-    if ephemeral_run_store is not None:
-        shutil.rmtree(ephemeral_run_store, ignore_errors=True)
-    return decision
 
 
 def answer_decision_via_runtime(

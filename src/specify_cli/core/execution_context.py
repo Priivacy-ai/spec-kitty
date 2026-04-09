@@ -112,9 +112,18 @@ def _find_first_wp(feature_dir: Path, lane: str) -> str | None:
             continue
         wp_id = wp_match.group(1)
         try:
-            wp_lane = resolve_lane_alias(str(get_wp_lane(feature_dir, wp_id)))
-        except CanonicalStatusNotFoundError as exc:
-            raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc
+            wp_lane_raw = str(get_wp_lane(feature_dir, wp_id))
+        except CanonicalStatusNotFoundError:
+            wp_lane_raw = Lane.PLANNED
+        # WPs with no canonical event yet (or an "uninitialized" sentinel) are
+        # treated as planned for the purposes of "find the first WP in this
+        # lane". This matches the legacy ``event_log_lanes.get(wp_id, "planned")``
+        # fallback that previous iterations used and keeps zero-migration
+        # support (FR-019) intact for missions that have not emitted events for
+        # every WP.
+        if wp_lane_raw == "uninitialized":
+            wp_lane_raw = Lane.PLANNED
+        wp_lane = resolve_lane_alias(wp_lane_raw)
         if wp_lane == lane:
             return wp_id
     return None
@@ -229,16 +238,21 @@ def resolve_action_context(
         raise ActionContextError("WORK_PACKAGE_UNRESOLVED", str(exc)) from exc
 
     dependencies = parse_wp_dependencies(wp.path)
-    # Lane is event-log-only; read from canonical event log not frontmatter
+    # Lane is event-log-only; read from canonical event log not frontmatter.
+    # WPs without a canonical event yet (or with the "uninitialized" sentinel)
+    # are treated as ``planned`` so legacy missions that have not emitted events
+    # for every WP still resolve.
     try:
         from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
         from specify_cli.status.lane_reader import get_wp_lane as _ec_get_wp_lane
 
         _ec_raw_lane = str(_ec_get_wp_lane(feature_dir, normalized_wp_id))
-    except CanonicalStatusNotFoundError as exc:
-        raise ActionContextError("CANONICAL_STATUS_NOT_FOUND", str(exc)) from exc
+    except CanonicalStatusNotFoundError:
+        _ec_raw_lane = Lane.PLANNED
     except Exception as exc:
         raise ActionContextError("CANONICAL_STATUS_UNREADABLE", str(exc)) from exc
+    if _ec_raw_lane == "uninitialized":
+        _ec_raw_lane = Lane.PLANNED
     lane = resolve_lane_alias(_ec_raw_lane)
     workspace = resolve_workspace_for_wp(repo_root, mission_slug, normalized_wp_id)
 

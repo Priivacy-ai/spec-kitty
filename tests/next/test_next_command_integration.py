@@ -567,7 +567,8 @@ class TestNextCommandCLI:
             ["next", "--mission", "042-test-feature"],
         )
         assert result.exit_code == 0
-        assert "software-dev @ not_started" in result.output
+        assert "042-test-feature @ not_started" in result.output
+        assert "Mission Type: software-dev" in result.output
         assert "Next step:" in result.output
 
     def test_nonexistent_feature_blocked(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -625,7 +626,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--json"],
+            ["next", "--mission", "042-test-feature", "--json"],
         )
 
         assert result.exit_code == 0
@@ -657,7 +658,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--json"],
+            ["next", "--mission", "042-test-feature", "--json"],
         )
 
         assert result.exit_code == 1
@@ -670,7 +671,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
 
         assert result.exit_code == 1
@@ -682,7 +683,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
 
         assert result.exit_code == 0

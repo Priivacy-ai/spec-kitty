@@ -853,14 +853,18 @@ class TestStatusCanonicalStaleFields:
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
     @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
     @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
-    def test_status_json_fails_for_ambiguous_legacy_execution_mode(
+    def test_status_json_defaults_legacy_execution_mode_to_code_change(
         self,
         mock_slug: MagicMock,
         mock_root: MagicMock,
         mock_branch: MagicMock,
         tmp_path: Path,
     ):
-        mission_slug = "077-status-ambiguous-legacy"
+        """Per FR-019, legacy WPs without execution_mode and without strong body
+        signals default to ``code_change`` rather than hard-failing the status
+        command. This preserves zero-migration compatibility for older missions.
+        """
+        mission_slug = "078-status-ambiguous-legacy"
         feature_dir = tmp_path / "kitty-specs" / mission_slug
         tasks_dir = feature_dir / "tasks"
         tasks_dir.mkdir(parents=True, exist_ok=True)
@@ -875,5 +879,7 @@ class TestStatusCanonicalStaleFields:
         mock_branch.return_value = (tmp_path, "main")
 
         result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
-        assert result.exit_code == 1
-        assert "Could not classify execution_mode" in result.output
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        wp = payload["work_packages"][0]
+        assert wp["execution_mode"] == "code_change"

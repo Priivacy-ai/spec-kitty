@@ -441,7 +441,10 @@ class TestContextIndexAndResolution:
         with pytest.raises(ValueError, match="Could not classify execution_mode"):
             resolve_workspace_for_wp(kittify_project, "001-feature", "WP07")
 
-    def test_resolve_workspace_for_wp_errors_when_legacy_wp_has_no_classification_signals(self, kittify_project: Path) -> None:
+    def test_resolve_workspace_for_wp_falls_back_to_code_change_when_no_signals(self, kittify_project: Path) -> None:
+        """Legacy WPs without explicit execution_mode and without strong body signals
+        default to ``code_change`` (FR-019: zero-migration compatibility) and are flagged
+        in ``mode_source = inferred_legacy`` so callers can detect the default."""
         feature_dir = _seed_mission(kittify_project)
         tasks_dir = feature_dir / "tasks"
         _write_wp(
@@ -449,7 +452,33 @@ class TestContextIndexAndResolution:
             "WP08",
             "Legacy ambiguous work package",
             "Legacy body without src, tests, docs, or planning artifact references.",
+            owned_files=["src/specify_cli/workspace_context.py"],
+        )
+        write_lanes_json(
+            feature_dir,
+            LanesManifest(
+                version=1,
+                mission_slug="001-feature",
+                mission_id="mission-001-feature",
+                mission_branch="kitty/mission-001-feature",
+                target_branch="main",
+                lanes=[
+                    ExecutionLane(
+                        lane_id="lane-a",
+                        wp_ids=("WP08",),
+                        write_scope=("src/**",),
+                        predicted_surfaces=("core",),
+                        depends_on_lanes=(),
+                        parallel_group=0,
+                    )
+                ],
+                computed_at="2026-04-04T10:00:00Z",
+                computed_from="test",
+            ),
         )
 
-        with pytest.raises(ValueError, match="Could not classify execution_mode"):
-            resolve_workspace_for_wp(kittify_project, "001-feature", "WP08")
+        resolved = resolve_workspace_for_wp(kittify_project, "001-feature", "WP08")
+
+        assert resolved.execution_mode == "code_change"
+        assert resolved.mode_source == "inferred_legacy"
+        assert resolved.resolution_kind == "lane_workspace"

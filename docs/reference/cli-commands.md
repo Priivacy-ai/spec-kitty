@@ -1176,7 +1176,7 @@ spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --dec
 **Compatibility notes**:
 
 - Fresh-run query JSON is now `mission_state: "not_started"` plus `preview_step`; do not teach or depend on `unknown` as the primary fresh-run state.
-- Query mode still accepts `--agent` as a compatibility form for existing callers, but `spec-kitty next --mission-run <slug>` is the primary contract to teach and automate against.
+- Query mode still accepts `--agent` as a compatibility form for existing callers, but `spec-kitty next --mission <slug>` is the primary contract to teach and automate against.
 - Planning-artifact work packages execute in repository root outside the lane graph, so query and step responses may refer to the main checkout instead of a lane worktree.
 - Status payloads use a canonical nested `stale` object. Temporary flat stale fields remain available only as a transitional compatibility path for existing callers.
 

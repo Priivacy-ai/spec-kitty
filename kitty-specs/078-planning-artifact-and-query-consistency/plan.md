@@ -1,7 +1,7 @@
 # Implementation Plan: Planning Artifact and Query Consistency
 
 **Branch**: `main` | **Date**: 2026-04-08 | **Spec**: [spec.md](spec.md)
-**Input**: `kitty-specs/077-planning-artifact-and-query-consistency/spec.md`
+**Input**: `kitty-specs/078-planning-artifact-and-query-consistency/spec.md`
 
 ---
 
@@ -59,7 +59,7 @@ Agent context update note: `spec-kitty agent context --help` shows only `resolve
 ### Planning artifacts (this mission)
 
 ```
-kitty-specs/077-planning-artifact-and-query-consistency/
+kitty-specs/078-planning-artifact-and-query-consistency/
 |- spec.md
 |- plan.md
 |- research.md
@@ -109,13 +109,13 @@ docs/
 `- reference/agent-subcommands.md
 ```
 
-**Structure decision**: Keep all changes inside the existing single-package CLI structure under `src/specify_cli/`, with matching tests under `tests/` and contract docs in `kitty-specs/077-planning-artifact-and-query-consistency/contracts/`.
+**Structure decision**: Keep all changes inside the existing single-package CLI structure under `src/specify_cli/`, with matching tests under `tests/` and contract docs in `kitty-specs/078-planning-artifact-and-query-consistency/contracts/`.
 
 ---
 
 ## Phase 0 Research Outputs
 
-`kitty-specs/077-planning-artifact-and-query-consistency/research.md` resolves the planning unknowns and records the chosen design for:
+`kitty-specs/078-planning-artifact-and-query-consistency/research.md` resolves the planning unknowns and records the chosen design for:
 
 - one-time in-memory execution-mode normalization
 - canonical workspace resolution
@@ -130,12 +130,12 @@ No `[NEEDS CLARIFICATION]` markers remain after Phase 0.
 
 ## Phase 1 Design Outputs
 
-- `kitty-specs/077-planning-artifact-and-query-consistency/data-model.md`
-- `kitty-specs/077-planning-artifact-and-query-consistency/quickstart.md`
-- `kitty-specs/077-planning-artifact-and-query-consistency/contracts/workspace-resolution.md`
-- `kitty-specs/077-planning-artifact-and-query-consistency/contracts/planning-artifact-lifecycle.md`
-- `kitty-specs/077-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`
-- `kitty-specs/077-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`
+- `kitty-specs/078-planning-artifact-and-query-consistency/data-model.md`
+- `kitty-specs/078-planning-artifact-and-query-consistency/quickstart.md`
+- `kitty-specs/078-planning-artifact-and-query-consistency/contracts/workspace-resolution.md`
+- `kitty-specs/078-planning-artifact-and-query-consistency/contracts/planning-artifact-lifecycle.md`
+- `kitty-specs/078-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`
+- `kitty-specs/078-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`
 
 Agent context update result: skipped by current architecture. There is no `spec-kitty agent context update-context` command in the current CLI, and this mission introduces no new technology that would require agent-context mutation.
 
@@ -163,7 +163,7 @@ Agent context update result: skipped by current architecture. There is no `spec-
 
 **Scope**: Emit structured stale information, preserve deprecated flat stale fields during the transition, remove merge-ancestry gating for planning-artifact `done` transitions, and update human-readable status output.
 
-**Files**: `src/specify_cli/core/stale_detection.py`, `src/specify_cli/cli/commands/agent/tasks.py`, `kitty-specs/077-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`, `kitty-specs/077-planning-artifact-and-query-consistency/contracts/planning-artifact-lifecycle.md`, `tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py`, `tests/specify_cli/cli/commands/agent/test_tasks_planning_artifact_lifecycle.py`
+**Files**: `src/specify_cli/core/stale_detection.py`, `src/specify_cli/cli/commands/agent/tasks.py`, `kitty-specs/078-planning-artifact-and-query-consistency/contracts/stale-status.schema.json`, `kitty-specs/078-planning-artifact-and-query-consistency/contracts/planning-artifact-lifecycle.md`, `tests/specify_cli/cli/commands/agent/test_tasks_canonical_cleanup.py`, `tests/specify_cli/cli/commands/agent/test_tasks_planning_artifact_lifecycle.py`
 
 **Dependencies**: WP01
 
@@ -171,7 +171,7 @@ Agent context update result: skipped by current architecture. There is no `spec-
 
 **Scope**: Make query mode agent-optional, add `preview_step`, return `not_started` for fresh runs, and fail clearly when a mission has no issuable first step.
 
-**Files**: `src/specify_cli/next/decision.py`, `src/specify_cli/next/runtime_bridge.py`, `src/specify_cli/cli/commands/next_cmd.py`, `kitty-specs/077-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`, `tests/next/test_next_command_integration.py`
+**Files**: `src/specify_cli/next/decision.py`, `src/specify_cli/next/runtime_bridge.py`, `src/specify_cli/cli/commands/next_cmd.py`, `kitty-specs/078-planning-artifact-and-query-consistency/contracts/next-query-response.schema.json`, `tests/next/test_next_command_integration.py`
 
 **Dependencies**: none
 

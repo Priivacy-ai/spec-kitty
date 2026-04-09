@@ -1,6 +1,6 @@
 # Contract: Planning-Artifact Lifecycle
 
-**Mission**: 077-planning-artifact-and-query-consistency
+**Mission**: 078-planning-artifact-and-query-consistency
 
 ## Purpose
 
