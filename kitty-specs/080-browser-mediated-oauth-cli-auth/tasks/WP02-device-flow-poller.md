@@ -8,7 +8,7 @@ requirement_refs:
 - FR-006
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Work in execution worktree; merge to main via finalized lanes
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T010
 - T011
@@ -18,11 +18,11 @@ subtasks:
 - T015
 - T016
 history: []
-authoritative_surface: src/specify_cli/auth/flows/
+authoritative_surface: src/specify_cli/auth/device_flow_poller/
 execution_mode: code_change
 owned_files:
-- src/specify_cli/auth/flows/device_code.py
-- tests/auth/test_device_flow.py
+- src/specify_cli/auth/device_flow_poller/**
+- tests/auth/test_device_flow_poller.py
 status: pending
 tags: []
 ---

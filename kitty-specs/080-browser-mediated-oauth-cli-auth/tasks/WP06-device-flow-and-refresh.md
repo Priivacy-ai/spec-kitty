@@ -11,7 +11,7 @@ requirement_refs:
 - FR-006
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Work in execution worktree; merge to main via finalized lanes
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T041
 - T042
@@ -28,6 +28,7 @@ owned_files:
 - src/specify_cli/auth/flows/device_code.py
 - src/specify_cli/auth/flows/refresh.py
 - tests/auth/test_device_flow.py
+- tests/auth/test_device_flow_integration.py
 status: pending
 tags: []
 ---
