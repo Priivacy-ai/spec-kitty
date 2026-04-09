@@ -21,8 +21,8 @@ owned_files:
 - tests/auth/test_websocket_provisioning.py
 status: pending
 tags: []
-agent: "opus:opus:implementer:implementer"
-shell_pid: "67527"
+agent: "opus:opus:reviewer:reviewer"
+shell_pid: "94889"
 ---
 
 # WP09: WebSocket Pre-Connect Token Provisioning
@@ -431,3 +431,4 @@ function to exist before it can rewire the WS code path.
 
 - 2026-04-09T17:31:45Z – opus:opus:implementer:implementer – shell_pid=67527 – Started implementation via action command
 - 2026-04-09T17:39:41Z – opus:opus:implementer:implementer – shell_pid=67527 – WebSocket token provisioning complete, pre-connect refresh buffer 5 minutes, all error paths covered
+- 2026-04-09T17:40:16Z – opus:opus:reviewer:reviewer – shell_pid=94889 – Started review via action command
