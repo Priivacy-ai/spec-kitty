@@ -93,11 +93,11 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T025 | Implement user info fetch (GET /api/v1/me + StoredSession build) | WP04 | | [D] |
 | T026 | Wire TokenManager.set_session(); verify legacy login body removed | WP04 | | [D] |
 | T027 | Write unit + CliRunner tests for WP04 | WP04 | | [D] |
-| T028 | Create `auth/flows/device_code.py` (DeviceCodeFlow) | WP05 | |
-| T029 | Implement device code request helper (POST /oauth/device) | WP05 | |
-| T030 | Wire user info fetch; build StoredSession on approval | WP05 | |
-| T031 | Write unit tests for DeviceCodeFlow | WP05 | |
-| T032 | Add CliRunner test for `spec-kitty auth login --headless` | WP05 | |
+| T028 | Create `auth/flows/device_code.py` (DeviceCodeFlow) | WP05 | | [D] |
+| T029 | Implement device code request helper (POST /oauth/device) | WP05 | | [D] |
+| T030 | Wire user info fetch; build StoredSession on approval | WP05 | | [D] |
+| T031 | Write unit tests for DeviceCodeFlow | WP05 | | [D] |
+| T032 | Add CliRunner test for `spec-kitty auth login --headless` | WP05 | | [D] |
 | T033 | Create `cli/commands/_auth_logout.py` with logout_impl | WP06 | |
 | T034 | Implement /api/v1/logout call via OAuthHttpClient | WP06 | |
 | T035 | Add `--force` flag for local-only logout | WP06 | |
@@ -269,11 +269,11 @@ once WP05 ships `auth/flows/device_code.py` the import resolves naturally.
 **Estimated prompt size**: ~280 lines | **Subtasks**: 5
 
 **Included subtasks**:
-- [ ] T028 Create `auth/flows/device_code.py` (DeviceCodeFlow) (WP05)
-- [ ] T029 Implement device code request helper (POST /oauth/device) (WP05)
-- [ ] T030 Wire user info fetch; build StoredSession on approval (WP05)
-- [ ] T031 Write unit tests for DeviceCodeFlow (WP05)
-- [ ] T032 Add CliRunner test for `spec-kitty auth login --headless` (WP05)
+- [x] T028 Create `auth/flows/device_code.py` (DeviceCodeFlow) (WP05)
+- [x] T029 Implement device code request helper (POST /oauth/device) (WP05)
+- [x] T030 Wire user info fetch; build StoredSession on approval (WP05)
+- [x] T031 Write unit tests for DeviceCodeFlow (WP05)
+- [x] T032 Add CliRunner test for `spec-kitty auth login --headless` (WP05)
 
 **Dependencies**: WP01, WP03, WP04
 
