@@ -321,3 +321,4 @@ def test_emit_mission_created_includes_mission_id():
 - 2026-04-09T09:00:05Z – unknown – shell_pid=114 – Dispatching implementation
 - 2026-04-09T09:04:45Z – unknown – shell_pid=114 – ULID mission_id minted at creation, 079 meta.json dogfood updated, 4 regression tests pass (12 total assertions)
 - 2026-04-09T09:05:17Z – claude:opus:reviewer:reviewer – shell_pid=2994 – Started review via action command
+- 2026-04-09T09:09:28Z – claude:opus:reviewer:reviewer – shell_pid=2994 – Review passed: ULID mission_id minted at creation, 079 dogfooded with valid 26-char ULID, MissionIdentity.mission_id added with None-default for legacy tolerance, emit_mission_created payload includes mission_id additively, --json CLI output includes mission_id key, atomic write via write_meta, no backfill code, 12 tests pass (T3.1-T3.6)
