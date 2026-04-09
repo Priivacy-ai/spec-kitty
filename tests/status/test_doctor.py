@@ -1059,6 +1059,28 @@ class TestDoctorCLI:
         assert "claimed" in finding["message"]
         assert finding["recommended_action"]  # Non-empty
 
+    def test_doctor_cli_json_selector_conflict_returns_json(self, tmp_path: Path):
+        """Selector resolution failures must stay JSON-clean under --json."""
+        from typer.testing import CliRunner
+
+        from specify_cli.cli.commands.agent.status import app
+
+        runner = CliRunner()
+
+        with patch(
+            "specify_cli.cli.commands.agent.status.locate_project_root",
+            return_value=tmp_path,
+        ):
+            result = runner.invoke(
+                app,
+                ["doctor", "--mission", "077-a", "--feature", "077-b", "--json"],
+            )
+
+        assert result.exit_code == 1
+        parsed = json.loads(result.output.strip())
+        assert "error" in parsed
+        assert "Conflicting selectors" in parsed["error"]
+
     def test_doctor_cli_feature_not_found(self, tmp_path: Path):
         """Feature directory not found -> exit code 1."""
         from typer.testing import CliRunner

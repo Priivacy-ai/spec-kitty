@@ -1,9 +1,9 @@
-"""Tests for WP02: Active-Mission Fallback Removal (feature 054).
+"""Tests for WP02: Active-Mission Fallback Removal (mission 054).
 
 Validates:
 - FileManifest no longer has active_mission attribute
 - verify_enhanced resolves mission from feature-level meta.json
-- mission CLI shows 'No active feature detected' when no feature context
+- mission CLI shows 'No active mission detected' when no mission context
 - Production callers (verify.py, api.py) wire feature_dir through
 """
 
@@ -127,7 +127,7 @@ def test_verify_resolves_mission_from_mission_slug(tmp_path: Path) -> None:
 # --------------------------------------------------------------------------- #
 
 def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
-    """When no feature is detected, 'mission current' should show a clear message."""
+    """When no mission is detected, 'mission current' should show a clear message."""
     from typer.testing import CliRunner
     from specify_cli.cli.commands.mission import app
 
@@ -141,7 +141,7 @@ def test_mission_current_no_feature_shows_message(tmp_path: Path) -> None:
         result = runner.invoke(app, ["current"])
 
     assert result.exit_code == 1
-    assert "No active feature detected" in result.output
+    assert "No active mission detected" in result.output
 
 
 # --------------------------------------------------------------------------- #

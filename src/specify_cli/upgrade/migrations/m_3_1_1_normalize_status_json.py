@@ -21,12 +21,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.status.reducer import (
-    SNAPSHOT_FILENAME,
-    materialize,
-    materialize_to_json,
-    reduce,
-)
+from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, materialize_to_json, reduce
 from specify_cli.status.store import read_events
 
 from ..registry import MigrationRegistry
@@ -41,13 +37,20 @@ def _iter_feature_dirs(project_path: Path) -> list[Path]:
 
 
 def _needs_normalisation(feature_dir: Path) -> bool:
-    """Return True when status.json content differs from what reduce() would produce."""
+    """Return True when status.json differs from the canonical reduced snapshot.
+
+    This check must stay read-only. Calling ``materialize()`` here would rewrite
+    ``status.json`` during detect()/dry_run evaluation and hide stale files from
+    the migration.
+    """
     status_path = feature_dir / SNAPSHOT_FILENAME
     if not status_path.exists():
         return False
     try:
-        events = read_events(feature_dir)
-        snapshot = reduce(events)
+        snapshot = reduce(read_events(feature_dir))
+        identity = resolve_mission_identity(feature_dir)
+        snapshot.mission_number = identity.mission_number
+        snapshot.mission_type = identity.mission_type
         expected = materialize_to_json(snapshot)
         actual = status_path.read_text(encoding="utf-8")
         return actual != expected

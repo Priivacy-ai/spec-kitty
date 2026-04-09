@@ -26,22 +26,25 @@ Your orchestrator must:
 ### 1. Check compatibility
 
 ```bash
-spec-kitty orchestrator-api contract-version```
+spec-kitty orchestrator-api contract-version
+```
 
 ### 2. Discover work
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature <slug>spec-kitty orchestrator-api list-ready --feature <slug>```
+spec-kitty orchestrator-api mission-state --mission <slug>
+spec-kitty orchestrator-api list-ready --mission <slug>
+```
 
 ### 3. Start implementation
 
 ```bash
 spec-kitty orchestrator-api start-implementation \
-  --feature <slug> \
+  --mission <slug> \
   --wp WP01 \
   --actor my-orchestrator \
   --policy '<json>' \
- ```
+```
 
 Use returned `workspace_path` and `prompt_path` to run your agent process.
 
@@ -50,24 +53,27 @@ Use returned `workspace_path` and `prompt_path` to run your agent process.
 ```bash
 # implementation complete
 spec-kitty orchestrator-api transition \
-  --feature <slug> --wp WP01 --to for_review \
+  --mission <slug> --wp WP01 --to for_review \
   --actor my-orchestrator --policy '<json>' \
   --subtasks-complete --implementation-evidence-present
 # review approved
 spec-kitty orchestrator-api transition \
-  --feature <slug> --wp WP01 --to done \
+  --mission <slug> --wp WP01 --to done \
   --actor reviewer-bot \
   --review-ref review/WP01/attempt-1 \
   --evidence-json '{"review":{"reviewer":"reviewer-bot","verdict":"approved","reference":"review/WP01/attempt-1"}}'
 # review rejected -> rework
 spec-kitty orchestrator-api start-review \
-  --feature <slug> --wp WP01 --actor my-orchestrator \
-  --policy '<json>' --review-ref review/WP01/attempt-2```
+  --mission <slug> --wp WP01 --actor my-orchestrator \
+  --policy '<json>' --review-ref review/WP01/attempt-2
+```
 
 ### 5. Finalize
 
 ```bash
-spec-kitty orchestrator-api accept-feature --feature <slug> --actor my-orchestratorspec-kitty orchestrator-api merge-feature --feature <slug> --target main --strategy merge```
+spec-kitty orchestrator-api accept-mission --mission <slug> --actor my-orchestrator
+spec-kitty orchestrator-api merge-mission --mission <slug> --target main --strategy merge
+```
 
 ## Policy JSON Template
 
@@ -110,8 +116,8 @@ while true:
     run reviewer
     if approved: transition(wp, done)
     else: start-review(wp, review_ref)
-accept-feature(feature)
-merge-feature(feature)
+accept-mission(mission)
+merge-mission(mission)
 ```
 
 ## Reference Implementation

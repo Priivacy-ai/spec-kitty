@@ -22,6 +22,7 @@ from charter.interview import (
     write_interview_answers,
 )
 from charter.sync import sync as sync_charter
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
 app = typer.Typer(
@@ -64,7 +65,12 @@ def _interview_path(repo_root: Path) -> Path:
 
 @app.command()
 def interview(
-    mission: str = typer.Option("software-dev", "--mission", help="Mission key for charter defaults"),
+    mission_type: str | None = typer.Option(
+        None,
+        "--mission-type",
+        help="Mission type for charter defaults (default: software-dev)",
+    ),
+    mission: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
     profile: str = typer.Option("minimal", "--profile", help="Interview profile: minimal or comprehensive"),
     use_defaults: bool = typer.Option(False, "--defaults", help="Use deterministic defaults without prompts"),
     selected_paradigms: str | None = typer.Option(
@@ -91,7 +97,19 @@ def interview(
         if normalized_profile not in {"minimal", "comprehensive"}:
             raise ValueError("--profile must be 'minimal' or 'comprehensive'")
 
-        interview_data = default_interview(mission=mission, profile=normalized_profile)
+        resolved_mission_type = "software-dev"
+        if mission_type is not None or mission is not None:
+            resolved = resolve_selector(
+                canonical_value=mission_type,
+                canonical_flag="--mission-type",
+                alias_value=mission,
+                alias_flag="--mission",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+                command_hint="--mission-type <name>",
+            )
+            resolved_mission_type = resolved.canonical_value
+
+        interview_data = default_interview(mission=resolved_mission_type, profile=normalized_profile)
 
         if not use_defaults:
             question_order = MINIMAL_QUESTION_ORDER if normalized_profile == "minimal" else QUESTION_ORDER
@@ -169,7 +187,8 @@ def interview(
 
 @app.command()
 def generate(
-    mission: str | None = typer.Option(None, "--mission", help="Mission key for template-set defaults"),
+    mission_type: str | None = typer.Option(None, "--mission-type", help="Mission type for template-set defaults"),
+    mission: str | None = typer.Option(None, "--mission", hidden=True, help="(deprecated) Use --mission-type"),
     template_set: str | None = typer.Option(
         None,
         "--template-set",
@@ -187,10 +206,21 @@ def generate(
         repo_root = find_repo_root()
         charter_dir = repo_root / ".kittify" / "charter"
         answers_path = _interview_path(repo_root)
+        resolved_mission_type = None
+        if mission_type is not None or mission is not None:
+            resolved = resolve_selector(
+                canonical_value=mission_type,
+                canonical_flag="--mission-type",
+                alias_value=mission,
+                alias_flag="--mission",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+                command_hint="--mission-type <name>",
+            )
+            resolved_mission_type = resolved.canonical_value
 
         interview_data = read_interview_answers(answers_path) if from_interview else None
         if interview_data is None:
-            resolved_mission = mission or "software-dev"
+            resolved_mission = resolved_mission_type or "software-dev"
             interview_data = default_interview(
                 mission=resolved_mission,
                 profile=profile.strip().lower(),
@@ -199,7 +229,7 @@ def generate(
         else:
             interview_source = "interview"
 
-        resolved_mission = mission or interview_data.mission
+        resolved_mission = resolved_mission_type or interview_data.mission
 
         compiled = compile_charter(
             mission=resolved_mission,

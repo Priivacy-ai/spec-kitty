@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Annotated
 
 import typer
 from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.acceptance import AcceptanceError
-from specify_cli.core.paths import require_explicit_feature
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
 from specify_cli.core.project_resolver import resolve_worktree_aware_feature_dir
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -17,10 +18,11 @@ from specify_cli.text_sanitization import detect_problematic_characters, sanitiz
 
 
 def validate_encoding(
-    feature: str | None = typer.Option(None, "--mission", "--feature", help="Mission slug to validate"),
-    fix: bool = typer.Option(False, "--fix", help="Automatically fix encoding errors by sanitizing files"),
-    check_all: bool = typer.Option(False, "--all", help="Check all features, not just one"),
-    backup: bool = typer.Option(True, "--backup/--no-backup", help="Create .bak files before fixing"),
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug to validate")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
+    fix: Annotated[bool, typer.Option("--fix", help="Automatically fix encoding errors by sanitizing files")] = False,
+    check_all: Annotated[bool, typer.Option("--all", help="Check all features, not just one")] = False,
+    backup: Annotated[bool, typer.Option("--backup/--no-backup", help="Create .bak files before fixing")] = True,
 ) -> None:
     """Validate and optionally fix file encoding in feature artifacts.
 
@@ -75,8 +77,15 @@ def validate_encoding(
 
     # Validate single feature
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
-    except ValueError as exc:
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
+    except typer.BadParameter as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 

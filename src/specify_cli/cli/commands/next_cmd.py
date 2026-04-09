@@ -11,7 +11,8 @@ import typer
 from typing import Annotated
 
 from specify_cli.core.context_validation import require_main_repo
-from specify_cli.core.paths import locate_project_root, require_explicit_feature
+from specify_cli.core.paths import locate_project_root
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission_v1.events import emit_event
 from specify_cli.next.decision import DecisionKind, decide_next
 
@@ -29,7 +30,11 @@ def next_step(
             help=("Result of previous step: success|failed|blocked. If omitted, returns current state without advancing (query mode)."),
         ),
     ] = None,
-    feature: Annotated[str | None, typer.Option("--mission", "--mission-run", "--feature", help="Mission slug")] = None,
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
+    feature: Annotated[
+        str | None,
+        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
     decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
@@ -41,11 +46,12 @@ def next_step(
     decision with an action and prompt file.
 
     Examples:
-        spec-kitty next --agent claude --json
-        spec-kitty next --agent codex --mission-run 034-my-feature
-        spec-kitty next --agent gemini --result failed --json
-        spec-kitty next --agent claude --answer "yes" --result success --json
-        spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --result success --json
+        spec-kitty next --mission 034-my-feature --json                            # query mode
+        spec-kitty next --agent claude --mission 034-my-feature --result success --json
+        spec-kitty next --agent codex --mission 034-my-feature
+        spec-kitty next --agent gemini --mission 034-my-feature --result failed --json
+        spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json
+        spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
     """
     # Resolve repo root
     repo_root = locate_project_root()
@@ -55,8 +61,16 @@ def next_step(
 
     # Resolve feature slug
     try:
-        mission_slug = require_explicit_feature(feature, command_hint="--mission <slug>")
-    except ValueError as exc:
+        resolved = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        )
+        mission_slug = resolved.canonical_value
+    except typer.BadParameter as exc:
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
@@ -232,7 +246,9 @@ def _print_human(decision) -> None:
     # SC-003: query mode output must begin with the full verbatim label
     if getattr(decision, "is_query", False):
         print("[QUERY \u2014 no result provided, state not advanced]")
-        print(f"  Mission: {decision.mission} @ {decision.mission_state}")
+        print(f"  Mission: {decision.mission_slug} @ {decision.mission_state}")
+        if getattr(decision, "mission", None):
+            print(f"  Mission Type: {decision.mission}")
         if getattr(decision, "preview_step", None):
             print(f"  Next step: {decision.preview_step}")
         if getattr(decision, "question", None):
@@ -256,7 +272,9 @@ def _print_human(decision) -> None:
 
     # --- Standard (non-query) output — unchanged below this line ---
     kind = decision.kind.upper()
-    print(f"[{kind}] {decision.mission} @ {decision.mission_state}")
+    print(f"[{kind}] {decision.mission_slug} @ {decision.mission_state}")
+    if getattr(decision, "mission", None):
+        print(f"  Mission Type: {decision.mission}")
 
     if decision.action:
         if decision.wp_id:

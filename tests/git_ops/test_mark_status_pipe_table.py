@@ -194,16 +194,14 @@ def _apply_mark_status_to_content(
             # Strategy 1: Checkbox format (canonical)
             if re.search(rf"-\s*\[[ x]\]\s*{re.escape(task_id)}\b", line):
                 lines[i] = re.sub(r"-\s*\[[ x]\]", f"- {new_checkbox}", line)
-                updated_tasks.append(task_id)
                 task_found = True
-                break
             # Strategy 2: Pipe-table format (backward compatibility)
-            if _is_pipe_table_task_row(line, task_id):
+            elif _is_pipe_table_task_row(line, task_id):
                 header_map = _parse_pipe_table_header(lines, i)
                 lines[i] = _update_pipe_table_status(line, status, header_map)
-                updated_tasks.append(task_id)
                 task_found = True
-                break
+        if task_found:
+            updated_tasks.append(task_id)
         if not task_found:
             not_found_tasks.append(task_id)
 
@@ -321,11 +319,8 @@ class TestMarkStatusPipeTableIntegration:
         """A file with both checkbox rows and a pipe-table index — both are handled.
 
         The Subtask Index pipe-table appears at the top of tasks.md.  The per-WP
-        checkbox rows appear lower down.  Because the pipe-table row comes FIRST
-        in the file, _is_pipe_table_task_row() matches it first and the index
-        table entry receives the status marker.  The checkbox rows further down
-        are NOT additionally modified (each task ID is only updated once, at the
-        first match).
+        checkbox rows appear lower down. Both representations must be updated so
+        the summary index and canonical checklist stay in sync.
 
         T003 exists only as a checkbox row and is matched via the checkbox path.
         """
@@ -346,11 +341,12 @@ class TestMarkStatusPipeTableIntegration:
         )
         assert set(updated) == {"T001", "T003"}
         assert not not_found
-        # T001's pipe-table row (first occurrence) gets the done marker
+        # T001's pipe-table row gets the done marker
         t001_pipe_line = next(
             ln for ln in result.split("\n") if ln.startswith("| T001")
         )
         assert "[D]" in t001_pipe_line
+        assert "- [x] T001" in result
         # T003 has no pipe-table entry, so the checkbox row is matched
         assert "- [x] T003" in result
 

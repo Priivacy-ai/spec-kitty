@@ -3,8 +3,8 @@
 Spec Kitty offers two ways to advance work through a mission: slash commands and the runtime loop. This document explains the runtime loop -- what it is, when to use it, and how to interpret what it tells you.
 
 **Terminology note**
-- Canonical 3.x model: `Mission Type -> Mission -> Mission Run`
-- Query-mode examples use `--mission-run <slug>` as the primary selector. `--mission` and `--feature` remain compatibility forms on some surfaces.
+- Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
+- `spec-kitty next` uses `--mission` as the canonical tracked-mission selector
 
 ## What Is `spec-kitty next`?
 
@@ -106,8 +106,8 @@ The runtime has reached a point where it cannot proceed without a choice. It pro
 **What to do:** Read the question and options. Answer with:
 
 ```bash
-spec-kitty next --agent <agent> --mission-run <slug> \
-  --answer "<your choice>" --decision-id "<decision_id>" --result success --json
+spec-kitty next --agent <agent> --mission <slug> \
+  --answer "<your choice>" --decision-id "<decision_id>" --json
 ```
 
 If the agent cannot determine the answer, escalate to the user.
@@ -136,15 +136,14 @@ All work is done. There are no more steps to execute.
 
 At a conceptual level, an agent running the runtime loop follows this pattern:
 
-1. Call `spec-kitty next --mission-run <slug> --json` if you need a read-only inspection first.
-2. Call `spec-kitty next --agent <name> --mission-run <slug> --result success --json` only when you are reporting the outcome of a previously issued step and intend to advance the loop.
-3. Read the decision kind.
-4. If **step**: read the prompt file, do the work, report the result.
-5. If **decision_required**: answer the question (or escalate to the user).
-6. If **blocked**: diagnose the blocker, attempt to resolve it.
-7. If **terminal**: run acceptance and exit.
-8. Report the result of the previous step with `--result success` (or `failed` or `blocked`).
-9. Go back to step 2.
+1. Call `spec-kitty next --agent <name> --mission <slug> --json`
+2. Read the decision kind
+3. If **step**: read the prompt file, do the work, report the result
+4. If **decision_required**: answer the question (or escalate to the user)
+5. If **blocked**: diagnose the blocker, attempt to resolve it
+6. If **terminal**: run acceptance and exit
+7. Report the result of the previous step with `--result success` (or `failed` or `blocked`)
+8. Go back to step 1
 
 The loop continues until the runtime returns `terminal` or the agent hits a blocker it cannot resolve.
 
@@ -167,13 +166,13 @@ After completing a step, tell the runtime what happened:
 
 ```bash
 # After successful work
-spec-kitty next --agent <name> --mission-run <slug> --result success --json
+spec-kitty next --agent <name> --mission <slug> --result success --json
 
 # After a failure
-spec-kitty next --agent <name> --mission-run <slug> --result failed --json
+spec-kitty next --agent <name> --mission <slug> --result failed --json
 
 # After hitting a blocker
-spec-kitty next --agent <name> --mission-run <slug> --result blocked --json
+spec-kitty next --agent <name> --mission <slug> --result blocked --json
 ```
 
 If `--result` is omitted, the command stays in read-only query mode. Query mode may still accept `--agent` as a compatibility form, but it does not advance mission state.

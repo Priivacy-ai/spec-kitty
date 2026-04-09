@@ -16,9 +16,10 @@ from pydantic import ValidationError
 from rich.console import Console
 
 from specify_cli.cli import StepTracker
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
-from specify_cli.mission_metadata import set_vcs_lock
+from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
 from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
@@ -97,15 +98,24 @@ def _json_safe_output(func):
     return wrapper
 
 
-def detect_feature_context(feature_flag: str | None = None) -> tuple[str, str]:
-    """Require an explicit feature slug and return (number, slug)."""
+def detect_feature_context(
+    mission_flag: str | None = None,
+    feature_flag: str | None = None,
+) -> tuple[str, str]:
+    """Require an explicit mission slug and return (number, slug)."""
     import re as _re
 
-    from specify_cli.core.paths import require_explicit_feature
-
     try:
-        slug = require_explicit_feature(feature_flag, command_hint="--mission <slug>")
-    except ValueError as exc:
+        resolved = resolve_selector(
+            canonical_value=mission_flag,
+            canonical_flag="--mission",
+            alias_value=feature_flag,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        )
+        slug = resolved.canonical_value
+    except typer.BadParameter as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
@@ -280,6 +290,7 @@ def _ensure_vcs_in_meta(feature_dir: Path, _repo_root: Path) -> VCSBackend:
 
 def _run_recover_mode(
     _wp_id: str,
+    mission: str | None,
     feature: str | None,
     json_output: bool,
 ) -> None:
@@ -295,7 +306,7 @@ def _run_recover_mode(
 
     try:
         repo_root = find_repo_root()
-        _feature_number, mission_slug = detect_feature_context(feature)
+        _feature_number, mission_slug = detect_feature_context(mission, feature)
     except (TaskCliError, typer.Exit) as exc:
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))
@@ -377,7 +388,8 @@ def _run_recover_mode(
 @require_main_repo
 def implement(  # noqa: C901 — orchestration function, complexity inherent
     wp_id: str = typer.Argument(..., help="Work package ID (for example, WP01)"),
-    feature: str = typer.Option(None, "--mission", "--feature", help="Mission slug (for example, 001-my-feature)"),
+    mission: Annotated[str | None, typer.Option("--mission", help="Mission slug (for example, 001-my-feature)")] = None,
+    feature: Annotated[str | None, typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     auto_commit: Annotated[
         bool | None,
         typer.Option("--auto-commit/--no-auto-commit", help="Auto-commit status and planning changes (default: from project config)"),
@@ -402,7 +414,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     from specify_cli.sync.events import emit_wp_status_changed
 
     if recover:
-        _run_recover_mode(wp_id, feature, json_output)
+        _run_recover_mode(wp_id, mission, feature, json_output)
         return
 
     tracker = StepTracker(f"Implement {wp_id}")
@@ -416,7 +428,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         repo_root = find_repo_root()
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        _feature_number, mission_slug = detect_feature_context(feature)
+        _feature_number, mission_slug = detect_feature_context(mission, feature)
         feature_dir = repo_root / "kitty-specs" / mission_slug
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
@@ -573,13 +585,16 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     if json_output:
         result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
         workspace_rel = str(workspace_path.relative_to(repo_root))
+        identity = resolve_mission_identity(feature_dir)
         print(
             json.dumps(
                 {
                     "workspace": workspace_rel,
                     "workspace_path": workspace_rel,
                     "branch": branch_name,
-                    "feature": mission_slug,
+                    "mission_slug": identity.mission_slug,
+                    "mission_number": identity.mission_number,
+                    "mission_type": identity.mission_type,
                     "wp_id": wp_id,
                     "lane_id": result.lane_id,
                     "execution_mode": result_execution_mode,

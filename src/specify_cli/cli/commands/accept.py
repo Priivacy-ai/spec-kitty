@@ -16,8 +16,8 @@ from specify_cli.acceptance import (
     collect_feature_summary,
     perform_acceptance,
 )
-from specify_cli.core.paths import require_explicit_feature
 from specify_cli.cli import StepTracker
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
 from specify_cli.sync.events import emit_wp_status_changed
@@ -121,6 +121,12 @@ def accept(
         "--mission",
         help="Mission slug to accept",
     ),
+    feature: Optional[str] = typer.Option(
+        None,
+        "--feature",
+        hidden=True,
+        help="(deprecated) Use --mission",
+    ),
     mode: str = typer.Option("auto", "--mode", case_sensitive=False, help="Acceptance mode: auto, pr, local, or checklist"),
     actor: Optional[str] = typer.Option(None, "--actor", help="Name to record as the acceptance actor"),
     test: List[str] = typer.Option([], "--test", help="Validation command executed (repeatable)", show_default=False),
@@ -153,11 +159,15 @@ def accept(
         console.print()
         tracker.start("detect")
     try:
-        mission_slug = require_explicit_feature(
-            mission,
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
-        )
-    except ValueError as exc:
+        ).canonical_value
+    except typer.BadParameter as exc:
         _safe_emit_error_logged(str(exc))
         if json_output:
             print(json.dumps({"error": str(exc)}))

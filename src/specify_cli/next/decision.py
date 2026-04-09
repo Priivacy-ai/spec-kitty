@@ -22,6 +22,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from specify_cli.mission_metadata import mission_identity_fields
 from specify_cli.mission_v1.events import read_events
 from specify_cli.status import wp_state_for
 from specify_cli.status.models import Lane
@@ -68,12 +69,18 @@ class Decision:
     options: list[str] | None = None
     is_query: bool = False  # New: True when kind == DecisionKind.query
     preview_step: str | None = None
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {
             "kind": self.kind,
             "agent": self.agent,
-            "mission_slug": self.mission_slug,
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type or self.mission,
+            ),
             "mission": self.mission,
             "mission_state": self.mission_state,
             "timestamp": self.timestamp,

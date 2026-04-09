@@ -167,6 +167,9 @@ class TestFinalizeTasksBootstrap:
 
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
+        assert data["mission_slug"] == mission_slug
+        assert data["mission_number"] == "060"
+        assert data["mission_type"] == "software-dev"
         assert "bootstrap" in data
         assert data["bootstrap"]["total_wps"] == 2
         assert data["bootstrap"]["newly_seeded"] == 2
@@ -203,6 +206,10 @@ class TestFinalizeTasksBootstrap:
 
         result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json", "--validate-only"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
+        data = json.loads(result.output)
+        assert data["mission_slug"] == mission_slug
+        assert data["mission_number"] == "060"
+        assert data["mission_type"] == "software-dev"
 
         mock_bootstrap.assert_called_once_with(ANY, mission_slug, dry_run=True)
 

@@ -6,8 +6,8 @@ Terminology note:
 - `Mission Type` = reusable workflow blueprint
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug on active command surfaces. Some commands still accept `--feature` as a legacy compatibility alias, but new docs should prefer `--mission` or `--mission-run`.
-- `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
+- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` remains only as a hidden deprecated alias during the migration window.
+- `mission-state`/`accept-mission`/`merge-mission` are the canonical orchestrator-api command names
 
 ## spec-kitty
 
@@ -36,7 +36,7 @@ Terminology note:
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
 - `upgrade` - Upgrade a Spec Kitty project to the current version
 - `list-legacy-features` - List legacy worktrees blocking 0.11.0 upgrade
-- `validate-encoding` - Validate and optionally fix file encoding in feature artifacts
+- `validate-encoding` - Validate and optionally fix file encoding in mission artifacts
 - `validate-tasks` - Validate and optionally fix task metadata inconsistencies
 - `verify-setup` - Verify that the current environment matches Spec Kitty expectations
 - `agent` - Commands for AI agents to execute spec-kitty workflows programmatically
@@ -123,7 +123,6 @@ spec-kitty upgrade --target 0.6.5
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug (canonical flag; e.g., `001-my-feature`) |
-| `--feature TEXT` | Backward-compatibility alias for `--mission` |
 | `--recover` | Restore execution context for a WP stuck in `in_progress` after a crash |
 | `--base TEXT` | Override base ref for the worktree (advanced; normally auto-detected) |
 | `--auto-commit`, `--no-auto-commit` | Auto-commit lane change (default: from project config) |
@@ -173,7 +172,6 @@ spec-kitty implement WP01 --json
 | --- | --- |
 | `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `SQUASH`. Case-insensitive. |
 | `--mission TEXT` | Mission slug when merging from main branch (canonical flag) |
-| `--feature TEXT` | Backward-compatibility alias for `--mission` |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
 | `--remove-worktree`, `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
@@ -223,7 +221,6 @@ spec-kitty merge --abort    # clear saved state and abort any in-progress git me
 | Flag | Description |
 | --- | --- |
 | `--mission TEXT` | Mission slug to target |
-| `--feature TEXT` | Legacy compatibility alias for `--mission` |
 | `--force` | Overwrite existing research artifacts |
 | `--help` | Show this message and exit |
 
@@ -442,7 +439,7 @@ spec-kitty ops log --verbose
 
 **Synopsis**: `spec-kitty mission [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: View available Spec Kitty missions. Missions are selected per-feature during `/spec-kitty.specify`.
+**Description**: View available Spec Kitty missions. Mission types are selected per mission during `/spec-kitty.specify`.
 
 **Options**:
 | Flag | Description |
@@ -506,12 +503,12 @@ spec-kitty ops log --verbose
 
 **Synopsis**: `spec-kitty validate-encoding [OPTIONS]`
 
-**Description**: Validate and optionally fix file encoding in feature artifacts.
+**Description**: Validate and optionally fix file encoding in mission artifacts.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to validate |
 | `--fix` | Automatically fix encoding errors by sanitizing files |
 | `--all` | Check all features, not just one |
 | `--backup`, `--no-backup` | Create .bak files before fixing (default: backup) |
@@ -528,7 +525,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to validate |
 | `--fix` | Automatically repair metadata inconsistencies |
 | `--all` | Check all features, not just one |
 | `--agent TEXT` | Agent name for activity log |
@@ -546,7 +543,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to verify (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to verify |
 | `--json` | Output in JSON format for AI agents |
 | `--check-files` | Check mission file integrity (default: True) |
 | `--check-tools` | Check for installed development tools (default: True) |
@@ -1059,7 +1056,7 @@ spec-kitty agent tests stale-check --json
 
 **Synopsis**: `spec-kitty specify [OPTIONS] FEATURE`
 
-**Description**: Create a feature scaffold in kitty-specs/.
+**Description**: Create a mission scaffold in kitty-specs/.
 
 **Arguments**:
 - `FEATURE`: Feature name or slug (e.g., `user-authentication`) [required]
@@ -1067,14 +1064,14 @@ spec-kitty agent tests stale-check --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--mission TEXT` | Mission type (e.g., `software-dev`, `research`) |
+| `--mission-type TEXT` | Mission type (e.g., `software-dev`, `research`) |
 | `--json` | Emit JSON result |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty specify user-authentication
-spec-kitty specify user-authentication --mission software-dev
+spec-kitty specify user-authentication --mission-type software-dev
 spec-kitty specify my-feature --json
 ```
 
@@ -1089,14 +1086,14 @@ spec-kitty specify my-feature --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; e.g., `001-user-authentication`) |
+| `--mission TEXT` | Mission slug (e.g., `001-user-authentication`) |
 | `--json` | Emit JSON result |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty plan
-spec-kitty plan --feature 001-user-authentication
+spec-kitty plan --mission 001-user-authentication
 spec-kitty plan --json
 ```
 
@@ -1150,21 +1147,14 @@ spec-kitty config -m documentation
 
 **Description**: Decide and emit the next agent action for the current mission. Agents call this command repeatedly in a loop. The system inspects the mission state machine, evaluates guards, and returns a deterministic decision with an action and prompt file.
 
-The public contract distinguishes two forms:
-
-- **Query mode**: `spec-kitty next --mission-run <slug> --json`
-- **Advancing mode**: `spec-kitty next --agent <name> --mission-run <slug> [--result ...] --json`
-
-Query mode is read-only and does not advance runtime state. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` plus a non-null `preview_step`. `unknown` is no longer the canonical fresh-run query state.
+As of 3.1.0, omitting `--result` is **query mode**: the command reads and prints the current mission state without advancing it. `--agent` and `--mission` are still required.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--agent TEXT` | Agent name for advancing mode. Query mode does not require it, but callers may still pass it as a compatibility form without changing query behavior. |
-| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked`. If omitted, the command stays in read-only query mode. |
-| `--mission-run TEXT` | Canonical mission-run selector for query and advancing mode |
-| `--mission TEXT` | Compatibility alias for `--mission-run` |
-| `--feature TEXT` | Legacy compatibility alias for `--mission-run` |
+| `--agent TEXT` | Agent name (required) |
+| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked`. Omit for query mode. |
+| `--mission TEXT` | Mission slug (canonical flag; required) |
 | `--json` | Output JSON decision only |
 | `--answer TEXT` | Answer to a pending decision. This is a mutating operation and should be used with `--agent` and `--result`. |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
@@ -1172,17 +1162,15 @@ Query mode is read-only and does not advance runtime state. On a fresh run, the 
 
 **Examples**:
 ```bash
-# Query mode — inspect current state without advancing
-spec-kitty next --mission-run 034-my-feature --json
+# Query mode — inspect current state without advancing (3.1.0+)
+spec-kitty next --agent claude --mission 034-my-feature --json
 
-# Compatibility query form (still read-only)
-spec-kitty next --agent claude --mission-run 034-my-feature --json
-
-# Advancing loop examples
-spec-kitty next --agent codex --mission-run 034-my-feature --result success --json
-spec-kitty next --agent gemini --mission-run 034-my-feature --result failed --json
-spec-kitty next --agent claude --mission-run 034-my-feature --answer "yes" --result success --json
-spec-kitty next --agent claude --mission-run 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
+# Normal agent loop
+spec-kitty next --agent claude --mission 034-my-feature --json
+spec-kitty next --agent codex --mission 034-my-feature
+spec-kitty next --agent gemini --mission 034-my-feature --result failed --json
+spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --json
+spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --json
 ```
 
 **Compatibility notes**:

@@ -27,7 +27,7 @@ from .tasks_support import (
 )
 from specify_cli.status.models import Lane
 from specify_cli.status.store import EVENTS_FILENAME, StoreError
-from specify_cli.mission_metadata import load_meta, record_acceptance, write_meta
+from specify_cli.mission_metadata import load_meta, record_acceptance, resolve_mission_identity, write_meta
 from specify_cli.mission import MissionError, get_mission_for_feature
 from specify_cli.validators.paths import PathValidationError, validate_mission_paths
 from specify_cli.core.paths import require_explicit_feature as _require_explicit_feature
@@ -124,8 +124,11 @@ class AcceptanceSummary:
         return {key: value for key, value in buckets.items() if value}
 
     def to_dict(self) -> Dict[str, object]:
+        identity = resolve_mission_identity(self.feature_dir)
         return {
-            "feature": self.feature,
+            "mission_slug": identity.mission_slug,
+            "mission_number": identity.mission_number,
+            "mission_type": identity.mission_type,
             "branch": self.branch,
             "repo_root": str(self.repo_root),
             "feature_dir": str(self.feature_dir),

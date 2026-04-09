@@ -5,7 +5,7 @@ description: Use spec-kitty-orchestrator with spec-kitty orchestrator-api to aut
 
 # Run the External Orchestrator
 
-Use this guide to run `spec-kitty-orchestrator` against a feature managed by `spec-kitty`.
+Use this guide to run `spec-kitty-orchestrator` against a mission managed by `spec-kitty`.
 
 This is the supported automation model in `1.x` and `2.x`:
 
@@ -17,7 +17,7 @@ This is the supported automation model in `1.x` and `2.x`:
 
 - `spec-kitty` installed and available on `PATH`
 - `spec-kitty-orchestrator` installed and available on `PATH`
-- A prepared feature (`spec.md`, `plan.md`, `tasks.md`, and `tasks/WP*.md`)
+- A prepared mission (`spec.md`, `plan.md`, `tasks.md`, and `tasks/WP*.md`)
 - At least one supported agent CLI installed
 
 ## 1. Verify Host Contract
@@ -35,7 +35,7 @@ Expected result:
 ## 2. Run a Dry-Run
 
 ```bash
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-feature --dry-run
 ```
 
 Use this to validate configuration before mutating WP lanes.
@@ -43,7 +43,7 @@ Use this to validate configuration before mutating WP lanes.
 ## 3. Start Orchestration
 
 ```bash
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-feature
 ```
 
 The orchestrator loop will typically:
@@ -66,7 +66,7 @@ Use `resume` after interruption. Use `abort` to mark the provider run as stopped
 ## 5. Confirm Host State
 
 ```bash
-spec-kitty orchestrator-api feature-state --feature 034-my-feature
+spec-kitty orchestrator-api mission-state --mission 034-my-feature
 ```
 
 This is the authoritative source of lane state.

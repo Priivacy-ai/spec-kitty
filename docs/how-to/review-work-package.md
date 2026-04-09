@@ -4,26 +4,26 @@ Use this guide to review a completed work package and update its lane.
 
 **Terminology note**
 - Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
-- Current review commands still use `--feature` as the legacy flag name for the tracked mission slug
+- Review commands use `--mission` as the canonical tracked-mission selector
 
 ## Prerequisites
 
 - The WP is in `lane: "for_review"`
 - You are in a checkout where the mission can be resolved; `spec-kitty agent action review` will attach to the canonical execution workspace if needed
-- In multi-mission repos, you know the mission slug (required through the legacy `--feature` flag)
+- In multi-mission repos, you know the mission slug
 
 ## Step 1: Discover Reviewable Work Packages
 
 Before claiming a WP for review, check which work packages are waiting:
 
 ```bash
-spec-kitty agent tasks list-tasks --lane for_review --feature <slug>
+spec-kitty agent tasks list-tasks --lane for_review --mission <slug>
 ```
 
 For machine-readable output:
 
 ```bash
-spec-kitty agent tasks list-tasks --lane for_review --feature <slug> --json
+spec-kitty agent tasks list-tasks --lane for_review --mission <slug> --json
 ```
 
 If the `for_review` lane is empty, there is nothing to review. Wait for an
@@ -63,13 +63,13 @@ You can also specify a WP ID:
 ### Using the CLI directly
 
 ```bash
-spec-kitty agent action review WP01 --agent <your-name> --feature <slug>
+spec-kitty agent action review WP01 --agent <your-name> --mission <slug>
 ```
 
 Omit `WP01` to auto-select the first WP in the `for_review` lane:
 
 ```bash
-spec-kitty agent action review --agent <your-name> --feature <slug>
+spec-kitty agent action review --agent <your-name> --mission <slug>
 ```
 
 The review command:
@@ -107,7 +107,7 @@ Take exactly one action -- never "approve with conditions".
 When everything looks good, move the WP to `approved`:
 
 ```bash
-spec-kitty agent tasks move-task WP01 --to approved --feature <slug> --note "Review passed: <summary>"
+spec-kitty agent tasks move-task WP01 --to approved --mission <slug> --note "Review passed: <summary>"
 ```
 
 ### Providing Feedback (Rejection)
@@ -128,7 +128,7 @@ cat > /tmp/spec-kitty-review-feedback-WP01.md <<'EOF'
 EOF
 
 spec-kitty agent tasks move-task WP01 --to planned --force \
-  --feature <slug> \
+  --mission <slug> \
   --review-feedback-file /tmp/spec-kitty-review-feedback-WP01.md \
   --note "Changes requested: <summary>"
 ```
@@ -138,23 +138,23 @@ spec-kitty agent tasks move-task WP01 --to planned --force \
 After rejecting a WP, check whether it has downstream dependents:
 
 ```bash
-spec-kitty agent tasks list-dependents WP01 --feature <slug>
+spec-kitty agent tasks list-dependents WP01 --mission <slug>
 ```
 
 For machine-readable output:
 
 ```bash
-spec-kitty agent tasks list-dependents WP01 --feature <slug> --json
+spec-kitty agent tasks list-dependents WP01 --mission <slug> --json
 ```
 
 If the rejected WP has downstream dependents, those WPs will need a rebase once
 the rejection is addressed. Include a rebase warning in your feedback so the
 implementing agent and any agents working on dependent WPs are aware.
 
-You can also check the full feature status board for broader context:
+You can also check the full mission status board for broader context:
 
 ```bash
-spec-kitty agent tasks status --feature <slug>
+spec-kitty agent tasks status --mission <slug>
 ```
 
 ## Review Precedence Rules
@@ -166,10 +166,10 @@ spec-kitty agent tasks status --feature <slug>
 
 ## Troubleshooting
 
-- **No WPs found**: Confirm at least one WP is in `for_review` using `spec-kitty agent tasks list-tasks --lane for_review --feature <slug>`.
-- **"Multiple features found"**: Add `--feature <slug>` to the command. This is required in repos with more than one active feature.
+- **No WPs found**: Confirm at least one WP is in `for_review` using `spec-kitty agent tasks list-tasks --lane for_review --mission <slug>`.
+- **Mission resolution is ambiguous**: Add `--mission <slug>` to the command in repos with more than one tracked mission.
 - **Wrong workspace**: Open the WP worktree that contains the implementation.
-- **Need more context**: Check the spec and plan for the feature before completing review.
+- **Need more context**: Check the spec and plan for the mission before completing review.
 - **Governance context empty**: The charter may not be configured yet. Review can still proceed using the acceptance criteria in the review prompt.
 
 ---

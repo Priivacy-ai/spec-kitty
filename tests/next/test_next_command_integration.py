@@ -495,7 +495,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--json"],
+            ["next", "--mission", "042-test-feature", "--json"],
         )
         assert result.exit_code == 0, f"stderr: {result.output}"
         data = json.loads(result.output)
@@ -518,7 +518,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "bogus"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "bogus"],
         )
         assert result.exit_code == 1
 
@@ -530,13 +530,13 @@ class TestNextCommandCLI:
         # First issue a step so runtime can complete it as blocked.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
         assert first.exit_code == 0
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "blocked", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "blocked", "--json"],
         )
         assert result.exit_code == 1
         data = json.loads(result.output)
@@ -551,7 +551,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -564,7 +564,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature"],
+            ["next", "--mission", "042-test-feature"],
         )
         assert result.exit_code == 0
         assert "software-dev @ not_started" in result.output
@@ -577,7 +577,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "999-nonexistent", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--mission", "999-nonexistent", "--result", "success", "--json"],
         )
         # Feature detection may fail before decide_next, or decide_next returns blocked
         assert result.exit_code != 0 or "blocked" in result.output or "not found" in result.output.lower()
@@ -597,14 +597,14 @@ class TestNextCommandCLI:
 
         r1 = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--json"],
+            ["next", "--mission", "042-test-feature", "--json"],
         )
         assert r1.exit_code == 0
         d1 = json.loads(r1.output)
 
         r2 = runner.invoke(
             cli_app,
-            ["next", "--agent", "compat-agent", "--feature", "042-test-feature", "--json"],
+            ["next", "--agent", "compat-agent", "--mission", "042-test-feature", "--json"],
         )
         assert r2.exit_code == 0
         d2 = json.loads(r2.output)
@@ -641,7 +641,7 @@ class TestNextCommandCLI:
 
         result = runner.invoke(
             cli_app,
-            ["next", "--feature", "042-test-feature", "--json"],
+            ["next", "--mission", "042-test-feature", "--json"],
         )
         assert result.exit_code == 0
         data = json.loads(result.output)
@@ -706,7 +706,7 @@ class TestNextCommandAnswerJSON:
         # First call creates a real pending decision.
         first = runner.invoke(
             cli_app,
-            ["next", "--agent", "test", "--feature", "042-test-feature", "--result", "success", "--json"],
+            ["next", "--agent", "test", "--mission", "042-test-feature", "--result", "success", "--json"],
         )
         assert first.exit_code == 0, first.output
         first_data = json.loads(first.output)
@@ -720,7 +720,7 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
+                "--mission",
                 "042-test-feature",
                 "--result",
                 "success",
@@ -749,7 +749,7 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
+                "--mission",
                 "042-test-feature",
                 "--result",
                 "success",
@@ -764,7 +764,7 @@ class TestNextCommandAnswerJSON:
                 "next",
                 "--agent",
                 "test",
-                "--feature",
+                "--mission",
                 "042-test-feature",
                 "--result",
                 "success",
