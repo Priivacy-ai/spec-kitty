@@ -449,7 +449,11 @@ def _check_dependent_warnings(repo_root: Path, mission_slug: str, wp_id: str, ta
         console.print("  2. Dependent workspaces may need to incorporate your changes")
         for dep in incomplete:
             dep_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, dep)
-            if dep_workspace.branch_name == current_workspace.branch_name:
+            if dep_workspace.branch_name is None:
+                # Planning-lane WP: operates in the main repo checkout, no worktree
+                # to rebase.  The planning workspace is always up-to-date with main.
+                console.print(f"     {dep}: planning-lane workspace (main repo checkout) — no rebase needed; ensure main is up to date")
+            elif dep_workspace.branch_name == current_workspace.branch_name:
                 console.print(f"     {dep}: shares {current_workspace.branch_name} (same lane, no separate rebase command)")
             else:
                 console.print(f"     cd {dep_workspace.worktree_path} && git rebase {current_workspace.branch_name}")

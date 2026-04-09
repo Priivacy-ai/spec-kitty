@@ -676,6 +676,9 @@ def merge(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    # -- Post-merge: Suggest mission review --
+    console.print("\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security.")
+
 
 __all__ = [
     "_has_transition_to",
