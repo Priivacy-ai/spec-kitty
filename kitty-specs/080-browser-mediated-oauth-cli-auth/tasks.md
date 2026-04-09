@@ -85,14 +85,14 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T017 | Create `auth/device_flow/poller.py` (interval-respecting loop) | WP03 | | [D] |
 | T018 | Add user_code formatting + progress display helpers | WP03 | | [D] |
 | T019 | Write unit tests for WP03 components | WP03 | | [D] |
-| T020 | REWRITE `cli/commands/auth.py` as deferred-import dispatch shell | WP04 | |
-| T021 | Create `cli/commands/_auth_login.py` with login_impl + --headless branch | WP04 | |
-| T022 | Create `auth/flows/authorization_code.py` (AuthorizationCodeFlow) | WP04 | |
-| T023 | Create `auth/flows/refresh.py` (TokenRefreshFlow) | WP04 | |
-| T024 | Implement token exchange helper (POST /oauth/token + code) | WP04 | |
-| T025 | Implement user info fetch (GET /api/v1/me + StoredSession build) | WP04 | |
-| T026 | Wire TokenManager.set_session(); verify legacy login body removed | WP04 | |
-| T027 | Write unit + CliRunner tests for WP04 | WP04 | |
+| T020 | REWRITE `cli/commands/auth.py` as deferred-import dispatch shell | WP04 | | [D] |
+| T021 | Create `cli/commands/_auth_login.py` with login_impl + --headless branch | WP04 | | [D] |
+| T022 | Create `auth/flows/authorization_code.py` (AuthorizationCodeFlow) | WP04 | | [D] |
+| T023 | Create `auth/flows/refresh.py` (TokenRefreshFlow) | WP04 | | [D] |
+| T024 | Implement token exchange helper (POST /oauth/token + code) | WP04 | | [D] |
+| T025 | Implement user info fetch (GET /api/v1/me + StoredSession build) | WP04 | | [D] |
+| T026 | Wire TokenManager.set_session(); verify legacy login body removed | WP04 | | [D] |
+| T027 | Write unit + CliRunner tests for WP04 | WP04 | | [D] |
 | T028 | Create `auth/flows/device_code.py` (DeviceCodeFlow) | WP05 | |
 | T029 | Implement device code request helper (POST /oauth/device) | WP05 | |
 | T030 | Wire user info fetch; build StoredSession on approval | WP05 | |
@@ -230,14 +230,14 @@ import dispatch shell that all CLI command WPs share.
 **Estimated prompt size**: ~500 lines | **Subtasks**: 8
 
 **Included subtasks**:
-- [ ] T020 REWRITE `cli/commands/auth.py` as deferred-import dispatch shell (WP04)
-- [ ] T021 Create `cli/commands/_auth_login.py` with login_impl + --headless branch (WP04)
-- [ ] T022 Create `auth/flows/authorization_code.py` (AuthorizationCodeFlow) (WP04)
-- [ ] T023 Create `auth/flows/refresh.py` (TokenRefreshFlow) (WP04)
-- [ ] T024 Implement token exchange helper (POST /oauth/token + code) (WP04)
-- [ ] T025 Implement user info fetch (GET /api/v1/me + StoredSession build) (WP04)
-- [ ] T026 Wire TokenManager.set_session(); verify legacy login body removed (WP04)
-- [ ] T027 Write unit + CliRunner tests for WP04 (WP04)
+- [x] T020 REWRITE `cli/commands/auth.py` as deferred-import dispatch shell (WP04)
+- [x] T021 Create `cli/commands/_auth_login.py` with login_impl + --headless branch (WP04)
+- [x] T022 Create `auth/flows/authorization_code.py` (AuthorizationCodeFlow) (WP04)
+- [x] T023 Create `auth/flows/refresh.py` (TokenRefreshFlow) (WP04)
+- [x] T024 Implement token exchange helper (POST /oauth/token + code) (WP04)
+- [x] T025 Implement user info fetch (GET /api/v1/me + StoredSession build) (WP04)
+- [x] T026 Wire TokenManager.set_session(); verify legacy login body removed (WP04)
+- [x] T027 Write unit + CliRunner tests for WP04 (WP04)
 
 **Dependencies**: WP01, WP02
 
