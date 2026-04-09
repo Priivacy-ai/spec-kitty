@@ -25,17 +25,17 @@ This moves the WP to `lane: "doing"` and prints the full prompt plus the complet
 
 ## Step 2: Create or Resolve the Workspace
 
-In your terminal:
+The canonical way is via the agent loop (recommended):
 
 ```bash
-spec-kitty implement WP01
+spec-kitty next --agent <agent> --mission <slug>
 ```
 
-If the WP depends on another WP, task finalization will already have assigned it to the correct execution lane:
+Your agent will call `spec-kitty agent action implement WP01 --agent <name>` for each WP, which resolves the correct execution lane workspace automatically.
 
-```bash
-spec-kitty implement WP02
-```
+> **Advanced / internal tool**: `spec-kitty implement WP01` is available as a lower-level direct invocation for advanced users. Prefer `spec-kitty next` for the standard workflow.
+
+If the WP depends on another WP, task finalization will already have assigned it to the correct execution lane. Both the agent loop and the direct invocation handle this automatically.
 
 ## Step 3: Work in the Resolved Worktree
 

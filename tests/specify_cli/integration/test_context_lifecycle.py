@@ -49,6 +49,7 @@ def _setup_project(
     dependencies: list[str] | None = None,
     project_uuid: str = "test-uuid-lifecycle-0001",
     mission_id: str | None = None,
+    lane_id: str = "lane-a",
 ) -> Path:
     """Build a minimal project with .kittify config and one feature+WP."""
     kittify_dir = tmp_path / ".kittify"
@@ -92,6 +93,7 @@ def _setup_project(
     write_single_lane_manifest(
         feature_dir,
         wp_ids=(wp_code,),
+        lane_id=lane_id,
         mission_id=mission_id or mission_slug,
         predicted_surfaces=("context",),
     )
@@ -305,9 +307,11 @@ class TestContextFieldCorrectness:
         assert ctx.authoritative_ref == "kitty/mission-047-lifecycle-test-lane-a"
 
     def test_authoritative_ref_none_for_planning_artifact(self, tmp_path: Path) -> None:
-        repo = _setup_project(tmp_path, execution_mode="planning_artifact")
+        # planning_artifact WPs are assigned to lane-planning; lane_branch_name returns
+        # target_branch ("main") for lane-planning (FR-102, FR-103).
+        repo = _setup_project(tmp_path, execution_mode="planning_artifact", lane_id="lane-planning")
         ctx = resolve_context("WP01", "047-lifecycle-test", "claude", repo)
-        assert ctx.authoritative_ref is None
+        assert ctx.authoritative_ref == "main"
 
     def test_dependency_mode_independent_when_no_deps(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, dependencies=[])

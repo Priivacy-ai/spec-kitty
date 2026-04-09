@@ -20,6 +20,14 @@ Recognises three declaration formats inside tasks.md WP sections:
 
 All three formats may coexist within a single WP section; results are
 deduplicated and returned in declaration order via ``dict.fromkeys()``.
+
+**Parser contract**: This parser matches only three explicit dependency
+declaration formats. It does NOT perform prose inference. The common
+false-positive (prose containing "Depends on WP##" being parsed as a
+dependency) is addressed by section bounding, not by disabling the
+patterns. The section-bound fix in ``_split_wp_sections`` prevents
+trailing prose false-positives by stopping the final WP's section at
+the first non-WP ``##`` heading rather than slurping to EOF.
 """
 
 from __future__ import annotations
@@ -34,6 +42,11 @@ import re
 _WP_SECTION_HEADER = re.compile(
     r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)"
 )
+
+# Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
+# to find the stop boundary for the final WP section.  Sub-headings (### or
+# deeper) are intentionally NOT matched — they must not trigger a stop.
+_ANY_H2_HEADER = re.compile(r"^## ", re.MULTILINE)
 
 
 def _split_wp_sections(tasks_content: str) -> dict[str, str]:
@@ -53,7 +66,35 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
     for idx, match in enumerate(matches):
         wp_id = match.group(1)
         start = match.end()
-        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(tasks_content)
+        if idx + 1 < len(matches):
+            # There is a next WP header — use it as the end (existing behaviour).
+            end = matches[idx + 1].start()
+        else:
+            # Final WP: stop at the first non-WP, non-Dependencies ## heading
+            # after this WP header, or at EOF if no such heading exists.  This
+            # prevents trailing prose sections (e.g. "## Notes", "## Appendix")
+            # from being included in the final WP's body and producing
+            # false-positive dependency matches (FR-304).
+            #
+            # Invariant: "## Dependencies" headings (Pattern 3) inside the
+            # final WP's body must NOT be treated as stop boundaries — they
+            # are valid dependency-declaration headers.  Sub-headings (###)
+            # are also unaffected because _ANY_H2_HEADER only matches "^## ".
+            end = len(tasks_content)
+            for h2_match in _ANY_H2_HEADER.finditer(tasks_content, match.end()):
+                # Skip WP ID headings — those would start the next WP section
+                # (shouldn't happen in the final-WP branch, but be safe).
+                if _WP_SECTION_HEADER.match(tasks_content, h2_match.start()):
+                    continue
+                # Skip "## Dependencies" headings — those are Pattern 3
+                # dependency-declaration headers and belong to this WP.
+                line_end = tasks_content.find("\n", h2_match.start())
+                heading_line = tasks_content[h2_match.start():line_end if line_end != -1 else None]
+                if _DEPS_HEADING.match(heading_line.strip()):
+                    continue
+                # Non-WP, non-Dependencies ## heading — this is a stop boundary.
+                end = h2_match.start()
+                break
         sections[wp_id] = tasks_content[start:end]
 
     return sections
@@ -63,19 +104,26 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
 # Per-section dependency patterns
 # ---------------------------------------------------------------------------
 
+# Explicit-declaration format only (not prose inference).
 # Pattern 1: "Depends on WP01" / "Depend on WP01, WP02"
+# Matches the literal phrase "Depends on" (or "Depend on") followed by WP IDs.
+# No free-form sentence scanning; the phrase must start with the keyword.
 _DEPENDS_ON = re.compile(
     r"Depends?\s+on\s+(WP\d{2}(?:\s*,\s*WP\d{2})*)",
     re.IGNORECASE,
 )
 
+# Explicit-declaration format only (not prose inference).
 # Pattern 2: "**Dependencies**: WP01" / "Dependencies: WP01, WP02"
+# Matches a header-colon line with one or more WP IDs on the same line.
 _DEPS_COLON = re.compile(
     r"\*?\*?Dependencies\*?\*?\s*:\s*(.+)",
     re.IGNORECASE,
 )
 
+# Explicit-declaration format only (not prose inference).
 # Pattern 3a: standalone Dependencies heading (matches the heading line itself)
+# Followed by a bullet list (Pattern 3b) — the only structured list format.
 _DEPS_HEADING = re.compile(
     r"^#{1,4}\s*\*?\*?Dependencies\*?\*?\s*$",
     re.IGNORECASE | re.MULTILINE,

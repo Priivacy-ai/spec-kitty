@@ -142,7 +142,7 @@ Store the final mission selection in your notes and include it in the spec outpu
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: Use `spec-kitty implement WP##` after task finalization computes execution lanes. Each lane gets exactly one worktree, for example `.worktrees/###-feature-lane-a`.
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <slug>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/###-feature-lane-a`.
 
 ## Location
 

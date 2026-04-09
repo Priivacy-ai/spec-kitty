@@ -170,6 +170,56 @@ def load_pyproject_version(path: Path) -> str:
     return version
 
 
+def load_metadata_yaml_version(repo_root: Path) -> str:
+    """Load spec_kitty.version from .kittify/metadata.yaml."""
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ModuleNotFoundError as exc:  # pragma: no cover - pyyaml required
+        raise ReleaseValidatorError(
+            "PyYAML is required to load .kittify/metadata.yaml. "
+            "Run: pip install pyyaml"
+        ) from exc
+    metadata_path = repo_root / ".kittify" / "metadata.yaml"
+    if not metadata_path.exists():
+        raise ReleaseValidatorError(
+            f".kittify/metadata.yaml not found at {metadata_path}"
+        )
+    data = yaml.safe_load(metadata_path.read_text(encoding="utf-8"))
+    version = data.get("spec_kitty", {}).get("version")
+    if not version:
+        raise ReleaseValidatorError(
+            ".kittify/metadata.yaml missing spec_kitty.version"
+        )
+    return str(version)
+
+
+def validate_metadata_yaml_version_sync(
+    pyproject_version: str,
+    repo_root: Path,
+) -> ValidationIssue | None:
+    """Assert .kittify/metadata.yaml version matches pyproject.toml. See FR-601, FR-602.
+
+    Returns a ValidationIssue if there is a mismatch, otherwise None.
+    """
+    try:
+        metadata_version = load_metadata_yaml_version(repo_root)
+    except ReleaseValidatorError as exc:
+        return ValidationIssue(message=str(exc))
+    if pyproject_version != metadata_version:
+        return ValidationIssue(
+            message=(
+                f"Version mismatch detected: "
+                f"pyproject.toml={pyproject_version!r} vs "
+                f".kittify/metadata.yaml={metadata_version!r}"
+            ),
+            hint=(
+                f"Update .kittify/metadata.yaml spec_kitty.version to "
+                f"{pyproject_version!r} so both files agree before cutting the release."
+            ),
+        )
+    return None
+
+
 def read_changelog(path: Path) -> str:
     if not path.exists():
         raise ReleaseValidatorError(f"CHANGELOG not found at {path}.")
@@ -326,6 +376,11 @@ def run_validation(args: argparse.Namespace) -> ValidationResult:
         )
 
     repo_root = find_repo_root(pyproject_path.parent)
+
+    # FR-601, FR-602: verify .kittify/metadata.yaml is in sync with pyproject.toml
+    metadata_issue = validate_metadata_yaml_version_sync(version, repo_root)
+    if metadata_issue is not None:
+        issues.append(metadata_issue)
 
     if not changelog_has_entry(changelog_text, version):
         issues.append(

@@ -81,7 +81,7 @@ def test_mixed_mission_topology_includes_repo_root_planning_entry(tmp_path: Path
     assert planning_entry is not None
     assert planning_entry.execution_mode == "planning_artifact"
     assert planning_entry.resolution_kind == "repo_root"
-    assert planning_entry.lane_id is None
+    assert planning_entry.lane_id == "lane-planning"
     assert planning_entry.branch_name is None
     assert planning_entry.base_branch is None
 
@@ -109,7 +109,7 @@ def test_render_topology_json_marks_repo_root_planning_workspace(tmp_path: Path)
     planning_entry = next(entry for entry in payload["entries"] if entry["wp"] == "WP02")
     assert planning_entry["workspace_kind"] == "repo_root"
     assert planning_entry["execution_mode"] == "planning_artifact"
-    assert planning_entry["lane_id"] is None
+    assert planning_entry["lane_id"] == "lane-planning"
     assert planning_entry["branch"] is None
 
 
@@ -132,4 +132,4 @@ def test_planning_only_mission_without_lanes_json_still_materializes_topology(tm
     entry = topology.get_entry("WP02")
     assert entry is not None
     assert entry.resolution_kind == "repo_root"
-    assert entry.lane_id is None
+    assert entry.lane_id == "lane-planning"

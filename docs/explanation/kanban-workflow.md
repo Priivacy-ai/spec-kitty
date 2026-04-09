@@ -53,7 +53,7 @@ canceled   (reachable from planned, claimed, in_progress, for_review, in_review,
 
 **How it gets here**:
 - From `claimed` when a workspace is created (`claimed -> in_progress`)
-- Automatically when running `spec-kitty implement WP01`
+- Automatically when running `spec-kitty agent action implement WP01 --agent <name>`
 - Returned from review/approval for rework (`for_review -> in_progress`, `approved -> in_progress`)
 - Unblocked (`blocked -> in_progress`)
 - Guard: `claimed -> in_progress` requires workspace context
@@ -215,7 +215,7 @@ Any transition not in the 27 allowed pairs can still be performed with `--force`
    lane: claimed (resolved from "doing" alias at input, but actual transition is planned -> claimed)
 
 3. Agent creates workspace
-   spec-kitty implement WP01
+   spec-kitty agent action implement WP01 --agent <name>
    lane: in_progress
 
 4. Agent completes implementation
@@ -476,7 +476,7 @@ Before moving a WP to `claimed` or `in_progress`:
 
 The implement command enforces this:
 ```bash
-spec-kitty implement WP02  # Ensures WP01 code is available
+spec-kitty agent action implement WP02 --agent <name>  # Ensures WP01 code is available
 ```
 
 ### Review Before Done

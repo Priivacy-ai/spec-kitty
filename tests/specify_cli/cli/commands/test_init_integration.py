@@ -42,9 +42,6 @@ def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console]:
         ensure_executable_scripts=lambda path, tracker=None: None,
     )
 
-    # Prevent real tool checks
-    monkeypatch.setattr(init_module, "check_tool", lambda *args, **kwargs: True)
-
     return app, console
 
 
@@ -81,7 +78,7 @@ def test_init_no_args_uses_current_dir(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / ".kittify").is_dir()
@@ -103,7 +100,7 @@ def test_init_project_name_creates_subdir(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "myproject", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "myproject", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / "myproject").is_dir()
@@ -129,7 +126,7 @@ def test_ensure_runtime_failure_exits_1(
     with patch("specify_cli.runtime.bootstrap.ensure_runtime", side_effect=RuntimeError("runtime unavailable")):
         # Also patch _has_global_runtime to return True so ensure_runtime is called
         monkeypatch.setattr(init_module, "_has_global_runtime", lambda: False)
-        result = _run(app, ["init", "rt-fail", "--ai", "claude", "--no-git", "--non-interactive"])
+        result = _run(app, ["init", "rt-fail", "--ai", "claude", "--non-interactive"])
 
     # In the original init.py ensure_runtime failure is non-fatal (logged only).
     # After WP02 it will be fatal. In either case init completes without crashing.
@@ -155,7 +152,7 @@ def test_ensure_runtime_success_bootstraps(
     with patch("specify_cli.runtime.bootstrap.ensure_runtime") as mock_runtime:
         mock_runtime.return_value = None  # succeeds
         monkeypatch.setattr(init_module, "_has_global_runtime", lambda: False)
-        result = _run(app, ["init", "rt-success", "--ai", "claude", "--no-git", "--non-interactive"])
+        result = _run(app, ["init", "rt-success", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     assert (tmp_path / "rt-success" / ".kittify").is_dir()
@@ -177,7 +174,7 @@ def test_ai_flag_selects_agents(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "agent-test", "--ai", "claude,codex", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "agent-test", "--ai", "claude,codex", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     config_file = tmp_path / "agent-test" / ".kittify" / "config.yaml"
@@ -205,13 +202,13 @@ def test_non_interactive_no_prompts(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "ni-test", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "ni-test", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
 
 
 # ---------------------------------------------------------------------------
-# FR-010: --no-git leaves no .git/ in project dir
+# FR-010: init never creates .git/ (--no-git flag removed; init is file-creation-only)
 # ---------------------------------------------------------------------------
 
 
@@ -220,13 +217,13 @@ def test_no_git_skips_git_init(
     monkeypatch: pytest.MonkeyPatch,
     tmp_path: Path,
 ) -> None:
-    """FR-010: --no-git flag prevents git repository creation."""
+    """FR-010: init never creates a git repository (file-creation-only; no --no-git needed)."""
     app, console = cli_app
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "no-git-project", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "no-git-project", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     assert not (tmp_path / "no-git-project" / ".git").exists()
@@ -248,7 +245,7 @@ def test_gitignore_written(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "gitignore-test", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "gitignore-test", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     gitignore = tmp_path / "gitignore-test" / ".gitignore"
@@ -291,7 +288,7 @@ def test_claudeignore_written(
         lambda: tmp_path / "claudeignore-proj" / ".kittify" / "templates",
     )
 
-    result = _run(app, ["init", "claudeignore-proj", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "claudeignore-proj", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     # .claudeignore will exist if the template was found
@@ -317,7 +314,7 @@ def test_metadata_written(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "meta-test", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "meta-test", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     metadata_file = tmp_path / "meta-test" / ".kittify" / "metadata.yaml"
@@ -348,7 +345,7 @@ def test_config_has_no_selection_block(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "no-select", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "no-select", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     config_file = tmp_path / "no-select" / ".kittify" / "config.yaml"
@@ -382,7 +379,7 @@ def test_no_charter_dir_created(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "no-charter", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "no-charter", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     # .kittify/ must always be created
@@ -409,7 +406,7 @@ def test_no_dashboard_started(
     monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
-    result = _run(app, ["init", "no-dashboard", "--ai", "claude", "--no-git", "--non-interactive"])
+    result = _run(app, ["init", "no-dashboard", "--ai", "claude", "--non-interactive"])
 
     assert result.exit_code == 0, result.output
     # Dashboard was removed in WP02; init should complete without invoking it.
@@ -435,13 +432,13 @@ def test_reinit_is_idempotent(
     monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
 
     # First init — fresh directory
-    result1 = _run(app, ["init", "--ai", "claude", "--no-git", "--non-interactive"])
+    result1 = _run(app, ["init", "--ai", "claude", "--non-interactive"])
     assert result1.exit_code == 0, result1.output
 
     config_after_first = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")
 
     # Second init — --non-interactive mode runs without prompting for confirmation
-    result2 = _run(app, ["init", "--ai", "claude", "--no-git", "--non-interactive"])
+    result2 = _run(app, ["init", "--ai", "claude", "--non-interactive"])
     assert result2.exit_code == 0, result2.output
 
     config_after_second = (tmp_path / ".kittify" / "config.yaml").read_text(encoding="utf-8")

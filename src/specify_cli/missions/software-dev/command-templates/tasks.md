@@ -37,7 +37,7 @@
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**Worktrees created later**: After tasks are generated, use `spec-kitty implement WP##` to create or reuse the execution workspace for that WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
+**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <slug>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 
 **In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
 
@@ -264,8 +264,8 @@ subtasks: ["T001", "T002"]
 ```
 
 **Include the correct implementation command**:
-- No dependencies: `spec-kitty implement WP01`
-- With dependencies: `spec-kitty implement WP02`
+- No dependencies: `spec-kitty agent action implement WP01 --agent <name>`
+- With dependencies: `spec-kitty agent action implement WP02 --agent <name>`
 
 The WP prompt must show the correct command so agents don't branch from the wrong base.
 

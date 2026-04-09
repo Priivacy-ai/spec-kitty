@@ -407,9 +407,9 @@ class TestPlanningArtifactWorkflowPrompt:
         prompt = prompt_path.read_text(encoding="utf-8")
 
         assert f"Workspace: {workflow_repo}" in prompt
-        assert "Workspace contract: repository root planning workspace" in prompt
+        assert "Workspace contract: lane lane-planning" in prompt
         assert f"cd {workflow_repo}" in prompt
-        assert "This WP runs in the repository root" in prompt
+        assert "workspace_kind\": \"repo_root" in prompt
         assert "<!-- WORKTREE_TOPOLOGY -->" in prompt
         assert "runs in the repository root planning workspace" in prompt
 

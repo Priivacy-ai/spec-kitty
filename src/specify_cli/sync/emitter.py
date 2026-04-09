@@ -430,6 +430,7 @@ class EventEmitter:
         wp_count: int,
         created_at: str | None = None,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
         """Emit MissionCreated event (FR-011)."""
         payload: dict[str, Any] = {
@@ -440,6 +441,8 @@ class EventEmitter:
         }
         if created_at is not None:
             payload["created_at"] = created_at
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
         return self._emit(
             event_type="MissionCreated",
             aggregate_id=mission_slug,

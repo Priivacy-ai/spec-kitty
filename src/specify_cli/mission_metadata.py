@@ -82,6 +82,7 @@ class MissionIdentity:
     mission_slug: str
     mission_number: str
     mission_type: str
+    mission_id: str | None = None  # Canonical identity per ADR b85116ed. None only for pre-3.1.1 missions.
 
 
 # ---------------------------------------------------------------------------
@@ -126,7 +127,10 @@ def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
         str(meta.get("mission_number") or "").strip() or None,
         str(meta.get("mission_type") or meta.get("mission") or "").strip() or None,
     )
-    return MissionIdentity(**fields)
+    return MissionIdentity(
+        **fields,
+        mission_id=meta.get("mission_id"),  # None if not present (legacy mission)
+    )
 
 
 # ---------------------------------------------------------------------------

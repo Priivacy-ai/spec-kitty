@@ -539,3 +539,127 @@ class TestScratchDirNotLegacy:
         claude_dir = project / ".claude" / "commands"
         assert claude_dir.is_dir()
         assert any(claude_dir.iterdir())
+
+
+# ---------------------------------------------------------------------------
+# T1.1 / T1.2 / T1.3 — WP01 (079-post-555-release-hardening) regressions
+#
+# These tests use the CLI runner to verify that the full `init` command path
+# does not create .git/, does not produce an "Initial commit" string anywhere,
+# and does not create .agents/skills/.
+# ---------------------------------------------------------------------------
+
+import io  # noqa: E402 (local import for this block)
+
+from rich.console import Console  # noqa: E402
+from typer import Typer  # noqa: E402
+from typer.testing import CliRunner  # noqa: E402
+
+from specify_cli.cli.commands import init as _init_module  # noqa: E402
+from specify_cli.cli.commands.init import register_init_command  # noqa: E402
+
+
+def _make_init_app(monkeypatch: pytest.MonkeyPatch) -> Typer:
+    """Return a minimal Typer app with the init command registered."""
+    app = Typer()
+    console = Console(file=io.StringIO(), force_terminal=False)
+
+    register_init_command(
+        app,
+        console=console,
+        show_banner=lambda: None,
+        activate_mission=lambda proj, mtype, mdisplay, _con: mdisplay,
+        ensure_executable_scripts=lambda path, tracker=None: None,
+    )
+    return app
+
+
+def _fake_copy_pkg(project_path: Path) -> Path:
+    kittify = project_path / ".kittify"
+    kittify.mkdir(parents=True, exist_ok=True)
+    return kittify / "templates" / "command-templates"
+
+
+class TestWP01InitCoherence:
+    """WP01 regressions: init must be file-creation-only."""
+
+    def test_init_does_not_create_git_dir(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """T1.1: init must not create a .git/ directory in the project."""
+        app = _make_init_app(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(_init_module, "get_local_repo_root", lambda override_path=None: None)
+        monkeypatch.setattr(_init_module, "copy_specify_base_from_package", _fake_copy_pkg)
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "no-git-proj", "--ai", "codex", "--non-interactive"])
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+        assert not (tmp_path / "no-git-proj" / ".git").exists(), (
+            "init created a .git/ directory — init must be file-creation-only (T001)."
+        )
+
+    def test_init_does_not_create_commit(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """T1.2: init must not create any git commits.
+
+        Run init in a fresh directory (no pre-existing repo).  Because init
+        must never call `git init`, running `git log` in the project directory
+        must either fail (no repo) or return no commits.
+        """
+        import subprocess
+
+        app = _make_init_app(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(_init_module, "get_local_repo_root", lambda override_path=None: None)
+        monkeypatch.setattr(_init_module, "copy_specify_base_from_package", _fake_copy_pkg)
+
+        runner = CliRunner()
+        result = runner.invoke(app, ["init", "no-commit-proj", "--ai", "codex", "--non-interactive"])
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+
+        project = tmp_path / "no-commit-proj"
+
+        # No .git/ → no commits possible
+        if not (project / ".git").exists():
+            return  # Pass — no git repo means no commits.
+
+        # If somehow .git/ was created, make sure no commits exist
+        git_log = subprocess.run(
+            ["git", "log", "--oneline"],
+            cwd=project,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        assert git_log.stdout.strip() == "", (
+            "init created git commits — this must not happen (T001).\n"
+            f"git log output: {git_log.stdout}"
+        )
+
+    def test_init_does_not_create_agents_skills(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """T1.3: init must not create .agents/skills/ in the project directory."""
+        app = _make_init_app(monkeypatch)
+        monkeypatch.chdir(tmp_path)
+        monkeypatch.setattr(_init_module, "get_local_repo_root", lambda override_path=None: None)
+        monkeypatch.setattr(_init_module, "copy_specify_base_from_package", _fake_copy_pkg)
+
+        runner = CliRunner()
+        result = runner.invoke(
+            app,
+            ["init", "no-agents-skills-proj", "--ai", "codex", "--non-interactive"],
+        )
+
+        assert result.exit_code == 0, f"init failed: {result.output}"
+        project = tmp_path / "no-agents-skills-proj"
+
+        assert not (project / ".agents" / "skills").exists(), (
+            "init created .agents/skills/ — this must not happen (T002).\n"
+            "The shared skills root seeding was removed in the post-#555 "
+            "init-coherence change."
+        )

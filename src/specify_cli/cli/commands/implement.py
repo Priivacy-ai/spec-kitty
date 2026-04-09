@@ -24,7 +24,6 @@ from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
-from specify_cli.ownership.models import ExecutionMode
 from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane
 from specify_cli.tasks_support import TaskCliError, find_repo_root
@@ -408,7 +407,20 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         ),
     ] = None,
 ) -> None:
-    """Allocate or reuse the lane worktree for a work package."""
+    """Internal — allocate or reuse the lane worktree for a work package.
+
+    This command is internal infrastructure, used by ``spec-kitty agent action implement``
+    for workspace creation. It is not the canonical user-facing implementation path for
+    spec-kitty 3.1.1.
+
+    Canonical user workflow::
+
+      spec-kitty next --agent <name> --mission <slug>   (loop entry)
+      spec-kitty agent action implement <WP> --agent <name>  (per-WP verb)
+
+    This command remains available as a compatibility surface for direct callers.
+    See FR-503 and D-4 in the 3.1.1 spec.
+    """
     from specify_cli.core.agent_config import get_auto_commit_default
     from specify_cli.core.dependency_graph import parse_wp_dependencies
     from specify_cli.sync.events import emit_wp_status_changed
@@ -453,7 +465,8 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
 
         lanes_manifest = None
         lane = None
-        if resolved_workspace.execution_mode == ExecutionMode.CODE_CHANGE:
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
+        if resolved_workspace.lane_id != PLANNING_LANE_ID:
             lanes_manifest = require_lanes_json(feature_dir)
             lane = lanes_manifest.lane_for_wp(wp_id)
             if lane is None:
@@ -478,7 +491,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
         active_lanes_manifest = lanes_manifest
-        if base is not None and resolved_workspace.execution_mode == ExecutionMode.CODE_CHANGE:
+        if base is not None and resolved_workspace.lane_id != PLANNING_LANE_ID:
             _validate_base_ref(repo_root, base)
             # Shallow-patch the manifest's mission_branch so
             # allocate_lane_worktree branches from the explicit ref.

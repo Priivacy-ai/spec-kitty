@@ -22,6 +22,12 @@ from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 from specify_cli.ownership.validation import _globs_overlap
 
 
+# Canonical lane-id for all planning-artifact WPs.
+# Planning-artifact WPs are first-class lane-owned entities; they share one
+# canonical lane that resolves to the main repository checkout (never a worktree).
+PLANNING_LANE_ID = "lane-planning"
+
+
 class LaneComputationError(Exception):
     """Raised when lane computation cannot produce a valid lane assignment.
 
@@ -227,12 +233,17 @@ def compute_lanes(
     """Compute execution lanes from dependency graph and ownership manifests.
 
     Algorithm:
-    1. Filter out planning_artifact WPs (they run on main repo, not in lanes).
-    2. Union WPs that depend on each other (rule 1).
-    3. Union WPs with overlapping owned_files (rule 2).
-    4. Union WPs sharing predicted surfaces (rule 3).
+    1. Separate planning_artifact WPs from code WPs.
+    2. Union code WPs that depend on each other (rule 1).
+    3. Union code WPs with overlapping owned_files (rule 2).
+    4. Union code WPs sharing predicted surfaces (rule 3).
     5. Build ExecutionLane per disjoint set, sorted internally by topo order.
     6. Compute lane-level dependencies and parallel groups.
+    7. Collect all planning_artifact WPs into a single ``lane-planning`` lane.
+
+    Planning-artifact WPs are first-class lane-owned entities assigned to the
+    canonical ``PLANNING_LANE_ID`` (``"lane-planning"``).  That lane resolves to
+    the main repository checkout, never a ``.worktrees/`` directory.
 
     Args:
         dependency_graph: WP ID → list of dependency WP IDs.
@@ -251,15 +262,16 @@ def compute_lanes(
     if not all_wp_ids:
         return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
 
-    # Separate planning artifacts — they don't get lanes.
-    # T011: Fail diagnostically on missing ownership manifests.
-    # T012: Collect planning-artifact WP IDs for diagnostic output.
+    # Separate planning_artifact WPs from code WPs.
+    # Both sets receive lane assignments:
+    # - code WPs → lane-a, lane-b, … (computed below via union-find)
+    # - planning_artifact WPs → single canonical PLANNING_LANE_ID lane
     code_wp_ids: list[str] = []
-    planning_artifact_wps: list[str] = []
+    planning_artifact_wp_ids: list[str] = []
     for wp_id in all_wp_ids:
         manifest = ownership_manifests.get(wp_id)
         if manifest and manifest.execution_mode == ExecutionMode.PLANNING_ARTIFACT:
-            planning_artifact_wps.append(wp_id)
+            planning_artifact_wp_ids.append(wp_id)
             continue
         if not manifest:
             raise LaneComputationError(
@@ -269,10 +281,22 @@ def compute_lanes(
             )
         code_wp_ids.append(wp_id)
 
+    if not code_wp_ids and not planning_artifact_wp_ids:
+        return _empty_manifest(mission_slug, target_branch, resolved_mission_id, planning_artifact_wps=[])
+
     if not code_wp_ids:
-        return _empty_manifest(
-            mission_slug, target_branch, resolved_mission_id,
-            planning_artifact_wps=planning_artifact_wps,
+        # Only planning-artifact WPs — build the lane-planning lane and return.
+        planning_lane = _build_planning_lane(planning_artifact_wp_ids, ownership_manifests)
+        return LanesManifest(
+            version=1,
+            mission_slug=mission_slug,
+            mission_id=resolved_mission_id,
+            mission_branch=f"kitty/mission-{mission_slug}",
+            target_branch=target_branch,
+            lanes=[planning_lane],
+            computed_at=datetime.now(timezone.utc).isoformat(),
+            computed_from="dependency_graph+ownership",
+            planning_artifact_wps=list(planning_lane.wp_ids),
         )
 
     # Build union-find over code WPs.
@@ -433,6 +457,17 @@ def compute_lanes(
 
     mission_branch = f"kitty/mission-{mission_slug}"
 
+    # Assign planning-artifact WPs to a single canonical lane-planning lane.
+    # This lane resolves to the main repository checkout, not a .worktrees/ directory.
+    all_lanes = list(final_lanes)
+    if planning_artifact_wp_ids:
+        planning_lane = _build_planning_lane(planning_artifact_wp_ids, ownership_manifests)
+        all_lanes.append(planning_lane)
+
+    # planning_artifact_wps is a derived view populated from lane-planning's wp_ids
+    # for backward compatibility — do NOT use it as the authoritative source.
+    derived_planning_artifact_wps: list[str] = list(planning_artifact_wp_ids)
+
     # Build the collapse report with independent-WP collapse count.
     independent_collapsed = _count_independent_collapses(collapse_events, dependency_graph)
     collapse_report = CollapseReport(
@@ -446,11 +481,37 @@ def compute_lanes(
         mission_id=resolved_mission_id,
         mission_branch=mission_branch,
         target_branch=target_branch,
-        lanes=final_lanes,
+        lanes=all_lanes,
         computed_at=datetime.now(timezone.utc).isoformat(),
         computed_from="dependency_graph+ownership",
-        planning_artifact_wps=planning_artifact_wps,
+        planning_artifact_wps=derived_planning_artifact_wps,
         collapse_report=collapse_report,
+    )
+
+
+def _build_planning_lane(
+    planning_artifact_wp_ids: list[str],
+    ownership_manifests: dict[str, OwnershipManifest],
+) -> ExecutionLane:
+    """Build the canonical lane-planning ExecutionLane for all planning-artifact WPs.
+
+    All planning-artifact WPs in a mission are grouped into one lane with
+    ``lane_id == PLANNING_LANE_ID``.  This lane resolves to the main repository
+    checkout at runtime (see ``resolve_workspace_for_wp``).
+    """
+    write_scope: set[str] = set()
+    for wp_id in planning_artifact_wp_ids:
+        m = ownership_manifests.get(wp_id)
+        if m:
+            write_scope.update(m.owned_files)
+
+    return ExecutionLane(
+        lane_id=PLANNING_LANE_ID,
+        wp_ids=tuple(sorted(planning_artifact_wp_ids)),
+        write_scope=tuple(sorted(write_scope)),
+        predicted_surfaces=("planning",),
+        depends_on_lanes=(),
+        parallel_group=0,
     )
 
 

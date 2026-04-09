@@ -20,38 +20,38 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------:|
-| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] | [D] | [D] | [D] |
-| T002 | Remove `.agents/skills/` seeding from `init.py` | WP01 | [D] |
-| T003 | Rewrite `init` next-steps output (name `spec-kitty next` + agent action verbs) | WP01 | [D] |
-| T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [D] |
-| T005 | Update `init --help` text to describe the new model accurately | WP01 | [D] |
-| T006 | Regression tests for Track 1 (T1.1–T1.7 from test-contracts.md) | WP01 | [D] |
-| T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [D] |
-| T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [D] |
-| T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [D] |
-| T010 | Stop filtering `PLANNING_ARTIFACT` in `compute.py`; assign to `lane-planning` | WP03 | [D] |
-| T011 | Update `branch_naming.py`: `lane_branch_name(..., "lane-planning")` → planning branch | WP03 | [D] |
-| T012 | `worktree.py` + `workspace_context.py`: route `lane-planning` → main repo checkout; add `get_next_feature_number` display-only docstring | WP03 | [D] |
-| T013 | Collapse `resolver.py:174-182` `execution_mode` special-case | WP03 | [D] |
-| T014 | `implement.py`: uniform lane lookup + rewrite `--help` docstring as internal-infrastructure | WP03 | [D] |
-| T015 | Regression tests for Track 2 (T2.1–T2.6 from test-contracts.md) | WP03 | [D] |
-| T016 | Mint ULID `mission_id` in `mission_creation.py`; persist to `meta.json`; lock write; mint 079's own `mission_id` | WP04 | [D] |
-| T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [D] |
-| T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [D] |
-| T019 | Regression tests for Track 3 (T3.1–T3.6 from test-contracts.md) | WP04 | [D] |
-| T020 | Extend `FileLock` scope in `refresh_tokens()` to full read→network→persist transaction | WP05 | [D] |
-| T021 | Re-read-on-401 path: stale 401 exits cleanly; real 401 clears under lock | WP05 | [D] |
-| T022 | Verify httpx timeout < 10s lock timeout; set explicit timeout if not | WP05 | [D] |
-| T023 | Regression tests for Track 5 (T5.1–T5.4 from test-contracts.md) | WP05 | [D] |
-| T024 | Update `README.md` canonical workflow line + mermaid diagram | WP06 | [D] |
-| T025 | Update slash-command source templates (replace `spec-kitty implement WP##` with `spec-kitty agent action implement`) | WP06 | [D] |
-| T026 | Update `docs/` canonical-path mentions in first ~5 paragraphs of ~12 files | WP06 | [D] |
-| T027 | Regression tests for Track 6 (T6.1, T6.2, T6.4, T6.5 from test-contracts.md) | WP06 | [D] |
-| T028 | Bump `.kittify/metadata.yaml` version to match `pyproject.toml` | WP07 | — | [D] |
-| T029 | Add `validate_metadata_yaml_version_sync()` to `scripts/release/validate_release.py` | WP07 | — | [D] |
-| T030 | Verify CHANGELOG-presence check runs in branch mode; verify structured draft artifact | WP07 | — | [D] |
-| T031 | Regression tests for Track 7 (T7.1–T7.4 from test-contracts.md) | WP07 | — | [D] |
-| T032 | Dogfood acceptance: run quickstart V-7 walkthrough; verify all RG-1..RG-8 gates pass | WP07 | — | [D] |
+| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] |
+| T002 | Remove `.agents/skills/` seeding from `init.py` | WP01 | [P] |
+| T003 | Rewrite `init` next-steps output (name `spec-kitty next` + agent action verbs) | WP01 | [P] |
+| T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [P] |
+| T005 | Update `init --help` text to describe the new model accurately | WP01 | [P] |
+| T006 | Regression tests for Track 1 (T1.1–T1.7 from test-contracts.md) | WP01 | [P] |
+| T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [P] |
+| T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [P] |
+| T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [P] |
+| T010 | Stop filtering `PLANNING_ARTIFACT` in `compute.py`; assign to `lane-planning` | WP03 | [P] |
+| T011 | Update `branch_naming.py`: `lane_branch_name(..., "lane-planning")` → planning branch | WP03 | [P] |
+| T012 | `worktree.py` + `workspace_context.py`: route `lane-planning` → main repo checkout; add `get_next_feature_number` display-only docstring | WP03 | [P] |
+| T013 | Collapse `resolver.py:174-182` `execution_mode` special-case | WP03 | [P] |
+| T014 | `implement.py`: uniform lane lookup + rewrite `--help` docstring as internal-infrastructure | WP03 | [P] |
+| T015 | Regression tests for Track 2 (T2.1–T2.6 from test-contracts.md) | WP03 | [P] |
+| T016 | Mint ULID `mission_id` in `mission_creation.py`; persist to `meta.json`; lock write; mint 079's own `mission_id` | WP04 | [P] |
+| T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [P] |
+| T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [P] |
+| T019 | Regression tests for Track 3 (T3.1–T3.6 from test-contracts.md) | WP04 | [P] |
+| T020 | Extend `FileLock` scope in `refresh_tokens()` to full read→network→persist transaction | WP05 | [P] |
+| T021 | Re-read-on-401 path: stale 401 exits cleanly; real 401 clears under lock | WP05 | [P] |
+| T022 | Verify httpx timeout < 10s lock timeout; set explicit timeout if not | WP05 | [P] |
+| T023 | Regression tests for Track 5 (T5.1–T5.4 from test-contracts.md) | WP05 | [P] |
+| T024 | Update `README.md` canonical workflow line + mermaid diagram | WP06 | [P] |
+| T025 | Update slash-command source templates (replace `spec-kitty implement WP##` with `spec-kitty agent action implement`) | WP06 | [P] |
+| T026 | Update `docs/` canonical-path mentions in first ~5 paragraphs of ~12 files | WP06 | [P] |
+| T027 | Regression tests for Track 6 (T6.1, T6.2, T6.4, T6.5 from test-contracts.md) | WP06 | [P] |
+| T028 | Bump `.kittify/metadata.yaml` version to match `pyproject.toml` | WP07 | — |
+| T029 | Add `validate_metadata_yaml_version_sync()` to `scripts/release/validate_release.py` | WP07 | — |
+| T030 | Verify CHANGELOG-presence check runs in branch mode; verify structured draft artifact | WP07 | — |
+| T031 | Regression tests for Track 7 (T7.1–T7.4 from test-contracts.md) | WP07 | — |
+| T032 | Dogfood acceptance: run quickstart V-7 walkthrough; verify all RG-1..RG-8 gates pass | WP07 | — |
 
 **Total**: 32 subtasks across 7 WPs · Average 4.6 subtasks/WP · All within 3–7 ideal range
 
@@ -147,10 +147,10 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 **Spec FRs**: FR-201, FR-202, FR-203, FR-204, FR-205, FR-206
 
 **Subtasks**:
-- [x] T016 Mint ULID `mission_id` in `mission_creation.py`; persist + lock; mint 079's own (WP04)
-- [x] T017 `MissionIdentity.mission_id` field + `resolve_mission_identity()` update (WP04)
-- [x] T018 `mission_id` in `emit_mission_created()` payload (WP04)
-- [x] T019 Regression tests for Track 3 (WP04)
+- [ ] T016 Mint ULID `mission_id` in `mission_creation.py`; persist + lock; mint 079's own (WP04)
+- [ ] T017 `MissionIdentity.mission_id` field + `resolve_mission_identity()` update (WP04)
+- [ ] T018 `mission_id` in `emit_mission_created()` payload (WP04)
+- [ ] T019 Regression tests for Track 3 (WP04)
 
 **Key technical notes**:
 - `python-ulid` (≥3.0) is already in `pyproject.toml:72`. Use `from ulid import ULID; str(ULID())`.
@@ -235,11 +235,11 @@ Actually — since WP06 does NOT own init.py or implement.py, and WP01 already c
 **Spec FRs**: FR-601, FR-602, FR-603, FR-604, FR-605, FR-606
 
 **Subtasks**:
-- [x] T028 Bump `.kittify/metadata.yaml` version (WP07)
-- [x] T029 Add `validate_metadata_yaml_version_sync()` to `validate_release.py` (WP07)
-- [x] T030 Verify CHANGELOG-presence check runs in branch mode; verify structured draft (WP07)
-- [x] T031 Regression tests for Track 7 (WP07)
-- [x] T032 Dogfood acceptance: run quickstart V-7; verify RG-1..RG-8 (WP07)
+- [ ] T028 Bump `.kittify/metadata.yaml` version (WP07)
+- [ ] T029 Add `validate_metadata_yaml_version_sync()` to `validate_release.py` (WP07)
+- [ ] T030 Verify CHANGELOG-presence check runs in branch mode; verify structured draft (WP07)
+- [ ] T031 Regression tests for Track 7 (WP07)
+- [ ] T032 Dogfood acceptance: run quickstart V-7; verify RG-1..RG-8 (WP07)
 
 **Key technical notes**:
 - Current state: `pyproject.toml:3` = `"3.1.1a3"`, `.kittify/metadata.yaml:6` = `"3.1.1a2"` — mismatch. T028 bumps metadata.yaml to `3.1.1a3`. The actual bump to `3.1.1` (stripping the alpha suffix) is a human action at release-cut time, gated by all RGs passing.

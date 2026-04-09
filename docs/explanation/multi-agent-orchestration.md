@@ -32,7 +32,8 @@ This replaces in-core orchestration commands. The core CLI does not provide `spe
 Manual coordination still works via normal commands:
 
 ```bash
-spec-kitty implement WP01
+spec-kitty next --agent <agent> --mission <slug>
+# Your agent calls: spec-kitty agent action implement WP01 --agent <name>
 spec-kitty agent tasks move-task WP01 --to for_review
 spec-kitty agent tasks move-task WP01 --to done
 ```

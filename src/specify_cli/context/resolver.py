@@ -171,15 +171,23 @@ def resolve_context(
     owned_files: tuple[str, ...] = tuple(wp_meta.owned_files)
     dependencies = list(wp_meta.dependencies)
 
-    # Compute authoritative_ref: lane branch for code_change, None for planning_artifact
-    if execution_mode == "planning_artifact":
-        authoritative_ref = None
-    else:
-        lane = require_lanes_json(feature_dir).lane_for_wp(wp_code)
-        if lane is None:
-            msg = f"{wp_code} is not assigned to any lane in {feature_dir / 'lanes.json'}."
-            raise MissingIdentityError(msg)
-        authoritative_ref = lane_branch_name(mission_slug, lane.lane_id)
+    # Compute authoritative_ref: uniform lane lookup for ALL WPs (including planning_artifact).
+    # After T010, planning_artifact WPs are assigned to the "lane-planning" lane in lanes.json.
+    # lane_branch_name() returns target_branch for lane-planning (T011).
+    target_branch = meta["target_branch"]
+    lane = require_lanes_json(feature_dir).lane_for_wp(wp_code)
+    if lane is None:
+        msg = (
+            f"WP {wp_code!r} has no lane assignment in {feature_dir / 'lanes.json'}. "
+            f"Run 'spec-kitty agent mission finalize-tasks --mission {mission_slug}' "
+            f"to compute lanes."
+        )
+        raise MissingIdentityError(msg)
+    authoritative_ref = lane_branch_name(
+        mission_slug,
+        lane.lane_id,
+        planning_base_branch=target_branch,
+    )
 
     # Compute dependency_mode
     dependency_mode = "chained" if dependencies else "independent"

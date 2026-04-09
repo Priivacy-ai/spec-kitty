@@ -12,7 +12,7 @@ You're working on WP02, and WP01 (which WP02 depends on) has changed. You need t
 
 ## Prerequisites
 
-- Active workspace created via `spec-kitty implement`
+- Active workspace created via `spec-kitty agent action implement WP## --agent <name>`
 - spec-kitty 0.12.0+
 - Changes committed in the upstream workspace
 
@@ -23,7 +23,7 @@ You're working on WP02, and WP01 (which WP02 depends on) has changed. You need t
 ### 1. Navigate to Your Workspace
 
 ```bash
-cd <workspace path printed by spec-kitty implement>
+cd <workspace path printed by spec-kitty agent action implement>
 ```
 
 ### 2. Run Sync
