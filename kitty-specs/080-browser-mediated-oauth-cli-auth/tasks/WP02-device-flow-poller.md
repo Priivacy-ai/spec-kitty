@@ -2,7 +2,10 @@
 work_package_id: WP02
 title: Device Authorization Flow Poller
 dependencies: []
-requirement_refs: []
+requirement_refs:
+- FR-004
+- FR-005
+- FR-006
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Work in execution worktree; merge to main via finalized lanes

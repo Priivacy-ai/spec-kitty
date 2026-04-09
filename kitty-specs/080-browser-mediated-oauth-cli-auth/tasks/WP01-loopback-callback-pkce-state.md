@@ -2,7 +2,10 @@
 work_package_id: WP01
 title: Loopback Callback Handler + PKCE State Management
 dependencies: []
-requirement_refs: []
+requirement_refs:
+- FR-001
+- FR-002
+- FR-003
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Work in execution worktree; merge to main via finalized lanes
