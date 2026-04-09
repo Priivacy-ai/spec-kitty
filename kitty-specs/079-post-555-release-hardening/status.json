@@ -1,7 +1,7 @@
 {
-  "event_count": 39,
-  "last_event_id": "01KNRR1VE7YE9HCKVSF9RKC6JV",
-  "materialized_at": "2026-04-09T09:09:28.135411+00:00",
+  "event_count": 40,
+  "last_event_id": "01KNRR2H7PQRPXAMRYEW06X3VF",
+  "materialized_at": "2026-04-09T09:09:50.454744+00:00",
   "mission_slug": "079-post-555-release-hardening",
   "summary": {
     "approved": 4,
@@ -9,8 +9,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 2
   },
@@ -45,10 +45,10 @@
     },
     "WP05": {
       "actor": "user",
-      "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KNRQGQWPG2HXPZDGH3KJHR5G",
-      "last_transition_at": "2026-04-09T09:00:07.446944+00:00"
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNRR2H7PQRPXAMRYEW06X3VF",
+      "last_transition_at": "2026-04-09T09:09:50.454744+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",
