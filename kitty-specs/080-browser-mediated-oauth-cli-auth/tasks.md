@@ -122,14 +122,14 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T054 | Search and remove any password-prompt code | WP10 | | [D] |
 | T055 | Verify `spec-kitty auth login --help` does not mention password | WP10 | | [D] |
 | T056 | Regression test asserting Typer app has login/logout/status commands | WP10 | | [D] |
-| T057 | Create `test_browser_login_e2e.py` (CliRunner + mock SaaS) | WP11 | |
-| T058 | Create `test_headless_login_e2e.py` (CliRunner + mock device flow) | WP11 | |
-| T059 | Create `test_logout_e2e.py` and `test_status_e2e.py` (CliRunner) | WP11 | |
-| T060 | Create `test_transport_rewired.py` (verify sync/client uses TokenManager) | WP11 | |
-| T061 | Create `test_single_flight_refresh.py` (10+ concurrent = 1 refresh) | WP11 | |
-| T062 | Create `test_file_storage_concurrent.py` (atomic writes) | WP11 | |
-| T063 | AUDIT: integration tests must use CliRunner/subprocess (not flow classes) | WP11 | |
-| T064 | AUDIT: zero `CredentialStore`/`AuthClient` references in tests/ | WP11 | |
+| T057 | Create `test_browser_login_e2e.py` (CliRunner + mock SaaS) | WP11 | | [D] |
+| T058 | Create `test_headless_login_e2e.py` (CliRunner + mock device flow) | WP11 | | [D] |
+| T059 | Create `test_logout_e2e.py` and `test_status_e2e.py` (CliRunner) | WP11 | | [D] |
+| T060 | Create `test_transport_rewired.py` (verify sync/client uses TokenManager) | WP11 | | [D] |
+| T061 | Create `test_single_flight_refresh.py` (10+ concurrent = 1 refresh) | WP11 | | [D] |
+| T062 | Create `test_file_storage_concurrent.py` (atomic writes) | WP11 | | [D] |
+| T063 | AUDIT: integration tests must use CliRunner/subprocess (not flow classes) | WP11 | | [D] |
+| T064 | AUDIT: zero `CredentialStore`/`AuthClient` references in tests/ | WP11 | | [D] |
 
 ---
 
@@ -447,14 +447,14 @@ storage. Audit subtasks that grep for forbidden patterns.
 **Estimated prompt size**: ~480 lines | **Subtasks**: 8
 
 **Included subtasks**:
-- [ ] T057 Create `test_browser_login_e2e.py` (CliRunner + mock SaaS) (WP11)
-- [ ] T058 Create `test_headless_login_e2e.py` (CliRunner + mock device flow) (WP11)
-- [ ] T059 Create `test_logout_e2e.py` and `test_status_e2e.py` (CliRunner) (WP11)
-- [ ] T060 Create `test_transport_rewired.py` (verify sync/client uses TokenManager) (WP11)
-- [ ] T061 Create `test_single_flight_refresh.py` (10+ concurrent = 1 refresh) (WP11)
-- [ ] T062 Create `test_file_storage_concurrent.py` (atomic writes) (WP11)
-- [ ] T063 AUDIT: integration tests must use CliRunner/subprocess (not flow classes) (WP11)
-- [ ] T064 AUDIT: zero `CredentialStore`/`AuthClient` references in tests/ (WP11)
+- [x] T057 Create `test_browser_login_e2e.py` (CliRunner + mock SaaS) (WP11)
+- [x] T058 Create `test_headless_login_e2e.py` (CliRunner + mock device flow) (WP11)
+- [x] T059 Create `test_logout_e2e.py` and `test_status_e2e.py` (CliRunner) (WP11)
+- [x] T060 Create `test_transport_rewired.py` (verify sync/client uses TokenManager) (WP11)
+- [x] T061 Create `test_single_flight_refresh.py` (10+ concurrent = 1 refresh) (WP11)
+- [x] T062 Create `test_file_storage_concurrent.py` (atomic writes) (WP11)
+- [x] T063 AUDIT: integration tests must use CliRunner/subprocess (not flow classes) (WP11)
+- [x] T064 AUDIT: zero `CredentialStore`/`AuthClient` references in tests/ (WP11)
 
 **Dependencies**: WP01, WP02, WP03, WP04, WP05, WP06, WP07, WP08, WP09, WP10
 
