@@ -250,3 +250,4 @@ All 21 tests from `TestInlineDependsOnFormat`, `TestInlineDependenciesColonForma
 ## Activity Log
 
 - 2026-04-09T08:06:55Z – unknown – shell_pid=64305 – Dispatching implementation agent
+- 2026-04-09T08:11:54Z – unknown – shell_pid=64305 – Parser bound fix: _split_wp_sections() stops at non-WP ## headings. All 21+5=26 tests pass.
