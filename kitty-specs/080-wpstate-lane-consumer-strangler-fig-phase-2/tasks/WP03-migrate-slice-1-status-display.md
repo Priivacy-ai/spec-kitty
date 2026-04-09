@@ -54,12 +54,12 @@ This duplicates bucketing logic. By using `state.progress_bucket()`, we delegate
 **Design Decision**: Replace manual if-elif chain with:
 ```python
 state = wp_state_for(wp_snapshot)
-bucket = state.progress_bucket()  # Returns: "not_started", "in_progress", "review", "complete"
+bucket = state.progress_bucket()  # Returns: "not_started", "in_flight", "review", "terminal"
 progress = {
     "not_started": "Not Started",
-    "in_progress": "In Progress",
+    "in_flight": "In Progress",
     "review": "Review",
-    "complete": "Complete",
+    "terminal": "Complete",
 }.get(bucket)
 ```
 
@@ -81,17 +81,17 @@ progress = {
    - `if lane_str in ("done", "canceled"): ...`
 3. Replace with:
    ```python
-   from specify_cli.status.models import wp_state_for
-   
+   from specify_cli.status.wp_state import wp_state_for
+
    state = wp_state_for(wp_snapshot)
-   bucket = state.progress_bucket()  # Returns one of: "not_started", "in_progress", "review", "complete"
-   
+   bucket = state.progress_bucket()  # Returns one of: "not_started", "in_flight", "review", "terminal"
+
    # Map bucket to display string (if needed)
    display_map = {
        "not_started": "Not Started",
-       "in_progress": "In Progress",
+       "in_flight": "In Progress",
        "review": "Review",
-       "complete": "Complete",
+       "terminal": "Complete",
    }
    progress = display_map.get(bucket)
    ```

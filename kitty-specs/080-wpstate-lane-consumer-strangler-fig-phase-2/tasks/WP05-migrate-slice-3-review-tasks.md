@@ -108,22 +108,22 @@ By using `state.progress_bucket()`, we delegate bucketing to the status module a
    - If-elif chains for bucketing
 3. Replace with:
    ```python
-   from specify_cli.status.models import wp_state_for
+   from specify_cli.status.wp_state import wp_state_for
    from specify_cli.status.lane_reader import get_wp_lane
-   
+
    # Get lane from event log (already typed)
    lane_str = str(get_wp_lane(feature_dir, wp_id))
-   
+
    # Construct state and use progress_bucket()
-   state = wp_state_for({"lane": lane_str})
-   bucket = state.progress_bucket()  # Returns: "not_started", "in_progress", "review", "complete"
-   
+   state = wp_state_for(lane_str)
+   bucket = state.progress_bucket()  # Returns: "not_started", "in_flight", "review", "terminal"
+
    # Map bucket to display (if needed)
    display_map = {
        "not_started": "Planned",
-       "in_progress": "In Progress",
+       "in_flight": "In Progress",
        "review": "In Review",
-       "complete": "Complete",
+       "terminal": "Complete",
    }
    display = display_map.get(bucket, "Unknown")
    ```

@@ -374,14 +374,14 @@ def implement(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01, wp01, WP01-slug) - auto-detects first planned if omitted")] = None,
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
     This command outputs the full work package prompt content so agents can
     immediately see what to implement, without navigating the file system.
 
-    Automatically moves WP from planned to doing lane (requires --agent to track who is working).
+    Automatically moves WP from planned to in_progress (requires --agent to track who is working).
 
     Examples:
         spec-kitty agent action implement WP01 --agent claude
@@ -556,7 +556,7 @@ def implement(
                         reason="Re-implementing after review feedback",
                         execution_mode=status_execution_mode,
                     )
-                # If already in_progress/doing, no event needed
+                # If already in_progress, no event needed
             except Exception as _evt_err:
                 logger.warning("Could not emit status event: %s", _evt_err)
 
@@ -1151,14 +1151,14 @@ def review(
     wp_id: Annotated[Optional[str], typer.Argument(help="Work package ID (e.g., WP01) - auto-detects first for_review if omitted")] = None,
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
-    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to doing lane)")] = None,
+    agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
 ) -> None:
     """Display work package prompt with review instructions.
 
     This command outputs the full work package prompt (including any review
     feedback from previous reviews) so agents can review the implementation.
 
-    Automatically moves WP from for_review to doing lane (requires --agent to track who is reviewing).
+    Automatically moves WP from for_review to in_progress (requires --agent to track who is reviewing).
 
     Examples:
         spec-kitty agent action review WP01 --agent claude
