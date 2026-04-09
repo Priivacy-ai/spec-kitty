@@ -29,12 +29,12 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 | T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [D] |
 | T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [D] |
 | T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [D] |
-| T010 | Stop filtering `PLANNING_ARTIFACT` in `compute.py`; assign to `lane-planning` | WP03 | [P] |
-| T011 | Update `branch_naming.py`: `lane_branch_name(..., "lane-planning")` → planning branch | WP03 | [P] |
-| T012 | `worktree.py` + `workspace_context.py`: route `lane-planning` → main repo checkout; add `get_next_feature_number` display-only docstring | WP03 | [P] |
-| T013 | Collapse `resolver.py:174-182` `execution_mode` special-case | WP03 | [P] |
-| T014 | `implement.py`: uniform lane lookup + rewrite `--help` docstring as internal-infrastructure | WP03 | [P] |
-| T015 | Regression tests for Track 2 (T2.1–T2.6 from test-contracts.md) | WP03 | [P] |
+| T010 | Stop filtering `PLANNING_ARTIFACT` in `compute.py`; assign to `lane-planning` | WP03 | [D] |
+| T011 | Update `branch_naming.py`: `lane_branch_name(..., "lane-planning")` → planning branch | WP03 | [D] |
+| T012 | `worktree.py` + `workspace_context.py`: route `lane-planning` → main repo checkout; add `get_next_feature_number` display-only docstring | WP03 | [D] |
+| T013 | Collapse `resolver.py:174-182` `execution_mode` special-case | WP03 | [D] |
+| T014 | `implement.py`: uniform lane lookup + rewrite `--help` docstring as internal-infrastructure | WP03 | [D] |
+| T015 | Regression tests for Track 2 (T2.1–T2.6 from test-contracts.md) | WP03 | [D] |
 | T016 | Mint ULID `mission_id` in `mission_creation.py`; persist to `meta.json`; lock write; mint 079's own `mission_id` | WP04 | [P] |
 | T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [P] |
 | T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [P] |
