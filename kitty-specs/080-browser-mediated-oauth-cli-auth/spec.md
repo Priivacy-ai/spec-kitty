@@ -213,7 +213,7 @@ file theft on shared/multi-user systems and against simple disk-image copying.
 | C-009 | Session is server-managed (CliSession model); no JWT self-contained state | SaaS architecture per epic #49 |
 | C-010 | Staging validation: 72+ hour window before GA cutover (aligned with SaaS epic #49 plan) | Rollout cadence per epic #49 |
 | C-011 | File fallback storage MUST encrypt tokens at rest with AES-256-GCM. The encryption key is derived from `f"{hostname}:{uid}"` via scrypt with a random 16-byte salt stored at `~/.config/spec-kitty/credentials.salt` (0600 perms). Plaintext file storage of bearer tokens is forbidden. | Post-merge mission review found that hostname-only SHA256 key derivation is too weak; scrypt + random salt + UID binding protects against shared-host attacks and credential file copying |
-| C-012 | Refresh token TTL MUST be sourced from a SaaS-provided field (`refresh_token_expires_in`). The CLI MUST NOT hardcode a refresh TTL in client code. Until SaaS adds the field (see `contracts/saas-amendment-refresh-ttl.md`), the CLI treats refresh expiry as server-managed: `refresh_token_expires_at = None`, and the CLI only learns about refresh expiry from a `400 invalid_grant` response on a refresh attempt. TTL-sensitive UX (`auth status` "expires in N days", proactive expiry warnings, forced re-login countdowns) is BLOCKED on the SaaS contract amendment. | Avoids client-side hardcoded session policy that drifts from server reality |
+| C-012 | Refresh token TTL MUST be sourced from SaaS-provided fields (`refresh_token_expires_in` and `refresh_token_expires_at`). The CLI MUST NOT hardcode a refresh TTL in client code. As of 2026-04-09, the SaaS `POST /oauth/token` response includes both fields for all grant types, and `GET /api/v1/me` includes `refresh_token_expires_at`. The CLI populates `StoredSession.refresh_token_expires_at` directly from the SaaS response on every token exchange and refresh. TTL-sensitive UX (`auth status` "expires in N days", proactive expiry warnings, forced re-login countdowns) is now unblocked. | Avoids client-side hardcoded session policy that drifts from server reality |
 
 ---
 
@@ -242,11 +242,11 @@ class OAuthTokenResponse:
     token_type: str            # "Bearer"
     expires_in: int            # Access token TTL in seconds (e.g., 3600 for 1 hour)
     refresh_token: str         # Opaque refresh token
-    refresh_token_expires_in: int | None  # Refresh token TTL in seconds.
-                                          # PENDING SaaS contract amendment — see
-                                          # contracts/saas-amendment-refresh-ttl.md.
-                                          # Until SaaS adds this field, the CLI
-                                          # treats refresh expiry as server-managed.
+    refresh_token_expires_in: int         # Refresh token TTL in seconds.
+                                          # Always present as of 2026-04-09 SaaS amendment
+                                          # (see saas-amendment-refresh-ttl.md — LANDED).
+    refresh_token_expires_at: datetime    # Absolute refresh expiry timestamp (ISO 8601).
+                                          # Source of truth for session duration UX.
     scope: str                 # Space-separated scopes granted (includes "offline_access")
     session_id: str            # Server-side session identifier (ULID)
 
@@ -259,6 +259,7 @@ class UserInfoResponse:
     session_id: str            # Stable across token refreshes
     authenticated_at: datetime
     access_token_expires_at: datetime
+    refresh_token_expires_at: datetime  # Added 2026-04-09 — session end timestamp
     auth_flow: str             # "authorization_code" | "device_code"
 
 class Team:
@@ -269,10 +270,10 @@ class Team:
 # Computed by CLI from token + user info responses
 class ComputedTokenExpiry:
     access_token_expires_at: datetime    # now + expires_in
-    refresh_token_expires_at: datetime | None
-                                         # now + refresh_token_expires_in IF
-                                         # SaaS provides it; otherwise None
-                                         # (server-managed, client cannot know).
+    refresh_token_expires_at: datetime   # SaaS provides this directly as of
+                                         # the 2026-04-09 amendment; the CLI
+                                         # uses the server-supplied value, not
+                                         # a client-computed `now + ...`.
 
 # Stored in keychain/file (multi-team model)
 class StoredSession:
@@ -294,8 +295,12 @@ class StoredSession:
     issued_at: datetime
     access_token_expires_at: datetime
     refresh_token_expires_at: datetime | None
-                               # None when SaaS does not provide
-                               # refresh_token_expires_in (current state).
+                               # Always populated by the landed 2026-04-09 SaaS
+                               # contract. Type remains `| None` as a defensive
+                               # fallback for replayed/legacy sessions written
+                               # before the amendment; new sessions always
+                               # store a concrete datetime from the server
+                               # response.
 
     scope: str
     storage_backend: str       # "keychain" | "credential_manager" | "secret_service" | "file"
@@ -306,14 +311,17 @@ class StoredSession:
 **Notes on refresh_token_expires_at**:
 
 The CLI does **not** hardcode a refresh token TTL. It reads
-`refresh_token_expires_in` from the SaaS token response when present, otherwise
-sets `refresh_token_expires_at = None` and treats refresh expiry as
-server-managed (i.e., the client never proactively decides the refresh token
-is expired; it only learns when SaaS rejects a refresh attempt with
-`invalid_grant`). See `contracts/saas-amendment-refresh-ttl.md` for the
-pending SaaS contract amendment that will populate this field. Status display,
-proactive expiry warnings, and forced re-login UX are blocked on that
-amendment landing on the SaaS side.
+`refresh_token_expires_at` directly from the SaaS token response (and from
+`GET /api/v1/me`) and stores the server-supplied datetime verbatim. As of the
+2026-04-09 SaaS amendment (see `contracts/saas-amendment-refresh-ttl.md` —
+LANDED), both `refresh_token_expires_in` (seconds) and
+`refresh_token_expires_at` (absolute timestamp) are returned on every
+`POST /oauth/token` response (authorization_code, device_code, and
+refresh_token grant types). `_build_session()` always populates
+`StoredSession.refresh_token_expires_at` from the server response without
+client-side clock math. Status display ("expires in N days"), proactive
+expiry warnings, and forced re-login countdowns are now unblocked and are
+implemented in WP07.
 
 ### 7.2 OAuth Flow State
 
@@ -546,9 +554,12 @@ Authorization: Bearer {access_token}
 **SaaS Endpoint:** `POST https://api.spec-kitty.com/api/v1/ws-token/`
 
 **Request:**
-```json
+```
+Authorization: Bearer {access_token}
+Content-Type: application/json
+
 {
-  "access_token": "eyJ0eXAi..."
+  "team_id": "tm_acme"
 }
 ```
 
@@ -556,14 +567,17 @@ Authorization: Bearer {access_token}
 ```json
 {
   "ws_token": "ws_eyJ0eXAi...",
+  "ws_url": "wss://api.spec-kitty.com/ws",
   "expires_in": 3600,
   "session_id": "sess_..."
 }
 ```
 
 **Notes:**
+- The access token is passed as a `Authorization: Bearer` header (NOT in the request body)
+- The `team_id` in the request body scopes the WS token to a specific team
 - Exchanges access token for WebSocket-specific token (short-lived, bound to session)
-- WebSocket server validates ws_token for authentication
+- WebSocket server validates `ws_token` (from `ws_url?token=<ws_token>`) for authentication
 - On token expiry, client must re-call this endpoint (using refresh flow first if needed)
 
 ### 8.6 Me Endpoint
@@ -586,7 +600,8 @@ Authorization: Bearer {access_token}
   ],
   "session_id": "sess_...",
   "authenticated_at": "2026-04-09T13:37:14Z",
-  "access_token_expires_at": "2026-04-09T14:37:14Z"
+  "access_token_expires_at": "2026-04-09T14:37:14Z",
+  "refresh_token_expires_at": "2026-07-08T13:37:14Z"
 }
 ```
 
@@ -654,7 +669,7 @@ or
 | `src/specify_cli/auth/__init__.py` | Does not exist | Create: exports `get_token_manager()` factory + error classes |
 | `src/specify_cli/auth/config.py` | Does not exist | Create: `get_saas_base_url()` env-driven helper |
 | `src/specify_cli/auth/token_manager.py` | Does not exist | Create: centralized TokenManager with single-flight refresh |
-| `src/specify_cli/auth/session.py` | Does not exist | Create: `StoredSession` and `Team` dataclasses (multi-team model, `email` field, optional `refresh_token_expires_at`) |
+| `src/specify_cli/auth/session.py` | Does not exist | Create: `StoredSession` and `Team` dataclasses (multi-team model, `email` field, `refresh_token_expires_at` always populated from SaaS response per landed 2026-04-09 amendment; type remains `datetime \| None` only as defensive fallback for replayed/legacy sessions) |
 | `src/specify_cli/auth/secure_storage/` | Does not exist | Create package: ABC + keychain backend (via `keyring`) + encrypted file fallback (AES-256-GCM + scrypt KDF) |
 | `src/specify_cli/auth/loopback/` | Does not exist | Create package: PKCE generation, callback HTTP server, callback handler, browser launcher |
 | `src/specify_cli/auth/device_flow/` | Does not exist | Create package: device flow state model, polling loop |

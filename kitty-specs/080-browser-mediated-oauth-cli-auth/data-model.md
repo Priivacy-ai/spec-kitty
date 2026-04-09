@@ -93,13 +93,16 @@ class StoredSession:
     issued_at: datetime            # When tokens were issued
     access_token_expires_at: datetime
     refresh_token_expires_at: Optional[datetime]
-                                   # None when SaaS does not provide
-                                   # refresh_token_expires_in. The CLI never
-                                   # hardcodes a TTL; if the field is None,
-                                   # the CLI treats refresh expiry as
-                                   # server-managed and only learns of it via
-                                   # `400 invalid_grant` on a refresh attempt.
-                                   # See contracts/saas-amendment-refresh-ttl.md.
+                                   # Always populated by the landed 2026-04-09
+                                   # SaaS contract amendment (see
+                                   # contracts/saas-amendment-refresh-ttl.md —
+                                   # LANDED). The type annotation remains
+                                   # Optional as a defensive fallback for
+                                   # replayed/legacy sessions written before
+                                   # the amendment landed; new sessions always
+                                   # carry a concrete datetime supplied
+                                   # verbatim by the server. The CLI never
+                                   # hardcodes or locally computes a TTL.
 
     # Session Metadata
     scope: str                     # Scopes granted

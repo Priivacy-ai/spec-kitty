@@ -174,8 +174,9 @@ in WP04 is correct from day one and needs no changes.
 
            Same SaaS contract as WP04's AuthorizationCodeFlow._build_session():
            uses `me["email"]` (NOT username), client-picks default_team_id
-           (NOT server-supplied), and reads optional refresh_token_expires_in
-           per C-012. See WP04 T025 docstring for full notes.
+           (NOT server-supplied), and reads `refresh_token_expires_at` directly
+           from the SaaS token response per C-012 (LANDED 2026-04-09). See
+           WP04 T025 docstring for full notes.
            """
            url = f"{self._saas_base_url}/api/v1/me"
            headers = {"Authorization": f"Bearer {tokens['access_token']}"}
@@ -201,13 +202,19 @@ in WP04 is correct from day one and needs no changes.
            now = datetime.now(timezone.utc)
            expires_in = int(tokens["expires_in"])
 
-           # Refresh expiry: ONLY set if SaaS provides it (per C-012)
-           refresh_expires_in = tokens.get("refresh_token_expires_in")
-           refresh_token_expires_at = (
-               now + timedelta(seconds=int(refresh_expires_in))
-               if refresh_expires_in is not None
-               else None
+           # Refresh expiry: always read directly from the SaaS response
+           # (landed 2026-04-09). Prefer the absolute timestamp, fall back
+           # to the seconds field if the server omits the absolute form.
+           refresh_expires_at_raw = tokens.get("refresh_token_expires_at") or me.get(
+               "refresh_token_expires_at"
            )
+           if refresh_expires_at_raw is not None:
+               refresh_token_expires_at = datetime.fromisoformat(
+                   refresh_expires_at_raw.replace("Z", "+00:00")
+               )
+           else:
+               refresh_expires_in = int(tokens["refresh_token_expires_in"])
+               refresh_token_expires_at = now + timedelta(seconds=refresh_expires_in)
 
            return StoredSession(
                user_id=me["user_id"],
@@ -220,7 +227,7 @@ in WP04 is correct from day one and needs no changes.
                session_id=tokens["session_id"],
                issued_at=now,
                access_token_expires_at=now + timedelta(seconds=expires_in),
-               refresh_token_expires_at=refresh_token_expires_at,  # may be None
+               refresh_token_expires_at=refresh_token_expires_at,  # always set
                scope=tokens.get("scope", "offline_access"),
                storage_backend="keychain",  # Will be set by TokenManager
                last_used_at=now,

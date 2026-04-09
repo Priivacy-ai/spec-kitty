@@ -71,7 +71,7 @@ or `subprocess.run(['spec-kitty', ...])` for end-to-end.
 - C-005 OAuth scope must include `offline_access`
 - C-006 Device polling uses `/oauth/device` POST + `/oauth/token` device_code grant
 - C-007 Logout calls `/api/v1/logout` (not `/oauth/revoke`)
-- C-008 Access TTL ~1h, refresh TTL ~90d (server-managed)
+- C-008 Access TTL ~1h; refresh TTL is SaaS-managed and surfaced via `refresh_token_expires_in` / `refresh_token_expires_at` on every `POST /oauth/token` response (landed 2026-04-09)
 - C-009 Server-managed sessions, no JWT self-contained state
 - C-010 72+ hour staging validation before GA cutover
 
@@ -269,34 +269,36 @@ grep -rn 'get_token_manager\b' src/specify_cli/ --include='*.py' \
 defect because it survives review. A built-in grep audit per WP makes the
 defect impossible to ship undetected.
 
-### D-9: Refresh token TTL is server-driven, never client-hardcoded (NEW)
+### D-9: Refresh token TTL is server-driven, never client-hardcoded
 
 **Decision**: The CLI MUST NOT hardcode any refresh-token TTL (90 days, 30
-days, or otherwise). The CLI reads `refresh_token_expires_in` from the SaaS
-token response when present and computes
-`refresh_token_expires_at = now + timedelta(seconds=refresh_token_expires_in)`.
-If the field is absent, `refresh_token_expires_at` is set to `None` and the
-CLI treats refresh expiry as server-managed: the client never proactively
-decides the refresh token is expired; it only learns about expiry from a
-`400 invalid_grant` response on a refresh attempt.
+days, or otherwise). The CLI reads `refresh_token_expires_at` directly from
+the SaaS token response on every token exchange and refresh, and stores the
+server-supplied datetime verbatim in `StoredSession.refresh_token_expires_at`.
+When the server omits the absolute form, the CLI falls back to
+`now + timedelta(seconds=refresh_token_expires_in)`. The CLI never performs
+local clock math beyond that fallback and never applies a default TTL if both
+fields are absent.
 
-**Rationale**: A pre-implementation review found that the SaaS side currently
-mixes 30-day, 90-day, and "renewable indefinitely" semantics across different
+**Rationale**: A pre-implementation review found that the SaaS side was
+mixing 30-day, 90-day, and "renewable indefinitely" semantics across different
 code paths. Hardcoding 90 days in the CLI would codify drift, not resolve it.
-Spec.md C-008 says "refresh TTL is ~90 days (SaaS token policy)" but that
-language is policy intent, not contract. Until the SaaS side ships the
-amendment described in `contracts/saas-amendment-refresh-ttl.md`, the CLI
-operates contract-agnostic with respect to refresh TTL.
+The SaaS team landed `contracts/saas-amendment-refresh-ttl.md` on 2026-04-09,
+adding `refresh_token_expires_in` and `refresh_token_expires_at` to the
+`POST /oauth/token` response for all grant types and
+`refresh_token_expires_at` to `GET /api/v1/me`. The CLI mission now reads
+these fields directly — no client-side TTL policy exists anywhere in the
+code.
 
-**Consequence**: TTL-sensitive UX is BLOCKED on the SaaS contract amendment:
-- `auth status` "expires in N days" for the refresh token shows
-  "server-managed (no client-known TTL)" instead of a duration
-- proactive expiry warnings are not issued
-- session-end countdowns are not displayed
+**Consequence**: TTL-sensitive UX is now fully unblocked:
+- `auth status` "expires in N days" for the refresh token displays the
+  real server-supplied value
+- proactive expiry warnings are issued based on the server timestamp
+- session-end countdowns are displayed with real duration
 
-These are not bugs — they are deliberate degraded behavior that improves
-automatically once SaaS ships `refresh_token_expires_in` in the token
-response. No CLI code changes required at that point; only verification.
+No CLI code hardcodes a refresh TTL anywhere. Reviewers must grep for
+numeric constants near refresh logic and reject any hit that looks like a
+TTL default.
 
 **Note**: Spec.md constraint C-012 documents this binding contractually.
 

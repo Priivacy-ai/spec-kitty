@@ -119,13 +119,14 @@ when `spec-kitty auth status` is invoked. This WP provides that module.
        now = datetime.now(timezone.utc)
        access_remaining = (session.access_token_expires_at - now).total_seconds()
        console.print(f"  Access token:   {format_duration(access_remaining)}")
-       # Refresh token: per C-012 the CLI does not hardcode a TTL.
-       # Display "server-managed" if SaaS hasn't shipped refresh_token_expires_in yet.
+       # Refresh token: per C-012 the CLI reads the expiry verbatim from the
+       # SaaS response (landed 2026-04-09). The None branch is retained only
+       # as a defensive fallback for replayed/legacy sessions stored before
+       # the amendment landed; new sessions always carry a concrete datetime.
        if session.refresh_token_expires_at is None:
            console.print(
-               "  Refresh token:  [dim]server-managed (no client-known TTL — "
-               "blocked on SaaS contract amendment, see "
-               "contracts/saas-amendment-refresh-ttl.md)[/dim]"
+               "  Refresh token:  [dim]server-managed (legacy session — "
+               "re-login to populate refresh expiry)[/dim]"
            )
        else:
            refresh_remaining = (session.refresh_token_expires_at - now).total_seconds()

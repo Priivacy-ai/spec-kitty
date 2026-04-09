@@ -130,6 +130,8 @@ refresh_token=rf_<refresh-token>
   "token_type": "Bearer",
   "refresh_token": "rf_5C4E9...",
   "expires_in": 3600,
+  "refresh_token_expires_in": 7776000,
+  "refresh_token_expires_at": "2026-07-08T13:37:14Z",
   "scope": "offline_access api.read api.write",
   "session_id": "sess_01HR6CYJK..."
 }
@@ -141,8 +143,10 @@ refresh_token=rf_<refresh-token>
 |-----------|------|-------------|
 | `access_token` | string | Bearer token for API calls (opaque or JWT) |
 | `token_type` | string | Always `Bearer` (RFC 6750) |
-| `refresh_token` | string | Long-lived token for renewal (≤90 days typical) |
+| `refresh_token` | string | Long-lived token for renewal; TTL surfaced via `refresh_token_expires_in` / `refresh_token_expires_at` (landed 2026-04-09) |
 | `expires_in` | integer | Access token lifetime in seconds (typically `3600` = 1 hour) |
+| `refresh_token_expires_in` | integer | Refresh token TTL in seconds, from the server clock at issue time. Landed 2026-04-09 per `saas-amendment-refresh-ttl.md`. |
+| `refresh_token_expires_at` | ISO 8601 string | Absolute refresh token expiry timestamp (UTC). Source of truth for session-end UX; CLI stores this verbatim without local clock math. Landed 2026-04-09. |
 | `scope` | string | Space-separated scopes granted; must include `offline_access` |
 | `session_id` | string | Server-side session identifier (ULID format, non-empty) |
 
@@ -151,6 +155,8 @@ refresh_token=rf_<refresh-token>
 - `token_type`: always `Bearer` (no alternatives)
 - `refresh_token`: opaque string; never empty
 - `expires_in`: positive integer; typically 3600 (1 hour) for access tokens
+- `refresh_token_expires_in`: positive integer; MUST be ≥ `expires_in` (refresh outlives access)
+- `refresh_token_expires_at`: ISO 8601 timestamp in UTC; MUST be a valid future datetime at issue time
 - `scope`: must include `offline_access` for refresh token to be valid
 - `session_id`: ULID format (non-empty), used for logout and session tracking
 
@@ -224,9 +230,9 @@ See `error-responses.md` for standardized error codes.
 ## Session Management
 
 **Session lifetime**:
-- Access token: ~1 hour (expires_in = 3600)
-- Refresh token: ~90 days (SaaS-managed TTL; see logout behavior)
-- CLI extends session indefinitely by calling refresh before expiry
+- Access token: ~1 hour (`expires_in = 3600`)
+- Refresh token: SaaS-managed TTL, surfaced via `refresh_token_expires_in` / `refresh_token_expires_at` on every token response (see logout behavior)
+- CLI extends session indefinitely by calling refresh before access-token expiry, and stores the server-supplied refresh expiry verbatim
 
 **Logout**:
 - CLI calls `POST /api/v1/logout` with `session_id` to invalidate session
@@ -245,7 +251,7 @@ See `error-responses.md` for standardized error codes.
 **Refresh token**:
 - Format: Opaque string (never a JWT)
 - Use: Sent to `/oauth/token` with `grant_type=refresh_token`
-- Lifetime: ~90 days (SaaS-managed; CLI tracks via `expires_in`)
+- Lifetime: SaaS-managed; CLI tracks via `refresh_token_expires_in` / `refresh_token_expires_at` (landed 2026-04-09)
 - Storage: Secure storage backend (Keychain, file, etc.)
 - Never: logged, cached in plaintext, or transmitted to API endpoints
 

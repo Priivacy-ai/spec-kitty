@@ -1,14 +1,35 @@
-# Pending SaaS Contract Amendment: Refresh Token Lifetime Metadata
+# SaaS Contract Amendment: Refresh Token Lifetime Metadata
 
-**Status**: PROPOSED — blocking TTL-sensitive UX in this mission
-**Target**: SaaS epic #49 (mission `032-browser-mediated-cli-auth-renewable-sessions`)
-**Affects**: `POST /oauth/token` response schema (all grant types)
+**Status**: **LANDED** on 2026-04-09 (parallel SaaS mission `032-browser-mediated-cli-auth-renewable-sessions`).
+**Target**: SaaS epic #49
+**Affects**: `POST /oauth/token` response schema (all grant types); `GET /api/v1/me` response
 **Author**: spec-kitty CLI mission 080, post-tasks review
-**Date**: 2026-04-09
+**Date proposed**: 2026-04-09
+**Date landed**: 2026-04-09
 
 ---
 
-## Problem
+## Landing Summary
+
+The SaaS team landed this amendment on 2026-04-09 (same day it was proposed). The
+authoritative schemas in `contracts/oauth-token-endpoint.md`, `spec.md` §7.1,
+§8.5, §8.6, and the WP04/WP05 `_build_session()` guidance have all been
+updated to reflect the landed fields:
+
+- `POST /oauth/token` returns `refresh_token_expires_in` (int seconds) and
+  `refresh_token_expires_at` (ISO 8601 UTC) for all three grant types
+  (authorization_code, refresh_token, device_code)
+- `GET /api/v1/me` returns `refresh_token_expires_at`
+- The CLI stores the server-supplied `refresh_token_expires_at` verbatim in
+  `StoredSession.refresh_token_expires_at` (no client-side clock math)
+
+**This document is retained as a historical record only.** The content below
+describes the original proposal; do not use it as a CLI implementation
+reference. The canonical contract is `contracts/oauth-token-endpoint.md`.
+
+---
+
+## Problem (historical)
 
 The CLI cannot reliably display refresh token expiry, warn the user before
 forced re-login, or compute a remaining-session countdown without an explicit

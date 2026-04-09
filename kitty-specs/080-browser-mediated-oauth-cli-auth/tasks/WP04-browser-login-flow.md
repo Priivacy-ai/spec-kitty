@@ -529,24 +529,26 @@ browser launch, code exchange, user info fetch, and session creation.
        def _update_session(self, session: StoredSession, tokens: dict) -> StoredSession:
            """Build an updated session from a refresh response.
 
-           Per C-012, refresh_token_expires_at is sourced from the SaaS-provided
-           `refresh_token_expires_in` field if present, else preserved from the
-           previous session value (which itself may be None). The CLI never
-           hardcodes a TTL.
+           Per C-012 (LANDED 2026-04-09), refresh_token_expires_at is read
+           directly from the SaaS token response on every refresh. The CLI
+           never hardcodes a TTL and never computes the timestamp locally.
            """
            now = datetime.now(timezone.utc)
            new_access = tokens["access_token"]
            new_refresh = tokens.get("refresh_token", session.refresh_token)  # May not rotate
            expires_in = int(tokens.get("expires_in", 3600))
 
-           # Refresh expiry: prefer the new field if SaaS provides it; else
-           # preserve the previous value (which may be None until SaaS adds
-           # the field — see contracts/saas-amendment-refresh-ttl.md)
-           refresh_expires_in = tokens.get("refresh_token_expires_in")
-           if refresh_expires_in is not None:
-               refresh_token_expires_at = now + timedelta(seconds=int(refresh_expires_in))
+           # Refresh expiry: read directly from the SaaS response (landed
+           # 2026-04-09). Prefer `refresh_token_expires_at` (absolute, no
+           # clock math), fall back to `refresh_token_expires_in` (seconds).
+           refresh_expires_at_raw = tokens.get("refresh_token_expires_at")
+           if refresh_expires_at_raw is not None:
+               refresh_token_expires_at = datetime.fromisoformat(
+                   refresh_expires_at_raw.replace("Z", "+00:00")
+               )
            else:
-               refresh_token_expires_at = session.refresh_token_expires_at  # may be None
+               refresh_expires_in = int(tokens["refresh_token_expires_in"])
+               refresh_token_expires_at = now + timedelta(seconds=refresh_expires_in)
 
            return StoredSession(
                user_id=session.user_id,
@@ -636,17 +638,17 @@ browser launch, code exchange, user info fetch, and session creation.
 
        SaaS contract (from protected-endpoints.md GET /api/v1/me):
            returns: user_id, email, name, teams[], session_id, authenticated_at,
-                    access_token_expires_at, auth_flow
+                    access_token_expires_at, refresh_token_expires_at, auth_flow
 
        NOTE: SaaS does NOT return `default_team_id` — the CLI picks the default
        on first login (teams[0].id) and persists it locally. A future mission
        can add `spec-kitty auth set-default-team` to let the user override.
 
-       NOTE: refresh_token_expires_at is OPTIONAL. Per C-012 in spec.md, the
-       CLI does not hardcode a TTL. We read `tokens.get("refresh_token_expires_in")`
-       and only set `refresh_token_expires_at` if SaaS provides it. Otherwise
-       we set None and the CLI treats refresh expiry as server-managed.
-       See contracts/saas-amendment-refresh-ttl.md.
+       NOTE: `refresh_token_expires_at` is REQUIRED as of the 2026-04-09 SaaS
+       amendment (LANDED — see contracts/saas-amendment-refresh-ttl.md). The
+       CLI reads it directly from the token response (preferred) or from
+       /api/v1/me, and stores the server-supplied datetime verbatim. Per
+       C-012, the CLI never hardcodes or locally computes a refresh TTL.
        """
        url = f"{self._saas_base_url}/api/v1/me"
        headers = {"Authorization": f"Bearer {tokens['access_token']}"}
@@ -675,13 +677,20 @@ browser launch, code exchange, user info fetch, and session creation.
        now = datetime.now(timezone.utc)
        expires_in = int(tokens["expires_in"])
 
-       # Refresh expiry: ONLY set if SaaS provides it (per C-012)
-       refresh_expires_in = tokens.get("refresh_token_expires_in")
-       refresh_token_expires_at = (
-           now + timedelta(seconds=int(refresh_expires_in))
-           if refresh_expires_in is not None
-           else None
+       # Refresh expiry: always read directly from the SaaS response
+       # (landed 2026-04-09). Prefer the absolute timestamp, fall back to
+       # the seconds field if the server omits the absolute form. Never
+       # store None — the contract now guarantees a concrete value.
+       refresh_expires_at_raw = tokens.get("refresh_token_expires_at") or me.get(
+           "refresh_token_expires_at"
        )
+       if refresh_expires_at_raw is not None:
+           refresh_token_expires_at = datetime.fromisoformat(
+               refresh_expires_at_raw.replace("Z", "+00:00")
+           )
+       else:
+           refresh_expires_in = int(tokens["refresh_token_expires_in"])
+           refresh_token_expires_at = now + timedelta(seconds=refresh_expires_in)
 
        return StoredSession(
            user_id=me["user_id"],
@@ -694,7 +703,7 @@ browser launch, code exchange, user info fetch, and session creation.
            session_id=tokens["session_id"],
            issued_at=now,
            access_token_expires_at=now + timedelta(seconds=expires_in),
-           refresh_token_expires_at=refresh_token_expires_at,  # may be None
+           refresh_token_expires_at=refresh_token_expires_at,  # always set
            scope=tokens.get("scope", "offline_access"),
            storage_backend="keychain",  # Will be overwritten by storage backend
            last_used_at=now,
