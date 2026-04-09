@@ -81,10 +81,10 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T013 | Create `auth/loopback/callback_handler.py` (CSRF state validation) | WP02 | | [D] |
 | T014 | Create `auth/loopback/browser_launcher.py` (cross-platform) | WP02 | [D] |
 | T015 | Write unit tests for WP02 components | WP02 | | [D] |
-| T016 | Create `auth/device_flow/state.py` (DeviceFlowState dataclass) | WP03 | [P] |
-| T017 | Create `auth/device_flow/poller.py` (interval-respecting loop) | WP03 | |
-| T018 | Add user_code formatting + progress display helpers | WP03 | |
-| T019 | Write unit tests for WP03 components | WP03 | |
+| T016 | Create `auth/device_flow/state.py` (DeviceFlowState dataclass) | WP03 | [D] |
+| T017 | Create `auth/device_flow/poller.py` (interval-respecting loop) | WP03 | | [D] |
+| T018 | Add user_code formatting + progress display helpers | WP03 | | [D] |
+| T019 | Write unit tests for WP03 components | WP03 | | [D] |
 | T020 | REWRITE `cli/commands/auth.py` as deferred-import dispatch shell | WP04 | |
 | T021 | Create `cli/commands/_auth_login.py` with login_impl + --headless branch | WP04 | |
 | T022 | Create `auth/flows/authorization_code.py` (AuthorizationCodeFlow) | WP04 | |
@@ -206,10 +206,10 @@ flow. Respects SaaS-provided interval, caps at 10s, detects terminal states.
 **Estimated prompt size**: ~280 lines | **Subtasks**: 4
 
 **Included subtasks**:
-- [ ] T016 Create `auth/device_flow/state.py` (DeviceFlowState dataclass) (WP03)
-- [ ] T017 Create `auth/device_flow/poller.py` (interval-respecting loop) (WP03)
-- [ ] T018 Add user_code formatting + progress display helpers (WP03)
-- [ ] T019 Write unit tests for WP03 components (WP03)
+- [x] T016 Create `auth/device_flow/state.py` (DeviceFlowState dataclass) (WP03)
+- [x] T017 Create `auth/device_flow/poller.py` (interval-respecting loop) (WP03)
+- [x] T018 Add user_code formatting + progress display helpers (WP03)
+- [x] T019 Write unit tests for WP03 components (WP03)
 
 **Dependencies**: WP01 (uses errors module)
 
