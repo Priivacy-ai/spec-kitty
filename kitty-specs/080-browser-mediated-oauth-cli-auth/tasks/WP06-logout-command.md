@@ -384,3 +384,4 @@ about edge case coverage and fault tolerance.
 ## Activity Log
 
 - 2026-04-09T19:38:38Z – claude:opus-4-6:python-implementer:implementer – shell_pid=76066 – Started implementation via action command
+- 2026-04-09T19:47:34Z – claude:opus-4-6:python-implementer:implementer – shell_pid=76066 – Logout command landed: POST /api/v1/logout with bearer, unconditional local cleanup on any server outcome (FR-014), --force skips server call. 9 CliRunner tests passing.
