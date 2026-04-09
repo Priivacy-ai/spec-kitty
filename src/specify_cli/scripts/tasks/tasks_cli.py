@@ -258,7 +258,8 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    if wp.current_lane == validated_lane:
+    from specify_cli.status.models import Lane as _LaneCheck  # noqa: PLC0415
+    if _LaneCheck(wp.current_lane) == _LaneCheck(validated_lane):
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
     timestamp = args.timestamp or now_utc()
@@ -450,10 +451,8 @@ def rollback_command(args: argparse.Namespace) -> None:
         previous_lane_canonical = str(wp_events[0].from_lane)
     else:
         previous_lane_canonical = str(wp_events[-2].to_lane)
-    from specify_cli.status.models import Lane as _Lane  # noqa: PLC0415
-
-    reverse_aliases: Dict[str, str] = {_Lane.IN_PROGRESS: "doing"}
-    previous_lane = ensure_lane(reverse_aliases.get(previous_lane_canonical, previous_lane_canonical))
+    # Use the canonical lane value directly — alias resolution stays inside the status boundary.
+    previous_lane = ensure_lane(previous_lane_canonical)
     current_event = wp_events[-1]
     note = args.note or f"Rolled back to {previous_lane}"
     args_for_update = argparse.Namespace(

@@ -483,8 +483,7 @@ def implement(
         if not _wf_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
-        current_agent = extract_scalar(wp.frontmatter, "agent")
-        needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
+        needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
 
         if current_lane != Lane.IN_PROGRESS or needs_agent_assignment:
             # Require --agent parameter to track who is working
