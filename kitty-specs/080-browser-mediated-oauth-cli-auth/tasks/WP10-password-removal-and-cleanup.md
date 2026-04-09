@@ -27,6 +27,8 @@ owned_files:
 - tests/sync/test_auth_concurrent_refresh.py
 status: pending
 tags: []
+agent: "claude:opus-4-6:python-implementer:implementer"
+shell_pid: "23068"
 ---
 
 # WP10: Password Removal & Legacy Cleanup
@@ -292,3 +294,7 @@ the dispatch shell from WP04 not registering all three commands.
 - **Risk**: A scratch script or example in `docs/` references the legacy classes. **Mitigation**: search docs/ separately and update if needed (not blocking — docs update is a follow-up).
 - **Risk**: Some external tooling depends on the existence of `~/.spec-kitty/credentials` file format. **Mitigation**: out of scope; the new file fallback uses a different path (`~/.config/spec-kitty/credentials.json`).
 - **Edge case**: The user has stale `~/.spec-kitty/credentials` from the old format. **Mitigation**: Document in the user-facing migration notes (handled by mission release notes, not this WP).
+
+## Activity Log
+
+- 2026-04-09T20:59:09Z – claude:opus-4-6:python-implementer:implementer – shell_pid=23068 – Started implementation via action command
