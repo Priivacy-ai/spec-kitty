@@ -360,3 +360,7 @@ def test_dogfood_command_set():
 3. Deliberately change `.kittify/metadata.yaml` to `3.1.0` and confirm `validate_release.py` exits non-zero with the mismatch message.
 4. Confirm T032 gate results are documented in the merge commit.
 5. After WP07 merges, brief the human release engineer: add `## [3.1.1]` to CHANGELOG, bump both version files to `3.1.1`, tag. Do NOT tag without that final human action.
+
+## Activity Log
+
+- 2026-04-09T09:22:28Z – unknown – shell_pid=5789 – Dispatching final gate implementation
