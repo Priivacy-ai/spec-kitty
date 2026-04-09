@@ -16,6 +16,8 @@ import pytest
 from specify_cli.status.models import AgentAssignment
 from specify_cli.status.wp_metadata import WPMetadata
 
+pytestmark = pytest.mark.fast
+
 
 # ── AgentAssignment dataclass tests ───────────────────────────────────────────
 

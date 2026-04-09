@@ -27,6 +27,8 @@ from specify_cli.status.wp_state import (
     wp_state_for,
 )
 
+pytestmark = pytest.mark.fast
+
 ALL_LANES = list(Lane)
 
 

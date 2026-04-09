@@ -19,6 +19,8 @@ from specify_cli.agent_utils.status import _analyze_parallelization, show_kanban
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_state import wp_state_for
 
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # T008: progress_bucket() regression — all 9 lanes map to expected buckets

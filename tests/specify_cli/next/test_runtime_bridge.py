@@ -16,6 +16,8 @@ import pytest
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_state import wp_state_for
 
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # Unit tests for WPState.is_run_affecting (verifies property semantics)

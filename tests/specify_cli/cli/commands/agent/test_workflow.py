@@ -13,6 +13,10 @@ import inspect
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # Tests for WPMetadata.resolved_agent() (verifies legacy coercion)
