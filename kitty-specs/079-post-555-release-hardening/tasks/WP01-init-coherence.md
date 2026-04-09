@@ -300,3 +300,4 @@ Verify:
 ## Activity Log
 
 - 2026-04-09T07:50:34Z – unknown – shell_pid=59532 – Dispatching claude implementation agent
+- 2026-04-09T08:02:19Z – unknown – shell_pid=59532 – Ready for review: removed git side-effects from init (T001), removed .agents/skills/ seeding (T002), updated next-steps to name spec-kitty next (T003), added idempotency check (T004), updated help text (T005), added 6 regression test files covering T1.1-T1.7 (T006). All 42 init tests pass.
