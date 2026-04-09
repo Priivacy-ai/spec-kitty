@@ -358,3 +358,4 @@ def test_implement_help_marks_command_as_internal(runner):
 - 2026-04-09T08:23:01Z – unknown – shell_pid=65349 – Lane-planning canonical model implemented, all consumers use uniform lane lookup, implement.py docstring updated
 - 2026-04-09T08:23:45Z – claude:opus:reviewer:reviewer – shell_pid=67506 – Started review via action command
 - 2026-04-09T08:34:49Z – claude:opus:reviewer:reviewer – shell_pid=67506 – Moved to planned
+- 2026-04-09T08:35:23Z – claude:opus:reviewer:reviewer – shell_pid=85994 – Fixing 9 stale tests (cycle 2)
