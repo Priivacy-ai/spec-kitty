@@ -445,3 +445,4 @@ simple stderr progress writer.
 ## Activity Log
 
 - 2026-04-09T17:29:38Z – opus:opus:implementer:implementer – shell_pid=59484 – Started implementation via action command
+- 2026-04-09T17:41:33Z – opus:opus:implementer:implementer – shell_pid=59484 – Device flow poller complete, interval capped at 10s, all terminal states handled
