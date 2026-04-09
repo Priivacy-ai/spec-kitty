@@ -20,7 +20,7 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|---------:|
-| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] | [D] |
+| T001 | Remove `git init`/commit call path from `init.py`; remove `--no-git` flag | WP01 | [P] | [D] | [D] |
 | T002 | Remove `.agents/skills/` seeding from `init.py` | WP01 | [D] |
 | T003 | Rewrite `init` next-steps output (name `spec-kitty next` + agent action verbs) | WP01 | [D] |
 | T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [D] |
