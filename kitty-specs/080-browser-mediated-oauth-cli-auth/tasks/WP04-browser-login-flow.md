@@ -32,8 +32,8 @@ owned_files:
 - tests/auth/test_refresh_flow.py
 status: pending
 tags: []
-agent: "claude:opus-4-6:python-implementer:implementer"
-shell_pid: "40434"
+agent: "claude:opus-4-6:python-reviewer:reviewer"
+shell_pid: "51387"
 ---
 
 # WP04: Browser Login Flow (`auth login`)
@@ -850,3 +850,4 @@ browser launch, code exchange, user info fetch, and session creation.
 - 2026-04-09T18:15:32Z – opus:opus:implementer:implementer – shell_pid=22177 – Moved to planned
 - 2026-04-09T18:24:55Z – claude:opus-4-6:python-implementer:implementer – shell_pid=40434 – Started implementation via action command
 - 2026-04-09T18:49:36Z – claude:opus-4-6:python-implementer:implementer – shell_pid=40434 – Browser login flow ready: AuthorizationCodeFlow + _build_session with landed SaaS refresh TTL contract
+- 2026-04-09T18:50:22Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=51387 – Started review via action command
