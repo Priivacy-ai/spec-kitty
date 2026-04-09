@@ -2,9 +2,7 @@
   "event_count": 14,
   "last_event_id": "01KM5N2TAMK1JD5JTCRMM9BNDM",
   "materialized_at": "2026-03-20T12:56:18.004216+00:00",
-  "mission_number": "053",
   "mission_slug": "053-orchestrator-api-json-contract-fidelity",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

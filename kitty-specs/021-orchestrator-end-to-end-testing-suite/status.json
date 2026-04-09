@@ -2,9 +2,7 @@
   "event_count": 12,
   "last_event_id": "01KJ5V38SV8GER68XRHGRPGRWT",
   "materialized_at": "2026-01-19T09:30:27Z",
-  "mission_number": "021",
   "mission_slug": "021-orchestrator-end-to-end-testing-suite",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -2,9 +2,7 @@
   "event_count": 40,
   "last_event_id": "01KN05SACBF5Y51B8G9K56G6DC",
   "materialized_at": "2026-03-30T20:08:27.787602+00:00",
-  "mission_number": "059",
   "mission_slug": "059-saas-mediated-cli-tracker-reflow",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 5,
     "blocked": 0,

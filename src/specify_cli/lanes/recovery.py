@@ -113,7 +113,7 @@ class RecoveryReport:
     # consult_status_events=True).
     ready_to_start_from_target: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         return {
             "recovered_wps": self.recovered_wps,
             "worktrees_recreated": self.worktrees_recreated,
@@ -187,10 +187,10 @@ def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return Lane(state.get("lane", Lane.PLANNED))
+                return Lane(state.get("lane", Lane.PLANNED)).value
     except Exception:
         logger.debug("Could not read status events for %s in %s", wp_id, feature_dir)
-    return Lane.PLANNED
+    return Lane.PLANNED.value
 
 
 def _find_wp_ids_for_lane(
@@ -381,7 +381,7 @@ def scan_recovery_state(  # noqa: C901
             elif worktree_exists and not context_exists:
                 # Worktree exists but context is gone
                 recovery_action = "recreate_context"
-            elif has_commits and bool(_get_recovery_transitions(status_lane)):
+            elif has_commits and bool(_get_recovery_transitions(Lane(status_lane))):
                 # Everything exists but status is behind
                 recovery_action = "emit_transitions"
             else:

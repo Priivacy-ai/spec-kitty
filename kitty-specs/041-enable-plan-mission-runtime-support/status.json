@@ -2,9 +2,7 @@
   "event_count": 5,
   "last_event_id": "01KJ5V38XG9B006TT6BXWJ2QFQ",
   "materialized_at": "2026-02-23T18:10:00.752618+00:00",
-  "mission_number": "041",
   "mission_slug": "041-enable-plan-mission-runtime-support",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

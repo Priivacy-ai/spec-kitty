@@ -2,9 +2,7 @@
   "event_count": 8,
   "last_event_id": "01KN2376K7E90C87ME73488ZKW",
   "materialized_at": "2026-03-31T14:02:05.777295+00:00",
-  "mission_number": "055",
   "mission_slug": "055-agent-skills-pack",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

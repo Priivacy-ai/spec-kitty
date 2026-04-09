@@ -2,9 +2,7 @@
   "event_count": 30,
   "last_event_id": "01KM18DAKY30GZ72ANHCKRG8A2",
   "materialized_at": "2026-03-18T19:57:53.150058+00:00",
-  "mission_number": "050",
   "mission_slug": "050-state-model-cleanup-foundations",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 1,
     "blocked": 0,

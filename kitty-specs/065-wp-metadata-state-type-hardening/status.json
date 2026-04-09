@@ -2,9 +2,7 @@
   "event_count": 97,
   "last_event_id": "01KNK3P25ASJ0PVDJA7GDXB5N6",
   "materialized_at": "2026-04-07T04:37:18.122746+00:00",
-  "mission_number": "065",
   "mission_slug": "065-wp-metadata-state-type-hardening",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

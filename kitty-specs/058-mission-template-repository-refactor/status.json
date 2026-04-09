@@ -2,9 +2,7 @@
   "event_count": 68,
   "last_event_id": "01KMYSFNZPDDWQGZ5PTMQZ6A7V",
   "materialized_at": "2026-03-30T07:14:14.646757+00:00",
-  "mission_number": "058",
   "mission_slug": "058-mission-template-repository-refactor",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

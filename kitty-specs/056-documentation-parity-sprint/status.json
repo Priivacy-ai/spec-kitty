@@ -2,9 +2,7 @@
   "event_count": 31,
   "last_event_id": "01KMB1X3KEMG5XT4H9JNWNWP7J",
   "materialized_at": "2026-03-22T15:16:34.542925+00:00",
-  "mission_number": "056",
   "mission_slug": "056-documentation-parity-sprint",
-  "mission_type": "documentation",
   "summary": {
     "approved": 10,
     "blocked": 0,

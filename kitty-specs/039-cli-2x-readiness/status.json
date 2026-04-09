@@ -2,9 +2,7 @@
   "event_count": 9,
   "last_event_id": "01KJ5V38X7CH1VS5CQAYH80BBG",
   "materialized_at": "2026-02-12T12:00:00Z",
-  "mission_number": "039",
   "mission_slug": "039-cli-2x-readiness",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

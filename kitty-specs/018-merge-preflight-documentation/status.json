@@ -2,9 +2,7 @@
   "event_count": 4,
   "last_event_id": "01KJ5V38REFKFHGXCSJCZJN0HV",
   "materialized_at": "2026-01-18T13:21:55Z",
-  "mission_number": "018",
   "mission_slug": "018-merge-preflight-documentation",
-  "mission_type": "documentation",
   "summary": {
     "approved": 0,
     "blocked": 0,

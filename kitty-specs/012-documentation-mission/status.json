@@ -2,9 +2,7 @@
   "event_count": 10,
   "last_event_id": "01KJ5V38PJQ530SBM3GDT862YJ",
   "materialized_at": "2026-01-12T17:18:56Z",
-  "mission_number": "012",
   "mission_slug": "012-documentation-mission",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

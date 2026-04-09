@@ -2,9 +2,7 @@
   "event_count": 27,
   "last_event_id": "01KJ64AVEQA98AVGX3781C7FH7",
   "materialized_at": "2026-02-23T20:51:26.295461+00:00",
-  "mission_number": "045",
   "mission_slug": "045-agent-profile-system",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

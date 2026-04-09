@@ -2,9 +2,7 @@
   "event_count": 36,
   "last_event_id": "01KN54AYN7CWJ16WZ8782V0CVF",
   "materialized_at": "2026-04-01T18:19:20.615815+00:00",
-  "mission_number": "061",
   "mission_slug": "061-ticket-first-mission-origin-binding",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

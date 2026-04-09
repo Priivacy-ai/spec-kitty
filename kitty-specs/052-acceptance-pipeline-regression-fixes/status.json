@@ -2,9 +2,7 @@
   "event_count": 22,
   "last_event_id": "01KM3JH4QDXEV117GSHBDGKDZW",
   "materialized_at": "2026-03-19T17:33:12.813573+00:00",
-  "mission_number": "052",
   "mission_slug": "052-acceptance-pipeline-regression-fixes",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

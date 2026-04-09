@@ -2,9 +2,7 @@
   "event_count": 6,
   "last_event_id": "01KJ5V38NVNSWGEKWK6RR64D4C",
   "materialized_at": "2026-01-12T12:30:00Z",
-  "mission_number": "011",
   "mission_slug": "011-constitution-packaging-safety-and-redesign",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

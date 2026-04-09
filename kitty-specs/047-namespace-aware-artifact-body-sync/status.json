@@ -2,9 +2,7 @@
   "event_count": 35,
   "last_event_id": "01KK91WAH9GSGFNC7PNF0YHAZF",
   "materialized_at": "2026-03-09T10:21:58.185121+00:00",
-  "mission_number": "047",
   "mission_slug": "047-namespace-aware-artifact-body-sync",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

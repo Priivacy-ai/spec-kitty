@@ -2,9 +2,7 @@
   "event_count": 34,
   "last_event_id": "01KJ64AKHA7JYMT8TZKPSR84WZ",
   "materialized_at": "2026-02-23T20:51:18.186697+00:00",
-  "mission_number": "045",
   "mission_slug": "045-mission-handoff-package-version-matrix",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

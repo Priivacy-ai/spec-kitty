@@ -2,9 +2,7 @@
   "event_count": 10,
   "last_event_id": "01KJ5V38YMPN8MTAZD2M3KY4G9",
   "materialized_at": "2026-02-23T18:10:00.788208+00:00",
-  "mission_number": "042",
   "mission_slug": "042-local-mission-dossier-authority-parity-export",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

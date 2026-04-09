@@ -2,9 +2,7 @@
   "event_count": 45,
   "last_event_id": "01KNHXF1QRPED7G484JT2FFCEV",
   "materialized_at": "2026-04-06T17:29:22.424407+00:00",
-  "mission_number": "065",
   "mission_slug": "065-tasks-and-lane-stabilization",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

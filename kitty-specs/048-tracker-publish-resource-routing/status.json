@@ -2,9 +2,7 @@
   "event_count": 10,
   "last_event_id": "01KKBM6T00ZDS3J0PXWQZ9TD8D",
   "materialized_at": "2026-03-10T10:20:44.928639+00:00",
-  "mission_number": "048",
   "mission_slug": "048-tracker-publish-resource-routing",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

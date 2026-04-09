@@ -2,9 +2,7 @@
   "event_count": 10,
   "last_event_id": "01KJ5V38N0KZKMA3XDHDR47Y69",
   "materialized_at": "2025-12-18T23:15:00Z",
-  "mission_number": "008",
   "mission_slug": "008-unified-python-cli",
-  "mission_type": "research",
   "summary": {
     "approved": 0,
     "blocked": 0,

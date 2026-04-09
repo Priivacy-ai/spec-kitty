@@ -2,9 +2,7 @@
   "event_count": 6,
   "last_event_id": "01KJ5V38M4FTEBTRGFTHR2HK4X",
   "materialized_at": "2025-12-15T11:55:00Z",
-  "mission_number": "006",
   "mission_slug": "006-per-feature-mission",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

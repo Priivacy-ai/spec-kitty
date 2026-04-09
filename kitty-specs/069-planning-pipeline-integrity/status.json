@@ -2,9 +2,7 @@
   "event_count": 31,
   "last_event_id": "01KNKXQAWWRRBV9ATGTQ3KVXZW",
   "materialized_at": "2026-04-07T12:12:22.812037+00:00",
-  "mission_number": "069",
   "mission_slug": "069-planning-pipeline-integrity",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

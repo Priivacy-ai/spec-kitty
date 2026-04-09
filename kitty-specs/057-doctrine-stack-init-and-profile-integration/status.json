@@ -2,9 +2,7 @@
   "event_count": 18,
   "last_event_id": "01KMHKSG9GMTDX2NZWPWH0QWJ4",
   "materialized_at": "2026-03-25T04:24:37.424750+00:00",
-  "mission_number": "057",
   "mission_slug": "057-doctrine-stack-init-and-profile-integration",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,
