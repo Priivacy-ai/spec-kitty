@@ -1921,6 +1921,12 @@ def finalize_tasks(
                 existing_frontmatter[_wp_id] = WPMetadata(work_package_id=_wp_id, title=_wp_id)
 
         # --- Dependency conflict detection (T004: disagree-loud) ---
+        # Precedence guarantee for FR-302/FR-303: when frontmatter already
+        # declares explicit dependencies AND the parser also finds deps but
+        # they disagree, we surface the conflict loudly instead of silently
+        # overwriting frontmatter.  This is intentional — the operator must
+        # resolve the disagreement before finalizing.  The preserve-existing
+        # path below (when parser finds nothing) is also part of this guarantee.
         dep_conflict_errors: list[str] = []
         for wp_id_chk, parsed_deps in dependencies_map.items():
             existing_meta = existing_frontmatter.get(wp_id_chk, WPMetadata(work_package_id=wp_id_chk, title=wp_id_chk))
