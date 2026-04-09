@@ -350,3 +350,7 @@ def test_implement_help_marks_command_as_internal(runner):
 3. Confirm: `LanesManifest.planning_artifact_wps` is preserved (backward compat) but is a derived view.
 4. Run the 6 new tests + `mypy --strict` on all 7 modified files.
 5. Do a manual `spec-kitty implement` test against a planning-artifact WP in a test mission — confirm workspace is main repo, no `.worktrees/` created.
+
+## Activity Log
+
+- 2026-04-09T08:14:14Z – unknown – shell_pid=65349 – Dispatching implementation
