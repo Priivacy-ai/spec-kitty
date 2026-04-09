@@ -7,6 +7,7 @@ WP state. No frontmatter reads or writes occur in this module.
 """
 
 from .models import (
+    AgentAssignment,
     DoneEvidence,
     Lane,
     RepoEvidence,
@@ -85,6 +86,7 @@ from .validate import (
 )
 
 __all__ = [
+    "AgentAssignment",
     "ALLOWED_TRANSITIONS",
     "CanonicalStatusNotFoundError",
     "DEFAULT_LANE_WEIGHTS",

@@ -1,0 +1,70 @@
+{
+  "event_count": 60,
+  "last_event_id": "01KNSMWGAZK2H038THDZAEVC04",
+  "materialized_at": "2026-04-09T17:33:21.631156+00:00",
+  "mission_number": "080",
+  "mission_slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 7,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KNSJCEDH600YM0F29A8H00R3",
+      "last_transition_at": "2026-04-09T16:49:38.225045+00:00"
+    },
+    "WP02": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KNSK8KVMXZR8ZTKG5HSSZ5F4",
+      "last_transition_at": "2026-04-09T17:05:01.300533+00:00"
+    },
+    "WP03": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNSJQEMGEYA2QRNRMVPK2CYC",
+      "last_transition_at": "2026-04-09T16:55:38.896130+00:00"
+    },
+    "WP04": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KNSMDDWYE7RTR27XER31RJWW",
+      "last_transition_at": "2026-04-09T17:25:07.614421+00:00"
+    },
+    "WP05": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNSKZH8NV5484JPYH36EEA6G",
+      "last_transition_at": "2026-04-09T17:17:32.309545+00:00"
+    },
+    "WP06": {
+      "actor": "user",
+      "force_count": 2,
+      "lane": "approved",
+      "last_event_id": "01KNSMWGAZK2H038THDZAEVC04",
+      "last_transition_at": "2026-04-09T17:33:21.631156+00:00"
+    },
+    "WP07": {
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNSJS8K6MW9HKN2DP4YCBX4W",
+      "last_transition_at": "2026-04-09T16:56:38.246947+00:00"
+    }
+  }
+}

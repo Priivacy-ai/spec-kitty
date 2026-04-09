@@ -2,7 +2,9 @@
   "event_count": 8,
   "last_event_id": "01KJ5V38TS13JV2JTWG5N2QCDV",
   "materialized_at": "2026-01-27T00:00:00Z",
+  "mission_number": "025",
   "mission_slug": "025-cli-event-log-integration",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

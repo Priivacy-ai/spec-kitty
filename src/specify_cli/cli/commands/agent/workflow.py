@@ -26,7 +26,6 @@ from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane
 from specify_cli.status.wp_metadata import read_wp_frontmatter
-from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 from specify_cli.core.utils import write_text_within_directory
@@ -467,7 +466,11 @@ def implement(
         subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
         subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
-        # Move to "doing" lane if not already there, and ensure agent is recorded
+        # Resolve structured agent assignment from WP metadata (centralizes legacy coercion)
+        _wp_agent_assignment = wp_meta.resolved_agent()
+        logger.debug("WP agent assignment: tool=%s model=%s", _wp_agent_assignment.tool, _wp_agent_assignment.model)
+
+        # Move to in_progress lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         _wf_feature_dir = repo_root / "kitty-specs" / mission_slug
         from specify_cli.status.lane_reader import get_wp_lane as _wf_get_wp_lane
@@ -480,17 +483,14 @@ def implement(
         if not _wf_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
-        # Normalize alias: event log uses "in_progress", frontmatter may have "doing"
-        if current_lane == Lane.IN_PROGRESS:
-            current_lane = "doing"
         current_agent = extract_scalar(wp.frontmatter, "agent")
         needs_agent_assignment = current_agent is None or str(current_agent).strip() == ""
 
-        if current_lane != "doing" or needs_agent_assignment:
+        if current_lane != Lane.IN_PROGRESS or needs_agent_assignment:
             # Require --agent parameter to track who is working
             if not agent:
-                if current_lane == "doing" and not needs_agent_assignment:
-                    # Already in doing with an agent; allow prompt display
+                if current_lane == Lane.IN_PROGRESS and not needs_agent_assignment:
+                    # Already in_progress with an agent; allow prompt display
                     pass
                 else:
                     print("Error: --agent parameter required when starting implementation.")
@@ -568,7 +568,7 @@ def implement(
 
             # Build history entry (no lane= segment; event log is sole lane authority)
             timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-            if current_lane != "doing":
+            if current_lane != Lane.IN_PROGRESS:
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Started implementation via action command"
             else:
                 history_entry = f"- {timestamp} – {agent} – shell_pid={shell_pid} – Assigned agent via action command"
@@ -613,7 +613,7 @@ def implement(
             # Reload to get updated content
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to doing.")
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
 
         # Check review feedback from canonical event log (review_ref stored in events)
         # Also check frontmatter review_feedback/review_status as fallback
@@ -1197,8 +1197,8 @@ def review(
                 raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
             raise
 
-        # Move to "doing" lane if not already there.
-        # Explicit WP review requests must target for_review (or already-claimed doing).
+        # Move to in_progress lane if not already there.
+        # Explicit WP review requests must target for_review (or already review-claimed in_progress).
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
         from specify_cli.status.lane_reader import get_wp_lane as _rv_get_wp_lane
@@ -1210,8 +1210,7 @@ def review(
         _rv_has_canonical = _rv_snapshot is not None and normalized_wp_id in _rv_snapshot.work_packages
         if not _rv_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
-        current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
-        current_lane = "doing" if current_lane_raw == Lane.IN_PROGRESS else current_lane_raw
+        current_lane = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
         latest_event = None
@@ -1220,18 +1219,18 @@ def review(
                 latest_event = _event
                 break
         is_review_claimed = bool(latest_event is not None and latest_event.to_lane == Lane.IN_PROGRESS and latest_event.review_ref == "action-review-claim")
-        if current_lane == "doing" and not is_review_claimed:
+        if current_lane == Lane.IN_PROGRESS and not is_review_claimed:
             print(f"Error: {normalized_wp_id} is still being implemented, not claimed for review.")
-            print("Only work packages in 'for_review' (or already review-claimed doing) can start workflow review.")
+            print("Only work packages in 'for_review' (or already review-claimed in_progress) can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
-        if current_lane not in {Lane.FOR_REVIEW, "doing"}:
-            print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
+        if current_lane not in {Lane.FOR_REVIEW, Lane.IN_PROGRESS}:
+            print(f"Error: {normalized_wp_id} is in lane '{current_lane}', not 'for_review'.")
             print("Only work packages in 'for_review' can start workflow review.")
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
 
-        if current_lane != "doing":
+        if current_lane != Lane.IN_PROGRESS:
             # Require --agent parameter to track who is reviewing
             if not agent:
                 print("Error: --agent parameter required when starting review.")
@@ -1299,7 +1298,7 @@ def review(
             # Reload to get updated content
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         else:
-            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to doing.")
+            print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Workflow review will not move it to in_progress.")
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
@@ -1371,7 +1370,7 @@ def review(
             incomplete: list[str] = []
             for dependent_id in dependents:
                 lane = _rw_lanes.get(dependent_id, Lane.PLANNED)
-                if lane in {Lane.PLANNED, "doing", Lane.FOR_REVIEW}:
+                if lane in {Lane.PLANNED, Lane.IN_PROGRESS, Lane.FOR_REVIEW}:
                     incomplete.append(dependent_id)
             if incomplete:
                 dependents_list = ", ".join(sorted(incomplete))

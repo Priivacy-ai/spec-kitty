@@ -264,6 +264,31 @@ class TestStateProperties:
         state = wp_state_for(lane_str)
         assert state.display_category() == expected_category
 
+    @pytest.mark.parametrize(
+        "lane_str,expected",
+        [
+            ("planned", True),
+            ("claimed", True),
+            ("in_progress", True),
+            ("for_review", True),
+            ("in_review", True),
+            ("approved", True),
+            ("done", False),
+            ("blocked", False),
+            ("canceled", False),
+        ],
+    )
+    def test_is_run_affecting(self, lane_str: str, expected: bool):
+        """is_run_affecting returns True for active lanes, False for terminal/blocked."""
+        state = wp_state_for(lane_str)
+        assert state.is_run_affecting == expected
+
+    def test_is_run_affecting_returns_bool(self):
+        """is_run_affecting always returns a plain bool, not a truthy/falsy object."""
+        for lane in ALL_LANES:
+            state = wp_state_for(lane)
+            assert isinstance(state.is_run_affecting, bool)
+
     def test_unknown_lane_raises(self):
         """wp_state_for raises ValueError for unknown lane."""
         with pytest.raises(ValueError, match="Unknown lane"):

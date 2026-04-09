@@ -108,8 +108,11 @@ def _mark_wp_merged_done(
     from specify_cli.status.history_parser import extract_done_evidence
     from specify_cli.status.transitions import resolve_lane_alias
 
-    lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
-    if lane == "done":
+    from specify_cli.status.models import Lane as _Lane
+
+    lane_str = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+    lane = _Lane(lane_str)
+    if lane == _Lane.DONE:
         return
 
     # Dedup guard: if we already have a done transition in the log, skip everything.
@@ -119,7 +122,7 @@ def _mark_wp_merged_done(
 
     evidence = extract_done_evidence(metadata, wp_id)
     if evidence is None:
-        if lane == "approved":
+        if lane == _Lane.APPROVED:
             evidence = DoneEvidence(
                 review=ReviewApproval(
                     reviewer=(metadata.agent or "unknown").strip() or "unknown",
@@ -131,7 +134,8 @@ def _mark_wp_merged_done(
             console.print(f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; skipping automatic move to done after merge.")
             return
 
-    if lane in {"planned", "claimed", "in_progress", "for_review"} and evidence is not None:
+    _pre_approved_lanes = frozenset({_Lane.PLANNED, _Lane.CLAIMED, _Lane.IN_PROGRESS, _Lane.FOR_REVIEW})
+    if lane in _pre_approved_lanes and evidence is not None:
         # Dedup guard for the intermediate approved transition
         if _has_transition_to(feature_dir, wp_id, "approved"):
             logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
@@ -151,10 +155,10 @@ def _mark_wp_merged_done(
             except TransitionError as exc:
                 console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} approved before done: {exc}")
                 return
-        lane = "approved"
+        lane = _Lane.APPROVED
 
-    if lane != "approved":
-        console.print(f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane}', not approved; skipping automatic move to done after merge.")
+    if lane != _Lane.APPROVED:
+        console.print(f"[yellow]Warning:[/yellow] {wp_id} is in lane '{lane.value}', not approved; skipping automatic move to done after merge.")
         return
 
     try:
@@ -180,6 +184,7 @@ def _assert_merged_wps_reached_done(
 ) -> None:
     """Fail the merge if merged WPs did not reach ``done`` in the event log."""
     from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status.models import Lane
     from specify_cli.status.store import StoreError
     from specify_cli.status.transitions import resolve_lane_alias
 
@@ -188,9 +193,9 @@ def _assert_merged_wps_reached_done(
     try:
         incomplete: list[str] = []
         for wp_id in wp_ids:
-            lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
-            if lane != "done":
-                incomplete.append(f"{wp_id}={lane}")
+            lane = Lane(resolve_lane_alias(get_wp_lane(feature_dir, wp_id)))
+            if lane != Lane.DONE:
+                incomplete.append(f"{wp_id}={lane.value}")
     except StoreError as exc:
         console.print(
             "[red]Error:[/red] Post-merge status validation failed: "

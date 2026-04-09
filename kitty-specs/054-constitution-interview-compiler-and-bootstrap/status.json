@@ -2,7 +2,9 @@
   "event_count": 43,
   "last_event_id": "01KKBNKKHVEEXANZ9GM2FA55DE",
   "materialized_at": "2026-03-10T10:45:12.891085+00:00",
+  "mission_number": "054",
   "mission_slug": "054-constitution-interview-compiler-and-bootstrap",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

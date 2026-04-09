@@ -2,7 +2,7 @@
 
 Defines the 9-lane state machine data types: Lane enum, StatusEvent,
 DoneEvidence (with ReviewApproval, RepoEvidence, VerificationResult),
-and StatusSnapshot.
+StatusSnapshot, and AgentAssignment.
 """
 
 from __future__ import annotations
@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, ClassVar
+from typing import Any, ClassVar, Optional
 
 from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
 from specify_cli.mission_metadata import mission_identity_fields
@@ -281,3 +281,32 @@ class StatusSnapshot:
             mission_number=data.get("mission_number"),
             mission_type=data.get("mission_type"),
         )
+
+
+@dataclass(frozen=True)
+class AgentAssignment:
+    """Resolved agent assignment with complete context.
+
+    Represents the fully-resolved agent assigned to a work package,
+    including the tool (AI agent type), model, optional profile ID, and role.
+
+    This value object is the output of legacy coercion and fallback resolution
+    from WPMetadata.resolved_agent(). It provides a clean, typed interface for
+    consumers to access agent assignment context.
+
+    Attributes:
+        tool: AI agent identifier (e.g., 'claude', 'copilot', 'gemini', 'cursor').
+        model: Model identifier (e.g., 'claude-opus-4-6', 'gpt-4-turbo').
+        profile_id: Optional profile identifier for agent configuration override.
+        role: Optional role for this assignment (e.g., 'reviewer', 'implementer').
+
+    Example:
+        >>> assignment = wp_metadata.resolved_agent()
+        >>> print(assignment.tool)  # 'claude'
+        >>> print(assignment.model)  # 'claude-opus-4-6'
+    """
+
+    tool: str
+    model: str
+    profile_id: Optional[str] = None
+    role: Optional[str] = None

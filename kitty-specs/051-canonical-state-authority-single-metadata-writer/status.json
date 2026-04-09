@@ -2,7 +2,9 @@
   "event_count": 53,
   "last_event_id": "01KM2MDKRBCQ9KQX3K7ZC6C8W9",
   "materialized_at": "2026-03-19T08:46:59.851071+00:00",
+  "mission_number": "051",
   "mission_slug": "051-canonical-state-authority-single-metadata-writer",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

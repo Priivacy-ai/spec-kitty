@@ -2,7 +2,9 @@
   "event_count": 11,
   "last_event_id": "01KJ5V38Y30WHFWRRWFQZZRMY0",
   "materialized_at": "2026-02-23T18:10:00.771923+00:00",
+  "mission_number": "041",
   "mission_slug": "041-mission-glossary-semantic-integrity",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

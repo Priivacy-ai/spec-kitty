@@ -343,13 +343,14 @@ def _is_arbiter_override(
     """
     if not force:
         return False
-    if old_lane != "planned":
-        return False
-    if target_lane not in ("for_review", "claimed", "approved"):
-        return False
 
     from specify_cli.status.models import Lane
     from specify_cli.status.store import read_events
+
+    if Lane(old_lane) != Lane.PLANNED:
+        return False
+    if Lane(target_lane) not in (Lane.FOR_REVIEW, Lane.CLAIMED, Lane.APPROVED):
+        return False
 
     events = read_events(feature_dir)
     wp_events = [e for e in events if e.wp_id == wp_id]

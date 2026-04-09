@@ -2,7 +2,9 @@
   "event_count": 17,
   "last_event_id": "01KK8M0KAWD3E3PDESQPC0GEQS",
   "materialized_at": "2026-03-09T06:19:38.204931+00:00",
+  "mission_number": "048",
   "mission_slug": "048-structured-agent-identity-and-constitution-profile-integration",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

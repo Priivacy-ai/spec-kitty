@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "mission_slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
+  "mission_id": "01KNS7RB1V9R3VSYD910HCAMTR",
+  "mission_branch": "kitty/mission-080-wpstate-lane-consumer-strangler-fig-phase-2",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": ["WP01", "WP02"],
+      "write_scope": [
+        "src/specify_cli/status/wp_state.py",
+        "tests/specify_cli/status/test_wp_state.py",
+        "src/specify_cli/status/models.py",
+        "src/specify_cli/status/wp_metadata.py",
+        "tests/specify_cli/status/test_agent_assignment.py"
+      ],
+      "predicted_surfaces": ["api", "legacy-cleanup"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": ["WP03", "WP04"],
+      "write_scope": [
+        "src/specify_cli/agent_utils/status.py",
+        "tests/specify_cli/agent_utils/test_status.py",
+        "src/specify_cli/next/runtime_bridge.py",
+        "tests/specify_cli/next/test_runtime_bridge.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "tests/specify_cli/cli/commands/agent/test_workflow.py"
+      ],
+      "predicted_surfaces": ["api", "artifact-rendering", "legacy-cleanup", "tests"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": ["WP07", "WP05", "WP06"],
+      "write_scope": [
+        "README.md",
+        "src/specify_cli/review/arbiter.py",
+        "tests/specify_cli/review/test_arbiter.py",
+        "src/specify_cli/scripts/tasks/tasks_cli.py",
+        "tests/specify_cli/scripts/tasks/test_tasks_cli.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "tests/specify_cli/cli/commands/test_merge.py",
+        "src/specify_cli/lanes/recovery.py",
+        "tests/specify_cli/lanes/test_recovery.py"
+      ],
+      "predicted_surfaces": ["api", "artifact-rendering", "legacy-cleanup", "tests"],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-09T18:30:00.000000+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": []
+}

@@ -1277,6 +1277,243 @@ git push origin vX.Y.Z
 
 </details>
 
+## Migration Guide: WPState Lane Consumer (v3.1.x)
+
+This section documents the evolution of lane state access in Spec Kitty v3.1.x. If you are consuming work package lane state in custom code, this guide will help you migrate to the new typed, property-based API.
+
+### What Changed
+
+Spec Kitty 3.1.x introduces **typed lane access** to replace raw string comparisons and hardcoded lane tuples. Three core changes enable safer, more maintainable code:
+
+1. **`WPState.is_run_affecting` property**: Replaces `lane in ("planned", "claimed", "in_progress", "for_review", "in_review", "approved")`
+2. **`WPState.progress_bucket()` method**: Replaces manual bucketing logic mapping lanes to display categories
+3. **`WPMetadata.resolved_agent()` method**: Replaces manual agent assignment coercion (string/dict/fallback logic)
+
+### WPState Properties & Methods
+
+#### `WPState.is_run_affecting`
+
+Returns `True` for all lanes that affect active work package execution (planned through approved). Use this instead of tuple checks.
+
+**Old Code:**
+```python
+# Don't do this anymore
+RUN_AFFECTING_LANES = (Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS, Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.APPROVED)
+if wp_state.lane in RUN_AFFECTING_LANES:
+    # Handle active work package
+```
+
+**New Code:**
+```python
+# Use the typed property instead
+if wp_state.is_run_affecting:
+    # Handle active work package
+```
+
+**Affected Lanes:** `planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`
+**Returns False for:** `done`, `canceled`, `blocked`
+
+#### `WPState.progress_bucket()`
+
+Returns a categorical bucket for aggregation and display rendering. Use this for kanban boards and progress displays instead of writing your own bucketing logic.
+
+**Bucket values (from `wp_state.py`):**
+- `"not_started"`: `planned`
+- `"in_flight"`: `claimed`, `in_progress`, `blocked`
+- `"review"`: `for_review`, `in_review`, `approved`
+- `"terminal"`: `done`, `canceled`
+
+**Old Code:**
+```python
+# Manual bucketing scattered across the codebase
+if lane in ("done", "canceled"):
+    category = "terminal"
+elif lane in ("for_review", "in_review", "approved"):
+    category = "review"
+elif lane in ("claimed", "in_progress"):
+    category = "in_flight"
+else:
+    category = "not_started"
+```
+
+**New Code:**
+```python
+from specify_cli.status.wp_state import wp_state_for
+
+state = wp_state_for(lane_str)
+bucket = state.progress_bucket()
+# Returns one of: "not_started", "in_flight", "review", "terminal"
+```
+
+#### `WPState.is_terminal`
+
+Returns `True` for terminal lanes (`done`, `canceled`). These lanes require `force=True` to leave.
+
+Already exists in `WPState`; no migration needed.
+
+### WPMetadata & Agent Assignment
+
+#### `AgentAssignment` dataclass
+
+Defined in `src/specify_cli/status/models.py`. Fields (verified from source):
+
+```python
+@dataclass(frozen=True)
+class AgentAssignment:
+    tool: str                    # AI agent identifier (e.g., 'claude', 'gemini')
+    model: str                   # Model identifier (e.g., 'claude-opus-4-6')
+    profile_id: Optional[str] = None  # Optional profile configuration override
+    role: Optional[str] = None        # Optional role (e.g., 'reviewer', 'implementer')
+```
+
+**Field names:** `tool`, `model`, `profile_id`, `role` — do not confuse with legacy `name` or `profile` field names that appeared in older code.
+
+#### `WPMetadata.resolved_agent()`
+
+Returns a fully resolved `AgentAssignment` object, handling legacy string/dict/None inputs with a defined fallback order. Defined in `src/specify_cli/status/wp_metadata.py`.
+
+**Old Code:**
+```python
+# Manual agent coercion — fragile and duplicated across consumers
+agent_str = wp_metadata.agent
+if not agent_str:
+    agent_str = wp_metadata.agent_profile
+if not agent_str:
+    agent_str = wp_metadata.model
+if isinstance(agent_str, dict):
+    agent_str = agent_str.get("tool", "unknown")  # dict uses "tool" key, not "name"
+```
+
+**New Code:**
+```python
+# Use the resolved method — handles all legacy formats
+agent_assignment = wp_metadata.resolved_agent()
+print(agent_assignment.tool)   # Guaranteed non-None string (default: "unknown")
+print(agent_assignment.model)  # Guaranteed non-None string (default: "unknown-model")
+```
+
+**Fallback Order (from `wp_metadata.py`):**
+1. If `metadata.agent` is already an `AgentAssignment`, return it directly
+2. String `agent` field: `tool=value`, `model=self.model`
+3. Dict `agent` field: extract `tool`/`model`/`profile_id`/`role` from dict; fall back to `self.model` if `model` missing
+4. `None`/unrecognized `agent`: `tool=None`, `model=self.model`
+5. Fallback to `metadata.agent_profile` for `profile_id` (if not set from dict)
+6. Fallback to `metadata.role` for `role` (if not set from dict)
+7. Final defaults: `tool="unknown"`, `model="unknown-model"`
+
+### Lane Enum Usage
+
+All lane checks should use the typed `Lane` enum, not string literals.
+
+**Old Code:**
+```python
+# Never do this — raw string comparison
+if lane_str == "for_review":
+    pass
+if lane_str in ("approved", "done"):
+    pass
+```
+
+**New Code:**
+```python
+# Always use Lane enum
+from specify_cli.status.models import Lane
+from specify_cli.status.wp_state import wp_state_for
+
+state = wp_state_for(lane_str)
+
+if state.lane == Lane.FOR_REVIEW:
+    pass
+if state.lane in (Lane.APPROVED, Lane.DONE):
+    pass
+```
+
+**Available Lanes:**
+```python
+Lane.PLANNED        # Work pending assignment
+Lane.CLAIMED        # Assigned but not started
+Lane.IN_PROGRESS    # Active implementation (input alias: "doing" -> "in_progress")
+Lane.FOR_REVIEW     # Ready for review (not yet claimed by a reviewer)
+Lane.IN_REVIEW      # Under active review
+Lane.APPROVED       # Review approved, awaiting merge
+Lane.DONE           # Merged, shipped (terminal)
+Lane.BLOCKED        # Blocked on external dependency
+Lane.CANCELED       # Canceled (terminal)
+```
+
+**Note on the `"doing"` alias:** The string `"doing"` is accepted at input boundaries as an alias for `Lane.IN_PROGRESS`. It is never persisted in events and is not an alias for `Lane.FOR_REVIEW`.
+
+### Transition Validation
+
+For code that validates lane transitions, use the canonical `validate_transition()` function instead of hardcoded tuple checks.
+
+**Old Code:**
+```python
+# Hardcoded transition dict — incomplete and diverges from state machine
+_RECOVERY_TRANSITIONS = {
+    Lane.PLANNED: [Lane.CLAIMED, Lane.IN_PROGRESS],
+    Lane.CLAIMED: [Lane.IN_PROGRESS],
+}
+
+if current_lane in _RECOVERY_TRANSITIONS:
+    valid_next = _RECOVERY_TRANSITIONS[current_lane]
+    if next_lane in valid_next:
+        # OK to transition
+```
+
+**New Code:**
+```python
+from specify_cli.status.transitions import validate_transition
+from specify_cli.status.models import Lane
+
+is_valid, error_msg = validate_transition(
+    from_lane=current_lane.value,   # str or Lane accepted
+    to_lane=next_lane.value,
+    actor="recovery",
+    workspace_context="recovery:auto",
+)
+if is_valid:
+    # OK to transition
+else:
+    print(f"Invalid transition: {error_msg}")
+```
+
+### Migration Checklist
+
+If you maintain custom code that accesses work package lane state, follow this checklist:
+
+- [ ] Replace `lane in (...)` tuple checks with `state.is_run_affecting` or `state.progress_bucket()`
+- [ ] Replace manual agent coercion with `metadata.resolved_agent()`
+- [ ] Use `assignment.tool` (not `.name`) and `assignment.model` on the returned `AgentAssignment`
+- [ ] Replace string lane literals (e.g., `"for_review"`) with `Lane.FOR_REVIEW` enum members
+- [ ] Replace hardcoded transition dicts with `validate_transition()`
+- [ ] Verify no raw string comparisons remain (e.g., `== "done"`, `in ("planned",)`)
+- [ ] Run `mypy --strict` on updated code to catch type errors
+- [ ] Run unit tests for all lane-dependent logic
+
+### Files Modified in This Release
+
+**Core API:**
+- `src/specify_cli/status/wp_state.py` — Added `is_run_affecting` property (WP01); `progress_bucket()`, `is_terminal`, `is_blocked` already existed in the baseline
+- `src/specify_cli/status/models.py` — Added `AgentAssignment` frozen dataclass (WP02)
+- `src/specify_cli/status/wp_metadata.py` — Added `resolved_agent()` method with legacy coercion (WP02)
+
+**Consumer Migrations:**
+- `src/specify_cli/agent_utils/status.py` — Uses `wp_state_for(lane).progress_bucket()` for display
+- `src/specify_cli/next/runtime_bridge.py` — Uses `state.is_run_affecting` instead of `RUN_AFFECTING_LANES` tuple
+- `src/specify_cli/cli/commands/agent/workflow.py` — Uses `metadata.resolved_agent()` for agent assignment
+- `src/specify_cli/review/arbiter.py` — Uses `Lane` enum for transition checks
+- `src/specify_cli/scripts/tasks/tasks_cli.py` — Uses `Lane` enum and `progress_bucket()` for display
+- `src/specify_cli/cli/commands/merge.py` — Uses `Lane` enum (explicit `Lane.APPROVED | Lane.DONE` check preserved)
+- `src/specify_cli/lanes/recovery.py` — Uses `validate_transition()` instead of `_RECOVERY_TRANSITIONS` dict
+
+### More Information
+
+- **Status Model Reference:** [docs/status-model.md](docs/status-model.md)
+- **Lane State Transitions:** [src/specify_cli/status/transitions.py](src/specify_cli/status/transitions.py)
+- **WPState Implementation:** [src/specify_cli/status/wp_state.py](src/specify_cli/status/wp_state.py)
+- **Feature Tracking:** [kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/spec.md](kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/spec.md)
+
 ## 📖 Learn more
 
 - **[Complete Spec-Driven Development Methodology](https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md)** - Deep dive into the full process
