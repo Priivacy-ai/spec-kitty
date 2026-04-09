@@ -147,10 +147,10 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 **Spec FRs**: FR-201, FR-202, FR-203, FR-204, FR-205, FR-206
 
 **Subtasks**:
-- [ ] T016 Mint ULID `mission_id` in `mission_creation.py`; persist + lock; mint 079's own (WP04)
-- [ ] T017 `MissionIdentity.mission_id` field + `resolve_mission_identity()` update (WP04)
-- [ ] T018 `mission_id` in `emit_mission_created()` payload (WP04)
-- [ ] T019 Regression tests for Track 3 (WP04)
+- [x] T016 Mint ULID `mission_id` in `mission_creation.py`; persist + lock; mint 079's own (WP04)
+- [x] T017 `MissionIdentity.mission_id` field + `resolve_mission_identity()` update (WP04)
+- [x] T018 `mission_id` in `emit_mission_created()` payload (WP04)
+- [x] T019 Regression tests for Track 3 (WP04)
 
 **Key technical notes**:
 - `python-ulid` (≥3.0) is already in `pyproject.toml:72`. Use `from ulid import ULID; str(ULID())`.
