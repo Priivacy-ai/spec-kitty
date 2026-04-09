@@ -21,6 +21,8 @@ owned_files:
 - tests/auth/test_websocket_provisioning.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
+shell_pid: "67527"
 ---
 
 # WP09: WebSocket Pre-Connect Token Provisioning
@@ -424,3 +426,7 @@ function to exist before it can rewire the WS code path.
 - **Risk**: SaaS returns a non-standard error code. **Mitigation**: catch-all branch raises a generic WebSocketProvisioningError with the HTTP status.
 - **Risk**: WS token expires before the connection actually opens. **Mitigation**: out of scope for this WP — `sync/client.py` (WP08) is responsible for opening the WS within the token's TTL.
 - **Edge case**: User's only team is the default team and they pass it explicitly. **Mitigation**: that's the normal case; the team_id is passed through to SaaS.
+
+## Activity Log
+
+- 2026-04-09T17:31:45Z – opus:opus:implementer:implementer – shell_pid=67527 – Started implementation via action command
