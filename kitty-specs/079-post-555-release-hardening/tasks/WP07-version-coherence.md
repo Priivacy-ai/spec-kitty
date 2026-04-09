@@ -364,3 +364,4 @@ def test_dogfood_command_set():
 ## Activity Log
 
 - 2026-04-09T09:22:28Z – unknown – shell_pid=5789 – Dispatching final gate implementation
+- 2026-04-09T09:29:31Z – unknown – shell_pid=5789 – Version coherence fixed (3.1.1a2->3.1.1a3), validate_release.py extended with metadata.yaml sync check (FR-601/602), CHANGELOG check already in branch mode (T030 verified), proposed_changelog_block surfaced in JSON (FR-603), 4 test files (58 tests pass), dogfood clean
