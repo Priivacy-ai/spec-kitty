@@ -1,4 +1,11 @@
-"""Integration tests for WebSocket client"""
+"""Integration tests for WebSocket client.
+
+Post-WP08 the WebSocketClient no longer takes ``server_url`` / ``token``
+kwargs — connection parameters come exclusively from
+``provision_ws_token(team_id)``, which talks to the process-wide
+``TokenManager``. These tests exercise the behavioral surface that does
+not require a live connection (heartbeat pong, error surfaces).
+"""
 
 import json
 import pytest
@@ -13,18 +20,14 @@ pytestmark = pytest.mark.fast
 
 @pytest.mark.asyncio
 async def test_heartbeat_pong_includes_build_id():
-    """Test that pong response to server ping includes build_id from project identity."""
+    """pong response to server ping includes build_id from project identity."""
     identity = ProjectIdentity(
         project_uuid=UUID("12345678-1234-5678-1234-567812345678"),
         project_slug="test-project",
         node_id="abcdef123456",
         build_id="bid-9999",
     )
-    client = WebSocketClient(
-        server_url="ws://localhost:8000",
-        token="test-token",
-        project_identity=identity,
-    )
+    client = WebSocketClient(project_identity=identity)
 
     # Simulate an active connection with a mock websocket
     sent_messages: list[str] = []
@@ -45,11 +48,8 @@ async def test_heartbeat_pong_includes_build_id():
 
 @pytest.mark.asyncio
 async def test_heartbeat_pong_omits_build_id_when_no_identity():
-    """Test that pong response omits build_id when no project identity is set."""
-    client = WebSocketClient(
-        server_url="ws://localhost:8000",
-        token="test-token",
-    )
+    """pong response omits build_id when no project identity is set."""
+    client = WebSocketClient()
 
     sent_messages: list[str] = []
     mock_ws = AsyncMock()
@@ -67,21 +67,16 @@ async def test_heartbeat_pong_omits_build_id_when_no_identity():
 
 @pytest.mark.asyncio
 async def test_connect_to_server():
-    """
-    Test connecting to development server.
+    """Placeholder for a live-server integration test.
 
-    Note: This test requires the spec-kitty-saas server running at localhost:8000
-    with a valid authentication token. It will be skipped if the server is not available.
+    Kept here as documentation of how WebSocketClient should behave
+    end-to-end once a running SaaS server is available to the test
+    harness. Always skipped; the client now fetches its ws bundle
+    from ``provision_ws_token`` internally.
     """
-    # Skip if server not available
     pytest.skip("Integration test requires running server - use for manual testing")
 
-    # This would be used for manual testing with a real server
-    client = WebSocketClient(
-        server_url="ws://localhost:8000",
-        token="test-token",  # Would need real token from server
-    )
-
+    client = WebSocketClient()
     await client.connect()
     assert client.connected
     assert client.get_status() == ConnectionStatus.CONNECTED
@@ -93,19 +88,19 @@ async def test_connect_to_server():
 
 @pytest.mark.asyncio
 async def test_client_initialization():
-    """Test WebSocket client can be initialized"""
-    client = WebSocketClient(server_url="ws://localhost:8000", token="test-token")
+    """WebSocket client can be constructed with no arguments."""
+    client = WebSocketClient()
 
-    assert client.server_url == "ws://localhost:8000"
-    assert client._direct_token == "test-token"
     assert not client.connected
     assert client.get_status() == ConnectionStatus.OFFLINE
+    assert client.ws is None
+    assert client._listen_task is None
 
 
 @pytest.mark.asyncio
 async def test_send_event_when_not_connected():
-    """Test sending event when not connected raises error"""
-    client = WebSocketClient(server_url="ws://localhost:8000", token="test-token")
+    """send_event raises ConnectionError when not connected."""
+    client = WebSocketClient()
 
     with pytest.raises(ConnectionError, match="Not connected to server"):
         await client.send_event({"type": "test"})

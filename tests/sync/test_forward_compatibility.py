@@ -174,7 +174,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_event_with_gate_passed_no_crash(self):
         """_handle_event with GatePassed event does not crash (no handler set)."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         # No message_handler set -- this should silently pass
         msg = _gate_passed_message(lamport_clock=42)
 
@@ -184,7 +184,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_event_with_gate_failed_no_crash(self):
         """_handle_event with GateFailed event does not crash (no handler set)."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         msg = _gate_failed_message(lamport_clock=55)
 
         await client._handle_event(msg)
@@ -192,7 +192,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_event_with_unknown_type_no_crash(self):
         """_handle_event with unknown event type does not crash (no handler set)."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         msg = _unknown_future_event_message(lamport_clock=99)
 
         await client._handle_event(msg)
@@ -200,7 +200,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_message_unknown_message_type_no_crash(self):
         """_handle_message with unknown message type does not crash."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         msg = _unknown_message_type()
 
         # Should silently pass through the else branch
@@ -209,7 +209,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_message_routes_gate_passed_to_handler(self):
         """_handle_message routes GatePassed event to the message handler."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         handler = AsyncMock()
         client.set_message_handler(handler)
 
@@ -221,7 +221,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_message_routes_gate_failed_to_handler(self):
         """_handle_message routes GateFailed event to the message handler."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         handler = AsyncMock()
         client.set_message_handler(handler)
 
@@ -233,7 +233,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_message_routes_unknown_event_to_handler(self):
         """_handle_message routes unknown event type to the message handler."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         handler = AsyncMock()
         client.set_message_handler(handler)
 
@@ -245,7 +245,7 @@ class TestWebSocketClientForwardCompatibility:
     @pytest.mark.asyncio
     async def test_handle_message_does_not_route_unknown_message_type_to_handler(self):
         """Unknown message types (not 'event') should NOT reach the message handler."""
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
         handler = AsyncMock()
         client.set_message_handler(handler)
 
@@ -272,7 +272,7 @@ class TestClockUpdateViaMessageHandler:
     async def test_gate_passed_updates_clock_via_handler(self, tmp_path: Path):
         """End-to-end: GatePassed event updates Lamport clock via wired handler."""
         clock = LamportClock(value=10, node_id="cli-node", _storage_path=tmp_path / "c.json")
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
 
         async def clock_updating_handler(data: dict):
             if "lamport_clock" in data:
@@ -289,7 +289,7 @@ class TestClockUpdateViaMessageHandler:
     async def test_gate_failed_updates_clock_via_handler(self, tmp_path: Path):
         """End-to-end: GateFailed event updates Lamport clock via wired handler."""
         clock = LamportClock(value=10, node_id="cli-node", _storage_path=tmp_path / "c.json")
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
 
         async def clock_updating_handler(data: dict):
             if "lamport_clock" in data:
@@ -306,7 +306,7 @@ class TestClockUpdateViaMessageHandler:
     async def test_unknown_event_updates_clock_via_handler(self, tmp_path: Path):
         """End-to-end: Unknown future event updates Lamport clock via wired handler."""
         clock = LamportClock(value=50, node_id="cli-node", _storage_path=tmp_path / "c.json")
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
 
         async def clock_updating_handler(data: dict):
             if "lamport_clock" in data:
@@ -323,7 +323,7 @@ class TestClockUpdateViaMessageHandler:
     async def test_multiple_connector_events_advance_clock_monotonically(self, tmp_path: Path):
         """Clock advances monotonically through a sequence of connector events."""
         clock = LamportClock(value=0, node_id="cli-node", _storage_path=tmp_path / "c.json")
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
 
         async def clock_updating_handler(data: dict):
             if "lamport_clock" in data:
@@ -355,7 +355,7 @@ class TestClockUpdateViaMessageHandler:
     async def test_handler_without_lamport_clock_field_does_not_crash(self, tmp_path: Path):
         """Message missing lamport_clock field does not crash the handler."""
         clock = LamportClock(value=10, node_id="cli-node", _storage_path=tmp_path / "c.json")
-        client = WebSocketClient("ws://localhost:8000", "test-token")
+        client = WebSocketClient()
 
         async def clock_updating_handler(data: dict):
             if "lamport_clock" in data:

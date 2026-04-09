@@ -228,14 +228,16 @@ class TestOrchestrateEmitsWPAssigned:
 class TestEmissionFailureNonBlocking:
     """SC-008: CLI commands succeed even when emission fails."""
 
-    def test_clock_failure_returns_none(self, temp_queue: OfflineQueue):
+    def test_clock_failure_returns_none(
+        self, temp_queue: OfflineQueue, mock_auth
+    ):
         """Clock explosion returns None, never raises."""
+        del mock_auth  # side-effect-only (installs fake TokenManager)
         clock = MagicMock()
         clock.tick.side_effect = RuntimeError("Clock corrupted")
-        auth = MagicMock()
         config = MagicMock()
 
-        em = EventEmitter(clock=clock, config=config, queue=temp_queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=temp_queue, ws_client=None)
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
         # Critically: no exception raised
@@ -246,19 +248,18 @@ class TestEmissionFailureNonBlocking:
         assert event is None
         assert temp_queue.size() == 0
 
-    def test_queue_failure_returns_event(self, temp_queue: OfflineQueue, temp_clock, mock_config):
+    def test_queue_failure_returns_event(
+        self, temp_queue: OfflineQueue, temp_clock, mock_config, mock_auth
+    ):
         """Queue write failure still returns the event (non-blocking)."""
         broken_queue = MagicMock(spec=OfflineQueue)
         broken_queue.queue_event.side_effect = Exception("Disk full")
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test-team"
-        auth.is_authenticated.return_value = False
+        mock_auth.is_authenticated = False
 
         em = EventEmitter(
             clock=temp_clock,
             config=mock_config,
             queue=broken_queue,
-            _auth=auth,
             ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")

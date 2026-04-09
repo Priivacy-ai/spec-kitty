@@ -35,16 +35,16 @@ def test_status_reads_dashboard_daemon_state_without_booting_local_runtime(monke
         def get_server_url(self) -> str:
             return "https://spec-kitty-dev.fly.dev"
 
-    class FakeAuth:
-        def is_authenticated(self) -> bool:
-            return True
-
     def fail_if_called(*_args, **_kwargs):
         raise AssertionError("status() should not start local background sync services")
 
     monkeypatch.setattr("specify_cli.sync.queue.OfflineQueue", lambda: fake_queue)
     monkeypatch.setattr("specify_cli.sync.config.SyncConfig", FakeConfig)
-    monkeypatch.setattr("specify_cli.sync.auth.AuthClient", FakeAuth)
+    # Mission 080: the legacy ``specify_cli.sync.auth.AuthClient`` no longer
+    # exists. ``sync status`` now reads auth state via
+    # ``specify_cli.auth.get_token_manager``; this test exercises the code
+    # path where the status panel does not even consult the token manager
+    # (no local runtime is booted).
     monkeypatch.setattr(
         "specify_cli.sync.daemon.get_sync_daemon_status",
         lambda: SyncDaemonStatus(

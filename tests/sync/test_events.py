@@ -109,15 +109,19 @@ class TestEventEnvelope:
         assert event is not None
         assert event["team_slug"] == "test-team"
 
-    def test_team_slug_defaults_to_local(self, temp_queue, temp_clock, mock_config):
-        """team_slug defaults to 'local' when auth unavailable (SC-010)."""
-        auth = MagicMock()
-        auth.get_team_slug.side_effect = Exception("Not authenticated")
+    def test_team_slug_defaults_to_local(
+        self, temp_queue, temp_clock, mock_config, monkeypatch
+    ):
+        """team_slug defaults to 'local' when auth is unavailable (SC-010)."""
+
+        def _boom():
+            raise RuntimeError("Not authenticated")
+
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
         em = EventEmitter(
             clock=temp_clock,
             config=mock_config,
             queue=temp_queue,
-            _auth=auth,
             ws_client=None,
         )
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
@@ -629,8 +633,11 @@ class TestCausationId:
 class TestGitMetadataInEvents:
     """Test git metadata field behavior in emitted events."""
 
-    def test_null_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity):
+    def test_null_git_metadata(
+        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
+    ):
         """Events still emit when git metadata is all None."""
+        del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
 
         null_metadata = GitMetadata()  # All None
@@ -641,7 +648,6 @@ class TestGitMetadataInEvents:
             clock=temp_clock,
             config=mock_config,
             queue=temp_queue,
-            _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
             ws_client=None,
             _identity=mock_identity,
             _git_resolver=null_resolver,
@@ -652,8 +658,11 @@ class TestGitMetadataInEvents:
         assert event["head_commit_sha"] is None
         assert event["repo_slug"] is None
 
-    def test_partial_git_metadata(self, temp_queue, temp_clock, mock_config, mock_identity):
+    def test_partial_git_metadata(
+        self, temp_queue, temp_clock, mock_config, mock_identity, mock_auth
+    ):
         """Events emit with partial git metadata (branch but no repo slug)."""
+        del mock_auth  # side-effect-only
         from specify_cli.sync.git_metadata import GitMetadata, GitMetadataResolver
 
         partial = GitMetadata(git_branch="main", head_commit_sha="a" * 40, repo_slug=None)
@@ -664,7 +673,6 @@ class TestGitMetadataInEvents:
             clock=temp_clock,
             config=mock_config,
             queue=temp_queue,
-            _auth=MagicMock(get_team_slug=MagicMock(return_value="test")),
             ws_client=None,
             _identity=mock_identity,
             _git_resolver=resolver,
@@ -783,17 +791,16 @@ class TestInternalValidation:
         )
         assert event is None
 
-    def test_validation_exception_returns_none(self, temp_queue, temp_clock, mock_config):
+    def test_validation_exception_returns_none(
+        self, temp_queue, temp_clock, mock_config, mock_auth
+    ):
         """Exception during validation returns None."""
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test"
-        auth.is_authenticated.return_value = False
+        mock_auth.is_authenticated = False
 
         em = EventEmitter(
             clock=temp_clock,
             config=mock_config,
             queue=temp_queue,
-            _auth=auth,
             ws_client=None,
         )
 
@@ -803,25 +810,27 @@ class TestInternalValidation:
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_lazy_auth_creation(self, temp_queue, temp_clock, mock_config):
-        """Auth is lazily created when _auth is None."""
+    def test_emitter_constructs_without_auth_arg(
+        self, temp_queue, temp_clock, mock_config, mock_auth
+    ):
+        """Post-WP08 EventEmitter no longer takes an ``_auth`` argument.
+
+        The sync layer reaches for ``get_token_manager()`` internally; the
+        mocked token manager installed by ``mock_auth`` provides the fake
+        session state. This test documents the current contract.
+        """
+        del mock_auth  # side-effect-only
         em = EventEmitter(
             clock=temp_clock,
             config=mock_config,
             queue=temp_queue,
-            _auth=None,
             ws_client=None,
         )
-        # Accessing auth property should create AuthClient via lazy import
-        with patch("specify_cli.sync.auth.AuthClient") as MockAuth:
-            mock_instance = MagicMock()
-            mock_instance.get_team_slug.return_value = "lazy-team"
-            mock_instance.is_authenticated.return_value = False
-            MockAuth.return_value = mock_instance
-
-            # Access the auth property - triggers lazy creation
-            auth = em.auth
-            assert auth is mock_instance
+        # With the fake TokenManager providing "test-team", the emitter
+        # should produce an event tagged with that slug.
+        event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
+        assert event is not None
+        assert event["team_slug"] == "test-team"
 
     def test_missing_team_slug_fails_validation(self, emitter: EventEmitter, temp_queue):
         """Events missing team_slug are rejected."""
@@ -886,7 +895,9 @@ class TestInternalValidation:
 class TestRouteEvent:
     """Test _route_event behavior with WebSocket integration."""
 
-    def test_ws_send_with_running_loop(self, emitter: EventEmitter):
+    def test_ws_send_with_running_loop(
+        self, emitter: EventEmitter, mock_auth: MagicMock
+    ):
         """WebSocket send uses ensure_future when loop is running."""
         import asyncio
 
@@ -894,7 +905,7 @@ class TestRouteEvent:
         mock_ws.connected = True
         mock_ws.send_event = MagicMock()
         emitter.ws_client = mock_ws
-        emitter._auth.is_authenticated.return_value = True
+        mock_auth.is_authenticated = True
         emitter.queue = MagicMock()
 
         class DummyLoop:
@@ -933,10 +944,16 @@ class TestRouteEvent:
             asyncio.get_event_loop = original_get_event_loop
             asyncio.ensure_future = original_ensure_future
 
-    def test_auth_exception_falls_back_to_queue(self, emitter: EventEmitter):
+    def test_auth_exception_falls_back_to_queue(
+        self, emitter: EventEmitter, monkeypatch
+    ):
         """Auth failures do not prevent queueing."""
         emitter.ws_client = None
-        emitter._auth.is_authenticated.side_effect = Exception("auth failure")
+
+        def _boom():
+            raise RuntimeError("auth failure")
+
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
         emitter.queue = MagicMock()
         emitter.queue.queue_event.return_value = True
         event = {

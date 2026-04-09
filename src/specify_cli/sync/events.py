@@ -49,9 +49,9 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None) -> None:
         return
 
     try:
-        from .auth import AuthClient
+        from specify_cli.auth import get_token_manager
 
-        if not AuthClient().is_authenticated():
+        if not get_token_manager().is_authenticated:
             return
     except Exception as exc:
         logger.debug("Skipping dashboard daemon health check: %s", exc)

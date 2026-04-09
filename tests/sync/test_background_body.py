@@ -12,6 +12,20 @@ from specify_cli.sync.namespace import UploadOutcome, UploadStatus
 
 pytestmark = pytest.mark.fast
 
+
+@pytest.fixture(autouse=True)
+def _patch_bg_token_fetch(monkeypatch):
+    """Autouse: patch the background-sync token-fetch bridge so tests stay hermetic.
+
+    Individual tests can override by directly monkeypatching the module
+    attribute (e.g., ``_make_service(..., auth_token=None, monkeypatch=monkeypatch)``).
+    """
+    import specify_cli.sync.background as bg_mod
+    monkeypatch.setattr(
+        bg_mod, "_fetch_access_token_sync", MagicMock(return_value="token"),
+    )
+    yield
+
 def _make_task(
     row_id: int = 1,
     artifact_path: str = "spec.md",
@@ -69,23 +83,30 @@ def _make_service(
     tmp_path: Path,
     auth_token: str | None = "test-token",
 ) -> MagicMock:
-    """Create a BackgroundSyncService with mocked dependencies and real body queue."""
+    """Create a BackgroundSyncService with mocked dependencies and real body queue.
+
+    The ``_patch_bg_token_fetch`` autouse fixture seeds ``_fetch_access_token_sync``
+    with a ``MagicMock(return_value="token")``. If a test asks for a different
+    auth_token, we override that mock's return value on the currently-live
+    module attribute.
+    """
     from specify_cli.sync.background import BackgroundSyncService
     from specify_cli.sync.queue import OfflineQueue
+    import specify_cli.sync.background as bg_mod
 
     db_path = tmp_path / "queue.db"
     event_queue = OfflineQueue(db_path=db_path)
     body_queue = OfflineBodyUploadQueue(db_path=db_path)
 
-    mock_auth = MagicMock()
-    mock_auth.get_access_token.return_value = auth_token
+    if auth_token != "test-token":
+        # Override the autouse-patched mock return value.
+        bg_mod._fetch_access_token_sync.return_value = auth_token
 
     mock_config = MagicMock()
     mock_config.get_server_url.return_value = "https://test.example.com"
 
     service = BackgroundSyncService(
         queue=event_queue,
-        auth=mock_auth,
         config=mock_config,
     )
     service._body_queue = body_queue
@@ -404,7 +425,6 @@ class TestEdgeCases:
         db_path = tmp_path / "queue.db"
         service = BackgroundSyncService(
             queue=OfflineQueue(db_path=db_path),
-            auth=MagicMock(),
             config=MagicMock(),
         )
         # _body_queue is None by default — this should not raise

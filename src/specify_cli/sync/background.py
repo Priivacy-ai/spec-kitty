@@ -3,10 +3,17 @@
 Provides a daemon-threaded service that periodically drains the offline
 event queue and syncs to the server, with exponential backoff on failures
 and graceful shutdown via atexit.
+
+Token acquisition:
+    As of WP08 (browser-mediated OAuth), this service fetches its access
+    token from the process-wide ``TokenManager`` via ``_fetch_access_token``,
+    which runs the async ``get_access_token()`` in a short-lived loop from
+    the background-sync thread.
 """
 
 from __future__ import annotations
 
+import asyncio
 import atexit
 import logging
 import threading
@@ -14,7 +21,9 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import TYPE_CHECKING, Optional
 
-from .auth import AuthClient
+from specify_cli.auth import get_token_manager
+from specify_cli.auth.errors import AuthenticationError
+
 from .batch import BatchSyncResult, batch_sync, sync_all_queued_events
 from .config import SyncConfig
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
@@ -27,12 +36,60 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _fetch_access_token_sync() -> str | None:
+    """Fetch a valid access token from the TokenManager (sync bridge).
+
+    Runs ``TokenManager.get_access_token()`` on a short-lived event loop so
+    sync (non-async) callers like the background timer and body upload
+    drainer can share the same single-flight refresh semantics as the async
+    callers.
+
+    Returns ``None`` if the user is not authenticated or refresh failed.
+    """
+    tm = get_token_manager()
+    if not tm.is_authenticated:
+        return None
+
+    try:
+        # Prefer to reuse a running loop if one is already active on this
+        # thread, otherwise spin up a fresh loop and discard it afterward.
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+
+        if running is not None:
+            # Re-entering an active loop from sync code is unsafe; fall back to
+            # a fresh thread-owned loop below to avoid nested `run_until_complete`.
+            new_loop = asyncio.new_event_loop()
+            try:
+                return new_loop.run_until_complete(tm.get_access_token())
+            finally:
+                new_loop.close()
+        else:
+            new_loop = asyncio.new_event_loop()
+            try:
+                asyncio.set_event_loop(new_loop)
+                return new_loop.run_until_complete(tm.get_access_token())
+            finally:
+                try:
+                    asyncio.set_event_loop(None)
+                except Exception:
+                    pass
+                new_loop.close()
+    except AuthenticationError as exc:
+        logger.debug("Background sync token fetch failed: %s", exc)
+        return None
+    except Exception as exc:  # defensive
+        logger.debug("Unexpected error fetching access token: %s", exc)
+        return None
+
+
 @dataclass
 class BackgroundSyncService:
     """Manages periodic background sync of the offline event queue."""
 
     queue: OfflineQueue
-    auth: AuthClient
     config: SyncConfig
     sync_interval_seconds: float = 300.0  # 5 minutes default
     _timer: Optional[threading.Timer] = field(default=None, init=False, repr=False)
@@ -168,7 +225,7 @@ class BackgroundSyncService:
             return result
 
         with self._lock:
-            access_token = self.auth.get_access_token()
+            access_token = _fetch_access_token_sync()
             if access_token is None:
                 logger.warning("Not authenticated, skipping sync")
                 return BatchSyncResult()
@@ -213,7 +270,7 @@ class BackgroundSyncService:
             result.error_messages.append(saas_sync_disabled_message())
             return result
 
-        access_token = self.auth.get_access_token()
+        access_token = _fetch_access_token_sync()
         if access_token is None:
             logger.warning("Not authenticated, skipping sync")
             return BatchSyncResult()
@@ -268,7 +325,7 @@ class BackgroundSyncService:
         if removed > 0:
             logger.info("Removed %d stale body upload tasks", removed)
 
-        access_token = self.auth.get_access_token()
+        access_token = _fetch_access_token_sync()
         if access_token is None:
             logger.debug("No auth token available, skipping body queue drain")
             return
@@ -324,7 +381,6 @@ def get_sync_service() -> BackgroundSyncService:
             if _service is None:
                 _service = BackgroundSyncService(
                     queue=OfflineQueue(),
-                    auth=AuthClient(),
                     config=SyncConfig(),
                 )
                 if is_saas_sync_enabled():

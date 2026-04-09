@@ -124,20 +124,24 @@ class TestSyncRuntime:
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
 
-        # Mock auth to return unauthenticated (skip WebSocket)
+        # Patch the TokenManager factory so the runtime's
+        # _connect_websocket_if_authenticated short-circuits to "not
+        # authenticated".
+        fake_tm = MagicMock()
+        fake_tm.is_authenticated = False
+        monkeypatch.setattr(
+            "specify_cli.auth.get_token_manager", lambda: fake_tm
+        )
+
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
-            with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                mock_auth = MagicMock()
-                mock_auth.is_authenticated.return_value = False
-                mock_auth_class.return_value = mock_auth
 
-                runtime = SyncRuntime()
-                runtime.start()
+            runtime = SyncRuntime()
+            runtime.start()
 
-                assert runtime.started is True
-                assert runtime.background_service is mock_service
-                mock_get_service.assert_called_once()
+            assert runtime.started is True
+            assert runtime.background_service is mock_service
+            mock_get_service.assert_called_once()
 
     def test_attach_emitter_wires_ws_client(self):
         """attach_emitter wires existing ws_client to emitter."""
@@ -171,23 +175,25 @@ class TestSyncRuntime:
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
 
-        # Mock auth to return unauthenticated (skip WebSocket)
+        # Mock TokenManager to return unauthenticated (skip WebSocket)
+        fake_tm = MagicMock()
+        fake_tm.is_authenticated = False
+        monkeypatch.setattr(
+            "specify_cli.auth.get_token_manager", lambda: fake_tm
+        )
+
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
-            with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                mock_auth = MagicMock()
-                mock_auth.is_authenticated.return_value = False
-                mock_auth_class.return_value = mock_auth
 
-                runtime = SyncRuntime()
-                runtime.start()
-                assert runtime.started is True
+            runtime = SyncRuntime()
+            runtime.start()
+            assert runtime.started is True
 
-                runtime.stop()
+            runtime.stop()
 
-                assert runtime.started is False
-                assert runtime.background_service is None
-                mock_service.stop.assert_called_once()
+            assert runtime.started is False
+            assert runtime.background_service is None
+            mock_service.stop.assert_called_once()
 
 
 class TestGetRuntime:
@@ -263,18 +269,20 @@ class TestUnauthenticatedBehavior:
         monkeypatch.chdir(tmp_path)
         mock_service = MagicMock()
 
+        fake_tm = MagicMock()
+        fake_tm.is_authenticated = False
+        monkeypatch.setattr(
+            "specify_cli.auth.get_token_manager", lambda: fake_tm
+        )
+
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
-            with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                mock_auth = MagicMock()
-                mock_auth.is_authenticated.return_value = False
-                mock_auth_class.return_value = mock_auth
 
-                runtime = SyncRuntime()
-                runtime.start()
+            runtime = SyncRuntime()
+            runtime.start()
 
-                assert runtime.ws_client is None
-                assert runtime.background_service is not None  # Queue still works
+            assert runtime.ws_client is None
+            assert runtime.background_service is not None  # Queue still works
 
     def test_websocket_created_when_authenticated(self, tmp_path, monkeypatch):
         """WebSocket client is created when authenticated."""
@@ -284,36 +292,37 @@ class TestUnauthenticatedBehavior:
         mock_connect_coro = MagicMock()
         mock_ws.connect.return_value = mock_connect_coro
 
+        fake_tm = MagicMock()
+        fake_tm.is_authenticated = True
+        monkeypatch.setattr(
+            "specify_cli.auth.get_token_manager", lambda: fake_tm
+        )
+
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
             with patch("specify_cli.sync.client.WebSocketClient") as mock_ws_class:
                 mock_ws_class.return_value = mock_ws
 
-                with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                    mock_auth = MagicMock()
-                    mock_auth.is_authenticated.return_value = True
-                    mock_auth_class.return_value = mock_auth
+                with patch("specify_cli.sync.config.SyncConfig") as mock_config_class:
+                    mock_config = MagicMock()
+                    mock_config.get_server_url.return_value = "https://example.com"
+                    mock_config_class.return_value = mock_config
 
-                    with patch("specify_cli.sync.config.SyncConfig") as mock_config_class:
-                        mock_config = MagicMock()
-                        mock_config.get_server_url.return_value = "https://example.com"
-                        mock_config_class.return_value = mock_config
+                    # Daemon runtime creates its own async loop and schedules connect.
+                    with (
+                        patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
+                        patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
+                    ):
+                        def fake_ensure_loop():
+                            runtime._async_loop = MagicMock()
 
-                        # Daemon runtime creates its own async loop and schedules connect.
-                        with (
-                            patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
-                            patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
-                        ):
-                            def fake_ensure_loop():
-                                runtime._async_loop = MagicMock()
+                        runtime = SyncRuntime()
+                        mock_ensure_loop.side_effect = fake_ensure_loop
+                        runtime.start()
 
-                            runtime = SyncRuntime()
-                            mock_ensure_loop.side_effect = fake_ensure_loop
-                            runtime.start()
-
-                            mock_ws_class.assert_called_once()
-                            assert runtime.ws_client is mock_ws
-                            mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
+                        mock_ws_class.assert_called_once()
+                        assert runtime.ws_client is mock_ws
+                        mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
 
     def test_websocket_connect_scheduled_on_daemon_loop(self, tmp_path, monkeypatch):
         """Runtime should schedule async connect on its dedicated daemon loop."""
@@ -323,29 +332,31 @@ class TestUnauthenticatedBehavior:
         mock_connect_coro = MagicMock()
         mock_ws.connect.return_value = mock_connect_coro
 
+        fake_tm = MagicMock()
+        fake_tm.is_authenticated = True
+        monkeypatch.setattr(
+            "specify_cli.auth.get_token_manager", lambda: fake_tm
+        )
+
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
             with patch("specify_cli.sync.client.WebSocketClient") as mock_ws_class:
                 mock_ws_class.return_value = mock_ws
-                with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                    mock_auth = MagicMock()
-                    mock_auth.is_authenticated.return_value = True
-                    mock_auth_class.return_value = mock_auth
-                    with patch("specify_cli.sync.config.SyncConfig") as mock_config_class:
-                        mock_config = MagicMock()
-                        mock_config.get_server_url.return_value = "https://example.com"
-                        mock_config_class.return_value = mock_config
+                with patch("specify_cli.sync.config.SyncConfig") as mock_config_class:
+                    mock_config = MagicMock()
+                    mock_config.get_server_url.return_value = "https://example.com"
+                    mock_config_class.return_value = mock_config
 
-                        with (
-                            patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
-                            patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
-                        ):
-                            def fake_ensure_loop():
-                                runtime._async_loop = MagicMock()
+                    with (
+                        patch.object(SyncRuntime, "_ensure_async_loop") as mock_ensure_loop,
+                        patch("asyncio.run_coroutine_threadsafe") as mock_run_coroutine_threadsafe,
+                    ):
+                        def fake_ensure_loop():
+                            runtime._async_loop = MagicMock()
 
-                            runtime = SyncRuntime()
-                            mock_ensure_loop.side_effect = fake_ensure_loop
-                            runtime.start()
+                        runtime = SyncRuntime()
+                        mock_ensure_loop.side_effect = fake_ensure_loop
+                        runtime.start()
 
-                            mock_ws_class.assert_called_once()
-                            mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)
+                        mock_ws_class.assert_called_once()
+                        mock_run_coroutine_threadsafe.assert_called_once_with(mock_connect_coro, runtime._async_loop)

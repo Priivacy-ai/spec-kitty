@@ -244,16 +244,18 @@ class TestMissionOriginBoundEventRouting:
         assert event is not None
         assert event["causation_id"] is None
 
-    def test_emission_is_fire_and_forget(self, temp_queue: OfflineQueue):
+    def test_emission_is_fire_and_forget(
+        self, temp_queue: OfflineQueue, mock_auth
+    ):
         """Even with a broken clock, emit never raises -- returns None."""
+        del mock_auth  # side-effect-only (installs fake TokenManager)
         from unittest.mock import MagicMock
 
         clock = MagicMock()
         clock.tick.side_effect = RuntimeError("Clock corrupted")
-        auth = MagicMock()
         config = MagicMock()
 
-        em = EventEmitter(clock=clock, config=config, queue=temp_queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=temp_queue, ws_client=None)
         event = em.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
             provider="jira",

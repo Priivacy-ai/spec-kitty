@@ -321,7 +321,10 @@ def batch_sync(  # noqa: C901
 
     Args:
         queue: OfflineQueue instance containing events to sync.
-        auth_token: JWT access token for authentication.
+        auth_token: OAuth access token obtained from
+            ``specify_cli.auth.get_token_manager().get_access_token()``.
+            Callers (see ``sync/background.py``) are responsible for fetching
+            and refreshing this token via ``TokenManager``.
         server_url: Server base URL (e.g., ``https://spec-kitty-dev.fly.dev``).
         limit: Maximum number of events to sync (default 1000).
         show_progress: Whether to print progress messages (default ``True``).
@@ -496,7 +499,7 @@ def sync_all_queued_events(
 
     Args:
         queue: OfflineQueue instance.
-        auth_token: JWT access token.
+        auth_token: OAuth access token obtained from TokenManager.
         server_url: Server base URL.
         batch_size: Events per batch (default 1000).
         show_progress: Whether to print progress.

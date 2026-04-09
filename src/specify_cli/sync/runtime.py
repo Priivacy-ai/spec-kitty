@@ -144,19 +144,16 @@ class SyncRuntime:
 
     def _connect_websocket_if_authenticated(self) -> None:
         """Attempt WebSocket connection if user is authenticated."""
-        from .auth import AuthClient
-        from .config import SyncConfig
+        from specify_cli.auth import get_token_manager
 
-        auth = AuthClient()
-        config = SyncConfig()
+        tm = get_token_manager()
 
-        if auth.is_authenticated():
+        if tm.is_authenticated:
             try:
                 from .client import WebSocketClient
-                self.ws_client = WebSocketClient(
-                    server_url=config.get_server_url(),
-                    auth_client=auth,
-                )
+                # Server URL comes from SPEC_KITTY_SAAS_URL via WebSocketClient internals;
+                # runtime does not hardcode host/scheme (see decision D-5).
+                self.ws_client = WebSocketClient()
                 self._ensure_async_loop()
                 if self._async_loop is None:
                     logger.info("Async loop unavailable; events will be queued for batch sync")

@@ -2,6 +2,11 @@
 
 Sends individual body upload tasks to POST /api/dossier/push-content/
 and classifies responses into UploadOutcome with retryable semantics.
+
+Authentication:
+    This module does not manage tokens. Callers (``sync/background.py``)
+    are responsible for fetching a fresh OAuth access token from
+    ``specify_cli.auth.get_token_manager()`` before invoking ``push_content``.
 """
 
 from __future__ import annotations
@@ -29,7 +34,15 @@ def push_content(
 ) -> UploadOutcome:
     """POST artifact body to SaaS push-content endpoint.
 
-    Returns UploadOutcome classifying the server response.
+    Args:
+        task: body upload task from ``OfflineBodyUploadQueue``.
+        auth_token: OAuth access token from
+            ``specify_cli.auth.get_token_manager().get_access_token()``.
+        server_url: Server base URL (e.g., from ``get_saas_base_url()``).
+        timeout: Per-request timeout in seconds.
+
+    Returns:
+        UploadOutcome classifying the server response.
     """
     from specify_cli.core.contract_gate import validate_outbound_payload
 

@@ -437,21 +437,38 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
             saas_sync_disabled_message(),
         )
 
-    import httpx
-    from specify_cli.sync.auth import AuthClient, AuthenticationError, CredentialStore
+    import asyncio
 
-    # Step 1: Check if credentials exist at all
-    store = CredentialStore()
-    if not store.exists():
+    import httpx
+
+    from specify_cli.auth import get_token_manager
+    from specify_cli.auth.errors import AuthenticationError
+
+    # Step 1: Check if an authenticated session exists.
+    tm = get_token_manager()
+    if not tm.is_authenticated:
         return (
             "[yellow]Not authenticated[/yellow]",
             "Run `spec-kitty auth login` to connect.",
         )
 
-    # Step 2: Get a valid access token (with auto-refresh if expired)
-    auth = AuthClient()
+    # Step 2: Get a valid access token (with auto-refresh if expired) via a
+    # short-lived event loop, since this function is synchronous.
+    async def _get_token() -> str:
+        return await tm.get_access_token()
+
+    access_token: str | None
     try:
-        access_token = auth.get_access_token()
+        new_loop = asyncio.new_event_loop()
+        try:
+            asyncio.set_event_loop(new_loop)
+            access_token = new_loop.run_until_complete(_get_token())
+        finally:
+            try:
+                asyncio.set_event_loop(None)
+            except Exception:
+                pass
+            new_loop.close()
     except AuthenticationError:
         access_token = None
     except Exception as exc:
@@ -661,7 +678,7 @@ def status(
         # Test connection to server
         spec-kitty sync status --check
     """
-    from specify_cli.sync.auth import AuthClient
+    from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.daemon import get_sync_daemon_status
     from specify_cli.sync.queue import OfflineQueue
@@ -675,7 +692,7 @@ def status(
     server_url = config.get_server_url()
     saas_enabled = is_saas_sync_enabled()
     queue = OfflineQueue()
-    auth = AuthClient()
+    tm = get_token_manager()
     daemon_status = get_sync_daemon_status()
 
     # Display status
@@ -720,7 +737,7 @@ def status(
 
     # Auth status
     if saas_enabled:
-        auth_ok = auth.is_authenticated()
+        auth_ok = tm.is_authenticated
         auth_text = "[green]Authenticated[/green]" if auth_ok else "[yellow]Not authenticated[/yellow]"
     else:
         auth_text = "[dim]Disabled by feature flag[/dim]"
@@ -852,7 +869,7 @@ def doctor() -> None:
     """
     from datetime import datetime, timezone, timedelta
 
-    from specify_cli.sync.auth import AuthClient, CredentialStore
+    from specify_cli.auth import get_token_manager
     from specify_cli.sync.config import SyncConfig
     from specify_cli.sync.queue import OfflineQueue
 
@@ -899,51 +916,58 @@ def doctor() -> None:
     server_url = config.get_server_url()
     table.add_row("Server URL", server_url)
 
-    store = CredentialStore()
-    if not store.exists():
+    tm = get_token_manager()
+    session = tm.get_current_session()
+    if session is None:
         table.add_row("Auth", "[red]No credentials[/red]")
         issues.append("Not authenticated. Run `spec-kitty auth login`.")
     else:
-        expiry_info = store.get_token_expiry_info()
-        access_exp = expiry_info.get("access_expires_at")
-        refresh_exp = expiry_info.get("refresh_expires_at")
+        access_exp_dt = session.access_token_expires_at
+        refresh_exp_dt = session.refresh_token_expires_at
 
         now = datetime.now(timezone.utc)
 
-        def _parse_exp(val: str | None) -> datetime | None:
-            if not val:
-                return None
-            try:
-                v = val.replace("Z", "+00:00") if isinstance(val, str) else val
-                parsed = datetime.fromisoformat(str(v))
-                if parsed.tzinfo is None:
-                    parsed = parsed.replace(tzinfo=timezone.utc)
-                return parsed
-            except (ValueError, TypeError):
-                return None
-
-        access_dt = _parse_exp(access_exp)
-        refresh_dt = _parse_exp(refresh_exp)
-
-        access_ok = access_dt is not None and access_dt > now
-        refresh_ok = refresh_dt is not None and refresh_dt > now
+        access_ok = access_exp_dt is not None and access_exp_dt > now
+        refresh_ok = (
+            refresh_exp_dt is None  # no stored refresh expiry → treat as valid
+            or refresh_exp_dt > now
+        )
 
         if access_ok:
-            table.add_row("Access token", f"[green]Valid[/green] (expires {access_exp})")
-        elif access_dt is not None:
-            table.add_row("Access token", f"[red]Expired[/red] ({access_exp})")
+            table.add_row(
+                "Access token",
+                f"[green]Valid[/green] (expires {access_exp_dt.isoformat()})",
+            )
+        elif access_exp_dt is not None:
+            table.add_row(
+                "Access token",
+                f"[red]Expired[/red] ({access_exp_dt.isoformat()})",
+            )
         else:
             table.add_row("Access token", "[red]Missing[/red]")
 
-        if refresh_ok:
-            table.add_row("Refresh token", f"[green]Valid[/green] (expires {refresh_exp})")
-        elif refresh_dt is not None:
-            table.add_row("Refresh token", f"[red]Expired[/red] ({refresh_exp})")
+        if refresh_exp_dt is None:
+            table.add_row("Refresh token", "[green]Valid[/green] (no expiry stored)")
+        elif refresh_ok:
+            table.add_row(
+                "Refresh token",
+                f"[green]Valid[/green] (expires {refresh_exp_dt.isoformat()})",
+            )
         else:
-            table.add_row("Refresh token", "[red]Missing[/red]")
+            table.add_row(
+                "Refresh token",
+                f"[red]Expired[/red] ({refresh_exp_dt.isoformat()})",
+            )
 
-        username = store.get_username()
-        team_slug = store.get_team_slug()
+        username = session.email or session.name
+        team_slug: str | None = None
+        if session.teams:
+            for team in session.teams:
+                if team.id == session.default_team_id:
+                    team_slug = team.id
+                    break
+            if team_slug is None:
+                team_slug = session.teams[0].id
         if username:
             table.add_row("User", username)
         if team_slug:
