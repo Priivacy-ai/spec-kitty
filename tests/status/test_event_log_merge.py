@@ -11,6 +11,7 @@ from typer.testing import CliRunner
 from specify_cli import app as cli_app
 from specify_cli.status.event_log_merge import (
     EventLogMergeError,
+    _read_event_file,
     merge_event_log_files,
     merge_event_payloads,
 )
@@ -116,3 +117,46 @@ def test_merge_driver_event_log_cli_reports_validation_errors(tmp_path: Path) ->
 
     assert result.exit_code == 1
     assert "invalid JSON" in result.output
+
+
+def test_read_event_file_missing_path_returns_empty_list(tmp_path: Path) -> None:
+    assert _read_event_file(tmp_path / "missing.jsonl") == []
+
+
+def test_read_event_file_skips_blank_lines(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text(
+        "\n"
+        + json.dumps(_event("01AAA000000000000000000001", "2026-04-09T06:00:00Z"), sort_keys=True)
+        + "\n\n",
+        encoding="utf-8",
+    )
+
+    assert _read_event_file(path) == [_event("01AAA000000000000000000001", "2026-04-09T06:00:00Z")]
+
+
+def test_read_event_file_rejects_non_object_json(tmp_path: Path) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text('["not", "an", "object"]\n', encoding="utf-8")
+
+    with pytest.raises(EventLogMergeError, match="is not a JSON object"):
+        _read_event_file(path)
+
+
+@pytest.mark.parametrize(
+    ("payload", "expected_message"),
+    [
+        ({"at": "2026-04-09T06:00:00Z"}, "missing a valid event_id"),
+        ({"event_id": "01AAA000000000000000000001"}, "missing a valid at timestamp"),
+    ],
+)
+def test_read_event_file_requires_event_id_and_at(
+    tmp_path: Path,
+    payload: dict[str, str],
+    expected_message: str,
+) -> None:
+    path = tmp_path / "events.jsonl"
+    path.write_text(json.dumps(payload, sort_keys=True) + "\n", encoding="utf-8")
+
+    with pytest.raises(EventLogMergeError, match=expected_message):
+        _read_event_file(path)
