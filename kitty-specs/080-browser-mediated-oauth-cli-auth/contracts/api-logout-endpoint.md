@@ -113,11 +113,14 @@ Accept: application/json
 ## CLI Integration Points
 
 1. **User runs `spec-kitty auth logout`**: CLI reads session from storage
-2. **Extract session_id**: From stored session (ULID from token response)
-3. **Call logout endpoint**: POST to `/api/v1/logout` with session_id
-4. **Cleanup**:
+2. **Call logout endpoint**: POST to `/api/v1/logout` with the bearer token in the
+   `Authorization` header. **No request body.** The session being revoked is
+   identified server-side by the bound session_id of the token, not by a
+   client-provided field.
+3. **Cleanup**:
    - If success: delete stored session, clear TokenManager cache
-   - If failure: attempt cleanup anyway; log warning
+   - If failure (network, 4xx, 5xx): attempt local cleanup anyway; log warning.
+     FR-014 requires that server failure does not block local credential deletion.
 5. **Report to user**: "Successfully logged out" (or "Failed to revoke session, but local credentials removed")
 
 ---

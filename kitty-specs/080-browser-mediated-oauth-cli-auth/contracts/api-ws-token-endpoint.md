@@ -260,4 +260,4 @@ Not typically rate-limited (low-frequency operation).
 - **Session ID must match**: `session_id` must be from current session
 - **Access token refresh automatic**: Pre-connect refresh happens transparently to user
 - **WebSocket token is single-use**: Consumed on upgrade, cannot be reused
-- **Ephemeral token TTL**: Typically 5 minutes; CLI should obtain fresh token for each WebSocket connection
+- **Ephemeral token TTL**: Typically 1 hour (`expires_in=3600`), matching SaaS protected-endpoints contract; CLI obtains a fresh token for each WebSocket connection or upon access-token refresh

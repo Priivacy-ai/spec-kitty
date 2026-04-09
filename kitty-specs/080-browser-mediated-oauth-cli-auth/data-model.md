@@ -71,42 +71,53 @@ class Team:
 
 class StoredSession:
     """Session credentials stored in local secure storage."""
-    
-    # User Identity
+
+    # User Identity (from GET /api/v1/me — see SaaS contract protected-endpoints.md)
     user_id: str                   # User identifier (e.g., "u_alice")
-    username: str                  # Email or username (e.g., "alice@example.com")
-    name: str                      # User's display name (from /api/v1/me)
-    
+    email: str                     # Sourced from /api/v1/me .email (e.g., "alice@example.com")
+    name: str                      # Display name from /api/v1/me .name
+
     # Team Memberships
-    teams: list[Team]              # All teams user belongs to (from /api/v1/me)
-    default_team_id: str           # Default team for status display (user's choice)
-    
+    teams: list[Team]              # All teams user belongs to (from /api/v1/me .teams)
+    default_team_id: str           # CLIENT-PICKED default team. NOT returned by SaaS.
+                                   # CLI sets default_team_id = teams[0].id on first
+                                   # login (or whichever team the user picks via a
+                                   # future `auth set-default-team` command).
+
     # Token Material
     access_token: str              # Bearer token (never logged)
     refresh_token: str             # Refresh token (never logged, server-managed)
     session_id: str                # Session ID from SaaS
-    
+
     # Expiry Information
     issued_at: datetime            # When tokens were issued
     access_token_expires_at: datetime
-    refresh_token_expires_at: datetime
-    
+    refresh_token_expires_at: Optional[datetime]
+                                   # None when SaaS does not provide
+                                   # refresh_token_expires_in. The CLI never
+                                   # hardcodes a TTL; if the field is None,
+                                   # the CLI treats refresh expiry as
+                                   # server-managed and only learns of it via
+                                   # `400 invalid_grant` on a refresh attempt.
+                                   # See contracts/saas-amendment-refresh-ttl.md.
+
     # Session Metadata
     scope: str                     # Scopes granted
     storage_backend: str           # "keychain" | "credential_manager" | "secret_service" | "file"
     last_used_at: datetime         # When this session was last used
-    
+
     # Auth Context
-    auth_method: str               # "authorization_code" | "device_flow"
+    auth_method: str               # "authorization_code" | "device_code"
 ```
 
 **Validation Rules**:
-- `user_id` and `username` must not be empty
+- `user_id` and `email` must not be empty
 - `teams` must not be empty (user must belong to at least one team)
 - `default_team_id` must be one of the team IDs in `teams[]`
 - `session_id` must match SaaS session_id
 - `access_token` and `refresh_token` must not be empty
-- `issued_at` < `access_token_expires_at` < `refresh_token_expires_at`
+- `issued_at` < `access_token_expires_at`
+- If `refresh_token_expires_at is not None`: `access_token_expires_at < refresh_token_expires_at`
 - `storage_backend` must be one of the four allowed values
 
 ---

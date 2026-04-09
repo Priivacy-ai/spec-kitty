@@ -137,10 +137,17 @@ Not authenticated. Run: spec-kitty auth login
 
 **Flow:**
 1. CLI detects no supported keystore
-2. During login, CLI prompts: `Secure credential store not available. Tokens will be stored in plaintext at ~/.config/spec-kitty/credentials.json with owner-only permissions (0600). Continue? [y/n]`
-3. If yes: store credentials in file with strict permissions
-4. In `spec-kitty auth status`: show `Token Storage: File fallback (plaintext, owner-only)`
-5. In CLI debug log: "No supported keystore detected. Using file fallback for tokens."
+2. During login, CLI prompts: `Secure credential store not available. Tokens will be stored in an encrypted file at ~/.config/spec-kitty/credentials.json (AES-256-GCM, 0600 permissions). Continue? [y/n]`
+3. If yes: store credentials in the encrypted file backend (see C-011) with strict permissions
+4. In `spec-kitty auth status`: show `Token Storage: File fallback (encrypted at rest)`
+5. In CLI debug log: "No supported keystore detected. Using encrypted file fallback for tokens."
+
+**Encryption details** (per constraint C-011): Tokens are encrypted with
+AES-256-GCM. The 256-bit key is derived from `f"{hostname}:{uid}"` via
+scrypt with a random 16-byte salt stored at
+`~/.config/spec-kitty/credentials.salt` (0600 perms). A new salt is generated
+on first write; subsequent writes reuse it. This protects against credential
+file theft on shared/multi-user systems and against simple disk-image copying.
 
 ---
 
@@ -154,7 +161,7 @@ Not authenticated. Run: spec-kitty auth login
 | FR-004 | All generated `code_verifier` values must be cryptographically secure random, 43 characters, and compliant with RFC 7636 Section 4.1 | Approved |
 | FR-005 | Loopback callback server must timeout after 5 minutes of listening without successful callback | Approved |
 | FR-006 | Access tokens must be stored exclusively in OS-backed secure storage (Keychain/Credential Manager) when available | Approved |
-| FR-007 | When no supported OS keystore is available, tokens may be stored in `~/.config/spec-kitty/credentials.json` with owner-only file permissions (0600) and explicit user consent | Approved |
+| FR-007 | When no supported OS keystore is available, tokens MUST be stored encrypted at rest with AES-256-GCM in `~/.config/spec-kitty/credentials.json` (0600 perms), with explicit user consent at first login. Plaintext storage is forbidden. Encryption details in constraint C-011. | Approved |
 | FR-008 | CLI must not prompt for or accept username/password for any human authentication path | Approved |
 | FR-009 | Tokens must be automatically refreshed before expiry using refresh token without requiring user interaction | Approved |
 | FR-010 | When multiple concurrent requests detect token expiry (401), only a single token refresh must occur (single-flight pattern) | Approved |
@@ -205,6 +212,8 @@ Not authenticated. Run: spec-kitty auth login
 | C-008 | Access token TTL is ~1 hour (3600s); refresh token TTL is ~90 days | SaaS token policy (CliSession model, epic #49) |
 | C-009 | Session is server-managed (CliSession model); no JWT self-contained state | SaaS architecture per epic #49 |
 | C-010 | Staging validation: 72+ hour window before GA cutover (aligned with SaaS epic #49 plan) | Rollout cadence per epic #49 |
+| C-011 | File fallback storage MUST encrypt tokens at rest with AES-256-GCM. The encryption key is derived from `f"{hostname}:{uid}"` via scrypt with a random 16-byte salt stored at `~/.config/spec-kitty/credentials.salt` (0600 perms). Plaintext file storage of bearer tokens is forbidden. | Post-merge mission review found that hostname-only SHA256 key derivation is too weak; scrypt + random salt + UID binding protects against shared-host attacks and credential file copying |
+| C-012 | Refresh token TTL MUST be sourced from a SaaS-provided field (`refresh_token_expires_in`). The CLI MUST NOT hardcode a refresh TTL in client code. Until SaaS adds the field (see `contracts/saas-amendment-refresh-ttl.md`), the CLI treats refresh expiry as server-managed: `refresh_token_expires_at = None`, and the CLI only learns about refresh expiry from a `400 invalid_grant` response on a refresh attempt. TTL-sensitive UX (`auth status` "expires in N days", proactive expiry warnings, forced re-login countdowns) is BLOCKED on the SaaS contract amendment. | Avoids client-side hardcoded session policy that drifts from server reality |
 
 ---
 
@@ -231,32 +240,80 @@ Not authenticated. Run: spec-kitty auth login
 class OAuthTokenResponse:
     access_token: str          # Bearer token for API calls
     token_type: str            # "Bearer"
-    expires_in: int            # Seconds from now (e.g., 3600 for 1 hour)
+    expires_in: int            # Access token TTL in seconds (e.g., 3600 for 1 hour)
     refresh_token: str         # Opaque refresh token
+    refresh_token_expires_in: int | None  # Refresh token TTL in seconds.
+                                          # PENDING SaaS contract amendment — see
+                                          # contracts/saas-amendment-refresh-ttl.md.
+                                          # Until SaaS adds this field, the CLI
+                                          # treats refresh expiry as server-managed.
     scope: str                 # Space-separated scopes granted (includes "offline_access")
     session_id: str            # Server-side session identifier (ULID)
 
-# Computed by CLI
+# Returned by SaaS GET /api/v1/me (per protected-endpoints.md from SaaS epic #49/032)
+class UserInfoResponse:
+    user_id: str               # "u_alice"
+    email: str                 # "alice@example.com"  ← NOT "username"
+    name: str                  # "Alice Developer"
+    teams: list[Team]          # User's team memberships with role
+    session_id: str            # Stable across token refreshes
+    authenticated_at: datetime
+    access_token_expires_at: datetime
+    auth_flow: str             # "authorization_code" | "device_code"
+
+class Team:
+    id: str                    # "tm_acme"
+    name: str                  # "Acme Corp"
+    role: str                  # "admin" | "member" | etc.
+
+# Computed by CLI from token + user info responses
 class ComputedTokenExpiry:
     access_token_expires_at: datetime    # now + expires_in
-    refresh_token_expires_at: datetime   # ~90 days from now (SaaS policy)
+    refresh_token_expires_at: datetime | None
+                                         # now + refresh_token_expires_in IF
+                                         # SaaS provides it; otherwise None
+                                         # (server-managed, client cannot know).
 
-# Stored in keychain/file
+# Stored in keychain/file (multi-team model)
 class StoredSession:
     user_id: str               # "u_..."
-    username: str              # "alice@example.com"
-    team_id: str               # "tm_acme" (default team for status display)
-    team_name: str             # "ACME Corp"
+    email: str                 # "alice@example.com" (sourced from /api/v1/me .email)
+    name: str                  # "Alice Developer"
+
+    teams: list[Team]          # All teams the user belongs to (from /api/v1/me)
+    default_team_id: str       # CLIENT-PICKED default for status display + WS
+                               # provisioning. SaaS does NOT return this field.
+                               # CLI defaults to teams[0].id on first login; user
+                               # can override with `spec-kitty auth set-default-team`
+                               # in a future mission.
+
     access_token: str
     refresh_token: str
-    token_issued_at: datetime
+    session_id: str            # From SaaS, stable across refreshes
+
+    issued_at: datetime
     access_token_expires_at: datetime
-    refresh_token_expires_at: datetime
+    refresh_token_expires_at: datetime | None
+                               # None when SaaS does not provide
+                               # refresh_token_expires_in (current state).
+
     scope: str
-    session_id: str            # From SaaS
     storage_backend: str       # "keychain" | "credential_manager" | "secret_service" | "file"
     last_used_at: datetime
+    auth_method: str           # "authorization_code" | "device_code"
 ```
+
+**Notes on refresh_token_expires_at**:
+
+The CLI does **not** hardcode a refresh token TTL. It reads
+`refresh_token_expires_in` from the SaaS token response when present, otherwise
+sets `refresh_token_expires_at = None` and treats refresh expiry as
+server-managed (i.e., the client never proactively decides the refresh token
+is expired; it only learns when SaaS rejects a refresh attempt with
+`invalid_grant`). See `contracts/saas-amendment-refresh-ttl.md` for the
+pending SaaS contract amendment that will populate this field. Status display,
+proactive expiry warnings, and forced re-login UX are blocked on that
+amendment landing on the SaaS side.
 
 ### 7.2 OAuth Flow State
 
@@ -585,18 +642,30 @@ or
 
 ### 9.2 Affected Modules & Changes
 
+> Module paths verified against the actual repository on 2026-04-09 (post-reset
+> to the pre-implementation baseline f0663139). Earlier drafts of this table
+> referenced flat module names like `specify_cli/auth.py` that do not exist;
+> the canonical paths are below.
+
 | Module | Current State | Migration |
 |---|---|---|
-| `specify_cli/auth.py` | Prompts username/password, calls `obtain_tokens()` | Remove password prompts; call `TokenManager.login_interactive()` or `.login_headless()` |
-| `specify_cli/auth/token_manager.py` | Does not exist | Create: centralized token provisioning |
-| `specify_cli/auth/storage.py` | Does not exist | Create: keychain/file abstraction |
-| `specify_cli/auth/loopback.py` | Does not exist | Create: HTTP server for OAuth callback |
-| `specify_cli/auth/device_flow.py` | Does not exist | Create: device code polling logic |
-| `sync/client.py` | Reads token directly from file | Import TokenManager, call `get_access_token()` on every request |
-| `tracker/saas_client.py` | Reads token directly | Import TokenManager, call `get_access_token()` on every request |
-| `sync/websocket.py` | Direct connection with access token | Call `/api/v1/ws-token/` endpoint before connecting |
-| `sync/background.py`, `sync/batch.py` | Direct token passing | Use TokenManager |
-| `tests/sync/test_auth_concurrent_refresh.py` | Existing refresh race tests | Preserve as-is; document as legacy refresh pattern baseline |
+| `src/specify_cli/cli/commands/auth.py` | Has Typer `login`, `logout`, `status` commands. `login()` declares `--username` / `--password` Typer options, calls `typer.prompt("Username")` and `typer.prompt("Password", hide_input=True)`, then constructs `AuthClient` and calls `obtain_tokens()`. | REPLACE the `login` command body with a deferred dispatch shell that calls a new `_auth_login.py` module. Remove all imports of `AuthClient`, `CredentialStore`, `is_saas_sync_enabled`, `read_queue_scope_from_credentials`, `pending_events_for_scope`. Same pattern for `logout` → `_auth_logout.py` and `status` → `_auth_status.py`. |
+| `src/specify_cli/sync/auth.py` | Defines `AuthClient` and `CredentialStore` (TOML file at `~/.spec-kitty/credentials`). All sync/tracker callers route token access through this class. | DELETE entirely after WP08 rewires every caller. |
+| `src/specify_cli/auth/__init__.py` | Does not exist | Create: exports `get_token_manager()` factory + error classes |
+| `src/specify_cli/auth/config.py` | Does not exist | Create: `get_saas_base_url()` env-driven helper |
+| `src/specify_cli/auth/token_manager.py` | Does not exist | Create: centralized TokenManager with single-flight refresh |
+| `src/specify_cli/auth/session.py` | Does not exist | Create: `StoredSession` and `Team` dataclasses (multi-team model, `email` field, optional `refresh_token_expires_at`) |
+| `src/specify_cli/auth/secure_storage/` | Does not exist | Create package: ABC + keychain backend (via `keyring`) + encrypted file fallback (AES-256-GCM + scrypt KDF) |
+| `src/specify_cli/auth/loopback/` | Does not exist | Create package: PKCE generation, callback HTTP server, callback handler, browser launcher |
+| `src/specify_cli/auth/device_flow/` | Does not exist | Create package: device flow state model, polling loop |
+| `src/specify_cli/auth/flows/` | Does not exist | Create package: `AuthorizationCodeFlow`, `DeviceCodeFlow`, `TokenRefreshFlow` |
+| `src/specify_cli/auth/http/` | Does not exist | Create package: `OAuthHttpClient` (httpx wrapper with bearer injection + 401 retry) |
+| `src/specify_cli/auth/websocket/` | Does not exist | Create package: `provision_ws_token()` for pre-connect WS token fetching |
+| `src/specify_cli/sync/client.py` | Imports `AuthClient` from `specify_cli.sync.auth`. HTTP requests use `_credential_store.get_access_token()`. WebSocket setup is inside this same file (not a separate `sync/websocket.py`). | Rewire to `from specify_cli.auth import get_token_manager` and use `OAuthHttpClient`. WebSocket pre-connect calls `auth.websocket.provision_ws_token()`. |
+| `src/specify_cli/tracker/saas_client.py` | Imports `AuthClient`, `CredentialStore` from `specify_cli.sync.auth`. Reads access token via `self._credential_store.get_access_token()` and team slug via `self._credential_store.get_team_slug()`. | Rewire to `get_token_manager()`. Default team is read from `tm.get_current_session().default_team_id`. |
+| `src/specify_cli/sync/background.py`, `sync/batch.py`, `sync/body_transport.py`, `sync/runtime.py`, `sync/emitter.py`, `sync/events.py` | Import `AuthClient` (or its result) from `specify_cli.sync.auth`. Pass `auth_token: str` parameters around. | Replace with `get_token_manager()` calls inline. Remove `auth_token` parameters where the function is async. |
+| `pyproject.toml` | Does NOT declare `keyring` or `cryptography` as dependencies. | WP01 adds `keyring>=24.0` and `cryptography>=42.0` to `[project.dependencies]`. |
+| `tests/sync/test_auth.py`, `tests/sync/test_auth_concurrent_refresh.py` | Exercise legacy `AuthClient` and `CredentialStore`. | DELETE or REPURPOSE in WP10. Equivalent coverage moves to `tests/auth/test_token_manager.py`, `tests/auth/test_secure_storage_*.py`, `tests/auth/concurrency/test_single_flight_refresh.py`. |
 
 ### 9.3 Backwards Compatibility
 
