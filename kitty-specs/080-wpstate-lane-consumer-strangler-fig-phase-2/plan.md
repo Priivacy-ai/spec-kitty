@@ -270,32 +270,11 @@ WP07: Final cleanup & verification
 
 | Artifact | Location | Status |
 |----------|----------|--------|
-| plan.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/plan.md | ✓ Updated (this document) |
-| data-model.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/data-model.md | → To be updated |
-| contracts/consumer-interfaces.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/contracts/consumer-interfaces.md | → To be updated |
-| quickstart.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/quickstart.md | → To be updated |
+| plan.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/plan.md | ✓ Amended |
+| data-model.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/data-model.md | ✓ Amended |
+| contracts/consumer-interfaces.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/contracts/consumer-interfaces.md | ✓ Amended |
+| quickstart.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/quickstart.md | ✓ Amended |
 | spec.md | kitty-specs/080-wpstate-lane-consumer-strangler-fig-phase-2/spec.md | ✓ Amended |
-
----
-
-## ⛔ STOP POINT: AMENDED PLAN READY
-
-**Phase 1 complete for amended 7-consumer scope.**
-
-### Next Steps
-
-1. User reviews amended plan (this document)
-2. If acceptable: I update data-model.md, contracts/, quickstart.md to match 7-consumer scope
-3. Commit all amendments to git
-4. User runs `/spec-kitty.tasks` to generate 7 work packages
-
-### Do NOT
-
-❌ Create tasks.md  
-❌ Create work package files  
-❌ Proceed to implementation  
-
-**Confirm plan acceptable before I update supporting artifacts.**
 
 ---
 
@@ -303,3 +282,4 @@ WP07: Final cleanup & verification
 
 - **2026-04-09 (Initial)**: Full plan for 15 consumers, 6 slices, 9 WPs
 - **2026-04-09 (Amendment)**: Trimmed to 7 verified consumers, 4 slices, 7 WPs. Fixed scope creep, slice dependencies, and is_terminal/approved conflation.
+- **2026-04-09 (Post-merge doc sync)**: Removed pre-implementation STOP banner; artifacts aligned with shipped WP07 implementation. Clarified `progress_bucket()` returns the four-bucket vocabulary (`not_started`, `in_flight`, `review`, `terminal`) and `WPMetadata.resolved_agent()` lives in `src/specify_cli/status/wp_metadata.py`.

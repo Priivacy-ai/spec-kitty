@@ -62,28 +62,26 @@ elif state.progress_bucket() == "review":  # for_review, in_review
 # Manual lane bucketing for display categories
 for wp_id, state_dict in snapshot.work_packages.items():
     lane_str = state_dict.get("lane", "planned")
-    
-    if lane_str in ("planned", "claimed"):
+
+    if lane_str in ("planned",):
         category = "not_started"
-    elif lane_str in ("in_progress",):
-        category = "in_progress"
-    elif lane_str in ("for_review", "in_review"):
+    elif lane_str in ("claimed", "in_progress", "blocked"):
+        category = "in_flight"
+    elif lane_str in ("for_review", "in_review", "approved"):
         category = "review"
-    elif lane_str in ("approved",):
-        category = "in_progress"
     elif lane_str in ("done", "canceled"):
-        category = "complete"
+        category = "terminal"
 ```
 
 ### After Pattern
 
 ```python
 # Delegate to state.progress_bucket()
-from specify_cli.status.models import wp_state_for
+from specify_cli.status.wp_state import wp_state_for
 
 for wp_id, state_dict in snapshot.work_packages.items():
-    state = wp_state_for(state_dict)
-    category = state.progress_bucket()  # Returns: "not_started", "in_progress", "review", "complete"
+    state = wp_state_for(state_dict.get("lane", "planned"))
+    category = state.progress_bucket()  # Returns: "not_started", "in_flight", "review", "terminal"
 ```
 
 ### Backward Compatibility
@@ -96,20 +94,20 @@ for wp_id, state_dict in snapshot.work_packages.items():
 
 ```python
 def test_kanban_progress_bucket_unchanged():
-    # Verify progress_bucket() maps lanes same as old manual logic
+    # Verify progress_bucket() maps lanes as shipped in WPState
     test_cases = [
         ("planned", "not_started"),
-        ("claimed", "not_started"),
-        ("in_progress", "in_progress"),
+        ("claimed", "in_flight"),
+        ("in_progress", "in_flight"),
+        ("blocked", "in_flight"),
         ("for_review", "review"),
         ("in_review", "review"),
-        ("approved", "in_progress"),
-        ("done", "complete"),
-        ("canceled", "complete"),
-        ("blocked", "not_started"),
+        ("approved", "review"),
+        ("done", "terminal"),
+        ("canceled", "terminal"),
     ]
     for lane_str, expected_bucket in test_cases:
-        state = wp_state_for({"lane": lane_str})
+        state = wp_state_for(lane_str)
         assert state.progress_bucket() == expected_bucket
 ```
 
@@ -302,17 +300,17 @@ elif lane in ("for_review", "in_review"):
 ```python
 # Typed lane access
 from specify_cli.status.lane_reader import get_wp_lane
-from specify_cli.status.models import wp_state_for
+from specify_cli.status.wp_state import wp_state_for
 
 lane_str = str(get_wp_lane(feature_dir, wp_id))
-state = wp_state_for({"lane": lane_str})
+state = wp_state_for(lane_str)
 
 bucket = state.progress_bucket()
 display_map = {
     "not_started": "Planned",
-    "in_progress": "In Progress",
+    "in_flight": "In Progress",
     "review": "In Review",
-    "complete": "Complete",
+    "terminal": "Complete",
 }
 display = display_map.get(bucket, "Unknown")
 ```
@@ -327,18 +325,16 @@ display = display_map.get(bucket, "Unknown")
 
 ```python
 def test_tasks_cli_lane_display():
-    # Verify progress_bucket() maps to same display as old logic
+    # Verify progress_bucket() maps to the shipped four-bucket vocabulary
     test_cases = [
-        ("planned", "Planned"),
-        ("in_progress", "In Progress"),
-        ("for_review", "In Review"),
-        ("done", "Complete"),
+        ("planned", "not_started"),
+        ("in_progress", "in_flight"),
+        ("for_review", "review"),
+        ("done", "terminal"),
     ]
-    for lane_str, expected_display in test_cases:
-        state = wp_state_for({"lane": lane_str})
-        bucket = state.progress_bucket()
-        # Verify bucket maps to expected display
-        assert bucket in ["not_started", "in_progress", "review", "complete"]
+    for lane_str, expected_bucket in test_cases:
+        state = wp_state_for(lane_str)
+        assert state.progress_bucket() == expected_bucket
 ```
 
 ---

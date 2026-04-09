@@ -8,5 +8,5 @@
   "slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
   "target_branch": "main",
   "vcs": "git",
-  "source_description": "GitHub issue #537 — follow-up to #405. Migrate 15 WP lane consumers from raw lane-string comparisons to typed/state semantics via sequential consumer slices (Strangler Fig pattern)."
+  "source_description": "GitHub issue #537 — follow-up to #405. Migrate 7 verified WP lane consumers from raw lane-string comparisons to typed/state semantics via four sequential slices (Strangler Fig pattern). Initial survey identified 15 candidates; scope was reduced during planning — see kitty-specs/080-.../spec.md change log."
 }

@@ -2,11 +2,11 @@
 
 ## Overview
 
-Complete the migration of WP lane consumers away from raw lane-string comparisons toward typed lane semantics and state properties. This is phase 2 of the Strangler Fig pattern from #405, targeting 15 consumer sites across the codebase that currently leak lane-string logic into feature code. Preserve backward compatibility after each consumer slice until migration is complete.
+Complete the migration of WP lane consumers away from raw lane-string comparisons toward typed lane semantics and state properties. This is phase 2 of the Strangler Fig pattern from #405, targeting **7 verified consumer sites** (scope reduced from an initial survey of 15 candidates — see Change Log) that currently leak lane-string logic into feature code. Preserve backward compatibility after each consumer slice until migration is complete.
 
 ## Problem Statement
 
-Lane semantics are currently scattered across 15 consumer sites rather than encapsulated in the status/state module. Each consumer reimplements lane buckets (e.g., "not started" = {planned, claimed}, "doing" = {in_progress}, "review" = {for_review, in_review}) and carries stale lane-string assumptions. This creates maintenance burden, makes it harder to evolve lane transitions, and couples feature code to status implementation details.
+Lane semantics are currently scattered across several consumer sites rather than encapsulated in the status/state module. Each consumer reimplements lane buckets (e.g., "not started" = {planned}, "in_flight" = {claimed, in_progress, blocked}, "review" = {for_review, in_review, approved}) and carries stale lane-string assumptions. This creates maintenance burden, makes it harder to evolve lane transitions, and couples feature code to status implementation details.
 
 ## Desired Outcome
 
@@ -134,7 +134,7 @@ Merge validation checks if WPs are in terminal lanes (done, approved).
 1. **Lane enum and status module are authoritative**: All lane logic lives in `src/specify_cli/status/`, and consumers delegate to it
 2. **Backward compatibility is required**: No breaking changes to CLI or agent APIs during migration; Strangler Fig allows safe incremental rollout
 3. **Legacy fallback behavior is documented**: `AgentAssignment` resolution will have clear documented fallback order (direct assignment → model field → agent_profile field → role field)
-4. **Sequential slicing is feasible**: The 6 proposed slices can be implemented independently with compatibility maintained after each; tight coupling between slices is minimal
+4. **Sequential slicing is feasible**: The 4 amended slices can be implemented independently with compatibility maintained after each; tight coupling between slices is minimal
 5. **Test suites are comprehensive**: Existing tests will catch regressions if a slice is incomplete or breaks a consumer
 
 ---

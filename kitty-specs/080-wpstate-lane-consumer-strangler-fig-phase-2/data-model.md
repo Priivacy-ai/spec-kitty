@@ -19,7 +19,7 @@ Two primary data structures define the migration:
 
 ### Location
 
-`src/specify_cli/status/wp_state.py`
+`src/specify_cli/status/wp_state.py` — defined as a base-class property on `WPState`
 
 ### Definition
 
@@ -139,7 +139,7 @@ Frozen dataclass ensures:
 
 ### Location
 
-`src/specify_cli/tasks_support.py` and related frontmatter handling
+`src/specify_cli/status/wp_metadata.py` — method on the `WPMetadata` Pydantic model
 
 ### Definition
 

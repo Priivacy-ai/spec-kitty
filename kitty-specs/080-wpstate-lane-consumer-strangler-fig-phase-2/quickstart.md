@@ -19,14 +19,12 @@ Use this section to quickly understand how to migrate a consumer.
 # agent_utils/status.py: manual bucketing for display
 lane_str = wp_snapshot.get("lane", "planned")
 
-if lane_str in ("planned", "claimed"):
+if lane_str in ("planned",):
     progress = "Not Started"
-elif lane_str in ("in_progress",):
+elif lane_str in ("claimed", "in_progress", "blocked"):
     progress = "In Progress"
-elif lane_str in ("for_review", "in_review"):
+elif lane_str in ("for_review", "in_review", "approved"):
     progress = "Review"
-elif lane_str in ("approved",):
-    progress = "In Progress"
 elif lane_str in ("done", "canceled"):
     progress = "Complete"
 ```
@@ -34,16 +32,16 @@ elif lane_str in ("done", "canceled"):
 ### After: Use State Properties
 
 ```python
-from specify_cli.status.models import wp_state_for
+from specify_cli.status.wp_state import wp_state_for
 
-state = wp_state_for(wp_snapshot)
-bucket = state.progress_bucket()  # "not_started", "in_progress", "review", "complete"
+state = wp_state_for(lane_str)
+bucket = state.progress_bucket()  # "not_started", "in_flight", "review", "terminal"
 
 progress_map = {
     "not_started": "Not Started",
-    "in_progress": "In Progress",
+    "in_flight": "In Progress",
     "review": "Review",
-    "complete": "Complete",
+    "terminal": "Complete",
 }
 progress = progress_map[bucket]
 ```
@@ -72,9 +70,9 @@ elif lane in (Lane.DONE, Lane.CANCELED):
 ### After: Use State Property
 
 ```python
-from specify_cli.status.models import wp_state_for
+from specify_cli.status.wp_state import wp_state_for
 
-state = wp_state_for(wp_snapshot)
+state = wp_state_for(lane)
 
 if state.is_run_affecting:
     action = "route_to_implementation"
@@ -109,9 +107,9 @@ else:
 ### After: Use Resolved Agent
 
 ```python
-from specify_cli.status.models import AgentAssignment
+from specify_cli.status.wp_metadata import WPMetadata
 
-assignment = wp_metadata.resolved_agent()
+assignment = wp_metadata.resolved_agent()  # returns AgentAssignment
 
 tool = assignment.tool
 model = assignment.model
@@ -119,7 +117,7 @@ profile_id = assignment.profile_id
 role = assignment.role
 ```
 
-**Key Change**: Use `wp_metadata.resolved_agent()` for unified agent resolution with fallback.
+**Key Change**: Use `WPMetadata.resolved_agent()` (defined in `specify_cli.status.wp_metadata`) for unified agent resolution with fallback.
 
 ---
 
@@ -167,18 +165,18 @@ elif lane in ("for_review", "in_review"):
 ### After: Use progress_bucket()
 
 ```python
-from specify_cli.status.models import wp_state_for
+from specify_cli.status.wp_state import wp_state_for
 from specify_cli.status.lane_reader import get_wp_lane
 
 lane_str = str(get_wp_lane(feature_dir, wp_id))
-state = wp_state_for({"lane": lane_str})
+state = wp_state_for(lane_str)
 bucket = state.progress_bucket()
 
 display_map = {
     "not_started": "Planned",
-    "in_progress": "In Progress",
+    "in_flight": "In Progress",
     "review": "In Review",
-    "complete": "Complete",
+    "terminal": "Complete",
 }
 display = display_map[bucket]
 ```
@@ -266,14 +264,14 @@ if lane in (Lane.DONE, Lane.APPROVED):
 
 ❌ **Wrong**:
 ```python
-if lane in ("for_review", "in_review"):
+if lane in ("for_review", "in_review", "approved"):
     category = "review"
 ```
 
 ✓ **Right**:
 ```python
-state = wp_state_for(wp_snapshot)
-category = state.progress_bucket()  # Returns "review" for both
+state = wp_state_for(lane)
+category = state.progress_bucket()  # Returns "review" for for_review/in_review/approved
 ```
 
 **Why**: `progress_bucket()` is the authoritative bucketing; duplication risks divergence.
@@ -307,7 +305,7 @@ if state_dict.get("lane") == "for_review":
 
 ✓ **Right**:
 ```python
-state = wp_state_for(state_dict)
+state = wp_state_for(state_dict.get("lane", "planned"))
 if state.progress_bucket() == "review":
     # ...
 ```
@@ -321,14 +319,15 @@ if state.progress_bucket() == "review":
 ### Quick Test: is_run_affecting
 
 ```python
-from specify_cli.status.models import wp_state_for, Lane
+from specify_cli.status.models import Lane
+from specify_cli.status.wp_state import wp_state_for
 
 # Test is_run_affecting
-state_planned = wp_state_for({"lane": Lane.PLANNED})
-assert state_planned.is_run_affecting == True
+state_planned = wp_state_for(Lane.PLANNED)
+assert state_planned.is_run_affecting is True
 
-state_done = wp_state_for({"lane": Lane.DONE})
-assert state_done.is_run_affecting == False
+state_done = wp_state_for(Lane.DONE)
+assert state_done.is_run_affecting is False
 ```
 
 ### Quick Test: Agent Assignment
@@ -337,31 +336,32 @@ assert state_done.is_run_affecting == False
 from specify_cli.status.models import AgentAssignment
 
 assignment = wp_metadata.resolved_agent()
-assert isinstance(assignment.tool, str)
-assert isinstance(assignment.model, str)
-assert assignment.tool != ""
-assert assignment.model != ""
+assert isinstance(assignment, AgentAssignment)
+assert isinstance(assignment.tool, str) and assignment.tool != ""
+assert isinstance(assignment.model, str) and assignment.model != ""
 ```
 
 ### Quick Test: progress_bucket()
 
 ```python
-state = wp_state_for({"lane": "for_review"})
-assert state.progress_bucket() == "review"
+from specify_cli.status.wp_state import wp_state_for
 
-state = wp_state_for({"lane": "in_review"})
-assert state.progress_bucket() == "review"
+assert wp_state_for("for_review").progress_bucket() == "review"
+assert wp_state_for("in_review").progress_bucket() == "review"
+assert wp_state_for("approved").progress_bucket() == "review"
+assert wp_state_for("done").progress_bucket() == "terminal"
+assert wp_state_for("in_progress").progress_bucket() == "in_flight"
+assert wp_state_for("planned").progress_bucket() == "not_started"
 ```
 
 ### Quick Test: Regression
 
 ```python
 # Old code
-old_category = "review" if lane in ("for_review", "in_review") else "other"
+old_category = "review" if lane in ("for_review", "in_review", "approved") else "other"
 
 # New code
-state = wp_state_for({"lane": lane})
-new_category = state.progress_bucket()
+new_category = wp_state_for(lane).progress_bucket()
 
 # Verify mapping unchanged
 assert (old_category == "review") == (new_category == "review")
@@ -397,19 +397,21 @@ assert (old_category == "review") == (new_category == "review")
 
 ```python
 # Import these at the top of your consumer
-from specify_cli.status.models import wp_state_for, Lane, AgentAssignment
+from specify_cli.status.models import Lane, AgentAssignment
+from specify_cli.status.wp_state import wp_state_for
+from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.lane_reader import get_wp_lane
 from specify_cli.status.transitions import validate_transition
 
-# Create state from snapshot
-state = wp_state_for(wp_snapshot)  # wp_snapshot is dict from reduce()
+# Create state from a lane value (enum or string)
+state = wp_state_for(lane)  # accepts Lane or str
 
 # Use state properties/methods
 is_active = state.is_run_affecting  # bool: True for active lanes
-bucket = state.progress_bucket()  # str: "not_started", "in_progress", "review", "complete"
-lane_enum = Lane(state.lane)  # Lane enum for type-safe comparisons
+bucket = state.progress_bucket()  # str: "not_started", "in_flight", "review", "terminal"
+lane_enum = state.lane  # Lane enum for type-safe comparisons
 
-# Resolve agent assignment
+# Resolve agent assignment (typed AgentAssignment boundary)
 assignment = wp_metadata.resolved_agent()  # AgentAssignment
 tool = assignment.tool  # str
 model = assignment.model  # str
@@ -417,7 +419,7 @@ profile_id = assignment.profile_id  # Optional[str]
 role = assignment.role  # Optional[str]
 
 # Validate transitions (recovery mode, etc.)
-is_valid = validate_transition(from_lane, to_lane)  # bool
+ok, error = validate_transition(from_lane, to_lane)  # (bool, Optional[str])
 
 # Get lane from event log
 lane_str = str(get_wp_lane(feature_dir, wp_id))  # str: one of 9 lane values
