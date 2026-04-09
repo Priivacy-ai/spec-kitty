@@ -35,6 +35,8 @@ owned_files:
 - tests/auth/test_http_transport.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
+shell_pid: "1860"
 ---
 
 # WP08: HTTP Transport Rewiring
@@ -558,3 +560,7 @@ rewired any caller, shipped dead code. Reviewer must:
 - **Risk**: `auth_token: str` parameters propagate through many call chains. **Mitigation**: WP08 owns all 6 sync files; the cascade is contained.
 - **Risk**: WebSocket pre-connect needs WP09 to exist. **Mitigation**: WP08 deps include WP09. Lane allocator will sequence WP09 before WP08.
 - **Edge case**: A consumer of `sync/client.py` outside the auth/sync subsystem (e.g., a CLI command) may fail because the constructor signature changed. **Mitigation**: WP08 grep audits catch this; reviewer fixes the caller.
+
+## Activity Log
+
+- 2026-04-09T17:43:53Z – opus:opus:implementer:implementer – shell_pid=1860 – Started implementation via action command
