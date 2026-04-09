@@ -305,6 +305,7 @@ def _run_lane_based_merge(
             Lane→mission step always uses merge commits regardless of this value.
     """
     from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
@@ -472,6 +473,13 @@ def _run_lane_based_merge(
     # -- T005: Branch deletion with retry tolerance --
     if delete_branch:
         for lane in lanes_manifest.lanes:
+            # Skip the planning lane: lane_branch_name() defaults it to the target
+            # branch (e.g. "main") when no planning_base_branch is supplied, so
+            # deleting it would attempt `git branch -D main` — destroying the
+            # persistent target branch.  Planning lanes never have a dedicated
+            # lane branch to clean up.
+            if lane.lane_id == PLANNING_LANE_ID:
+                continue
             branch_name = lane_branch_name(mission_slug, lane.lane_id)
             # T005: check if branch exists before attempting deletion
             ret, _, _ = run_command(
