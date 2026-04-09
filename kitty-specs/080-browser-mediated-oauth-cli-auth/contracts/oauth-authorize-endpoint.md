@@ -1,6 +1,6 @@
 # OAuth 2.0 Authorization Endpoint
 
-**Endpoint**: `POST https://api.spec-kitty.com/oauth/authorize`  
+**Endpoint**: `GET https://api.spec-kitty.com/oauth/authorize`  
 **RFC**: RFC 6749 (OAuth 2.0), RFC 7636 (PKCE)  
 **Flow**: Authorization Code + PKCE  
 **Client Type**: Public (browser callback to localhost loopback)
@@ -9,10 +9,10 @@
 
 ## Request
 
-### URL Parameters
-None. All parameters in request body or query string per RFC 6749.
+### HTTP Method
+**GET** with query parameters (not POST).
 
-### Query String Format (Recommended for browser redirect)
+### Query String Format
 
 ```
 GET https://api.spec-kitty.com/oauth/authorize?

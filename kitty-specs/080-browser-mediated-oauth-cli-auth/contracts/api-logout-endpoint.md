@@ -21,20 +21,11 @@ Accept: application/json
 
 ### Body
 
-```json
-{
-  "session_id": "sess_01HR6CYJK..."
-}
-```
+**No request body required.** Logout is authenticated by the bearer token alone.
 
-### Parameters
-
-| Parameter | Type | Required | Description |
-|-----------|------|----------|-------------|
-| `session_id` | string | Yes | Session ID from token response (ULID format) |
-
-### Field Constraints
-- `session_id`: non-empty ULID string (must match session in tokens)
+### Authentication
+- Access token provided in `Authorization: Bearer` header
+- Session to revoke is identified by the token's bound session_id (server-side)
 
 ---
 
@@ -65,45 +56,19 @@ Accept: application/json
 
 ## Idempotency Behavior
 
-**If session already logged out**:
-- Return `200 OK` with same response body
-- Do not return an error (idempotent)
-- Safe to call multiple times
+**If session already logged out or token invalid**:
+- Return `401 Unauthorized` (token no longer valid)
+- Not idempotent in strict sense (cannot call with expired/revoked token)
+- Safe to call once; subsequent calls require fresh token if session is still active
 
-**Example**:
-```json
-{
-  "status": "logged_out",
-  "session_id": "sess_01HR6CYJK...",
-  "message": "Session successfully revoked"
-}
-```
+**Best practice**:
+- CLI calls logout once during cleanup
+- Does not retry logout on 401 (session is already revoked)
+- Always deletes local credentials after logout attempt (whether SaaS call succeeds or fails)
 
 ---
 
 ## Error Responses
-
-### Invalid Session (400 Bad Request)
-
-```json
-{
-  "error": "invalid_session",
-  "error_description": "Session ID not found or already revoked"
-}
-```
-
-**When**: Session ID does not exist or was already logged out
-
-### Missing Session ID (400 Bad Request)
-
-```json
-{
-  "error": "invalid_request",
-  "error_description": "Missing required field: session_id"
-}
-```
-
-**When**: Request body missing `session_id` field
 
 ### Authentication Failure (401 Unauthorized)
 

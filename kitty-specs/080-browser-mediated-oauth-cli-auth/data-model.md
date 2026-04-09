@@ -63,14 +63,23 @@ class ComputedTokenExpiry:
 **Source**: Persisted by CLI in secure storage (keychain or file)
 
 ```python
+class Team:
+    """User's team membership."""
+    id: str                        # Team identifier (e.g., "tm_acme")
+    name: str                      # Team name (e.g., "Acme Corp")
+    role: str                      # User's role in team (e.g., "admin", "member")
+
 class StoredSession:
     """Session credentials stored in local secure storage."""
     
-    # User/Team Identity
+    # User Identity
     user_id: str                   # User identifier (e.g., "u_alice")
     username: str                  # Email or username (e.g., "alice@example.com")
-    team_id: str                   # Default team (e.g., "tm_acme") for status display
-    team_name: str                 # Default team name (e.g., "Acme Corp")
+    name: str                      # User's display name (from /api/v1/me)
+    
+    # Team Memberships
+    teams: list[Team]              # All teams user belongs to (from /api/v1/me)
+    default_team_id: str           # Default team for status display (user's choice)
     
     # Token Material
     access_token: str              # Bearer token (never logged)
@@ -93,6 +102,8 @@ class StoredSession:
 
 **Validation Rules**:
 - `user_id` and `username` must not be empty
+- `teams` must not be empty (user must belong to at least one team)
+- `default_team_id` must be one of the team IDs in `teams[]`
 - `session_id` must match SaaS session_id
 - `access_token` and `refresh_token` must not be empty
 - `issued_at` < `access_token_expires_at` < `refresh_token_expires_at`
@@ -278,8 +289,12 @@ HTTP 401 Response (all endpoints)
   "session": {
     "user_id": "u_alice",
     "username": "alice@example.com",
-    "team_id": "tm_acme",
-    "team_name": "Acme Corp",
+    "name": "Alice Developer",
+    "teams": [
+      {"id": "tm_acme", "name": "Acme Corp", "role": "admin"},
+      {"id": "tm_widgets", "name": "Widgets Inc", "role": "member"}
+    ],
+    "default_team_id": "tm_acme",
     "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
     "refresh_token": "rf_5C4E9...",
     "session_id": "sess_...",

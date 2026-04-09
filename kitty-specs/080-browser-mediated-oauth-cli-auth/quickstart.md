@@ -23,7 +23,7 @@ This guide describes the recommended sequence and integration points for impleme
 
 **New directories**:
 ```
-spec_kitty/
+src/specify_cli/
 ├── auth/                           # NEW: OAuth/OIDC + session management
 │   ├── __init__.py
 │   ├── session.py                  # StoredSession dataclass, validation
@@ -58,25 +58,25 @@ spec_kitty/
 │   │   └── bearer_provider.py      # Inject bearer token into requests
 │   └── errors.py                   # OAuth error types, CLI error messages
 
-tests/
-├── auth/                           # NEW: Auth subsystem tests
-│   ├── test_token_manager.py       # TokenManager unit tests
-│   ├── test_secure_storage.py      # Storage backend tests
-│   ├── test_authorization_code_flow.py
-│   ├── test_device_code_flow.py
-│   ├── test_loopback_callback.py
-│   ├── test_websocket_provisioning.py
-│   ├── test_http_integration.py
-│   └── test_concurrent_refresh.py  # Concurrency, single-flight refresh
+tests/auth/                         # NEW: Auth subsystem tests
+├── test_token_manager.py           # TokenManager unit tests
+├── test_secure_storage.py          # Storage backend tests
+├── test_authorization_code_flow.py
+├── test_device_code_flow.py
+├── test_loopback_callback.py
+├── test_websocket_provisioning.py
+├── test_http_integration.py
+└── test_concurrent_refresh.py      # Concurrency, single-flight refresh
 ```
 
 **Modified directories**:
 ```
-spec_kitty/
-├── commands/
-│   ├── auth.py                     # MODIFIED: New login_interactive, login_headless, logout
-│   ├── status.py                   # MODIFIED: Display current session info
-│   └── ...
+src/specify_cli/
+├── cli/
+│   ├── commands/
+│   │   ├── auth.py                 # MODIFIED: New login_interactive, login_headless, logout
+│   │   ├── status.py               # MODIFIED: Display current session info
+│   │   └── ...
 ├── sync/
 │   ├── auth.py                     # MODIFIED: Token retrieval now via TokenManager
 │   ├── client.py                   # MODIFIED: Use new HTTP transport
@@ -96,7 +96,7 @@ spec_kitty/
 
 **Purpose**: Single entry point for credential provisioning, refresh, and lifecycle management
 
-**Location**: `spec_kitty/auth/token_manager.py`
+**Location**: `src/specify_cli/auth/token_manager.py`
 
 **Public interface**:
 ```python
@@ -146,7 +146,7 @@ class TokenManager:
 
 **Purpose**: Pluggable storage backend (Keychain, Credential Manager, Secret Service, file)
 
-**Location**: `spec_kitty/auth/secure_storage/`
+**Location**: `src/specify_cli/auth/secure_storage/`
 
 **Public interface**:
 ```python
@@ -186,7 +186,7 @@ class SecureStorage(ABC):
 
 **Purpose**: Primary interactive login flow
 
-**Location**: `spec_kitty/auth/flows/authorization_code.py`
+**Location**: `src/specify_cli/auth/flows/authorization_code.py`
 
 **Flow**:
 ```
@@ -211,7 +211,7 @@ User runs: spec-kitty auth login
 
 **Purpose**: Fallback for environments without browser (CI/CD, remote servers)
 
-**Location**: `spec_kitty/auth/flows/device_code.py`
+**Location**: `src/specify_cli/auth/flows/device_code.py`
 
 **Flow**:
 ```
@@ -236,7 +236,7 @@ User runs: spec-kitty auth login --headless
 
 **Purpose**: HTTP server listening on localhost for authorization code callback
 
-**Location**: `spec_kitty/auth/loopback/`
+**Location**: `src/specify_cli/auth/loopback/`
 
 **Components**:
 - `CallbackServer`: Minimal HTTP server (127.0.0.1:PORT)
@@ -259,7 +259,7 @@ User runs: spec-kitty auth login --headless
 
 **Purpose**: Bearer token injection + 401 retry with auto-refresh
 
-**Location**: `spec_kitty/auth/http/`
+**Location**: `src/specify_cli/auth/http/`
 
 **Components**:
 - `OAuthHttpClient`: HTTP client with OAuth integration
@@ -282,9 +282,9 @@ HTTP request:
 
 ### 7. WebSocket Pre-Connect Token Provisioning
 
-**Purpose**: Refresh access token before WebSocket upgrade; obtain ephemeral WS token
+**Purpose**: Refresh access token before WebSocket upgrade; obtain ephemeral WS token for selected team
 
-**Location**: `spec_kitty/auth/websocket/`
+**Location**: `src/specify_cli/auth/websocket/`
 
 **Components**:
 - `TokenProvisioner`: Pre-connect refresh + ws-token acquisition
@@ -293,11 +293,18 @@ HTTP request:
 **Behavior**:
 ```
 Before WebSocket connection:
-  1. Check access_token_expires_at
-  2. If expires within 5 min: refresh via /oauth/token
-  3. Call /api/v1/ws-token → receive ws_token
-  4. WebSocket upgrade with ?token=ws_token
+  1. Determine target team_id (from caller or default_team_id in StoredSession)
+  2. Check access_token_expires_at
+  3. If expires within 5 min: refresh via /oauth/token
+  4. Call /api/v1/ws-token with {"team_id": "tm_..."}
+  5. Receive ws_token (1 hour TTL) + ws_url
+  6. WebSocket upgrade to ws_url?token=ws_token
 ```
+
+**Team Selection**:
+- Default: use `default_team_id` from StoredSession
+- Override: caller specifies `team_id` at connection time
+- Validation: verify `team_id` is in StoredSession.teams[]
 
 ---
 
@@ -337,12 +344,21 @@ Before WebSocket connection:
 ```
 Authentication:
   Status: Logged in
-  User: alice@example.com (u_alice)
-  Team: Acme Corp (tm_acme)
+  User: Alice Developer (alice@example.com)
+  Teams:
+    - Acme Corp (tm_acme, admin) [default]
+    - Widgets Inc (tm_widgets, member)
   Access token expires in: 45 minutes
   Refresh token expires in: 89 days
   Storage backend: macOS Keychain
+  Last used: 2 minutes ago
 ```
+
+**Team Selection**:
+- Default team shown in status display (from `default_team_id`)
+- All team memberships listed (from `/api/v1/me` teams array)
+- User can override default team per WebSocket connection
+- Team verification: WebSocket requests fail with 403 if `team_id` not in user's teams
 
 **On token expiry**:
 - Display in status (red if <5 min remaining)

@@ -22,7 +22,7 @@ Accept: application/json
 
 ```json
 {
-  "session_id": "sess_01HR6CYJK..."
+  "team_id": "tm_acme"
 }
 ```
 
@@ -30,10 +30,10 @@ Accept: application/json
 
 | Parameter | Type | Required | Description |
 |-----------|------|----------|-------------|
-| `session_id` | string | Yes | Session ID from token response (ULID format) |
+| `team_id` | string | Yes | Team ID to request WebSocket access for (from `/api/v1/me` teams array) |
 
 ### Field Constraints
-- `session_id`: non-empty ULID string (must match session in tokens)
+- `team_id`: non-empty team identifier (must be one of user's teams from `/api/v1/me`)
 
 ---
 
@@ -46,9 +46,10 @@ Accept: application/json
 
 ```json
 {
-  "ws_token": "wst_ephemeral_xyz...",
-  "expires_in": 300,
-  "message": "WebSocket token issued"
+  "ws_token": "ws_eyJ0eXAiOiJKV1QiLCJhbGc...",
+  "expires_in": 3600,
+  "session_id": "sess_01HR6CYJK...",
+  "ws_url": "wss://api.spec-kitty.com/ws"
 }
 ```
 
@@ -56,39 +57,42 @@ Accept: application/json
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
-| `ws_token` | string | Ephemeral token for WebSocket authentication (opaque) |
-| `expires_in` | integer | Token lifetime in seconds (typically `300` = 5 minutes) |
-| `message` | string | Human-readable confirmation |
+| `ws_token` | string | Short-lived WebSocket auth token (opaque) |
+| `expires_in` | integer | Token lifetime in seconds (typically `3600` = 1 hour) |
+| `session_id` | string | Session ID (for audit and reference) |
+| `ws_url` | string | WebSocket endpoint to connect to |
 
 ### Field Constraints
 - `ws_token`: opaque string; never empty
-- `expires_in`: positive integer; typically 300 seconds (5 minutes)
+- `expires_in`: positive integer; typically 3600 seconds (1 hour)
+- `session_id`: session identifier from current session
+- `ws_url`: fixed HTTPS WebSocket endpoint
 
 ---
 
 ## Error Responses
 
-### Invalid Session (400 Bad Request)
-
-```json
-{
-  "error": "invalid_session",
-  "error_description": "Session ID not found or revoked"
-}
-```
-
-**When**: Session ID does not exist or was logged out
-
-### Missing Session ID (400 Bad Request)
+### Missing Team ID (400 Bad Request)
 
 ```json
 {
   "error": "invalid_request",
-  "error_description": "Missing required field: session_id"
+  "error_description": "Missing required field: team_id"
 }
 ```
 
-**When**: Request body missing `session_id` field
+**When**: Request body missing `team_id` field
+
+### User Not Team Member (403 Forbidden)
+
+```json
+{
+  "error": "forbidden",
+  "error_description": "User is not a member of team tm_acme"
+}
+```
+
+**When**: `team_id` is valid but user is not a member of that team
 
 ### Authentication Failure (401 Unauthorized)
 
@@ -116,11 +120,11 @@ Accept: application/json
 
 ## WebSocket Upgrade
 
-**After obtaining `ws_token`, CLI upgrades to WebSocket**:
+**After obtaining `ws_token` and `ws_url`, CLI upgrades to WebSocket**:
 
 ### WebSocket Connection Request
 ```
-GET /api/v1/ws?token=<ws_token> HTTP/1.1
+GET /ws?token=<ws_token> HTTP/1.1
 Host: api.spec-kitty.com
 Upgrade: websocket
 Connection: Upgrade
@@ -128,7 +132,7 @@ Connection: Upgrade
 
 ### WebSocket Handshake Headers
 ```
-GET /api/v1/ws?token=<ws_token> HTTP/1.1
+GET /ws?token=<ws_token> HTTP/1.1
 Host: api.spec-kitty.com:443
 Upgrade: websocket
 Connection: Upgrade
@@ -137,9 +141,20 @@ Sec-WebSocket-Version: 13
 ```
 
 ### Token Location
-- Passed as **query parameter**: `?token=<ws_token>`
+- Passed as **query parameter**: `?token=<ws_token>` appended to `ws_url`
 - NOT in headers (WebSocket upgrade does not allow `Authorization` header)
 - Single-use: token is consumed on successful handshake
+
+### Connection URL Formula
+Use the `ws_url` from the `/api/v1/ws-token` response:
+```
+{ws_url}?token={ws_token}
+```
+
+**Example**:
+```
+wss://api.spec-kitty.com/ws?token=ws_eyJ0eXAi...
+```
 
 ---
 
@@ -182,10 +197,11 @@ Sec-WebSocket-Version: 13
 
 **WebSocket token**:
 - Issued by `/api/v1/ws-token` endpoint
-- Lifetime: typically 5 minutes (`expires_in=300`)
-- Single-use: consumed on WebSocket upgrade handshake
-- Not stored: ephemeral, used once then discarded
-- Never transmitted to SaaS API after WebSocket connects (session_id used instead)
+- Lifetime: typically 1 hour (`expires_in=3600`)
+- Single-use on upgrade: consumed on WebSocket upgrade handshake
+- Not stored: ephemeral, used once then discarded during upgrade
+- Session binding: WebSocket session bound to `team_id` requested
+- After upgrade: session_id used for subsequent WebSocket message authentication
 
 **Access token** (for `/api/v1/ws-token` call):
 - Must be valid at request time
