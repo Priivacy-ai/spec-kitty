@@ -2,9 +2,7 @@
   "event_count": 54,
   "last_event_id": "01KNRSHPY2SCTJHS304D2KJQWX",
   "materialized_at": "2026-04-09T09:35:36.387004+00:00",
-  "mission_number": "079",
   "mission_slug": "079-post-555-release-hardening",
-  "mission_type": "software-dev",
   "summary": {
     "approved": 6,
     "blocked": 0,
