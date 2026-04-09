@@ -29,6 +29,8 @@ owned_files:
 - tests/auth/test_browser_launcher.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
+shell_pid: "56836"
 ---
 
 # WP02: Loopback Callback Handler + PKCE
@@ -494,3 +496,7 @@ CSRF protection via state matching.
 - **Risk**: User has multiple browsers; default may not be the one they're logged into. **Mitigation**: Document in error message that the user can paste the URL manually.
 - **Risk**: Callback received twice (browser refresh). **Mitigation**: First callback wins; server `callback_params` is set once and `wait_for_callback()` returns immediately.
 - **Edge case**: PKCE state expires while waiting for callback (5 min). **Mitigation**: WP04 orchestrator checks `state.is_expired()` after `wait_for_callback()` returns.
+
+## Activity Log
+
+- 2026-04-09T17:27:13Z – opus:opus:implementer:implementer – shell_pid=56836 – Started implementation via action command
