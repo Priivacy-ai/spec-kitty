@@ -23,7 +23,7 @@ subtasks:
 - T006
 - T007
 - T008
-shell_pid: '11830'
+shell_pid: "11830"
 history: []
 authoritative_surface: src/specify_cli/auth/
 execution_mode: code_change
@@ -42,6 +42,7 @@ owned_files:
 - tests/auth/test_secure_storage_file.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
 ---
 
 # WP01: TokenManager + SecureStorage Foundation
@@ -995,3 +996,7 @@ with all of WP01's test files.
 - **Risk**: Two CLI processes refreshing simultaneously → race in refresh flow. **Mitigation**: WP08 will add file-lock-based cross-process coordination on top of the in-process asyncio lock.
 - **Edge case**: TokenManager created before any event loop exists. **Mitigation**: `_refresh_lock` is created lazily inside `_get_lock()`, only when `refresh_if_needed()` is called.
 - **Edge case**: User has stale v1 plaintext credentials.json from a prior version. **Mitigation**: `_decrypt()` rejects `version != 2` with a clear error message telling them to re-login.
+
+## Activity Log
+
+- 2026-04-09T17:05:01Z – opus:opus:implementer:implementer – shell_pid=11830 – Assigned agent via action command
