@@ -22,6 +22,8 @@ owned_files:
 - tests/auth/test_device_flow_poller.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
+shell_pid: "59484"
 ---
 
 # WP03: Device Authorization Flow Poller
@@ -439,3 +441,7 @@ simple stderr progress writer.
 - **Risk**: Network error during polling → poller crashes. **Mitigation**: `NetworkError` is caught and the loop continues (transient errors are retried).
 - **Edge case**: `expires_in = 0` from SaaS → poller raises immediately. **Mitigation**: that's the correct behavior; the local state is already expired.
 - **Edge case**: User approves authorization between two polls → next poll succeeds. **Mitigation**: that's the normal happy path.
+
+## Activity Log
+
+- 2026-04-09T17:29:38Z – opus:opus:implementer:implementer – shell_pid=59484 – Started implementation via action command
