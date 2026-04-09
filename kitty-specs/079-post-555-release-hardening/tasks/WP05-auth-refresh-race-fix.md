@@ -360,3 +360,7 @@ def test_inner_lock_reacquisition_is_no_op(tmp_path, monkeypatch):
 2. Run the T5.3 (real 401) and T5.2 (stale 401) tests — these are the most critical behavioral tests.
 3. Confirm: if a hung HTTP request causes the lock to be held for > 10s, it will timeout with `filelock.Timeout`. That is acceptable — it surfaces as an error rather than a deadlock.
 4. Existing `tests/sync/test_auth.py` must pass unchanged.
+
+## Activity Log
+
+- 2026-04-09T09:00:07Z – unknown – shell_pid=114 – Dispatching implementation
