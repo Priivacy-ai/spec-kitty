@@ -35,10 +35,10 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 | T013 | Collapse `resolver.py:174-182` `execution_mode` special-case | WP03 | [D] |
 | T014 | `implement.py`: uniform lane lookup + rewrite `--help` docstring as internal-infrastructure | WP03 | [D] |
 | T015 | Regression tests for Track 2 (T2.1–T2.6 from test-contracts.md) | WP03 | [D] |
-| T016 | Mint ULID `mission_id` in `mission_creation.py`; persist to `meta.json`; lock write; mint 079's own `mission_id` | WP04 | [P] |
-| T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [P] |
-| T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [P] |
-| T019 | Regression tests for Track 3 (T3.1–T3.6 from test-contracts.md) | WP04 | [P] |
+| T016 | Mint ULID `mission_id` in `mission_creation.py`; persist to `meta.json`; lock write; mint 079's own `mission_id` | WP04 | [D] |
+| T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [D] |
+| T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [D] |
+| T019 | Regression tests for Track 3 (T3.1–T3.6 from test-contracts.md) | WP04 | [D] |
 | T020 | Extend `FileLock` scope in `refresh_tokens()` to full read→network→persist transaction | WP05 | [P] |
 | T021 | Re-read-on-401 path: stale 401 exits cleanly; real 401 clears under lock | WP05 | [P] |
 | T022 | Verify httpx timeout < 10s lock timeout; set explicit timeout if not | WP05 | [P] |
