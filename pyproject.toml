@@ -100,6 +100,7 @@ lint = [
     "types-jsonschema>=4.0.0",
     "types-psutil>=5.9.0",
     "types-PyYAML>=6.0",
+    "types-requests>=2.31.0",
     "types-toml>=0.10.0",
     "bandit>=1.7.0",
     "pip-audit>=2.7.0",
@@ -199,6 +200,13 @@ max-complexity = 15  # Match SonarCloud S3776 threshold
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true
+
+[[tool.mypy.overrides]]
+# When checking a narrow file path under ``specify_cli``, mypy otherwise walks
+# the package's CLI bootstrap import graph via ``specify_cli.__init__`` and
+# reports unrelated module errors instead of the target file's own issues.
+module = ["specify_cli.*"]
+follow_imports = "skip"
 
 [[tool.mypy.overrides]]
 # Transitional quarantine for legacy modules that are still being migrated to strict typing.

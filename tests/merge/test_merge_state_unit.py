@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import pytest
 
+pytestmark = pytest.mark.fast
+
 from specify_cli.merge.state import (
     MergeState,
     acquire_merge_lock,

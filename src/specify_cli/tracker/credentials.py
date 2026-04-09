@@ -12,9 +12,9 @@ from typing import Any
 from collections.abc import Iterator
 
 try:  # pragma: no cover - optional dependency
-    import toml  # type: ignore[import-untyped]
+    import toml
 except Exception:  # pragma: no cover - optional dependency
-    toml = None
+    toml = None  # type: ignore[assignment]
 
 if sys.platform == "win32":
     import msvcrt

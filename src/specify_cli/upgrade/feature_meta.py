@@ -162,7 +162,8 @@ def _normalize_branch_candidate(value: str) -> str | None:
     match = re.search(r"[A-Za-z0-9._/-]+", cleaned)
     if match is None:
         return None
-    return match.group(0)
+    result: str = match.group(0)
+    return result
 
 
 def _set_if_blank(meta: dict[str, Any], key: str, value: Any) -> None:

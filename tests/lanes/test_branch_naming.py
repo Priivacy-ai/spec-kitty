@@ -1,5 +1,7 @@
 """Tests for mission and lane branch naming."""
 
+import pytest
+
 from specify_cli.lanes.branch_naming import (
     is_lane_branch,
     is_mission_branch,
@@ -8,6 +10,8 @@ from specify_cli.lanes.branch_naming import (
     parse_mission_slug_from_branch,
     parse_lane_id_from_branch,
 )
+
+pytestmark = pytest.mark.fast
 
 
 class TestMissionBranchName:

@@ -1,5 +1,7 @@
 """Tests for acceptance matrix, evidence validation, and negative invariants."""
 
+import pytest
+
 from specify_cli.acceptance_matrix import (
     AcceptanceCriterion,
     AcceptanceMatrix,
@@ -10,6 +12,8 @@ from specify_cli.acceptance_matrix import (
     validate_matrix_evidence,
     write_acceptance_matrix,
 )
+
+pytestmark = pytest.mark.fast
 
 
 class TestAcceptanceCriterion:

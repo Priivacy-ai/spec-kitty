@@ -440,6 +440,8 @@ class TestManifestYAMLFormat:
         """Load software-dev manifest from YAML file."""
         yaml_path = (
             Path(__file__).parent.parent.parent
+            / "src"
+            / "doctrine"
             / "missions"
             / "software-dev"
             / "expected-artifacts.yaml"
@@ -452,6 +454,8 @@ class TestManifestYAMLFormat:
         """Load research manifest from YAML file."""
         yaml_path = (
             Path(__file__).parent.parent.parent
+            / "src"
+            / "doctrine"
             / "missions"
             / "research"
             / "expected-artifacts.yaml"
@@ -464,6 +468,8 @@ class TestManifestYAMLFormat:
         """Load documentation manifest from YAML file."""
         yaml_path = (
             Path(__file__).parent.parent.parent
+            / "src"
+            / "doctrine"
             / "missions"
             / "documentation"
             / "expected-artifacts.yaml"

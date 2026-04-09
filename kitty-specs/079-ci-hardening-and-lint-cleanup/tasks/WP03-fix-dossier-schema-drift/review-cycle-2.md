@@ -1,0 +1,16 @@
+---
+affected_files: []
+cycle_number: 2
+mission_slug: 079-ci-hardening-and-lint-cleanup
+reproduction_command:
+reviewed_at: '2026-04-09T14:59:33Z'
+reviewer_agent: unknown
+verdict: rejected
+wp_id: WP03
+---
+
+**Issue 1**: The required mypy gate in the WP prompt does not pass as implemented. Running `mypy src/specify_cli/dossier/tests/test_snapshot.py` in the WP03 workspace exits non-zero and reports 85 errors from imported modules elsewhere in the repo, so the Definition of Done item "`mypy src/specify_cli/dossier/tests/test_snapshot.py` exits 0" is not currently satisfied. Reproduce the exact command from the prompt in the lane workspace and make sure it exits 0 with the repository's checked-in mypy configuration before resubmitting. If the WP needs to rely on a narrower invocation or a config change, that needs to be made explicit in code/config and verified with the exact command.
+
+**Issue 2**: The required dossier-suite gate in the WP prompt does not pass as implemented. Running `pytest src/specify_cli/dossier/tests/ -q` fails during collection in `src/specify_cli/dossier/tests/test_api.py`, `src/specify_cli/dossier/tests/test_http_runtime.py`, `src/specify_cli/dossier/tests/test_indexer.py`, and `src/specify_cli/dossier/tests/test_models.py` because those files still contain repeated `mission_type=` keyword arguments. The WP activity/commit message claims "136 total dossier tests passed", but that result is not reproducible from the current workspace. Re-run the prompt's exact verification command and update the implementation/story so the recorded verification matches a real passing run, or explicitly document and resolve the discrepancy before resubmitting.
+
+Downstream note: WP06 depends on WP03. If you rerun this WP on a refreshed base after adjacent dossier-test fixes land, notify downstream agents to rebase.

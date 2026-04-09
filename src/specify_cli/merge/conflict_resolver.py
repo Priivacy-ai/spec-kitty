@@ -169,7 +169,7 @@ def _merge_event_logs(ours: str, theirs: str) -> str:
             events.append(event)
 
     # Sort by timestamp ascending; fall back to stable insertion order for equal ts
-    events.sort(key=lambda e: e.get("at", ""))
+    events.sort(key=lambda e: str(e.get("at", "")))
 
     lines = [json.dumps(e, sort_keys=True) for e in events]
     result = "\n".join(lines)

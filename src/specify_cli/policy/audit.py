@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import asdict, dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -24,7 +24,7 @@ AUDIT_FILENAME = "policy-audit.jsonl"
 
 def _generate_ulid() -> str:
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str  # type: ignore[attr-defined]
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 
@@ -64,7 +64,7 @@ def create_audit_event(
         actor=actor,
         reason=reason,
         details=details or {},
-        at=datetime.now(timezone.utc).isoformat(),
+        at=datetime.now(UTC).isoformat(),
     )
 
 

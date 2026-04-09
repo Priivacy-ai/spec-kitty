@@ -33,7 +33,7 @@ _WP_CODE_RE = re.compile(r"^(WP\d{2,})")
 def _generate_ulid() -> str:
     """Return a new ULID string, compatible with both ulid and python-ulid packages."""
     if hasattr(_ulid_mod, "new"):
-        return _ulid_mod.new().str  # type: ignore[attr-defined]
+        return str(_ulid_mod.new().str)
     return str(_ulid_mod.ULID())
 
 

@@ -13,7 +13,7 @@ from specify_cli.status.models import StatusEvent, Lane
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
+pytestmark = pytest.mark.fast
 
 
 def _seed_wp_lane(feature_dir: Path, wp_id: str, lane: str) -> None:

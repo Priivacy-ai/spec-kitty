@@ -25,7 +25,7 @@ from specify_cli.mission_v1.schema import (
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
+pytestmark = pytest.mark.fast
 
 # ---------------------------------------------------------------------------
 # Helpers

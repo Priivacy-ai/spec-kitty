@@ -10,6 +10,8 @@ import pytest
 from specify_cli.lanes.models import ExecutionLane
 from specify_cli.lanes.stale_check import check_lane_staleness
 
+pytestmark = pytest.mark.git_repo
+
 
 def _run(cmd, cwd):
     subprocess.run(cmd, cwd=str(cwd), capture_output=True, check=True)

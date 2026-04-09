@@ -1,0 +1,11 @@
+{
+  "created_at": "2026-04-09T10:00:20.374132+00:00",
+  "friendly_name": "CI Hardening and Lint Cleanup",
+  "mission_number": "079",
+  "mission_slug": "079-ci-hardening-and-lint-cleanup",
+  "mission_type": "software-dev",
+  "slug": "079-ci-hardening-and-lint-cleanup",
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Three related problems on main: open ruff/mypy violations (surfaced in PR #567 lint-feedback), monolithic CI test jobs needing per-module split (issue #549), and lack of path-based job filtering causing full suite runs on docs-only changes (issue #548). Architect Alphonso assessment: work/079-alphonso-assessment.md."
+}

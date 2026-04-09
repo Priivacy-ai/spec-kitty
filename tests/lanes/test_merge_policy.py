@@ -3,11 +3,14 @@
 from __future__ import annotations
 
 import json
+import pytest
 
 from typer.testing import CliRunner
 
 from specify_cli import app as cli_app
 from tests.lane_test_utils import write_single_lane_manifest
+
+pytestmark = pytest.mark.git_repo
 
 
 runner = CliRunner()

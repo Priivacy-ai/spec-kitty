@@ -12,7 +12,7 @@ from .queue import DEFAULT_MAX_QUEUE_SIZE
 class SyncConfig:
     """Manage sync configuration"""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.config_dir = Path.home() / '.spec-kitty'
         self.config_file = self.config_dir / 'config.toml'
 
@@ -36,7 +36,7 @@ class SyncConfig:
         url = config.get('sync', {}).get('server_url', 'https://spec-kitty-dev.fly.dev')
         return str(url)
 
-    def set_server_url(self, url: str):
+    def set_server_url(self, url: str) -> None:
         """Set server URL in config"""
         config = self._load()
         if 'sync' not in config:

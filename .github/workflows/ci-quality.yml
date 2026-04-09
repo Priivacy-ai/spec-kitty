@@ -6,11 +6,21 @@ on:
       - main
       - develop
       - 2.x
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-quality.yml'
   push:
     branches:
       - main
       - develop
       - 2.x
+    paths:
+      - 'src/**'
+      - 'tests/**'
+      - 'pyproject.toml'
+      - '.github/workflows/ci-quality.yml'
   schedule:
     # Nightly Sonar run on the default branch. Offset from the top of the hour
     # to avoid GitHub Actions' busiest scheduling window.
@@ -31,6 +41,101 @@ permissions:
   contents: read
 
 jobs:
+  # ---------------------------------------------------------------------------
+  # changes: detect which modules were touched so per-module jobs can skip.
+  # ---------------------------------------------------------------------------
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      sync: ${{ steps.filter.outputs.sync }}
+      merge: ${{ steps.filter.outputs.merge }}
+      missions: ${{ steps.filter.outputs.missions }}
+      post_merge: ${{ steps.filter.outputs.post_merge }}
+      release: ${{ steps.filter.outputs.release }}
+      status: ${{ steps.filter.outputs.status }}
+      review: ${{ steps.filter.outputs.review }}
+      next: ${{ steps.filter.outputs.next }}
+      lanes: ${{ steps.filter.outputs.lanes }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      upgrade: ${{ steps.filter.outputs.upgrade }}
+      cli: ${{ steps.filter.outputs.cli }}
+      orchestrator_api: ${{ steps.filter.outputs.orchestrator_api }}
+      core_misc: ${{ steps.filter.outputs.core_misc }}
+      kernel: ${{ steps.filter.outputs.kernel }}
+      doctrine: ${{ steps.filter.outputs.doctrine }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            sync:
+              - 'src/specify_cli/sync/**'
+              - 'tests/sync/**'
+            merge:
+              - 'src/specify_cli/merge/**'
+              - 'tests/merge/**'
+            missions:
+              - 'src/specify_cli/mission.py'
+              - 'src/specify_cli/mission_metadata.py'
+              - 'src/doctrine/missions/**'
+              - 'tests/missions/**'
+            post_merge:
+              - 'src/specify_cli/post_merge/**'
+              - 'tests/post_merge/**'
+            release:
+              - 'src/specify_cli/release/**'
+              - 'tests/release/**'
+            status:
+              - 'src/specify_cli/status/**'
+              - 'tests/status/**'
+              - 'tests/specify_cli/status/**'
+            review:
+              - 'src/specify_cli/review/**'
+              - 'tests/review/**'
+            next:
+              - 'src/specify_cli/next/**'
+              - 'src/specify_cli/runtime/**'
+              - 'tests/next/**'
+              - 'tests/runtime/**'
+            lanes:
+              - 'src/specify_cli/lanes/**'
+              - 'tests/lanes/**'
+            dashboard:
+              - 'src/specify_cli/dashboard/**'
+              - 'tests/test_dashboard/**'
+            upgrade:
+              - 'src/specify_cli/upgrade/**'
+              - 'tests/upgrade/**'
+            cli:
+              - 'src/specify_cli/cli/**'
+              - 'tests/cli/**'
+            orchestrator_api:
+              - 'src/specify_cli/orchestrator_api/**'
+            core_misc:
+              - 'src/charter/**'
+              - 'src/kernel/**'
+              - 'src/doctrine/**'
+              - 'tests/charter/**'
+              - 'tests/kernel/**'
+              - 'tests/doctrine/**'
+              - 'tests/policy/**'
+              - 'tests/core/**'
+              - 'tests/contract/**'
+              - 'tests/agent/**'
+              - 'tests/init/**'
+              - 'tests/e2e/**'
+              - 'tests/integration/**'
+              - 'tests/dossier/**'
+              - 'tests/git_ops/**'
+              - 'tests/tasks/**'
+            kernel:
+              - 'src/kernel/**'
+              - 'tests/kernel/**'
+            doctrine:
+              - 'src/doctrine/**'
+              - 'tests/doctrine/**'
+
   lint:
     runs-on: ubuntu-latest
     outputs:
@@ -437,7 +542,8 @@ jobs:
   # ---------------------------------------------------------------------------
   kernel-tests:
     runs-on: ubuntu-latest
-    if: always()
+    needs: [changes]
+    if: always() && needs.changes.outputs.kernel == 'true'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -495,13 +601,12 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # fast-tests-doctrine: Phase 1a — fast suite for doctrine package only.
-  # Runs in parallel with fast-tests-core. Both must pass before integration.
+  # fast-tests-doctrine: fast suite for doctrine package only.
   # ---------------------------------------------------------------------------
   fast-tests-doctrine:
     runs-on: ubuntu-latest
-    needs: kernel-tests
-    if: always()
+    needs: [changes, kernel-tests]
+    if: always() && needs.changes.outputs.doctrine == 'true' && needs.kernel-tests.result != 'failure'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -544,81 +649,103 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # fast-tests-core: Phase 1b — fast suite for all non-doctrine packages.
-  # Runs in parallel with fast-tests-doctrine. Both must pass before integration.
-  # Coverage floor: 40%.
+  # Tier 0 fast-tests: no inter-module dependencies
   # ---------------------------------------------------------------------------
-  fast-tests-core:
+  fast-tests-sync:
     runs-on: ubuntu-latest
-    needs: kernel-tests
-    if: always()
-
+    needs: [changes]
+    if: always() && needs.changes.outputs.sync == 'true'
     steps:
-      - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
-
-      - name: "[ENFORCED] Install dependencies"
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
-
-      - name: "[ENFORCED] Prepare report directories"
+      - name: "Run fast tests — sync"
         run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
+          python -m pytest tests/sync/ -m fast -q --tb=short
 
-      - name: "[ENFORCED] Run fast core tests with coverage"
-        run: |
-          python -m pytest \
-            -v \
-            --ignore=tests/doctrine \
-            --ignore=tests/kernel \
-            --ignore=tests/status \
-            --ignore=tests/specify_cli/status \
-            -m fast \
-            --cov=src/specify_cli --cov=src/charter --cov=src/kernel \
-            --cov-report=term-missing \
-            --cov-report=xml:out/reports/coverage/coverage-fast-core.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-fast-core-${{ github.run_id }}.xml
-
-      - name: "[ENFORCED] Enforce coverage floor (40%)"
-        run: |
-          python - <<'PY'
-          import xml.etree.ElementTree as ET
-
-          report = ET.parse("out/reports/coverage/coverage-fast-core.xml").getroot()
-          pct = float(report.attrib["line-rate"]) * 100.0
-          floor = 40.0
-          print(f"Core coverage: {pct:.2f}% (floor: {floor:.2f}%)")
-          if pct < floor:
-              raise SystemExit(
-                  f"Coverage floor not met: {pct:.2f}% < {floor:.2f}%"
-              )
-          PY
-
-      - name: "[ENFORCED] Upload fast-core artifacts"
-        if: always()
-        uses: actions/upload-artifact@v7
+  fast-tests-merge:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.merge == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          name: fast-test-core-reports
-          path: out/reports/
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — merge"
+        run: |
+          python -m pytest tests/merge/ -m fast -q --tb=short
+
+  fast-tests-missions:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.missions == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — missions"
+        run: |
+          python -m pytest tests/missions/ -m fast -q --tb=short
+
+  fast-tests-post-merge:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.post_merge == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — post_merge"
+        run: |
+          python -m pytest tests/post_merge/ -m fast -q --tb=short
+
+  fast-tests-release:
+    runs-on: ubuntu-latest
+    needs: [changes]
+    if: always() && needs.changes.outputs.release == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — release"
+        run: |
+          python -m pytest tests/release/ -m fast -q --tb=short
 
   # ---------------------------------------------------------------------------
-  # fast-tests-status: Phase 1c — fast suite for status-layer packages.
-  # Runs in parallel with fast-tests-core and fast-tests-doctrine.
+  # Tier 1 fast-tests: depends on sync
   # ---------------------------------------------------------------------------
   fast-tests-status:
     runs-on: ubuntu-latest
-    needs: kernel-tests
-    if: always()
+    needs: [changes, fast-tests-sync]
+    if: >-
+      always() &&
+      (needs.changes.outputs.status == 'true' || needs.changes.outputs.sync == 'true') &&
+      needs.fast-tests-sync.result != 'failure'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -661,14 +788,182 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # integration-tests-doctrine: Phase 2a — integration suite for doctrine.
-  # Runs pytest.mark.integration tests in tests/doctrine/.
-  # Gate: both fast-tests phases must pass first.
+  # Tier 2 fast-tests: depends on status (and merge for lanes)
+  # ---------------------------------------------------------------------------
+  fast-tests-review:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      (needs.changes.outputs.review == 'true' || needs.changes.outputs.status == 'true') &&
+      needs.fast-tests-status.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — review"
+        run: |
+          python -m pytest tests/review/ -m fast -q --tb=short
+
+  fast-tests-next:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      (needs.changes.outputs.next == 'true' || needs.changes.outputs.status == 'true') &&
+      needs.fast-tests-status.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — next"
+        run: |
+          python -m pytest tests/next/ -m fast -q --tb=short
+
+  fast-tests-lanes:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status, fast-tests-merge]
+    if: >-
+      always() &&
+      (needs.changes.outputs.lanes == 'true' || needs.changes.outputs.status == 'true' || needs.changes.outputs.merge == 'true') &&
+      needs.fast-tests-status.result != 'failure' &&
+      needs.fast-tests-merge.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — lanes"
+        run: |
+          python -m pytest tests/lanes/ -m fast -q --tb=short
+
+  fast-tests-dashboard:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      (needs.changes.outputs.dashboard == 'true' || needs.changes.outputs.status == 'true') &&
+      needs.fast-tests-status.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — dashboard"
+        run: |
+          python -m pytest tests/test_dashboard/ -m fast -q --tb=short
+
+  fast-tests-upgrade:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      (needs.changes.outputs.upgrade == 'true' || needs.changes.outputs.status == 'true') &&
+      needs.fast-tests-status.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — upgrade"
+        run: |
+          python -m pytest tests/upgrade/ -m fast -q --tb=short
+
+  # ---------------------------------------------------------------------------
+  # Tier 3 fast-tests: depends on all Tier 2 jobs
+  # ---------------------------------------------------------------------------
+  fast-tests-cli:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-lanes, fast-tests-next, fast-tests-review, fast-tests-dashboard, fast-tests-upgrade]
+    if: >-
+      always() &&
+      needs.changes.outputs.cli == 'true'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — cli"
+        run: |
+          python -m pytest tests/cli/ -m fast -q --tb=short
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-core-misc: catch-all for tests not covered by per-module jobs.
+  # ---------------------------------------------------------------------------
+  fast-tests-core-misc:
+    runs-on: ubuntu-latest
+    needs: [changes, kernel-tests, fast-tests-doctrine]
+    if: >-
+      always() &&
+      needs.changes.outputs.core_misc == 'true' &&
+      needs.kernel-tests.result != 'failure' &&
+      needs.fast-tests-doctrine.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run fast tests — core misc"
+        run: |
+          python -m pytest \
+            --ignore=tests/doctrine \
+            --ignore=tests/kernel \
+            --ignore=tests/status \
+            --ignore=tests/specify_cli/status \
+            --ignore=tests/sync \
+            --ignore=tests/merge \
+            --ignore=tests/missions \
+            --ignore=tests/post_merge \
+            --ignore=tests/release \
+            --ignore=tests/review \
+            --ignore=tests/next \
+            --ignore=tests/lanes \
+            --ignore=tests/test_dashboard \
+            --ignore=tests/upgrade \
+            --ignore=tests/cli \
+            --ignore=tests/runtime \
+            -m fast -q --tb=short
+
+  # ---------------------------------------------------------------------------
+  # Integration tests: per-module, gated on their fast-tests counterpart.
   # ---------------------------------------------------------------------------
   integration-tests-doctrine:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core]
-    if: always()
+    needs: [changes, fast-tests-doctrine]
+    if: >-
+      always() &&
+      needs.changes.outputs.doctrine == 'true' &&
+      needs.fast-tests-doctrine.result == 'success'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -709,65 +1004,135 @@ jobs:
           name: integration-test-doctrine-reports
           path: out/reports/
 
-  # ---------------------------------------------------------------------------
-  # integration-tests-core: Phase 2b — git_repo + integration tests for core.
-  # Runs git_repo-marked tests and non-doctrine integration tests.
-  # Gate: both fast-tests phases must pass first.
-  # ---------------------------------------------------------------------------
-  integration-tests-core:
+  integration-tests-sync:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core]
-    if: always()
-
+    needs: [changes, fast-tests-sync]
+    if: >-
+      always() &&
+      needs.changes.outputs.sync == 'true' &&
+      needs.fast-tests-sync.result == 'success'
     steps:
-      - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-
-      - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
-
-      - name: "[ENFORCED] Install dependencies"
-        run: |
+      - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
-
-      - name: "[ENFORCED] Prepare report directories"
+      - name: "Run integration tests — sync"
         run: |
-          mkdir -p out/reports/xunit-reports
-          mkdir -p out/reports/coverage
+          python -m pytest tests/sync/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/sync \
+            --cov-fail-under=80
 
-      - name: "[ENFORCED] Run core integration tests with coverage"
-        run: |
-          python -m pytest \
-            -v \
-            --ignore=tests/doctrine \
-            --ignore=tests/status \
-            --ignore=tests/specify_cli/status \
-            -m "git_repo or integration" \
-            --cov=src/specify_cli --cov=src/charter \
-            --cov-report=xml:out/reports/coverage/coverage-integration-core.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-integration-core-${{ github.run_id }}.xml
-
-      - name: "[ENFORCED] Upload integration-core artifacts"
-        if: always()
-        uses: actions/upload-artifact@v7
+  integration-tests-merge:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-merge]
+    if: >-
+      always() &&
+      needs.changes.outputs.merge == 'true' &&
+      needs.fast-tests-merge.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
         with:
-          name: integration-test-core-reports
-          path: out/reports/
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — merge"
+        run: |
+          python -m pytest tests/merge/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/merge \
+            --cov-fail-under=62
 
-  # ---------------------------------------------------------------------------
-  # integration-tests-status: Phase 2c — integration suite for status-layer.
-  # Runs after both fast-tests-status and fast-tests-core pass.
-  # ---------------------------------------------------------------------------
+  integration-tests-missions:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-missions]
+    if: >-
+      always() &&
+      needs.changes.outputs.missions == 'true' &&
+      needs.fast-tests-missions.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — missions"
+        run: |
+          python -m pytest tests/missions/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/mission \
+            --cov=src/specify_cli/mission_metadata \
+            --cov=src/doctrine/missions \
+            --cov-fail-under=45
+
+  integration-tests-post-merge:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-post-merge]
+    if: >-
+      always() &&
+      needs.changes.outputs.post_merge == 'true' &&
+      needs.fast-tests-post-merge.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — post_merge"
+        run: |
+          python -m pytest tests/post_merge/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/post_merge \
+            --cov-fail-under=84
+
+  integration-tests-release:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-release]
+    if: >-
+      always() &&
+      needs.changes.outputs.release == 'true' &&
+      needs.fast-tests-release.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — release"
+        run: |
+          python -m pytest tests/release/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/release \
+            --cov-fail-under=82
+
   integration-tests-status:
     runs-on: ubuntu-latest
-    needs: [fast-tests-status, fast-tests-core]
-    if: always()
+    needs: [changes, fast-tests-status]
+    if: >-
+      always() &&
+      needs.changes.outputs.status == 'true' &&
+      needs.fast-tests-status.result == 'success'
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -798,6 +1163,7 @@ jobs:
             tests/status/ tests/specify_cli/status/ \
             -m "git_repo or integration" \
             --cov=src/specify_cli/status \
+            --cov-fail-under=78 \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
 
@@ -808,13 +1174,171 @@ jobs:
           name: integration-test-status-reports
           path: out/reports/
 
+  integration-tests-review:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-review]
+    if: >-
+      always() &&
+      needs.changes.outputs.review == 'true' &&
+      needs.fast-tests-review.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — review"
+        run: |
+          python -m pytest tests/review/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/review \
+            --cov-fail-under=92
+
+  integration-tests-next:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-next]
+    if: >-
+      always() &&
+      needs.changes.outputs.next == 'true' &&
+      needs.fast-tests-next.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — next"
+        run: |
+          python -m pytest tests/next/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/next \
+            --cov-fail-under=87
+
+  integration-tests-lanes:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-lanes]
+    if: >-
+      always() &&
+      needs.changes.outputs.lanes == 'true' &&
+      needs.fast-tests-lanes.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — lanes"
+        run: |
+          python -m pytest tests/lanes/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/lanes \
+            --cov-fail-under=83
+
+  integration-tests-dashboard:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-dashboard]
+    if: >-
+      always() &&
+      needs.changes.outputs.dashboard == 'true' &&
+      needs.fast-tests-dashboard.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — dashboard"
+        run: |
+          python -m pytest tests/test_dashboard/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/dashboard \
+            --cov-fail-under=57
+
+  integration-tests-upgrade:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-upgrade]
+    if: >-
+      always() &&
+      needs.changes.outputs.upgrade == 'true' &&
+      needs.fast-tests-upgrade.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — upgrade"
+        run: |
+          python -m pytest tests/upgrade/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/upgrade \
+            --cov-fail-under=46
+
+  integration-tests-cli:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-cli]
+    if: >-
+      always() &&
+      needs.changes.outputs.cli == 'true' &&
+      needs.fast-tests-cli.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - name: "Run integration tests — cli"
+        run: |
+          python -m pytest tests/cli/ \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/cli \
+            --cov-fail-under=11
+
   # ---------------------------------------------------------------------------
   # slow-and-e2e: replaces integration-smoke + dashboard-tests.
   # Push-only (or manual dispatch). Runs slow tests, e2e, cross_cutting.
   # ---------------------------------------------------------------------------
   slow-and-e2e:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core, fast-tests-status]
+    needs:
+      - fast-tests-doctrine
+      - fast-tests-sync
+      - fast-tests-merge
+      - fast-tests-missions
+      - fast-tests-post-merge
+      - fast-tests-release
+      - fast-tests-status
+      - fast-tests-review
+      - fast-tests-next
+      - fast-tests-lanes
+      - fast-tests-dashboard
+      - fast-tests-upgrade
+      - fast-tests-cli
+      - fast-tests-core-misc
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 45
 
@@ -886,7 +1410,21 @@ jobs:
   # ---------------------------------------------------------------------------
   diff-coverage:
     runs-on: ubuntu-latest
-    needs: [kernel-tests, integration-tests-doctrine, integration-tests-core, integration-tests-status]
+    needs:
+      - kernel-tests
+      - integration-tests-doctrine
+      - integration-tests-sync
+      - integration-tests-merge
+      - integration-tests-missions
+      - integration-tests-post-merge
+      - integration-tests-release
+      - integration-tests-status
+      - integration-tests-review
+      - integration-tests-next
+      - integration-tests-lanes
+      - integration-tests-dashboard
+      - integration-tests-upgrade
+      - integration-tests-cli
     if: always() && github.event_name == 'pull_request'
 
     steps:
@@ -914,28 +1452,12 @@ jobs:
           path: out/reports/fast-doctrine
         continue-on-error: true
 
-      - name: "[ENFORCED] Download fast-core coverage"
-        if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: fast-test-core-reports
-          path: out/reports/fast-core
-        continue-on-error: true
-
       - name: "[ENFORCED] Download integration-doctrine coverage"
         if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
         uses: actions/download-artifact@v8
         with:
           name: integration-test-doctrine-reports
           path: out/reports/integration-doctrine
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download integration-core coverage"
-        if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-test-core-reports
-          path: out/reports/integration-core
         continue-on-error: true
 
       - name: "[ENFORCED] Download kernel coverage"
@@ -973,10 +1495,8 @@ jobs:
           for f in \
             out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
-            out/reports/fast-core/coverage/coverage-fast-core.xml \
             out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml \
             out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
@@ -1007,10 +1527,8 @@ jobs:
           for f in \
             out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
-            out/reports/fast-core/coverage/coverage-fast-core.xml \
             out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml \
             out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
@@ -1025,7 +1543,21 @@ jobs:
   # ---------------------------------------------------------------------------
   mutation-testing:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core, fast-tests-status]
+    needs:
+      - fast-tests-doctrine
+      - fast-tests-sync
+      - fast-tests-merge
+      - fast-tests-missions
+      - fast-tests-post-merge
+      - fast-tests-release
+      - fast-tests-status
+      - fast-tests-review
+      - fast-tests-next
+      - fast-tests-lanes
+      - fast-tests-dashboard
+      - fast-tests-upgrade
+      - fast-tests-cli
+      - fast-tests-core-misc
     if: false
     steps:
       - run: echo "Mutation testing is disabled."
@@ -1039,7 +1571,36 @@ jobs:
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: [kernel-tests, fast-tests-doctrine, fast-tests-core, fast-tests-status, integration-tests-doctrine, integration-tests-core, integration-tests-status, slow-and-e2e]
+    needs:
+      - kernel-tests
+      - fast-tests-doctrine
+      - fast-tests-sync
+      - fast-tests-merge
+      - fast-tests-missions
+      - fast-tests-post-merge
+      - fast-tests-release
+      - fast-tests-status
+      - fast-tests-review
+      - fast-tests-next
+      - fast-tests-lanes
+      - fast-tests-dashboard
+      - fast-tests-upgrade
+      - fast-tests-cli
+      - fast-tests-core-misc
+      - integration-tests-doctrine
+      - integration-tests-sync
+      - integration-tests-merge
+      - integration-tests-missions
+      - integration-tests-post-merge
+      - integration-tests-release
+      - integration-tests-status
+      - integration-tests-review
+      - integration-tests-next
+      - integration-tests-lanes
+      - integration-tests-dashboard
+      - integration-tests-upgrade
+      - integration-tests-cli
+      - slow-and-e2e
     if: always() && github.event_name != 'pull_request' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
 
     steps:
@@ -1184,3 +1745,81 @@ jobs:
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
           SONAR_HOST_URL: ${{ steps.sonar_settings.outputs.host_url }}
+
+  # ---------------------------------------------------------------------------
+  # quality-gate: single check that aggregates all required job results.
+  # Skipped jobs are OK; only failures block.
+  # ---------------------------------------------------------------------------
+  quality-gate:
+    needs:
+      - lint
+      - kernel-tests
+      - fast-tests-doctrine
+      - fast-tests-sync
+      - fast-tests-merge
+      - fast-tests-missions
+      - fast-tests-post-merge
+      - fast-tests-release
+      - fast-tests-status
+      - fast-tests-review
+      - fast-tests-next
+      - fast-tests-lanes
+      - fast-tests-dashboard
+      - fast-tests-upgrade
+      - fast-tests-cli
+      - fast-tests-core-misc
+      - integration-tests-doctrine
+      - integration-tests-sync
+      - integration-tests-merge
+      - integration-tests-missions
+      - integration-tests-post-merge
+      - integration-tests-release
+      - integration-tests-status
+      - integration-tests-review
+      - integration-tests-next
+      - integration-tests-lanes
+      - integration-tests-dashboard
+      - integration-tests-upgrade
+      - integration-tests-cli
+    runs-on: ubuntu-latest
+    if: always()
+    steps:
+      - name: "Check all required jobs"
+        run: |
+          echo "All upstream jobs completed."
+          # Fail if any required job failed (skipped is OK)
+          for result in \
+            "${{ needs.lint.result }}" \
+            "${{ needs.kernel-tests.result }}" \
+            "${{ needs.fast-tests-doctrine.result }}" \
+            "${{ needs.fast-tests-sync.result }}" \
+            "${{ needs.fast-tests-merge.result }}" \
+            "${{ needs.fast-tests-missions.result }}" \
+            "${{ needs.fast-tests-post-merge.result }}" \
+            "${{ needs.fast-tests-release.result }}" \
+            "${{ needs.fast-tests-status.result }}" \
+            "${{ needs.fast-tests-review.result }}" \
+            "${{ needs.fast-tests-next.result }}" \
+            "${{ needs.fast-tests-lanes.result }}" \
+            "${{ needs.fast-tests-dashboard.result }}" \
+            "${{ needs.fast-tests-upgrade.result }}" \
+            "${{ needs.fast-tests-cli.result }}" \
+            "${{ needs.fast-tests-core-misc.result }}" \
+            "${{ needs.integration-tests-doctrine.result }}" \
+            "${{ needs.integration-tests-sync.result }}" \
+            "${{ needs.integration-tests-merge.result }}" \
+            "${{ needs.integration-tests-missions.result }}" \
+            "${{ needs.integration-tests-post-merge.result }}" \
+            "${{ needs.integration-tests-release.result }}" \
+            "${{ needs.integration-tests-status.result }}" \
+            "${{ needs.integration-tests-review.result }}" \
+            "${{ needs.integration-tests-next.result }}" \
+            "${{ needs.integration-tests-lanes.result }}" \
+            "${{ needs.integration-tests-dashboard.result }}" \
+            "${{ needs.integration-tests-upgrade.result }}" \
+            "${{ needs.integration-tests-cli.result }}"; do
+            if [ "$result" = "failure" ]; then
+              echo "A required job failed."
+              exit 1
+            fi
+          done

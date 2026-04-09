@@ -35,7 +35,7 @@ try:
 
     def _generate_ulid() -> str:
         if hasattr(_ulid_mod, "new"):
-            return str(_ulid_mod.new().str)  # type: ignore[attr-defined]
+            return str(_ulid_mod.new().str)
         return str(_ulid_mod.ULID())
 
 except ImportError:  # pragma: no cover

@@ -2,9 +2,17 @@ name: Check spec-kitty-events Alignment
 
 on:
   pull_request:
+    branches: [main, develop, "2.x"]
+    paths:
+      - 'pyproject.toml'
+      - 'src/specify_cli/sync/**'
+      - '.github/workflows/check-spec-kitty-events-alignment.yml'
   push:
-    branches:
-      - main
+    branches: [main, develop, "2.x"]
+    paths:
+      - 'pyproject.toml'
+      - 'src/specify_cli/sync/**'
+      - '.github/workflows/check-spec-kitty-events-alignment.yml'
 
 permissions:
   contents: read

@@ -18,6 +18,8 @@ from specify_cli.review.baseline import (
     diff_baseline,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # Fixtures and helpers

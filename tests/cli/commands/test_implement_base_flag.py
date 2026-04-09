@@ -19,6 +19,8 @@ from specify_cli.cli.commands.implement import _validate_base_ref
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # Helpers

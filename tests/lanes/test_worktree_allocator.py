@@ -15,6 +15,8 @@ from specify_cli.lanes.worktree_allocator import (
     allocate_lane_worktree,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 def _make_git_repo(path):
     """Create a minimal git repo with an initial commit."""

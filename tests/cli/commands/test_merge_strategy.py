@@ -32,6 +32,8 @@ from specify_cli.cli.commands.merge import (
 )
 from specify_cli.merge.config import ConfigError, MergeStrategy, load_merge_config
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # FR-008 — load_merge_config tests

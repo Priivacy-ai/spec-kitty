@@ -11,6 +11,8 @@ import pytest
 from specify_cli.lanes.compute import PLANNING_LANE_ID, compute_lanes
 from specify_cli.ownership.models import ExecutionMode, OwnershipManifest
 
+pytestmark = pytest.mark.fast
+
 
 def _manifest(owned_files: list[str], mode: str = "code_change") -> OwnershipManifest:
     return OwnershipManifest(

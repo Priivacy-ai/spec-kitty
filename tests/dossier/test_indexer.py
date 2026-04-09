@@ -13,7 +13,7 @@ Tests cover:
 import os
 import pytest
 import tempfile
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -221,7 +221,7 @@ class TestMissingArtifactDetection:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -262,7 +262,7 @@ class TestMissingArtifactDetection:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -305,7 +305,7 @@ class TestMissingArtifactDetection:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest=manifest.dict(),
@@ -334,7 +334,7 @@ class TestMissingArtifactDetection:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -363,7 +363,7 @@ class TestMissingArtifactDetection:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[],
             manifest=manifest.dict(),
@@ -458,7 +458,7 @@ class TestMissionDossierBuilder:
         indexer = Indexer(ManifestRegistry())
         dossier = indexer.index_feature(tmp_path, "software-dev")
 
-        assert dossier.mission_slug == "software-dev"
+        assert dossier.mission_type == "software-dev"
         assert dossier.mission_slug == tmp_path.name
         assert dossier.feature_dir == str(tmp_path)
         assert len(dossier.artifacts) >= 3
@@ -514,9 +514,9 @@ class TestMissionDossierBuilder:
         (tmp_path / "spec.md").write_text("# Specification")
 
         indexer = Indexer(ManifestRegistry())
-        before = datetime.utcnow()
+        before = datetime.now(UTC)
         dossier = indexer.index_feature(tmp_path, "software-dev")
-        after = datetime.utcnow()
+        after = datetime.now(UTC)
 
         assert dossier.dossier_updated_at is not None
         assert before <= dossier.dossier_updated_at <= after
@@ -539,7 +539,7 @@ class TestCompletenessStatus:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},  # Has manifest
@@ -561,7 +561,7 @@ class TestCompletenessStatus:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest={"required": ["spec"]},
@@ -582,7 +582,7 @@ class TestCompletenessStatus:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[artifact],
             manifest=None,  # No manifest
@@ -613,7 +613,7 @@ class TestCompletenessStatus:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="run-001",
-            mission_type="test-feature",
+            mission_slug="test-feature",
             feature_dir="/tmp/test",
             artifacts=[required, optional],
             manifest={"required": ["spec"]},

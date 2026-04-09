@@ -14,7 +14,7 @@ from specify_cli.cli.commands.agent.mission import (
     _get_current_branch,
 )
 
-pytestmark = pytest.mark.git_repo
+pytestmark = pytest.mark.fast
 
 
 # =============================================================================
@@ -56,6 +56,7 @@ def mock_repo_with_worktrees(tmp_path: Path) -> Path:
 # =============================================================================
 
 
+@pytest.mark.git_repo
 def test_find_latest_feature_worktree(mock_repo_with_worktrees: Path):
     """Test finding latest worktree by number."""
     latest = _find_latest_feature_worktree(mock_repo_with_worktrees)
@@ -70,6 +71,7 @@ def test_find_latest_feature_worktree_no_worktrees(tmp_path: Path):
     assert latest is None
 
 
+@pytest.mark.git_repo
 def test_find_latest_feature_worktree_ignores_non_feature(mock_repo_with_worktrees: Path):
     """Test that non-feature directories are ignored."""
     latest = _find_latest_feature_worktree(mock_repo_with_worktrees)
@@ -78,6 +80,7 @@ def test_find_latest_feature_worktree_ignores_non_feature(mock_repo_with_worktre
     assert latest.name != "not-a-feature"
 
 
+@pytest.mark.git_repo
 def test_get_current_branch(mock_repo_with_worktrees: Path):
     """Test getting current branch name."""
     branch = _get_current_branch(mock_repo_with_worktrees)
@@ -86,6 +89,7 @@ def test_get_current_branch(mock_repo_with_worktrees: Path):
     assert branch in ["main", "master"]
 
 
+@pytest.mark.git_repo
 def test_get_current_branch_non_git(tmp_path: Path):
     """Test branch detection in non-git directory."""
     branch = _get_current_branch(tmp_path)

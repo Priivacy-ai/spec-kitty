@@ -38,6 +38,8 @@ from __future__ import annotations
 import re as _stdlib_re
 import sys
 import types
+from collections.abc import Iterator
+from contextlib import suppress
 
 __all__ = ["re", "is_re2_active"]
 
@@ -161,7 +163,7 @@ def _findall(pattern: str, string: str, flags: int = 0) -> list:  # type: ignore
     return _re2_compile(pattern, flags).findall(string)
 
 
-def _finditer(pattern: str, string: str, flags: int = 0):  # type: ignore[return]
+def _finditer(pattern: str, string: str, flags: int = 0) -> Iterator[_stdlib_re.Match[str]]:
     return _re2_compile(pattern, flags).finditer(string)
 
 
@@ -182,10 +184,8 @@ def _escape(pattern: str) -> str:
 
 
 def _purge() -> None:
-    try:
+    with suppress(AttributeError):
         _re2_mod.purge()
-    except AttributeError:
-        pass
     _stdlib_re.purge()
 
 

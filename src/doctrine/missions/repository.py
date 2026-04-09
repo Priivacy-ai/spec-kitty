@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
+
+ParsedConfig = dict[str, Any] | list[Any]
 
 
 class TemplateResult:
@@ -16,29 +18,27 @@ class TemplateResult:
     Consumers should not instantiate directly.
     """
 
-    __slots__ = ("_data",)
+    __slots__ = ("_content", "_origin", "_tier")
 
     def __init__(self, content: str, origin: str, tier: Any = None) -> None:
-        self._data: dict[str, Any] = {
-            "content": content,
-            "origin": origin,
-            "tier": tier,
-        }
+        self._content = content
+        self._origin = origin
+        self._tier = tier
 
     @property
     def content(self) -> str:
         """Raw template text (UTF-8)."""
-        return self._data["content"]
+        return self._content
 
     @property
     def origin(self) -> str:
         """Human-readable origin label (e.g. 'doctrine/software-dev/command-templates/implement.md')."""
-        return self._data["origin"]
+        return self._origin
 
     @property
     def tier(self) -> Any:
         """Resolution tier (ResolutionTier enum or None for doctrine-level lookups)."""
-        return self._data["tier"]
+        return self._tier
 
     def __repr__(self) -> str:
         return f"TemplateResult(origin={self.origin!r}, tier={self.tier})"
@@ -51,29 +51,27 @@ class ConfigResult:
     Consumers should not instantiate directly.
     """
 
-    __slots__ = ("_data",)
+    __slots__ = ("_content", "_origin", "_parsed")
 
-    def __init__(self, content: str, origin: str, parsed: dict | list) -> None:
-        self._data: dict[str, Any] = {
-            "content": content,
-            "origin": origin,
-            "parsed": parsed,
-        }
+    def __init__(self, content: str, origin: str, parsed: ParsedConfig) -> None:
+        self._content = content
+        self._origin = origin
+        self._parsed = parsed
 
     @property
     def content(self) -> str:
         """Raw YAML text (UTF-8)."""
-        return self._data["content"]
+        return self._content
 
     @property
     def origin(self) -> str:
         """Human-readable origin label (e.g. 'doctrine/software-dev/mission.yaml')."""
-        return self._data["origin"]
+        return self._origin
 
     @property
-    def parsed(self) -> dict | list:
+    def parsed(self) -> ParsedConfig:
         """Pre-parsed YAML data (parsed with ruamel.yaml YAML(typ='safe'))."""
-        return self._data["parsed"]
+        return self._parsed
 
     def __repr__(self) -> str:
         return f"ConfigResult(origin={self.origin!r})"
@@ -240,7 +238,7 @@ class MissionTemplateRepository:
         try:
             content = path.read_text(encoding="utf-8")
             yaml = YAML(typ="safe")
-            parsed = yaml.load(content)
+            parsed = cast(ParsedConfig | None, yaml.load(content))
             if parsed is None:
                 return None
             origin = f"doctrine/{mission}/actions/{action}/index.yaml"
@@ -283,7 +281,7 @@ class MissionTemplateRepository:
         try:
             content = path.read_text(encoding="utf-8")
             yaml = YAML(typ="safe")
-            parsed = yaml.load(content)
+            parsed = cast(ParsedConfig | None, yaml.load(content))
             if parsed is None:
                 return None
             origin = f"doctrine/{mission}/mission.yaml"
@@ -306,7 +304,7 @@ class MissionTemplateRepository:
         try:
             content = path.read_text(encoding="utf-8")
             yaml = YAML(typ="safe")
-            parsed = yaml.load(content)
+            parsed = cast(ParsedConfig | None, yaml.load(content))
             if parsed is None:
                 return None
             origin = f"doctrine/{mission}/expected-artifacts.yaml"

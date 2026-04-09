@@ -1,6 +1,28 @@
 name: Orchestrator Boundary Guardrails
 
-on: [push, pull_request]
+on:
+  pull_request:
+    branches: [main, develop, "2.x"]
+    paths:
+      - 'src/specify_cli/orchestrator_api/**'
+      - 'src/specify_cli/orchestrator/**'
+      - 'src/specify_cli/cli/**'
+      - 'src/specify_cli/next/**'
+      - 'src/specify_cli/status/**'
+      - 'src/specify_cli/merge/**'
+      - 'src/specify_cli/core/**'
+      - '.github/workflows/orchestrator-boundary.yml'
+  push:
+    branches: [main, develop, "2.x"]
+    paths:
+      - 'src/specify_cli/orchestrator_api/**'
+      - 'src/specify_cli/orchestrator/**'
+      - 'src/specify_cli/cli/**'
+      - 'src/specify_cli/next/**'
+      - 'src/specify_cli/status/**'
+      - 'src/specify_cli/merge/**'
+      - 'src/specify_cli/core/**'
+      - '.github/workflows/orchestrator-boundary.yml'
 
 jobs:
   no-bundled-orchestrator:

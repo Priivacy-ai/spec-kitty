@@ -22,6 +22,8 @@ import pytest
 from specify_cli.cli.commands.merge import _run_lane_based_merge
 from specify_cli.merge.config import MergeStrategy
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # Helpers
