@@ -1,3 +1,6 @@
+---
+description: Cross-artifact consistency and quality analysis
+---
 ## User Input
 
 ```text

@@ -1,4 +1,6 @@
-<!-- spec-kitty-command-version: 3.2.0 -->
+---
+description: Create a work package manifest
+---
 # /spec-kitty.tasks-outline - Create Work Package Manifest
 
 **Version**: 3.2.0

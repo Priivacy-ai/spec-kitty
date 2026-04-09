@@ -242,6 +242,101 @@ Mission-only body.
     assert merged_text.strip() == "Mission-only body."
 
 
+def test_render_command_template_markdown_starts_with_yaml_frontmatter(tmp_path: Path) -> None:
+    """Markdown output must open with ``---`` so slash-command pickers parse the description."""
+    template_path = tmp_path / "demo.md"
+    _write_template(template_path)
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    lines = output.splitlines()
+    assert lines[0] == "---", f"first line was {lines[0]!r}, not ---"
+    assert "description: Demo Template" in lines, "description not preserved in frontmatter"
+    # The closing --- comes before the version marker
+    closing_index = next(i for i in range(1, len(lines)) if lines[i] == "---")
+    assert lines[closing_index + 1].startswith("<!-- spec-kitty-command-version:"), (
+        "Version marker must immediately follow the closing --- of the frontmatter"
+    )
+
+
+def test_render_command_template_markdown_marker_not_on_line_zero(tmp_path: Path) -> None:
+    """Regression: the version marker must not displace the YAML frontmatter from line 1."""
+    template_path = tmp_path / "demo.md"
+    _write_template(template_path)
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    assert not output.splitlines()[0].startswith("<!-- spec-kitty-command-version:"), (
+        "Marker on line 0 would break Claude Code's frontmatter parsing — "
+        "this is the bug the fix addresses."
+    )
+
+
+def test_render_command_template_markdown_preserves_body(tmp_path: Path) -> None:
+    template_path = tmp_path / "demo.md"
+    _write_template(template_path)
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    assert "Run echo hi $ARGUMENTS source env for claude." in output
+
+
+def test_render_command_template_markdown_without_frontmatter_still_emits_marker(tmp_path: Path) -> None:
+    """Templates without YAML frontmatter still receive a version marker (legacy fallback)."""
+    template_path = tmp_path / "no_frontmatter.md"
+    template_path.write_text("Body content for __AGENT__.\n", encoding="utf-8")
+
+    output = render_command_template(
+        template_path,
+        script_type="sh",
+        agent_key="claude",
+        arg_format="$ARGUMENTS",
+        extension="md",
+    )
+
+    # Without frontmatter, the marker is the first line (no description to preserve).
+    assert output.splitlines()[0].startswith("<!-- spec-kitty-command-version:")
+    assert "Body content for claude." in output
+
+
+def test_bundled_software_dev_templates_have_descriptions(tmp_path: Path) -> None:
+    """Every shipped command-template must declare a description in its frontmatter."""
+    from specify_cli.template.renderer import parse_frontmatter
+
+    repo_root = Path(__file__).resolve().parents[2]
+    templates_dir = repo_root / "src" / "specify_cli" / "missions" / "software-dev" / "command-templates"
+    assert templates_dir.is_dir(), f"templates dir missing: {templates_dir}"
+
+    template_files = sorted(templates_dir.glob("*.md"))
+    assert template_files, "no command templates discovered — fixture is wrong"
+
+    for template_file in template_files:
+        meta, _body, _raw = parse_frontmatter(template_file.read_text(encoding="utf-8"))
+        description = str(meta.get("description", "")).strip()
+        assert description, (
+            f"{template_file.name} missing 'description' in YAML frontmatter — "
+            f"slash-command pickers will show garbage"
+        )
+
+
 def test_render_command_template_fails_when_script_missing_and_required(tmp_path: Path) -> None:
     template_path = tmp_path / "broken.md"
     template_path.write_text(

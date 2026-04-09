@@ -7,7 +7,8 @@ are free of dev-specific content that would break consumer projects:
   - No .kittify/missions/ read instructions
   - No deprecated "planning repository" terminology
   - All templates >=50 non-empty lines
-  - No YAML frontmatter blocks (the asset generator adds its own)
+  - YAML frontmatter present and declares a non-empty ``description``
+    (slash-command pickers like Claude Code read this for their UI)
   - Planning-workflow templates use "project root checkout" terminology
   - tasks.md contains WP ownership metadata guidance fields
   - All templates include --mission guidance
@@ -260,21 +261,30 @@ def test_uses_project_root_checkout_in_planning_templates(command: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# T026-g: No YAML frontmatter blocks
+# T026-g: YAML frontmatter present and declares a description
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.parametrize("command", PROMPT_DRIVEN)
-def test_no_yaml_frontmatter(command: str) -> None:
-    """Templates must not start with YAML frontmatter (--- block).
+def test_has_yaml_frontmatter_with_description(command: str) -> None:
+    """Templates must open with a YAML frontmatter block declaring ``description``.
 
-    The asset generator adds its own frontmatter during rendering.
-    Templates that start with --- will produce doubled frontmatter.
+    The asset generator preserves the template's frontmatter verbatim and
+    places the version marker just after it.  Slash-command pickers (e.g.
+    Claude Code) read the ``description`` field to populate their UI; without
+    it, users see the raw HTML version-marker comment as the description.
     """
+    from specify_cli.template.renderer import parse_frontmatter
+
     content = _template_content(command)
-    assert not content.startswith("---"), (
-        f"{command}.md has YAML frontmatter - strip it before shipping "
-        f"(the asset generator adds its own frontmatter during rendering)"
+    assert content.startswith("---\n"), (
+        f"{command}.md is missing YAML frontmatter — add a `---\\ndescription: "
+        f"...\\n---` block so the slash-command picker has a real description"
+    )
+    metadata, _body, _raw = parse_frontmatter(content)
+    description = str(metadata.get("description", "")).strip()
+    assert description, (
+        f"{command}.md frontmatter is missing a non-empty `description` field"
     )
 
 

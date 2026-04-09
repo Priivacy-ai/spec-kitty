@@ -1,3 +1,6 @@
+---
+description: Create a mission specification
+---
 # /spec-kitty.specify - Create Mission Specification
 
 **Version**: 0.11.0+

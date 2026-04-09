@@ -250,8 +250,13 @@ class TestHybridInstallOutputShape:
             f"spec-kitty.specify.md should have >=100 lines, got {len(lines)}"
         )
 
-    def test_implement_md_has_fewer_than_6_lines(self, tmp_path: Path) -> None:
-        """spec-kitty.implement.md must be a thin shim (<=6 lines)."""
+    def test_implement_md_is_thin_shim(self, tmp_path: Path) -> None:
+        """spec-kitty.implement.md must be a thin shim (<=10 lines).
+
+        The threshold accommodates the YAML frontmatter (``---``,
+        ``description: ...``, ``---``) that the shim now emits so the
+        slash-command picker UI has a real description to display.
+        """
         from specify_cli.core.agent_config import AgentConfig, save_agent_config
         from specify_cli.shims.generator import generate_all_shims
 
@@ -264,10 +269,15 @@ class TestHybridInstallOutputShape:
 
         implement_file = project / ".claude" / "commands" / "spec-kitty.implement.md"
         assert implement_file.exists(), "spec-kitty.implement.md must exist"
-        lines = implement_file.read_text().splitlines()
-        assert len(lines) <= 6, (
-            f"spec-kitty.implement.md should have <=6 lines (thin shim), got {len(lines)}"
+        content = implement_file.read_text()
+        lines = content.splitlines()
+        assert len(lines) <= 10, (
+            f"spec-kitty.implement.md should be a thin shim (<=10 lines), got {len(lines)}"
         )
+        # The frontmatter must be on line 1 so Claude Code's picker can read it.
+        assert lines[0] == "---"
+        assert lines[1].startswith("description:")
+        assert lines[2] == "---"
 
 
 # ---------------------------------------------------------------------------
