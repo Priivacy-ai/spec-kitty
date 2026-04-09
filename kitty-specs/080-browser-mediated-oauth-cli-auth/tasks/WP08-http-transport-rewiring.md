@@ -35,8 +35,8 @@ owned_files:
 - tests/auth/test_http_transport.py
 status: pending
 tags: []
-agent: "opus:opus:implementer:implementer"
-shell_pid: "24720"
+agent: "claude:opus-4-6:python-implementer:implementer"
+shell_pid: "93744"
 ---
 
 # WP08: HTTP Transport Rewiring
@@ -567,3 +567,4 @@ rewired any caller, shipped dead code. Reviewer must:
 - 2026-04-09T18:08:23Z – opus:opus:implementer:implementer – shell_pid=1860 – Moved to planned
 - 2026-04-09T18:11:04Z – opus:opus:implementer:implementer – shell_pid=24720 – Started implementation via action command
 - 2026-04-09T18:15:59Z – opus:opus:implementer:implementer – shell_pid=24720 – Moved to planned
+- 2026-04-09T19:50:30Z – claude:opus-4-6:python-implementer:implementer – shell_pid=93744 – Started implementation via action command
