@@ -39,10 +39,10 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 | T017 | Add `mission_id` to `MissionIdentity` dataclass; update `resolve_mission_identity()` | WP04 | [D] |
 | T018 | Add `mission_id` to `emit_mission_created()` payload in `events.py` + `emitter.py` | WP04 | [D] |
 | T019 | Regression tests for Track 3 (T3.1–T3.6 from test-contracts.md) | WP04 | [D] |
-| T020 | Extend `FileLock` scope in `refresh_tokens()` to full read→network→persist transaction | WP05 | [P] |
-| T021 | Re-read-on-401 path: stale 401 exits cleanly; real 401 clears under lock | WP05 | [P] |
-| T022 | Verify httpx timeout < 10s lock timeout; set explicit timeout if not | WP05 | [P] |
-| T023 | Regression tests for Track 5 (T5.1–T5.4 from test-contracts.md) | WP05 | [P] |
+| T020 | Extend `FileLock` scope in `refresh_tokens()` to full read→network→persist transaction | WP05 | [D] |
+| T021 | Re-read-on-401 path: stale 401 exits cleanly; real 401 clears under lock | WP05 | [D] |
+| T022 | Verify httpx timeout < 10s lock timeout; set explicit timeout if not | WP05 | [D] |
+| T023 | Regression tests for Track 5 (T5.1–T5.4 from test-contracts.md) | WP05 | [D] |
 | T024 | Update `README.md` canonical workflow line + mermaid diagram | WP06 | [P] |
 | T025 | Update slash-command source templates (replace `spec-kitty implement WP##` with `spec-kitty agent action implement`) | WP06 | [P] |
 | T026 | Update `docs/` canonical-path mentions in first ~5 paragraphs of ~12 files | WP06 | [P] |
