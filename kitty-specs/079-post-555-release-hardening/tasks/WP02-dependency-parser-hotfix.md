@@ -16,7 +16,8 @@ subtasks:
 - T007
 - T008
 - T009
-shell_pid: '64305'
+shell_pid: "65044"
+agent: "claude:opus:reviewer:reviewer"
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
@@ -251,3 +252,4 @@ All 21 tests from `TestInlineDependsOnFormat`, `TestInlineDependenciesColonForma
 
 - 2026-04-09T08:06:55Z – unknown – shell_pid=64305 – Dispatching implementation agent
 - 2026-04-09T08:11:54Z – unknown – shell_pid=64305 – Parser bound fix: _split_wp_sections() stops at non-WP ## headings. All 21+5=26 tests pass.
+- 2026-04-09T08:12:30Z – claude:opus:reviewer:reviewer – shell_pid=65044 – Started review via action command
