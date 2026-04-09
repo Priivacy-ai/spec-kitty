@@ -318,3 +318,4 @@ def test_emit_mission_created_includes_mission_id():
 ## Activity Log
 
 - 2026-04-09T09:00:05Z – unknown – shell_pid=114 – Dispatching implementation
+- 2026-04-09T09:04:45Z – unknown – shell_pid=114 – ULID mission_id minted at creation, 079 meta.json dogfood updated, 4 regression tests pass (12 total assertions)
