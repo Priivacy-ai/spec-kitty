@@ -113,10 +113,10 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T045 | GREP AUDIT: zero `CredentialStore`/`AuthClient` references outside `auth/` | WP08 | |
 | T046 | GREP AUDIT: ≥5 `get_token_manager` callers from production code | WP08 | |
 | T047 | Write unit tests for OAuthHttpClient + update sync/client tests | WP08 | |
-| T048 | Create `auth/websocket/__init__.py` exporting `provision_ws_token` | WP09 | |
-| T049 | Create `auth/websocket/token_provisioning.py` (TokenProvisioner) | WP09 | |
-| T050 | Add 403/404/5xx error handling for ws-token endpoint | WP09 | |
-| T051 | Write unit tests for WebSocketTokenProvisioner | WP09 | |
+| T048 | Create `auth/websocket/__init__.py` exporting `provision_ws_token` | WP09 | | [D] |
+| T049 | Create `auth/websocket/token_provisioning.py` (TokenProvisioner) | WP09 | | [D] |
+| T050 | Add 403/404/5xx error handling for ws-token endpoint | WP09 | | [D] |
+| T051 | Write unit tests for WebSocketTokenProvisioner | WP09 | | [D] |
 | T052 | DELETE `src/specify_cli/sync/auth.py`; verify no imports remain | WP10 | |
 | T053 | Update or remove `tests/sync/test_auth.py` | WP10 | |
 | T054 | Search and remove any password-prompt code | WP10 | |
@@ -396,10 +396,10 @@ token expires within 5 minutes.
 **Estimated prompt size**: ~280 lines | **Subtasks**: 4
 
 **Included subtasks**:
-- [ ] T048 Create `auth/websocket/__init__.py` exporting `provision_ws_token` (WP09)
-- [ ] T049 Create `auth/websocket/token_provisioning.py` (TokenProvisioner) (WP09)
-- [ ] T050 Add 403/404/5xx error handling for ws-token endpoint (WP09)
-- [ ] T051 Write unit tests for WebSocketTokenProvisioner (WP09)
+- [x] T048 Create `auth/websocket/__init__.py` exporting `provision_ws_token` (WP09)
+- [x] T049 Create `auth/websocket/token_provisioning.py` (TokenProvisioner) (WP09)
+- [x] T050 Add 403/404/5xx error handling for ws-token endpoint (WP09)
+- [x] T051 Write unit tests for WebSocketTokenProvisioner (WP09)
 
 **Dependencies**: WP01 only
 
