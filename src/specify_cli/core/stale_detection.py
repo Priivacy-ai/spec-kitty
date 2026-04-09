@@ -15,8 +15,28 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-from specify_cli.core.vcs import get_vcs, VCSError
 from specify_cli.workspace_context import resolve_workspace_for_wp
+
+PLANNING_ARTIFACT_REPO_ROOT_REASON = "planning_artifact_repo_root_shared_workspace"
+
+
+@dataclass(frozen=True)
+class StaleState:
+    """Canonical stale-state payload for machine-facing status surfaces."""
+
+    status: str
+    reason: str | None = None
+    minutes_since_commit: float | None = None
+    last_commit_time: datetime | None = None
+
+    def to_dict(self) -> dict[str, str | float | None]:
+        """Serialize to the canonical JSON-compatible stale object."""
+        return {
+            "status": self.status,
+            "reason": self.reason,
+            "minutes_since_commit": self.minutes_since_commit,
+            "last_commit_time": self.last_commit_time.isoformat() if self.last_commit_time else None,
+        }
 
 
 @dataclass
@@ -24,11 +44,30 @@ class StaleCheckResult:
     """Result of checking a work package for staleness."""
 
     wp_id: str
-    is_stale: bool
-    last_commit_time: datetime | None
-    minutes_since_commit: float | None
-    worktree_exists: bool
+    stale: StaleState
+    workspace_exists: bool
+    workspace_kind: str
     error: str | None = None
+
+    @property
+    def is_stale(self) -> bool:
+        """Deprecated flat compatibility field derived from the stale object."""
+        return self.stale.status == "stale"
+
+    @property
+    def last_commit_time(self) -> datetime | None:
+        """Deprecated flat compatibility field derived from the stale object."""
+        return self.stale.last_commit_time
+
+    @property
+    def minutes_since_commit(self) -> float | None:
+        """Deprecated flat compatibility field derived from the stale object."""
+        return self.stale.minutes_since_commit
+
+    @property
+    def worktree_exists(self) -> bool:
+        """Deprecated flat compatibility field derived from the stale object."""
+        return self.workspace_kind != "repo_root" and self.workspace_exists
 
 
 def get_default_branch(repo_path: Path) -> str:
@@ -202,10 +241,9 @@ def check_wp_staleness(
     if not worktree_path.exists():
         return StaleCheckResult(
             wp_id=wp_id,
-            is_stale=False,
-            last_commit_time=None,
-            minutes_since_commit=None,
-            worktree_exists=False,
+            stale=StaleState(status="fresh"),
+            workspace_exists=False,
+            workspace_kind="lane_workspace",
         )
 
     try:
@@ -216,10 +254,9 @@ def check_wp_staleness(
             # If no commits yet (has_own_commits=False), agent just started - not stale
             return StaleCheckResult(
                 wp_id=wp_id,
-                is_stale=False,
-                last_commit_time=None,
-                minutes_since_commit=None,
-                worktree_exists=True,
+                stale=StaleState(status="fresh"),
+                workspace_exists=True,
+                workspace_kind="lane_workspace",
                 error=None if not has_own_commits else "Could not determine last commit time",
             )
 
@@ -235,44 +272,23 @@ def check_wp_staleness(
 
         return StaleCheckResult(
             wp_id=wp_id,
-            is_stale=is_stale,
-            last_commit_time=last_commit,
-            minutes_since_commit=round(minutes_since, 1),
-            worktree_exists=True,
+            stale=StaleState(
+                status="stale" if is_stale else "fresh",
+                minutes_since_commit=round(minutes_since, 1),
+                last_commit_time=last_commit,
+            ),
+            workspace_exists=True,
+            workspace_kind="lane_workspace",
         )
 
     except Exception as e:
         return StaleCheckResult(
             wp_id=wp_id,
-            is_stale=False,
-            last_commit_time=None,
-            minutes_since_commit=None,
-            worktree_exists=True,
+            stale=StaleState(status="fresh"),
+            workspace_exists=True,
+            workspace_kind="lane_workspace",
             error=str(e),
         )
-
-
-def find_worktree_for_wp(
-    main_repo_root: Path,
-    mission_slug: str,
-    wp_id: str,
-) -> Path | None:
-    """
-    Find the worktree path for a given work package.
-
-    Args:
-        main_repo_root: Root of the main repository
-        mission_slug: Feature slug (e.g., "001-my-feature")
-        wp_id: Work package ID (e.g., "WP01")
-
-    Returns:
-        Path to worktree if found, None otherwise
-    """
-    resolved = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
-    if resolved.exists:
-        return resolved.worktree_path
-
-    return None
 
 
 def check_doing_wps_for_staleness(
@@ -300,17 +316,29 @@ def check_doing_wps_for_staleness(
         if not wp_id:
             continue
 
-        worktree_path = find_worktree_for_wp(main_repo_root, mission_slug, wp_id)
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
 
-        if worktree_path:
-            result = check_wp_staleness(wp_id, worktree_path, threshold_minutes)
+        if workspace.resolution_kind == "repo_root":
+            result = StaleCheckResult(
+                wp_id=wp_id,
+                stale=StaleState(
+                    status="not_applicable",
+                    reason=PLANNING_ARTIFACT_REPO_ROOT_REASON,
+                ),
+                workspace_exists=workspace.exists,
+                workspace_kind=workspace.resolution_kind,
+            )
+            results[wp_id] = result
+            continue
+
+        if workspace.exists:
+            result = check_wp_staleness(wp_id, workspace.worktree_path, threshold_minutes)
         else:
             result = StaleCheckResult(
                 wp_id=wp_id,
-                is_stale=False,
-                last_commit_time=None,
-                minutes_since_commit=None,
-                worktree_exists=False,
+                stale=StaleState(status="fresh"),
+                workspace_exists=False,
+                workspace_kind=workspace.resolution_kind,
             )
 
         results[wp_id] = result

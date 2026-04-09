@@ -14,6 +14,7 @@ from specify_cli.core.paths import require_explicit_feature
 
 _err_console = Console(stderr=True)
 _warned: set[tuple[int, str, str]] = set()
+_direct_invocation_counter: int = 0
 
 
 @dataclass(frozen=True, slots=True)
@@ -47,10 +48,23 @@ def _emit_deprecation_warning(
     alias_flag: str,
     suppress_env_var: str,
 ) -> bool:
-    """Emit a single warning per CLI invocation for one canonical/alias pair."""
+    """Emit a single warning per CLI invocation for one canonical/alias pair.
 
+    Inside a click invocation we key on the click context id so the same
+    canonical/alias pair only warns once per command. Outside a click context
+    (direct programmatic calls) we use a monotonically increasing counter
+    instead of ``id(object())`` — the latter can collide because Python may
+    reuse memory for short-lived temporaries, which would suppress the warning
+    on the second back-to-back call.
+    """
+
+    global _direct_invocation_counter
     ctx = click.get_current_context(silent=True)
-    invocation_id = id(ctx) if ctx is not None else id(object())
+    if ctx is not None:
+        invocation_id = id(ctx)
+    else:
+        _direct_invocation_counter += 1
+        invocation_id = _direct_invocation_counter
     pair = (invocation_id, canonical_flag, alias_flag)
     if pair in _warned:
         return False

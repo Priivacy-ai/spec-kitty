@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import contextlib
+import io
 import json
 import sys
 
@@ -20,15 +22,12 @@ _VALID_RESULTS = ("success", "failed", "blocked")
 
 @require_main_repo
 def next_step(
-    agent: Annotated[str, typer.Option("--agent", help="Agent name (required)")],
+    agent: Annotated[str | None, typer.Option("--agent", help="Agent name (required for advancing mode)")] = None,
     result: Annotated[
         str | None,
         typer.Option(
             "--result",
-            help=(
-                "Result of previous step: success|failed|blocked. "
-                "If omitted, returns current state without advancing (query mode)."
-            ),
+            help=("Result of previous step: success|failed|blocked. If omitted, returns current state without advancing (query mode)."),
         ),
     ] = None,
     mission: Annotated[str | None, typer.Option("--mission", help="Mission slug")] = None,
@@ -38,9 +37,7 @@ def next_step(
     ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON decision only")] = False,
     answer: Annotated[str | None, typer.Option("--answer", help="Answer to a pending decision")] = None,
-    decision_id: Annotated[
-        str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")
-    ] = None,
+    decision_id: Annotated[str | None, typer.Option("--decision-id", help="Decision ID (required if multiple pending)")] = None,
 ) -> None:
     """Decide and emit the next agent action for the current mission.
 
@@ -49,11 +46,12 @@ def next_step(
     decision with an action and prompt file.
 
     Examples:
-        spec-kitty next --agent claude --mission 034-my-feature --json
+        spec-kitty next --mission 034-my-feature --json                            # query mode
+        spec-kitty next --agent claude --mission 034-my-feature --result success --json
         spec-kitty next --agent codex --mission 034-my-feature
         spec-kitty next --agent gemini --mission 034-my-feature --result failed --json
-        spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --json
-        spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --json
+        spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --result success --json
+        spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --result success --json
     """
     # Resolve repo root
     repo_root = locate_project_root()
@@ -76,31 +74,76 @@ def next_step(
         print(f"Error: {exc}", file=sys.stderr)
         raise typer.Exit(1) from exc
 
-    # Query mode: bare call without --result
-    if result is None:
-        from specify_cli.next.runtime_bridge import query_current_state
-        decision = query_current_state(agent, mission_slug, repo_root)
-        if json_output:
-            d = decision.to_dict()
-            if answer is not None:
-                d["answered"] = None
-                d["answer"] = answer
-            print(json.dumps(d, indent=2))
-        else:
-            if answer is not None:
-                print(f"  Answered decision: (no decision_id in query mode)")
-            _print_human(decision)
-        return   # No event emitted, no DAG advancement
-
-    # --result validation (only reached when result is not None)
-    if result not in _VALID_RESULTS:
+    if result is not None and result not in _VALID_RESULTS:
         print(f"Error: --result must be one of {_VALID_RESULTS}, got '{result}'", file=sys.stderr)
         raise typer.Exit(1)
 
-    # Handle --answer flow
+    if answer is not None and result is None:
+        message = "Error: --answer requires --result because query mode is read-only"
+        if json_output:
+            print(json.dumps({"error": message}))
+        else:
+            print(message, file=sys.stderr)
+        raise typer.Exit(1)
+
+    # Handle --answer flow before invoking decide_next. Answering a pending
+    # decision is a mutation and requires agent identity. The earlier validation
+    # has already rejected --answer without --result, so we are guaranteed to
+    # be in advancing mode by the time we get here.
     answered_id = None
     if answer is not None:
-        answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+        if not agent:
+            message = "Error: --agent is required when --answer is provided"
+            if json_output:
+                print(json.dumps({"error": message}))
+            else:
+                print(message, file=sys.stderr)
+            raise typer.Exit(1)
+        stderr_buffer = io.StringIO() if json_output else None
+        redirect = contextlib.redirect_stderr(stderr_buffer) if stderr_buffer is not None else contextlib.nullcontext()
+        try:
+            with redirect:
+                answered_id = _handle_answer(agent, mission_slug, answer, decision_id, repo_root)
+        except typer.Exit as exc:
+            if json_output:
+                message = (stderr_buffer.getvalue().strip() if stderr_buffer is not None else "") or str(exc) or "Answer handling failed"
+                print(json.dumps({"error": message}))
+                raise typer.Exit(1)
+            raise
+        except Exception as exc:
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+                raise typer.Exit(1) from exc
+            raise
+
+    # Query mode: bare call without --result remains read-only and does not
+    # require agent identity.
+    if result is None:
+        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+
+        try:
+            decision = query_current_state(agent, mission_slug, repo_root)
+        except QueryModeValidationError as exc:
+            if json_output:
+                print(json.dumps({"error": str(exc)}))
+            else:
+                print(f"Error: {exc}", file=sys.stderr)
+            raise typer.Exit(1) from exc
+        if json_output:
+            d = decision.to_dict()
+            if answered_id is not None:
+                d["answered"] = answered_id
+                d["answer"] = answer
+            print(json.dumps(d, indent=2))
+        else:
+            _print_human(decision)
+            if answered_id is not None:
+                print(f"  Answered decision: {answered_id}")
+        return  # No event emitted, no DAG advancement
+
+    if not agent:
+        print("Error: --agent is required when --result is provided", file=sys.stderr)
+        raise typer.Exit(1)
 
     # Core decision
     decision = decide_next(agent, mission_slug, result, repo_root)
@@ -176,8 +219,7 @@ def _handle_answer(
             else:
                 pending_ids = sorted(pending.keys())
                 print(
-                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). "
-                    f"Use --decision-id to specify which one.",
+                    f"Error: Multiple pending decisions ({', '.join(pending_ids)}). Use --decision-id to specify which one.",
                     file=sys.stderr,
                 )
                 raise typer.Exit(1)
@@ -208,6 +250,16 @@ def _print_human(decision) -> None:
         print(f"  Mission: {decision.mission_slug} @ {decision.mission_state}")
         if getattr(decision, "mission", None):
             print(f"  Mission Type: {decision.mission}")
+        if getattr(decision, "preview_step", None):
+            print(f"  Next step: {decision.preview_step}")
+        if getattr(decision, "question", None):
+            print(f"  Question: {decision.question}")
+            if getattr(decision, "options", None):
+                print(f"  Options: {', '.join(decision.options)}")
+            if getattr(decision, "decision_id", None):
+                print(f"  Decision ID: {decision.decision_id}")
+        elif getattr(decision, "reason", None):
+            print(f"  Reason: {decision.reason}")
         if decision.progress:
             p = decision.progress
             total = p.get("total_wps", 0)

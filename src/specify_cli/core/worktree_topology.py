@@ -17,7 +17,7 @@ from specify_cli.core.dependency_graph import build_dependency_graph, topologica
 from specify_cli.core.paths import get_main_repo_root, get_feature_target_branch
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError, get_wp_lane
-from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.workspace_context import get_normalized_wp, resolve_workspace_for_wp
 
 
 @dataclass
@@ -25,10 +25,13 @@ class WPTopologyEntry:
     """Per-WP lane topology information."""
 
     wp_id: str
-    lane_id: str
-    lane_wp_ids: list[str]
-    branch_name: str
-    base_branch: str
+    execution_mode: str = "code_change"
+    resolution_kind: str = "lane_workspace"
+    lane_id: str | None = None
+    lane_wp_ids: list[str] = field(default_factory=list)
+    branch_name: str | None = None
+    base_branch: str | None = None
+    review_paths: list[str] = field(default_factory=list)
     dependencies: list[str] = field(default_factory=list)
     lane: str = "planned"
     worktree_exists: bool = False
@@ -49,8 +52,9 @@ class FeatureTopology:
     @property
     def has_stacking(self) -> bool:
         """Compatibility shim: true when the lane topology is worth injecting."""
-        lane_ids = {entry.lane_id for entry in self.entries}
-        return len(lane_ids) > 1 or any(len(entry.lane_wp_ids) > 1 for entry in self.entries)
+        lane_ids = {entry.lane_id for entry in self.entries if entry.lane_id}
+        resolution_kinds = {entry.resolution_kind for entry in self.entries}
+        return len(lane_ids) > 1 or any(len(entry.lane_wp_ids) > 1 for entry in self.entries) or len(resolution_kinds) > 1
 
     def get_entry(self, wp_id: str) -> WPTopologyEntry | None:
         for entry in self.entries:
@@ -58,11 +62,13 @@ class FeatureTopology:
                 return entry
         return None
 
-    def get_actual_base_for_wp(self, wp_id: str) -> str:
+    def get_actual_base_for_wp(self, wp_id: str) -> str | None:
         entry = self.get_entry(wp_id)
-        if entry is not None:
+        if entry is not None and entry.resolution_kind == "repo_root":
             return entry.base_branch
-        return self.mission_branch
+        if entry is not None and entry.base_branch:
+            return entry.base_branch
+        return self.target_branch
 
 
 def _read_canonical_lane_or_default(feature_dir: Path, wp_id: str) -> str:
@@ -95,16 +101,42 @@ def _count_commits_ahead(worktree_path: Path, base_branch: str) -> int:
     return 0
 
 
+def _planning_claim_commit(repo_root: Path, wp_path: Path, wp_id: str) -> str | None:
+    result = subprocess.run(
+        [
+            "git",
+            "log",
+            "--format=%H%x00%s",
+            "--",
+            str(wp_path),
+        ],
+        cwd=repo_root,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        for raw in result.stdout.splitlines():
+            commit_hash, _, subject = raw.partition("\x00")
+            if not commit_hash:
+                continue
+            if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
+                return commit_hash.strip()
+    return None
+
+
 def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> FeatureTopology:
     """Gather the full lane worktree topology for a feature."""
     from specify_cli.lanes.branch_naming import lane_branch_name
-    from specify_cli.lanes.persistence import require_lanes_json
+    from specify_cli.lanes.persistence import read_lanes_json
 
     main_repo_root = get_main_repo_root(repo_root)
     target_branch = get_feature_target_branch(main_repo_root, mission_slug)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
     identity = resolve_mission_identity(feature_dir)
-    lanes_manifest = require_lanes_json(feature_dir)
+    lanes_manifest = read_lanes_json(feature_dir)
     graph = build_dependency_graph(feature_dir)
 
     try:
@@ -114,23 +146,43 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
 
     entries: list[WPTopologyEntry] = []
     for wp_id in topo_order:
-        lane_entry = lanes_manifest.lane_for_wp(wp_id)
-        if lane_entry is None:
+        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
+        normalized_wp = get_normalized_wp(main_repo_root, mission_slug, wp_id)
+        lane_entry = lanes_manifest.lane_for_wp(wp_id) if lanes_manifest is not None else None
+        if lane_entry is None and workspace.resolution_kind != "repo_root":
             raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
 
-        workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, wp_id)
         worktree_exists = workspace.exists
         commits_ahead = 0
-        if worktree_exists:
-            commits_ahead = _count_commits_ahead(workspace.worktree_path, lanes_manifest.mission_branch)
+        if workspace.resolution_kind == "repo_root":
+            base_branch: str | None = _planning_claim_commit(main_repo_root, normalized_wp.path, wp_id)
+        else:
+            base_branch = lanes_manifest.mission_branch if lane_entry and lanes_manifest is not None else None
+        if worktree_exists and base_branch:
+            commits_ahead = _count_commits_ahead(workspace.worktree_path, base_branch)
 
         entries.append(
             WPTopologyEntry(
                 wp_id=wp_id,
-                lane_id=lane_entry.lane_id,
-                lane_wp_ids=list(lane_entry.wp_ids),
-                branch_name=lane_branch_name(mission_slug, lane_entry.lane_id),
-                base_branch=lanes_manifest.mission_branch,
+                execution_mode=workspace.execution_mode,
+                resolution_kind=workspace.resolution_kind,
+                lane_id=lane_entry.lane_id if lane_entry else workspace.lane_id,
+                lane_wp_ids=list(lane_entry.wp_ids) if lane_entry else list(workspace.lane_wp_ids),
+                branch_name=lane_branch_name(mission_slug, lane_entry.lane_id) if lane_entry else workspace.branch_name,
+                base_branch=base_branch,
+                review_paths=(
+                    list(normalized_wp.metadata.owned_files)
+                    + (
+                        [
+                            f":(exclude)kitty-specs/{mission_slug}/tasks/**",
+                            f":(exclude)kitty-specs/{mission_slug}/tasks.md",
+                            f":(exclude)kitty-specs/{mission_slug}/status.events.jsonl",
+                            f":(exclude)kitty-specs/{mission_slug}/status.json",
+                        ]
+                        if any(path.startswith(f"kitty-specs/{mission_slug}/") for path in normalized_wp.metadata.owned_files)
+                        else []
+                    )
+                ),
                 dependencies=graph.get(wp_id, []),
                 lane=_read_canonical_lane_or_default(feature_dir, wp_id),
                 worktree_exists=worktree_exists,
@@ -143,7 +195,7 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
         mission_number=identity.mission_number,
         mission_type=identity.mission_type,
         target_branch=target_branch,
-        mission_branch=lanes_manifest.mission_branch,
+        mission_branch=lanes_manifest.mission_branch if lanes_manifest is not None else target_branch,
         entries=entries,
     )
 
@@ -157,12 +209,21 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
         topology.mission_number,
         topology.mission_type,
     )
+    diff_command = (
+        f"git diff {diff_base}..HEAD -- {' '.join(current_entry.review_paths)}"
+        if current_entry and current_entry.resolution_kind == "repo_root" and current_entry.review_paths and diff_base
+        else f"git diff {diff_base}..HEAD"
+    )
+    if current_entry and current_entry.resolution_kind == "repo_root" and not diff_base:
+        diff_command = "unavailable: no deterministic implementation claim commit found"
 
     entries_json = []
     for entry in topology.entries:
         entry_data: dict[str, object] = {
             "wp": entry.wp_id,
             "status": entry.lane,
+            "execution_mode": entry.execution_mode,
+            "workspace_kind": entry.resolution_kind,
             "lane_id": entry.lane_id,
             "lane_wp_ids": entry.lane_wp_ids,
             "branch": entry.branch_name,
@@ -181,10 +242,12 @@ def render_topology_json(topology: FeatureTopology, current_wp_id: str) -> list[
         "target_branch": topology.target_branch,
         "mission_branch": topology.mission_branch,
         "current_wp": current_wp_id,
-        "diff_command": f"git diff {diff_base}..HEAD",
+        "diff_command": diff_command,
         "shared_lane": bool(current_entry and len(current_entry.lane_wp_ids) > 1),
         "note": (
-            f"{current_wp_id} shares lane {current_entry.lane_id} with {', '.join(current_entry.lane_wp_ids)}. "
+            f"{current_wp_id} runs in the repository root planning workspace."
+            if current_entry and current_entry.resolution_kind == "repo_root"
+            else f"{current_wp_id} shares lane {current_entry.lane_id} with {', '.join(current_entry.lane_wp_ids)}. "
             "Sequential WPs in the same lane reuse one worktree."
             if current_entry and len(current_entry.lane_wp_ids) > 1
             else f"{current_wp_id} owns lane {current_entry.lane_id} alone."
@@ -214,11 +277,11 @@ def render_topology_text(topology: FeatureTopology, current_wp_id: str) -> list[
 
     for entry in topology.entries:
         marker = "→" if entry.wp_id == current_wp_id else " "
-        lane_members = ",".join(entry.lane_wp_ids)
-        line_text = (
-            f"{marker} {entry.wp_id} [{entry.lane}] lane={entry.lane_id} "
-            f"members={lane_members} branch={entry.branch_name}"
-        )
+        if entry.resolution_kind == "repo_root":
+            line_text = f"{marker} {entry.wp_id} [{entry.lane}] workspace=repo-root mode={entry.execution_mode}"
+        else:
+            lane_members = ",".join(entry.lane_wp_ids)
+            line_text = f"{marker} {entry.wp_id} [{entry.lane}] lane={entry.lane_id} members={lane_members} branch={entry.branch_name}"
         if entry.worktree_exists and entry.commits_ahead_of_base > 0:
             line_text += f" (+{entry.commits_ahead_of_base})"
         padded = line_text[:76].ljust(76)

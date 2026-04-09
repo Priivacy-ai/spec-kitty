@@ -15,16 +15,14 @@ __all__ = [
     "infer_owned_files",
     "infer_authoritative_surface",
     "infer_ownership",
+    "score_execution_mode_signals",
     "SRC_FALLBACK_GLOB",
     "SRC_FALLBACK_WARNING",
 ]
 
 # Constant so callers can detect / test the fallback value.
 SRC_FALLBACK_GLOB = "src/**"
-SRC_FALLBACK_WARNING = (
-    "No file paths found in WP body text; using broad fallback 'src/**'. "
-    "Consider adding explicit owned_files to WP frontmatter."
-)
+SRC_FALLBACK_WARNING = "No file paths found in WP body text; using broad fallback 'src/**'. Consider adding explicit owned_files to WP frontmatter."
 
 # Patterns that strongly suggest planning artifact deliverables.
 _PLANNING_SIGNALS = [
@@ -75,14 +73,7 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
     Returns:
         Inferred ExecutionMode.
     """
-    combined = wp_content + "\n" + "\n".join(wp_files)
-
-    planning_score = sum(
-        1 for p in _PLANNING_SIGNALS if re.search(p, combined)
-    )
-    code_score = sum(
-        1 for p in _CODE_SIGNALS if re.search(p, combined)
-    )
+    planning_score, code_score = score_execution_mode_signals(wp_content, wp_files)
 
     if planning_score > 0 and code_score == 0:
         return ExecutionMode.PLANNING_ARTIFACT
@@ -91,9 +82,15 @@ def infer_execution_mode(wp_content: str, wp_files: list[str]) -> ExecutionMode:
     return ExecutionMode.CODE_CHANGE
 
 
-def infer_owned_files(
-    wp_content: str, mission_slug: str
-) -> tuple[list[str], list[str]]:
+def score_execution_mode_signals(wp_content: str, wp_files: list[str]) -> tuple[int, int]:
+    """Return ``(planning_score, code_score)`` for execution-mode inference."""
+    combined = wp_content + "\n" + "\n".join(wp_files)
+    planning_score = sum(1 for p in _PLANNING_SIGNALS if re.search(p, combined))
+    code_score = sum(1 for p in _CODE_SIGNALS if re.search(p, combined))
+    return planning_score, code_score
+
+
+def infer_owned_files(wp_content: str, mission_slug: str) -> tuple[list[str], list[str]]:
     """Infer owned_files glob patterns from WP body text.
 
     For planning_artifact WPs: defaults to ``kitty-specs/<mission_slug>/**``.

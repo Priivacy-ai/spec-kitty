@@ -170,7 +170,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `MERGE`. Case-insensitive. |
+| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `SQUASH`. Case-insensitive. |
 | `--mission TEXT` | Mission slug when merging from main branch (canonical flag) |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
 | `--remove-worktree`, `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
@@ -183,7 +183,7 @@ spec-kitty implement WP01 --json
 | `--help` | Show this message and exit |
 
 **Strategy notes**:
-- `MERGE` — creates a merge commit; preserves full history; default.
+- `MERGE` — creates a merge commit; preserves full history.
 - `SQUASH` — collapses all lane commits into a single commit on the target branch.
 - `REBASE` — replays lane commits on top of the target branch for a linear history; may be rejected by repos with linear-history branch protection if commits already exist on a remote.
 
@@ -1156,7 +1156,7 @@ As of 3.1.0, omitting `--result` is **query mode**: the command reads and prints
 | `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked`. Omit for query mode. |
 | `--mission TEXT` | Mission slug (canonical flag; required) |
 | `--json` | Output JSON decision only |
-| `--answer TEXT` | Answer to a pending decision |
+| `--answer TEXT` | Answer to a pending decision. This is a mutating operation and should be used with `--agent` and `--result`. |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
 | `--help` | Show this message and exit |
 
@@ -1172,6 +1172,13 @@ spec-kitty next --agent gemini --mission 034-my-feature --result failed --json
 spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --json
 spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --json
 ```
+
+**Compatibility notes**:
+
+- Fresh-run query JSON is now `mission_state: "not_started"` plus `preview_step`; do not teach or depend on `unknown` as the primary fresh-run state.
+- Query mode still accepts `--agent` as a compatibility form for existing callers, but `spec-kitty next --mission <slug>` is the primary contract to teach and automate against.
+- Planning-artifact work packages execute in repository root outside the lane graph, so query and step responses may refer to the main checkout instead of a lane worktree.
+- Status payloads use a canonical nested `stale` object. Temporary flat stale fields remain available only as a transitional compatibility path for existing callers.
 
 ---
 

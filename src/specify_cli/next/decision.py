@@ -14,6 +14,8 @@ preserved for backward compatibility and tests but are no longer called by
 
 from __future__ import annotations
 
+import contextlib
+import io
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -39,13 +41,13 @@ class DecisionKind:
     decision_required = "decision_required"
     blocked = "blocked"
     terminal = "terminal"
-    query = "query"   # New: bare next call; state not advanced
+    query = "query"  # New: bare next call; state not advanced
 
 
 @dataclass
 class Decision:
     kind: str  # one of DecisionKind.*
-    agent: str
+    agent: str | None
     mission_slug: str
     mission: str
     mission_state: str
@@ -65,7 +67,8 @@ class Decision:
     input_key: str | None = None
     question: str | None = None
     options: list[str] | None = None
-    is_query: bool = False   # New: True when kind == DecisionKind.query
+    is_query: bool = False  # New: True when kind == DecisionKind.query
+    preview_step: str | None = None
     mission_number: str | None = None
     mission_type: str | None = None
 
@@ -96,6 +99,7 @@ class Decision:
             "question": self.question,
             "options": self.options,
             "is_query": self.is_query,
+            "preview_step": self.preview_step,
         }
 
 
@@ -273,6 +277,7 @@ def _compute_wp_progress(feature_dir: Path) -> dict[str, int | float] | None:
     try:
         from specify_cli.status.progress import compute_weighted_progress
         from specify_cli.status.reducer import materialize
+
         snapshot = materialize(feature_dir)
         progress = compute_weighted_progress(snapshot)
         counts["weighted_percentage"] = round(progress.percentage, 1)
@@ -452,15 +457,16 @@ def _build_prompt_safe(
     try:
         from specify_cli.next.prompt_builder import build_prompt
 
-        _, prompt_path = build_prompt(
-            action=action,
-            feature_dir=feature_dir,
-            mission_slug=mission_slug,
-            wp_id=wp_id,
-            agent=agent,
-            repo_root=repo_root,
-            mission_type=mission_type,
-        )
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            _, prompt_path = build_prompt(
+                action=action,
+                feature_dir=feature_dir,
+                mission_slug=mission_slug,
+                wp_id=wp_id,
+                agent=agent,
+                repo_root=repo_root,
+                mission_type=mission_type,
+            )
         return str(prompt_path)
     except Exception:
         return None

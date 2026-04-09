@@ -51,9 +51,22 @@ The runtime considers several factors when making its decision:
 
 The two approaches are complementary. Slash commands give you direct control. The runtime loop gives you automation.
 
-## The Four Decision Kinds
+## Query Mode vs Advancing Mode
 
-Every call to `spec-kitty next` returns exactly one of four decision kinds. Each tells the agent something different about what to do.
+`spec-kitty next` has two distinct modes:
+
+- **Query mode** is the read-only form: `spec-kitty next --mission <slug> --json`
+- **Advancing mode** is the runtime loop form: `spec-kitty next --agent <name> --mission <slug> ...`
+
+Use query mode when you want to inspect the current run state without changing it. On a fresh run, the canonical query JSON returns `mission_state: "not_started"` and a non-null `preview_step` telling you which step would be issued first. `unknown` is a legacy transitional value and is no longer the primary contract to teach or consume.
+
+Use advancing mode when an agent is actively executing the loop. In this mode, `--result` reports the outcome of the previous issued step and the runtime may advance mission state.
+
+Planning-artifact work packages follow the same runtime loop, but they execute in repository root outside the lane graph. Their workspace is the main checkout rather than a lane worktree.
+
+## The Four Advancing Decisions
+
+In advancing mode, every call to `spec-kitty next` returns exactly one of four decision kinds. Each tells the agent something different about what to do.
 
 ### `step` -- An action is available
 
@@ -162,7 +175,7 @@ spec-kitty next --agent <name> --mission <slug> --result failed --json
 spec-kitty next --agent <name> --mission <slug> --result blocked --json
 ```
 
-If `--result` is omitted, the runtime assumes `success`.
+If `--result` is omitted, the command stays in read-only query mode. Query mode may still accept `--agent` as a compatibility form, but it does not advance mission state.
 
 ## Things to Be Aware Of
 

@@ -99,6 +99,27 @@ def _build_wp_file(tmp_path: Path, mission_slug: str, wp_id: str, lane: str = "p
     return feature_dir
 
 
+def _build_planning_artifact_wp(tmp_path: Path, mission_slug: str, wp_id: str) -> Path:
+    """Build a planning-artifact WP in repository-root mode and return feature_dir."""
+    feature_dir = tmp_path / "kitty-specs" / mission_slug
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True, exist_ok=True)
+    (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+    wp_file = tasks_dir / f"{wp_id}-planning.md"
+    wp_file.write_text(
+        f"---\n"
+        f"work_package_id: {wp_id}\n"
+        f"title: Planning {wp_id}\n"
+        f"execution_mode: planning_artifact\n"
+        f"owned_files:\n  - kitty-specs/{mission_slug}/plan.md\n"
+        f"authoritative_surface: kitty-specs/{mission_slug}/plan.md\n"
+        f"---\n\n# {wp_id}\n\n## Activity Log\n",
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
 # ---------------------------------------------------------------------------
 # T006: finalize-tasks calls bootstrap_canonical_state
 # ---------------------------------------------------------------------------
@@ -716,3 +737,149 @@ class TestTypedFrontmatterMigration:
 
         wp01_meta, _ = read_wp_frontmatter(tasks_dir / "WP01-test.md")
         assert sorted(wp01_meta.requirement_refs) == ["FR-001", "FR-002"]
+
+
+class TestStatusCanonicalStaleFields:
+    """status --json and human output use canonical nested stale state."""
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_json_includes_nested_stale_and_legacy_fields_for_planning_artifact(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        mission_slug = "077-status-json"
+        feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="status-json-wp03",
+                mission_slug=mission_slug,
+                wp_id="WP03",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-01-01T00:00:00+00:00",
+                actor="test",
+                force=False,
+                execution_mode="direct_repo",
+            ),
+        )
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        data = json.loads(result.output)
+        wp = data["work_packages"][0]
+        assert wp["stale"] == {
+            "status": "not_applicable",
+            "reason": "planning_artifact_repo_root_shared_workspace",
+            "minutes_since_commit": None,
+            "last_commit_time": None,
+        }
+        assert wp["is_stale"] is False
+        assert wp["minutes_since_commit"] is None
+        assert wp["worktree_exists"] is False
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_human_output_shows_repo_root_planning_stale_label(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        mission_slug = "077-status-human"
+        feature_dir = _build_planning_artifact_wp(tmp_path, mission_slug, "WP03")
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        append_event(
+            feature_dir,
+            StatusEvent(
+                event_id="status-human-wp03",
+                mission_slug=mission_slug,
+                wp_id="WP03",
+                from_lane=Lane.PLANNED,
+                to_lane=Lane.IN_PROGRESS,
+                at="2026-01-01T00:00:00+00:00",
+                actor="test",
+                force=False,
+                execution_mode="direct_repo",
+            ),
+        )
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+        assert "stale: n/a (repo-root planning work)" in result.output
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_json_falls_back_only_for_missing_lanes(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        mission_slug = "077-status-missing-lanes"
+        feature_dir = _build_wp_file(tmp_path, mission_slug, "WP01")
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        data = json.loads(result.output)
+        wp = data["work_packages"][0]
+        assert wp["execution_mode"] == "code_change"
+        assert wp["workspace_kind"] == "unknown"
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_status_json_defaults_legacy_execution_mode_to_code_change(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        """Per FR-019, legacy WPs without execution_mode and without strong body
+        signals default to ``code_change`` rather than hard-failing the status
+        command. This preserves zero-migration compatibility for older missions.
+        """
+        mission_slug = "078-status-ambiguous-legacy"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True, exist_ok=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+        (tasks_dir / "WP01-legacy.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Legacy WP01\n---\n\nLegacy body without src, tests, docs, or planning references.\n",
+            encoding="utf-8",
+        )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(app, ["status", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, result.output
+        payload = json.loads(result.output)
+        wp = payload["work_packages"][0]
+        assert wp["execution_mode"] == "code_change"

@@ -113,11 +113,23 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
-            return_value=("010", "010-feature"),
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
         ):
             with pytest.raises(typer.Exit):
                 implement("WP01", feature="010-feature", recover=False)
@@ -128,21 +140,37 @@ class TestImplementCommand:
         create_lanes_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
-            return_value=("010", "010-feature"),
-        ), patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
-            return_value="main",
-        ), patch(
-            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
-        ), patch(
-            "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
-        ) as mock_ensure_vcs, patch(
-            "specify_cli.cli.commands.implement.create_lane_workspace",
-        ) as mock_create_lane_workspace:
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+            ) as mock_ensure_vcs,
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+            ) as mock_create_lane_workspace,
+        ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
             mock_create_lane_workspace.return_value = MagicMock(
                 workspace_path=tmp_path / ".worktrees" / "010-feature-lane-a",
@@ -167,16 +195,30 @@ class TestImplementCommand:
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP01-setup.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP01\ndependencies: []\n---\n# WP01")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP01\n"
+            "dependencies: []\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp01/**\n"
+            "authoritative_surface: src/wp01/\n"
+            "---\n# WP01",
+            encoding="utf-8",
+        )
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
-            return_value=("010", "010-feature"),
-        ), patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
-            return_value="main",
-        ), patch(
-            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ),
         ):
             with pytest.raises(typer.Exit):
                 implement("WP01", feature="010-feature", json_output=True, recover=False)
@@ -193,21 +235,37 @@ class TestImplementCommand:
         create_lanes_json(feature_dir, wp_ids=("WP01", "WP02"))
         wp_file = feature_dir / "tasks" / "WP02-api.md"
         wp_file.parent.mkdir(parents=True)
-        wp_file.write_text("---\nwork_package_id: WP02\ndependencies: [WP01]\n---\n# WP02")
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "dependencies: [WP01]\n"
+            "execution_mode: code_change\n"
+            "owned_files:\n  - src/wp02/**\n"
+            "authoritative_surface: src/wp02/\n"
+            "---\n# WP02",
+            encoding="utf-8",
+        )
 
-        with patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path), patch(
-            "specify_cli.cli.commands.implement.detect_feature_context",
-            return_value=("010", "010-feature"),
-        ), patch(
-            "specify_cli.cli.commands.implement.resolve_feature_target_branch",
-            return_value="main",
-        ), patch(
-            "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
-        ), patch(
-            "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
-        ) as mock_ensure_vcs, patch(
-            "specify_cli.cli.commands.implement.create_lane_workspace",
-        ) as mock_create_lane_workspace:
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+            ) as mock_ensure_vcs,
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+            ) as mock_create_lane_workspace,
+        ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
             mock_create_lane_workspace.return_value = MagicMock(
                 workspace_path=tmp_path / ".worktrees" / "010-feature-lane-a",
@@ -222,3 +280,71 @@ class TestImplementCommand:
             kwargs = mock_create_lane_workspace.call_args.kwargs
             assert kwargs["wp_id"] == "WP02"
             assert kwargs["declared_deps"] == ["WP01"]
+
+    def test_implement_allows_planning_artifact_without_lane_membership(self, tmp_path: Path) -> None:
+        feature_dir = tmp_path / "kitty-specs" / "010-feature"
+        create_meta_json(feature_dir)
+        wp_file = feature_dir / "tasks" / "WP02-plan.md"
+        wp_file.parent.mkdir(parents=True)
+        wp_file.write_text(
+            "---\n"
+            "work_package_id: WP02\n"
+            "dependencies: []\n"
+            "execution_mode: planning_artifact\n"
+            "owned_files:\n"
+            "  - kitty-specs/010-feature/**\n"
+            "authoritative_surface: kitty-specs/010-feature/\n"
+            "---\n"
+            "# WP02\n"
+        )
+
+        with (
+            patch("specify_cli.cli.commands.implement.find_repo_root", return_value=tmp_path),
+            patch(
+                "specify_cli.cli.commands.implement.detect_feature_context",
+                return_value=("010", "010-feature"),
+            ),
+            patch(
+                "specify_cli.cli.commands.implement.resolve_feature_target_branch",
+                return_value="main",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_planning_artifacts_committed_git",
+            ),
+            patch(
+                "specify_cli.cli.commands.implement._ensure_vcs_in_meta",
+            ) as mock_ensure_vcs,
+            patch(
+                "specify_cli.cli.commands.implement.resolve_workspace_for_wp",
+            ) as mock_resolve_workspace,
+            patch(
+                "specify_cli.cli.commands.implement.create_lane_workspace",
+            ) as mock_create_lane_workspace,
+        ):
+            mock_ensure_vcs.return_value = MagicMock(value="git")
+            mock_resolve_workspace.return_value = MagicMock(
+                execution_mode="planning_artifact",
+                worktree_path=tmp_path,
+                workspace_name="010-feature-repo-root",
+                branch_name=None,
+                lane_id=None,
+                lane_wp_ids=[],
+                resolution_kind="repo_root",
+                exists=True,
+            )
+            mock_create_lane_workspace.return_value = MagicMock(
+                workspace_path=tmp_path,
+                branch_name=None,
+                workspace_name="010-feature-repo-root",
+                lane_id=None,
+                mission_branch=None,
+                is_reuse=False,
+                execution_mode="planning_artifact",
+                resolution_kind="repo_root",
+            )
+
+            implement("WP02", feature="010-feature", auto_commit=False, recover=False)
+
+            kwargs = mock_create_lane_workspace.call_args.kwargs
+            assert kwargs["lanes_manifest"] is None
+            assert kwargs["resolved_workspace"].execution_mode == "planning_artifact"
