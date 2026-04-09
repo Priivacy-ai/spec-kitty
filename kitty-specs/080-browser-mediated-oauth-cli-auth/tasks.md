@@ -66,14 +66,14 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Create `auth/__init__.py` with `get_token_manager()` factory | WP01 | |
-| T002 | Create `auth/config.py` with `get_saas_base_url()` env helper | WP01 | [P] |
-| T003 | Create `auth/errors.py` with full exception hierarchy | WP01 | [P] |
-| T004 | Create `auth/session.py` with Team + StoredSession dataclasses | WP01 | [P] |
-| T005 | Create `auth/secure_storage/` package + keychain backend | WP01 | |
-| T006 | Implement `file_fallback.py` with scrypt KDF + AES-256-GCM | WP01 | |
-| T007 | Create `auth/token_manager.py` with single-flight refresh | WP01 | |
-| T008 | Write unit tests for WP01 components | WP01 | |
+| T001 | Create `auth/__init__.py` with `get_token_manager()` factory | WP01 | | [D] |
+| T002 | Create `auth/config.py` with `get_saas_base_url()` env helper | WP01 | [D] |
+| T003 | Create `auth/errors.py` with full exception hierarchy | WP01 | [D] |
+| T004 | Create `auth/session.py` with Team + StoredSession dataclasses | WP01 | [D] |
+| T005 | Create `auth/secure_storage/` package + keychain backend | WP01 | | [D] |
+| T006 | Implement `file_fallback.py` with scrypt KDF + AES-256-GCM | WP01 | | [D] |
+| T007 | Create `auth/token_manager.py` with single-flight refresh | WP01 | | [D] |
+| T008 | Write unit tests for WP01 components | WP01 | | [D] |
 | T009 | Create `auth/loopback/pkce.py` (43-char verifier, S256 challenge) | WP02 | [P] |
 | T010 | Create `auth/loopback/state.py` (PKCEState dataclass + 5-min expiry) | WP02 | [P] |
 | T011 | Create `auth/loopback/state_manager.py` (lifecycle) | WP02 | |
@@ -147,14 +147,14 @@ hierarchy, env-driven SaaS URL helper, `get_token_manager()` factory.
 **Estimated prompt size**: ~450 lines | **Subtasks**: 8
 
 **Included subtasks**:
-- [ ] T001 Create `auth/__init__.py` with `get_token_manager()` factory (WP01)
-- [ ] T002 Create `auth/config.py` with `get_saas_base_url()` env helper (WP01)
-- [ ] T003 Create `auth/errors.py` with full exception hierarchy (WP01)
-- [ ] T004 Create `auth/session.py` with Team + StoredSession dataclasses (WP01)
-- [ ] T005 Create `auth/secure_storage/` package + keychain backend (WP01)
-- [ ] T006 Implement `file_fallback.py` with scrypt KDF + AES-256-GCM (WP01)
-- [ ] T007 Create `auth/token_manager.py` with single-flight refresh (WP01)
-- [ ] T008 Write unit tests for WP01 components (WP01)
+- [x] T001 Create `auth/__init__.py` with `get_token_manager()` factory (WP01)
+- [x] T002 Create `auth/config.py` with `get_saas_base_url()` env helper (WP01)
+- [x] T003 Create `auth/errors.py` with full exception hierarchy (WP01)
+- [x] T004 Create `auth/session.py` with Team + StoredSession dataclasses (WP01)
+- [x] T005 Create `auth/secure_storage/` package + keychain backend (WP01)
+- [x] T006 Implement `file_fallback.py` with scrypt KDF + AES-256-GCM (WP01)
+- [x] T007 Create `auth/token_manager.py` with single-flight refresh (WP01)
+- [x] T008 Write unit tests for WP01 components (WP01)
 
 **Dependencies**: none — this is the root WP
 
