@@ -246,3 +246,7 @@ All 21 tests from `TestInlineDependsOnFormat`, `TestInlineDependenciesColonForma
 2. Run `pytest tests/core/test_dependency_parser.py -v` and verify all 21 existing tests + 3 new tests pass.
 3. Confirm sub-headings (`###`) inside a WP section are unaffected.
 4. Confirm the fix does NOT touch `agent/tasks.py` (except for the comment in T008).
+
+## Activity Log
+
+- 2026-04-09T08:06:55Z – unknown – shell_pid=64305 – Dispatching implementation agent
