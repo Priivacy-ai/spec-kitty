@@ -1,7 +1,8 @@
 ---
 work_package_id: WP02
 title: Track 4 — Dependency Parser Hotfix
-dependencies: []
+dependencies:
+- WP01
 requirement_refs:
 - FR-301
 - FR-302
@@ -10,7 +11,7 @@ requirement_refs:
 - FR-305
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: WP02 runs in an execution lane allocated by finalize-tasks. Implementation happens in the lane worktree. Merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T007
 - T008

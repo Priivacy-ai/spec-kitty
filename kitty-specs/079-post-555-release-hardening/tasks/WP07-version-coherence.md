@@ -17,7 +17,7 @@ requirement_refs:
 - FR-606
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: WP07 runs AFTER WP01-WP06 are all merged to main. It is the final integration gate. Implementation happens in the lane worktree allocated by finalize-tasks. Merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T028
 - T029

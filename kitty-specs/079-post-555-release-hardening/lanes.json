@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "mission_slug": "079-post-555-release-hardening",
+  "mission_id": "079-post-555-release-hardening",
+  "mission_branch": "kitty/mission-079-post-555-release-hardening",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07"
+      ],
+      "write_scope": [
+        ".kittify/metadata.yaml",
+        "README.md",
+        "docs/explanation/**",
+        "docs/how-to/**",
+        "kitty-specs/079-post-555-release-hardening/meta.json",
+        "pyproject.toml",
+        "scripts/release/validate_release.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/cli/commands/init.py",
+        "src/specify_cli/context/resolver.py",
+        "src/specify_cli/core/dependency_parser.py",
+        "src/specify_cli/core/git_ops.py",
+        "src/specify_cli/core/mission_creation.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/lanes/branch_naming.py",
+        "src/specify_cli/lanes/compute.py",
+        "src/specify_cli/lanes/models.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/missions/software-dev/command-templates/**",
+        "src/specify_cli/release/payload.py",
+        "src/specify_cli/sync/auth.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/workspace_context.py",
+        "tests/agent/cli/commands/test_implement_help.py",
+        "tests/agent/cli/commands/test_implement_planning_artifact.py",
+        "tests/context/**",
+        "tests/core/test_dependency_parser.py",
+        "tests/core/test_mission_creation*.py",
+        "tests/docs/**",
+        "tests/init/**",
+        "tests/lanes/**",
+        "tests/mission_metadata/**",
+        "tests/missions/**",
+        "tests/release/**",
+        "tests/sync/test_auth_concurrent_refresh.py",
+        "tests/sync/test_emit_mission_created*.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-09T07:43:40.916198+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP04"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP05",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP05"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}

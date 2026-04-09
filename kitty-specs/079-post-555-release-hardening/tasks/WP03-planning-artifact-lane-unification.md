@@ -1,7 +1,8 @@
 ---
 work_package_id: WP03
 title: Track 2 — Planning Artifact Lane Unification
-dependencies: []
+dependencies:
+- WP02
 requirement_refs:
 - FR-101
 - FR-102
@@ -12,7 +13,7 @@ requirement_refs:
 - FR-503
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: WP03 runs in an execution lane allocated by finalize-tasks. Implementation happens in the lane worktree. Merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T010
 - T011

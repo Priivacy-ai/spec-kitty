@@ -10,7 +10,7 @@ requirement_refs:
 - FR-405
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: WP05 runs in an execution lane allocated by finalize-tasks. Implementation happens in the lane worktree. Merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T020
 - T021

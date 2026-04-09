@@ -1,7 +1,9 @@
 ---
 work_package_id: WP06
 title: Track 6 — Implement De-emphasis
-dependencies: []
+dependencies:
+- WP01
+- WP03
 requirement_refs:
 - FR-501
 - FR-502
@@ -10,7 +12,7 @@ requirement_refs:
 - FR-506
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: WP06 runs in an execution lane allocated by finalize-tasks. Implementation happens in the lane worktree. Merge target is main.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T024
 - T025
@@ -27,7 +29,6 @@ owned_files:
 - src/specify_cli/missions/software-dev/command-templates/**
 - docs/explanation/**
 - docs/how-to/**
-- tests/agent/cli/commands/test_implement_help.py
 - tests/docs/**
 - tests/missions/**
 tags: []
