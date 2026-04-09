@@ -27,8 +27,8 @@ owned_files:
 - tests/sync/test_auth_concurrent_refresh.py
 status: pending
 tags: []
-agent: "claude:opus-4-6:python-implementer:implementer"
-shell_pid: "23068"
+agent: "claude:opus-4-6:python-reviewer:reviewer"
+shell_pid: "52484"
 ---
 
 # WP10: Password Removal & Legacy Cleanup
@@ -299,3 +299,4 @@ the dispatch shell from WP04 not registering all three commands.
 
 - 2026-04-09T20:59:09Z – claude:opus-4-6:python-implementer:implementer – shell_pid=23068 – Started implementation via action command
 - 2026-04-09T21:20:34Z – claude:opus-4-6:python-implementer:implementer – shell_pid=23068 – Legacy auth removed, all tests green
+- 2026-04-09T21:21:10Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=52484 – Started review via action command
