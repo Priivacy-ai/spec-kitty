@@ -1,8 +1,10 @@
 {
-  "event_count": 51,
-  "last_event_id": "01KNRS7W1Q2WCNMZ9YG8EDWBE6",
-  "materialized_at": "2026-04-09T09:30:13.943265+00:00",
+  "event_count": 52,
+  "last_event_id": "01KNRSGV8QDVGJCJ2JTBXVQ413",
+  "materialized_at": "2026-04-09T09:35:08.055934+00:00",
+  "mission_number": "079",
   "mission_slug": "079-post-555-release-hardening",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 6,
     "blocked": 0,
@@ -10,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
-    "planned": 0
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -58,11 +60,11 @@
       "last_transition_at": "2026-04-09T09:22:06.245700+00:00"
     },
     "WP07": {
-      "actor": "claude:opus:reviewer:reviewer",
+      "actor": "user",
       "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KNRS7W1Q2WCNMZ9YG8EDWBE6",
-      "last_transition_at": "2026-04-09T09:30:13.943265+00:00"
+      "lane": "planned",
+      "last_event_id": "01KNRSGV8QDVGJCJ2JTBXVQ413",
+      "last_transition_at": "2026-04-09T09:35:08.055934+00:00"
     }
   }
 }
