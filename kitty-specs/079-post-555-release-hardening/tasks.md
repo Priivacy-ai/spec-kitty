@@ -47,11 +47,11 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 | T025 | Update slash-command source templates (replace `spec-kitty implement WP##` with `spec-kitty agent action implement`) | WP06 | [D] |
 | T026 | Update `docs/` canonical-path mentions in first ~5 paragraphs of ~12 files | WP06 | [D] |
 | T027 | Regression tests for Track 6 (T6.1, T6.2, T6.4, T6.5 from test-contracts.md) | WP06 | [D] |
-| T028 | Bump `.kittify/metadata.yaml` version to match `pyproject.toml` | WP07 | — |
-| T029 | Add `validate_metadata_yaml_version_sync()` to `scripts/release/validate_release.py` | WP07 | — |
-| T030 | Verify CHANGELOG-presence check runs in branch mode; verify structured draft artifact | WP07 | — |
-| T031 | Regression tests for Track 7 (T7.1–T7.4 from test-contracts.md) | WP07 | — |
-| T032 | Dogfood acceptance: run quickstart V-7 walkthrough; verify all RG-1..RG-8 gates pass | WP07 | — |
+| T028 | Bump `.kittify/metadata.yaml` version to match `pyproject.toml` | WP07 | — | [D] |
+| T029 | Add `validate_metadata_yaml_version_sync()` to `scripts/release/validate_release.py` | WP07 | — | [D] |
+| T030 | Verify CHANGELOG-presence check runs in branch mode; verify structured draft artifact | WP07 | — | [D] |
+| T031 | Regression tests for Track 7 (T7.1–T7.4 from test-contracts.md) | WP07 | — | [D] |
+| T032 | Dogfood acceptance: run quickstart V-7 walkthrough; verify all RG-1..RG-8 gates pass | WP07 | — | [D] |
 
 **Total**: 32 subtasks across 7 WPs · Average 4.6 subtasks/WP · All within 3–7 ideal range
 
@@ -235,11 +235,11 @@ Actually — since WP06 does NOT own init.py or implement.py, and WP01 already c
 **Spec FRs**: FR-601, FR-602, FR-603, FR-604, FR-605, FR-606
 
 **Subtasks**:
-- [ ] T028 Bump `.kittify/metadata.yaml` version (WP07)
-- [ ] T029 Add `validate_metadata_yaml_version_sync()` to `validate_release.py` (WP07)
-- [ ] T030 Verify CHANGELOG-presence check runs in branch mode; verify structured draft (WP07)
-- [ ] T031 Regression tests for Track 7 (WP07)
-- [ ] T032 Dogfood acceptance: run quickstart V-7; verify RG-1..RG-8 (WP07)
+- [x] T028 Bump `.kittify/metadata.yaml` version (WP07)
+- [x] T029 Add `validate_metadata_yaml_version_sync()` to `validate_release.py` (WP07)
+- [x] T030 Verify CHANGELOG-presence check runs in branch mode; verify structured draft (WP07)
+- [x] T031 Regression tests for Track 7 (WP07)
+- [x] T032 Dogfood acceptance: run quickstart V-7; verify RG-1..RG-8 (WP07)
 
 **Key technical notes**:
 - Current state: `pyproject.toml:3` = `"3.1.1a3"`, `.kittify/metadata.yaml:6` = `"3.1.1a2"` — mismatch. T028 bumps metadata.yaml to `3.1.1a3`. The actual bump to `3.1.1` (stripping the alpha suffix) is a human action at release-cut time, gated by all RGs passing.
