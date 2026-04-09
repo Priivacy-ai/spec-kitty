@@ -244,3 +244,7 @@ def test_implement_command_still_runs(runner):
 2. Run `grep -r "spec-kitty implement WP" src/specify_cli/missions/ docs/ README.md` — should be 0 canonical-path matches.
 3. Confirm `spec-kitty implement` appears ONLY in compatibility-surface / internal-tool / troubleshooting contexts after this WP.
 4. Run T6.4 and T6.5.
+
+## Activity Log
+
+- 2026-04-09T09:14:04Z – unknown – shell_pid=5038 – Dispatching implementation
