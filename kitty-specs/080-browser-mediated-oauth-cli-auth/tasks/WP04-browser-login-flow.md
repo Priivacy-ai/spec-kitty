@@ -32,6 +32,8 @@ owned_files:
 - tests/auth/test_refresh_flow.py
 status: pending
 tags: []
+agent: "opus:opus:implementer:implementer"
+shell_pid: "7106"
 ---
 
 # WP04: Browser Login Flow (`auth login`)
@@ -830,3 +832,7 @@ browser launch, code exchange, user info fetch, and session creation.
 - **Risk**: User has multiple browsers and the wrong one opens. **Mitigation**: Print the URL so the user can copy-paste if needed.
 - **Edge case**: User cancels with Ctrl+C during callback wait. **Mitigation**: KeyboardInterrupt is caught at the dispatch shell level, prints a message, exits 130.
 - **Edge case**: User runs `auth login` while already logged in without `--force`. **Mitigation**: Print "Already logged in as X" and exit 0.
+
+## Activity Log
+
+- 2026-04-09T17:47:22Z – opus:opus:implementer:implementer – shell_pid=7106 – Started implementation via action command
