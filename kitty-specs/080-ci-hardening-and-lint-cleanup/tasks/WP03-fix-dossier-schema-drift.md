@@ -90,7 +90,7 @@ only fix call signatures to match the current data model).
 - Whether any test scenario exercises logic that no longer exists in production
 
 If Assumption A3 triggers (test scenario tests deprecated behavior):
-- Mark the scenario with `@pytest.mark.xfail(reason="tests deprecated behavior from pre-schema-migration")` 
+- Mark the scenario with `@pytest.mark.xfail(reason="tests deprecated behavior from pre-schema-migration")`
   and add a TODO comment
 - Do not delete the test — leave it for a future cleanup mission
 - Document the finding in this WP's commit message
