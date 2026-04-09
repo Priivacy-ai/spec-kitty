@@ -455,23 +455,39 @@ def resolve_workspace_for_wp(
     execution_mode = ExecutionMode(normalized_wp.metadata.execution_mode or ExecutionMode.CODE_CHANGE)
 
     if execution_mode == ExecutionMode.PLANNING_ARTIFACT:
+        # planning_artifact WPs are first-class lane-owned entities assigned to
+        # "lane-planning".  That lane resolves to the main repository checkout.
+        # We still call create_planning_workspace() for the path, but we now
+        # populate lane_id so the ResolvedWorkspace contract is uniform.
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
+        from specify_cli.lanes.persistence import read_lanes_json
+
         planning_workspace = create_planning_workspace(
             mission_slug=mission_slug,
             wp_code=wp_id,
             owned_files=list(normalized_wp.metadata.owned_files),
             repo_root=repo_root,
         )
+        # Try to populate lane_wp_ids from lanes.json if available.
+        lane_wp_ids: list[str] = []
+        feature_dir = repo_root / "kitty-specs" / mission_slug
+        lanes_manifest = read_lanes_json(feature_dir)
+        if lanes_manifest is not None:
+            planning_lane = lanes_manifest.lane_for_wp(wp_id)
+            if planning_lane is not None:
+                lane_wp_ids = list(planning_lane.wp_ids)
+
         return ResolvedWorkspace(
             mission_slug=mission_slug,
             wp_id=wp_id,
             execution_mode=execution_mode.value,
             mode_source=normalized_wp.mode_source,
             resolution_kind="repo_root",
-            workspace_name=f"{mission_slug}-repo-root",
+            workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
             worktree_path=planning_workspace,
             branch_name=None,
-            lane_id=None,
-            lane_wp_ids=[],
+            lane_id=PLANNING_LANE_ID,
+            lane_wp_ids=lane_wp_ids,
             context=None,
         )
 
@@ -494,12 +510,30 @@ def resolve_workspace_for_wp(
 
     feature_dir = repo_root / "kitty-specs" / mission_slug
     from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.persistence import require_lanes_json
 
     lanes_manifest = require_lanes_json(feature_dir)
     lane = lanes_manifest.lane_for_wp(wp_id)
     if lane is None:
         raise ValueError(f"{wp_id} resolved to execution_mode={execution_mode.value!r} but is not assigned to any lane in {feature_dir / 'lanes.json'}")
+
+    # lane-planning resolves to the main repository checkout, not a .worktrees/ path.
+    if lane.lane_id == PLANNING_LANE_ID:
+        target_branch = lanes_manifest.target_branch
+        return ResolvedWorkspace(
+            mission_slug=mission_slug,
+            wp_id=wp_id,
+            execution_mode=execution_mode.value,
+            mode_source=normalized_wp.mode_source,
+            resolution_kind="repo_root",
+            workspace_name=f"{mission_slug}-{PLANNING_LANE_ID}",
+            worktree_path=repo_root,
+            branch_name=lane_branch_name(mission_slug, PLANNING_LANE_ID, planning_base_branch=target_branch),
+            lane_id=PLANNING_LANE_ID,
+            lane_wp_ids=list(lane.wp_ids),
+            context=None,
+        )
 
     workspace_name = f"{mission_slug}-{lane.lane_id}"
     return ResolvedWorkspace(

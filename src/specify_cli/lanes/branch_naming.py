@@ -25,11 +25,32 @@ def mission_branch_name(mission_slug: str) -> str:
     return f"{_MISSION_PREFIX}{mission_slug}"
 
 
-def lane_branch_name(mission_slug: str, lane_id: str) -> str:
+def lane_branch_name(
+    mission_slug: str,
+    lane_id: str,
+    planning_base_branch: str | None = None,
+) -> str:
     """Return a lane branch name.
 
-    Example: lane_branch_name("057-my-feature", "lane-a") -> "kitty/mission-057-my-feature-lane-a"
+    For the canonical ``lane-planning`` lane, returns the planning base branch
+    rather than a ``kitty/mission-…`` branch name, because planning-artifact WPs
+    live in the main repository checkout on the target branch (typically ``main``).
+
+    Args:
+        mission_slug: Feature slug (e.g. ``"057-my-feature"``).
+        lane_id: Lane identifier (e.g. ``"lane-a"`` or ``"lane-planning"``).
+        planning_base_branch: The branch that planning-artifact work targets
+            (typically the value of ``target_branch`` from ``meta.json``).
+            Defaults to ``"main"`` when ``lane_id == "lane-planning"`` and this
+            argument is omitted.  Ignored for all other lane IDs.
+
+    Examples:
+        lane_branch_name("057-my-feature", "lane-a") -> "kitty/mission-057-my-feature-lane-a"
+        lane_branch_name("057-my-feature", "lane-planning") -> "main"
+        lane_branch_name("057-my-feature", "lane-planning", planning_base_branch="release/3.x") -> "release/3.x"
     """
+    if lane_id == "lane-planning":
+        return planning_base_branch if planning_base_branch is not None else "main"
     return f"{_MISSION_PREFIX}{mission_slug}-{lane_id}"
 
 

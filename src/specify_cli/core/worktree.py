@@ -167,6 +167,12 @@ def get_next_feature_number(repo_root: Path) -> int:
     (###-name format) and returns next number in sequence. This prevents number
     reuse when features exist only in worktrees.
 
+    .. note::
+        **Display-only**: This function computes a human-friendly sequential
+        display number for a mission. It MUST NOT be used as the canonical
+        machine-facing identity. The canonical identity is the ``mission_id``
+        (ULID) in ``meta.json``. See FR-204.
+
     Args:
         repo_root: Repository root path
 
