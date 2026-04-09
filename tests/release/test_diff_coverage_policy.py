@@ -294,16 +294,16 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
         )
 
     # ------------------------------------------------------------------
-    # 4. New status-layer and kernel coverage reports are wired into
-    #    both the enforced and advisory steps (FR-012 tightening)
+    # 4. Coverage artifacts are downloaded and discovered dynamically
+    #    (FR-012 tightening). The diff-coverage job must use a wildcard
+    #    download pattern and find-based discovery so that ALL upstream
+    #    coverage reports (including kernel and status) feed the gate.
     # ------------------------------------------------------------------
-    new_coverage_files = [
-        "coverage-kernel.xml",
-        "coverage-fast-status.xml",
-        "coverage-integration-status.xml",
-    ]
-    for cov_file in new_coverage_files:
-        assert cov_file in enforced_run, (
-            f"New coverage report '{cov_file}' is missing from the critical-path enforced step. Mission 065 status-layer coverage must feed the diff-coverage gate."
-        )
-        assert cov_file in advisory_run, f"New coverage report '{cov_file}' is missing from the full-diff advisory step."
+    assert "coverage-*.xml" in enforced_run, (
+        "The enforced diff-coverage step must use a dynamic find pattern "
+        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+    )
+    assert "coverage-*.xml" in advisory_run, (
+        "The advisory diff-coverage step must use a dynamic find pattern "
+        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+    )
