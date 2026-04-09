@@ -102,10 +102,10 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T034 | Implement /api/v1/logout call via OAuthHttpClient | WP06 | |
 | T035 | Add `--force` flag for local-only logout | WP06 | |
 | T036 | Write unit + CliRunner tests for logout | WP06 | |
-| T037 | Create `cli/commands/_auth_status.py` with status_impl | WP07 | |
-| T038 | Add human-readable duration formatter ("59 min remaining") | WP07 | |
-| T039 | Add storage backend display formatter | WP07 | |
-| T040 | Write unit + CliRunner tests for status | WP07 | |
+| T037 | Create `cli/commands/_auth_status.py` with status_impl | WP07 | | [D] |
+| T038 | Add human-readable duration formatter ("59 min remaining") | WP07 | | [D] |
+| T039 | Add storage backend display formatter | WP07 | | [D] |
+| T040 | Write unit + CliRunner tests for status | WP07 | | [D] |
 | T041 | Create `auth/http/transport.py` (OAuthHttpClient) | WP08 | |
 | T042 | Rewire `sync/client.py` (HTTP and WebSocket paths) to TokenManager | WP08 | |
 | T043 | Rewire `tracker/saas_client.py` to TokenManager | WP08 | |
@@ -318,10 +318,10 @@ and storage backend. Must display "Not authenticated" cleanly when no session.
 **Estimated prompt size**: ~270 lines | **Subtasks**: 4
 
 **Included subtasks**:
-- [ ] T037 Create `cli/commands/_auth_status.py` with status_impl (WP07)
-- [ ] T038 Add human-readable duration formatter ("59 min remaining") (WP07)
-- [ ] T039 Add storage backend display formatter (WP07)
-- [ ] T040 Write unit + CliRunner tests for status (WP07)
+- [x] T037 Create `cli/commands/_auth_status.py` with status_impl (WP07)
+- [x] T038 Add human-readable duration formatter ("59 min remaining") (WP07)
+- [x] T039 Add storage backend display formatter (WP07)
+- [x] T040 Write unit + CliRunner tests for status (WP07)
 
 **Dependencies**: WP01, WP04 (uses dispatch shell from WP04)
 
