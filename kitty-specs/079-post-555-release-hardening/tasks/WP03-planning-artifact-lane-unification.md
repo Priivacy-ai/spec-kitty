@@ -21,8 +21,8 @@ subtasks:
 - T013
 - T014
 - T015
-agent: claude:opus:reviewer:reviewer
-shell_pid: '85994'
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "87673"
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
@@ -360,3 +360,4 @@ def test_implement_help_marks_command_as_internal(runner):
 - 2026-04-09T08:34:49Z – claude:opus:reviewer:reviewer – shell_pid=67506 – Moved to planned
 - 2026-04-09T08:35:23Z – claude:opus:reviewer:reviewer – shell_pid=85994 – Fixing 9 stale tests (cycle 2)
 - 2026-04-09T08:42:47Z – claude:opus:reviewer:reviewer – shell_pid=85994 – Cycle 2: Fixed 9 stale test assertions, all tests pass (552 passed in full suite)
+- 2026-04-09T08:43:24Z – claude:opus:reviewer:reviewer – shell_pid=87673 – Started review via action command
