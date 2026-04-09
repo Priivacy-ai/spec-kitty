@@ -16,6 +16,7 @@ subtasks:
 - T007
 - T008
 - T009
+shell_pid: '64305'
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
