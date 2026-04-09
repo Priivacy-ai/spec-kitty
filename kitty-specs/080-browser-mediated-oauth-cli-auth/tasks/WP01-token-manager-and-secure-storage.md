@@ -1000,3 +1000,4 @@ with all of WP01's test files.
 ## Activity Log
 
 - 2026-04-09T17:05:01Z – opus:opus:implementer:implementer – shell_pid=11830 – Assigned agent via action command
+- 2026-04-09T17:21:36Z – opus:opus:implementer:implementer – shell_pid=11830 – Foundation complete: get_token_manager factory, multi-team StoredSession with email+Optional refresh_expires, scrypt+AES-GCM file fallback, single-flight refresh
