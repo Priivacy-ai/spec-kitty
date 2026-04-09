@@ -285,6 +285,23 @@ class TestDossierEndpointRouting:
 
 
 class TestDashboardApiSecurityHardening:
+    def test_root_serves_preencoded_dashboard_html(self, tmp_path):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+
+        with patch.object(api_module, "get_dashboard_html_bytes", return_value=b"<html>ok</html>"):
+            api_module.APIHandler.handle_root(handler)
+
+        handler.send_response.assert_called_once_with(200)
+        handler.send_header.assert_called_once_with("Content-type", "text/html; charset=utf-8")
+        handler.wfile.seek(0)
+        assert handler.wfile.read() == b"<html>ok</html>"
+
     def test_diagnostics_hides_internal_errors(self, tmp_path):
         from specify_cli.dashboard.handlers import api as api_module
 
@@ -321,5 +338,39 @@ class TestDashboardApiSecurityHardening:
         assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
         assert request.get_method() == "POST"
 
+        with pytest.raises(ValueError, match="http"):
+            _build_sync_trigger_request("https://127.0.0.1:8765/status", "tok")
+
         with pytest.raises(ValueError, match="loopback"):
             _build_sync_trigger_request("http://example.com:8765/status", "tok")
+
+    def test_sync_trigger_uses_validated_loopback_request(self, tmp_path):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.path = "/api/sync/trigger?token=tok"
+        handler.project_token = "tok"
+        handler._send_json = MagicMock()
+
+        mock_response = MagicMock()
+        mock_response.__enter__.return_value.status = 202
+        mock_response.__exit__.return_value = None
+
+        with (
+            patch.object(api_module, "ensure_sync_daemon_running"),
+            patch.object(
+                api_module,
+                "get_sync_daemon_status",
+                return_value=SyncDaemonStatus(
+                    healthy=True,
+                    url="http://127.0.0.1:8765/status",
+                    token="daemon-token",
+                ),
+            ),
+            patch.object(api_module.urllib.request, "urlopen", return_value=mock_response) as mock_urlopen,
+        ):
+            api_module.APIHandler.handle_sync_trigger(handler)
+
+        request = mock_urlopen.call_args.args[0]
+        assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
+        handler._send_json.assert_called_once_with(202, {"status": "scheduled"})
