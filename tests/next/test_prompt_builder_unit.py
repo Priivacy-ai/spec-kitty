@@ -188,6 +188,8 @@ class TestBuildPromptWPPlanningArtifact:
     def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
+        # planning_artifact WPs now use lane-planning (FR-103/FR-105).
+        # The workspace label reflects the unified lane contract.
         repo_root = feature_with_planning_artifact_wp.parent.parent
         text, path = build_prompt(
             action="implement",
@@ -198,15 +200,15 @@ class TestBuildPromptWPPlanningArtifact:
             repo_root=repo_root,
             mission_type="software-dev",
         )
-        assert "Workspace contract: repository root planning workspace" in text
-        assert "Planning-artifact work for this WP happens in the repository root" in text
+        assert "Workspace contract: lane lane-planning" in text
         path.unlink()
 
     @pytest.mark.fast
     def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
-        """No git history → no claim commit → review path falls into the unavailable branch."""
+        """planning_artifact WPs now use lane-planning (FR-103/FR-105).
+        Review commands use the target branch as the diff base."""
         repo_root = feature_with_planning_artifact_wp.parent.parent
         text, path = build_prompt(
             action="review",
@@ -217,16 +219,17 @@ class TestBuildPromptWPPlanningArtifact:
             repo_root=repo_root,
             mission_type="software-dev",
         )
-        assert "Workspace contract: repository root planning workspace" in text
+        assert "Workspace contract: lane lane-planning" in text
         assert "REVIEW COMMANDS:" in text
-        assert "no deterministic implementation claim commit found" in text
+        assert "..HEAD --oneline" in text
         path.unlink()
 
     @pytest.mark.git_repo
     def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(
         self, feature_with_planning_artifact_wp: Path
     ) -> None:
-        """A real claim commit on the WP markdown file produces a scoped diff command."""
+        """planning_artifact WPs now use lane-planning (FR-103/FR-105).
+        Review commands use the target branch as the diff base (no pathspec scoping)."""
         import subprocess
 
         repo_root = feature_with_planning_artifact_wp.parent.parent
@@ -249,10 +252,8 @@ class TestBuildPromptWPPlanningArtifact:
             mission_type="software-dev",
         )
         assert "REVIEW COMMANDS:" in text
-        assert "git log " in text and "..HEAD --oneline -- " in text
-        # owned_files start with kitty-specs/<mission>/ so the exclude pathspecs are appended
-        assert ":(exclude)kitty-specs/042-test-feature/tasks/**" in text
-        assert ":(exclude)kitty-specs/042-test-feature/status.events.jsonl" in text
+        assert "..HEAD --oneline" in text
+        assert "Workspace contract: lane lane-planning" in text
         path.unlink()
 
     @pytest.mark.git_repo
