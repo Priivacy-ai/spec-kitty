@@ -17,8 +17,10 @@ Spec Kitty 3.1.0 (released 2026-04-07) stabilises planning and execution reliabi
 
 - **Read-only commands no longer dirty the git tree** — `status`, `next` (query mode), and `dashboard` leave `git status --porcelain` clean
 - **`wps.yaml` manifest** — structured dependency source eliminates prose-parser lane corruption; `finalize-tasks` derives deps from YAML, `tasks.md` becomes a generated artifact
-- **`spec-kitty next` query mode** — bare call returns current step with `[QUERY]` label; does not advance the state machine
+- **`spec-kitty next` query mode** — `spec-kitty next --mission <slug>` is the read-only query form; fresh runs return `mission_state: not_started` plus `preview_step`, and the command does not advance the state machine
 - **Execution resilience** — `merge --resume`, `implement --recover`, `doctor` for stale-claim diagnostics
+- **Planning-artifact work packages** — planning-artifact execution runs in repository root outside the lane graph rather than in a lane worktree
+- **Stale status JSON** — the canonical shape now uses a nested `stale` object; temporary flat stale fields remain as a compatibility surface during the transition
 - **Review resilience** — versioned review-cycle artifacts, focused fix prompts, dirty-state classification
 - **Charter** — `spec-kitty charter` replaces `spec-kitty constitution`; auto-migrated by `spec-kitty upgrade`
 - **`--mission`** — canonical flag everywhere; `--feature` retained only as a hidden deprecated alias during migration

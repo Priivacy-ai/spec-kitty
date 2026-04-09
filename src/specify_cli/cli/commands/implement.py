@@ -24,8 +24,12 @@ from specify_cli.frontmatter import FrontmatterError, update_fields
 from specify_cli.git import safe_commit
 from specify_cli.lanes.implement_support import create_lane_workspace
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
+from specify_cli.ownership.models import ExecutionMode
+from specify_cli.status.emit import emit_status_transition
 from specify_cli.status.models import Lane
 from specify_cli.tasks_support import TaskCliError, find_repo_root
+from specify_cli.workspace_context import resolve_workspace_for_wp
+from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
 
 console = Console()
 _WP_ID_RE = re.compile(r"^WP\d{2}$", re.IGNORECASE)
@@ -167,10 +171,7 @@ def _validate_base_ref(repo_root: Path, base_ref: str) -> str:
         check=False,
     )
     if result.returncode != 0:
-        console.print(
-            f"[red]Error:[/red] Base ref '{base_ref}' does not resolve. "
-            "Try 'git fetch' or 'git branch -a' to see available refs."
-        )
+        console.print(f"[red]Error:[/red] Base ref '{base_ref}' does not resolve. Try 'git fetch' or 'git branch -a' to see available refs.")
         raise typer.Exit(1)
     return result.stdout.strip()
 
@@ -419,7 +420,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
     tracker = StepTracker(f"Implement {wp_id}")
     tracker.add("detect", "Detect feature context")
     tracker.add("validate", "Validate planning state")
-    tracker.add("create", "Allocate lane worktree")
+    tracker.add("create", "Resolve execution workspace")
     console.print()
 
     tracker.start("detect")
@@ -448,11 +449,18 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             planning_branch=planning_branch,
             auto_commit=bool(auto_commit),
         )
-        lanes_manifest = require_lanes_json(feature_dir)
-        lane = lanes_manifest.lane_for_wp(wp_id)
-        if lane is None:
-            raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
-        tracker.complete("validate", f"Lane: {lane.lane_id}")
+        resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+
+        lanes_manifest = None
+        lane = None
+        if resolved_workspace.execution_mode == ExecutionMode.CODE_CHANGE:
+            lanes_manifest = require_lanes_json(feature_dir)
+            lane = lanes_manifest.lane_for_wp(wp_id)
+            if lane is None:
+                raise ValueError(f"{wp_id} is not assigned to any lane in lanes.json")
+            tracker.complete("validate", f"Lane: {lane.lane_id}")
+        else:
+            tracker.complete("validate", "Execution: repository root planning workspace")
     except (CorruptLanesError, MissingLanesError, ValueError, typer.Exit) as exc:
         tracker.error("validate", str(exc))
         console.print(tracker.render())
@@ -470,19 +478,23 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         # LanesManifest that uses it as the mission_branch so the worktree
         # allocator branches from the explicit base instead of auto-detecting.
         active_lanes_manifest = lanes_manifest
-        if base is not None:
+        if base is not None and resolved_workspace.execution_mode == ExecutionMode.CODE_CHANGE:
             _validate_base_ref(repo_root, base)
             # Shallow-patch the manifest's mission_branch so
             # allocate_lane_worktree branches from the explicit ref.
             from dataclasses import replace as _dc_replace
+
             active_lanes_manifest = _dc_replace(lanes_manifest, mission_branch=base)
             console.print(f"[cyan]→ Using explicit base ref: {base}[/cyan]")
+        elif base is not None:
+            console.print("[yellow]Warning:[/yellow] --base is ignored for repository-root planning work")
 
         result = create_lane_workspace(
             repo_root=repo_root,
             mission_slug=mission_slug,
             wp_id=wp_id,
             wp_file=wp_file,
+            resolved_workspace=resolved_workspace,
             lanes_manifest=active_lanes_manifest,
             declared_deps=declared_deps,
             vcs_backend_value=vcs_backend.value,
@@ -490,20 +502,26 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         workspace_path = result.workspace_path
         branch_name = result.branch_name
 
-        if result.is_reuse:
+        if result.lane_id is None:
+            tracker.complete("create", f"Repository root: {workspace_path.relative_to(repo_root)}")
+        elif result.is_reuse:
             tracker.complete("create", f"Reused lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
         else:
             tracker.complete("create", f"Lane {result.lane_id}: {workspace_path.relative_to(repo_root)}")
         console.print(tracker.render())
-        console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
-        console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
+        if result.mission_branch:
+            console.print(f"[cyan]→ Mission branch: {result.mission_branch}[/cyan]")
+        if result.branch_name:
+            console.print(f"[cyan]→ Lane branch: {result.branch_name}[/cyan]")
+        else:
+            console.print("[cyan]→ Workspace contract: repository root planning workspace[/cyan]")
     except typer.Exit:
         console.print(tracker.render())
         raise
     except Exception as exc:
-        tracker.error("create", f"lane allocation failed: {exc}")
+        tracker.error("create", f"workspace allocation failed: {exc}")
         console.print(tracker.render())
-        console.print(f"\n[red]Error:[/red] Lane worktree allocation failed: {exc}")
+        console.print(f"\n[red]Error:[/red] Workspace allocation failed: {exc}")
         raise typer.Exit(1) from exc
 
     try:
@@ -513,13 +531,37 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         if current_lane == Lane.PLANNED:
             shell_pid = str(os.getppid())
             commit_msg = f"chore: {wp_id} claimed for implementation"
+            status_execution_mode = "direct_repo" if resolved_workspace.resolution_kind == "repo_root" else "worktree"
 
             update_fields(wp_file, {"shell_pid": shell_pid})
+
+            try:
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane=Lane.CLAIMED,
+                    actor="implement-command",
+                    execution_mode=status_execution_mode,
+                    repo_root=repo_root,
+                )
+                emit_status_transition(
+                    feature_dir=feature_dir,
+                    mission_slug=mission_slug,
+                    wp_id=wp_id,
+                    to_lane=Lane.IN_PROGRESS,
+                    actor="implement-command",
+                    execution_mode=status_execution_mode,
+                    repo_root=repo_root,
+                )
+            except Exception as exc:
+                console.print(f"[red]Error:[/red] Could not emit canonical status transition: {exc}")
+                raise typer.Exit(1) from exc
 
             if auto_commit:
                 meta_file = feature_dir / "meta.json"
                 config_file = repo_root / ".kittify" / "config.yaml"
-                files_to_commit = [wp_file.resolve()]
+                files_to_commit = [wp_file.resolve(), *[path.resolve() for path in _collect_status_artifacts(feature_dir)]]
                 if meta_file.exists():
                     files_to_commit.append(meta_file.resolve())
                 if config_file.exists():
@@ -537,20 +579,11 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     console.print("[yellow]Warning:[/yellow] Could not auto-commit lane change")
             else:
                 console.print(f"[cyan]→ {wp_id} moved to 'doing' (auto-commit disabled, changes staged only)[/cyan]")
-
-            try:
-                emit_wp_status_changed(
-                    wp_id=wp_id,
-                    from_lane=current_lane,
-                    to_lane=Lane.IN_PROGRESS,
-                    mission_slug=mission_slug,
-                )
-            except Exception as exc:
-                console.print(f"[yellow]Warning:[/yellow] Could not emit WPStatusChanged: {exc}")
     except Exception as exc:
         console.print(f"[yellow]Warning:[/yellow] Could not update WP status: {exc}")
 
     if json_output:
+        result_execution_mode = result.execution_mode if isinstance(result.execution_mode, str) else resolved_workspace.execution_mode
         workspace_rel = str(workspace_path.relative_to(repo_root))
         identity = resolve_mission_identity(feature_dir)
         print(
@@ -564,10 +597,24 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
                     "mission_type": identity.mission_type,
                     "wp_id": wp_id,
                     "lane_id": result.lane_id,
+                    "execution_mode": result_execution_mode,
                     "status": "created",
                 }
             )
         )
+        return
+
+    if result.lane_id is None:
+        console.print("\n[bold green]✓ Repository-root workspace ready[/bold green]")
+        console.print()
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print("[bold yellow]Planning-artifact work for this WP happens in the repository root[/bold yellow]")
+        console.print("[bold yellow]" + "=" * 72 + "[/bold yellow]")
+        console.print()
+        console.print(f"  [bold]cd {workspace_path}[/bold]")
+        console.print()
+        console.print("[dim]This WP does not get a lane worktree or workspace context file.[/dim]")
+        console.print("[dim]Make planning-artifact changes directly in the repository root.[/dim]")
         return
 
     console.print("\n[bold green]✓ Lane worktree ready[/bold green]")

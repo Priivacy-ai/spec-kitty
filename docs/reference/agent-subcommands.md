@@ -172,17 +172,19 @@ spec-kitty agent mission merge --keep-worktree --keep-branch
 
 **Synopsis**: `spec-kitty agent mission finalize-tasks [OPTIONS]`
 
-**Description**: Parse dependencies from tasks.md and update WP frontmatter, then commit to main.
+**Description**: Parse dependency and requirement mappings, normalize canonical WP frontmatter fields, compute `lanes.json`, and commit to the mission target branch. Supports `--validate-only` for dry-run validation.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
 | `--json` | Output JSON format |
+| `--validate-only` | Validate and report without writing or committing |
 | `--help` | Show this message and exit |
 
 **Example**:
 ```bash
 spec-kitty agent mission finalize-tasks --json
+spec-kitty agent mission finalize-tasks --mission 001-my-feature --validate-only --json
 ```
 
 ---
@@ -208,7 +210,7 @@ spec-kitty agent mission finalize-tasks --json
 
 **Synopsis**: `spec-kitty agent tasks move-task [OPTIONS] TASK_ID`
 
-**Description**: Move task between lanes (planned -> doing -> for_review -> done).
+**Description**: Move task between lanes (planned -> doing -> for_review -> approved -> done).
 
 **Arguments**:
 - `TASK_ID`: Task ID (e.g., `WP01`) [required]
@@ -227,7 +229,7 @@ spec-kitty agent mission finalize-tasks --json
 | `--reviewer TEXT` | Reviewer name (auto-detected from git if omitted) |
 | `--done-override-reason TEXT` | Required when `--to done` and merge ancestry cannot be verified; recorded in history/event reason |
 | `--force` | Force move even with unchecked subtasks (does not bypass planned rollback feedback requirement) |
-| `--auto-commit`, `--no-auto-commit` | Automatically commit WP file changes to main branch (default: auto-commit) |
+| `--auto-commit`, `--no-auto-commit` | Automatically commit WP file changes to the mission target branch (default: auto-commit) |
 | `--json` | Output JSON format |
 | `--help` | Show this message and exit |
 
@@ -311,7 +313,7 @@ spec-kitty agent tasks add-history WP01 --mission 001-my-feature --note "Complet
 
 **Synopsis**: `spec-kitty agent tasks finalize-tasks [OPTIONS]`
 
-**Description**: Parse tasks.md and inject dependencies into WP frontmatter.
+**Description**: Parse tasks.md, normalize WP frontmatter metadata, compute/update `lanes.json`, and commit changes to the mission target branch.
 
 **Options**:
 | Flag | Description |
@@ -532,7 +534,7 @@ spec-kitty agent context update-context --mission 020-my-feature --agent-type ge
 
 **Synopsis**: `spec-kitty agent action implement [OPTIONS] [WP_ID]`
 
-**Description**: Display work package prompt with implementation instructions. Automatically moves WP from planned to doing lane (requires `--agent` to track who is working). The runtime resolves the lane workspace from `lanes.json`.
+**Description**: Display work package prompt with implementation instructions. Automatically moves the selected WP from `planned` to `doing` (requires `--agent` to track who is working). Workspace resolution is execution-mode-aware: `code_change` WPs run in lane worktrees, while `planning_artifact` WPs run in repository root outside the lane graph.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`, `wp01`, `WP01-slug`) - auto-detects first planned if omitted
@@ -555,7 +557,7 @@ spec-kitty agent action implement --mission 001-my-feature --agent gemini
 
 **Synopsis**: `spec-kitty agent action review [OPTIONS] [WP_ID]`
 
-**Description**: Display work package prompt with review instructions.
+**Description**: Display work package prompt with review instructions. Review uses the same execution-mode-aware resolver as implementation, so planning-artifact WPs stay in repository root instead of requiring lane membership.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`) - auto-detects first for_review if omitted
@@ -593,7 +595,7 @@ spec-kitty agent action review --mission 001-my-feature --agent gemini
 
 **Synopsis**: `spec-kitty agent status emit [OPTIONS] WP_ID`
 
-**Description**: Emit a status transition event for a work package. Records a lane transition in the canonical event log, validates the transition against the state machine, materializes a snapshot, and updates legacy compatibility views.
+**Description**: Emit a status transition event for a work package. Records a lifecycle transition in the canonical event log, validates the transition against the state machine, materializes a snapshot, and updates legacy compatibility views. Planning-artifact WPs use the same lifecycle states but execute in repository root rather than a lane worktree.
 
 **Arguments**:
 - `WP_ID`: Work package ID (e.g., `WP01`) [required]
@@ -627,6 +629,8 @@ spec-kitty agent status emit WP01 --mission 034-my-feature --to in_progress --ac
 **Synopsis**: `spec-kitty agent status materialize [OPTIONS]`
 
 **Description**: Rebuild status.json from the canonical event log. Reads all events from status.events.jsonl, applies the deterministic reducer to produce a snapshot, writes status.json, and updates legacy compatibility views.
+
+The canonical status snapshot uses a nested `stale` object. Flat stale fields may still be emitted temporarily for compatibility, but new callers should consume the nested object.
 
 **Options**:
 | Flag | Description |

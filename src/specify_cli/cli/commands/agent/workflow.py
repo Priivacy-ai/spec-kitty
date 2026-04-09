@@ -25,6 +25,7 @@ from specify_cli.mission import get_deliverables_path, get_mission_type
 from specify_cli.status.emit import emit_status_transition, TransitionError
 from specify_cli.status.locking import feature_status_lock
 from specify_cli.status.models import Lane
+from specify_cli.status.wp_metadata import read_wp_frontmatter
 from specify_cli.status.transitions import resolve_lane_alias
 from specify_cli.status.store import read_events
 from specify_cli.cli.commands.agent.tasks import _collect_status_artifacts
@@ -103,14 +104,14 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
         return None
 
     if value.startswith("review-cycle://"):
-        relative = value[len("review-cycle://"):]
+        relative = value[len("review-cycle://") :]
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
         # parts: mission_slug / wp_slug / filename
         candidate = repo_root / "kitty-specs" / parts[0] / "tasks" / parts[1] / parts[2]
     elif value.startswith("feedback://"):
-        relative = value[len("feedback://"):]
+        relative = value[len("feedback://") :]
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
@@ -137,11 +138,32 @@ def _render_charter_context(repo_root: Path, action: str) -> str:
         return f"Governance: unavailable ({exc})"
 
 
-app = typer.Typer(
-    name="action",
-    help="Mission action commands that display prompts and instructions for agents",
-    no_args_is_help=True
-)
+def _workspace_contract_description(workspace, wp_id: str) -> str:
+    """Describe the canonical execution workspace for prompt output."""
+    if workspace.lane_id:
+        shared = ", ".join(workspace.lane_wp_ids or [wp_id])
+        return f"Workspace contract: lane {workspace.lane_id} shared by {shared}"
+    return "Workspace contract: repository root planning workspace"
+
+
+def _shared_artifact_guidance(workspace, repo_root: Path, mission_slug: str) -> list[str]:
+    """Render workspace-specific guidance about where mission artifacts live."""
+    if workspace.lane_id:
+        return [
+            "📚 SHARED MISSION ARTIFACTS:",
+            f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/",
+            "   Use this lane workspace for code/tests; do not expect shared mission artifacts here",
+        ]
+
+    return [
+        "📚 PLANNING ARTIFACTS:",
+        f"   This WP runs in the repository root: {repo_root}",
+        f"   Mission artifacts for this WP live here too: {repo_root}/kitty-specs/{mission_slug}/",
+        "   Do not look for a separate lane worktree or workspace context file",
+    ]
+
+
+app = typer.Typer(name="action", help="Mission action commands that display prompts and instructions for agents", no_args_is_help=True)
 
 _CANONICAL_STATUS_NOT_FOUND = "canonical status not found"
 
@@ -153,10 +175,7 @@ def _is_missing_canonical_status_error(exc: BaseException) -> bool:
 
 def _missing_canonical_status_message(wp_id: str, mission_slug: str) -> str:
     """Return a consistent hard-fail message for missing canonical status."""
-    return (
-        f"WP {wp_id} has no canonical status. "
-        f"Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
-    )
+    return f"WP {wp_id} has no canonical status. Run `spec-kitty agent mission finalize-tasks --mission {mission_slug}` to initialize."
 
 
 def _has_prior_rejection(
@@ -225,9 +244,7 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
     if not resolution.should_notify:
         print(f"Branch: {current_branch} (target for this mission)")
     else:
-        print(
-            f"Branch: on '{resolution.current}', mission targets '{resolution.target}'"
-        )
+        print(f"Branch: on '{resolution.current}', mission targets '{resolution.target}'")
 
     # Return current branch (no checkout performed)
     return main_repo_root, resolution.current
@@ -283,8 +300,6 @@ def _normalize_wp_id(wp_arg: str) -> str:
     else:
         # Assume it's like "01" or "1", prefix with WP
         return f"WP{wp_upper.lstrip('WP')}"
-
-
 
 
 def _find_first_planned_wp(repo_root: Path, mission_slug: str) -> Optional[str]:
@@ -412,6 +427,7 @@ def implement(
 
         workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
         workspace_path = workspace.worktree_path
+        status_execution_mode = "direct_repo" if workspace.resolution_kind == "repo_root" else "worktree"
 
         # Ensure workspace exists (delegate to top-level implement for creation)
         if not workspace.exists:
@@ -424,11 +440,7 @@ def implement(
 
             print(f"Creating workspace for {normalized_wp_id}...")
             try:
-                top_level_implement(
-                    wp_id=normalized_wp_id,
-                    mission=mission_slug,
-                    json_output=False
-                )
+                top_level_implement(wp_id=normalized_wp_id, mission=mission_slug, json_output=False)
             except typer.Exit:
                 # Worktree creation failed - propagate error
                 raise
@@ -439,21 +451,20 @@ def implement(
             workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
             workspace_path = workspace.worktree_path
             if not workspace.exists:
-                print(
-                    "Error: implement completed but no workspace could be resolved for "
-                    f"{normalized_wp_id}."
-                )
+                print(f"Error: implement completed but no workspace could be resolved for {normalized_wp_id}.")
                 raise typer.Exit(1)
 
         # Load work package
         try:
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
+            wp_meta, _ = read_wp_frontmatter(wp.path)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
-                raise RuntimeError(
-                    _missing_canonical_status_message(normalized_wp_id, mission_slug)
-                ) from e
+                raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
             raise
+
+        subtask_ids = [str(item) for item in wp_meta.subtasks if isinstance(item, str)]
+        subtask_cmd = " ".join(subtask_ids) if subtask_ids else "<subtask-ids>"
 
         # Move to "doing" lane if not already there, and ensure agent is recorded
         # Lane is event-log-only; read from canonical event log (no frontmatter fallback)
@@ -464,10 +475,7 @@ def implement(
 
         _wf_events = _wf_read_events(_wf_feature_dir)
         _wf_snapshot = _wf_reduce(_wf_events) if _wf_events else None
-        _wf_has_canonical = (
-            _wf_snapshot is not None
-            and normalized_wp_id in _wf_snapshot.work_packages
-        )
+        _wf_has_canonical = _wf_snapshot is not None and normalized_wp_id in _wf_snapshot.work_packages
         if not _wf_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
@@ -495,6 +503,9 @@ def implement(
             from datetime import datetime, timezone
             import os
 
+            review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+            status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
+
             # Capture current shell PID
             shell_pid = str(os.getppid())  # Parent process ID (the shell running this command)
 
@@ -502,6 +513,7 @@ def implement(
             # Must follow allowed transitions: planned→claimed→in_progress
             try:
                 from specify_cli.status.emit import emit_status_transition
+
                 _impl_feature_dir = main_repo_root / "kitty-specs" / mission_slug
                 _actor = agent or "unknown"
 
@@ -513,6 +525,7 @@ def implement(
                         wp_id=normalized_wp_id,
                         to_lane=Lane.CLAIMED,
                         actor=_actor,
+                        execution_mode=status_execution_mode,
                     )
                     emit_status_transition(
                         feature_dir=_impl_feature_dir,
@@ -520,6 +533,7 @@ def implement(
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
+                        execution_mode=status_execution_mode,
                     )
                 elif current_lane == Lane.CLAIMED:
                     emit_status_transition(
@@ -528,6 +542,7 @@ def implement(
                         wp_id=normalized_wp_id,
                         to_lane=Lane.IN_PROGRESS,
                         actor=_actor,
+                        execution_mode=status_execution_mode,
                     )
                 elif current_lane in (Lane.FOR_REVIEW, Lane.APPROVED):
                     # Re-implementing after review — force back to in_progress
@@ -539,6 +554,7 @@ def implement(
                         actor=_actor,
                         force=True,
                         reason="Re-implementing after review feedback",
+                        execution_mode=status_execution_mode,
                     )
                 # If already in_progress/doing, no event needed
             except Exception as _evt_err:
@@ -565,17 +581,15 @@ def implement(
 
             # Auto-commit to target branch (enables instant status sync)
             actual_wp_path = wp.path.resolve()
+            status_artifacts = [path.resolve() for path in _collect_status_artifacts(_impl_feature_dir)]
             commit_success = safe_commit(
                 repo_path=main_repo_root,
-                files_to_commit=[actual_wp_path],
+                files_to_commit=[actual_wp_path, *status_artifacts],
                 commit_message=f"chore: Start {normalized_wp_id} implementation [{agent}]",
                 allow_empty=True,  # OK if already in this state
             )
             if not commit_success:
-                print(
-                    f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
-                    "Status claim aborted."
-                )
+                print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Status claim aborted.")
                 raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
@@ -588,7 +602,9 @@ def implement(
 
                 _impl_feature_dir = repo_root / "kitty-specs" / mission_slug
                 trigger_feature_dossier_sync_if_enabled(
-                    _impl_feature_dir, mission_slug, repo_root,
+                    _impl_feature_dir,
+                    mission_slug,
+                    repo_root,
                 )
             except Exception:
                 pass
@@ -610,11 +626,7 @@ def implement(
             _events = _read_status_events(feature_dir)
             # Find the most recent rejection event for this WP (for_review -> planned/in_progress with review_ref)
             for _ev in reversed(_events):
-                if (
-                    _ev.wp_id == normalized_wp_id
-                    and _ev.from_lane == Lane.FOR_REVIEW
-                    and _ev.review_ref is not None
-                ):
+                if _ev.wp_id == normalized_wp_id and _ev.from_lane == Lane.FOR_REVIEW and _ev.review_ref is not None:
                     has_feedback = True
                     review_feedback_ref = _ev.review_ref
                     break
@@ -658,9 +670,7 @@ def implement(
                         mission_slug=mission_slug,
                         wp_id=normalized_wp_id,
                     )
-                    _fix_prompt_file = _write_prompt_to_file(
-                        "implement", normalized_wp_id, _fix_prompt_text
-                    )
+                    _fix_prompt_file = _write_prompt_to_file("implement", normalized_wp_id, _fix_prompt_text)
                     print()
                     print(f"📍 Workspace: cd {workspace_path}")
                     print(f"🔧 Fix mode — Cycle {_latest_artifact.cycle_number}: focused prompt from review artifact")
@@ -707,6 +717,7 @@ def implement(
                 print("[yellow]Warning: baseline test capture failed — no baseline context available[/yellow]")
         except Exception as _bl_err:
             import logging as _bl_logging
+
             _bl_logging.getLogger(__name__).warning("Baseline capture error: %s", _bl_err)
 
         # Build full prompt content for file
@@ -718,9 +729,7 @@ def implement(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
-        if workspace.lane_id:
-            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
-            lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
+        lines.append(_workspace_contract_description(workspace, normalized_wp_id))
         lines.append("")
         lines.append(_render_charter_context(repo_root, "implement"))
         lines.append("")
@@ -749,14 +758,17 @@ def implement(
         # Inject worktree topology context for stacked branches
         try:
             from specify_cli.core.worktree_topology import (
-                materialize_worktree_topology, render_topology_json,
+                materialize_worktree_topology,
+                render_topology_json,
             )
+
             topology = materialize_worktree_topology(repo_root, mission_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
                 lines.append("")
-        except Exception:
-            pass  # Non-critical — topology is informational only
+        except Exception as exc:
+            lines.append(f"[Topology unavailable: {exc}]")
+            lines.append("")
 
         # Next steps
         lines.append("=" * 80)
@@ -766,25 +778,26 @@ def implement(
         lines.append(f"  1. **Commit your implementation files:**")
         lines.append(f"     git status  # Check what you changed")
         lines.append(f"     git add <your-implementation-files>  # NOT WP status files")
-        lines.append(f"     git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f'     git commit -m "feat({normalized_wp_id}): <brief description>"')
         lines.append(f"     git log -1 --oneline  # Verify commit succeeded")
         lines.append(f"  2. Mark all subtasks as done:")
-        lines.append(f"     spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append(f"     spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
         lines.append(f"  3. Move WP to review:")
-        lines.append(f"     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        lines.append(f'     spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         lines.append("")
         lines.append(f"✗ Blocked or cannot complete:")
-        lines.append(f"  spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append(f'  spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
-        lines.append(f"   # All implementation work happens in this workspace")
-        lines.append(f"   # When done, return to repo root: cd {repo_root}")
+        if workspace.lane_id:
+            lines.append("   # All implementation work happens in this workspace")
+            lines.append(f"   # When done, return to repo root: cd {repo_root}")
+        else:
+            lines.append("   # Planning-artifact work for this WP happens in the repository root")
         lines.append("")
-        lines.append("📚 SHARED MISSION ARTIFACTS:")
-        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/")
-        lines.append("   Use this lane workspace for code/tests; do not expect shared mission artifacts here")
+        lines.extend(_shared_artifact_guidance(workspace, repo_root, mission_slug))
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
@@ -798,7 +811,7 @@ def implement(
             if review_feedback_ref:
                 lines.append(f"   Canonical feedback reference: {review_feedback_ref}")
                 if review_feedback_file is not None:
-                    lines.append(f"   Read it first: cat \"{review_feedback_file}\"")
+                    lines.append(f'   Read it first: cat "{review_feedback_file}"')
                 else:
                     lines.append("   WARNING: review feedback reference is set, but the artifact is missing/unreadable.")
                     lines.append("   Ask reviewer to re-run move-task with --review-feedback-file.")
@@ -849,16 +862,16 @@ def implement(
         lines.append(f"   1. **Commit your implementation files:**")
         lines.append(f"      git status  # Check what you changed")
         lines.append(f"      git add <your-implementation-files>  # NOT WP status files")
-        lines.append(f"      git commit -m \"feat({normalized_wp_id}): <brief description>\"")
+        lines.append(f'      git commit -m "feat({normalized_wp_id}): <brief description>"')
         lines.append(f"      git log -1 --oneline  # Verify commit succeeded")
         lines.append(f"      (Use fix: for bugs, chore: for maintenance, docs: for documentation)")
         lines.append(f"   2. Mark all subtasks as done:")
-        lines.append(f"      spec-kitty agent tasks mark-status T001 T002 T003 --status done")
+        lines.append(f"      spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
         lines.append(f"   3. Move WP to review (will check for uncommitted changes):")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review: <summary>\"")
+        lines.append(f'      spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review: <summary>"')
         lines.append("")
         lines.append(f"⚠️  Blocked or cannot complete:")
-        lines.append(f"   spec-kitty agent tasks add-history {normalized_wp_id} --note \"Blocked: <reason>\"")
+        lines.append(f'   spec-kitty agent tasks add-history {normalized_wp_id} --mission {mission_slug} --note "Blocked: <reason>"')
         lines.append("")
         lines.append("⚠️  NOTE: The move-task command will FAIL if you have uncommitted changes!")
         lines.append("     Commit all implementation files BEFORE moving to for_review.")
@@ -875,6 +888,8 @@ def implement(
         if workspace.lane_id:
             shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
             print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
+        else:
+            print("   Repository-root planning workspace")
         if has_feedback:
             if review_feedback_ref:
                 print(f"⚠️  Has review feedback - read reference: {review_feedback_ref}")
@@ -888,9 +903,9 @@ def implement(
         print(f"    cat {prompt_file}")
         print()
         print("After implementation, run:")
-        print(f"  1. git status && git add <your-files> && git commit -m \"feat({normalized_wp_id}): <description>\"")
-        print(f"  2. spec-kitty agent tasks mark-status T001 T002 ... --status done")
-        print(f"  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --note \"Ready for review\"")
+        print(f'  1. git status && git add <your-files> && git commit -m "feat({normalized_wp_id}): <description>"')
+        print(f"  2. spec-kitty agent tasks mark-status {subtask_cmd} --status done --mission {mission_slug}")
+        print(f'  3. spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug} --note "Ready for review"')
         print(f"     (Pre-flight check will verify no uncommitted changes)")
 
     except Exception as e:
@@ -926,8 +941,52 @@ def _resolve_review_context(
     if not workspace_path.exists():
         return ctx
 
+    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
+    if workspace.resolution_kind == "repo_root":
+        wp_paths = sorted((repo_root / "kitty-specs" / mission_slug / "tasks").glob(f"{wp_id}*.md"))
+        claim = subprocess.run(
+            [
+                "git",
+                "log",
+                "--format=%H%x00%s",
+                "--",
+                *(str(path) for path in wp_paths),
+            ],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        claim_commit: str | None = None
+        for raw in claim.stdout.splitlines():
+            commit_hash, _, subject = raw.partition("\x00")
+            if not commit_hash:
+                continue
+            if f"Move {wp_id} to in_progress" in subject or f"{wp_id} claimed for implementation" in subject or f"Start {wp_id} implementation" in subject:
+                claim_commit = commit_hash.strip()
+                break
+        if claim_commit is None:
+            return ctx
+        count = subprocess.run(
+            ["git", "rev-list", "--count", f"{claim_commit}..HEAD"],
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
+        )
+        commit_count = int(count.stdout.strip()) if count.returncode == 0 and count.stdout.strip().isdigit() else 1
+        ctx["branch_name"] = "HEAD"
+        ctx["base_branch"] = claim_commit
+        ctx["commit_count"] = commit_count
+        return ctx
+
     # Get actual branch name from worktree
     from specify_cli.core.git_ops import get_current_branch
+
     branch = get_current_branch(workspace_path)
     if branch:
         ctx["branch_name"] = branch
@@ -939,20 +998,30 @@ def _resolve_review_context(
     # Build candidate base branches
     candidates: list[str] = []
 
-    workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
     if workspace.context and workspace.context.base_branch:
         candidates.append(workspace.context.base_branch)
 
-    # From WP dependencies (e.g., dependencies: ["WP01"])
-    dep_match = re.search(r'dependencies:\s*\[([^\]]*)\]', wp_frontmatter)
+    # From WP dependencies (e.g., dependencies: ["WP01"]). Skip dependencies
+    # whose workspace has no branch — that's the case for planning-artifact
+    # WPs that resolve to the repository root (FR-002/FR-004). Their lack of
+    # a branch is intentional and they cannot serve as a merge-base candidate
+    # for the current code-change branch. Letting None flow into the
+    # candidates list crashes git merge-base with TypeError.
+    dep_match = re.search(r"dependencies:\s*\[([^\]]*)\]", wp_frontmatter)
     if dep_match:
         dep_content = dep_match.group(1).strip()
         if dep_content:
             dep_ids = re.findall(r'"?(WP\d+)"?', dep_content)
             for dep_id in dep_ids:
-                dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
-                if dep_workspace.branch_name != branch:
-                    candidates.append(dep_workspace.branch_name)
+                try:
+                    dep_workspace = resolve_workspace_for_wp(repo_root, mission_slug, dep_id)
+                except (ValueError, FileNotFoundError):
+                    # A malformed or missing dependency workspace must not
+                    # poison the review-context resolution for the current WP.
+                    continue
+                dep_branch = dep_workspace.branch_name
+                if dep_branch and dep_branch != branch:
+                    candidates.append(dep_branch)
 
     # Common base branches
     candidates.extend(["main", "2.x", "master", "develop"])
@@ -964,18 +1033,24 @@ def _resolve_review_context(
     for candidate in candidates:
         mb = subprocess.run(
             ["git", "merge-base", branch, candidate],
-            cwd=repo_root, capture_output=True, text=True,
-                                                encoding="utf-8",
-                                                errors="replace", check=False,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
         )
         if mb.returncode != 0:
             continue
 
         count_r = subprocess.run(
             ["git", "rev-list", "--count", f"{mb.stdout.strip()}..{branch}"],
-            cwd=repo_root, capture_output=True, text=True,
-                                                encoding="utf-8",
-                                                errors="replace", check=False,
+            cwd=repo_root,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            check=False,
         )
         if count_r.returncode != 0:
             continue
@@ -1034,6 +1109,7 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
 
     # Load lanes from canonical event log (lane is event-log-only)
     feature_dir = tasks_dir.parent
+    _fr_events = []
     try:
         from specify_cli.status.store import read_events as _fr_read_events
         from specify_cli.status.reducer import reduce as _fr_reduce
@@ -1047,14 +1123,25 @@ def _find_first_for_review_wp(repo_root: Path, mission_slug: str) -> Optional[st
     except Exception:
         _fr_lanes = {}
 
+    def _is_review_claimed(_wp_id: str) -> bool:
+        for _event in reversed(_fr_events):
+            if getattr(_event, "wp_id", None) == _wp_id:
+                return bool(_event.to_lane == Lane.IN_PROGRESS and _event.review_ref == "action-review-claim")
+        return False
+
     for wp_file in wp_files:
         content = wp_file.read_text(encoding="utf-8-sig")
         frontmatter, _, _ = split_frontmatter(content)
         wp_id = extract_scalar(frontmatter, "work_package_id")
-        if wp_id:
-            lane = _fr_lanes.get(wp_id, Lane.PLANNED)
-            if lane == Lane.FOR_REVIEW:
-                return wp_id
+        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) == Lane.FOR_REVIEW:
+            return wp_id
+
+    for wp_file in wp_files:
+        content = wp_file.read_text(encoding="utf-8-sig")
+        frontmatter, _, _ = split_frontmatter(content)
+        wp_id = extract_scalar(frontmatter, "work_package_id")
+        if wp_id and _fr_lanes.get(wp_id, Lane.PLANNED) == Lane.IN_PROGRESS and _is_review_claimed(wp_id):
+            return wp_id
 
     return None
 
@@ -1106,9 +1193,7 @@ def review(
             wp = locate_work_package(repo_root, mission_slug, normalized_wp_id)
         except RuntimeError as e:
             if _is_missing_canonical_status_error(e):
-                raise RuntimeError(
-                    _missing_canonical_status_message(normalized_wp_id, mission_slug)
-                ) from e
+                raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug)) from e
             raise
 
         # Move to "doing" lane if not already there.
@@ -1121,18 +1206,28 @@ def review(
 
         _rv_events = _rv_read_events(feature_dir)
         _rv_snapshot = _rv_reduce(_rv_events) if _rv_events else None
-        _rv_has_canonical = (
-            _rv_snapshot is not None
-            and normalized_wp_id in _rv_snapshot.work_packages
-        )
+        _rv_has_canonical = _rv_snapshot is not None and normalized_wp_id in _rv_snapshot.work_packages
         if not _rv_has_canonical:
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane_raw = _rv_get_wp_lane(feature_dir, normalized_wp_id)
         current_lane = "doing" if current_lane_raw == Lane.IN_PROGRESS else current_lane_raw
+        review_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
+        status_execution_mode = "direct_repo" if review_workspace.resolution_kind == "repo_root" else "worktree"
+        latest_event = None
+        for _event in reversed(_rv_events):
+            if getattr(_event, "wp_id", None) == normalized_wp_id:
+                latest_event = _event
+                break
+        is_review_claimed = bool(latest_event is not None and latest_event.to_lane == Lane.IN_PROGRESS and latest_event.review_ref == "action-review-claim")
+        if current_lane == "doing" and not is_review_claimed:
+            print(f"Error: {normalized_wp_id} is still being implemented, not claimed for review.")
+            print("Only work packages in 'for_review' (or already review-claimed doing) can start workflow review.")
+            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
+            raise typer.Exit(1)
         if current_lane not in {Lane.FOR_REVIEW, "doing"}:
             print(f"Error: {normalized_wp_id} is in lane '{current_lane_raw}', not 'for_review'.")
             print("Only work packages in 'for_review' can start workflow review.")
-            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review")
+            print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
 
         if current_lane != "doing":
@@ -1164,6 +1259,7 @@ def review(
                     reason="Started review via action command",
                     review_ref="action-review-claim",
                     workspace_context=f"action-review:{main_repo_root}",
+                    execution_mode=status_execution_mode,
                     repo_root=main_repo_root,
                 )
 
@@ -1194,10 +1290,7 @@ def review(
                     allow_empty=True,  # OK if already in this state
                 )
                 if not commit_success:
-                    print(
-                        f"Error: Failed to commit workflow status update for {normalized_wp_id}. "
-                        "Review claim aborted."
-                    )
+                    print(f"Error: Failed to commit workflow status update for {normalized_wp_id}. Review claim aborted.")
                     raise typer.Exit(1)
 
             print(f"✓ Claimed {normalized_wp_id} for review (agent: {agent}, PID: {shell_pid}, target: {target_branch})")
@@ -1243,15 +1336,7 @@ def review(
                 worktree_cmd = ["git", "worktree", "add", str(workspace_path), branch_name]
             else:
                 worktree_cmd = ["git", "worktree", "add", str(workspace_path), "-b", branch_name]
-            result = subprocess.run(
-                worktree_cmd,
-                cwd=main_repo_root,
-                capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
-                check=False
-            )
+            result = subprocess.run(worktree_cmd, cwd=main_repo_root, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False)
 
             if result.returncode != 0:
                 print(f"Warning: Could not create workspace: {result.stderr}")
@@ -1260,9 +1345,7 @@ def review(
                 workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, normalized_wp_id)
 
         # Resolve git context (branch name, base branch, commit count)
-        review_ctx = _resolve_review_context(
-            workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter
-        )
+        review_ctx = _resolve_review_context(workspace_path, main_repo_root, mission_slug, normalized_wp_id, wp.frontmatter)
 
         # Capture dependency warning for both file and summary
         dependents_warning = []
@@ -1303,9 +1386,7 @@ def review(
         lines.append(f"Source: {wp.path}")
         lines.append("")
         lines.append(f"Workspace: {workspace_path}")
-        if workspace.lane_id:
-            shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
-            lines.append(f"Workspace contract: lane {workspace.lane_id} shared by {shared}")
+        lines.append(_workspace_contract_description(workspace, normalized_wp_id))
         lines.append("")
         lines.append(_render_charter_context(repo_root, "review"))
         lines.append("")
@@ -1338,27 +1419,53 @@ def review(
         # Inject worktree topology context for stacked branches
         try:
             from specify_cli.core.worktree_topology import (
-                materialize_worktree_topology, render_topology_json,
+                materialize_worktree_topology,
+                render_topology_json,
             )
+
             topology = materialize_worktree_topology(repo_root, mission_slug)
             if topology.has_stacking:
                 lines.extend(render_topology_json(topology, current_wp_id=normalized_wp_id))
                 lines.append("")
-        except Exception:
-            pass  # Non-critical — topology is informational only
+        except Exception as exc:
+            lines.append(f"[Topology unavailable: {exc}]")
+            lines.append("")
 
         # Git review context — tells reviewer exactly what to diff against
         if review_ctx["base_branch"] != "unknown":
             base = review_ctx["base_branch"]
+            branch_ref = review_ctx["branch_name"]
+            review_paths = ""
+            if workspace.resolution_kind == "repo_root":
+                wp_meta, _ = read_wp_frontmatter(wp.path)
+                if wp_meta.owned_files:
+                    review_pathspecs = list(wp_meta.owned_files)
+                    mission_root = f"kitty-specs/{mission_slug}/"
+                    if any(path.startswith(mission_root) for path in review_pathspecs):
+                        review_pathspecs.extend(
+                            [
+                                f":(exclude){mission_root}tasks/**",
+                                f":(exclude){mission_root}tasks.md",
+                                f":(exclude){mission_root}status.events.jsonl",
+                                f":(exclude){mission_root}status.json",
+                            ]
+                        )
+                    review_paths = " -- " + " ".join(review_pathspecs)
             lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
-            lines.append(f"Branch:      {review_ctx['branch_name']}")
+            lines.append(f"Branch:      {branch_ref}")
             lines.append(f"Base branch: {base} ({review_ctx['commit_count']} commits ahead)")
             lines.append("")
             lines.append("Review commands (run in the workspace):")
             lines.append(f"  cd {workspace_path}")
-            lines.append(f"  git log {base}..HEAD --oneline           # WP commits only")
-            lines.append(f"  git diff {base}..HEAD --stat             # Changed files")
-            lines.append(f"  git diff {base}..HEAD                    # Full diff")
+            lines.append(f"  git log {base}..{branch_ref} --oneline{review_paths}           # WP commits only")
+            lines.append(f"  git diff {base}..{branch_ref} --stat{review_paths}             # Changed files")
+            lines.append(f"  git diff {base}..{branch_ref}{review_paths}                    # Full diff")
+            lines.append("─" * 80)
+            lines.append("")
+        elif workspace.resolution_kind == "repo_root":
+            lines.append("─── GIT REVIEW CONTEXT " + "─" * 57)
+            lines.append("Review commands unavailable: no deterministic implementation claim commit found for this WP.")
+            lines.append("Re-run review after the WP has a committed implementation claim on this mission.")
             lines.append("─" * 80)
             lines.append("")
 
@@ -1373,8 +1480,7 @@ def review(
             if _rv_baseline is not None and _rv_baseline.failed > 0:
                 lines.append("─── BASELINE TEST CONTEXT " + "─" * 54)
                 lines.append(
-                    f"**{_rv_baseline.failed} test failure(s) existed BEFORE this WP** "
-                    f"(base: {_rv_baseline.base_branch} @ {_rv_baseline.base_commit[:7]}):"
+                    f"**{_rv_baseline.failed} test failure(s) existed BEFORE this WP** (base: {_rv_baseline.base_branch} @ {_rv_baseline.base_commit[:7]}):"
                 )
                 lines.append("")
                 lines.append("| Test | Error | File |")
@@ -1382,10 +1488,7 @@ def review(
                 for _rv_f in _rv_baseline.failures:
                     lines.append(f"| {_rv_f.test} | {_rv_f.error[:80]} | {_rv_f.file} |")
                 lines.append("")
-                lines.append(
-                    "**These failures are NOT regressions introduced by this WP.** "
-                    "Only flag test failures that are NOT in this list."
-                )
+                lines.append("**These failures are NOT regressions introduced by this WP.** Only flag test failures that are NOT in this list.")
                 lines.append("─" * 80)
                 lines.append("")
             elif _rv_baseline is not None and _rv_baseline.failed == -1:
@@ -1399,6 +1502,7 @@ def review(
                 lines.append("")
         except Exception as _rv_bl_err:
             import logging as _rv_bl_log
+
             _rv_bl_log.getLogger(__name__).warning("Baseline load error in review: %s", _rv_bl_err)
 
         # Determine the writable in-repo feedback path.
@@ -1417,27 +1521,27 @@ def review(
         lines.append("WHEN YOU'RE DONE:")
         lines.append("=" * 80)
         lines.append("✓ Review passed, no issues:")
-        lines.append(
-            f"  spec-kitty agent tasks move-task {normalized_wp_id} "
-            '--to approved --note "Review passed"'
-        )
+        lines.append(f'  spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         lines.append("")
         lines.append(f"⚠️  Changes requested:")
         lines.append(f"  1. Write feedback to (in-repo, committed with the project):")
         lines.append(f"     {review_feedback_path}")
-        lines.append(f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
+        lines.append(
+            f"  2. spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
+        )
         lines.append("  3. move-task stores feedback reference in the event log and WP frontmatter")
         lines.append("=" * 80)
         lines.append("")
         lines.append(f"📍 WORKING DIRECTORY:")
         lines.append(f"   cd {workspace_path}")
-        lines.append(f"   # Review the implementation in this workspace")
-        lines.append(f"   # Read code, run tests, check against requirements")
-        lines.append(f"   # When done, return to repo root: cd {repo_root}")
+        if workspace.lane_id:
+            lines.append("   # Review the implementation in this workspace")
+            lines.append("   # Read code, run tests, check against requirements")
+            lines.append(f"   # When done, return to repo root: cd {repo_root}")
+        else:
+            lines.append("   # Review the planning-artifact changes directly in the repository root")
         lines.append("")
-        lines.append("📚 SHARED MISSION ARTIFACTS:")
-        lines.append(f"   Spec, plan, tasks, and status live in main repo: {repo_root}/kitty-specs/{mission_slug}/")
-        lines.append("   Use this lane workspace for code/tests; do not expect shared mission artifacts here")
+        lines.extend(_shared_artifact_guidance(workspace, repo_root, mission_slug))
         lines.append("")
         lines.append("📋 STATUS TRACKING:")
         lines.append(f"   kitty-specs/ status is tracked in {target_branch} branch (visible to all agents)")
@@ -1467,10 +1571,7 @@ def review(
         lines.append("=" * 80)
         lines.append("")
         lines.append("✅ APPROVE (no issues found):")
-        lines.append(
-            f"   spec-kitty agent tasks move-task {normalized_wp_id} "
-            '--to approved --note "Review passed: <summary>"'
-        )
+        lines.append(f'   spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed: <summary>"')
         lines.append("")
         lines.append(f"❌ REQUEST CHANGES (issues found):")
         lines.append(f"   1. Write feedback to the in-repo path (committed with the project):")
@@ -1480,7 +1581,9 @@ def review(
         lines.append(f"EOF")
         lines.append("")
         lines.append(f"   2. Move to planned with feedback:")
-        lines.append(f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
+        lines.append(
+            f"      spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}"
+        )
         lines.append("")
         lines.append("⚠️  NOTE: You MUST run one of these commands to complete the review!")
         lines.append("     The Python script handles all file updates automatically.")
@@ -1500,19 +1603,36 @@ def review(
         if workspace.lane_id:
             shared = ", ".join(workspace.lane_wp_ids or [normalized_wp_id])
             print(f"   Lane workspace: {workspace.lane_id} (shared by {shared})")
+        else:
+            print("   Repository-root planning workspace")
         if review_ctx["base_branch"] != "unknown":
             base = review_ctx["base_branch"]
             print(f"🔀 Branch: {review_ctx['branch_name']} (based on {base}, {review_ctx['commit_count']} commits)")
-            print(f"   Review diff: git log {base}..HEAD --oneline")
+            if workspace.resolution_kind == "repo_root":
+                wp_meta, _ = read_wp_frontmatter(wp.path)
+                review_pathspecs = list(wp_meta.owned_files)
+                mission_root = f"kitty-specs/{mission_slug}/"
+                if any(path.startswith(mission_root) for path in review_pathspecs):
+                    review_pathspecs.extend(
+                        [
+                            f":(exclude){mission_root}tasks/**",
+                            f":(exclude){mission_root}tasks.md",
+                            f":(exclude){mission_root}status.events.jsonl",
+                            f":(exclude){mission_root}status.json",
+                        ]
+                    )
+                review_paths = " -- " + " ".join(review_pathspecs) if review_pathspecs else ""
+                print(f"   Review diff: git log {base}..{review_ctx['branch_name']} --oneline{review_paths}")
+            else:
+                print(f"   Review diff: git log {base}..{review_ctx['branch_name']} --oneline")
+        elif workspace.resolution_kind == "repo_root":
+            print("🔀 Review diff unavailable: no deterministic implementation claim commit found for this WP")
         print()
         print("▶▶▶ NEXT STEP: Read the full prompt file now:")
         print(f"    cat {prompt_file}")
         print()
         print("After review, run:")
-        print(
-            f"  ✅ spec-kitty agent tasks move-task {normalized_wp_id} "
-            '--to approved --note "Review passed"'
-        )
+        print(f'  ✅ spec-kitty agent tasks move-task {normalized_wp_id} --to approved --mission {mission_slug} --note "Review passed"')
         print(f"  ❌ spec-kitty agent tasks move-task {normalized_wp_id} --to planned --review-feedback-file {review_feedback_path} --mission {mission_slug}")
 
     except Exception as e:

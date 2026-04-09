@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://spec-kitty.dev/contracts/078/stale-status.schema.json",
+  "title": "SpecKittyStaleStatus",
+  "type": "object",
+  "required": [
+    "status",
+    "reason",
+    "minutes_since_commit",
+    "last_commit_time"
+  ],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": [
+        "fresh",
+        "stale",
+        "not_applicable"
+      ]
+    },
+    "reason": {
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "minutes_since_commit": {
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "last_commit_time": {
+      "type": [
+        "string",
+        "null"
+      ],
+      "format": "date-time"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "status": {
+            "const": "not_applicable"
+          }
+        },
+        "required": [
+          "status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reason": {
+            "const": "planning_artifact_repo_root_shared_workspace"
+          },
+          "minutes_since_commit": {
+            "const": null
+          },
+          "last_commit_time": {
+            "const": null
+          }
+        }
+      }
+    }
+  ],
+  "additionalProperties": false
+}

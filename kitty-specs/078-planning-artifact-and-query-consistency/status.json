@@ -1,0 +1,54 @@
+{
+  "event_count": 30,
+  "last_event_id": "01KNQ89CGY23P16V09CP8XP866",
+  "materialized_at": "2026-04-08T19:14:43.358672+00:00",
+  "mission_slug": "078-planning-artifact-and-query-consistency",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 5,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ88SP3CNJFP7381PSKSMPD",
+      "last_transition_at": "2026-04-08T19:14:24.068029+00:00"
+    },
+    "WP02": {
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ88TQF6XPFNS5PKTBSN2MB",
+      "last_transition_at": "2026-04-08T19:14:25.136044+00:00"
+    },
+    "WP03": {
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ88VQPK7Y58JT7N4W9XKXK",
+      "last_transition_at": "2026-04-08T19:14:26.166745+00:00"
+    },
+    "WP04": {
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ88WQAF4FBGN9E6V2SGC07",
+      "last_transition_at": "2026-04-08T19:14:27.178330+00:00"
+    },
+    "WP05": {
+      "actor": "opencode:gpt-5.4:orchestrator:orchestrator",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KNQ89CGY23P16V09CP8XP866",
+      "last_transition_at": "2026-04-08T19:14:43.358672+00:00"
+    }
+  }
+}
