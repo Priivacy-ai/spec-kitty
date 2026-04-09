@@ -106,13 +106,13 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T038 | Add human-readable duration formatter ("59 min remaining") | WP07 | | [D] |
 | T039 | Add storage backend display formatter | WP07 | | [D] |
 | T040 | Write unit + CliRunner tests for status | WP07 | | [D] |
-| T041 | Create `auth/http/transport.py` (OAuthHttpClient) | WP08 | |
-| T042 | Rewire `sync/client.py` (HTTP and WebSocket paths) to TokenManager | WP08 | |
-| T043 | Rewire `tracker/saas_client.py` to TokenManager | WP08 | |
-| T044 | Rewire sync/{background,batch,body_transport,runtime,emitter,events}.py | WP08 | |
-| T045 | GREP AUDIT: zero `CredentialStore`/`AuthClient` references outside `auth/` | WP08 | |
-| T046 | GREP AUDIT: ≥5 `get_token_manager` callers from production code | WP08 | |
-| T047 | Write unit tests for OAuthHttpClient + update sync/client tests | WP08 | |
+| T041 | Create `auth/http/transport.py` (OAuthHttpClient) | WP08 | | [D] |
+| T042 | Rewire `sync/client.py` (HTTP and WebSocket paths) to TokenManager | WP08 | | [D] |
+| T043 | Rewire `tracker/saas_client.py` to TokenManager | WP08 | | [D] |
+| T044 | Rewire sync/{background,batch,body_transport,runtime,emitter,events}.py | WP08 | | [D] |
+| T045 | GREP AUDIT: zero `CredentialStore`/`AuthClient` references outside `auth/` | WP08 | | [D] |
+| T046 | GREP AUDIT: ≥5 `get_token_manager` callers from production code | WP08 | | [D] |
+| T047 | Write unit tests for OAuthHttpClient + update sync/client tests | WP08 | | [D] |
 | T048 | Create `auth/websocket/__init__.py` exporting `provision_ws_token` | WP09 | | [D] |
 | T049 | Create `auth/websocket/token_provisioning.py` (TokenProvisioner) | WP09 | | [D] |
 | T050 | Add 403/404/5xx error handling for ws-token endpoint | WP09 | | [D] |
@@ -342,13 +342,13 @@ the new auth system actually live.
 **Estimated prompt size**: ~480 lines | **Subtasks**: 7
 
 **Included subtasks**:
-- [ ] T041 Create `auth/http/transport.py` (OAuthHttpClient) (WP08)
-- [ ] T042 Rewire `sync/client.py` (HTTP and WebSocket paths) to TokenManager (WP08)
-- [ ] T043 Rewire `tracker/saas_client.py` to TokenManager (WP08)
-- [ ] T044 Rewire sync/{background,batch,body_transport,runtime,emitter,events}.py (WP08)
-- [ ] T045 GREP AUDIT: zero `CredentialStore`/`AuthClient` references outside `auth/` (WP08)
-- [ ] T046 GREP AUDIT: ≥5 `get_token_manager` callers from production code (WP08)
-- [ ] T047 Write unit tests for OAuthHttpClient + update sync/client tests (WP08)
+- [x] T041 Create `auth/http/transport.py` (OAuthHttpClient) (WP08)
+- [x] T042 Rewire `sync/client.py` (HTTP and WebSocket paths) to TokenManager (WP08)
+- [x] T043 Rewire `tracker/saas_client.py` to TokenManager (WP08)
+- [x] T044 Rewire sync/{background,batch,body_transport,runtime,emitter,events}.py (WP08)
+- [x] T045 GREP AUDIT: zero `CredentialStore`/`AuthClient` references outside `auth/` (WP08)
+- [x] T046 GREP AUDIT: ≥5 `get_token_manager` callers from production code (WP08)
+- [x] T047 Write unit tests for OAuthHttpClient + update sync/client tests (WP08)
 
 **Dependencies**: WP01, WP09 (sync/client.py needs WP09's auth/websocket
 package to exist before its WS path can be rewired)
