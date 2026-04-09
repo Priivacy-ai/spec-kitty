@@ -1,3 +1,6 @@
+---
+description: Execute a work package implementation
+---
 # /spec-kitty.implement - Execute Work Package Implementation
 
 **Version**: 0.12.0+

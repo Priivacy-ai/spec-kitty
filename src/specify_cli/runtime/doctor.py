@@ -169,6 +169,9 @@ def check_governance_resolution(project_dir: Path) -> DoctorCheck:
     )
 
 
+_VERSION_MARKER_HEAD_LINES = 15
+
+
 def check_command_file_health(project_path: Path) -> list[dict]:
     """Check all agent command files for correctness.
 
@@ -176,10 +179,12 @@ def check_command_file_health(project_path: Path) -> list[dict]:
     function verifies that:
 
     - The command file exists.
-    - The file starts with the current ``<!-- spec-kitty-command-version: X.Y.Z -->``
+    - The file head contains the current ``<!-- spec-kitty-command-version: X.Y.Z -->``
       marker (stale or missing marker indicates a file that needs regeneration).
+      The marker may sit on line 1 (legacy layout) or just after the YAML
+      frontmatter that carries the slash-command picker description.
     - The file type is correct: prompt-driven commands should be long (>50 non-empty
-      lines) and CLI-driven commands should be short (<10 non-empty lines).
+      lines) and CLI-driven commands should be short (<15 non-empty lines).
 
     Args:
         project_path: Root directory of the project.
@@ -255,9 +260,12 @@ def check_command_file_health(project_path: Path) -> list[dict]:
                 })
                 continue
 
-            # Version marker check
-            first_line = content.split("\n", 1)[0].strip()
-            if first_line != expected_marker:
+            # Version marker check — scan the file head, not just line 1, so
+            # the post-fix layout (frontmatter on line 1, marker after the
+            # closing ``---``) is recognized as healthy.
+            head_lines = content.splitlines()[:_VERSION_MARKER_HEAD_LINES]
+            marker_present = any(line.strip() == expected_marker for line in head_lines)
+            if not marker_present:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
@@ -266,7 +274,8 @@ def check_command_file_health(project_path: Path) -> list[dict]:
                     "severity": "warning",
                 })
 
-            # Type check: prompt-driven should be long, CLI-driven should be short
+            # Type check: prompt-driven should be long, CLI-driven should be short.
+            # Threshold accounts for the new YAML frontmatter (~3 extra lines).
             non_empty_lines = [line for line in content.splitlines() if line.strip()]
             line_count = len(non_empty_lines)
             if is_prompt_driven and line_count < 50:
@@ -277,12 +286,12 @@ def check_command_file_health(project_path: Path) -> list[dict]:
                     "issue": f"prompt-driven command has only {line_count} non-empty lines (expected >50)",
                     "severity": "warning",
                 })
-            elif not is_prompt_driven and line_count >= 10:
+            elif not is_prompt_driven and line_count >= 15:
                 issues.append({
                     "agent": agent_key,
                     "command": command,
                     "file": rel_path,
-                    "issue": f"CLI-driven command has {line_count} non-empty lines (expected <10 for thin shim)",
+                    "issue": f"CLI-driven command has {line_count} non-empty lines (expected <15 for thin shim)",
                     "severity": "warning",
                 })
 

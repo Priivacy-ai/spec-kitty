@@ -1,3 +1,6 @@
+---
+description: Create an implementation plan
+---
 # /spec-kitty.plan - Create Implementation Plan
 
 **Version**: 0.11.0+

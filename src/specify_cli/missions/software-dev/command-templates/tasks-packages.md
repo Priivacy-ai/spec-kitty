@@ -1,4 +1,6 @@
-<!-- spec-kitty-command-version: 3.2.0 -->
+---
+description: Materialize work package files
+---
 # /spec-kitty.tasks-packages - Generate Work Package Files
 
 **Version**: 3.2.0

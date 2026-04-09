@@ -8,6 +8,7 @@ import pytest
 
 from specify_cli.shims.generator import (
     AGENT_ARG_PLACEHOLDERS,
+    SHIM_DESCRIPTIONS,
     _canonical_command,
     generate_shim_content,
     generate_all_shims,
@@ -64,23 +65,57 @@ class TestCanonicalCommand:
 # ---------------------------------------------------------------------------
 
 class TestGenerateShimContent:
-    def test_three_non_empty_components(self) -> None:
+    def test_total_line_count(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.rstrip("\n").splitlines()
-        # version marker, invariant line, prohibition line, mission hint, blank, CLI call
-        assert len(lines) == 6
+        # ---, description, ---, version marker, invariant, prohibition,
+        # mission hint, blank, CLI call
+        assert len(lines) == 9
 
-    def test_first_line_invariant(self) -> None:
+    def test_starts_with_yaml_frontmatter(self) -> None:
+        """Line 1 must be ``---`` so Claude Code parses the description."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        # Line 0 is the version marker; invariant is on line 1
-        first = content.splitlines()[1]
-        assert first == "Run this exact command and treat its output as authoritative."
+        lines = content.splitlines()
+        assert lines[0] == "---"
+        assert lines[1] == "description: Execute a work package implementation"
+        assert lines[2] == "---"
 
-    def test_second_line_prohibition(self) -> None:
+    def test_description_uses_shim_descriptions_map(self) -> None:
+        for command, expected in SHIM_DESCRIPTIONS.items():
+            content = generate_shim_content(command, "claude", "$ARGUMENTS")
+            assert f"description: {expected}" in content
+
+    def test_description_fallback_for_unknown_command(self) -> None:
+        # Unknown commands still receive a description (defensive default).
+        # Use "implement" via the canonical map for the CLI body but pass an
+        # unmapped key to the description map by monkey-patching: we exercise
+        # the fallback branch directly here.
+        from specify_cli.shims import generator as gen
+
+        original = gen.SHIM_DESCRIPTIONS
+        try:
+            gen.SHIM_DESCRIPTIONS = {}
+            content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        finally:
+            gen.SHIM_DESCRIPTIONS = original
+        assert "description: spec-kitty implement" in content
+
+    def test_version_marker_after_frontmatter(self) -> None:
+        """Marker must follow the closing ``---`` so YAML frontmatter parses cleanly."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        # Line 0 is the version marker; prohibition is on line 2
-        second = content.splitlines()[2]
-        assert second == "Do not rediscover context from branches, files, or prompt contents."
+        lines = content.splitlines()
+        assert lines[3].startswith("<!-- spec-kitty-command-version:")
+
+    def test_invariant_line_position(self) -> None:
+        content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        lines = content.splitlines()
+        # Line 0..2 frontmatter, line 3 marker, line 4 invariant
+        assert lines[4] == "Run this exact command and treat its output as authoritative."
+
+    def test_prohibition_line_position(self) -> None:
+        content = generate_shim_content("implement", "claude", "$ARGUMENTS")
+        lines = content.splitlines()
+        assert lines[5] == "Do not rediscover context from branches, files, or prompt contents."
 
     def test_direct_implement_command(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
@@ -124,11 +159,21 @@ class TestGenerateShimContent:
     def test_shim_content_mission_hint_line(self) -> None:
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
         lines = content.splitlines()
-        assert lines[3] == "In repos with multiple missions, pass --mission <slug> in your arguments."
+        # Frontmatter occupies lines 0..2, version marker line 3, invariant
+        # line 4, prohibition line 5, mission hint line 6.
+        assert lines[6] == "In repos with multiple missions, pass --mission <slug> in your arguments."
 
-    def test_shim_content_version_marker_still_first(self) -> None:
+    def test_shim_content_version_marker_present_in_head(self) -> None:
+        """Marker must appear in the file head (no longer line 0 — line 3)."""
         content = generate_shim_content("implement", "claude", "$ARGUMENTS")
-        assert content.splitlines()[0].startswith("<!-- spec-kitty-command-version:")
+        head = content.splitlines()[:6]
+        assert any(line.startswith("<!-- spec-kitty-command-version:") for line in head)
+
+    def test_every_cli_driven_command_has_description(self) -> None:
+        for command in CLI_DRIVEN_COMMANDS:
+            assert command in SHIM_DESCRIPTIONS, (
+                f"CLI-driven command '{command}' missing entry in SHIM_DESCRIPTIONS"
+            )
 
 
 # ---------------------------------------------------------------------------

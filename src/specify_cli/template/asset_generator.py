@@ -162,10 +162,19 @@ def render_command_template(
         # For TOML files, embed the version marker as a comment in the prompt body
         return f'description = "{description_value}"\n\nprompt = """\n{version_marker}{body_text}"""\n'
 
-    result = f"---\n{frontmatter_clean}\n---\n\n{rendered_body}" if frontmatter_clean else rendered_body
+    # Markdown output: preserve the template's YAML frontmatter on line 1 so
+    # agents (e.g. Claude Code) can read the `description` field for their
+    # slash-command picker UI.  The HTML version marker goes *after* the
+    # frontmatter block — placing it before would push the `---` off line 1
+    # and break YAML frontmatter parsing.  Migrations and doctor scans look
+    # for the marker within the file head, not only on line 1.
+    if frontmatter_clean:
+        result = f"---\n{frontmatter_clean}\n---\n{version_marker}\n{rendered_body}"
+    else:
+        result = f"{version_marker}\n{rendered_body}"
     if not result.endswith("\n"):
         result += "\n"
-    return version_marker + result
+    return result
 
 
 def _convert_markdown_syntax_to_format(content: str, target_format: str) -> str:

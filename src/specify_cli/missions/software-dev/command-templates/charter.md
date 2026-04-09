@@ -1,3 +1,6 @@
+---
+description: Interview and compile a project charter
+---
 # /spec-kitty.charter - Interview + Compile Charter
 
 ## User Input

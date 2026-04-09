@@ -1,10 +1,15 @@
 """Generate thin command markdown files for all configured agents.
 
-Each generated file contains exactly:
-  1. A version marker comment.
-  2. An invariant instruction line.
-  3. A prohibition line.
-  4. A direct canonical CLI call that passes all arguments through.
+Each generated Markdown file contains exactly:
+  1. A YAML frontmatter block declaring a human-readable ``description``
+     (used by slash-command pickers such as Claude Code's UI).
+  2. A version marker HTML comment (``<!-- spec-kitty-command-version: X.Y.Z -->``).
+     The marker lives *inside* the file body, immediately after the closing
+     ``---``; migrations and doctor checks scan the file head for it.
+  3. An invariant instruction line.
+  4. A prohibition line.
+  5. A mission hint line.
+  6. A direct canonical CLI call that passes all arguments through.
 
 No workflow logic is embedded in command files.  Each file calls the
 canonical ``spec-kitty`` CLI command directly -- there is no intermediate
@@ -20,6 +25,19 @@ from specify_cli.agent_utils.directories import (
     get_agent_dirs_for_project,
 )
 from specify_cli.shims.registry import CLI_DRIVEN_COMMANDS
+
+# Human-readable one-line descriptions shown by agent slash-command pickers
+# (e.g. Claude Code's UI populates its description column from frontmatter).
+# Keys must match entries in :data:`CLI_DRIVEN_COMMANDS`.
+SHIM_DESCRIPTIONS: dict[str, str] = {
+    "implement": "Execute a work package implementation",
+    "review": "Review a work package implementation",
+    "accept": "Accept a completed mission",
+    "merge": "Merge a completed mission",
+    "status": "Show mission and work package status",
+    "dashboard": "Open the mission dashboard",
+    "tasks-finalize": "Finalize a mission's work packages",
+}
 
 
 def _get_cli_version() -> str:
@@ -80,12 +98,15 @@ def _canonical_command(command: str, agent_name: str, arg_placeholder: str) -> s
 
 
 def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -> str:
-    """Return the command markdown body with version marker.
+    """Return the command markdown body with frontmatter and version marker.
 
     Each generated file calls a canonical ``spec-kitty`` CLI command
-    directly -- there is no intermediate shim dispatch layer.  The first
-    line is always a ``<!-- spec-kitty-command-version: X.Y.Z -->`` marker
-    so migrations and doctor checks can detect stale files.
+    directly -- there is no intermediate shim dispatch layer.  The file
+    opens with YAML frontmatter (``---`` on line 1) that carries a
+    ``description`` key; slash-command pickers such as Claude Code read
+    this to populate their UI.  Immediately after the closing ``---``,
+    a ``<!-- spec-kitty-command-version: X.Y.Z -->`` comment lets
+    migrations and doctor checks detect spec-kitty-authored files.
 
     Args:
         command:         Skill verb, e.g. ``"implement"``.
@@ -97,7 +118,11 @@ def generate_shim_content(command: str, agent_name: str, arg_placeholder: str) -
     """
     version = _get_cli_version()
     cli_call = _canonical_command(command, agent_name, arg_placeholder)
+    description = SHIM_DESCRIPTIONS.get(command, f"spec-kitty {command}")
     return (
+        "---\n"
+        f"description: {description}\n"
+        "---\n"
         f"<!-- spec-kitty-command-version: {version} -->\n"
         "Run this exact command and treat its output as authoritative.\n"
         "Do not rediscover context from branches, files, or prompt contents.\n"

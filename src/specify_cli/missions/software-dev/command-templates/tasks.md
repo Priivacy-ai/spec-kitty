@@ -1,3 +1,6 @@
+---
+description: Break a plan into work packages
+---
 # /spec-kitty.tasks - Generate Work Packages
 
 **Version**: 0.11.0+

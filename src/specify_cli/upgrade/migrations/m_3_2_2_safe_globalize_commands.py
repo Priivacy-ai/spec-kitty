@@ -28,6 +28,12 @@ from specify_cli.runtime.home import get_kittify_home
 
 _VERSION_MARKER_PREFIX = "<!-- spec-kitty-command-version:"
 
+# Number of lines from the file head scanned for the version marker.
+# The marker may sit on line 1 (pre-fix layout) or just after the YAML
+# frontmatter block (post-fix layout); scanning a small head window covers
+# both without ever touching user-authored files.
+_VERSION_MARKER_HEAD_LINES = 15
+
 
 @MigrationRegistry.register
 class SafeGlobalizeCommandsMigration(BaseMigration):
@@ -82,12 +88,22 @@ class SafeGlobalizeCommandsMigration(BaseMigration):
 
     @staticmethod
     def _is_generated_file(path: Path) -> bool:
-        """Return True if the file's first line is a spec-kitty version marker."""
+        """Return True if the file head contains a spec-kitty version marker.
+
+        The marker is searched in the first :data:`_VERSION_MARKER_HEAD_LINES`
+        lines so files generated under either the pre-fix layout (marker on
+        line 1) or the post-fix layout (marker after the YAML frontmatter)
+        are recognized as spec-kitty-authored.  User-authored files have no
+        such marker anywhere in the head and are still skipped.
+        """
         try:
-            first_line = path.read_text(encoding="utf-8").split("\n", 1)[0]
-            return first_line.strip().startswith(_VERSION_MARKER_PREFIX)
+            content = path.read_text(encoding="utf-8")
         except (OSError, UnicodeDecodeError):
             return False
+        for line in content.splitlines()[:_VERSION_MARKER_HEAD_LINES]:
+            if line.strip().startswith(_VERSION_MARKER_PREFIX):
+                return True
+        return False
 
     def apply(self, project_path: Path, dry_run: bool = False) -> MigrationResult:
         changes: list[str] = []
