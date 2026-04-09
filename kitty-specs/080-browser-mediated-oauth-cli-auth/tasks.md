@@ -98,10 +98,10 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T030 | Wire user info fetch; build StoredSession on approval | WP05 | | [D] |
 | T031 | Write unit tests for DeviceCodeFlow | WP05 | | [D] |
 | T032 | Add CliRunner test for `spec-kitty auth login --headless` | WP05 | | [D] |
-| T033 | Create `cli/commands/_auth_logout.py` with logout_impl | WP06 | |
-| T034 | Implement /api/v1/logout call via OAuthHttpClient | WP06 | |
-| T035 | Add `--force` flag for local-only logout | WP06 | |
-| T036 | Write unit + CliRunner tests for logout | WP06 | |
+| T033 | Create `cli/commands/_auth_logout.py` with logout_impl | WP06 | | [D] |
+| T034 | Implement /api/v1/logout call via OAuthHttpClient | WP06 | | [D] |
+| T035 | Add `--force` flag for local-only logout | WP06 | | [D] |
+| T036 | Write unit + CliRunner tests for logout | WP06 | | [D] |
 | T037 | Create `cli/commands/_auth_status.py` with status_impl | WP07 | | [D] |
 | T038 | Add human-readable duration formatter ("59 min remaining") | WP07 | | [D] |
 | T039 | Add storage backend display formatter | WP07 | | [D] |
@@ -295,10 +295,10 @@ plus local credential cleanup. Server failure must not block local cleanup.
 **Estimated prompt size**: ~270 lines | **Subtasks**: 4
 
 **Included subtasks**:
-- [ ] T033 Create `cli/commands/_auth_logout.py` with logout_impl (WP06)
-- [ ] T034 Implement /api/v1/logout call via OAuthHttpClient (WP06)
-- [ ] T035 Add `--force` flag for local-only logout (WP06)
-- [ ] T036 Write unit + CliRunner tests for logout (WP06)
+- [x] T033 Create `cli/commands/_auth_logout.py` with logout_impl (WP06)
+- [x] T034 Implement /api/v1/logout call via OAuthHttpClient (WP06)
+- [x] T035 Add `--force` flag for local-only logout (WP06)
+- [x] T036 Write unit + CliRunner tests for logout (WP06)
 
 **Dependencies**: WP01, WP04, WP08 (uses OAuthHttpClient from WP08)
 
