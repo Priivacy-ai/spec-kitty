@@ -6,7 +6,7 @@
 
 Spec Kitty is an open-source CLI workflow for **spec-driven development** with AI coding agents.
 It helps teams turn product intent into implementation with a repeatable path:
-`spec` -> `plan` -> `tasks` -> `implement` -> `review` -> `merge`.
+`spec` -> `plan` -> `tasks` -> `spec-kitty next` (agent loop) -> `review` -> `merge`.
 
 ### Why teams use it
 
@@ -67,7 +67,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 graph LR
     A[📝 Specify<br/>WHAT to build] --> B[🎯 Plan<br/>HOW to build]
     B --> C[📋 Tasks<br/>Work packages]
-    C --> D[⚡ Implement<br/>Agent workflows]
+    C --> D[⚡ spec-kitty next<br/>Agent loop]
     D --> E[🔍 Review<br/>Quality gates]
     E --> F[🚀 Merge<br/>Ship it]
 
@@ -513,8 +513,8 @@ JWT refresh token rotation, and rate limiting for auth endpoints.
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
 4️⃣  /spec-kitty.tasks            → Generate work packages (in main repo)
-5️⃣  spec-kitty implement WP01    → Create or reuse the execution workspace for WP01
-    /spec-kitty.implement        → Build the work package
+5️⃣  spec-kitty next --agent <agent> --mission <slug>  → Agent loop: implement & review each WP
+    /spec-kitty.implement        → (per-WP: build the work package)
 6️⃣  /spec-kitty.review           → Review completed work
 7️⃣  /spec-kitty.accept           → Validate feature ready
 8️⃣  /spec-kitty.merge            → Merge to main + cleanup
@@ -1093,12 +1093,14 @@ my-project/                    # Main repo (main branch)
 /spec-kitty.tasks            # Step 5: Break plan into actionable tasks
 /spec-kitty.analyze          # Step 6 (optional): Check cross-artifact consistency
 
-# ========== CREATE OR RESOLVE EXECUTION WORKSPACE ==========
-spec-kitty implement WP01    # Step 7: Creates or reuses the execution workspace
-cd .worktrees/001-my-feature-lane-a  # Use the exact path Spec Kitty printed
+# ========== RUN AGENT LOOP (implement + review each WP) ==========
+spec-kitty next --agent <agent> --mission <slug>  # Step 7: Start the agent loop
+# Your agent calls: spec-kitty agent action implement WP01 --agent <name>
+# Then:            spec-kitty agent action review WP01 --agent <name>
+# Repeat for each WP until all are done.
 
 # ========== IN EXECUTION WORKSPACE ==========
-/spec-kitty.implement        # Step 8: Execute implementation tasks
+/spec-kitty.implement        # Step 8: Execute implementation tasks (called by agent loop)
 /spec-kitty.review           # Step 9: Review and refine completed work
 /spec-kitty.accept           # Step 10: Acceptance checks & final metadata
 /spec-kitty.merge --push     # Step 11: Merge to main + cleanup execution worktrees

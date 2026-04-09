@@ -233,7 +233,7 @@ git worktree list
 git worktree prune
 
 # Re-create the worktree if needed
-spec-kitty implement WP01
+spec-kitty agent action implement WP01 --agent <name>
 ```
 
 ---
@@ -295,7 +295,7 @@ would be affected before executing a sync with orphan removal.
 | Dashboard not starting | `spec-kitty dashboard` |
 | Stale agent config | `spec-kitty agent config sync` |
 | Corrupted config | `cp .kittify/config.yaml .kittify/config.yaml.bak && rm .kittify/config.yaml && spec-kitty init --here` |
-| Broken worktree | `git worktree prune && spec-kitty implement WP01` |
+| Broken worktree | `git worktree prune && spec-kitty agent action implement WP01 --agent <name>` |
 
 ## See Also
 

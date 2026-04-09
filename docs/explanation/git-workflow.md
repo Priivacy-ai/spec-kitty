@@ -10,7 +10,7 @@ Understanding this boundary matters because crossing it causes breakage. An agen
 
 | Git Operation | Who | When |
 |---|---|---|
-| `git worktree add` | Python | `spec-kitty implement WP##` |
+| `git worktree add` | Python | `spec-kitty agent action implement WP## --agent <name>` |
 | `git commit` (planning artifacts) | Python | Before worktree creation |
 | `git commit` (lane transitions) | Python | WP moves to doing / for_review |
 | `git commit` (implementation code) | **Agent** | After writing code in worktree |
@@ -31,7 +31,7 @@ Every execution workspace passes through five stages.
 ### 1. Created
 
 ```bash
-spec-kitty implement WP01
+spec-kitty agent action implement WP01 --agent <name>
 ```
 
 Python resolves the canonical workspace for the WP, runs `git worktree add` if needed, creates a workspace context file at `.kittify/workspaces/<mission>-<workspace>.json`, and sets the WP status to `in_progress`.
@@ -39,7 +39,7 @@ Python resolves the canonical workspace for the WP, runs `git worktree add` if n
 For dependent WPs, rely on task finalization to place the work in the correct execution lane:
 
 ```bash
-spec-kitty implement WP02
+spec-kitty agent action implement WP02 --agent <name>
 ```
 
 If WP01 and WP02 share a lane, the same workspace is reused sequentially. If they do not share a lane, each lane branches from the mission branch and integrates through the lane-only merge flow.
@@ -158,7 +158,7 @@ Spec Kitty displays a warning when it detects the base has diverged, but it does
 Git can only branch from one parent. If WP04 depends on both WP02 and WP03:
 
 ```bash
-spec-kitty implement WP04
+spec-kitty agent action implement WP04 --agent <name>
 ```
 
 Task finalization resolves multi-dependency lane ownership before implementation starts.

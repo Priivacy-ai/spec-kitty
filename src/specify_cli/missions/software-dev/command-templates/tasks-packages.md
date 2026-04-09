@@ -130,8 +130,8 @@ execution_mode: "code_change"
 ```
 
 Include the correct implementation command:
-- `spec-kitty implement WP01`
-- `spec-kitty implement WP02`
+- `spec-kitty agent action implement WP01 --agent <name>`
+- `spec-kitty agent action implement WP02 --agent <name>`
 
 `finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
 

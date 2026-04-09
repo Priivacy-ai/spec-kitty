@@ -62,7 +62,7 @@ spec-kitty agent action implement WP01
 # ... implement and finish WP01
 
 # Agent B starts WP02 after WP01 exists
-spec-kitty implement WP02
+spec-kitty agent action implement WP02 --agent <name>
 cd <workspace path printed by the command>
 ```
 

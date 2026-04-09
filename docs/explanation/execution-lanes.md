@@ -10,7 +10,7 @@ Spec Kitty uses a lane-based execution model.
 ## Core Rules
 
 1. Planning happens in the primary repository checkout.
-2. `spec-kitty implement WP##` requires a valid `lanes.json`.
+2. `spec-kitty agent action implement WP## --agent <name>` requires a valid `lanes.json`.
 3. The runtime chooses the lane worktree. Agents do not pick a base branch manually.
 4. If a feature computes one lane, the feature uses one worktree.
 5. Merge always follows `lane branches -> mission branch -> target branch`.
