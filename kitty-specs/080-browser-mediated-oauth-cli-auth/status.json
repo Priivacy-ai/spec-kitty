@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KNSN951RGT4GE9ZGWCAYR6WJ",
-  "materialized_at": "2026-04-09T17:40:16.056548+00:00",
+  "event_count": 27,
+  "last_event_id": "01KNSNB1MBRP50RC7MK4273CM3",
+  "materialized_at": "2026-04-09T17:41:18.091514+00:00",
   "mission_number": "080",
   "mission_slug": "080-browser-mediated-oauth-cli-auth",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 3,
+    "for_review": 1,
+    "in_progress": 2,
     "in_review": 0,
     "planned": 7
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-09T17:27:00.151064+00:00"
     },
     "WP02": {
-      "actor": "opus:opus:implementer:implementer",
-      "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KNSMH8E4GAQ1WBASMCVKQS11",
-      "last_transition_at": "2026-04-09T17:27:13.092790+00:00"
+      "actor": "user",
+      "force_count": 2,
+      "lane": "for_review",
+      "last_event_id": "01KNSNB1MBRP50RC7MK4273CM3",
+      "last_transition_at": "2026-04-09T17:41:18.091514+00:00"
     },
     "WP03": {
       "actor": "opus:opus:implementer:implementer",

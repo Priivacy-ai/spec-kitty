@@ -500,3 +500,4 @@ CSRF protection via state matching.
 ## Activity Log
 
 - 2026-04-09T17:27:13Z – opus:opus:implementer:implementer – shell_pid=56836 – Started implementation via action command
+- 2026-04-09T17:41:18Z – opus:opus:implementer:implementer – shell_pid=56836 – PKCE + loopback server + CSRF handler + browser launcher complete, 39 tests passing
