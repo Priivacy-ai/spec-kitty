@@ -368,3 +368,4 @@ def test_dogfood_command_set():
 - 2026-04-09T09:29:31Z – unknown – shell_pid=5789 – Version coherence fixed (3.1.1a2->3.1.1a3), validate_release.py extended with metadata.yaml sync check (FR-601/602), CHANGELOG check already in branch mode (T030 verified), proposed_changelog_block surfaced in JSON (FR-603), 4 test files (58 tests pass), dogfood clean
 - 2026-04-09T09:30:14Z – claude:opus:reviewer:reviewer – shell_pid=8221 – Started review via action command
 - 2026-04-09T09:35:08Z – claude:opus:reviewer:reviewer – shell_pid=8221 – Moved to planned
+- 2026-04-09T09:44:06Z – claude:opus:reviewer:reviewer – shell_pid=8846 – Cycle 2: FR-605 fixed (changelog block uses event-log status), RG-1..RG-8 all documented and PASS
