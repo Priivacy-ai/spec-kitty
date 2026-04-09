@@ -15,9 +15,6 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
-base_branch: kitty/mission-079-post-555-release-hardening
-base_commit: 8cb47d41abfbf38e8483a786b4f5b9e33d0b41c0
-created_at: '2026-04-09T07:50:14.107604+00:00'
 subtasks:
 - T001
 - T002
@@ -25,7 +22,6 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '59532'
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
@@ -296,8 +292,3 @@ Verify:
 2. The string `"Initial commit from Specify template"` is truly gone from `src/`.
 3. The next-steps output is accurate: names `spec-kitty next` and `agent action implement`, does NOT name bare `spec-kitty implement`.
 4. All 6 subtask tests pass without modification to the test assertions.
-
-## Activity Log
-
-- 2026-04-09T07:50:34Z – unknown – shell_pid=59532 – Dispatching claude implementation agent
-- 2026-04-09T08:02:19Z – unknown – shell_pid=59532 – Ready for review: removed git side-effects from init (T001), removed .agents/skills/ seeding (T002), updated next-steps to name spec-kitty next (T003), added idempotency check (T004), updated help text (T005), added 6 regression test files covering T1.1-T1.7 (T006). All 42 init tests pass.
