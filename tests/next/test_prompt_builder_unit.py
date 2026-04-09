@@ -146,6 +146,142 @@ class TestWriteToTemp:
 # ---------------------------------------------------------------------------
 
 
+@pytest.fixture
+def feature_with_planning_artifact_wp(feature_dir: Path) -> Path:
+    """A planning_artifact WP that resolves to repository root."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP02-planning.md").write_text(
+        "---\n"
+        "work_package_id: WP02\n"
+        "execution_mode: planning_artifact\n"
+        "owned_files:\n"
+        "  - kitty-specs/042-test-feature/spec.md\n"
+        "  - kitty-specs/042-test-feature/plan.md\n"
+        "---\n"
+        "# WP02 Planning\nUpdate the spec and plan.\n",
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
+@pytest.fixture
+def feature_with_planning_artifact_wp_no_owned_files(feature_dir: Path) -> Path:
+    """A planning_artifact WP with no owned_files (so review_paths stays empty)."""
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir()
+    (tasks_dir / "WP02-planning.md").write_text(
+        "---\n"
+        "work_package_id: WP02\n"
+        "execution_mode: planning_artifact\n"
+        "---\n"
+        "# WP02 Planning\nDocs work.\n",
+        encoding="utf-8",
+    )
+    return feature_dir
+
+
+class TestBuildPromptWPPlanningArtifact:
+    """Coverage for the repo-root planning-artifact branch in _build_wp_prompt."""
+
+    def test_implement_prompt_for_planning_artifact_uses_repo_root_workspace_label(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
+        repo_root = feature_with_planning_artifact_wp.parent.parent
+        text, path = build_prompt(
+            action="implement",
+            feature_dir=feature_with_planning_artifact_wp,
+            mission_slug="042-test-feature",
+            wp_id="WP02",
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        assert "Workspace contract: repository root planning workspace" in text
+        assert "Planning-artifact work for this WP happens in the repository root" in text
+        path.unlink()
+
+    def test_review_prompt_for_planning_artifact_without_claim_commit_says_unavailable(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
+        """No git history → no claim commit → review path falls into the unavailable branch."""
+        repo_root = feature_with_planning_artifact_wp.parent.parent
+        text, path = build_prompt(
+            action="review",
+            feature_dir=feature_with_planning_artifact_wp,
+            mission_slug="042-test-feature",
+            wp_id="WP02",
+            agent="codex",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        assert "Workspace contract: repository root planning workspace" in text
+        assert "REVIEW COMMANDS:" in text
+        assert "no deterministic implementation claim commit found" in text
+        path.unlink()
+
+    def test_review_prompt_with_claim_commit_emits_pathspec_review_commands(
+        self, feature_with_planning_artifact_wp: Path
+    ) -> None:
+        """A real claim commit on the WP markdown file produces a scoped diff command."""
+        import subprocess
+
+        repo_root = feature_with_planning_artifact_wp.parent.parent
+        for cmd in (
+            ["git", "init", "--quiet"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "add", "kitty-specs/042-test-feature/tasks/WP02-planning.md"],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "chore: WP02 claimed for implementation"],
+        ):
+            subprocess.run(cmd, cwd=repo_root, capture_output=True, check=True)
+
+        text, path = build_prompt(
+            action="review",
+            feature_dir=feature_with_planning_artifact_wp,
+            mission_slug="042-test-feature",
+            wp_id="WP02",
+            agent="codex",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        assert "REVIEW COMMANDS:" in text
+        assert "git log " in text and "..HEAD --oneline -- " in text
+        # owned_files start with kitty-specs/<mission>/ so the exclude pathspecs are appended
+        assert ":(exclude)kitty-specs/042-test-feature/tasks/**" in text
+        assert ":(exclude)kitty-specs/042-test-feature/status.events.jsonl" in text
+        path.unlink()
+
+    def test_review_prompt_with_claim_commit_no_owned_files_has_empty_pathspec(
+        self, feature_with_planning_artifact_wp_no_owned_files: Path
+    ) -> None:
+        import subprocess
+
+        repo_root = feature_with_planning_artifact_wp_no_owned_files.parent.parent
+        for cmd in (
+            ["git", "init", "--quiet"],
+            ["git", "config", "user.email", "test@example.com"],
+            ["git", "config", "user.name", "Test"],
+            ["git", "add", "kitty-specs/042-test-feature/tasks/WP02-planning.md"],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "chore: WP02 claimed for implementation"],
+        ):
+            subprocess.run(cmd, cwd=repo_root, capture_output=True, check=True)
+
+        text, path = build_prompt(
+            action="review",
+            feature_dir=feature_with_planning_artifact_wp_no_owned_files,
+            mission_slug="042-test-feature",
+            wp_id="WP02",
+            agent="codex",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        assert "REVIEW COMMANDS:" in text
+        # No owned_files → no pathspec, no exclude markers
+        assert ":(exclude)" not in text
+        path.unlink()
+
+
 class TestBuildPromptWP:
     def test_implement_prompt_structure(self, feature_with_wp: Path) -> None:
         repo_root = feature_with_wp.parent.parent

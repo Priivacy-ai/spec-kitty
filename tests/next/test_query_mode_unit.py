@@ -391,6 +391,119 @@ class TestQueryCurrentStateErrorPaths:
         assert decision.question == "Approve?"
         assert decision.options == ["yes", "no"]
 
+    def test_inner_query_validation_error_propagates_unwrapped(self, tmp_path: Path) -> None:
+        """A QueryModeValidationError raised inside the bootstrap should propagate
+        as-is rather than being wrapped in a generic 'Could not read query state'
+        error. This guards the explicit re-raise branch in query_current_state."""
+        from specify_cli.next.runtime_bridge import QueryModeValidationError, query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        mock_run_ref = MagicMock()
+        mock_run_ref.run_dir = str(tmp_path / "run")
+        mock_run_ref.run_id = "run-inner"
+
+        snapshot = MagicMock()
+        snapshot.template_path = str(tmp_path / "template.yaml")
+        snapshot.completed_steps = []
+        snapshot.pending_decisions = {}
+        snapshot.decisions = {}
+        snapshot.policy_snapshot = MagicMock()
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch(
+                "spec_kitty_runtime.planner.plan_next",
+                side_effect=QueryModeValidationError("planner contract violation"),
+            ),
+        ):
+            with pytest.raises(QueryModeValidationError, match="planner contract violation"):
+                query_current_state(None, "069-test", tmp_path)
+
+    def test_terminal_runtime_decision_renders_done_mission_state(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import query_current_state
+        from unittest.mock import MagicMock
+
+        feature_dir = tmp_path / "kitty-specs" / "069-test"
+        feature_dir.mkdir(parents=True)
+
+        mock_run_ref = MagicMock()
+        mock_run_ref.run_dir = str(tmp_path / "run")
+        mock_run_ref.run_id = "run-terminal"
+
+        snapshot = MagicMock()
+        snapshot.completed_steps = ["discovery", "plan", "implement"]
+        snapshot.pending_decisions = {}
+        snapshot.decisions = {}
+        snapshot.issued_step_id = None
+        snapshot.policy_snapshot = MagicMock()
+
+        terminal = MagicMock()
+        terminal.kind = "terminal"
+        terminal.step_id = None
+
+        with (
+            patch("specify_cli.next.runtime_bridge._existing_run_ref", return_value=mock_run_ref),
+            patch("specify_cli.next.runtime_bridge.get_mission_type", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._compute_wp_progress", return_value=None),
+            patch("spec_kitty_runtime.engine._read_snapshot", return_value=snapshot),
+            patch("specify_cli.next.runtime_bridge.load_mission_template_file", return_value=MagicMock()),
+            patch("spec_kitty_runtime.planner.plan_next", return_value=terminal),
+        ):
+            decision = query_current_state(None, "069-test", tmp_path)
+
+        assert decision.mission_state == "done"
+        assert decision.is_query is True
+
+    def test_existing_run_ref_returns_none_when_state_json_missing(self, tmp_path: Path) -> None:
+        from specify_cli.next.runtime_bridge import _existing_run_ref
+
+        index = {
+            "069-test": {
+                "run_id": "stale-run",
+                "run_dir": str(tmp_path / "stale_run"),
+                "mission_type": "software-dev",
+            }
+        }
+        # The directory exists but state.json is missing → contract returns None
+        # so the caller will fall back to bootstrapping a fresh ephemeral run.
+        (tmp_path / "stale_run").mkdir()
+
+        with patch("specify_cli.next.runtime_bridge._load_feature_runs", return_value=index):
+            assert _existing_run_ref("069-test", tmp_path, "software-dev") is None
+
+    def test_start_ephemeral_query_run_cleans_up_on_bootstrap_failure(self, tmp_path: Path) -> None:
+        """If start_mission_run raises, the freshly created temp dir is removed."""
+        from specify_cli.next.runtime_bridge import _start_ephemeral_query_run
+
+        created_dirs: list[Path] = []
+        original_mkdtemp = __import__("tempfile").mkdtemp
+
+        def tracking_mkdtemp(*args, **kwargs):
+            path = original_mkdtemp(*args, **kwargs)
+            created_dirs.append(Path(path))
+            return path
+
+        with (
+            patch("specify_cli.next.runtime_bridge.tempfile.mkdtemp", side_effect=tracking_mkdtemp),
+            patch("specify_cli.next.runtime_bridge._runtime_template_key", return_value="software-dev"),
+            patch("specify_cli.next.runtime_bridge._build_discovery_context", return_value=None),
+            patch("specify_cli.next.runtime_bridge.start_mission_run", side_effect=RuntimeError("template missing")),
+            pytest.raises(RuntimeError, match="template missing"),
+        ):
+            _start_ephemeral_query_run("069-test", "software-dev", tmp_path)
+
+        assert created_dirs, "Expected at least one mkdtemp call"
+        # All tracked directories must be cleaned up.
+        for path in created_dirs:
+            assert not path.exists(), f"{path} should have been removed on failure"
+
     def test_blocked_query_keeps_step_id_and_reason_separate(self, tmp_path: Path) -> None:
         from specify_cli.next.runtime_bridge import query_current_state
         from unittest.mock import MagicMock
