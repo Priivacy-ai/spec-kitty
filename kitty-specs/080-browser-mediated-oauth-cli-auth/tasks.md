@@ -74,13 +74,13 @@ Estimated implementation time: 4-6 days with sequential execution per lane,
 | T006 | Implement `file_fallback.py` with scrypt KDF + AES-256-GCM | WP01 | | [D] |
 | T007 | Create `auth/token_manager.py` with single-flight refresh | WP01 | | [D] |
 | T008 | Write unit tests for WP01 components | WP01 | | [D] |
-| T009 | Create `auth/loopback/pkce.py` (43-char verifier, S256 challenge) | WP02 | [P] |
-| T010 | Create `auth/loopback/state.py` (PKCEState dataclass + 5-min expiry) | WP02 | [P] |
-| T011 | Create `auth/loopback/state_manager.py` (lifecycle) | WP02 | |
-| T012 | Create `auth/loopback/callback_server.py` (port discovery + timeout) | WP02 | |
-| T013 | Create `auth/loopback/callback_handler.py` (CSRF state validation) | WP02 | |
-| T014 | Create `auth/loopback/browser_launcher.py` (cross-platform) | WP02 | [P] |
-| T015 | Write unit tests for WP02 components | WP02 | |
+| T009 | Create `auth/loopback/pkce.py` (43-char verifier, S256 challenge) | WP02 | [D] |
+| T010 | Create `auth/loopback/state.py` (PKCEState dataclass + 5-min expiry) | WP02 | [D] |
+| T011 | Create `auth/loopback/state_manager.py` (lifecycle) | WP02 | | [D] |
+| T012 | Create `auth/loopback/callback_server.py` (port discovery + timeout) | WP02 | | [D] |
+| T013 | Create `auth/loopback/callback_handler.py` (CSRF state validation) | WP02 | | [D] |
+| T014 | Create `auth/loopback/browser_launcher.py` (cross-platform) | WP02 | [D] |
+| T015 | Write unit tests for WP02 components | WP02 | | [D] |
 | T016 | Create `auth/device_flow/state.py` (DeviceFlowState dataclass) | WP03 | [P] |
 | T017 | Create `auth/device_flow/poller.py` (interval-respecting loop) | WP03 | |
 | T018 | Add user_code formatting + progress display helpers | WP03 | |
@@ -179,13 +179,13 @@ validation needed for the Authorization Code flow.
 **Estimated prompt size**: ~400 lines | **Subtasks**: 7
 
 **Included subtasks**:
-- [ ] T009 Create `auth/loopback/pkce.py` (43-char verifier, S256 challenge) (WP02)
-- [ ] T010 Create `auth/loopback/state.py` (PKCEState dataclass + 5-min expiry) (WP02)
-- [ ] T011 Create `auth/loopback/state_manager.py` (lifecycle) (WP02)
-- [ ] T012 Create `auth/loopback/callback_server.py` (port discovery + timeout) (WP02)
-- [ ] T013 Create `auth/loopback/callback_handler.py` (CSRF state validation) (WP02)
-- [ ] T014 Create `auth/loopback/browser_launcher.py` (cross-platform) (WP02)
-- [ ] T015 Write unit tests for WP02 components (WP02)
+- [x] T009 Create `auth/loopback/pkce.py` (43-char verifier, S256 challenge) (WP02)
+- [x] T010 Create `auth/loopback/state.py` (PKCEState dataclass + 5-min expiry) (WP02)
+- [x] T011 Create `auth/loopback/state_manager.py` (lifecycle) (WP02)
+- [x] T012 Create `auth/loopback/callback_server.py` (port discovery + timeout) (WP02)
+- [x] T013 Create `auth/loopback/callback_handler.py` (CSRF state validation) (WP02)
+- [x] T014 Create `auth/loopback/browser_launcher.py` (cross-platform) (WP02)
+- [x] T015 Write unit tests for WP02 components (WP02)
 
 **Dependencies**: WP01 (uses errors module)
 
