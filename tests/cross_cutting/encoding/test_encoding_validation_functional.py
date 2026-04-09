@@ -287,6 +287,21 @@ class TestPerformance:
 class TestEdgeCases:
     """Error case testing as specified in requirements"""
 
+    def test_symlinked_markdown_is_rejected(self, tmp_path):
+        """Verify sanitizer refuses to touch symlinked markdown files."""
+        target = tmp_path / "target.md"
+        target.write_bytes(b"User\x92s file")
+        link = tmp_path / "link.md"
+        try:
+            link.symlink_to(target)
+        except OSError:
+            pytest.skip("symlinks unsupported on this platform")
+
+        was_modified, error = sanitize_file(link, backup=False, dry_run=True)
+
+        assert was_modified is False
+        assert error == f"Refusing to sanitize symlinked file: {link}"
+
     def test_binary_file_handling(self):
         """Verify sanitizer handles binary files gracefully."""
         with TemporaryDirectory() as tmpdir:

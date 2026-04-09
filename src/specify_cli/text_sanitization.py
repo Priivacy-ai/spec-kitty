@@ -146,17 +146,17 @@ def sanitize_file(
         'User\\'s "test"'
         >>> tmp_path.unlink()  # cleanup
     """
-    if not file_path.exists():
-        return False, f"File not found: {file_path}"
-
     try:
+        if file_path.is_symlink():
+            return False, f"Refusing to sanitize symlinked file: {file_path}"
+        if not file_path.exists():
+            return False, f"File not found: {file_path}"
+
         try:
             file_path = file_path.resolve(strict=True)
         except OSError as exc:
             return False, f"Error resolving {file_path}: {exc}"
 
-        if file_path.is_symlink():
-            return False, f"Refusing to sanitize symlinked file: {file_path}"
         if file_path.suffix.lower() != ".md":
             return False, f"Only markdown files are supported: {file_path}"
 
