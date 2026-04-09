@@ -314,3 +314,7 @@ def test_emit_mission_created_includes_mission_id():
 2. Confirm no backfill code exists: search for `for mission in`, `walk(kitty-specs)`, etc. in the changes.
 3. Run T3.3 (concurrent test) 5 times in CI to verify it does not flake.
 4. Confirm `mypy --strict` on `mission_metadata.py` handles the `str | None` annotation correctly.
+
+## Activity Log
+
+- 2026-04-09T09:00:05Z – unknown – shell_pid=114 – Dispatching implementation
