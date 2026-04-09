@@ -58,6 +58,12 @@ def _assert_usage_error(output: str, *, substring: str | None = None) -> dict:
 class TestParserErrorsReturnJSON:
     """Missing required args and unknown options must return USAGE_ERROR JSON."""
 
+    def test_bare_group_invocation_returns_json(self):
+        """Invoking orchestrator-api with no subcommand must still emit JSON."""
+        result = runner.invoke(app, [])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="Missing command")
+
     def test_mission_state_missing_required_mission(self):
         """mission-state requires --mission; omitting it should be USAGE_ERROR."""
         result = runner.invoke(app, ["mission-state"])
@@ -280,6 +286,12 @@ class TestRootCLIPath:
         ])
         assert result.exit_code != 0
         _assert_usage_error(result.output, substring="--bogus")
+
+    def test_bare_group_invocation_through_root_returns_json(self):
+        """Bare orchestrator-api invocation through root CLI must stay JSON."""
+        result = runner.invoke(root_app, ["orchestrator-api"])
+        assert result.exit_code != 0
+        _assert_usage_error(result.output, substring="Missing command")
 
     # -- Old command names through root CLI must fail ----------------------
 

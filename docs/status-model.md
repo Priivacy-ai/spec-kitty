@@ -5,7 +5,7 @@
 
 **Terminology note**
 - Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
-- In this document, `--feature` and `feature_slug` remain legacy compatibility names for the tracked mission selector used by current status commands and event payloads
+- Status commands now use `--mission` as the canonical tracked-mission selector. Legacy `--feature` remains a hidden deprecated alias for compatibility only.
 
 ## Overview
 
@@ -17,6 +17,8 @@ The status model uses a single canonical append-only event log per mission as th
 - WP frontmatter is for **static definition only** (title, dependencies, subtasks) -- the `lane` field is no longer written or read by active runtime code
 - `finalize-tasks` is the **canonical bootstrap point** -- it creates initial WP definitions; status transitions are tracked exclusively in the event log
 - Frontmatter `lane` is a **historical/migration-only** concept retained in migration code paths for backward compatibility
+
+**3.1.0 addition**: Read-only status commands (including `materialize()` and `spec-kitty agent status materialize`) no longer dirty the git working tree. `status.json` is only written when there is a new event to materialize. The `materialized_at` field in `status.json` reflects the timestamp of the last event in the log, not the wall clock at the time the command was run.
 
 ## CLI Commands
 
@@ -66,7 +68,7 @@ spec-kitty agent status emit WP01 --to claimed --actor claude --json
 | `WP_ID` (argument) | Yes | Work package ID (e.g., `WP01`) |
 | `--to` | Yes | Target lane (canonical or alias) |
 | `--actor` | Yes | Who is making this transition |
-| `--feature` | No | Mission slug (legacy flag name; auto-detected from worktree if omitted) |
+| `--mission` | No | Mission slug |
 | `--force` | No | Bypass guard conditions |
 | `--reason` | When `--force` | Reason for forced transition |
 | `--evidence-json` | When `--to done` | JSON string with DoneEvidence |
@@ -83,10 +85,10 @@ Rebuild `status.json` from the canonical event log.
 spec-kitty agent status materialize
 
 # Specify mission explicitly
-spec-kitty agent status materialize --feature 034-feature-name
+spec-kitty agent status materialize --mission 034-feature-name
 
 # JSON output (full snapshot)
-spec-kitty agent status materialize --feature 034-feature-name --json
+spec-kitty agent status materialize --mission 034-feature-name --json
 ```
 
 **When to use**: After manual edits to `status.events.jsonl`, after resolving merge conflicts in the event log, or after running `status validate` reports materialization drift.
@@ -97,10 +99,10 @@ Check event log integrity, transition legality, done-evidence completeness, and 
 
 ```bash
 # Validate event log for a mission
-spec-kitty agent status validate --feature 034-feature-name
+spec-kitty agent status validate --mission 034-feature-name
 
 # JSON output for CI integration
-spec-kitty agent status validate --feature 034-feature-name --json
+spec-kitty agent status validate --mission 034-feature-name --json
 ```
 
 **Checks performed**:
@@ -116,14 +118,14 @@ Scan target repositories for WP-linked branches and commits, detect planning-vs-
 
 ```bash
 # Preview reconciliation suggestions (dry-run is the default)
-spec-kitty agent status reconcile --feature 034-feature-name --dry-run
+spec-kitty agent status reconcile --mission 034-feature-name --dry-run
 
 # Scan a specific target repository
-spec-kitty agent status reconcile --feature 034-feature-name \
+spec-kitty agent status reconcile --mission 034-feature-name \
   --target-repo /path/to/implementation-repo --dry-run
 
 # Apply reconciliation events (2.x only; disabled on 0.1x)
-spec-kitty agent status reconcile --feature 034-feature-name --apply
+spec-kitty agent status reconcile --mission 034-feature-name --apply
 ```
 
 **How it works**:
@@ -141,7 +143,7 @@ Run health checks detecting stale claims, orphan workspaces, and unresolved drif
 
 ```bash
 # Run all health checks for a mission
-spec-kitty agent status doctor --feature 034-feature-name
+spec-kitty agent status doctor --mission 034-feature-name
 ```
 
 **Health checks**:
@@ -159,10 +161,10 @@ Bootstrap canonical event logs from existing frontmatter lane state.
 
 ```bash
 # Preview migration for a single feature
-spec-kitty agent status migrate --feature 034-feature-name --dry-run
+spec-kitty agent status migrate --mission 034-feature-name --dry-run
 
 # Execute migration for a single feature
-spec-kitty agent status migrate --feature 034-feature-name
+spec-kitty agent status migrate --mission 034-feature-name
 
 # Migrate all features
 spec-kitty agent status migrate --all
@@ -191,7 +193,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 # "doing" is accepted as alias, persists as "in_progress" in the event log
 ```
 
-## 8-Lane State Machine
+## 9-Lane State Machine
 
 ### Canonical Lanes
 
@@ -201,6 +203,7 @@ spec-kitty agent tasks move-task WP01 --to doing
 | `claimed` | WP assigned to an actor, not yet started | No |
 | `in_progress` | Active implementation underway | No |
 | `for_review` | Implementation complete, awaiting review | No |
+| `in_review` | Reviewer actively examining implementation | No |
 | `approved` | Review passed, awaiting merge | No |
 | `done` | Merged and accepted | Yes (unless forced) |
 | `blocked` | Blocked by external dependency or issue | No |
@@ -208,23 +211,28 @@ spec-kitty agent tasks move-task WP01 --to doing
 
 **Alias**: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events)
 
-**Display**: The kanban board shows 5 columns (Planned, Doing, For Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
+**Display**: The kanban board shows 6 columns (Planned, Doing, For Review, In Review, Approved, Done). `claimed` WPs appear in the Planned column, `in_progress` appears as "Doing", and `blocked`/`canceled` WPs are shown separately below the board.
 
-### Allowed Transitions (24 pairs)
+### Allowed Transitions (27 pairs)
 
 ```
-# Normal flow
+# Normal flow (implementation progression)
 planned     -> claimed         (requires actor)
 claimed     -> in_progress     (workspace context)
 in_progress -> for_review      (subtasks check)
+
+# Review progression
+for_review  -> in_review       (reviewer claims; actor required with conflict detection)
+in_review   -> approved        (ReviewResult required)
+in_review   -> done            (ReviewResult required)
+
+# Direct approval paths (legacy, kept for backward compat)
 in_progress -> approved        (direct approval path)
-for_review  -> approved        (reviewer approves)
-for_review  -> done            (direct to done with evidence)
 approved    -> done            (merge verified)
 
 # Feedback loops
-for_review  -> in_progress     (changes requested, requires review_ref)
-for_review  -> planned         (rejection with feedback, requires review_ref)
+in_review   -> in_progress     (changes requested, ReviewResult required)
+in_review   -> planned         (rejection with feedback, ReviewResult required)
 approved    -> in_progress     (rework after approval, requires review_ref)
 approved    -> planned         (rejection after approval, requires review_ref)
 in_progress -> planned         (abandon/reassign, requires reason)
@@ -234,6 +242,7 @@ planned     -> blocked
 claimed     -> blocked
 in_progress -> blocked
 for_review  -> blocked
+in_review   -> blocked         (ReviewResult required)
 approved    -> blocked
 blocked     -> in_progress
 
@@ -242,6 +251,7 @@ planned     -> canceled
 claimed     -> canceled
 in_progress -> canceled
 for_review  -> canceled
+in_review   -> canceled        (ReviewResult required)
 approved    -> canceled
 blocked     -> canceled
 ```
@@ -255,8 +265,12 @@ blocked     -> canceled
 | `planned -> claimed` | Actor identity required | "Transition planned -> claimed requires actor identity" |
 | `claimed -> in_progress` | Workspace context (placeholder, always passes) | "No workspace context" |
 | `in_progress -> for_review` | Subtask completion check (placeholder) | "Unchecked subtasks" |
-| `for_review -> done` | Reviewer approval evidence required | "Missing review approval evidence" |
-| `for_review -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
+| `in_progress -> approved` | Reviewer approval evidence required | "Missing review approval evidence" |
+| `for_review -> in_review` | Actor identity required (conflict detection) | "Transition for_review -> in_review requires actor identity" |
+| `in_review -> *` (all outbound) | ReviewResult required in TransitionContext | "in_review outbound transitions require ReviewResult" |
+| `approved -> done` | Reviewer approval evidence required | "Missing review approval evidence" |
+| `approved -> in_progress` | Review feedback reference required | "Missing review feedback reference" |
+| `approved -> planned` | Review feedback reference required | "Missing review feedback reference" |
 | `in_progress -> planned` | Reason required | "Transition in_progress -> planned requires reason" |
 | Any forced transition | Actor AND reason required | "Force transitions require actor and reason" |
 
@@ -299,7 +313,7 @@ To migrate existing features to the canonical event log:
 
 1. **Preview**: Run `spec-kitty agent status migrate --all --dry-run` to see what would happen
 2. **Execute**: Run `spec-kitty agent status migrate --all` to bootstrap event logs from frontmatter
-3. **Verify**: Run `spec-kitty agent status validate --feature <slug>` for each feature to confirm integrity
+3. **Verify**: Run `spec-kitty agent status validate --mission <slug>` for each mission to confirm integrity
 4. **Optionally advance to Phase 2**: Set `status.phase: 2` in config.yaml or per-feature in meta.json
 
 ## Canonical Event Log Format
@@ -307,7 +321,7 @@ To migrate existing features to the canonical event log:
 Events are stored in `kitty-specs/<feature>/status.events.jsonl` as one JSON object per line:
 
 ```json
-{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","feature_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
+{"actor":"claude","at":"2026-02-08T12:00:00+00:00","event_id":"01HXYZ...","evidence":null,"execution_mode":"worktree","mission_slug":"034-feature-name","force":false,"from_lane":"planned","reason":null,"review_ref":null,"to_lane":"claimed","wp_id":"WP01"}
 ```
 
 Keys are always sorted (`sort_keys=True`) for deterministic, merge-friendly output.
@@ -337,8 +351,8 @@ kitty-specs/<feature>/
 
 **Materialization drift detected**: Run `spec-kitty agent status materialize` to regenerate `status.json` from the event log.
 
-**Frontmatter lane drift** (legacy features only): Frontmatter lane is no longer part of the active status model. For pre-3.0 features that still have frontmatter lane values, run `spec-kitty agent status migrate --feature <slug>` to bootstrap the event log, then status is managed exclusively via events.
+**Frontmatter lane drift** (legacy missions only): Frontmatter lane is no longer part of the active status model. For pre-3.0 missions that still have frontmatter lane values, run `spec-kitty agent status migrate --mission <slug>` to bootstrap the event log, then status is managed exclusively via events.
 
-**"No event log found"**: Run `spec-kitty agent status migrate --feature <slug>` to bootstrap from existing frontmatter state.
+**"No event log found"**: Run `spec-kitty agent status migrate --mission <slug>` to bootstrap from existing frontmatter state.
 
 **Stale claims reported by doctor**: Either continue work on the WP or release the claim by moving it back to `planned` (requires reason).

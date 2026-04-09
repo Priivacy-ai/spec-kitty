@@ -129,6 +129,7 @@ class TestFinalizeTasksBootstrap:
 
         # Mock bootstrap return value
         from specify_cli.status.bootstrap import BootstrapResult
+
         mock_bootstrap.return_value = BootstrapResult(
             total_wps=2,
             already_initialized=0,
@@ -141,12 +142,13 @@ class TestFinalizeTasksBootstrap:
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         # bootstrap was called
-        mock_bootstrap.assert_called_once_with(
-            feature_dir, mission_slug, dry_run=False
-        )
+        mock_bootstrap.assert_called_once_with(feature_dir, mission_slug, dry_run=False)
 
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
+        assert data["mission_slug"] == mission_slug
+        assert data["mission_number"] == "060"
+        assert data["mission_type"] == "software-dev"
         assert "bootstrap" in data
         assert data["bootstrap"]["total_wps"] == 2
         assert data["bootstrap"]["newly_seeded"] == 2
@@ -172,19 +174,23 @@ class TestFinalizeTasksBootstrap:
         mock_branch.return_value = (tmp_path, "main")
 
         from specify_cli.status.bootstrap import BootstrapResult
+
         mock_bootstrap.return_value = BootstrapResult(
-            total_wps=2, already_initialized=2, newly_seeded=0, skipped=0,
+            total_wps=2,
+            already_initialized=2,
+            newly_seeded=0,
+            skipped=0,
             wp_details={"WP01": "already_exists", "WP02": "already_exists"},
         )
 
-        result = runner.invoke(
-            app, ["finalize-tasks", "--mission", mission_slug, "--json", "--validate-only"]
-        )
+        result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json", "--validate-only"])
         assert result.exit_code == 0, f"CLI error: {result.output}"
+        data = json.loads(result.output)
+        assert data["mission_slug"] == mission_slug
+        assert data["mission_number"] == "060"
+        assert data["mission_type"] == "software-dev"
 
-        mock_bootstrap.assert_called_once_with(
-            ANY, mission_slug, dry_run=True
-        )
+        mock_bootstrap.assert_called_once_with(ANY, mission_slug, dry_run=True)
 
 
 # ---------------------------------------------------------------------------
@@ -234,12 +240,13 @@ class TestBodyNotesNoLane:
         # Build a mock WP
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
+
         mock_wp = WorkPackage(
             feature=mission_slug,
             path=wp_file,
             current_lane="claimed",
             relative_subpath=Path("tasks/WP01-test.md"),
-            frontmatter='work_package_id: WP01\ntitle: Test WP01\nlane: claimed\nagent: testbot\n',
+            frontmatter="work_package_id: WP01\ntitle: Test WP01\nlane: claimed\nagent: testbot\n",
             body="\n# WP01\n\n## Activity Log\n",
             padding="",
         )
@@ -249,9 +256,7 @@ class TestBodyNotesNoLane:
         _seed_wp_lane(feature_dir, "WP01", "claimed")
 
         # Build a proper mock event for read_events that returns real events
-        mock_read_events.return_value = list(
-            __import__("specify_cli.status.store", fromlist=["read_events"]).read_events(feature_dir)
-        )
+        mock_read_events.return_value = list(__import__("specify_cli.status.store", fromlist=["read_events"]).read_events(feature_dir))
 
         mock_emit.return_value = MagicMock(to_lane=Lane.IN_PROGRESS)
         mock_safe_commit.return_value = True
@@ -259,10 +264,14 @@ class TestBodyNotesNoLane:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01",
-                "--to", "in_progress",
-                "--agent", "testbot",
-                "--mission", mission_slug,
+                "move-task",
+                "WP01",
+                "--to",
+                "in_progress",
+                "--agent",
+                "testbot",
+                "--mission",
+                mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",
@@ -272,9 +281,7 @@ class TestBodyNotesNoLane:
 
         # Read the WP file and check the activity log
         content = wp_file.read_text(encoding="utf-8")
-        assert "lane=" not in content, (
-            f"Body note should not contain 'lane=' but got:\n{content}"
-        )
+        assert "lane=" not in content, f"Body note should not contain 'lane=' but got:\n{content}"
 
     @patch("specify_cli.cli.commands.agent.tasks.emit_history_added")
     @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
@@ -303,12 +310,13 @@ class TestBodyNotesNoLane:
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
+
         mock_wp = WorkPackage(
             feature=mission_slug,
             path=wp_file,
             current_lane="in_progress",
             relative_subpath=Path("tasks/WP01-test.md"),
-            frontmatter='work_package_id: WP01\ntitle: Test WP01\nlane: in_progress\nagent: testbot\n',
+            frontmatter="work_package_id: WP01\ntitle: Test WP01\nlane: in_progress\nagent: testbot\n",
             body="\n# WP01\n\n## Activity Log\n",
             padding="",
         )
@@ -317,19 +325,21 @@ class TestBodyNotesNoLane:
         result = runner.invoke(
             app,
             [
-                "add-history", "WP01",
-                "--note", "Implementation progressing",
-                "--agent", "testbot",
-                "--mission", mission_slug,
+                "add-history",
+                "WP01",
+                "--note",
+                "Implementation progressing",
+                "--agent",
+                "testbot",
+                "--mission",
+                mission_slug,
                 "--json",
             ],
         )
         assert result.exit_code == 0, f"CLI error: {result.output}"
 
         content = wp_file.read_text(encoding="utf-8")
-        assert "lane=" not in content, (
-            f"Body note should not contain 'lane=' but got:\n{content}"
-        )
+        assert "lane=" not in content, f"Body note should not contain 'lane=' but got:\n{content}"
         # Verify note text is present
         assert "Implementation progressing" in content
 
@@ -379,12 +389,13 @@ class TestMoveTaskHardFail:
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
+
         mock_wp = WorkPackage(
             feature=mission_slug,
             path=wp_file,
             current_lane="planned",
             relative_subpath=Path("tasks/WP01-test.md"),
-            frontmatter='work_package_id: WP01\ntitle: Test WP01\nlane: planned\n',
+            frontmatter="work_package_id: WP01\ntitle: Test WP01\nlane: planned\n",
             body="\n# WP01\n\n## Activity Log\n",
             padding="",
         )
@@ -393,10 +404,14 @@ class TestMoveTaskHardFail:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01",
-                "--to", "claimed",
-                "--agent", "testbot",
-                "--mission", mission_slug,
+                "move-task",
+                "WP01",
+                "--to",
+                "claimed",
+                "--agent",
+                "testbot",
+                "--mission",
+                mission_slug,
                 "--force",
                 "--json",
             ],
@@ -405,9 +420,7 @@ class TestMoveTaskHardFail:
         assert result.exit_code != 0, f"Expected failure but got: {result.output}"
 
         # Error message should mention finalize-tasks
-        assert "finalize-tasks" in result.output or "finalize" in result.output.lower(), (
-            f"Error should mention finalize-tasks but got:\n{result.output}"
-        )
+        assert "finalize-tasks" in result.output or "finalize" in result.output.lower(), f"Error should mention finalize-tasks but got:\n{result.output}"
         assert "no canonical status" in result.output.lower() or "has no canonical" in result.output.lower(), (
             f"Error should mention missing canonical status but got:\n{result.output}"
         )
@@ -453,16 +466,18 @@ class TestMoveTaskHardFail:
 
         # Return real events from the seeded store
         from specify_cli.status.store import read_events as real_read_events
+
         mock_read_events.return_value = list(real_read_events(feature_dir))
 
         wp_file = feature_dir / "tasks" / "WP01-test.md"
         from specify_cli.tasks_support import WorkPackage
+
         mock_wp = WorkPackage(
             feature=mission_slug,
             path=wp_file,
             current_lane="planned",
             relative_subpath=Path("tasks/WP01-test.md"),
-            frontmatter='work_package_id: WP01\ntitle: Test WP01\nlane: planned\nagent: testbot\n',
+            frontmatter="work_package_id: WP01\ntitle: Test WP01\nlane: planned\nagent: testbot\n",
             body="\n# WP01\n\n## Activity Log\n",
             padding="",
         )
@@ -474,10 +489,14 @@ class TestMoveTaskHardFail:
         result = runner.invoke(
             app,
             [
-                "move-task", "WP01",
-                "--to", "claimed",
-                "--agent", "testbot",
-                "--mission", mission_slug,
+                "move-task",
+                "WP01",
+                "--to",
+                "claimed",
+                "--agent",
+                "testbot",
+                "--mission",
+                mission_slug,
                 "--force",
                 "--json",
                 "--no-auto-commit",
@@ -487,3 +506,213 @@ class TestMoveTaskHardFail:
 
         data = json.loads(result.output)
         assert data["result"] == "success"
+
+
+# ---------------------------------------------------------------------------
+# Unit B: typed frontmatter migration for finalize-tasks / map-requirements
+# ---------------------------------------------------------------------------
+
+
+class TestTypedFrontmatterMigration:
+    """finalize-tasks and map-requirements use WPMetadata for frontmatter access."""
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.bootstrap_canonical_state")
+    def test_finalize_writes_dependencies_via_typed_model(
+        self,
+        mock_bootstrap: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        """finalize-tasks writes dependencies to WP frontmatter using WPMetadata.update().
+
+        After migration, the written frontmatter is produced by model_dump(exclude_none=True),
+        so the file should contain typed fields (not arbitrary dict keys).
+        """
+        mission_slug = "060-typed-test"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+        # tasks.md with WP02 depending on WP01
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n\nSetup work.\n\n## Work Package WP02\n\nDepends on WP01\n",
+            encoding="utf-8",
+        )
+        for wp_id in ("WP01", "WP02"):
+            (tasks_dir / f"{wp_id}-test.md").write_text(
+                f"---\nwork_package_id: {wp_id}\ntitle: Test {wp_id}\n---\n\n# {wp_id}\n",
+                encoding="utf-8",
+            )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        from specify_cli.status.bootstrap import BootstrapResult
+
+        mock_bootstrap.return_value = BootstrapResult(
+            total_wps=2,
+            already_initialized=2,
+            newly_seeded=0,
+            skipped=0,
+            wp_details={"WP01": "exists", "WP02": "exists"},
+        )
+
+        result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        # Verify WP02 frontmatter has dependencies written
+        from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+        wp02_meta, _ = read_wp_frontmatter(tasks_dir / "WP02-test.md")
+        assert wp02_meta.dependencies == ["WP01"]
+
+        # WP01 should have empty deps
+        wp01_meta, _ = read_wp_frontmatter(tasks_dir / "WP01-test.md")
+        assert wp01_meta.dependencies == []
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.bootstrap_canonical_state")
+    def test_finalize_detects_dep_conflict_with_typed_access(
+        self,
+        mock_bootstrap: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        """Dependency conflict detection uses typed WPMetadata.dependencies attribute."""
+        mission_slug = "060-conflict-test"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+        # tasks.md says WP02 depends on WP01
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n\nSetup work.\n\n## Work Package WP02\n\nDepends on WP01\n",
+            encoding="utf-8",
+        )
+        # But WP02 frontmatter already says dependencies: [WP99]
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Test WP01\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+        (tasks_dir / "WP02-test.md").write_text(
+            "---\nwork_package_id: WP02\ntitle: Test WP02\ndependencies:\n  - WP99\n---\n\n# WP02\n",
+            encoding="utf-8",
+        )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json"])
+        # Should exit with error due to dependency conflict
+        assert result.exit_code != 0, f"Expected conflict error but got: {result.output}"
+        assert "Dependency disagreement" in result.output
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    @patch("specify_cli.cli.commands.agent.tasks.bootstrap_canonical_state")
+    def test_finalize_preserves_existing_deps_when_parser_finds_none(
+        self,
+        mock_bootstrap: MagicMock,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        """When tasks.md has no deps but frontmatter has existing deps, preserve them."""
+        mission_slug = "060-preserve-test"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+        # tasks.md with no dependency info
+        (feature_dir / "tasks.md").write_text(
+            "## Work Package WP01\n\n",
+            encoding="utf-8",
+        )
+        # WP01 frontmatter has existing deps
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Test WP01\ndependencies:\n  - WP03\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        from specify_cli.status.bootstrap import BootstrapResult
+
+        mock_bootstrap.return_value = BootstrapResult(
+            total_wps=1,
+            already_initialized=1,
+            newly_seeded=0,
+            skipped=0,
+            wp_details={"WP01": "exists"},
+        )
+
+        result = runner.invoke(app, ["finalize-tasks", "--mission", mission_slug, "--json"])
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        # Verify existing deps were preserved
+        from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+        wp01_meta, _ = read_wp_frontmatter(tasks_dir / "WP01-test.md")
+        assert wp01_meta.dependencies == ["WP03"]
+
+    @patch("specify_cli.cli.commands.agent.tasks._ensure_target_branch_checked_out")
+    @patch("specify_cli.cli.commands.agent.tasks.locate_project_root")
+    @patch("specify_cli.cli.commands.agent.tasks._find_mission_slug")
+    def test_map_requirements_writes_via_typed_model(
+        self,
+        mock_slug: MagicMock,
+        mock_root: MagicMock,
+        mock_branch: MagicMock,
+        tmp_path: Path,
+    ):
+        """map-requirements reads/writes requirement_refs via WPMetadata."""
+        mission_slug = "060-reqmap-test"
+        feature_dir = tmp_path / "kitty-specs" / mission_slug
+        tasks_dir = feature_dir / "tasks"
+        tasks_dir.mkdir(parents=True)
+        (tmp_path / ".kittify").mkdir(exist_ok=True)
+
+        # Create spec.md with requirement IDs
+        (feature_dir / "spec.md").write_text(
+            "# Spec\n\n## Requirements\n\n- **FR-001**: First requirement\n- **FR-002**: Second requirement\n",
+            encoding="utf-8",
+        )
+        # Create WP01 file
+        (tasks_dir / "WP01-test.md").write_text(
+            "---\nwork_package_id: WP01\ntitle: Test WP01\n---\n\n# WP01\n",
+            encoding="utf-8",
+        )
+
+        mock_root.return_value = tmp_path
+        mock_slug.return_value = mission_slug
+        mock_branch.return_value = (tmp_path, "main")
+
+        result = runner.invoke(
+            app,
+            ["map-requirements", "--wp", "WP01", "--refs", "FR-001,FR-002", "--mission", mission_slug, "--json", "--no-auto-commit"],
+        )
+        assert result.exit_code == 0, f"CLI error: {result.output}"
+
+        # Verify the refs were written to frontmatter
+        from specify_cli.status.wp_metadata import read_wp_frontmatter
+
+        wp01_meta, _ = read_wp_frontmatter(tasks_dir / "WP01-test.md")
+        assert sorted(wp01_meta.requirement_refs) == ["FR-001", "FR-002"]

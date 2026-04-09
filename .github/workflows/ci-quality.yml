@@ -41,18 +41,18 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: "[ENFORCED] Set up Node"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -297,7 +297,7 @@ jobs:
 
       - name: "[ENFORCED] Upload lint artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-reports
           path: out/reports/
@@ -322,7 +322,7 @@ jobs:
 
       - name: "[ENFORCED] Upload linting failure details"
         if: always() && github.event_name == 'pull_request'
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: lint-failure-details
           path: out/reports/lint-failures/
@@ -355,7 +355,7 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Download linting failure details"
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: lint-failure-details
           path: /tmp/lint-failures
@@ -441,12 +441,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -489,7 +489,7 @@ jobs:
 
       - name: "[ENFORCED] Upload kernel-test artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: kernel-test-reports
           path: out/reports/
@@ -505,12 +505,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -538,7 +538,7 @@ jobs:
 
       - name: "[ENFORCED] Upload fast-doctrine artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fast-test-doctrine-reports
           path: out/reports/
@@ -555,12 +555,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -581,6 +581,8 @@ jobs:
             -v \
             --ignore=tests/doctrine \
             --ignore=tests/kernel \
+            --ignore=tests/status \
+            --ignore=tests/specify_cli/status \
             -m fast \
             --cov=src/specify_cli --cov=src/charter --cov=src/kernel \
             --cov-report=term-missing \
@@ -604,9 +606,58 @@ jobs:
 
       - name: "[ENFORCED] Upload fast-core artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: fast-test-core-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-status: Phase 1c — fast suite for status-layer packages.
+  # Runs in parallel with fast-tests-core and fast-tests-doctrine.
+  # ---------------------------------------------------------------------------
+  fast-tests-status:
+    runs-on: ubuntu-latest
+    needs: kernel-tests
+    if: always()
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: "[ENFORCED] Run fast status tests with coverage"
+        run: |
+          python -m pytest \
+            -v \
+            tests/status/ tests/specify_cli/status/ \
+            -m fast \
+            --cov=src/specify_cli/status \
+            --cov-report=term-missing \
+            --cov-report=xml:out/reports/coverage/coverage-fast-status.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-fast-status-${{ github.run_id }}.xml
+
+      - name: "[ENFORCED] Upload fast-status artifacts"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-status-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
@@ -621,12 +672,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -653,7 +704,7 @@ jobs:
 
       - name: "[ENFORCED] Upload integration-doctrine artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-doctrine-reports
           path: out/reports/
@@ -670,12 +721,12 @@ jobs:
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -695,6 +746,8 @@ jobs:
           python -m pytest \
             -v \
             --ignore=tests/doctrine \
+            --ignore=tests/status \
+            --ignore=tests/specify_cli/status \
             -m "git_repo or integration" \
             --cov=src/specify_cli --cov=src/charter \
             --cov-report=xml:out/reports/coverage/coverage-integration-core.xml \
@@ -702,9 +755,57 @@ jobs:
 
       - name: "[ENFORCED] Upload integration-core artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: integration-test-core-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # integration-tests-status: Phase 2c — integration suite for status-layer.
+  # Runs after both fast-tests-status and fast-tests-core pass.
+  # ---------------------------------------------------------------------------
+  integration-tests-status:
+    runs-on: ubuntu-latest
+    needs: [fast-tests-status, fast-tests-core]
+    if: always()
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Install dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
+
+      - name: "[ENFORCED] Run status integration tests with coverage"
+        run: |
+          python -m pytest \
+            -v \
+            tests/status/ tests/specify_cli/status/ \
+            -m "git_repo or integration" \
+            --cov=src/specify_cli/status \
+            --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
+
+      - name: "[ENFORCED] Upload integration-status artifacts"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-status-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
@@ -713,24 +814,24 @@ jobs:
   # ---------------------------------------------------------------------------
   slow-and-e2e:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core]
+    needs: [fast-tests-doctrine, fast-tests-core, fast-tests-status]
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 45
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
 
       - name: "[ENFORCED] Set up Node (Playwright)"
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: '22'
 
@@ -774,28 +875,28 @@ jobs:
 
       - name: "[ENFORCED] Upload slow-and-e2e artifacts"
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: slow-e2e-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # diff-coverage: PR-only diff coverage gate (80% on changed lines).
-  # Consumes fast-test-reports and integration-test-reports.
+  # diff-coverage: PR-only diff coverage gate (90% on critical-path changed lines).
+  # Consumes kernel, fast-test, and integration-test coverage reports.
   # ---------------------------------------------------------------------------
   diff-coverage:
     runs-on: ubuntu-latest
-    needs: [integration-tests-doctrine, integration-tests-core]
+    needs: [kernel-tests, integration-tests-doctrine, integration-tests-core, integration-tests-status]
     if: always() && github.event_name == 'pull_request'
 
     steps:
       - name: "[ENFORCED] Check out repository"
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.12'
           cache: 'pip'
@@ -807,7 +908,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-doctrine coverage"
         if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-doctrine-reports
           path: out/reports/fast-doctrine
@@ -815,7 +916,7 @@ jobs:
 
       - name: "[ENFORCED] Download fast-core coverage"
         if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: fast-test-core-reports
           path: out/reports/fast-core
@@ -823,7 +924,7 @@ jobs:
 
       - name: "[ENFORCED] Download integration-doctrine coverage"
         if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-doctrine-reports
           path: out/reports/integration-doctrine
@@ -831,25 +932,52 @@ jobs:
 
       - name: "[ENFORCED] Download integration-core coverage"
         if: needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure'
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v8
         with:
           name: integration-test-core-reports
           path: out/reports/integration-core
         continue-on-error: true
 
+      - name: "[ENFORCED] Download kernel coverage"
+        if: needs.kernel-tests.result == 'success' || needs.kernel-tests.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: kernel-test-reports
+          path: out/reports/kernel
+        continue-on-error: true
+
+      - name: "[ENFORCED] Download fast-status coverage"
+        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: fast-test-status-reports
+          path: out/reports/fast-status
+        continue-on-error: true
+
+      - name: "[ENFORCED] Download integration-status coverage"
+        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
+        uses: actions/download-artifact@v8
+        with:
+          name: integration-test-status-reports
+          path: out/reports/integration-status
+        continue-on-error: true
+
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
       # dashboard, merge, next.
       # Coverage effort is proportional to risk — flat 80% incentivizes meaningless tests.
-      - name: "[ENFORCED] Critical-path diff coverage (90% on core modules)"
+      - name: "diff-coverage (critical-path, enforced)"
         run: |
           git fetch origin "${{ github.base_ref }}" --depth=1
 
           coverage_reports=()
           for f in \
+            out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
             out/reports/fast-core/coverage/coverage-fast-core.xml \
+            out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml; do
+            out/reports/integration-core/coverage/coverage-integration-core.xml \
+            out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
 
@@ -872,15 +1000,18 @@ jobs:
               'src/specify_cli/merge/*' \
               'src/specify_cli/next/*'
 
-      - name: "[ADVISORY] Full diff coverage report (informational)"
+      - name: "diff-coverage (full-diff, advisory)"
         if: always()
         run: |
           coverage_reports=()
           for f in \
+            out/reports/kernel/coverage/coverage-kernel.xml \
             out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
             out/reports/fast-core/coverage/coverage-fast-core.xml \
+            out/reports/fast-status/coverage/coverage-fast-status.xml \
             out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-core/coverage/coverage-integration-core.xml; do
+            out/reports/integration-core/coverage/coverage-integration-core.xml \
+            out/reports/integration-status/coverage/coverage-integration-status.xml; do
             [ -f "$f" ] && coverage_reports+=("$f")
           done
 
@@ -894,19 +1025,21 @@ jobs:
   # ---------------------------------------------------------------------------
   mutation-testing:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core]
+    needs: [fast-tests-doctrine, fast-tests-core, fast-tests-status]
     if: false
     steps:
       - run: echo "Mutation testing is disabled."
 
   # ---------------------------------------------------------------------------
-  # sonarcloud: aggregates coverage from fast + integration + slow-e2e.
+  # sonarcloud: generates a single repo-relative coverage report for Sonar.
+  # The shard XMLs are good enough for diff-cover, but they flatten filenames
+  # in ways that Sonar mis-resolves on new-code coverage.
   # Runs only after merges to main, on the nightly schedule, or when manually
   # dispatched against main. PRs skip Sonar entirely to keep review latency low.
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
-    needs: [fast-tests-doctrine, fast-tests-core, integration-tests-doctrine, integration-tests-core, slow-and-e2e]
+    needs: [kernel-tests, fast-tests-doctrine, fast-tests-core, fast-tests-status, integration-tests-doctrine, integration-tests-core, integration-tests-status, slow-and-e2e]
     if: always() && github.event_name != 'pull_request' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
 
     steps:
@@ -936,7 +1069,7 @@ jobs:
 
       - name: "[ENFORCED] Check out repository"
         if: steps.sonar_token.outputs.enabled == 'true'
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -988,6 +1121,8 @@ jobs:
           if [ -f sonar-project.properties ]; then
             grep -v '^sonar\.organization=' sonar-project.properties \
               | grep -v '^sonar\.projectKey=' \
+              | grep -v '^sonar\.python\.coverage\.reportPaths=' \
+              | grep -v '^sonar\.python\.xunit\.reportPath=' \
               > "$tmp_file"
           fi
 
@@ -995,82 +1130,40 @@ jobs:
             echo "sonar.organization=${{ steps.sonar_settings.outputs.organization }}"
             echo "sonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}"
             echo "sonar.branch.name=${{ github.head_ref || github.ref_name }}"
+            echo "sonar.python.coverage.reportPaths=out/reports/coverage/coverage-sonar.xml"
+            echo "sonar.python.xunit.reportPath=out/reports/xunit-reports/xunit-result.xml"
           } >> "$tmp_file"
 
           mv "$tmp_file" sonar-project.properties
-      - name: "[ENFORCED] Download fast-doctrine coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-doctrine.result == 'success' || needs.fast-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v4
+      - name: "[ENFORCED] Set up Python"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/setup-python@v6
         with:
-          name: fast-test-doctrine-reports
-          path: out/reports/fast-doctrine
-        continue-on-error: true
+          python-version: '3.12'
+          cache: 'pip'
 
-      - name: "[ENFORCED] Download fast-core coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.fast-tests-core.result == 'success' || needs.fast-tests-core.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: fast-test-core-reports
-          path: out/reports/fast-core
-        continue-on-error: true
+      - name: "[ENFORCED] Install dependencies"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
 
-      - name: "[ENFORCED] Download integration-doctrine coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-test-doctrine-reports
-          path: out/reports/integration-doctrine
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download integration-core coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.integration-tests-core.result == 'success' || needs.integration-tests-core.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: integration-test-core-reports
-          path: out/reports/integration-core
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download slow-and-e2e coverage"
-        if: steps.sonar_token.outputs.enabled == 'true' && (needs.slow-and-e2e.result == 'success' || needs.slow-and-e2e.result == 'failure')
-        uses: actions/download-artifact@v4
-        with:
-          name: slow-e2e-reports
-          path: out/reports/slow-e2e
-        continue-on-error: true
-
-      - name: "[ENFORCED] Merge coverage reports"
+      - name: "[ENFORCED] Generate unified Sonar coverage report"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
           mkdir -p out/reports/coverage
           mkdir -p out/reports/xunit-reports
 
-          # Merge all coverage files
-          find out/reports -name "coverage*.xml" -type f -exec cp {} out/reports/coverage/ \;
+          pytest \
+            --cov=src \
+            --cov-report=xml:out/reports/coverage/coverage-sonar.xml \
+            --junitxml=out/reports/xunit-reports/xunit-result.xml \
+            -q
 
-          # Create combined coverage: prefer fast-core → fast-doctrine → integration → slow-e2e
-          if [ -f "out/reports/fast-core/coverage/coverage-fast-core.xml" ]; then
-            cp out/reports/fast-core/coverage/coverage-fast-core.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml" ]; then
-            cp out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/integration-core/coverage/coverage-integration-core.xml" ]; then
-            cp out/reports/integration-core/coverage/coverage-integration-core.xml out/reports/coverage/coverage.xml
-          elif [ -f "out/reports/slow-e2e/coverage/coverage-slow.xml" ]; then
-            cp out/reports/slow-e2e/coverage/coverage-slow.xml out/reports/coverage/coverage.xml
-          fi
-
-          # Merge all xUnit files
-          find out/reports -name "xunit-result-*.xml" -type f -exec cp {} out/reports/xunit-reports/ \;
-
-          # Create normalized xUnit file (use first available)
-          latest_file="$(ls -1 out/reports/xunit-reports/xunit-result-*.xml 2>/dev/null | head -n 1)"
-          if [ -n "$latest_file" ]; then
-            cp "$latest_file" out/reports/xunit-reports/xunit-result.xml
-          fi
-
-          echo "Coverage files found:"
-          find out/reports/coverage -name "*.xml" -type f
-          echo "xUnit files found:"
-          find out/reports/xunit-reports -name "*.xml" -type f
+          echo "Sonar coverage report:"
+          ls -l out/reports/coverage/coverage-sonar.xml
+          echo "Sonar xUnit report:"
+          ls -l out/reports/xunit-reports/xunit-result.xml
 
       - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'

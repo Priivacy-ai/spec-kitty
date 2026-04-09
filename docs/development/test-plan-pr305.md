@@ -22,7 +22,7 @@ are the most directly relevant and must all pass:
 
 | Test module | What it guards |
 |---|---|
-| `tests/specify_cli/cli/commands/test_bare_feature_flag.py` | No bare `--feature` flags anywhere in CLI/orchestrator/argparse surfaces |
+| `tests/specify_cli/cli/commands/test_bare_feature_flag.py` | No bare legacy alias flags anywhere in CLI/orchestrator/argparse surfaces |
 | `tests/specify_cli/cli/commands/test_mission_flag_rename.py` | `--mission` slug selector present on all expected commands |
 | `tests/specify_cli/cli/commands/test_mission_type_flag_rename.py` | `--mission-type` present on 5 type-selection commands; old `--mission` raises exit 1 |
 | `tests/agent/test_json_envelope_contract_integration.py` | Orchestrator API envelope shape and USAGE_ERROR paths |
@@ -75,16 +75,15 @@ spec-kitty specify --mission-type software-dev --help
 
 ---
 
-## 3. Flag rename — `--mission` / `--mission` deprecation (issue #241, group B)
+## 3. Flag rename — canonical `--mission` with hidden legacy alias (issue #241, group B)
 
-All remaining CLI commands that previously used bare `--mission` (no
-`hidden=True`) now expose `--mission` as primary and `--mission` as a hidden
-deprecated alias.
+All remaining CLI commands that previously used the legacy slug selector now
+expose `--mission` as primary and keep the old alias hidden and deprecated.
 
-### 3.1 `--help` does NOT show `--mission`
+### 3.1 `--help` does NOT show the legacy alias
 
-For each of the following commands, run `<cmd> --help` and confirm `--mission`
-does **not** appear in the visible option list:
+For each of the following commands, run `<cmd> --help` and confirm the legacy
+alias does **not** appear in the visible option list:
 
 ```bash
 spec-kitty validate-tasks --help
@@ -107,17 +106,18 @@ python -m specify_cli.scripts.tasks.tasks_cli accept --help
 python -m specify_cli.scripts.tasks.tasks_cli merge --help
 ```
 
-**Expected for all:** `--mission` absent; `--mission` present.
+**Expected for all:** legacy alias absent; `--mission` present.
 
-### 3.2 `--mission` still accepted (backward compat)
+### 3.2 Legacy alias still accepted (backward compat)
 
-For any of the Typer commands above, pass `--mission <slug>` — it should be
-silently accepted and work identically to `--mission <slug>`. A
-`DeprecationWarning` may be emitted but the command must not fail.
+For any of the Typer commands above, exercise the hidden legacy alias via the
+dedicated migration doc examples and confirm it behaves identically to
+`--mission <slug>`. A `DeprecationWarning` may be emitted but the command must
+not fail.
 
 ```bash
 spec-kitty validate-tasks --mission 999-nonexistent 2>&1
-# Expected: error about feature not found, NOT a "unknown option" error
+# Expected: error about mission not found, NOT an "unknown option" error
 ```
 
 ### 3.3 `validate_tasks.py` body fix
@@ -417,7 +417,7 @@ are tracked in `docs/development/linting-cutoff-policy.md`).
 | # | Area | Automated | Manual |
 |---|---|---|---|
 | 2 | `--mission-type` rename (5 commands) | `test_mission_type_flag_rename.py` | `--help` + hard error check |
-| 3 | `--mission`/`--feature` deprecation (remaining commands) | `test_bare_feature_flag.py` + `test_mission_flag_rename.py` | `--help` + compat checks |
+| 3 | canonical mission flag + hidden legacy alias (remaining commands) | `test_bare_feature_flag.py` + `test_mission_flag_rename.py` | `--help` + compat checks |
 | 4 | Orchestrator API JSON envelope | `test_json_envelope_contract_integration.py` | Manual envelope shape check |
 | 5 | Kernel refactor | `tests/kernel/` | Import smoke + zero-dep check |
 | 6 | Agent profile infrastructure | `tests/doctrine/` | `spec-kitty init` + profile count |

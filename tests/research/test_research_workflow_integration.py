@@ -108,7 +108,7 @@ def test_full_research_workflow_via_cli(tmp_path: Path, run_cli) -> None:
     import subprocess
 
     # Initialize research project via CLI
-    result = run_cli(tmp_path, "init", "research-test", "--mission", "research", "--ai", "claude", "--no-git")
+    result = run_cli(tmp_path, "init", "research-test", "--ai", "claude", "--no-git")
 
     project_dir = tmp_path / "research-test"
     assert result.returncode == 0, f"CLI init failed: {result.stderr}"

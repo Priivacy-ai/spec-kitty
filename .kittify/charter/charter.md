@@ -71,7 +71,7 @@ This charter captures the technical standards, architectural principles, and dev
    ```toml
    spec-kitty-events = { git = "https://github.com/Priivacy-ai/spec-kitty-events.git", rev = "abc1234" }
    ```
-5. Run `poetry lock --no-update && poetry install`
+5. Run `uv sync` (the project uses PEP 621 + Hatch via `pyproject.toml`; `uv` is the canonical dependency manager — see `CONTRIBUTING.md`)
 6. Test integration, commit spec-kitty changes
 
 **Local rapid iteration (use sparingly):**
@@ -156,6 +156,12 @@ The former `2.x` branch was merged into `main` when the SaaS transformation reac
 - Breaking changes are allowed during pre-release alpha/beta cycles
 - The `spec-kitty agent mission branch-context --json` command resolves the deterministic branch contract for any feature
 - Do not hardcode branch names in templates or scaffolding; use the resolved branch context
+
+### CI and Branch Protection
+
+`main` has a **Protect Main Branch** GitHub Actions workflow that fails whenever code is pushed directly without going through a PR. The `spec-kitty merge` command pushes directly to main by design. This causes a **known, expected** CI failure on every feature merge. It is not a code bug and must not be treated as one.
+
+**Rule for agents:** When CI shows "Protect Main Branch: failure" after `spec-kitty merge`, ignore it. Monitor **CI Quality** only — that is the authoritative signal for code correctness.
 
 ### Historical Context
 

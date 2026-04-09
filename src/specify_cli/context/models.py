@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import mission_identity_fields
+
 
 @dataclass(frozen=True)
 class MissionContext:
@@ -35,6 +37,8 @@ class MissionContext:
     dependency_mode: str  # "independent" or "chained"
     created_at: str  # ISO 8601 UTC
     created_by: str  # Agent name
+    mission_number: str | None = None  # Canonical mission numeric prefix
+    mission_type: str | None = None  # Canonical mission type / blueprint key
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dictionary."""
@@ -44,7 +48,11 @@ class MissionContext:
             "mission_id": self.mission_id,
             "work_package_id": self.work_package_id,
             "wp_code": self.wp_code,
-            "mission_slug": self.mission_slug,
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type,
+            ),
             "target_branch": self.target_branch,
             "authoritative_repo": self.authoritative_repo,
             "authoritative_ref": self.authoritative_ref,
@@ -58,13 +66,20 @@ class MissionContext:
     @classmethod
     def from_dict(cls, data: dict[str, Any]) -> MissionContext:
         """Deserialize from a JSON-compatible dictionary."""
+        identity = mission_identity_fields(
+            data["mission_slug"],
+            data.get("mission_number"),
+            data.get("mission_type"),
+        )
         return cls(
             token=data["token"],
             project_uuid=data["project_uuid"],
             mission_id=data["mission_id"],
             work_package_id=data["work_package_id"],
             wp_code=data["wp_code"],
-            mission_slug=data["mission_slug"],
+            mission_slug=identity["mission_slug"],
+            mission_number=identity["mission_number"],
+            mission_type=identity["mission_type"],
             target_branch=data["target_branch"],
             authoritative_repo=data["authoritative_repo"],
             authoritative_ref=data.get("authoritative_ref"),

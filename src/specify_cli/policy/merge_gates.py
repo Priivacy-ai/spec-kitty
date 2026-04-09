@@ -18,7 +18,9 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 from specify_cli.policy.config import MergeGateConfig
+from specify_cli.status.models import Lane
 
 
 class GateVerdict(StrEnum):
@@ -44,6 +46,8 @@ class MergeGateEvaluation:
     mission_slug: str
     evaluated_at: str
     gates: list[GateResult] = field(default_factory=list)
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     @property
     def overall_pass(self) -> bool:
@@ -59,7 +63,11 @@ class MergeGateEvaluation:
 
     def to_dict(self) -> dict[str, Any]:
         return {
-            "mission_slug": self.mission_slug,
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type,
+            ),
             "evaluated_at": self.evaluated_at,
             "overall_pass": self.overall_pass,
             "gates": [
@@ -98,6 +106,10 @@ def evaluate_merge_gates(
         mission_slug=mission_slug,
         evaluated_at=datetime.now(timezone.utc).isoformat(),
     )
+    identity = resolve_mission_identity(feature_dir)
+    evaluation.mission_slug = identity.mission_slug
+    evaluation.mission_number = identity.mission_number
+    evaluation.mission_type = identity.mission_type
 
     if not policy.enabled or policy.mode == "off":
         return evaluation
@@ -134,7 +146,7 @@ def _evaluate_evidence_gate(
         approved_wps: set[str] = set()
         for event in events:
             data = event if isinstance(event, dict) else event.__dict__
-            if data.get("to_lane") in ("approved", "done"):
+            if data.get("to_lane") in (Lane.APPROVED, Lane.DONE):
                 wp = data.get("wp_id")
                 if wp:
                     approved_wps.add(wp)
@@ -235,7 +247,7 @@ def _evaluate_dependency_gate(
         for wp_id in wp_ids:
             for dep_id in graph.get(wp_id, []):
                 dep_lane = wp_lanes.get(dep_id, "unknown")
-                if dep_lane not in ("done", "approved"):
+                if dep_lane not in (Lane.DONE, Lane.APPROVED):
                     incomplete_deps.append(f"{dep_id} (lane={dep_lane})")
 
         if incomplete_deps:

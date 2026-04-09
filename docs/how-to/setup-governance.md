@@ -106,7 +106,7 @@ spec-kitty charter interview \
   --defaults \
   --selected-paradigms "test-first" \
   --selected-directives "TEST_FIRST" \
-  --available-tools "spec-kitty,git,python,pytest,ruff,mypy,poetry" \
+  --available-tools "spec-kitty,git,python,pytest,ruff,mypy,uv" \
   --json
 ```
 

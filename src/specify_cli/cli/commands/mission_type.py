@@ -4,12 +4,14 @@ from __future__ import annotations
 
 from pathlib import Path
 from collections.abc import Iterable
+from typing import Annotated
 
 import typer
 from rich.panel import Panel
 from rich.table import Table
 
 from specify_cli.cli.helpers import check_version_compatibility, console, get_project_root_or_exit
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.mission import (
     Mission,
     MissionError,
@@ -171,50 +173,61 @@ def _detect_current_feature(project_root: Path) -> str | None:
 
 @app.command("current")
 def current_cmd(
-    feature: str | None = typer.Option(
-        None,
-        "--mission",
-        "--feature",
-        "-f",
-        help="Mission slug",
-    ),
+    mission: Annotated[str | None, typer.Option("--mission", "-f", help="Mission slug")] = None,
+    feature: Annotated[
+        str | None,
+        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
+    ] = None,
 ) -> None:
-    """Show currently active mission for a feature (auto-detects feature from cwd)."""
+    """Show currently active mission for a mission (auto-detects mission from cwd)."""
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "mission")
 
-    # Detect feature if not explicitly provided
-    mission_slug = feature if feature else _detect_current_feature(project_root)
+    detected_mission = _detect_current_feature(project_root)
 
-    if not mission_slug:
+    if mission is None and feature is None and not detected_mission:
         console.print(
-            "[yellow]No active feature detected.[/yellow]\n"
+            "[yellow]No active mission detected.[/yellow]\n"
             "\nUse [cyan]--mission <slug>[/cyan] to specify one, "
-            "or run from within a feature worktree."
+            "or run from within a mission worktree."
         )
-        # Optionally list available features
+        # Optionally list available missions
         kitty_specs = project_root / "kitty-specs"
         if kitty_specs.is_dir():
-            features = sorted(
+            missions = sorted(
                 d.name for d in kitty_specs.iterdir()
                 if d.is_dir() and d.name[0:1].isdigit()
             )
-            if features:
-                console.print("\n[cyan]Available features:[/cyan]")
-                for feat in features[:10]:
-                    console.print(f"  - {feat}")
-                if len(features) > 10:
-                    console.print(f"  ... and {len(features) - 10} more")
+            if missions:
+                console.print("\n[cyan]Available missions:[/cyan]")
+                for mission_slug in missions[:10]:
+                    console.print(f"  - {mission_slug}")
+                if len(missions) > 10:
+                    console.print(f"  ... and {len(missions) - 10} more")
         raise typer.Exit(1)
+
+    try:
+        resolved = resolve_selector(
+            canonical_value=mission or detected_mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        )
+        mission_slug = resolved.canonical_value
+    except typer.BadParameter as exc:
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
 
     try:
         feature_dir = project_root / "kitty-specs" / mission_slug
         if not feature_dir.exists():
-            console.print(f"[red]Feature not found:[/red] {mission_slug}")
+            console.print(f"[red]Mission not found:[/red] {mission_slug}")
             raise typer.Exit(1)
 
         mission = get_mission_for_feature(feature_dir, project_root)
-        context = f"Feature: {mission_slug}"
+        context = f"Mission: {mission_slug}"
 
     except MissionNotFoundError as exc:
         console.print(f"[red]Error:[/red] {exc}")

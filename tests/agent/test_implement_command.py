@@ -158,6 +158,9 @@ class TestImplementCommand:
         assert payload["workspace"] == ".worktrees/010-feature-lane-a"
         assert payload["branch"] == "kitty/mission-010-feature-lane-a"
         assert payload["lane_id"] == "lane-a"
+        assert payload["mission_slug"] == "010-feature"
+        assert payload["mission_number"] == "010"
+        assert payload["mission_type"] == "software-dev"
 
     def test_implement_json_error_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"

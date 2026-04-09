@@ -16,7 +16,7 @@ In current 2.x flow, task execution is agent-selected by the operator (`--agent 
 ## Current Baseline (What Exists Today)
 
 1. `spec-kitty next` requires `--agent` and does not recommend a model/tool automatically (`src/specify_cli/cli/commands/next_cmd.py`).
-2. Tool selection config is currently static (`preferred_implementer`, `preferred_reviewer`) with first-available fallback (
+2. Tool selection uses the `agents.available` list order with first-available fallback (
    `src/specify_cli/core/tool_config.py`).
 3. Agent profiles already support weighted matching by task context, but no model-cost dimension (`src/doctrine/agent_profiles/repository.py`).
 4. Doctrine artifacts already provide governance hooks (directives, toolguides) for 2.x (`docs/2x/doctrine-and-charter.md`).
@@ -137,7 +137,7 @@ Use this schema for validating [`model-to-task_type.yml`](model-to-task_type.md)
 ## Integration Points in Current Code
 
 1. `src/specify_cli/core/tool_config.py`  
-   Extend selection config beyond preferred implementer/reviewer.
+   Extend selection config with model-discipline routing dimensions.
 2. `src/specify_cli/cli/commands/next_cmd.py`  
    Add optional auto-routing input/output surface.
 3. `src/specify_cli/next/runtime_bridge.py`  

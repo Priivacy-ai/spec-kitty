@@ -8,6 +8,7 @@ guidance.
 from __future__ import annotations
 from pathlib import Path
 
+from .models import Lane
 from .store import EVENTS_FILENAME
 
 
@@ -35,7 +36,7 @@ def _require_event_log(feature_dir: Path) -> None:
         )
 
 
-def get_wp_lane(feature_dir: Path, wp_id: str) -> str:
+def get_wp_lane(feature_dir: Path, wp_id: str) -> Lane | str:
     """Get canonical lane for a WP from the event log.
 
     Raises ``CanonicalStatusNotFoundError`` when the event log file is
@@ -55,7 +56,7 @@ def get_wp_lane(feature_dir: Path, wp_id: str) -> str:
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state is None:
         return "uninitialized"
-    return str(wp_state.get("lane", "planned"))
+    return Lane(wp_state.get("lane", Lane.PLANNED))
 
 
 def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
@@ -75,6 +76,6 @@ def get_all_wp_lanes(feature_dir: Path) -> dict[str, str]:
         return {}
     snapshot = reduce(events)
     return {
-        wp_id: str(state.get("lane", "planned"))
+        wp_id: Lane(state.get("lane", Lane.PLANNED))
         for wp_id, state in snapshot.work_packages.items()
     }

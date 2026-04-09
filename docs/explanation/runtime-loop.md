@@ -4,7 +4,7 @@ Spec Kitty offers two ways to advance work through a mission: slash commands and
 
 **Terminology note**
 - Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
-- Current `spec-kitty next` examples still use `--feature` and `feature_slug` as legacy compatibility names for the tracked mission selector
+- `spec-kitty next` uses `--mission` as the canonical tracked-mission selector
 
 ## What Is `spec-kitty next`?
 
@@ -67,7 +67,7 @@ The runtime has identified work to do. The decision includes an `action` (such a
 {
   "kind": "step",
   "agent": "claude",
-  "feature_slug": "042-test-feature",
+  "mission_slug": "042-test-feature",
   "mission": "software-dev",
   "action": "implement",
   "wp_id": "WP02",
@@ -93,7 +93,7 @@ The runtime has reached a point where it cannot proceed without a choice. It pro
 **What to do:** Read the question and options. Answer with:
 
 ```bash
-spec-kitty next --agent <agent> --feature <slug> \
+spec-kitty next --agent <agent> --mission <slug> \
   --answer "<your choice>" --decision-id "<decision_id>" --json
 ```
 
@@ -123,7 +123,7 @@ All work is done. There are no more steps to execute.
 
 At a conceptual level, an agent running the runtime loop follows this pattern:
 
-1. Call `spec-kitty next --agent <name> --feature <slug> --json`
+1. Call `spec-kitty next --agent <name> --mission <slug> --json`
 2. Read the decision kind
 3. If **step**: read the prompt file, do the work, report the result
 4. If **decision_required**: answer the question (or escalate to the user)
@@ -153,13 +153,13 @@ After completing a step, tell the runtime what happened:
 
 ```bash
 # After successful work
-spec-kitty next --agent <name> --feature <slug> --result success --json
+spec-kitty next --agent <name> --mission <slug> --result success --json
 
 # After a failure
-spec-kitty next --agent <name> --feature <slug> --result failed --json
+spec-kitty next --agent <name> --mission <slug> --result failed --json
 
 # After hitting a blocker
-spec-kitty next --agent <name> --feature <slug> --result blocked --json
+spec-kitty next --agent <name> --mission <slug> --result blocked --json
 ```
 
 If `--result` is omitted, the runtime assumes `success`.

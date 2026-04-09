@@ -35,13 +35,11 @@ Charter files (`.kittify/charter/charter.md`,
 **Action**: Extend `ProjectMissionPaths` (or a sibling
 `ProjectCharterPaths`) to cover charter path resolution.
 
-### 2. Doctrine defaults location
+### 2. Doctrine defaults location — RESOLVED
 
-`src/doctrine/charter/defaults.yaml` should move to
-`src/charter/defaults.yaml` so the charter package owns its
-own defaults rather than reaching into the doctrine package.
-
-**Action**: Move the file and update all importers.
+`defaults.yaml` has been moved from `src/doctrine/charter/` to
+`src/charter/defaults.yaml`. The charter package now owns its
+own defaults via `importlib.resources.files("charter")`.
 
 ### 3. Kitty-specs path not centralized
 

@@ -1,8 +1,8 @@
 {
   "event_count": 17,
-  "feature_slug": "034-feature-status-state-model-remediation",
   "last_event_id": "01KJ5V38WJK5HZHWGSDWY3AJAV",
-  "materialized_at": "2026-03-11T07:08:19.403398+00:00",
+  "materialized_at": "2026-02-08T14:07:18Z",
+  "mission_slug": "034-feature-status-state-model-remediation",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 17,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

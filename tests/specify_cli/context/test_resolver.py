@@ -34,14 +34,7 @@ def _setup_project(
     # .kittify/config.yaml with project.uuid
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir(parents=True)
-    config_content = (
-        "vcs:\n"
-        "  type: git\n"
-        "project:\n"
-        "  uuid: test-project-uuid-1234\n"
-        "  slug: test-project\n"
-        "  node_id: abcdef012345\n"
-    )
+    config_content = "vcs:\n  type: git\nproject:\n  uuid: test-project-uuid-1234\n  slug: test-project\n  node_id: abcdef012345\n"
     (kittify_dir / "config.yaml").write_text(config_content, encoding="utf-8")
 
     # kitty-specs/<mission_slug>/meta.json
@@ -70,7 +63,7 @@ def _setup_project(
     deps = dependencies or []
     files = owned_files or ["src/specify_cli/context/**"]
     deps_yaml = "[" + ", ".join(f'"{d}"' for d in deps) + "]" if deps else "[]"
-    owned_yaml = "\n".join(f"- \"{f}\"" for f in files)
+    owned_yaml = "\n".join(f'- "{f}"' for f in files)
 
     wp_content = (
         f"---\n"
@@ -123,6 +116,8 @@ class TestResolveContext:
         assert isinstance(ctx, MissionContext)
         assert ctx.wp_code == "WP01"
         assert ctx.mission_slug == "057-test-feature"
+        assert ctx.mission_number == "057"
+        assert ctx.mission_type == "software-dev"
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
         assert ctx.authoritative_repo == str(repo)
@@ -146,9 +141,7 @@ class TestResolveContext:
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
 
         # Verify the file was created
-        context_path = (
-            repo / ".kittify" / "runtime" / "contexts" / f"{ctx.token}.json"
-        )
+        context_path = repo / ".kittify" / "runtime" / "contexts" / f"{ctx.token}.json"
         assert context_path.exists()
 
     def test_authoritative_ref_for_code_change(self, tmp_path: Path) -> None:
@@ -172,9 +165,7 @@ class TestResolveContext:
         assert ctx.dependency_mode == "independent"
 
     def test_owned_files_as_tuple(self, tmp_path: Path) -> None:
-        repo = _setup_project(
-            tmp_path, owned_files=["src/**", "tests/**"]
-        )
+        repo = _setup_project(tmp_path, owned_files=["src/**", "tests/**"])
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
         assert isinstance(ctx.owned_files, tuple)
         assert ctx.owned_files == ("src/**", "tests/**")
@@ -220,9 +211,7 @@ class TestResolveContextErrors:
     def test_missing_project_uuid_raises(self, tmp_path: Path) -> None:
         kittify_dir = tmp_path / ".kittify"
         kittify_dir.mkdir(parents=True)
-        (kittify_dir / "config.yaml").write_text(
-            "vcs:\n  type: git\n", encoding="utf-8"
-        )
+        (kittify_dir / "config.yaml").write_text("vcs:\n  type: git\n", encoding="utf-8")
 
         with pytest.raises(MissingIdentityError, match="project.uuid not found"):
             resolve_context("WP01", "057-test-feature", "claude", tmp_path)
@@ -332,3 +321,31 @@ class TestResolveOrLoad:
             repo_root=repo,
         )
         assert loaded == original
+
+
+class TestTypedFrontmatterResolution:
+    """Verify resolver uses WPMetadata typed frontmatter access."""
+
+    def test_owned_files_from_typed_metadata(self, tmp_path: Path) -> None:
+        """owned_files are extracted from WPMetadata.owned_files attribute."""
+        repo = _setup_project(tmp_path, owned_files=["src/foo.py", "tests/test_foo.py"])
+        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
+        assert ctx.owned_files == ("src/foo.py", "tests/test_foo.py")
+
+    def test_execution_mode_from_typed_metadata(self, tmp_path: Path) -> None:
+        """execution_mode is extracted from WPMetadata.execution_mode attribute."""
+        repo = _setup_project(tmp_path, execution_mode="planning_artifact")
+        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
+        assert ctx.execution_mode == "planning_artifact"
+
+    def test_dependencies_from_typed_metadata(self, tmp_path: Path) -> None:
+        """dependencies are extracted from WPMetadata.dependencies attribute."""
+        repo = _setup_project(tmp_path, dependencies=["WP00"])
+        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
+        assert ctx.dependency_mode == "chained"
+
+    def test_work_package_id_from_typed_metadata(self, tmp_path: Path) -> None:
+        """work_package_id is extracted from WPMetadata.work_package_id attribute."""
+        repo = _setup_project(tmp_path, wp_code="WP07")
+        ctx = resolve_context("WP07", "057-test-feature", "claude", repo)
+        assert ctx.work_package_id == "WP07"

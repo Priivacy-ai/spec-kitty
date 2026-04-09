@@ -6,7 +6,8 @@ Terminology note:
 - `Mission Type` = reusable workflow blueprint
 - `Mission` = tracked item under `kitty-specs/<mission-slug>/`
 - `Mission Run` = runtime/session instance
-- Current `--feature` flags and `accept-feature`/`merge-feature` command names are legacy software-dev compatibility surfaces for the tracked mission
+- As of 3.1.0, `--mission` is the canonical flag name for specifying the mission slug. `--feature` remains only as a hidden deprecated alias during the migration window.
+- `mission-state`/`accept-mission`/`merge-mission` are the canonical orchestrator-api command names
 
 ## spec-kitty
 
@@ -35,7 +36,7 @@ Terminology note:
 - `research` - Execute Phase 0 research workflow to scaffold artifacts
 - `upgrade` - Upgrade a Spec Kitty project to the current version
 - `list-legacy-features` - List legacy worktrees blocking 0.11.0 upgrade
-- `validate-encoding` - Validate and optionally fix file encoding in feature artifacts
+- `validate-encoding` - Validate and optionally fix file encoding in mission artifacts
 - `validate-tasks` - Validate and optionally fix task metadata inconsistencies
 - `verify-setup` - Verify that the current environment matches Spec Kitty expectations
 - `agent` - Commands for AI agents to execute spec-kitty workflows programmatically
@@ -60,33 +61,22 @@ Terminology note:
 **Description**: Initialize a new Spec Kitty project from templates.
 
 **Arguments**:
-- `PROJECT_NAME`: Name for your new project directory (optional if using `--here`, or use `.` for current directory)
+- `PROJECT_NAME`: Name for your new project directory (use `.` for current directory)
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--ignore-agent-tools` | Skip checks for AI agent tools like Claude Code |
-| `--no-git` | Skip git repository initialization |
-| `--here` | Initialize project in the current directory instead of creating a new one |
-| `--force` | Force merge/overwrite when using `--here` (skip confirmation) |
-| `--skip-tls` | Skip SSL/TLS verification (not recommended) |
-| `--debug` | Show verbose diagnostic output for network and extraction failures |
-| `--github-token TEXT` | GitHub token to use for API requests (or set `GH_TOKEN`/`GITHUB_TOKEN`) |
-| `--template-root TEXT` | Override default template location (useful for development mode) |
 | `--ai TEXT` | Comma-separated AI assistants (claude,codex,gemini,...) |
-| `--script TEXT` | Script type to use: `sh` or `ps` |
-| `--preferred-implementer TEXT` | Preferred agent for implementation |
-| `--preferred-reviewer TEXT` | Preferred agent for review |
 | `--non-interactive` / `--yes` | Disable prompts (CI/CD) |
+| `--no-git` | Skip git repository initialization |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty init my-project
 spec-kitty init my-project --ai codex
-spec-kitty init my-project --ai codex,claude --script sh
-spec-kitty init . --ai codex --force
-spec-kitty init --here --ai claude
+spec-kitty init my-project --ai codex,claude
+spec-kitty init . --ai codex
 spec-kitty init my-project --ai codex --non-interactive
 ```
 
@@ -132,7 +122,9 @@ spec-kitty upgrade --target 0.6.5
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; compatibility alias for software-dev missions) |
+| `--mission TEXT` | Mission slug (canonical flag; e.g., `001-my-feature`) |
+| `--recover` | Restore execution context for a WP stuck in `in_progress` after a crash |
+| `--base TEXT` | Override base ref for the worktree (advanced; normally auto-detected) |
 | `--auto-commit`, `--no-auto-commit` | Auto-commit lane change (default: from project config) |
 | `--json` | Output in JSON format |
 | `--help` | Show this message and exit |
@@ -141,8 +133,8 @@ spec-kitty upgrade --target 0.6.5
 ```bash
 spec-kitty implement WP01
 spec-kitty implement WP02
-spec-kitty implement WP01 --feature 001-my-feature
-spec-kitty implement WP06 --force
+spec-kitty implement WP01 --mission 001-my-feature
+spec-kitty implement WP01 --recover
 spec-kitty implement WP01 --json
 ```
 
@@ -157,7 +149,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to accept (legacy flag name; compatibility alias for software-dev missions) |
+| `--mission TEXT` | Mission slug to accept |
 | `--mode TEXT` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor TEXT` | Name to record as the acceptance actor |
 | `--test TEXT` | Validation command executed (repeatable) |
@@ -178,17 +170,28 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--strategy TEXT` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
+| `--strategy TEXT` | Merge strategy: `MERGE` (merge commit), `SQUASH` (squash to single commit), or `REBASE` (linear history). Default: `MERGE`. Case-insensitive. |
+| `--mission TEXT` | Mission slug when merging from main branch (canonical flag) |
 | `--delete-branch`, `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
 | `--remove-worktree`, `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target TEXT` | Target branch to merge into (auto-detected) |
 | `--dry-run` | Show what would be done without executing |
 | `--json` | Output deterministic JSON (dry-run mode) |
-| `--feature TEXT` | Mission slug when merging from main branch (legacy flag name) |
-| `--resume` | Resume an interrupted merge from saved state |
+| `--resume` | Resume an interrupted merge from saved state in `.kittify/merge-state.json` |
 | `--abort` | Abort and clear merge state |
 | `--help` | Show this message and exit |
+
+**Strategy notes**:
+- `MERGE` — creates a merge commit; preserves full history; default.
+- `SQUASH` — collapses all lane commits into a single commit on the target branch.
+- `REBASE` — replays lane commits on top of the target branch for a linear history; may be rejected by repos with linear-history branch protection if commits already exist on a remote.
+
+**Resume / abort**:
+```bash
+spec-kitty merge --resume   # continue from .kittify/merge-state.json
+spec-kitty merge --abort    # clear saved state and abort any in-progress git merge
+```
 
 ---
 
@@ -217,7 +220,7 @@ spec-kitty implement WP01 --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to target (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to target |
 | `--force` | Overwrite existing research artifacts |
 | `--help` | Show this message and exit |
 
@@ -236,14 +239,14 @@ spec-kitty implement WP01 --json
 
 **Commands**:
 - `contract-version` - Return host contract version and provider compatibility minimum
-- `feature-state` - Return full mission/WP state snapshot
+- `mission-state` - Return full mission/WP state snapshot
 - `list-ready` - Return `planned` WPs whose dependencies are `done`
 - `start-implementation` - Composite claim/start transition for a WP
 - `start-review` - Move rejected WP from `for_review` back to `in_progress`
 - `transition` - Apply explicit lane transition with state-machine validation
 - `append-history` - Append activity history to a WP prompt
-- `accept-feature` - Accept a mission when all WPs are `done`
-- `merge-feature` - Run preflight and land the mission into the target branch
+- `accept-mission` - Accept a mission when all WPs are `done`
+- `merge-mission` - Run preflight and land the mission into the target branch
 
 **See Also**: [Orchestrator API Reference](orchestrator-api.md)
 
@@ -436,7 +439,7 @@ spec-kitty ops log --verbose
 
 **Synopsis**: `spec-kitty mission [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: View available Spec Kitty missions. Missions are selected per-feature during `/spec-kitty.specify`.
+**Description**: View available Spec Kitty missions. Mission types are selected per mission during `/spec-kitty.specify`.
 
 **Options**:
 | Flag | Description |
@@ -500,12 +503,12 @@ spec-kitty ops log --verbose
 
 **Synopsis**: `spec-kitty validate-encoding [OPTIONS]`
 
-**Description**: Validate and optionally fix file encoding in feature artifacts.
+**Description**: Validate and optionally fix file encoding in mission artifacts.
 
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to validate |
 | `--fix` | Automatically fix encoding errors by sanitizing files |
 | `--all` | Check all features, not just one |
 | `--backup`, `--no-backup` | Create .bak files before fixing (default: backup) |
@@ -522,7 +525,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to validate (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to validate |
 | `--fix` | Automatically repair metadata inconsistencies |
 | `--all` | Check all features, not just one |
 | `--agent TEXT` | Agent name for activity log |
@@ -540,7 +543,7 @@ spec-kitty ops log --verbose
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug to verify (legacy flag name; auto-detected when omitted) |
+| `--mission TEXT` | Mission slug to verify |
 | `--json` | Output in JSON format for AI agents |
 | `--check-files` | Check mission file integrity (default: True) |
 | `--check-tools` | Check for installed development tools (default: True) |
@@ -985,11 +988,75 @@ spec-kitty agent config set auto_commit true
 
 ---
 
+### spec-kitty agent release
+
+**Synopsis**: `spec-kitty agent release [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Release management subcommands for AI agents.
+
+**Commands**:
+- `prep` - Prepare a release candidate (bump version, validate changelog, tag)
+
+#### spec-kitty agent release prep
+
+**Synopsis**: `spec-kitty agent release prep [OPTIONS]`
+
+**Description**: Prepare a release candidate: validates `CHANGELOG.md`, bumps version in `pyproject.toml`, creates an annotated git tag, and optionally opens a GitHub release draft. Added in 3.1.0 (mission 068).
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--channel TEXT` | Release channel: `alpha`, `beta`, or `stable` (default: `stable`) |
+| `--dry-run` | Show what would change without modifying files or creating a tag |
+| `--json` | Machine-readable JSON output |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty agent release prep --channel alpha --dry-run
+spec-kitty agent release prep --channel beta
+spec-kitty agent release prep --channel stable
+```
+
+---
+
+### spec-kitty agent tests
+
+**Synopsis**: `spec-kitty agent tests [OPTIONS] COMMAND [ARGS]...`
+
+**Description**: Test-suite utility subcommands for AI agents.
+
+**Commands**:
+- `stale-check` - Detect test assertions that reference version-dependent or environment-dependent values
+
+#### spec-kitty agent tests stale-check
+
+**Synopsis**: `spec-kitty agent tests stale-check [OPTIONS]`
+
+**Description**: Scan the test suite for stale assertions: version strings, hardcoded timestamps, or environment-specific values that would cause false failures after a release. Uses `ast`-based analysis (no test execution required). Added in 3.1.0 (mission 068).
+
+**Options**:
+| Flag | Description |
+| --- | --- |
+| `--base TEXT` | Base git ref to diff against (default: `HEAD~1`) |
+| `--head TEXT` | Head git ref to scan (default: `HEAD`) |
+| `--json` | Machine-readable JSON output |
+| `--help` | Show this message and exit |
+
+**Examples**:
+```bash
+spec-kitty agent tests stale-check
+spec-kitty agent tests stale-check --base main --head HEAD
+spec-kitty agent tests stale-check --json
+```
+
+---
+
 ## spec-kitty specify
 
 **Synopsis**: `spec-kitty specify [OPTIONS] FEATURE`
 
-**Description**: Create a feature scaffold in kitty-specs/.
+**Description**: Create a mission scaffold in kitty-specs/.
 
 **Arguments**:
 - `FEATURE`: Feature name or slug (e.g., `user-authentication`) [required]
@@ -997,14 +1064,14 @@ spec-kitty agent config set auto_commit true
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--mission TEXT` | Mission type (e.g., `software-dev`, `research`) |
+| `--mission-type TEXT` | Mission type (e.g., `software-dev`, `research`) |
 | `--json` | Emit JSON result |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty specify user-authentication
-spec-kitty specify user-authentication --mission software-dev
+spec-kitty specify user-authentication --mission-type software-dev
 spec-kitty specify my-feature --json
 ```
 
@@ -1019,14 +1086,14 @@ spec-kitty specify my-feature --json
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--feature TEXT` | Mission slug (legacy flag name; e.g., `001-user-authentication`) |
+| `--mission TEXT` | Mission slug (e.g., `001-user-authentication`) |
 | `--json` | Emit JSON result |
 | `--help` | Show this message and exit |
 
 **Examples**:
 ```bash
 spec-kitty plan
-spec-kitty plan --feature 001-user-authentication
+spec-kitty plan --mission 001-user-authentication
 spec-kitty plan --json
 ```
 
@@ -1080,12 +1147,14 @@ spec-kitty config -m documentation
 
 **Description**: Decide and emit the next agent action for the current mission. Agents call this command repeatedly in a loop. The system inspects the mission state machine, evaluates guards, and returns a deterministic decision with an action and prompt file.
 
+As of 3.1.0, omitting `--result` is **query mode**: the command reads and prints the current mission state without advancing it. `--agent` and `--mission` are still required.
+
 **Options**:
 | Flag | Description |
 | --- | --- |
-| `--agent TEXT` | Agent name [required] |
-| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked` (default: `success`) |
-| `--feature TEXT` | Mission slug (legacy flag name; auto-detected if omitted) |
+| `--agent TEXT` | Agent name (required) |
+| `--result TEXT` | Result of previous step: `success`, `failed`, or `blocked`. Omit for query mode. |
+| `--mission TEXT` | Mission slug (canonical flag; required) |
 | `--json` | Output JSON decision only |
 | `--answer TEXT` | Answer to a pending decision |
 | `--decision-id TEXT` | Decision ID (required if multiple pending) |
@@ -1093,11 +1162,15 @@ spec-kitty config -m documentation
 
 **Examples**:
 ```bash
-spec-kitty next --agent claude --json
-spec-kitty next --agent codex --feature 034-my-feature
-spec-kitty next --agent gemini --result failed --json
-spec-kitty next --agent claude --answer "yes" --json
-spec-kitty next --agent claude --answer "approve" --decision-id "input:review" --json
+# Query mode — inspect current state without advancing (3.1.0+)
+spec-kitty next --agent claude --mission 034-my-feature --json
+
+# Normal agent loop
+spec-kitty next --agent claude --mission 034-my-feature --json
+spec-kitty next --agent codex --mission 034-my-feature
+spec-kitty next --agent gemini --mission 034-my-feature --result failed --json
+spec-kitty next --agent claude --mission 034-my-feature --answer "yes" --json
+spec-kitty next --agent claude --mission 034-my-feature --answer "approve" --decision-id "input:review" --json
 ```
 
 ---
@@ -1183,7 +1256,7 @@ spec-kitty migrate --verbose
 
 **Synopsis**: `spec-kitty charter [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Charter management commands.
+**Description**: Charter management commands. As of 3.1.0 (mission 063), `spec-kitty charter` is the canonical command. `spec-kitty constitution` has been removed; all existing `constitution` references should be updated to `charter`.
 
 **Options**:
 | Flag | Description |
@@ -1353,11 +1426,19 @@ spec-kitty context cleanup
 
 **Synopsis**: `spec-kitty doctor [OPTIONS] COMMAND [ARGS]...`
 
-**Description**: Project health diagnostics.
+**Description**: Project health diagnostics. As of 3.1.0, running `spec-kitty doctor` (without a subcommand) also performs a full mission health scan: stale claims (WPs stuck in `claimed` or `in_progress` with no recent activity), orphaned worktrees (worktrees whose WPs are all terminal), and unresolved materialization drift. Use this as the first step when recovering from a crash or unexpected interruption.
+
+```bash
+# Full project health scan (3.1.0+)
+spec-kitty doctor
+spec-kitty doctor --mission 034-my-feature
+```
 
 **Options**:
 | Flag | Description |
 | --- | --- |
+| `--mission TEXT` | Restrict scan to a specific mission slug |
+| `--json` | Machine-readable JSON output |
 | `--help` | Show this message and exit |
 
 **Commands**:

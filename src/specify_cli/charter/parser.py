@@ -8,7 +8,7 @@ Parses charter markdown into structured sections and extracts:
 """
 
 import logging
-import re
+from kernel._safe_re import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any

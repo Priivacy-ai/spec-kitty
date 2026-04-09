@@ -1,11 +1,15 @@
+<!-- spec-kitty-command-version: 3.2.0 -->
 # /spec-kitty.tasks-packages - Generate Work Package Files
 
-**Version**: 0.12.0+
+**Version**: 3.2.0
 
 ## Purpose
 
-Generate individual `tasks/WP*.md` prompt files from the outline in `tasks.md`.
-This step assumes `tasks.md` already exists with complete WP definitions.
+Generate individual `tasks/WP*.md` prompt files from the manifest in `wps.yaml`.
+This step reads `wps.yaml` (written in tasks-outline), updates it with per-WP
+details, then generates the WP prompt files.
+
+This step assumes `wps.yaml` already exists with complete WP definitions.
 
 ---
 
@@ -34,14 +38,27 @@ spec-kitty agent context resolve --action tasks_packages --mission <mission-slug
 Then execute the returned `check_prerequisites` command and capture
 `feature_dir`. All paths must be absolute.
 
-### 2. Load tasks.md
+### 2. Load `wps.yaml`
 
-Read `feature_dir/tasks.md` — this must already exist from the previous step.
-Parse the work package definitions, subtask lists, and dependencies.
+Read `feature_dir/wps.yaml`. This is the manifest written in the previous step.
+Each entry defines a WP with its `id`, `title`, `dependencies`, and partial metadata.
+
+Parse all work package entries. The YAML structure is:
+
+```yaml
+work_packages:
+  - id: WP01
+    title: "..."
+    dependencies: [...]   # may be present (authoritative) or absent
+    owned_files: [...]    # may be absent — fill in this step
+    requirement_refs: [...] # may be absent — fill in this step
+    subtasks: [...]
+    prompt_file: null     # fill in this step
+```
 
 ### 3. Generate Prompt Files
 
-For each work package defined in `tasks.md`:
+For each work package defined in `wps.yaml`:
 
 **CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
 
@@ -55,13 +72,12 @@ For each work package defined in `tasks.md`:
 4. Follow the WP prompt template structure below (**do NOT write instructions to read a template file from `.kittify/`**)
 5. Include frontmatter with:
    - `work_package_id`, `subtasks` array, `dependencies`, history entry
-   - `requirement_refs` array from the WP's `Requirement Refs` line in `tasks.md`
+   - `requirement_refs` array from the WP's `requirement_refs` in `wps.yaml`
    - `owned_files`, `authoritative_surface`, `execution_mode` (required ownership fields)
 6. Include in body:
    - Objective, context, detailed guidance per subtask
    - Test strategy (only if requested)
    - Definition of Done, risks, reviewer guidance
-7. Update `tasks.md` to reference the prompt filename
 
 **TARGET PROMPT SIZE**: 200-500 lines per WP (3-7 subtasks)
 **MAXIMUM PROMPT SIZE**: 700 lines per WP (10 subtasks max)
@@ -69,15 +85,43 @@ For each work package defined in `tasks.md`:
 
 **IMPORTANT**: All WP files live in flat `tasks/` directory. Status is managed via `status.events.jsonl`, not by directory location or frontmatter fields.
 
-### 4. Include Dependencies in Frontmatter
+### 4. Update `wps.yaml` With Per-WP Details
 
-Each WP prompt file MUST include a `dependencies` field:
+After generating each WP prompt file, update the corresponding entry in `wps.yaml`
+to fill in `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file`.
+Write the updated `wps.yaml` back to disk after each WP is generated (or
+accumulate changes and write once at the end).
+
+**Critical rule**: Do NOT modify a `dependencies` field that is already present in
+`wps.yaml` — even if it is empty (`[]`). It is authoritative. Only populate
+`dependencies` for entries where the key is **absent** from `wps.yaml`.
+
+Example of a fully-populated entry after this step:
+
+```yaml
+- id: WP02
+  title: "Build API"
+  dependencies:
+    - WP01
+  owned_files:
+    - "src/api/**"
+  requirement_refs:
+    - FR-001
+    - NFR-001
+  subtasks:
+    - T001
+    - T002
+  prompt_file: "tasks/WP02-build-api.md"
+```
+
+The frontmatter in each WP prompt file MUST include a `dependencies` field:
+
 ```yaml
 ---
 work_package_id: "WP02"
 title: "Build API"
-dependencies: ["WP01"]  # From tasks.md
-requirement_refs: ["FR-001", "NFR-001"]  # From tasks.md Requirement Refs
+dependencies: ["WP01"]  # From wps.yaml
+requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
 subtasks: ["T001", "T002"]
 owned_files: ["src/api/**"]
 authoritative_surface: "src/api/"
@@ -109,7 +153,7 @@ After generating each prompt:
 After completing this step:
 - `feature_dir/tasks/WP*.md` prompt files exist for all work packages
 - Each has proper frontmatter with `work_package_id`, `dependencies`, `owned_files`, `authoritative_surface`, `execution_mode`
-- `tasks.md` references all prompt filenames
+- `feature_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
 
 **Next step**: `spec-kitty next --agent <name>` will advance to finalization.
 

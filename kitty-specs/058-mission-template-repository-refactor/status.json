@@ -1,7 +1,7 @@
 {
   "event_count": 68,
   "last_event_id": "01KMYSFNZPDDWQGZ5PTMQZ6A7V",
-  "materialized_at": "2026-03-30T07:14:14.647350+00:00",
+  "materialized_at": "2026-03-30T07:14:14.646757+00:00",
   "mission_slug": "058-mission-template-repository-refactor",
   "summary": {
     "approved": 0,

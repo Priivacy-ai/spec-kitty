@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "mission_slug": "068-post-merge-reliability-and-release-hardening",
+  "mission_id": "068-post-merge-reliability-and-release-hardening",
+  "mission_branch": "kitty/mission-068-post-merge-reliability-and-release-hardening",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".kittify/config.yaml",
+        "src/specify_cli/cli/commands/agent/__init__.py",
+        "src/specify_cli/cli/commands/agent/tests.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/lanes/merge.py",
+        "src/specify_cli/merge/config.py",
+        "src/specify_cli/post_merge/**",
+        "tests/cli/commands/agent/test_tests_stale_check.py",
+        "tests/cli/commands/test_merge_status_commit.py",
+        "tests/cli/commands/test_merge_strategy.py",
+        "tests/post_merge/**"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP03"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        "docs/explanation/diff-coverage-policy.md",
+        "kitty-specs/068-post-merge-reliability-and-release-hardening/wp03-validation-report.md",
+        "tests/release/test_diff_coverage_policy.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-c",
+      "wp_ids": [
+        "WP04"
+      ],
+      "write_scope": [
+        "src/specify_cli/cli/commands/agent/release.py",
+        "src/specify_cli/release/**",
+        "tests/release/test_release_prep.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-d",
+      "wp_ids": [
+        "WP05"
+      ],
+      "write_scope": [
+        "kitty-specs/068-post-merge-reliability-and-release-hardening/mission-close-ledger.md",
+        "kitty-specs/068-post-merge-reliability-and-release-hardening/wp05-verification-report.md",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/lanes/recovery.py",
+        "tests/cli/commands/test_implement_base_flag.py",
+        "tests/lanes/test_recovery_post_merge.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-07T09:09:54.166119+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}

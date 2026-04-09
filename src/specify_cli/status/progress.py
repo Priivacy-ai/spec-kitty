@@ -16,16 +16,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from .models import StatusSnapshot
+from specify_cli.core.identity_aliases import with_tracked_mission_slug_aliases
+from specify_cli.mission_metadata import mission_identity_fields
+
+from .models import Lane, StatusSnapshot
 from .reducer import materialize
 
-# Default lane weights for the 8-lane state machine.
+# Default lane weights for the 9-lane state machine.
 # blocked and canceled contribute 0 — they don't represent forward progress.
+# in_review sits between for_review and approved in the review pipeline.
 DEFAULT_LANE_WEIGHTS: dict[str, float] = {
     "planned": 0.0,
     "claimed": 0.05,
     "in_progress": 0.3,
     "for_review": 0.6,
+    "in_review": 0.7,
     "approved": 0.8,
     "done": 1.0,
     "blocked": 0.0,
@@ -66,16 +71,24 @@ class ProgressResult:
     total_count: int
     per_lane_counts: dict[str, int] = field(default_factory=dict)
     per_wp: list[WPProgress] = field(default_factory=list)
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
-        return {
-            "mission_slug": self.mission_slug,
-            "percentage": round(self.percentage, 4),
-            "done_count": self.done_count,
-            "total_count": self.total_count,
-            "per_lane_counts": self.per_lane_counts,
-            "per_wp": [wp.to_dict() for wp in self.per_wp],
-        }
+        return with_tracked_mission_slug_aliases(
+            {
+                **mission_identity_fields(
+                    self.mission_slug,
+                    self.mission_number,
+                    self.mission_type,
+                ),
+                "percentage": round(self.percentage, 4),
+                "done_count": self.done_count,
+                "total_count": self.total_count,
+                "per_lane_counts": self.per_lane_counts,
+                "per_wp": [wp.to_dict() for wp in self.per_wp],
+            }
+        )
 
 
 def compute_weighted_progress(
@@ -119,6 +132,8 @@ def compute_weighted_progress(
             total_count=0,
             per_lane_counts={},
             per_wp=[],
+            mission_number=snapshot.mission_number,
+            mission_type=snapshot.mission_type,
         )
 
     per_lane_counts: dict[str, int] = {}
@@ -128,7 +143,7 @@ def compute_weighted_progress(
     done_count = 0
 
     for wp_id, wp_state in sorted(work_packages.items()):
-        lane = wp_state.get("lane", "planned")
+        lane = wp_state.get("lane", Lane.PLANNED)
         wp_weight = (wp_weights or {}).get(wp_id, 1.0)
         lw = resolved_lane_weights.get(lane, 0.0)
         fractional = wp_weight * lw
@@ -137,7 +152,7 @@ def compute_weighted_progress(
         weight_total += wp_weight
         per_lane_counts[lane] = per_lane_counts.get(lane, 0) + 1
 
-        if lane == "done":
+        if lane == Lane.DONE:
             done_count += 1
 
         per_wp.append(
@@ -159,6 +174,8 @@ def compute_weighted_progress(
         total_count=len(work_packages),
         per_lane_counts=per_lane_counts,
         per_wp=per_wp,
+        mission_number=snapshot.mission_number,
+        mission_type=snapshot.mission_type,
     )
 
 

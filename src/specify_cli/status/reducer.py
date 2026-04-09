@@ -13,6 +13,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Any
 
+from specify_cli.mission_metadata import resolve_mission_identity
+
 from .models import Lane, StatusEvent, StatusSnapshot
 from .store import read_events
 
@@ -119,7 +121,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
     if not events:
         return StatusSnapshot(
             mission_slug="",
-            materialized_at=_now_utc(),
+            materialized_at="",  # No events → no last-event timestamp; stable empty string
             event_count=0,
             last_event_id=None,
             work_packages={},
@@ -155,7 +157,7 @@ def reduce(events: list[StatusEvent]) -> StatusSnapshot:
 
     return StatusSnapshot(
         mission_slug=mission_slug,
-        materialized_at=_now_utc(),
+        materialized_at=sorted_events[-1].at,  # Derived from last event; deterministic
         event_count=len(sorted_events),
         last_event_id=sorted_events[-1].event_id,
         work_packages=wp_states,
@@ -184,6 +186,7 @@ def materialize_to_json(snapshot: StatusSnapshot) -> str:
 def materialize(feature_dir: Path) -> StatusSnapshot:
     """Read events, reduce to snapshot, and write status.json atomically.
 
+    Skips the write when content is byte-identical to the existing file.
     Writes to a temporary file first, then uses ``os.replace`` for an
     atomic rename to avoid partial writes.
 
@@ -191,12 +194,20 @@ def materialize(feature_dir: Path) -> StatusSnapshot:
     """
     events = read_events(feature_dir)
     snapshot = reduce(events)
+    identity = resolve_mission_identity(feature_dir)
+    snapshot.mission_number = identity.mission_number
+    snapshot.mission_type = identity.mission_type
     json_str = materialize_to_json(snapshot)
 
     out_path = feature_dir / SNAPSHOT_FILENAME
     tmp_path = feature_dir / (SNAPSHOT_FILENAME + ".tmp")
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Skip write when content unchanged (FR-001, NFR-001)
+    if out_path.exists() and out_path.read_text(encoding="utf-8") == json_str:
+        return snapshot
+
     tmp_path.write_text(json_str, encoding="utf-8")
     os.replace(str(tmp_path), str(out_path))
 

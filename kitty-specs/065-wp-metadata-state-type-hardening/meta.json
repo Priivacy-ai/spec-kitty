@@ -1,0 +1,13 @@
+{
+  "created_at": "2026-04-06T04:15:14.877516+00:00",
+  "feature_number": "065",
+  "slug": "065-wp-metadata-state-type-hardening",
+  "feature_slug": "065-wp-metadata-state-type-hardening",
+  "friendly_name": "WP Metadata & State Type Hardening",
+  "mission": "software-dev",
+  "source_description": "Feature 065: WP metadata and state type hardening. Addresses three related issues: (1) Bug #417 — finalize-tasks --validate-only is not read-only: bootstrap runs unconditionally and rewrites WP frontmatter before the validate/commit fork; fix is to skip bootstrap entirely under --validate-only and audit the full mutation surface. (2) Enhancement #410 — untyped WP frontmatter consumed as dict[str, Any] across 15+ modules; tasks.md header regex inconsistent across 4 sites; fix is to standardize regex and introduce WPMetadata Pydantic model, tighten to extra=forbid after migration. (3) Enhancement #405 — lane transition logic scattered across 46 files with 358 hardcoded strings; fix is Phase 1 (WPState protocol + TransitionContext + property tests) and Phase 2 partial (migrate orchestrator_api, next/decision, dashboard/scanner).",
+  "target_branch": "feature/metadata-state-type-hardening",
+  "planning_base_branch": "feature/metadata-state-type-hardening",
+  "merge_target_branch": "main",
+  "vcs": "git"
+}

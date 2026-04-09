@@ -9,7 +9,7 @@ upgrade-specific logic and remain implemented here.
 
 from __future__ import annotations
 
-import re
+from kernel._safe_re import re
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any

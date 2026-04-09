@@ -1,16 +1,16 @@
-# How to Merge a Feature
+# How to Merge a Mission
 
-Use this guide to merge completed work packages from a Spec Kitty feature into main.
+Use this guide to merge completed work packages from a Spec Kitty mission into main.
 
 ## Prerequisites
 
 - All WPs have been reviewed and marked `lane: "done"` in their prompt files
 - All resolved execution worktrees have no uncommitted changes
-- You have run `/spec-kitty.accept` to validate the feature is ready
+- You have run `/spec-kitty.accept` to validate the mission is ready
 
 ## Quick Start
 
-From any execution workspace or from main with the `--feature` flag:
+From any execution workspace or from main with the `--mission` flag:
 
 In your agent:
 
@@ -27,7 +27,7 @@ spec-kitty merge
 Or from main branch:
 
 ```bash
-spec-kitty merge --feature 015-user-authentication
+spec-kitty merge --mission 015-user-authentication
 ```
 
 ## Pre-flight Validation
@@ -97,7 +97,7 @@ spec-kitty merge --dry-run
 Example output:
 
 ```
-Lane-based feature detected: 4 work packages across 3 execution workspaces
+Lane-based mission detected: 4 work packages across 3 execution workspaces
   - WP01: 018-merge-preflight-documentation-lane-a
   - WP02: 018-merge-preflight-documentation-lane-a
   - WP03: 018-merge-preflight-documentation-lane-b
@@ -105,7 +105,7 @@ Lane-based feature detected: 4 work packages across 3 execution workspaces
 
 Validating all execution workspaces...
 ✓ All execution workspaces validated
-Feature Merge
+Mission Merge
 
 Dry run - would execute:
   1. git checkout main
@@ -170,7 +170,7 @@ spec-kitty merge --strategy squash
 
 ### Rebase
 
-Not supported for multi-workspace features due to the complexity of rebasing multiple dependent branches. Use `merge` or `squash` instead.
+Not supported for multi-workspace missions due to the complexity of rebasing multiple dependent branches. Use `merge` or `squash` instead.
 
 ## Cleanup Options
 
@@ -218,13 +218,13 @@ spec-kitty merge --push
 
 ## Merge from Main Branch
 
-If you're on main and want to merge a feature:
+If you're on main and want to merge a mission:
 
 ```bash
-spec-kitty merge --feature 015-user-authentication
+spec-kitty merge --mission 015-user-authentication
 ```
 
-This detects all WP worktrees for that feature and merges them in dependency order.
+This detects all WP worktrees for that mission and merges them in dependency order.
 
 ## Target Branch
 
@@ -276,13 +276,13 @@ For detailed troubleshooting including conflict resolution and error recovery, s
 
 | Flag | Description | Default |
 |------|-------------|---------|
-| `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace features) | `merge` |
+| `--strategy` | Merge strategy: `merge`, `squash` (rebase not supported for multi-workspace missions) | `merge` |
 | `--delete-branch` / `--keep-branch` | Delete lane and mission branches after merge | Delete |
 | `--remove-worktree` / `--keep-worktree` | Remove resolved execution worktrees after merge | Remove |
 | `--push` | Push to origin after merge | No push |
 | `--target` | Target branch to merge into | `main` |
 | `--dry-run` | Show what would be done without executing | - |
-| `--feature` | Feature slug (when running from main) | Auto-detect |
+| `--mission` | Mission slug (when running from main) | Auto-detect |
 | `--resume` | Resume an interrupted merge | - |
 | `--abort` | Abort and clear merge state | - |
 

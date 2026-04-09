@@ -88,7 +88,9 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     status = run_tasks_cli(["status", "--feature", mission_slug, "--json"], cwd=feature_repo)
     assert_success(status)
     data = json.loads(status.stdout)
-    assert data["feature"] == mission_slug
+    assert data["mission_slug"] == mission_slug
+    assert data["mission_number"] == mission_slug.split("-")[0]
+    assert data["mission_type"] == "software-dev"
 
     verify = run_tasks_cli(["verify", "--feature", mission_slug, "--json", "--lenient"], cwd=feature_repo)
     assert_success(verify)
@@ -110,7 +112,9 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     )
     assert_success(accept)
     accept_payload = json.loads(accept.stdout)
-    assert accept_payload.get("feature") == mission_slug
+    assert accept_payload["mission_slug"] == mission_slug
+    assert accept_payload["mission_number"] == mission_slug.split("-")[0]
+    assert accept_payload["mission_type"] == "software-dev"
 
 
 def _prepare_done_work_package(feature_repo: Path, mission_slug: str) -> None:
@@ -226,6 +230,10 @@ def test_merge_command_dry_run(merge_repo: tuple[Path, Path, str]) -> None:
     assert feature in branches.stdout
 
 
+@pytest.mark.xfail(
+    reason="Script copy logic removed from copy_specify_base_from_local in WP03 (076-init-command-overhaul)",
+    strict=True,
+)
 def test_packaged_copy_behaves_like_primary(temp_repo: Path) -> None:
     import types
 

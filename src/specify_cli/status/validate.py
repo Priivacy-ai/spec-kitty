@@ -11,13 +11,13 @@ This module is a library -- it reports problems but never modifies data.
 from __future__ import annotations
 
 import json
-import re
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
 from specify_cli.spec_kitty_events import normalize_event_id
 
+from .models import Lane
 from .transitions import ALLOWED_TRANSITIONS, CANONICAL_LANES
 
 STATUS_BLOCK_START = "<!-- status-model:start -->"
@@ -68,8 +68,8 @@ def validate_event_schema(event: dict) -> list[str]:
         if f not in event:
             findings.append(f"Missing required field: {f}")
 
-    # mission_slug (canonical) or mission_slug (legacy) must be present
-    if "mission_slug" not in event and "mission_slug" not in event:
+    # mission_slug (canonical) or feature_slug (legacy) must be present
+    if "mission_slug" not in event and "feature_slug" not in event:
         findings.append("Missing required field: mission_slug (or legacy mission_slug)")
 
     # ULID format check
@@ -104,7 +104,7 @@ def validate_event_schema(event: dict) -> list[str]:
         findings.append(f"Event {event_id}: force=true without reason")
 
     # Review ref check: for_review -> in_progress requires review_ref
-    if event.get("from_lane") == "for_review" and event.get("to_lane") == "in_progress" and not event.get("review_ref"):
+    if event.get("from_lane") == Lane.FOR_REVIEW and event.get("to_lane") == Lane.IN_PROGRESS and not event.get("review_ref"):
         findings.append(f"Event {event_id}: for_review->in_progress without review_ref")
 
     return findings
@@ -153,7 +153,7 @@ def validate_done_evidence(events: list[dict]) -> list[str]:
     findings: list[str] = []
 
     for event in events:
-        if event.get("to_lane") != "done":
+        if event.get("to_lane") != Lane.DONE:
             continue
 
         event_id = event.get("event_id", "unknown")
@@ -208,10 +208,7 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
         return findings
 
     if not status_path.exists():
-        findings.append(
-            "status.events.jsonl exists but status.json is missing "
-            "(run 'spec-kitty agent status materialize' to generate)"
-        )
+        findings.append("status.events.jsonl exists but status.json is missing (run 'spec-kitty agent status materialize' to generate)")
         return findings
 
     # Read on-disk snapshot
@@ -233,26 +230,17 @@ def validate_materialization_drift(feature_dir: Path) -> list[str]:
             expected_wp = expected_wps.get(wp_id)
 
             if disk_wp is None:
-                findings.append(
-                    f"Materialization drift: {wp_id} missing from status.json "
-                    f"(expected lane={expected_wp.get('lane', '?')})"
-                )
+                findings.append(f"Materialization drift: {wp_id} missing from status.json (expected lane={expected_wp.get('lane', '?')})")
             elif expected_wp is None:
                 findings.append(f"Materialization drift: {wp_id} in status.json but not in reducer output")
             elif disk_wp.get("lane") != expected_wp.get("lane"):
-                findings.append(
-                    f"Materialization drift: {wp_id} lane={disk_wp.get('lane')} in status.json "
-                    f"but reducer says lane={expected_wp.get('lane')}"
-                )
+                findings.append(f"Materialization drift: {wp_id} lane={disk_wp.get('lane')} in status.json but reducer says lane={expected_wp.get('lane')}")
             elif disk_wp != expected_wp:
                 findings.append(f"Materialization drift: {wp_id} state differs between status.json and reducer output")
 
     # Also check event count and last_event_id
     if disk_data.get("event_count") != expected_snapshot.event_count:
-        findings.append(
-            f"Materialization drift: event_count={disk_data.get('event_count')} "
-            f"in status.json but reducer counted {expected_snapshot.event_count}"
-        )
+        findings.append(f"Materialization drift: event_count={disk_data.get('event_count')} in status.json but reducer counted {expected_snapshot.event_count}")
 
     if disk_data.get("last_event_id") != expected_snapshot.last_event_id:
         findings.append("Materialization drift: last_event_id mismatch between status.json and reducer output")

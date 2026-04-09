@@ -9,6 +9,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1a3] - 2026-04-07
+
+### Added
+
+- **Global slash command installation** — all 16 spec-kitty slash commands are now installed globally to `~/.<agent-dir>/` (e.g. `~/.claude/commands/`, `~/.gemini/commands/`, `~/.codex/prompts/`, etc.) at every CLI startup, for all 13 supported agents. No `spec-kitty init` or per-project `spec-kitty upgrade` is required for commands to be available. Commands update automatically when the CLI is upgraded.
+- **Migration `3.1.2_globalize_commands`** — removes existing per-project `spec-kitty.*` command files from `.claude/commands/`, `.gemini/commands/`, and equivalent directories in all configured agents. Runs automatically on `spec-kitty upgrade`.
+- **ADR `2026-04-07-1-global-slash-command-installation`** — documents the decision to install commands globally, the full 13-agent table with global roots, and the rationale.
+
+### Changed
+
+- `spec-kitty init` no longer writes per-project command files. Commands are managed exclusively by the global startup hook.
+
+## [3.1.1a2] - 2026-04-07
+
+### Fixed
+
+- **`spec-kitty init` / any CLI command no longer dirties the git repo** — every CLI invocation that touched status was unconditionally rewriting `kitty-specs/*/status.json`, even when nothing had changed, leaving ~60 files modified in `git status`. Root cause: `materialize()` stamped a fresh `datetime.now(UTC)` into `materialized_at` on every call. Fixed in `reducer.py` (3.1.1a1): `materialized_at` is now derived deterministically from the last event's `at` timestamp (or `""` for features with no events), and a content-equality guard skips the write when the file is already up to date. Closes #524.
+
+### Added
+
+- **Migration `3.1.1_normalize_status_json`** — one-shot upgrade migration that normalises all existing `kitty-specs/*/status.json` files to the new deterministic format. Runs automatically on `spec-kitty upgrade` for any project where the committed files still carry old wall-clock timestamps or the legacy `feature_slug` field. After the migration the skip-write guard in `materialize()` keeps all status snapshots stable indefinitely.
+
+### Changed
+
+- **`StatusSnapshot` and `ProgressResult` serialisation no longer emits `feature_slug`** — `with_tracked_mission_slug_aliases` previously injected a redundant `feature_slug` alias into every serialised snapshot. Now only `mission_slug` is written. Reading still accepts both keys for backward compat with existing files.
+
+## [3.1.1a1] - 2026-04-07
+
+### Added
+
+- **Typed `WPMetadata` Pydantic model** (`src/specify_cli/status/wp_metadata.py`) — immutable, validated work package metadata with `update()` builder API; replaces all raw `frontmatter.get()` dict access across consumer files. Closes #410.
+- **`Lane` enum state machine** — valid lane transitions enforced at the type level; all runtime consumers migrated from string comparisons to `Lane` enum values.
+- **Typed dashboard API contracts** (`src/specify_cli/dashboard/handlers/api.py`) — Pydantic response models replace untyped dicts.
+- **RE2 shim** (`src/kernel/_safe_re.py`) — `types.ModuleType`-based shim backed by `google-re2`; exposes the full `re` API and mitigates Sonar DOS hotspot findings. `google-re2>=1.1` added as a core runtime dependency.
+- **CI status-layer test stages** — new `fast-tests-status` and `integration-tests-status` jobs run the `tests/status/` and `tests/specify_cli/status/` suites in parallel with existing core/doctrine jobs; their coverage outputs feed the `diff-coverage` gate.
+- **`WPMetadata.display_title` property** — safe fallback for missing or empty WP titles.
+
+### Changed
+
+- All `frontmatter.get()` calls outside `frontmatter.py` migrated to typed `WPMetadata` access. Migration scripts retain raw dict access annotated `# MIGRATION-ONLY`.
+- `WPMetadata.title` is now optional; WP read errors propagate gracefully via `read_wp_frontmatter()`.
+- `OwnershipManifest.from_frontmatter()` accepts `WPMetadata` directly.
+- `diff-coverage` job wired to consume `coverage-kernel.xml`, `coverage-fast-status.xml`, and `coverage-integration-status.xml` in both enforced (critical-path 90%) and advisory (full-diff) steps.
+- GitHub Actions upgraded to Node.js 24 compatible versions (`actions/checkout@v6`, `actions/setup-python@v6`, `actions/setup-node@v6`, `actions/upload-artifact@v7`, `actions/download-artifact@v8`) across all workflow files.
+
+### Fixed
+
+- `ValidationError` caught in phase-1 status mirror (`status/emit.py`) — prevents NoneType crashes on malformed WP files.
+- Ruff and mypy violations cleaned up in all files touched by the migration.
+- Sonar false-positive NOSONAR suppressions added in `arbiter.py` and `dashboard/handlers/api.py`.
+- WP03 validation report (mission 068) decision corrected from `close_with_evidence` to `tighten_workflow` to reflect the CI logic additions; `test_tighten_workflow_passes_large_pr_sample` implemented to verify the advisory-only contract.
+
+## [3.1.0] - 2026-04-07
+
+### Added
+
+- **Planning pipeline integrity (mission 069)** — four structural fixes eliminating fragilities discovered during mission 068:
+  - **Dirty-git reads fix (WP01)** — `materialize()` now derives `materialized_at` from the last event timestamp (deterministic) and skips the write when content is byte-identical. `materialize_if_stale()` returns a read-only `reduce()` call. All read-only commands leave zero modified files in `git status`. Fixes #524.
+  - **Structured WP manifest — `wps.yaml` (WP02, WP03, WP04)** — new `src/specify_cli/core/wps_manifest.py` with Pydantic model, YAML loader, and `generate_tasks_md_from_manifest()`. JSON Schema at `src/specify_cli/schemas/wps.schema.json`. When `wps.yaml` is present, `finalize-tasks` derives dependencies exclusively from the manifest; `tasks.md` is regenerated as a derived artifact. `/spec-kitty.tasks-outline` and `/spec-kitty.tasks-packages` templates updated to produce/consume `wps.yaml`. Migration `m_3_2_0_update_planning_templates` propagates changes to existing installations. Fixes #525.
+  - **`spec-kitty next` query mode (WP05)** — bare `spec-kitty next` (no `--result`) enters query mode: returns current step with `[QUERY — no result provided, state not advanced]` prefix without advancing the state machine. Prevents ghost completions when agents call `next` while disoriented. Fixes #526.
+  - **Slug validator digit-prefix support (WP06)** — `KEBAB_CASE_PATTERN` updated to accept `NNN-*` slugs following spec-kitty's own naming convention. Fixes #527.
+
+## [3.1.0a8] - 2026-04-07
+
+### Added
+
+- **Post-merge reliability and release hardening (mission 068)** — 5 work packages closing the workflow-stabilization track:
+  - **Stale-assertion analyzer (WP01)** — new `src/specify_cli/post_merge/` package: stdlib `ast`-based tool that detects test assertions likely invalidated by merged source changes. CLI: `spec-kitty agent tests stale-check --base <ref> --head <ref> [--json]`. Integrated into the merge runner. No new dependencies, no network calls.
+  - **Merge strategy + safe-commit + linear-history hint (WP02)** — `MergeStrategy` enum (MERGE/SQUASH/REBASE) in new `src/specify_cli/merge/config.py` with `--strategy` CLI flag (resolves: flag → `.kittify/config.yaml` → squash default). `safe_commit()` called after `_mark_wp_merged_done` before worktree removal (FR-019). Linear-history rejection hint guides users past protected-branch push failures. Closes #456.
+  - **Diff-coverage policy validation (WP03)** — validation report confirms the enforce/advisory split already satisfies the policy intent. CI step names tightened to `diff-coverage (critical-path, enforced)` and `diff-coverage (full-diff, advisory)`. Closes #455.
+  - **Release-prep CLI (WP04)** — new `src/specify_cli/release/` package: `propose_version()`, `build_changelog_block()`, `ReleasePrepPayload`. CLI: `spec-kitty agent release prep --channel {alpha,beta,stable} [--json]`. Zero network calls. Closes #457.
+  - **Recovery extension + mission close (WP05)** — `scan_recovery_state()` extended with `consult_status_events=True` to detect merged-and-deleted WPs via event log; new `RecoveryState.ready_to_start_from_target` field. `spec-kitty implement` gains `--base <ref>` flag for explicit worktree branching. Closes #415.
+
+### Fixed
+
+- **`implement --base` Typer pattern** — changed to Annotated pattern, fixing test isolation failures where direct Python calls received `OptionInfo` objects instead of `None`
+- **`implement` console capsys isolation** — `_json_safe_output` wrapper now resets `console._file = None` in `finally` to prevent "I/O operation on closed file" when tests run in sequence with pytest capsys
+- **Replay parity test** — corrected `reduced.mission_key == "replay-mission"` (was wrong field name and wrong value)
+
 ## [3.1.0a7] - 2026-04-06
 
 ### Added

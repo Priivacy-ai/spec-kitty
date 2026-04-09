@@ -198,14 +198,14 @@ Runtime state is persisted between calls:
 
 ### Mission Detection
 
-When `--mission-run` is omitted, the runtime detects the mission via (in order):
+When `--mission` is omitted, the runtime detects the mission via (in order):
 1. `SPECIFY_MISSION` environment variable
 2. Git branch name (mission and lane branches both encode the feature slug)
 3. Current directory path (walks up looking for `###-mission-name`)
 4. Single mission auto-detect (only if exactly one mission exists)
 5. Error with guidance if ambiguous
 
-**NOTE:** Always use `--mission-run <slug>` in multi-mission repositories.
+**NOTE:** Always use `--mission <slug>` in multi-mission repositories.
 
 ---
 
@@ -321,10 +321,10 @@ Before invoking the runtime, gather the current state.
 
 ```bash
 # Check WP status for a mission
-spec-kitty agent tasks status --mission-run <mission-slug>
+spec-kitty agent tasks status --mission <mission-slug>
 
 # Check current context for an action
-spec-kitty agent context resolve --action implement --mission-run <mission-slug> --json
+spec-kitty agent context resolve --action implement --mission <mission-slug> --json
 ```
 
 **What to look for:**
@@ -340,20 +340,20 @@ spec-kitty agent context resolve --action implement --mission-run <mission-slug>
 
 ```bash
 # Run the next step
-spec-kitty next --agent <agent> --mission-run <mission-slug> --json
+spec-kitty next --agent <agent> --mission <mission-slug> --json
 
 # After completing a step successfully
-spec-kitty next --agent <agent> --mission-run <mission-slug> --result success --json
+spec-kitty next --agent <agent> --mission <mission-slug> --result success --json
 
 # After a step failed
-spec-kitty next --agent <agent> --mission-run <mission-slug> --result failed --json
+spec-kitty next --agent <agent> --mission <mission-slug> --result failed --json
 
 # After a step was blocked
-spec-kitty next --agent <agent> --mission-run <mission-slug> --result blocked --json
+spec-kitty next --agent <agent> --mission <mission-slug> --result blocked --json
 ```
 
-> **Note:** `--feature` is a legacy alias for `--mission-run` and still accepted.
-> Always use `--mission-run` in new scripts.
+> **Note:** `--feature` is a hidden deprecated alias for `--mission`.
+> Always use `--mission` in new scripts.
 
 The `--result` flag tells the runtime the outcome of the previous step.
 Defaults to `success` if omitted.
@@ -393,7 +393,7 @@ When the runtime needs input:
 ```bash
 # The decision includes question, options, and decision_id
 # Answer using:
-spec-kitty next --agent <agent> --mission-run <mission-slug> \
+spec-kitty next --agent <agent> --mission <mission-slug> \
   --answer "<choice>" --decision-id "<decision_id>" --json
 ```
 
@@ -410,10 +410,10 @@ See `references/blocked-state-recovery.md` for detailed recovery patterns.
 
 ```bash
 # Check WP status and dependency graph
-spec-kitty agent tasks status --mission-run <mission-slug>
+spec-kitty agent tasks status --mission <mission-slug>
 
 # Check specific WP dependencies
-spec-kitty agent tasks list-dependents WP## --mission-run <mission-slug>
+spec-kitty agent tasks list-dependents WP## --mission <mission-slug>
 ```
 
 **Common blockers:**
@@ -434,7 +434,7 @@ The complete agent loop pattern:
 
 ```bash
 # 1. Start the loop
-DECISION=$(spec-kitty next --agent claude --mission-run 042-mission --json)
+DECISION=$(spec-kitty next --agent claude --mission 042-mission --json)
 KIND=$(echo "$DECISION" | jq -r '.kind')
 
 # 2. Loop until terminal or unresolvable block
@@ -462,7 +462,7 @@ while [ "$KIND" = "step" ] || [ "$KIND" = "decision_required" ]; do
     RESULT="success"
   fi
 
-  DECISION=$(spec-kitty next --agent claude --mission-run 042-mission --result "$RESULT" --json)
+  DECISION=$(spec-kitty next --agent claude --mission 042-mission --result "$RESULT" --json)
   KIND=$(echo "$DECISION" | jq -r '.kind')
 done
 
@@ -483,7 +483,7 @@ fi
 ## Important: Runtime Precedence Rules
 
 1. **Always use `spec-kitty next`** rather than manually sequencing phases
-2. **Always pass `--mission-run`** in multi-mission repositories
+2. **Always pass `--mission`** in multi-mission repositories
 3. **Respect mission state machine transitions** — do not skip steps
 4. **Read the `prompt_file`** — it contains the full context the agent needs
 5. **Check `guard_failures`** on every decision, not just blocked ones

@@ -1,7 +1,7 @@
 {
   "event_count": 15,
   "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
-  "materialized_at": "2026-04-02T21:02:58.374350+00:00",
+  "materialized_at": "2026-04-02T21:02:58.373981+00:00",
   "mission_slug": "062-fix-doctrine-migration-test-failures",
   "summary": {
     "approved": 1,

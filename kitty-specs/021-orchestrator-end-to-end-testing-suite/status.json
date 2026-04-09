@@ -1,8 +1,8 @@
 {
   "event_count": 12,
-  "feature_slug": "021-orchestrator-end-to-end-testing-suite",
   "last_event_id": "01KJ5V38SV8GER68XRHGRPGRWT",
-  "materialized_at": "2026-03-11T07:08:18.857111+00:00",
+  "materialized_at": "2026-01-19T09:30:27Z",
+  "mission_slug": "021-orchestrator-end-to-end-testing-suite",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 12,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

@@ -8,6 +8,13 @@ import urllib.parse
 from pathlib import Path
 from typing import Optional
 
+from ..api_types import (
+    ArtifactDirectoryResponse,
+    FeaturesListResponse,
+    KanbanResponse,
+    MissionContext,
+    ResearchResponse,
+)
 from ..scanner import (
     format_path_for_display,
     resolve_active_feature,
@@ -36,48 +43,48 @@ class FeatureHandler(DashboardHandler):
 
             # Add legacy format indicator to each feature
             for feature in features:
-                feature_dir = project_path / feature['path']
-                feature['is_legacy'] = is_legacy_format(feature_dir)
+                feature_dir = project_path / feature["path"]
+                feature["is_legacy"] = is_legacy_format(feature_dir)
 
             # Derive active mission from the same active-feature resolver used by CLI status.
-            mission_context = {
-                'name': 'No active feature',
-                'domain': 'unknown',
-                'version': '',
-                'slug': '',
-                'description': '',
-                'path': '',
+            mission_context: MissionContext = {
+                "name": "No active feature",
+                "domain": "unknown",
+                "version": "",
+                "slug": "",
+                "description": "",
+                "path": "",
             }
 
             active_feature = resolve_active_feature(project_path)
 
             if active_feature:
-                feature_mission_type = active_feature.get('meta', {}).get('mission', 'software-dev')
+                feature_mission_type = active_feature.get("meta", {}).get("mission", "software-dev")
                 try:
                     kittify_dir = project_path / ".kittify"
                     mission = get_mission_by_name(feature_mission_type, kittify_dir)
                     mission_context = {
-                        'name': mission.name,
-                        'domain': mission.config.domain,
-                        'version': mission.config.version,
-                        'slug': mission.path.name,
-                        'description': mission.config.description or '',
-                        'path': format_path_for_display(str(mission.path)),
-                        'feature': active_feature.get('name', ''),
+                        "name": mission.name,
+                        "domain": mission.config.domain,
+                        "version": mission.config.version,
+                        "slug": mission.path.name,
+                        "description": mission.config.description or "",
+                        "path": format_path_for_display(str(mission.path)),
+                        "feature": active_feature.get("name", ""),
                     }
                 except MissionError:
                     # Fallback: show feature name with unknown mission
                     mission_context = {
-                        'name': f"Unknown ({feature_mission_type})",
-                        'domain': 'unknown',
-                        'version': '',
-                        'slug': feature_mission_type,
-                        'description': '',
-                        'path': '',
-                        'feature': active_feature.get('name', ''),
+                        "name": f"Unknown ({feature_mission_type})",
+                        "domain": "unknown",
+                        "version": "",
+                        "slug": feature_mission_type,
+                        "description": "",
+                        "path": "",
+                        "feature": active_feature.get("name", ""),
                     }
 
-            worktrees_root_path = project_path / '.worktrees'
+            worktrees_root_path = project_path / ".worktrees"
             try:
                 worktrees_root_resolved = worktrees_root_path.resolve()
             except Exception:
@@ -89,11 +96,7 @@ class FeatureHandler(DashboardHandler):
                 current_path = Path.cwd()
 
             worktrees_root_exists = worktrees_root_path.exists()
-            worktrees_root_display = (
-                format_path_for_display(str(worktrees_root_resolved))
-                if worktrees_root_exists
-                else None
-            )
+            worktrees_root_display = format_path_for_display(str(worktrees_root_resolved)) if worktrees_root_exists else None
 
             active_worktree_display: Optional[str] = None
             if worktrees_root_exists:
@@ -106,22 +109,22 @@ class FeatureHandler(DashboardHandler):
             if not active_worktree_display and current_path != project_path:
                 active_worktree_display = format_path_for_display(str(current_path))
 
-            response = {
-                'features': features,
-                'active_feature_id': active_feature.get('id') if active_feature else None,
-                'project_path': format_path_for_display(str(project_path)),
-                'worktrees_root': worktrees_root_display,
-                'active_worktree': active_worktree_display,
-                'active_mission': mission_context,
+            response: FeaturesListResponse = {
+                "features": features,  # type: ignore[typeddict-item]
+                "active_feature_id": active_feature.get("id") if active_feature else None,
+                "project_path": format_path_for_display(str(project_path)),
+                "worktrees_root": worktrees_root_display,
+                "active_worktree": active_worktree_display,
+                "active_mission": mission_context,
             }
-            self._send_json(200, response)
+            self._send_json(200, response)  # type: ignore[arg-type]
         except Exception as exc:  # pragma: no cover - defensive fallback
             logger.exception("Failed to scan dashboard features")
-            self._send_json(500, {'error': 'failed_to_scan_features', 'detail': str(exc)})
+            self._send_json(500, {"error": "failed_to_scan_features", "detail": str(exc)})
 
     def handle_kanban(self, path: str) -> None:
         """Return kanban data for a specific feature slug."""
-        parts = path.split('/')
+        parts = path.split("/")
         if len(parts) >= 4:
             feature_id = parts[3]
             project_path = Path(self.project_dir).resolve()
@@ -137,22 +140,23 @@ class FeatureHandler(DashboardHandler):
                 try:
                     from specify_cli.status.progress import compute_weighted_progress
                     from specify_cli.status.reducer import materialize
+
                     snap = materialize(feature_dir)
                     progress = compute_weighted_progress(snap)
                     weighted_pct = round(progress.percentage, 1)
                 except Exception:
                     pass
 
-            response = {
-                'lanes': kanban_data,
-                'is_legacy': is_legacy,
-                'upgrade_needed': is_legacy,
-                'weighted_percentage': weighted_pct,
+            response: KanbanResponse = {
+                "lanes": kanban_data,  # type: ignore[typeddict-item]
+                "is_legacy": is_legacy,
+                "upgrade_needed": is_legacy,
+                "weighted_percentage": weighted_pct,
             }
 
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Cache-Control', 'no-cache')
+            self.send_header("Content-type", "application/json")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
             return
@@ -162,7 +166,7 @@ class FeatureHandler(DashboardHandler):
 
     def handle_research(self, path: str) -> None:
         """Return research.md contents + artifacts, or serve a specific file."""
-        parts = path.split('/')
+        parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
             self.end_headers()
@@ -173,47 +177,47 @@ class FeatureHandler(DashboardHandler):
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
         if len(parts) == 4:
-            response = {'main_file': None, 'artifacts': []}
+            response: ResearchResponse = {"main_file": None, "artifacts": []}
 
             if feature_dir:
-                research_md = feature_dir / 'research.md'
+                research_md = feature_dir / "research.md"
                 if research_md.exists():
                     try:
-                        response['main_file'] = research_md.read_text(encoding='utf-8')
+                        response["main_file"] = research_md.read_text(encoding="utf-8")
                     except UnicodeDecodeError as err:
                         error_msg = (
-                            f'⚠️ **Encoding Error in research.md**\\n\\n'
-                            f'This file contains non-UTF-8 characters at position {err.start}.\\n'
-                            'Please convert the file to UTF-8 encoding.\\n\\n'
-                            'Attempting to read with error recovery...\\n\\n---\\n\\n'
+                            f"⚠️ **Encoding Error in research.md**\\n\\n"
+                            f"This file contains non-UTF-8 characters at position {err.start}.\\n"
+                            "Please convert the file to UTF-8 encoding.\\n\\n"
+                            "Attempting to read with error recovery...\\n\\n---\\n\\n"
                         )
-                        response['main_file'] = error_msg + research_md.read_text(
-                            encoding='utf-8', errors='replace'
-                        )
+                        response["main_file"] = error_msg + research_md.read_text(encoding="utf-8", errors="replace")
 
-                research_dir = feature_dir / 'research'
+                research_dir = feature_dir / "research"
                 if research_dir.exists() and research_dir.is_dir():
-                    for file_path in sorted(research_dir.rglob('*')):
+                    for file_path in sorted(research_dir.rglob("*")):
                         if file_path.is_file():
                             relative_path = str(file_path.relative_to(feature_dir))
-                            icon = '📄'
-                            if file_path.suffix == '.csv':
-                                icon = '📊'
-                            elif file_path.suffix == '.md':
-                                icon = '📝'
-                            elif file_path.suffix in ['.xlsx', '.xls']:
-                                icon = '📈'
-                            elif file_path.suffix == '.json':
-                                icon = '📋'
-                            response['artifacts'].append({
-                                'name': file_path.name,
-                                'path': relative_path,
-                                'icon': icon,
-                            })
+                            icon = "📄"
+                            if file_path.suffix == ".csv":
+                                icon = "📊"
+                            elif file_path.suffix == ".md":
+                                icon = "📝"
+                            elif file_path.suffix in [".xlsx", ".xls"]:
+                                icon = "📈"
+                            elif file_path.suffix == ".json":
+                                icon = "📋"
+                            response["artifacts"].append(
+                                {
+                                    "name": file_path.name,
+                                    "path": relative_path,
+                                    "icon": icon,
+                                }
+                            )
 
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Cache-Control', 'no-cache')
+            self.send_header("Content-type", "application/json")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
             return
@@ -232,37 +236,37 @@ class FeatureHandler(DashboardHandler):
 
             if artifact_file.exists() and artifact_file.is_file():
                 self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.send_header('Cache-Control', 'no-cache')
+                self.send_header("Content-type", "text/plain")
+                self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 try:
-                    content = artifact_file.read_text(encoding='utf-8')
-                    self.wfile.write(content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8")
+                    self.wfile.write(content.encode("utf-8"))
                 except UnicodeDecodeError as err:
                     error_msg = (
-                        f'⚠️ Encoding Error in {artifact_file.name}\\n\\n'
-                        f'This file contains non-UTF-8 characters at position {err.start}.\\n'
-                        'Please convert the file to UTF-8 encoding.\\n\\n'
-                        'Attempting to read with error recovery...\\n\\n'
+                        f"⚠️ Encoding Error in {artifact_file.name}\\n\\n"
+                        f"This file contains non-UTF-8 characters at position {err.start}.\\n"
+                        "Please convert the file to UTF-8 encoding.\\n\\n"
+                        "Attempting to read with error recovery...\\n\\n"
                     )
-                    content = artifact_file.read_text(encoding='utf-8', errors='replace')
-                    self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8", errors="replace")
+                    self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f'Error reading file: {exc}'.encode('utf-8'))
+                    self.wfile.write(f"Error reading file: {exc}".encode("utf-8"))
                 return
 
         self.send_response(404)
         self.end_headers()
 
-    def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = '📝') -> None:
+    def _handle_artifact_directory(self, path: str, directory_name: str, md_icon: str = "📝") -> None:
         """Generic handler for artifact directories (contracts, checklists, etc).
-        
+
         Args:
             path: The request path
             directory_name: Name of the subdirectory (e.g., 'contracts', 'checklists')
             md_icon: Icon to use for .md files (default: '📝')
         """
-        parts = path.split('/')
+        parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
             self.end_headers()
@@ -274,28 +278,30 @@ class FeatureHandler(DashboardHandler):
 
         if len(parts) == 4:
             # Return directory listing
-            response = {'files': []}
+            response: ArtifactDirectoryResponse = {"files": []}
 
             if feature_dir:
                 artifact_dir = feature_dir / directory_name
                 if artifact_dir.exists() and artifact_dir.is_dir():
-                    for file_path in sorted(artifact_dir.rglob('*')):
+                    for file_path in sorted(artifact_dir.rglob("*")):
                         if file_path.is_file():
                             relative_path = str(file_path.relative_to(feature_dir))
-                            icon = '📄'
-                            if file_path.suffix == '.md':
+                            icon = "📄"
+                            if file_path.suffix == ".md":
                                 icon = md_icon
-                            elif file_path.suffix == '.json':
-                                icon = '📋'
-                            response['files'].append({
-                                'name': file_path.name,
-                                'path': relative_path,
-                                'icon': icon,
-                            })
+                            elif file_path.suffix == ".json":
+                                icon = "📋"
+                            response["files"].append(
+                                {
+                                    "name": file_path.name,
+                                    "path": relative_path,
+                                    "icon": icon,
+                                }
+                            )
 
             self.send_response(200)
-            self.send_header('Content-type', 'application/json')
-            self.send_header('Cache-Control', 'no-cache')
+            self.send_header("Content-type", "application/json")
+            self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(response).encode())
             return
@@ -315,23 +321,23 @@ class FeatureHandler(DashboardHandler):
 
             if artifact_file.exists() and artifact_file.is_file():
                 self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.send_header('Cache-Control', 'no-cache')
+                self.send_header("Content-type", "text/plain")
+                self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 try:
-                    content = artifact_file.read_text(encoding='utf-8')
-                    self.wfile.write(content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8")
+                    self.wfile.write(content.encode("utf-8"))
                 except UnicodeDecodeError as err:
                     error_msg = (
-                        f'⚠️ Encoding Error in {artifact_file.name}\\n\\n'
-                        f'This file contains non-UTF-8 characters at position {err.start}.\\n'
-                        'Please convert the file to UTF-8 encoding.\\n\\n'
-                        'Attempting to read with error recovery...\\n\\n'
+                        f"⚠️ Encoding Error in {artifact_file.name}\\n\\n"
+                        f"This file contains non-UTF-8 characters at position {err.start}.\\n"
+                        "Please convert the file to UTF-8 encoding.\\n\\n"
+                        "Attempting to read with error recovery...\\n\\n"
                     )
-                    content = artifact_file.read_text(encoding='utf-8', errors='replace')
-                    self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8", errors="replace")
+                    self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f'Error reading file: {exc}'.encode('utf-8'))
+                    self.wfile.write(f"Error reading file: {exc}".encode("utf-8"))
                 return
 
         self.send_response(404)
@@ -339,33 +345,33 @@ class FeatureHandler(DashboardHandler):
 
     def handle_contracts(self, path: str) -> None:
         """Return contracts directory listing or serve a specific file."""
-        self._handle_artifact_directory(path, 'contracts', md_icon='📝')
+        self._handle_artifact_directory(path, "contracts", md_icon="📝")
 
     def handle_checklists(self, path: str) -> None:
         """Return checklists directory listing or serve a specific file."""
-        self._handle_artifact_directory(path, 'checklists', md_icon='✅')
+        self._handle_artifact_directory(path, "checklists", md_icon="✅")
 
     def handle_artifact(self, path: str) -> None:
         """Serve primary artifacts like spec.md and plan.md."""
-        parts = path.split('/')
+        parts = path.split("/")
         if len(parts) < 4:
             self.send_response(404)
             self.end_headers()
             return
 
         feature_id = parts[3]
-        artifact_name = parts[4] if len(parts) > 4 else ''
+        artifact_name = parts[4] if len(parts) > 4 else ""
 
         project_path = Path(self.project_dir)
         feature_dir = resolve_feature_dir(project_path, feature_id)
 
         artifact_map = {
-            'spec': 'spec.md',
-            'plan': 'plan.md',
-            'tasks': 'tasks.md',
-            'research': 'research.md',
-            'quickstart': 'quickstart.md',
-            'data-model': 'data-model.md',
+            "spec": "spec.md",
+            "plan": "plan.md",
+            "tasks": "tasks.md",
+            "research": "research.md",
+            "quickstart": "quickstart.md",
+            "data-model": "data-model.md",
         }
 
         filename = artifact_map.get(artifact_name)
@@ -373,23 +379,23 @@ class FeatureHandler(DashboardHandler):
             artifact_file = feature_dir / filename
             if artifact_file.exists():
                 self.send_response(200)
-                self.send_header('Content-type', 'text/plain')
-                self.send_header('Cache-Control', 'no-cache')
+                self.send_header("Content-type", "text/plain")
+                self.send_header("Cache-Control", "no-cache")
                 self.end_headers()
                 try:
-                    content = artifact_file.read_text(encoding='utf-8')
-                    self.wfile.write(content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8")
+                    self.wfile.write(content.encode("utf-8"))
                 except UnicodeDecodeError as err:
                     error_msg = (
-                        f'⚠️ **Encoding Error in {filename}**\\n\\n'
-                        f'This file contains non-UTF-8 characters at position {err.start}.\\n'
-                        'Please convert the file to UTF-8 encoding.\\n\\n'
-                        'Attempting to read with error recovery...\\n\\n---\\n\\n'
+                        f"⚠️ **Encoding Error in {filename}**\\n\\n"
+                        f"This file contains non-UTF-8 characters at position {err.start}.\\n"
+                        "Please convert the file to UTF-8 encoding.\\n\\n"
+                        "Attempting to read with error recovery...\\n\\n---\\n\\n"
                     )
-                    content = artifact_file.read_text(encoding='utf-8', errors='replace')
-                    self.wfile.write(error_msg.encode('utf-8') + content.encode('utf-8'))
+                    content = artifact_file.read_text(encoding="utf-8", errors="replace")
+                    self.wfile.write(error_msg.encode("utf-8") + content.encode("utf-8"))
                 except Exception as exc:
-                    self.wfile.write(f'Error reading {filename}: {exc}'.encode('utf-8'))
+                    self.wfile.write(f"Error reading {filename}: {exc}".encode("utf-8"))
                 return
 
         self.send_response(404)

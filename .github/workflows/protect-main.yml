@@ -13,7 +13,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 2
 
@@ -49,6 +49,17 @@ jobs:
           # GitHub squash merges include the PR number in the commit message
           if [[ "$COMMIT_MSG" =~ \(#[0-9]+\) ]]; then
             echo "✅ Commit is from a squash/rebase merge (contains PR reference)"
+            exit 0
+          fi
+
+          # Check if this is a spec-kitty mission merge
+          # spec-kitty merge produces squash commits whose message references the
+          # mission branch (kitty/mission-NNN-slug) or records mission state
+          # transitions. These are the authorised automated merge path for this repo.
+          if [[ "$COMMIT_MSG" =~ kitty/mission- ]] || \
+             [[ "$COMMIT_MSG" =~ ^chore\([0-9]+-.*\):\ (record done|review feedback|Move WP|Start WP|Mark|WP.*claimed|planning artifact) ]] || \
+             [[ "$COMMIT_MSG" =~ ^chore:\ (review feedback|planning artifacts) ]]; then
+            echo "✅ Commit is from spec-kitty mission merge workflow"
             exit 0
           fi
 

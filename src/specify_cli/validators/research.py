@@ -11,7 +11,7 @@ and malformed entries. Validation follows a progressive approach:
 from __future__ import annotations
 
 import csv
-import re
+from kernel._safe_re import re
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -225,9 +225,7 @@ def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
                             line_number=line_number,
                             field="source_type",
                             issue_type="error",
-                            message=(
-                                f"Invalid source_type '{source_type}'. Must be one of: {', '.join(VALID_SOURCE_TYPES)}"
-                            ),
+                            message=(f"Invalid source_type '{source_type}'. Must be one of: {', '.join(VALID_SOURCE_TYPES)}"),
                         )
                     )
                     entry_valid = False
@@ -238,10 +236,7 @@ def validate_citations(evidence_log_path: Path) -> CitationValidationResult:
                             line_number=line_number,
                             field="confidence",
                             issue_type="error",
-                            message=(
-                                f"Invalid confidence '{confidence}'. "
-                                f"Must be one of: {', '.join(VALID_CONFIDENCE_LEVELS)}"
-                            ),
+                            message=(f"Invalid confidence '{confidence}'. Must be one of: {', '.join(VALID_CONFIDENCE_LEVELS)}"),
                         )
                     )
                     entry_valid = False

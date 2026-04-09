@@ -49,49 +49,5 @@ def test_non_interactive_non_tty(monkeypatch: pytest.MonkeyPatch):
     assert result is True
 
 
-def test_resolve_preferred_agents_defaults_multi_agent():
-    """First agent is implementer, second is reviewer when no explicit choice."""
-    # Arrange / Act
-    implementer, reviewer = init_module._resolve_preferred_agents(
-        ["codex", "claude"],
-        None,
-        None,
-    )
-    # Assert
-    assert implementer == "codex"
-    assert reviewer == "claude"
-
-
-def test_resolve_preferred_agents_defaults_single_agent():
-    """Single agent list makes that agent both implementer and reviewer."""
-    # Arrange / Act
-    implementer, reviewer = init_module._resolve_preferred_agents(
-        ["codex"],
-        None,
-        None,
-    )
-    # Assert
-    assert implementer == "codex"
-    assert reviewer == "codex"
-
-
-def test_resolve_preferred_agents_invalid_preferred_agent():
-    """Agent not in selected list raises ValueError."""
-    # Arrange
-    agents = ["codex", "claude"]
-    # Assumption check
-    assert "gemini" not in agents
-    # Act / Assert
-    with pytest.raises(ValueError):
-        init_module._resolve_preferred_agents(agents, "gemini", None)
-
-
-def test_resolve_preferred_agents_invalid_reviewer_agent():
-    """Reviewer not in selected list raises ValueError."""
-    # Arrange
-    agents = ["codex", "claude"]
-    # Assumption check
-    assert "gemini" not in agents
-    # Act / Assert
-    with pytest.raises(ValueError):
-        init_module._resolve_preferred_agents(agents, "codex", "gemini")
+# _resolve_preferred_agents() was removed in feature 076-init-command-overhaul.
+# The preferred-implementer / preferred-reviewer system was deleted entirely.

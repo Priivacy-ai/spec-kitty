@@ -31,6 +31,9 @@ import typer
 
 from specify_cli.core.contract_gate import validate_outbound_payload
 from specify_cli.git.commit_helpers import safe_commit
+from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.status import wp_state_for
+from specify_cli.status.models import Lane
 
 from .envelope import (
     CONTRACT_VERSION,
@@ -142,12 +145,26 @@ class _JSONErrorGroup(TyperGroup):
 app = typer.Typer(
     name="orchestrator-api",
     help="Machine-contract API for external orchestrators (JSON-first)",
-    no_args_is_help=True,
+    no_args_is_help=False,
     cls=_JSONErrorGroup,
 )
 
-# Lanes that require --policy (run-affecting)
-_RUN_AFFECTING_LANES = frozenset(["claimed", "in_progress", "for_review"])
+# Boy Scout (DIRECTIVE_025): deduplicated CLI help strings.
+_HELP_MISSION_SLUG = "Mission slug"
+_HELP_WP_ID = "Work package ID"
+_HELP_ACTOR = "Actor identity"
+_HELP_POLICY = "Policy metadata JSON (required)"
+
+
+def _is_run_affecting(lane: str) -> bool:
+    """Return True if transitioning to *lane* requires --policy metadata.
+
+    A lane is run-affecting when its WPState is neither terminal, blocked,
+    nor not-yet-started.  This replaces the former ``_RUN_AFFECTING_LANES``
+    frozenset with a state-object query.
+    """
+    state = wp_state_for(lane)
+    return state.progress_bucket() not in ("not_started", "terminal") and not state.is_blocked
 
 
 @dataclass
@@ -191,6 +208,16 @@ def _resolve_mission_dir(main_repo_root: Path, mission_slug: str) -> Path | None
     if not mission_dir.exists():
         return None
     return mission_dir
+
+
+def _mission_identity_payload(mission_dir: Path) -> dict[str, str]:
+    """Return canonical mission identity fields for machine-facing payloads."""
+    identity = resolve_mission_identity(mission_dir)
+    return {
+        "mission_slug": identity.mission_slug,
+        "mission_number": identity.mission_number,
+        "mission_type": identity.mission_type,
+    }
 
 
 def _get_last_actor(mission_dir: Path, wp_id: str) -> str | None:
@@ -423,7 +450,7 @@ def mission_state(
     mission: str = typer.Option(
         ...,
         "--mission",
-        help="Mission slug (e.g. 034-my-mission)",
+        help=_HELP_MISSION_SLUG,
     ),
 ) -> None:
     """Return the full state of a mission (all WPs, lanes, dependencies)."""
@@ -460,18 +487,18 @@ def mission_state(
 
     work_packages = []
     for wp_id in sorted(all_wp_ids):
-        wp_state = snapshot.work_packages.get(wp_id, {})
+        wp_snapshot = snapshot.work_packages.get(wp_id, {})
         work_packages.append(
             {
                 "wp_id": wp_id,
-                "lane": wp_state.get("lane", "planned"),
+                "lane": wp_snapshot.get("lane", Lane.PLANNED),
                 "dependencies": dep_graph.get(wp_id, []),
-                "last_actor": wp_state.get("last_actor"),
+                "last_actor": wp_snapshot.get("last_actor"),
             }
         )
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "summary": snapshot.summary,
         "work_packages": work_packages,
     }
@@ -489,7 +516,7 @@ def mission_state(
 
 @app.command(name="list-ready")
 def list_ready(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
 ) -> None:
     """List WPs that are ready to start (planned and all deps done)."""
     main_repo_root = _get_main_repo_root()
@@ -513,13 +540,18 @@ def list_ready(
 
     ready_wps = []
     for wp_id, deps in dep_graph.items():
-        wp_state = wp_states.get(wp_id, {})
-        lane = wp_state.get("lane", "planned")
-        if lane != "planned":
+        wp_snapshot = wp_states.get(wp_id, {})
+        lane = wp_snapshot.get("lane", Lane.PLANNED)
+        state = wp_state_for(lane)
+        if state.progress_bucket() != "not_started":
             continue
 
-        # Check all dependencies are done
-        all_deps_done = all(wp_states.get(dep, {}).get("lane") == "done" for dep in deps)
+        # Check all dependencies are done (completed, not merely terminal —
+        # canceled deps do NOT satisfy the dependency requirement).
+        all_deps_done = all(
+            wp_state_for(wp_states.get(dep, {}).get("lane", Lane.PLANNED)).lane == Lane.DONE
+            for dep in deps
+        )
 
         ready_wps.append(
             {
@@ -533,7 +565,7 @@ def list_ready(
     ready_wps = [wp for wp in ready_wps if wp["dependencies_satisfied"]]
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "ready_work_packages": ready_wps,
     }
     validate_outbound_payload(data, "orchestrator_api")
@@ -550,10 +582,10 @@ def list_ready(
 
 @app.command(name="start-implementation")
 def start_implementation(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
-    wp: str = typer.Option(..., "--wp", help="Work package ID (e.g. WP01)"),
-    actor: str = typer.Option(..., "--actor", help="Actor identity"),
-    policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    wp: str = typer.Option(..., "--wp", help=_HELP_WP_ID),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
 ) -> None:
     """Composite transition: planned->claimed->in_progress (idempotent)."""
     cmd = "start-implementation"
@@ -586,21 +618,22 @@ def start_implementation(
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
     snapshot = materialize(mission_dir)
-    wp_state = snapshot.work_packages.get(wp, {})
-    current_lane = wp_state.get("lane", "planned")
+    wp_snapshot = snapshot.work_packages.get(wp, {})
+    current_lane = wp_snapshot.get("lane", Lane.PLANNED)
+    state = wp_state_for(current_lane)
     last_actor = _get_last_actor(mission_dir, wp)
 
     workspace_path = str(main_repo_root / ".worktrees" / f"{mission}-{wp}")
     prompt_path = str(wp_path)
 
     try:
-        if current_lane == "planned":
+        if state.lane == Lane.PLANNED:
             # Composite: planned -> claimed -> in_progress
             emit_status_transition(
                 mission_dir,
                 mission,
                 wp,
-                "claimed",
+                Lane.CLAIMED,
                 actor,
                 policy_metadata=policy_dict,
             )
@@ -608,48 +641,56 @@ def start_implementation(
                 mission_dir,
                 mission,
                 wp,
-                "in_progress",
+                Lane.IN_PROGRESS,
                 actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
             )
-            from_lane_reported = "planned"
+            from_lane_reported = Lane.PLANNED
             no_op = False
 
-        elif current_lane == "claimed":
+        elif state.lane == Lane.CLAIMED:
             if last_actor is not None and last_actor != actor:
                 _fail(
                     cmd,
                     "WP_ALREADY_CLAIMED",
                     f"WP {wp} is already claimed by '{last_actor}'",
-                    {"claimed_by": last_actor, "requesting_actor": actor},
+                    {
+                        **_mission_identity_payload(mission_dir),
+                        "claimed_by": last_actor,
+                        "requesting_actor": actor,
+                    },
                 )
                 return
             emit_status_transition(
                 mission_dir,
                 mission,
                 wp,
-                "in_progress",
+                Lane.IN_PROGRESS,
                 actor,
                 workspace_context=workspace_path,
                 execution_mode="worktree",
                 policy_metadata=policy_dict,
             )
-            from_lane_reported = "claimed"
+            from_lane_reported = Lane.CLAIMED
             no_op = False
 
-        elif current_lane == "in_progress":
+        elif state.lane == Lane.IN_PROGRESS:
             if last_actor is not None and last_actor != actor:
                 _fail(
                     cmd,
                     "WP_ALREADY_CLAIMED",
                     f"WP {wp} is already in_progress by '{last_actor}'",
-                    {"claimed_by": last_actor, "requesting_actor": actor},
+                    {
+                        **_mission_identity_payload(mission_dir),
+                        "claimed_by": last_actor,
+                        "requesting_actor": actor,
+                    },
                 )
                 return
             # Idempotent success
-            from_lane_reported = "in_progress"
+            from_lane_reported = Lane.IN_PROGRESS
             no_op = True
 
         else:
@@ -665,10 +706,10 @@ def start_implementation(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane_reported,
-        "to_lane": "in_progress",
+        "to_lane": Lane.IN_PROGRESS,
         "workspace_path": workspace_path,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
@@ -688,21 +729,17 @@ def start_implementation(
 
 @app.command(name="start-review")
 def start_review(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
-    wp: str = typer.Option(..., "--wp", help="Work package ID"),
-    actor: str = typer.Option(..., "--actor", help="Actor identity"),
-    policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required)"),
-    review_ref: str = typer.Option(None, "--review-ref", help="Review feedback reference (required)"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    wp: str = typer.Option(..., "--wp", help=_HELP_WP_ID),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
+    policy: str = typer.Option(None, "--policy", help=_HELP_POLICY),
+    review_ref: str = typer.Option(None, "--review-ref", help="Review feedback reference (optional, not required for for_review→in_review)"),
 ) -> None:
-    """Transition a WP from for_review back to in_progress (reviewer rollback)."""
+    """Transition a WP from for_review to in_review (reviewer claims review)."""
     cmd = "start-review"
 
     if not policy:
         _fail(cmd, "POLICY_METADATA_REQUIRED", "--policy is required for start-review")
-        return
-
-    if not review_ref:
-        _fail(cmd, "TRANSITION_REJECTED", "--review-ref is required for start-review (for_review->in_progress guard)")
         return
 
     try:
@@ -728,8 +765,8 @@ def start_review(
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
     snapshot = materialize(mission_dir)
-    wp_state = snapshot.work_packages.get(wp, {})
-    from_lane = wp_state.get("lane", "planned")
+    wp_snapshot = snapshot.work_packages.get(wp, {})
+    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     prompt_path = str(wp_path)
 
@@ -738,7 +775,7 @@ def start_review(
             mission_dir,
             mission,
             wp,
-            "in_progress",
+            Lane.IN_REVIEW,
             actor,
             review_ref=review_ref,
             execution_mode="worktree",
@@ -749,10 +786,10 @@ def start_review(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane,
-        "to_lane": "in_progress",
+        "to_lane": Lane.IN_REVIEW,
         "prompt_path": prompt_path,
         "policy_metadata_recorded": True,
     }
@@ -770,17 +807,19 @@ def start_review(
 
 @app.command(name="transition")
 def transition(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
-    wp: str = typer.Option(..., "--wp", help="Work package ID"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    wp: str = typer.Option(..., "--wp", help=_HELP_WP_ID),
     to: str = typer.Option(..., "--to", help="Target lane"),
-    actor: str = typer.Option(..., "--actor", help="Actor identity"),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     note: str = typer.Option(None, "--note", help="Reason/note for the transition"),
     policy: str = typer.Option(None, "--policy", help="Policy metadata JSON (required for run-affecting lanes)"),
     force: bool = typer.Option(False, "--force", help="Force the transition"),
     review_ref: str = typer.Option(None, "--review-ref", help="Review reference"),
     evidence_json: str = typer.Option(None, "--evidence-json", help="JSON string with done evidence"),
     subtasks_complete: bool = typer.Option(None, "--subtasks-complete", help="Whether required subtasks are complete for in_progress->for_review"),
-    implementation_evidence_present: bool = typer.Option(None, "--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review"),
+    implementation_evidence_present: bool = typer.Option(
+        None, "--implementation-evidence-present", help="Whether implementation evidence exists for in_progress->for_review"
+    ),
 ) -> None:
     """Emit a single lane transition for a WP."""
     cmd = "transition"
@@ -791,7 +830,7 @@ def transition(
 
     # Policy required for run-affecting lanes
     policy_dict: dict | None = None
-    if to_lane in _RUN_AFFECTING_LANES:
+    if _is_run_affecting(to_lane):
         if not policy:
             _fail(
                 cmd,
@@ -841,8 +880,8 @@ def transition(
     from specify_cli.status.emit import emit_status_transition, TransitionError
 
     snapshot = materialize(mission_dir)
-    wp_state = snapshot.work_packages.get(wp, {})
-    from_lane = wp_state.get("lane", "planned")
+    wp_snapshot = snapshot.work_packages.get(wp, {})
+    from_lane = wp_snapshot.get("lane", Lane.PLANNED)
 
     try:
         emit_status_transition(
@@ -865,7 +904,7 @@ def transition(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "from_lane": from_lane,
         "to_lane": to_lane,
@@ -885,9 +924,9 @@ def transition(
 
 @app.command(name="append-history")
 def append_history(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
-    wp: str = typer.Option(..., "--wp", help="Work package ID"),
-    actor: str = typer.Option(..., "--actor", help="Actor identity"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    wp: str = typer.Option(..., "--wp", help=_HELP_WP_ID),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
     note: str = typer.Option(..., "--note", help="History note to append"),
 ) -> None:
     """Append a history entry to a WP prompt file."""
@@ -929,7 +968,7 @@ def append_history(
     entry_id = "hist-" + uuid.uuid4().hex
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "wp_id": wp,
         "history_entry_id": entry_id,
     }
@@ -947,8 +986,8 @@ def append_history(
 
 @app.command(name="accept-mission")
 def accept_mission(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
-    actor: str = typer.Option(..., "--actor", help="Actor identity"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
+    actor: str = typer.Option(..., "--actor", help=_HELP_ACTOR),
 ) -> None:
     """Accept a mission after all WPs are done."""
     cmd = "accept-mission"
@@ -967,13 +1006,16 @@ def accept_mission(
 
     # Check all WPs (from dep_graph) are done — include WPs with no events (implicitly planned)
     all_wp_ids = set(dep_graph.keys()) | set(snapshot.work_packages.keys())
-    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if snapshot.work_packages.get(wp_id, {}).get("lane") != "done"]
+    incomplete = [wp_id for wp_id in sorted(all_wp_ids) if wp_state_for(snapshot.work_packages.get(wp_id, {}).get("lane", Lane.PLANNED)).lane != Lane.DONE]
     if incomplete:
         _fail(
             cmd,
             "MISSION_NOT_READY",
             f"Mission has {len(incomplete)} incomplete WP(s)",
-            {"incomplete_wps": sorted(incomplete)},
+            {
+                **_mission_identity_payload(mission_dir),
+                "incomplete_wps": sorted(incomplete),
+            },
         )
         return
 
@@ -988,7 +1030,7 @@ def accept_mission(
     )
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "accepted": True,
         "mode": "auto",
         "accepted_at": accepted_at,
@@ -1007,7 +1049,7 @@ def accept_mission(
 
 @app.command(name="merge-mission")
 def merge_mission(
-    mission: str = typer.Option(..., "--mission", help="Mission slug"),
+    mission: str = typer.Option(..., "--mission", help=_HELP_MISSION_SLUG),
     target: str = typer.Option(None, "--target", help="Target branch to merge into (auto-detected from meta.json)"),
     strategy: str = typer.Option("merge", "--strategy", help="Merge strategy: merge, squash, or rebase"),
     push: bool = typer.Option(False, "--push", help="Push target branch after merge"),
@@ -1038,7 +1080,7 @@ def merge_mission(
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "mission_slug": mission,
+                **_mission_identity_payload(mission_dir),
                 "target_branch": preflight.target_branch,
                 "errors": preflight.errors,
             },
@@ -1061,7 +1103,7 @@ def merge_mission(
             "PREFLIGHT_FAILED",
             "Merge failed",
             {
-                "mission_slug": mission,
+                **_mission_identity_payload(mission_dir),
                 "target_branch": preflight.target_branch,
                 "errors": [str(exc)],
             },
@@ -1069,7 +1111,7 @@ def merge_mission(
         return
 
     data = {
-        "mission_slug": mission,
+        **_mission_identity_payload(mission_dir),
         "merged": True,
         "target_branch": preflight.target_branch,
         "strategy": strategy,

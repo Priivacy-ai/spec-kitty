@@ -1,0 +1,29 @@
+# Doctrine defaults for new projects.
+# Applied by `spec-kitty init --non-interactive` or when the user selects
+# "Accept defaults" during interactive init.
+#
+# Format must match the CharterInterview input expected by
+# `charter.interview.apply_answer_overrides`.
+
+mission: software-dev
+profile: minimal
+
+selected_paradigms:
+  - test-first
+
+selected_directives:
+  - DIRECTIVE_001   # Architectural Integrity Standard
+  - DIRECTIVE_010   # Specification Fidelity Requirement
+  - DIRECTIVE_025   # Boy Scout Rule
+  - DIRECTIVE_028   # Search Tool Discipline
+  - DIRECTIVE_030   # Test and Typecheck Quality Gate
+  - DIRECTIVE_033   # Targeted Staging Policy
+
+available_tools:
+  - git
+  - mypy
+  - uv
+  - pytest
+  - python
+  - ruff
+  - spec-kitty

@@ -114,6 +114,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             # Still gather for validation
             try:
                 from specify_cli.ownership.models import OwnershipManifest as _OM
+
                 manifests[_wp_code_key] = _OM.from_frontmatter(frontmatter)
             except Exception:
                 pass
@@ -125,8 +126,8 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         # Best-effort: try to get actually-changed files from the lane branch diff
         git_files: list[str] = []
         if repo_root is not None:
-            base_branch = frontmatter.get("base_branch") or frontmatter.get("planning_base_branch") or ""
-            wp_code = frontmatter.get("wp_code", "")
+            base_branch = frontmatter.get("base_branch") or frontmatter.get("planning_base_branch") or ""  # MIGRATION-ONLY: raw dict read-mutate-write
+            wp_code = frontmatter.get("wp_code", "")  # MIGRATION-ONLY: raw dict read-mutate-write
             if not wp_code:
                 m_code = re.match(r"^(WP\d+)", wp_file.stem)
                 wp_code = m_code.group(1) if m_code else ""
@@ -161,7 +162,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             updates["owned_files"] = owned
 
         if not has_surface:
-            current_files = updates.get("owned_files") or frontmatter.get("owned_files") or []
+            current_files = updates.get("owned_files") or frontmatter.get("owned_files") or []  # MIGRATION-ONLY: raw dict read-mutate-write
             surface = infer_authoritative_surface(current_files)
             updates["authoritative_surface"] = surface
 
@@ -171,12 +172,13 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             logger.info(
                 "Backfilled ownership for %s: execution_mode=%s",
                 wp_file.name,
-                frontmatter.get("execution_mode"),
+                frontmatter.get("execution_mode"),  # MIGRATION-ONLY: raw dict read-mutate-write
             )
 
         # Gather manifest for cross-WP validation
         try:
             from specify_cli.ownership.models import OwnershipManifest
+
             manifests[_wp_code_key] = OwnershipManifest.from_frontmatter(frontmatter)
         except Exception as exc:
             logger.debug("Could not build OwnershipManifest for %s: %s", wp_file.name, exc)

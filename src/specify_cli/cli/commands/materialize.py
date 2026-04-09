@@ -15,15 +15,20 @@ from typing import Annotated, Any
 import typer
 from rich.console import Console
 
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.core.paths import locate_project_root
 
 console = Console()
 
 
 def materialize(
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", help="Mission slug to materialise (all if omitted)"),
+    ] = None,
     feature: Annotated[
         str | None,
-        typer.Option("--mission", "--feature", help="Mission slug to materialise (all if omitted)"),
+        typer.Option("--feature", hidden=True, help="(deprecated) Use --mission"),
     ] = None,
     json_output: Annotated[
         bool,
@@ -58,10 +63,21 @@ def materialize(
     derived_dir.mkdir(parents=True, exist_ok=True)
 
     # Resolve feature directories to process
-    if feature:
-        feature_dirs = [specs_dir / feature]
+    mission_slug = None
+    if mission is not None or feature is not None:
+        mission_slug = resolve_selector(
+            canonical_value=mission,
+            canonical_flag="--mission",
+            alias_value=feature,
+            alias_flag="--feature",
+            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
+            command_hint="--mission <slug>",
+        ).canonical_value
+
+    if mission_slug:
+        feature_dirs = [specs_dir / mission_slug]
         if not feature_dirs[0].exists():
-            console.print(f"[red]Error:[/red] Feature not found: {feature}")
+            console.print(f"[red]Error:[/red] Mission not found: {mission_slug}")
             raise typer.Exit(1)
     else:
         if not specs_dir.exists():
@@ -93,7 +109,7 @@ def materialize(
     summary = {
         "processed": len(processed),
         "errors": errors,
-        "features": processed,
+        "missions": processed,
         "derived_dir": str(derived_dir),
     }
 
@@ -112,6 +128,6 @@ def materialize(
             for err in errors:
                 console.print(f"[red]ERR[/red] {err}")
         else:
-            console.print(f"\n[dim]{len(processed)} feature(s) materialised to {derived_dir}[/dim]")
+            console.print(f"\n[dim]{len(processed)} mission(s) materialised to {derived_dir}[/dim]")
 
     raise typer.Exit(0 if not errors else 1)

@@ -205,6 +205,8 @@ agents:
 - N/A (files only) (023-documentation-sprint-agent-management-cleanup)
 - Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy (047-namespace-aware-artifact-body-sync)
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
+- Python 3.11+ + stdlib `ast` (no new dependency), existing `safe_commit` from `specify_cli.git`, existing `scan_recovery_state` from `specify_cli.lanes.recovery` (068-post-merge-reliability-and-release-hardening)
+- Filesystem only — `.kittify/config.yaml` gains a `merge.strategy` key; `kitty-specs/<mission>/status.events.jsonl` becomes the canonical surface for the FR-019 safe_commit fix (068-post-merge-reliability-and-release-hardening)
 ## Project Structure
 ```
 architecture/           # Architectural design decisions and technical specifications
@@ -249,6 +251,7 @@ pytest tests/ --browser-channel=chromium --headed=false
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+- 068-post-merge-reliability-and-release-hardening: Added new `src/specify_cli/post_merge/` package (stdlib `ast`-based stale-assertion analyzer), new `agent tests` CLI subgroup, populated `agent/release.py` stub with `prep` subcommand, FR-019 status-events safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` extension + `implement --base` flag
 - 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
 <!-- MANUAL ADDITIONS START -->
@@ -564,17 +567,17 @@ Each line in `status.events.jsonl` is a JSON object with sorted keys:
 | `emit_status_transition()` | `status.emit` | Single entry point for all state changes (validate -> persist -> materialize -> views -> SaaS) |
 | `reduce()` | `status.reducer` | Deterministic reducer: same events always produce same snapshot |
 | `append_event()` / `read_events()` | `status.store` | JSONL I/O with corruption detection |
-| `validate_transition()` | `status.transitions` | Check (from, to) against 16-pair matrix + guard conditions |
+| `validate_transition()` | `status.transitions` | Check (from, to) against transition matrix + guard conditions |
 | `resolve_phase()` | `status.phase` | Phase resolution: meta.json > config.yaml > default(1) |
 | `resolve_lane_alias()` | `status.transitions` | Resolve `doing` -> `in_progress` at input boundaries |
 
-### 7-Lane State Machine
+### 9-Lane State Machine
 
 ```
-planned -> claimed -> in_progress -> for_review -> done
+planned -> claimed -> in_progress -> for_review -> in_review -> approved -> done
 ```
 
-Plus: `blocked` (reachable from planned/claimed/in_progress/for_review), `canceled` (reachable from all non-done lanes).
+Plus: `blocked` (reachable from planned/claimed/in_progress/for_review/in_review/approved), `canceled` (reachable from all non-terminal lanes).
 
 Alias: `doing` -> `in_progress` (resolved at input boundaries, never persisted in events).
 
@@ -659,7 +662,7 @@ spec-kitty agent tasks status --feature 012-documentation-mission
 ```
 
 **What You Get:**
-- Kanban board (planned/doing/for_review/done lanes)
+- Kanban board (planned/claimed/in_progress/for_review/in_review/approved/done/blocked/canceled lanes)
 - Progress bar (█████░░░) with percentage
 - Summary metrics panel
 

@@ -9,13 +9,8 @@
 ```bash
 spec-kitty init <project-name> \
   --ai <agents> \
-  [--script <type>] \
-  [--preferred-implementer <agent>] \
-  [--preferred-reviewer <agent>] \
   [--non-interactive] \
-  [--force] \
-  [--no-git] \
-  [--ignore-agent-tools]
+  [--no-git]
 ```
 
 ## Required Arguments for Non-Interactive Mode
@@ -30,8 +25,6 @@ spec-kitty init my-project
 **Option B: Current directory**
 ```bash
 spec-kitty init .
-# or
-spec-kitty init --here
 ```
 
 ### 2. AI Assistants (`--ai`)
@@ -63,37 +56,12 @@ spec-kitty init --here
 
 **Case-sensitive**: Use lowercase exactly as shown
 
-### 3. Script Type (`--script`)
-
-**Valid values**: `sh` or `ps`
-
-```bash
---script sh   # POSIX shell (bash/zsh) - for Mac/Linux
---script ps   # PowerShell - for Windows
-```
-
-**Auto-detection**: If omitted:
-- Windows → `ps`
-- Mac/Linux → `sh`
-
-### 4. Preferred Implementer/Reviewer
-
-```bash
---preferred-implementer codex
---preferred-reviewer claude
-```
-
 ## Optional Flags
 
 | Flag | Purpose | Default |
 |------|---------|---------|
 | `--non-interactive` / `--yes` | Disable prompts (required for CI) | Off |
-| `--force` | Skip confirmation when directory not empty | Off (will prompt) |
 | `--no-git` | Skip git repository initialization | Off (initializes git) |
-| `--ignore-agent-tools` | Skip verification that agent CLIs are installed | Off (checks tools) |
-| `--skip-tls` | Skip SSL/TLS verification (not recommended) | Off |
-| `--debug` | Show verbose diagnostic output | Off |
-| `--github-token` | GitHub API token for template download | Uses GH_TOKEN env var |
 
 ## Complete Non-Interactive Examples
 
@@ -101,7 +69,6 @@ spec-kitty init --here
 ```bash
 spec-kitty init my-project \
   --ai codex \
-  --script sh \
   --non-interactive
 ```
 
@@ -109,45 +76,27 @@ spec-kitty init my-project \
 ```bash
 spec-kitty init . \
   --ai claude,codex,cursor \
-  --script sh \
-  --preferred-implementer claude \
-  --preferred-reviewer codex \
-  --force \
   --non-interactive
 ```
 
-### Example 3: Current directory (--here syntax)
-```bash
-spec-kitty init --here \
-  --ai windsurf \
-  --script sh \
-  --force \
-  --non-interactive
-```
-
-### Example 4: Minimal (relies on defaults)
+### Example 3: Minimal (relies on defaults)
 ```bash
 # In non-interactive environment (CI/CD):
 spec-kitty init my-project --ai codex --non-interactive
-# Auto-selects: --script sh (or ps on Windows), preferred role defaults
 ```
 
-### Example 5: CI/CD friendly
+### Example 4: CI/CD friendly
 ```bash
 spec-kitty init . \
   --ai claude \
-  --script sh \
-  --force \
-  --ignore-agent-tools \
   --no-git \
   --non-interactive
 ```
 
-### Example 6: All 12 agents
+### Example 5: All 12 agents
 ```bash
 spec-kitty init my-project \
   --ai codex,claude,gemini,cursor,qwen,opencode,windsurf,kilocode,auggie,roo,copilot,q \
-  --script sh \
   --non-interactive
 ```
 
@@ -161,8 +110,7 @@ Triggered when:
 
 Presents:
 - Multi-select menu for AI assistants (space to select, enter to confirm)
-- Arrow selection for preferred implementer/reviewer
-- Confirmation prompt if directory not empty (unless `--force`)
+- Confirmation prompt if directory not empty
 
 ### Non-Interactive Mode
 
@@ -174,7 +122,7 @@ Triggered when:
 Behavior:
 - Uses provided values
 - Falls back to defaults for omitted options
-- No prompts (errors if `--force` missing and dir not empty)
+- No prompts
 - Suitable for automation
 
 ## CI/CD Usage
@@ -185,8 +133,6 @@ Behavior:
   run: |
 spec-kitty init . \
   --ai codex \
-  --script sh \
-  --force \
   --no-git \
   --non-interactive
 ```
@@ -196,8 +142,6 @@ spec-kitty init . \
 #!/bin/bash
 spec-kitty init /app/project \
   --ai claude,codex \
-  --script sh \
-  --ignore-agent-tools \
   --non-interactive
 ```
 
@@ -294,7 +238,7 @@ ls CLAUDE.md
 ```
 
 **Tradeoff**: Multiple copies, need to update each if editing manually
-**Recommended**: Edit `.kittify/AGENTS.md` and run `spec-kitty init --here --force` to refresh
+**Recommended**: Edit `.kittify/AGENTS.md` and run `spec-kitty upgrade` to refresh
 
 ## Verification
 
@@ -324,26 +268,6 @@ spec-kitty init proj --ai codex
 
 Valid keys are lowercase: `codex`, `claude`, `gemini`, `cursor`, `qwen`, `opencode`, `windsurf`, `kilocode`, `auggie`, `roo`, `copilot`, `q`
 
-### "Invalid script type"
-```bash
-# ERROR
-spec-kitty init proj --script bash
-
-# CORRECT
-spec-kitty init proj --script sh
-```
-
-Valid values: `sh` or `ps`
-
-### "Do you want to continue?" prompt appears
-
-This happens when initializing in non-empty directory without `--force`:
-
-```bash
-# Add --force to skip prompt
-spec-kitty init . --ai codex --force
-```
-
 ## Complete Reference
 
 ### Minimal Non-Interactive Init
@@ -355,26 +279,18 @@ spec-kitty init my-project --ai codex --non-interactive
 ```bash
 spec-kitty init my-project \
   --ai codex,claude,cursor \
-  --script sh \
-  --preferred-implementer codex \
-  --preferred-reviewer claude \
-  --force \
   --no-git \
-  --ignore-agent-tools \
-  --debug
+  --non-interactive
 ```
 
 ### Current Directory
 ```bash
-spec-kitty init . --ai codex --force
-# or
-spec-kitty init --here --ai codex --force
+spec-kitty init . --ai codex --non-interactive
 ```
 
 ## Environment Variables
 
 Can also be set via environment:
-- `GH_TOKEN` or `GITHUB_TOKEN` - GitHub API token (instead of `--github-token`)
 - `SPECIFY_TEMPLATE_REPO` - Override template source (e.g., `myorg/custom-templates`)
 - `SPEC_KITTY_NON_INTERACTIVE` - Force non-interactive mode (set to `1`)
 
@@ -387,7 +303,7 @@ Can also be set via environment:
 
 Use in scripts:
 ```bash
-if spec-kitty init my-project --ai codex --script sh; then
+if spec-kitty init my-project --ai codex; then
   echo "Init succeeded"
 else
   echo "Init failed with code $?"
@@ -405,8 +321,6 @@ AI_AGENTS="${2:-codex}"  # Default to codex
 
 spec-kitty init "$PROJECT_NAME" \
   --ai "$AI_AGENTS" \
-  --script sh \
-  --ignore-agent-tools \
   --non-interactive || exit 1
 
 cd "$PROJECT_NAME"

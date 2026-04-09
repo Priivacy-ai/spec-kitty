@@ -1,8 +1,8 @@
 {
   "event_count": 6,
-  "feature_slug": "017-smarter-feature-merge-with-preflight",
   "last_event_id": "01KJ5V38R75S4G4N00HZS6EFAC",
-  "materialized_at": "2026-03-11T07:08:18.557042+00:00",
+  "materialized_at": "2026-01-18T10:37:13Z",
+  "mission_slug": "017-smarter-feature-merge-with-preflight",
   "summary": {
     "approved": 0,
     "blocked": 0,
@@ -11,6 +11,7 @@
     "done": 3,
     "for_review": 0,
     "in_progress": 3,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

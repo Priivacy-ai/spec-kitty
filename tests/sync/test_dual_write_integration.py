@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from specify_cli.status.emit import emit_status_transition
-from specify_cli.status.models import Lane
+from specify_cli.status.models import Lane, ReviewResult
 from specify_cli.status.store import read_events, read_events_raw
 from specify_cli.status.reducer import SNAPSHOT_FILENAME
 
@@ -19,6 +19,7 @@ import pytest
 pytestmark = pytest.mark.git_repo
 
 # ── Helpers ──────────────────────────────────────────────────────
+
 
 def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     """Create a minimal mission directory with tasks/ and a WP file."""
@@ -30,28 +31,22 @@ def _setup_mission_dir(tmp_path: Path, mission_slug: str = "099-test") -> Path:
     # Create WP01 file with frontmatter
     wp_file = tasks_dir / "WP01-test.md"
     wp_file.write_text(
-        "---\n"
-        "work_package_id: WP01\n"
-        "title: Test WP\n"
-        "lane: planned\n"
-        "dependencies: []\n"
-        "---\n"
-        "\n# WP01 Content\n",
+        "---\nwork_package_id: WP01\ntitle: Test WP\nlane: planned\ndependencies: []\n---\n\n# WP01 Content\n",
         encoding="utf-8",
     )
 
     # Set up phase 1 (dual-write) via meta.json
     meta = {"status_phase": 1}
-    (mission_dir / "meta.json").write_text(
-        json.dumps(meta), encoding="utf-8"
-    )
+    (mission_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
     return mission_dir
+
 
 def _read_snapshot(mission_dir: Path) -> dict:
     """Read the status.json snapshot from disk."""
     path = mission_dir / SNAPSHOT_FILENAME
     return json.loads(path.read_text(encoding="utf-8"))
+
 
 def _read_wp_frontmatter_lane(mission_dir: Path, wp_id: str) -> str | None:
     """Read the lane field from a WP file's frontmatter."""
@@ -66,7 +61,9 @@ def _read_wp_frontmatter_lane(mission_dir: Path, wp_id: str) -> str | None:
             return stripped.split(":", 1)[1].strip()
     return None
 
+
 # ── Tests ────────────────────────────────────────────────────────
+
 
 class TestDualWriteEventAndFrontmatterConsistent:
     """T075: Verify event log, status.json, and frontmatter all agree."""
@@ -100,6 +97,7 @@ class TestDualWriteEventAndFrontmatterConsistent:
         # 3. Verify frontmatter updated
         fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")
         assert fm_lane == "claimed"
+
 
 class TestDualWriteMultipleTransitions:
     """T075: Multiple transitions maintain consistency."""
@@ -154,6 +152,7 @@ class TestDualWriteMultipleTransitions:
         fm_lane = _read_wp_frontmatter_lane(mission_dir, "WP01")
         assert fm_lane == "for_review"
 
+
 class TestDualWriteAliasResolvedEverywhere:
     """T075: Alias 'doing' is resolved to 'in_progress' everywhere."""
 
@@ -198,6 +197,7 @@ class TestDualWriteAliasResolvedEverywhere:
         snapshot = _read_snapshot(mission_dir)
         assert snapshot["work_packages"]["WP01"]["lane"] == "in_progress"
 
+
 class TestDualWriteForceTransitionRecorded:
     """T075: Force transitions record force flag and reason."""
 
@@ -209,29 +209,49 @@ class TestDualWriteForceTransitionRecorded:
 
         # Set up WP01 as "done" via full lifecycle
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="claimed", actor="agent-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="claimed",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="in_progress", actor="agent-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="for_review", actor="agent-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="for_review",
+            actor="agent-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="in_review", actor="reviewer-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer-1",
             repo_root=repo_root,
         )
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="approved", actor="reviewer-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="approved",
+            actor="reviewer-1",
             repo_root=repo_root,
+            review_result=ReviewResult(
+                reviewer="reviewer-1",
+                verdict="approved",
+                reference="PR#99",
+            ),
             evidence={
                 "review": {
                     "reviewer": "reviewer-1",
@@ -241,8 +261,11 @@ class TestDualWriteForceTransitionRecorded:
             },
         )
         emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="done", actor="reviewer-1",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="done",
+            actor="reviewer-1",
             repo_root=repo_root,
             evidence={
                 "review": {
@@ -255,8 +278,11 @@ class TestDualWriteForceTransitionRecorded:
 
         # Now force done -> in_progress (illegal without force)
         event = emit_status_transition(
-            mission_dir=mission_dir, mission_slug=slug,
-            wp_id="WP01", to_lane="in_progress", actor="admin",
+            mission_dir=mission_dir,
+            mission_slug=slug,
+            wp_id="WP01",
+            to_lane="in_progress",
+            actor="admin",
             force=True,
             reason="Rework needed after production issue",
             repo_root=repo_root,

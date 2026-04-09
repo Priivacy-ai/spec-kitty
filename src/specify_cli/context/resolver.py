@@ -9,11 +9,11 @@ no heuristic fallback, and no single-feature auto-detection.
 from __future__ import annotations
 
 import json
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from pathlib import Path
 
-from ruamel.yaml import YAML
 from ulid import ULID
+from ruamel.yaml import YAML
 
 from specify_cli.context.errors import (
     FeatureNotFoundError,
@@ -26,6 +26,8 @@ from specify_cli.context.store import load_context as _load_context
 from specify_cli.context.store import save_context
 from specify_cli.lanes.branch_naming import lane_branch_name
 from specify_cli.lanes.persistence import require_lanes_json
+from specify_cli.mission_metadata import mission_identity_fields
+from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 
 
 def _generate_token() -> str:
@@ -37,10 +39,7 @@ def _read_project_uuid(repo_root: Path) -> str:
     """Read project_uuid from .kittify/config.yaml."""
     config_path = repo_root / ".kittify" / "config.yaml"
     if not config_path.exists():
-        msg = (
-            f"Project config not found at {config_path}. "
-            "Run `spec-kitty init` to initialize the project."
-        )
+        msg = f"Project config not found at {config_path}. Run `spec-kitty init` to initialize the project."
         raise MissingIdentityError(msg)
 
     yaml = YAML()
@@ -49,10 +48,7 @@ def _read_project_uuid(repo_root: Path) -> str:
     project_section = data.get("project", {}) if data else {}
     uuid_val = project_section.get("uuid")
     if not uuid_val:
-        msg = (
-            "project.uuid not found in .kittify/config.yaml. "
-            "Run `spec-kitty init` to assign a project identity."
-        )
+        msg = "project.uuid not found in .kittify/config.yaml. Run `spec-kitty init` to assign a project identity."
         raise MissingIdentityError(msg)
     return str(uuid_val)
 
@@ -72,20 +68,28 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
     target_branch = data.get("target_branch", "main")
 
     if not mission_id:
-        msg = (
-            f"Neither mission_id nor mission_slug found in {meta_path}. "
-            "The feature metadata is incomplete."
-        )
+        msg = f"Neither mission_id nor mission_slug found in {meta_path}. The feature metadata is incomplete."
         raise MissingIdentityError(msg)
 
-    return {"mission_id": mission_id, "target_branch": target_branch}
+    identity = mission_identity_fields(
+        str(data.get("mission_slug") or data.get("slug") or feature_dir.name),
+        str(data.get("mission_number") or data.get("feature_number") or "").strip() or None,
+        str(data.get("mission_type") or data.get("mission") or "").strip() or None,
+    )
+
+    return {
+        "mission_id": mission_id,
+        "target_branch": target_branch,
+        "mission_number": identity["mission_number"],
+        "mission_type": identity["mission_type"],
+    }
 
 
-def _read_wp_frontmatter(feature_dir: Path, wp_code: str) -> dict[str, object]:
-    """Read WP frontmatter fields from the task markdown file.
+def _read_wp_metadata(feature_dir: Path, wp_code: str) -> WPMetadata:
+    """Read WP frontmatter as a typed WPMetadata model.
 
     Scans tasks/ directory for a file matching the wp_code pattern
-    (e.g., WP01-*.md or WP01.md).
+    (e.g., WP01-*.md or WP01.md), then parses via ``read_wp_frontmatter``.
     """
     tasks_dir = feature_dir / "tasks"
     if not tasks_dir.exists():
@@ -93,36 +97,19 @@ def _read_wp_frontmatter(feature_dir: Path, wp_code: str) -> dict[str, object]:
         raise WorkPackageNotFoundError(msg)
 
     # Find matching WP file: WP01-*.md or WP01.md
-    candidates = list(tasks_dir.glob(f"{wp_code}-*.md")) + list(
-        tasks_dir.glob(f"{wp_code}.md")
-    )
+    candidates = list(tasks_dir.glob(f"{wp_code}-*.md")) + list(tasks_dir.glob(f"{wp_code}.md"))
     if not candidates:
-        msg = (
-            f"No task file found for '{wp_code}' in {tasks_dir}. "
-            f"Expected a file matching {wp_code}-*.md or {wp_code}.md."
-        )
+        msg = f"No task file found for '{wp_code}' in {tasks_dir}. Expected a file matching {wp_code}-*.md or {wp_code}.md."
         raise WorkPackageNotFoundError(msg)
 
     wp_path = candidates[0]
-    content = wp_path.read_text(encoding="utf-8")
+    try:
+        metadata, _body = read_wp_frontmatter(wp_path)
+    except Exception as exc:
+        msg = f"WP file {wp_path} has invalid or missing frontmatter: {exc}"
+        raise WorkPackageNotFoundError(msg) from exc
 
-    # Extract YAML frontmatter between --- delimiters
-    if not content.startswith("---"):
-        msg = f"WP file {wp_path} has no YAML frontmatter."
-        raise WorkPackageNotFoundError(msg)
-
-    parts = content.split("---", 2)
-    if len(parts) < 3:
-        msg = f"WP file {wp_path} has malformed YAML frontmatter."
-        raise WorkPackageNotFoundError(msg)
-
-    yaml = YAML()
-    fm = yaml.load(parts[1])
-    if not isinstance(fm, dict):
-        msg = f"WP file {wp_path} frontmatter is not a YAML mapping."
-        raise WorkPackageNotFoundError(msg)
-
-    return dict(fm)
+    return metadata
 
 
 def resolve_context(
@@ -152,10 +139,7 @@ def resolve_context(
         WorkPackageNotFoundError: If the wp_code is not found in tasks/.
     """
     if not wp_code:
-        msg = (
-            "wp_code is required. Provide the work package code "
-            "(e.g., --wp WP01). No scanning or auto-detection is performed."
-        )
+        msg = "wp_code is required. Provide the work package code (e.g., --wp WP01). No scanning or auto-detection is performed."
         raise MissingArgumentError(msg)
 
     if not mission_slug:
@@ -172,31 +156,20 @@ def resolve_context(
     # 2. Locate feature directory
     feature_dir = repo_root / "kitty-specs" / mission_slug
     if not feature_dir.exists():
-        msg = (
-            f"Feature directory not found: {feature_dir}. "
-            f"Check that '{mission_slug}' is the correct feature slug."
-        )
+        msg = f"Feature directory not found: {feature_dir}. Check that '{mission_slug}' is the correct feature slug."
         raise FeatureNotFoundError(msg)
 
     # 3. Read meta.json
     meta = _read_meta_json(feature_dir)
 
-    # 4. Read WP frontmatter
-    fm = _read_wp_frontmatter(feature_dir, wp_code)
+    # 4. Read WP frontmatter as typed WPMetadata
+    wp_meta = _read_wp_metadata(feature_dir, wp_code)
 
-    # Extract fields from frontmatter
-    work_package_id = str(fm.get("work_package_id", wp_code))
-    execution_mode = str(fm.get("execution_mode", "code_change"))
-    owned_files_raw = fm.get("owned_files")
-    owned_files: tuple[str, ...] = (
-        tuple(str(f) for f in owned_files_raw)
-        if isinstance(owned_files_raw, list)
-        else ()
-    )
-    dependencies_raw = fm.get("dependencies")
-    dependencies: list[object] = (
-        list(dependencies_raw) if isinstance(dependencies_raw, list) else []
-    )
+    # Extract fields from typed metadata
+    work_package_id = wp_meta.work_package_id or wp_code
+    execution_mode = wp_meta.execution_mode or "code_change"
+    owned_files: tuple[str, ...] = tuple(wp_meta.owned_files)
+    dependencies = list(wp_meta.dependencies)
 
     # Compute authoritative_ref: lane branch for code_change, None for planning_artifact
     if execution_mode == "planning_artifact":
@@ -213,7 +186,7 @@ def resolve_context(
 
     # Generate opaque token
     token = _generate_token()
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
 
     # Build context
     context = MissionContext(
@@ -231,6 +204,8 @@ def resolve_context(
         dependency_mode=dependency_mode,
         created_at=now,
         created_by=agent,
+        mission_number=meta["mission_number"],
+        mission_type=meta["mission_type"],
     )
 
     # Persist

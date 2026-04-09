@@ -1,88 +1,89 @@
 # Event Envelope Reference
 
-Every event emitted by spec-kitty follows a fixed envelope schema with 15 fields.
-The canonical contract lives at `kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md`.
+This document describes the vendored machine-facing contract enforced by
+[`src/specify_cli/core/upstream_contract.json`](../../src/specify_cli/core/upstream_contract.json)
+and `specify_cli.core.contract_gate.validate_outbound_payload()`.
 
-Terminology note:
-- `Mission` is the canonical tracked-item noun.
-- `Mission Run` is the runtime/session noun.
-- Event payloads may still carry `feature_slug` as a compatibility alias on software-delivery and legacy 2.x surfaces.
+The current contract version is `3.0.0`.
 
-## Field Reference
+## Canonical Terms
 
-### Core Envelope (9 fields)
+- `Mission Type` is the reusable blueprint key, serialized as `mission_type`.
+- `Mission` is the tracked item under `kitty-specs/<mission-slug>/`, serialized as `mission_slug` and `mission_number`.
+- `Mission Run` is the runtime/session concept. It is not serialized as tracked-mission identity.
 
-| Field | Type | Required | Resolved | Description |
-|-------|------|----------|----------|-------------|
-| `event_id` | `string` | Yes | Per-event | 26-char ULID, unique per event |
-| `event_type` | `string` | Yes | Per-event | One of the 8 event types (e.g. `WPStatusChanged`) |
-| `aggregate_id` | `string` | Yes | Per-event | WP ID or tracked mission slug |
-| `aggregate_type` | `string` | Yes | Per-event | `"WorkPackage"` or legacy `"Feature"` compatibility label |
-| `payload` | `object` | Yes | Per-event | Event-type-specific data |
-| `timestamp` | `string` | Yes | Per-event | ISO 8601 UTC wall-clock time |
-| `node_id` | `string` | Yes | Per-session | 12-char hex machine identifier from LamportClock |
-| `lamport_clock` | `integer` | Yes | Per-event | Monotonic logical clock, incremented each emit |
-| `causation_id` | `string\|null` | No | Per-event | ULID of parent event for batch correlation |
+## Core Envelope
 
-### Identity Fields (3 fields -- Mission/Feature Compatibility Layer)
+The upstream event envelope requires these top-level fields:
 
-| Field | Type | Required | Resolved | Description |
-|-------|------|----------|----------|-------------|
-| `team_slug` | `string` | Yes | Per-session | Team identifier; `"local"` when unauthenticated |
-| `project_uuid` | `string\|null` | Yes* | Per-session | UUID4 from `.kittify/config.yaml` (`project.uuid`); required for WebSocket |
-| `project_slug` | `string\|null` | No | Per-session | Kebab-case project name |
+| Field | Required | Notes |
+|---|---|---|
+| `schema_version` | Yes | Must equal `3.0.0`. |
+| `build_id` | Yes | Producer build identifier. |
+| `aggregate_type` | Yes | Allowed: `Mission`, `WorkPackage`, `MissionDossier`. Forbidden: `Feature`. |
+| `event_type` | Yes | Event name for the emitted record. |
 
-*Events without `project_uuid` are queued locally only (not sent via WebSocket).
+Forbidden top-level fields in the envelope:
 
-### Git Correlation Fields (3 fields -- Feature 033)
+- `feature_slug`
+- `feature_number`
 
-| Field | Type | Required | Resolved | Description |
-|-------|------|----------|----------|-------------|
-| `git_branch` | `string\|null` | No | Per-event (2s TTL) | Current branch; `"HEAD"` if detached; `null` outside git |
-| `head_commit_sha` | `string\|null` | No | Per-event (2s TTL) | Full 40-char SHA of HEAD; `null` outside git |
-| `repo_slug` | `string\|null` | No | Per-session | `owner/repo` format; `null` if no remote configured |
+## Mission-Scoped Payloads
 
-**Derivation precedence for `repo_slug`:**
-1. Config override: `.kittify/config.yaml` > `project.repo_slug`
-2. Auto-derived: `git remote get-url origin` > extract `owner/repo`
-3. `null` (no override, no remote)
+Any first-party payload that identifies a tracked mission must carry the full
+canonical identity triplet:
 
-## Backward Compatibility
+| Field | Required | Meaning |
+|---|---|---|
+| `mission_slug` | Yes | Canonical tracked mission slug. |
+| `mission_number` | Yes | Numeric mission prefix (for example `077`). |
+| `mission_type` | Yes | Blueprint key (for example `software-dev`). |
 
-| Scenario | Behavior |
-|----------|----------|
-| Old CLI (pre-033) sends event without git fields | SaaS accepts; fields treated as absent |
-| New CLI (033+) sends event with git fields | SaaS uses fields for GitHub correlation |
-| Mixed queue (old + new events) replayed | All events accepted; SaaS handles both |
+Forbidden mission-scoped payload fields:
 
-**Field absence vs null:** A `null` value means "resolved but unavailable". An absent field means the event predates feature 033. Consumers should handle both.
+- `feature_slug`
+- `feature_number`
+- `feature_type`
 
-## Example Event
+This applies to first-party machine-facing payloads such as status snapshots,
+derived board/progress views, context tokens, acceptance matrices, merge-gate
+evaluations, `next --json` decisions, and `orchestrator-api` response payloads.
 
-```json
-{
-  "event_id": "01HQXYZ1234567890ABCDEFG",
-  "event_type": "WPStatusChanged",
-  "aggregate_id": "WP01",
-  "aggregate_type": "WorkPackage",
-  "payload": {
-    "wp_id": "WP01",
-    "previous_status": "planned",
-    "new_status": "doing",
-    "changed_by": "claude-opus",
-    "feature_slug": "033-github-observability-event-metadata"
-  },
-  "timestamp": "2026-02-07T12:00:00+00:00",
-  "node_id": "abc123def456",
-  "lamport_clock": 42,
-  "causation_id": null,
-  "team_slug": "my-team",
-  "project_uuid": "550e8400-e29b-41d4-a716-446655440000",
-  "project_slug": "spec-kitty",
-  "git_branch": "kitty/mission-033-github-observability-event-metadata-lane-a",
-  "head_commit_sha": "68b09b04a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6",
-  "repo_slug": "Priivacy-ai/spec-kitty"
-}
-```
+## Body Sync Payloads
 
-See the [canonical contract](../../kitty-specs/033-github-observability-event-metadata/contracts/event-envelope.md) for full details.
+The `body_sync` contract requires:
+
+| Field | Required |
+|---|---|
+| `project_uuid` | Yes |
+| `mission_slug` | Yes |
+| `target_branch` | Yes |
+| `mission_type` | Yes |
+| `manifest_version` | Yes |
+
+Forbidden body-sync fields:
+
+- `feature_slug`
+- `mission_key`
+
+## Compatibility Notes
+
+- Historical read paths may still accept `feature_slug` when ingesting old
+  artifacts such as legacy `status.events.jsonl` records.
+- Active first-party emitters must not dual-write `feature_slug`.
+- `mission_run_slug` is forbidden.
+- Catalog event names remain `MissionCreated` and `MissionClosed`.
+- `aggregate_type="MissionRun"` is forbidden.
+
+## Migration
+
+Operator-facing CLI migration guidance lives here:
+
+- [Feature Flag Deprecation](../migration/feature-flag-deprecation.md)
+- [Mission Type Flag Deprecation](../migration/mission-type-flag-deprecation.md)
+
+The migration policy is asymmetric:
+
+- human/operator CLI surfaces may still accept hidden deprecated aliases during
+  the migration window
+- machine-facing contracts are canonical-only on `mission_*`

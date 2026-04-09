@@ -8,7 +8,7 @@ Parses charter markdown into structured sections and extracts:
 """
 
 import logging
-import re
+from kernel._safe_re import re
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any
@@ -262,11 +262,7 @@ class CharterParser:
             match = re.search(pattern, lower_content, re.IGNORECASE)
             if match:
                 try:
-                    value = (
-                        converter(match.group(1))
-                        if match.lastindex and match.lastindex > 0
-                        else converter("")
-                    )
+                    value = converter(match.group(1)) if match.lastindex and match.lastindex > 0 else converter("")
                     keywords[key] = value
                 except (ValueError, IndexError):
                     # Skip if conversion fails

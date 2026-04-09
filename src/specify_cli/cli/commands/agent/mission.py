@@ -2,22 +2,23 @@
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
-import re
+from kernel._safe_re import re
 import shutil
-from datetime import datetime, timezone
+from datetime import datetime, UTC
 from importlib.resources import files
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 import typer
 from rich.console import Console
-from typing_extensions import Annotated
+from typing import Annotated
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
+from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
@@ -38,14 +39,21 @@ from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
     validate_feature_structure,
 )
-from specify_cli.frontmatter import read_frontmatter, write_frontmatter
+from specify_cli.frontmatter import write_frontmatter
+from specify_cli.status.wp_metadata import WPMetadata, read_wp_frontmatter
 from specify_cli.mission import get_mission_type
 from specify_cli.ownership import infer_ownership, validate_ownership
 from specify_cli.ownership.audit_targets import validate_audit_coverage
 from specify_cli.ownership.validation import validate_glob_matches
+from specify_cli.core.wps_manifest import (
+    load_wps_manifest,
+    dependencies_are_explicit,
+    generate_tasks_md_from_manifest,
+)
 from specify_cli.status.bootstrap import bootstrap_canonical_state
 from specify_cli.sync.events import emit_wp_created, get_emitter
 from specify_cli.workspace_context import resolve_feature_worktree
+from specify_cli.merge.config import MergeStrategy
 
 app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents", no_args_is_help=True)
 
@@ -73,7 +81,7 @@ def _emit_json(payload: dict[str, object]) -> None:
 
 def _utc_now_iso() -> str:
     """Return deterministic UTC timestamp string for prompt/runtime variables."""
-    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    return datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
 def _read_feature_meta(feature_dir: Path) -> dict[str, object]:
@@ -263,7 +271,7 @@ def _commit_to_branch(
     mission_slug: str,
     artifact_type: str,
     repo_root: Path,
-    target_branch: str,
+    _target_branch: str,
     json_output: bool = False,
 ) -> None:
     """Commit planning artifact to current branch (respects user context).
@@ -318,7 +326,7 @@ def _commit_to_branch(
 
 def _find_feature_directory(
     repo_root: Path,
-    cwd: Path,
+    _cwd: Path,
     explicit_feature: str | None = None,
 ) -> Path:
     """Find the mission directory from an explicit mission slug.
@@ -366,7 +374,7 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
 
 def _build_setup_plan_detection_error(
     repo_root: Path,
-    base_error: str,
+    _base_error: str,
     mission_flag: str | None,
     *,
     error_code: str = "PLAN_CONTEXT_UNRESOLVED",
@@ -410,7 +418,7 @@ def _build_setup_plan_detection_error(
 def branch_context(
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     target_branch: Annotated[
-        Optional[str],
+        str | None,
         typer.Option(
             "--target-branch",
             help="Planned landing branch (defaults to current branch)",
@@ -473,15 +481,22 @@ def branch_context(
             _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="create")
 def create_mission(
     mission_slug: Annotated[str, typer.Argument(help="Mission slug (e.g., 'user-auth')")],
-    mission: Annotated[Optional[str], typer.Option("--mission", help="Mission type (e.g., 'documentation', 'software-dev')")] = None,
+    mission_type: Annotated[
+        str | None,
+        typer.Option("--mission-type", help="Mission type (e.g., 'documentation', 'software-dev')"),
+    ] = None,
+    mission: Annotated[
+        str | None,
+        typer.Option("--mission", hidden=True, help="(deprecated) Use --mission-type"),
+    ] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
-    target_branch: Annotated[Optional[str], typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
+    target_branch: Annotated[str | None, typer.Option("--target-branch", help="Target branch (defaults to current branch)")] = None,
 ) -> None:
     """Create new mission directory structure in the project root checkout.
 
@@ -497,12 +512,31 @@ def create_mission(
     )
 
     repo_root = locate_project_root()
+    resolved_mission_type = mission_type
+
+    if mission_type is not None or mission is not None:
+        try:
+            resolved = resolve_selector(
+                canonical_value=mission_type,
+                canonical_flag="--mission-type",
+                alias_value=mission,
+                alias_flag="--mission",
+                suppress_env_var="SPEC_KITTY_SUPPRESS_MISSION_TYPE_DEPRECATION",
+                command_hint="--mission-type <name>",
+            )
+            resolved_mission_type = resolved.canonical_value
+        except typer.BadParameter as exc:
+            if json_output:
+                _emit_json({"error": str(exc)})
+            else:
+                console.print(f"[bold red]Error:[/bold red] {exc}")
+            raise typer.Exit(1) from exc
 
     try:
         result = create_mission_core(
             repo_root=repo_root,
             mission_slug=mission_slug,
-            mission=mission,
+            mission=resolved_mission_type,
             target_branch=target_branch,
         )
     except MissionCreationError as exc:
@@ -536,7 +570,7 @@ def create_mission(
     # -- Output formatting (stays in the CLI layer) --
     if not json_output:
         console.print(f"[bold cyan]Branch:[/bold cyan] {result.target_branch} (target for this mission)")
-        if mission == "documentation":
+        if resolved_mission_type == "documentation":
             console.print("[cyan]\u2192 Documentation state initialized in meta.json[/cyan]")
 
     if json_output:
@@ -574,7 +608,7 @@ def create_mission(
 
 @app.command(name="check-prerequisites")
 def check_prerequisites(
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     paths_only: Annotated[bool, typer.Option("--paths-only", help="Only output path variables")] = False,
     include_tasks: Annotated[bool, typer.Option("--include-tasks", help="Include tasks.md in validation")] = False,
@@ -604,7 +638,7 @@ def check_prerequisites(
                 _emit_json({"error": error_msg})
             else:
                 console.print(f"[red]Error:[/red] {error_msg}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         _enforce_git_preflight(
             repo_root,
@@ -645,7 +679,7 @@ def check_prerequisites(
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         validation_result = validate_feature_structure(feature_dir, check_tasks=include_tasks)
         target_branch = _resolve_feature_target_branch(feature_dir, repo_root)
@@ -703,12 +737,12 @@ def check_prerequisites(
             _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="setup-plan")
 def setup_plan(
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
 ) -> None:
     """Scaffold implementation plan template in the project root checkout.
@@ -756,7 +790,7 @@ def setup_plan(
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         mission_slug = feature_dir.name
         _, target_branch = _show_branch_context(repo_root, mission_slug, json_output)
@@ -774,7 +808,7 @@ def setup_plan(
                 "spec_file": str(spec_file.resolve()),
                 "remediation": [
                     f"Restore the missing spec file at {spec_file.resolve()}",
-                    f"Or select another mission explicitly: spec-kitty agent mission setup-plan --mission <mission-slug> --json",
+                    "Or select another mission explicitly: spec-kitty agent mission setup-plan --mission <mission-slug> --json",
                 ],
             }
             if json_output:
@@ -849,15 +883,13 @@ def setup_plan(
                                 coverage_percentage=analysis.coverage_matrix.get_coverage_percentage(),
                             )
                             # Commit gap analysis and updated meta.json
-                            try:
+                            with contextlib.suppress(Exception):  # Non-fatal: agent can commit separately
                                 safe_commit(
                                     repo_path=repo_root,
                                     files_to_commit=[gap_analysis_output, meta_file],
                                     commit_message=f"Add gap analysis for feature {mission_slug}",
                                     allow_empty=False,
                                 )
-                            except Exception:
-                                pass  # Non-fatal: agent can commit separately
                             if not json_output:
                                 coverage_pct = analysis.coverage_matrix.get_coverage_percentage() * 100
                                 console.print(f"[cyan]→ Gap analysis generated: {gap_analysis_output.name} (coverage: {coverage_pct:.1f}%)[/cyan]")
@@ -871,7 +903,7 @@ def setup_plan(
             # T016: Detect and configure generators
             all_generators = [JSDocGenerator(), SphinxGenerator(), RustdocGenerator()]
             for gen in all_generators:
-                try:
+                with contextlib.suppress(Exception):  # Skip generators that fail detection
                     if gen.detect(repo_root):
                         generators_detected.append(
                             {
@@ -882,26 +914,22 @@ def setup_plan(
                         )
                         if not json_output:
                             console.print(f"[cyan]→ Detected {gen.name} generator (languages: {', '.join(gen.languages)})[/cyan]")
-                except Exception:
-                    pass  # Skip generators that fail detection
 
             if generators_detected and meta_file.exists():
                 try:
                     set_generators_configured(meta_file, generators_detected)
-                    try:
+                    with contextlib.suppress(Exception):  # Non-fatal
                         safe_commit(
                             repo_path=repo_root,
                             files_to_commit=[meta_file],
                             commit_message=f"Update generator config for feature {mission_slug}",
                             allow_empty=False,
                         )
-                    except Exception:
-                        pass  # Non-fatal
                 except Exception as gen_err:
                     if not json_output:
                         console.print(f"[yellow]Warning:[/yellow] Failed to save generator config: {gen_err}")
         # Dossier sync (fire-and-forget)
-        try:
+        with contextlib.suppress(Exception):
             from specify_cli.sync.dossier_pipeline import (
                 trigger_feature_dossier_sync_if_enabled,
             )
@@ -911,13 +939,10 @@ def setup_plan(
                 mission_slug,
                 repo_root,
             )
-        except Exception:
-            pass
 
         if json_output:
             result = {
                 "result": "success",
-                "mission_slug": mission_slug,
                 "mission_slug": mission_slug,
                 "plan_file": str(plan_file),
                 "feature_dir": str(feature_dir),
@@ -944,10 +969,10 @@ def setup_plan(
             _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
-def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
+def _find_latest_feature_worktree(repo_root: Path) -> Path | None:
     """Find the latest feature worktree by number.
 
     Migrated from find_latest_feature_worktree() in common.sh
@@ -980,7 +1005,7 @@ def _find_latest_feature_worktree(repo_root: Path) -> Optional[Path]:
     return latest_worktree
 
 
-def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Optional[Path]:
+def _find_feature_worktree(repo_root: Path, mission_slug: str) -> Path | None:
     """Find a deterministic worktree for a feature slug."""
     return resolve_feature_worktree(repo_root, mission_slug)
 
@@ -1004,7 +1029,7 @@ def _get_current_branch(repo_root: Path) -> str:
 
 @app.command(name="accept")
 def accept_feature(
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
     mode: Annotated[str, typer.Option("--mode", help="Acceptance mode: auto, pr, local, checklist")] = "auto",
     json_output: Annotated[bool, typer.Option("--json", help="Output results as JSON for agent parsing")] = False,
     lenient: Annotated[bool, typer.Option("--lenient", help="Skip strict metadata validation")] = False,
@@ -1022,19 +1047,20 @@ def accept_feature(
 
     Examples:
         # Run acceptance workflow
-        spec-kitty agent mission accept
+        spec-kitty agent mission accept --mission 077-my-mission
 
         # With JSON output for agents
-        spec-kitty agent mission accept --json
+        spec-kitty agent mission accept --mission 077-my-mission --json
 
         # Lenient mode (skip strict validation)
-        spec-kitty agent mission accept --lenient --json
+        spec-kitty agent mission accept --mission 077-my-mission --lenient --json
     """
     # Delegate to top-level accept command
     try:
         # Call top-level accept with mapped parameters
         top_level_accept(
             mission=feature,
+            feature=None,
             mode=mode,
             actor=None,  # Agent commands don't use --actor
             test=[],  # Agent commands don't use --test
@@ -1043,7 +1069,7 @@ def accept_feature(
             no_commit=no_commit,
             allow_fail=False,  # Agent commands use strict validation
         )
-    except typer.Exit as e:
+    except typer.Exit:
         # Propagate typer.Exit cleanly
         raise
     except Exception as e:
@@ -1051,13 +1077,13 @@ def accept_feature(
             print(json.dumps({"error": str(e), "success": False}))
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="merge")
 def merge_feature(
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
-    target: Annotated[Optional[str], typer.Option("--target", help="Target branch to merge into (required in multi-feature repos)")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (required in multi-mission repos)")] = None,
+    target: Annotated[str | None, typer.Option("--target", help="Target branch to merge into (required in multi-feature repos)")] = None,
     strategy: Annotated[str, typer.Option("--strategy", help="Merge strategy: merge, squash, rebase")] = "merge",
     push: Annotated[bool, typer.Option("--push", help="Push to origin after merging")] = False,
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Show actions without executing")] = False,
@@ -1083,16 +1109,16 @@ def merge_feature(
 
     Examples:
         # Merge into main branch
-        spec-kitty agent mission merge
+        spec-kitty agent mission merge --mission 077-my-mission
 
         # Merge into specific branch with push
-        spec-kitty agent mission merge --target develop --push
+        spec-kitty agent mission merge --mission 077-my-mission --target develop --push
 
         # Dry-run mode
-        spec-kitty agent mission merge --dry-run
+        spec-kitty agent mission merge --mission 077-my-mission --dry-run
 
         # Keep worktree and branch after merge
-        spec-kitty agent mission merge --keep-worktree --keep-branch
+        spec-kitty agent mission merge --mission 077-my-mission --keep-worktree --keep-branch
     """
     try:
         repo_root = locate_project_root()
@@ -1156,31 +1182,37 @@ def merge_feature(
         #       So we need to invert the logic
         try:
             top_level_merge(
-                strategy=strategy,
+                strategy=MergeStrategy(strategy),
                 delete_branch=not keep_branch,  # Invert: keep -> delete
                 remove_worktree=not keep_worktree,  # Invert: keep -> remove
                 push=push,
                 target_branch=target,  # Note: parameter name differs
                 dry_run=dry_run,
+                json_output=False,
                 mission=(feature or ""),
+                feature=None,
                 resume=False,  # Agent commands don't support resume
                 abort=False,  # Agent commands don't support abort
+                context_token=None,
+                keep_workspace=False,
             )
         except typer.Exit:
             # Propagate typer.Exit cleanly
             raise
         except Exception as e:
             print(json.dumps({"error": str(e), "success": False}))
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
+    except typer.Exit:
+        raise
     except Exception as e:
         print(json.dumps({"error": str(e), "success": False}))
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 @app.command(name="finalize-tasks")
 def finalize_tasks(
-    feature: Annotated[Optional[str], typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
+    feature: Annotated[str | None, typer.Option("--mission", help="Mission slug (e.g., '020-my-mission')")] = None,
     json_output: Annotated[bool, typer.Option("--json", help="Output JSON format")] = False,
     validate_only: Annotated[
         bool, typer.Option("--validate-only", help="Run all validations without committing. Reports issues that would block finalization.")
@@ -1194,6 +1226,35 @@ def finalize_tasks(
     Use --validate-only to check for issues (missing requirement mappings, ownership overlaps,
     dependency cycles) without making any changes or committing.
 
+    Bootstrap Mutation Surface (FR-003 / SC-002)
+    =============================================
+    The following 8 frontmatter fields may be written or overwritten by this
+    command. When ``--validate-only`` is active, ALL writes are skipped — the
+    ``frontmatter_changed and not validate_only`` guard ensures zero bytes of
+    mutation on disk.
+
+    +--------------------------+------------------------------+-----------------------------+
+    | Field                    | Source                       | Condition                   |
+    +--------------------------+------------------------------+-----------------------------+
+    | dependencies             | Parsed from tasks.md         | Written if absent or differs|
+    | planning_base_branch     | _resolve_planning_branch()   | Written if differs          |
+    | merge_target_branch      | Same as target_branch        | Written if differs          |
+    | branch_strategy          | Computed long-form string    | Written if differs          |
+    | requirement_refs         | WP frontmatter / tasks.md    | Written if absent or differs|
+    | execution_mode           | infer_ownership()            | Written only if absent      |
+    | owned_files              | infer_ownership()            | Written only if absent      |
+    | authoritative_surface    | infer_ownership()            | Written only if absent      |
+    +--------------------------+------------------------------+-----------------------------+
+
+    In validate-only mode, the bootstrap loop still infers all 8 fields in
+    memory so that downstream validation (ownership overlap checks, lane
+    preview) operates against the post-bootstrap state — not the stale
+    on-disk frontmatter.  The in-memory snapshots are stored in
+    ``_inmemory_frontmatter`` / ``_inmemory_bodies`` and consumed by the
+    manifest-building loop that follows.
+
+    See also: ``tasks.py:finalize-tasks()`` which writes ``dependencies`` via
+    ``build_document() + write_text()`` — guarded the same way (T002).
     Examples:
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --json
         spec-kitty agent mission finalize-tasks --mission 020-my-feature --validate-only --json
@@ -1233,7 +1294,7 @@ def finalize_tasks(
                     console.print(f"  - {slug}")
                 if "example_command" in payload:
                     console.print(f"  {payload['example_command']}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         mission_slug = feature_dir.name
         target_branch = _resolve_planning_branch(repo_root, feature_dir)
@@ -1265,20 +1326,41 @@ def finalize_tasks(
         all_spec_requirement_ids = set(spec_requirement_ids["all"])
         functional_spec_requirement_ids = set(spec_requirement_ids["functional"])
 
+        # ─── TIER 0: wps.yaml manifest ────────────────────────────────────────
+        try:
+            wps_manifest = load_wps_manifest(feature_dir)
+        except Exception as exc:
+            error_msg = f"wps.yaml is present but could not be loaded: {exc}"
+            if json_output:
+                _emit_json({"error": error_msg})
+            else:
+                console.print(f"[red]Error:[/red] {error_msg}")
+            raise typer.Exit(1)
+
+        # ─── TIER 1+: existing dependency resolution ──────────────────────────
         # Parse dependencies and requirement refs using 2-tier priority:
         # 1. WP frontmatter (primary — map-requirements writes here directly)
         # 2. tasks.md text parsing (backward compat for pre-API projects)
         tasks_md = feature_dir / "tasks.md"
-        wp_dependencies = {}
-        wp_requirement_refs = {}
+        wp_dependencies: dict[str, list[str]] = {}
+        wp_requirement_refs: dict[str, list[str]] = {}
+
+        if wps_manifest is not None:
+            # Build wp_dependencies from manifest (explicit deps only)
+            for entry in wps_manifest.work_packages:
+                if dependencies_are_explicit(entry):
+                    wp_dependencies[entry.id] = list(entry.dependencies)
+                else:
+                    wp_dependencies[entry.id] = []
 
         # PRIMARY: WP frontmatter (map-requirements writes here directly)
         wp_requirement_refs = _parse_requirement_refs_from_wp_files(wp_files)
 
-        if tasks_md.exists():
+        if wps_manifest is None and tasks_md.exists():
             # Read tasks.md and parse dependency mapping (always needed)
             tasks_content = tasks_md.read_text(encoding="utf-8")
             from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
+
             wp_dependencies = _shared_parse_deps(tasks_content)
 
             # FALLBACK: tasks.md text (backward compat for pre-API projects)
@@ -1296,7 +1378,7 @@ def finalize_tasks(
                 if json_output:
                     _emit_json({"error": error_msg, "cycles": cycles})
                 else:
-                    console.print(f"[red]Error:[/red] Circular dependencies detected:")
+                    console.print("[red]Error:[/red] Circular dependencies detected:")
                     for cycle in cycles:
                         console.print(f"  {' → '.join(cycle)}")
                 raise typer.Exit(1)
@@ -1318,7 +1400,7 @@ def finalize_tasks(
         wp_files = list(tasks_dir.glob("WP*.md"))
         wp_ids: list[str] = []
         for wp_file in wp_files:
-            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
             if wp_id_match:
                 wp_ids.append(wp_id_match.group(1))
 
@@ -1385,23 +1467,23 @@ def finalize_tasks(
         )
 
         # --- Pre-loop: read all existing frontmatter for conflict detection (T004) ---
-        existing_frontmatter: dict[str, dict[str, object]] = {}
+        existing_frontmatter: dict[str, WPMetadata] = {}
         for _wp_file in wp_files:
-            _wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", _wp_file.name)
+            _wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", _wp_file.name)
             if not _wp_id_match:
                 continue
             _wp_id = _wp_id_match.group(1)
             try:
-                _fm, _ = read_frontmatter(_wp_file)
-                existing_frontmatter[_wp_id] = _fm
+                _wp_meta, _ = read_wp_frontmatter(_wp_file)
+                existing_frontmatter[_wp_id] = _wp_meta
             except Exception:
-                existing_frontmatter[_wp_id] = {}
+                existing_frontmatter[_wp_id] = WPMetadata(work_package_id=_wp_id, title=_wp_id)
 
         # --- Dependency conflict detection (T004: disagree-loud) ---
         dep_conflict_errors: list[str] = []
         for wp_id_chk, parsed_deps in wp_dependencies.items():
-            existing_deps_raw = existing_frontmatter.get(wp_id_chk, {}).get("dependencies", [])
-            existing_deps: list[str] = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
+            existing_meta = existing_frontmatter.get(wp_id_chk)
+            existing_deps: list[str] = list(existing_meta.dependencies) if existing_meta else []
             if existing_deps and parsed_deps and set(existing_deps) != set(parsed_deps):
                 dep_conflict_errors.append(
                     f"{wp_id_chk}: frontmatter has {sorted(existing_deps)}, "
@@ -1418,9 +1500,16 @@ def finalize_tasks(
 
         all_ownership_warnings: list[str] = []
 
+        # Accumulate in-memory post-bootstrap frontmatter for each WP.
+        # In validate-only mode the disk is not written, so downstream
+        # validation (ownership manifests, lane preview) must use these
+        # snapshots instead of re-reading the unchanged files.
+        _inmemory_frontmatter: dict[str, WPMetadata] = {}
+        _inmemory_bodies: dict[str, str] = {}
+
         for wp_file in wp_files:
             # Extract WP ID from filename
-            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
             if not wp_id_match:
                 continue
 
@@ -1437,18 +1526,19 @@ def finalize_tasks(
                     has_dependencies_line = re.search(r"^\s*dependencies\s*:", frontmatter_text, re.MULTILINE) is not None
                     has_requirement_refs_line = re.search(r"^\s*requirement_refs\s*:", frontmatter_text, re.MULTILINE) is not None
 
-            # Read current frontmatter
+            # Read current frontmatter (typed)
             try:
-                frontmatter, body = read_frontmatter(wp_file)
+                wp_meta, body = read_wp_frontmatter(wp_file)
             except Exception as e:
                 console.print(f"[yellow]Warning:[/yellow] Could not read {wp_file.name}: {e}")
                 continue
 
             # --- Dependency resolution with preserve-existing (T004) ---
             parsed_deps = wp_dependencies.get(wp_id, [])
-            existing_deps_raw = frontmatter.get("dependencies", [])
-            existing_deps = list(existing_deps_raw) if isinstance(existing_deps_raw, (list, tuple)) else []
-            if not parsed_deps and existing_deps:
+            existing_deps = list(wp_meta.dependencies)
+            # When wps.yaml is the authority, never fall back to existing frontmatter deps.
+            # The manifest is always authoritative regardless of whether parsed_deps is empty.
+            if wps_manifest is None and not parsed_deps and existing_deps:
                 # Parser found nothing but frontmatter has deps — preserve existing
                 deps = existing_deps
                 preserved_wps.append(wp_id)
@@ -1456,7 +1546,7 @@ def finalize_tasks(
                 deps = parsed_deps
 
             requirement_refs = wp_requirement_refs.get(wp_id, [])
-            title = (frontmatter.get("title") or "").strip() or wp_id
+            title = wp_meta.display_title
             work_packages.append(
                 {
                     "id": wp_id,
@@ -1469,54 +1559,69 @@ def finalize_tasks(
             frontmatter_changed = False
             changed_fields: dict[str, object] = {}
 
+            # Build updates using typed comparison against WPMetadata fields
+            bld = wp_meta.builder()
+
             # Update frontmatter with dependencies + requirement refs
-            if not has_dependencies_line or frontmatter.get("dependencies") != deps:
+            if not has_dependencies_line or list(wp_meta.dependencies) != deps:
                 changed_fields["dependencies"] = deps
-                frontmatter["dependencies"] = deps
+                bld.set(dependencies=deps)
                 frontmatter_changed = True
 
-            if frontmatter.get("planning_base_branch") != planning_base_branch:
+            if wp_meta.planning_base_branch != planning_base_branch:
                 changed_fields["planning_base_branch"] = planning_base_branch
-                frontmatter["planning_base_branch"] = planning_base_branch
+                bld.set(planning_base_branch=planning_base_branch)
                 frontmatter_changed = True
 
-            if frontmatter.get("merge_target_branch") != merge_target_branch:
+            if wp_meta.merge_target_branch != merge_target_branch:
                 changed_fields["merge_target_branch"] = merge_target_branch
-                frontmatter["merge_target_branch"] = merge_target_branch
+                bld.set(merge_target_branch=merge_target_branch)
                 frontmatter_changed = True
 
-            if frontmatter.get("branch_strategy") != branch_strategy:
+            if wp_meta.branch_strategy != branch_strategy:
                 changed_fields["branch_strategy"] = branch_strategy
-                frontmatter["branch_strategy"] = branch_strategy
+                bld.set(branch_strategy=branch_strategy)
                 frontmatter_changed = True
 
-            if not has_requirement_refs_line or frontmatter.get("requirement_refs") != requirement_refs:
+            if not has_requirement_refs_line or list(wp_meta.requirement_refs) != requirement_refs:
                 changed_fields["requirement_refs"] = requirement_refs
-                frontmatter["requirement_refs"] = requirement_refs
+                bld.set(requirement_refs=requirement_refs)
                 frontmatter_changed = True
 
             # Ownership manifest: infer missing fields, write to frontmatter
-            if not frontmatter.get("execution_mode") or not frontmatter.get("owned_files"):
+            if not wp_meta.execution_mode or not wp_meta.owned_files:
                 wp_raw_content = wp_file.read_text(encoding="utf-8")
                 ownership, infer_warnings = infer_ownership(wp_raw_content, mission_slug)
                 all_ownership_warnings.extend(infer_warnings)
-                if not frontmatter.get("execution_mode"):
+                if not wp_meta.execution_mode:
                     changed_fields["execution_mode"] = str(ownership.execution_mode)
-                    frontmatter["execution_mode"] = str(ownership.execution_mode)
+                    bld.set(execution_mode=str(ownership.execution_mode))
                     frontmatter_changed = True
-                if not frontmatter.get("owned_files"):
+                if not wp_meta.owned_files:
                     changed_fields["owned_files"] = list(ownership.owned_files)
-                    frontmatter["owned_files"] = list(ownership.owned_files)
+                    bld.set(owned_files=list(ownership.owned_files))
                     frontmatter_changed = True
-                if not frontmatter.get("authoritative_surface"):
+                if not wp_meta.authoritative_surface:
                     changed_fields["authoritative_surface"] = ownership.authoritative_surface
-                    frontmatter["authoritative_surface"] = ownership.authoritative_surface
+                    bld.set(authoritative_surface=ownership.authoritative_surface)
                     frontmatter_changed = True
+
+            # Build the updated WPMetadata (validated)
+            updated_meta = bld.build() if frontmatter_changed else wp_meta
+
+            # Snapshot the post-bootstrap in-memory state for downstream
+            # validation (especially in validate-only mode where disk is untouched).
+            _inmemory_frontmatter[wp_id] = updated_meta
+            _inmemory_bodies[wp_id] = body
 
             if frontmatter_changed:
                 # Gate ALL file writes on validate_only (T006)
                 if not validate_only:
-                    write_frontmatter(wp_file, frontmatter, body)
+                    write_frontmatter(
+                        wp_file,
+                        updated_meta.model_dump(exclude_none=True),
+                        body,
+                    )
                 else:
                     would_modify.append({"wp_id": wp_id, "changes": changed_fields})
                 updated_count += 1
@@ -1526,23 +1631,37 @@ def finalize_tasks(
                 if wp_id not in preserved_wps:
                     unchanged_wps.append(wp_id)
 
+        # T017: Regenerate tasks.md from wps.yaml manifest (FR-008, FR-011)
+        if wps_manifest is not None:
+            tasks_md_content = generate_tasks_md_from_manifest(wps_manifest, mission_slug)
+            tasks_md.write_text(tasks_md_content, encoding="utf-8")
+            if not json_output:
+                console.print(f"[green]Regenerated[/green] tasks.md from wps.yaml ({len(wps_manifest.work_packages)} WPs)")
+
         # Validate ownership manifests across all WPs (hard errors block finalization)
+        #
+        # In validate-only mode the bootstrap loop above populates frontmatter
+        # in memory but does NOT write to disk.  Re-reading from disk would miss
+        # the inferred ownership fields, silently skipping ownership/lane
+        # validation.  We therefore use the in-memory state when available.
         wp_manifests: dict[str, object] = {}
         wp_bodies: dict[str, str] = {}
         for wp_file in wp_files:
-            wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
+            wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
             if not wp_id_match:
                 continue
             wp_id = wp_id_match.group(1)
-            try:
-                fm, wp_body = read_frontmatter(wp_file)
+            with contextlib.suppress(Exception):  # Skip WPs with unreadable frontmatter
+                if wp_id in _inmemory_frontmatter:
+                    fm_meta = _inmemory_frontmatter[wp_id]
+                    wp_body = _inmemory_bodies[wp_id]
+                else:
+                    fm_meta, wp_body = read_wp_frontmatter(wp_file)
                 wp_bodies[wp_id] = wp_body
-                if fm.get("execution_mode") and fm.get("owned_files"):
+                if fm_meta.execution_mode and fm_meta.owned_files:
                     from specify_cli.ownership.models import OwnershipManifest
 
-                    wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm)
-            except Exception:
-                pass  # Skip WPs with unreadable frontmatter
+                    wp_manifests[wp_id] = OwnershipManifest.from_frontmatter(fm_meta)
 
         if wp_manifests:
             ownership_result = validate_ownership(wp_manifests)  # type: ignore[arg-type]
@@ -1557,7 +1676,7 @@ def finalize_tasks(
                     console.print(f"[red]Error:[/red] {error_msg}")
                     for err in ownership_result.errors:
                         console.print(f"  - {err}")
-                raise typer.Exit(1)
+                raise typer.Exit(1) from None
 
             # Soft check: warn when owned_files globs match zero files (T013)
             glob_warnings = validate_glob_matches(wp_manifests, repo_root)  # type: ignore[arg-type]
@@ -1567,11 +1686,7 @@ def finalize_tasks(
                     console.print(f"[yellow]Ownership warning:[/yellow] {warning}")
 
             # Soft check: warn when codebase-wide WPs miss audit targets
-            codebase_wide_owned_files = [
-                list(manifest.owned_files)
-                for manifest in wp_manifests.values()
-                if manifest.is_codebase_wide
-            ]
+            codebase_wide_owned_files = [list(manifest.owned_files) for manifest in wp_manifests.values() if manifest.is_codebase_wide]
             audit_warnings = validate_audit_coverage(codebase_wide_owned_files, repo_root)
             all_ownership_warnings.extend(audit_warnings)
             if not json_output:
@@ -1625,7 +1740,7 @@ def finalize_tasks(
                 lanes_stats = {
                     "computed": True,
                     "count": len(lanes_manifest_dry.lanes),
-                    "lane_ids": [l.lane_id for l in lanes_manifest_dry.lanes],
+                    "lane_ids": [lane.lane_id for lane in lanes_manifest_dry.lanes],
                     "planning_artifact_wps": lanes_manifest_dry.planning_artifact_wps,
                     "collapse_report": _cr_dry.to_dict() if _cr_dry else None,
                 }
@@ -1641,9 +1756,11 @@ def finalize_tasks(
                         "would_preserve": preserved_wps,
                         "unchanged": unchanged_wps,
                         "updated_wp_count": updated_count,
-                        "bootstrap": bootstrap_stats,
-                        "lanes": lanes_stats,
                         "ownership_warnings": all_ownership_warnings,
+                        "validation": {
+                            "bootstrap_preview": bootstrap_stats,
+                            "lanes_preview": lanes_stats,
+                        },
                         "message": "All validations passed. Run without --validate-only to commit.",
                     }
                 )
@@ -1690,10 +1807,7 @@ def finalize_tasks(
             lanes_path = write_lanes_json(feature_dir, lanes_manifest)
             if not json_output:
                 console.print(f"[green]✓[/green] Computed {len(lanes_manifest.lanes)} execution lane(s)")
-                if (
-                    lanes_manifest.collapse_report
-                    and lanes_manifest.collapse_report.independent_wps_collapsed > 0
-                ):
+                if lanes_manifest.collapse_report and lanes_manifest.collapse_report.independent_wps_collapsed > 0:
                     console.print(
                         f"[yellow]⚠[/yellow] {lanes_manifest.collapse_report.independent_wps_collapsed} "
                         f"independent WP pair(s) collapsed into same lane. Run with --json to see details."
@@ -1779,7 +1893,7 @@ def finalize_tasks(
                 commit_hash = None
 
                 if not json_output:
-                    console.print(f"[dim]Tasks unchanged, no commit needed[/dim]")
+                    console.print("[dim]Tasks unchanged, no commit needed[/dim]")
             else:
                 # Commit with descriptive message (safe_commit preserves staging area)
                 commit_msg = f"Add tasks for feature {mission_slug}"
@@ -1816,7 +1930,7 @@ def finalize_tasks(
                 _emit_json({"error": str(e)})
             else:
                 console.print(f"[red]Error:[/red] {e}")
-            raise typer.Exit(1)
+            raise typer.Exit(1) from None
 
         # Emit WPCreated events (non-blocking)
         # MissionCreated is emitted earlier during mission create
@@ -1835,7 +1949,7 @@ def finalize_tasks(
                 console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
 
         # Dossier sync (fire-and-forget)
-        try:
+        with contextlib.suppress(Exception):
             from specify_cli.sync.dossier_pipeline import (
                 trigger_feature_dossier_sync_if_enabled,
             )
@@ -1845,8 +1959,6 @@ def finalize_tasks(
                 mission_slug,
                 repo_root,
             )
-        except Exception:
-            pass
 
         if json_output:
             _emit_json(
@@ -1871,13 +1983,9 @@ def finalize_tasks(
                     "lanes": {
                         "computed": lanes_manifest is not None,
                         "count": len(lanes_manifest.lanes) if lanes_manifest else 0,
-                        "lane_ids": [l.lane_id for l in lanes_manifest.lanes] if lanes_manifest else [],
+                        "lane_ids": [lane.lane_id for lane in lanes_manifest.lanes] if lanes_manifest else [],
                         "planning_artifact_wps": lanes_manifest.planning_artifact_wps if lanes_manifest else [],
-                        "collapse_report": (
-                            lanes_manifest.collapse_report.to_dict()
-                            if lanes_manifest and lanes_manifest.collapse_report
-                            else None
-                        ),
+                        "collapse_report": (lanes_manifest.collapse_report.to_dict() if lanes_manifest and lanes_manifest.collapse_report else None),
                     },
                     "ownership_warnings": all_ownership_warnings,
                 }
@@ -1890,7 +1998,7 @@ def finalize_tasks(
             _emit_json({"error": str(e)})
         else:
             console.print(f"[red]Error:[/red] {e}")
-        raise typer.Exit(1)
+        raise typer.Exit(1) from None
 
 
 def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
@@ -1898,7 +2006,7 @@ def _parse_wp_sections_from_tasks_md(tasks_content: str) -> dict[str, str]:
     sections: dict[str, str] = {}
     matches = list(
         re.finditer(
-            r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)",
+            r"(?m)^#{2,4}\s+(?:Work Package\s+)?(WP\d{2})(?:\b|:)",
             tasks_content,
         )
     )
@@ -1963,19 +2071,20 @@ def _parse_requirement_refs_from_tasks_md(tasks_content: str) -> dict[str, list[
 def _parse_requirement_refs_from_wp_files(wp_files: list[Path]) -> dict[str, list[str]]:
     """Parse requirement refs directly from WP prompt frontmatter."""
     from specify_cli.requirement_mapping import normalize_requirement_refs_value
+    from specify_cli.status.wp_metadata import read_wp_frontmatter
 
     parsed: dict[str, list[str]] = {}
     for wp_file in wp_files:
-        wp_id_match = re.match(r"^(WP\d{2})(?=$|[-_.])", wp_file.name)
+        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
         if not wp_id_match:
             continue
         wp_id = wp_id_match.group(1)
         try:
-            frontmatter, _ = read_frontmatter(wp_file)
+            meta, _ = read_wp_frontmatter(wp_file)
         except Exception:
             parsed.setdefault(wp_id, [])
             continue
-        refs = normalize_requirement_refs_value(frontmatter.get("requirement_refs"))
+        refs = normalize_requirement_refs_value(meta.requirement_refs)
         parsed[wp_id] = refs
     return parsed
 

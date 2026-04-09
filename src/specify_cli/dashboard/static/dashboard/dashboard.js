@@ -129,7 +129,7 @@ function toggleSidebar() {
 }
 
 function restoreSidebarState() {
-    const match = document.cookie.match(/sidebarCollapsed=(\w+)/);
+    const match = /sidebarCollapsed=(\w+)/.exec(document.cookie);
     if (match && match[1] === 'true') {
         const sidebar = document.getElementById('sidebar');
         const toggle = document.getElementById('sidebar-toggle');
@@ -304,7 +304,7 @@ if (!mergedAt || !mergedInto) {
     return '';
 }
 const date = new Date(mergedAt);
-const dateStr = isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
+const dateStr = Number.isNaN(date.valueOf()) ? mergedAt : date.toLocaleDateString();
 return `
     <span class="merge-badge" title="Merged into ${escapeHtml(mergedInto)} on ${escapeHtml(dateStr)}">
         <span class="icon">✅</span>
@@ -386,8 +386,8 @@ function loadKanban() {
     fetch(`/api/kanban/${currentFeature}`)
         .then(response => response.json())
         .then(data => {
-            const lanes = data && data.lanes ? data.lanes : data;
-            const weightedPct = data ? data.weighted_percentage : null;
+            const lanes = data?.lanes ? data.lanes : data;
+            const weightedPct = data?.weighted_percentage ?? null;
             renderKanban(lanes, weightedPct);
         })
         .catch(error => {
@@ -457,7 +457,7 @@ function renderKanban(lanes, weightedPercentage) {
                 ${task.agent ? `<span class="badge agent">${escapeHtml(task.agent)}</span>` : ''}
                 ${task.agent_profile ? `<span class="badge profile">${escapeHtml(task.agent_profile)}</span>` : ''}
                 ${task.role ? `<span class="badge role">${escapeHtml(task.role)}</span>` : ''}
-                ${task.subtasks && task.subtasks.length > 0 ?
+                ${task.subtasks?.length > 0 ?
                   `<span class="badge subtasks">${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>` : ''}
             </div>
         </div>
@@ -560,7 +560,7 @@ function showPromptModal(task) {
     if (metaEl) {
         const metaItems = [];
         if (task.lane) metaItems.push(`<span>Lane: ${escapeHtml(formatLaneName(task.lane))}</span>`);
-        if (task.subtasks && task.subtasks.length) {
+        if (task.subtasks?.length) {
             metaItems.push(`<span>${task.subtasks.length} subtask${task.subtasks.length !== 1 ? 's' : ''}</span>`);
         }
         if (task.phase) metaItems.push(`<span>Phase: ${escapeHtml(task.phase)}</span>`);
@@ -625,16 +625,15 @@ if (modalCloseButton) {
 document.addEventListener('keydown', (event) => {
     if (event.key === 'Escape') {
         const modal = document.getElementById('prompt-modal');
-        if (modal && modal.classList.contains('show')) {
+        if (modal?.classList.contains('show')) {
             hidePromptModal();
         }
     }
 });
 
 function loadArtifact(artifactName) {
-    const artifactKey = artifactName.replace('-', '_');
     fetch(`/api/artifact/${currentFeature}/${artifactName}`)
-        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
             // Render markdown to HTML
             const htmlContent = marked.parse(content);
@@ -651,9 +650,9 @@ function loadArtifact(artifactName) {
 
 function loadContracts() {
     fetch(`/api/contracts/${currentFeature}`)
-        .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.json() : Promise.reject(new Error('Not found')))
         .then(data => {
-            if (data.files && data.files.length > 0) {
+            if (data.files?.length > 0) {
                 renderContractsList(data.files);
             } else {
                 document.getElementById('contracts-content').innerHTML =
@@ -700,7 +699,7 @@ function renderContractsList(files) {
 
 function loadContractFile(filePath, fileName) {
     fetch(`/api/contracts/${currentFeature}/${encodeURIComponent(filePath)}`)
-        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
             let htmlContent;
 
@@ -751,9 +750,9 @@ function loadContractFile(filePath, fileName) {
 
 function loadChecklists() {
     fetch(`/api/checklists/${currentFeature}`)
-        .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.json() : Promise.reject(new Error('Not found')))
         .then(data => {
-            if (data.files && data.files.length > 0) {
+            if (data.files?.length > 0) {
                 renderChecklistsList(data.files);
             } else {
                 document.getElementById('checklists-content').innerHTML =
@@ -800,7 +799,7 @@ function renderChecklistsList(files) {
 
 function loadChecklistFile(filePath, fileName) {
     fetch(`/api/checklists/${currentFeature}/${encodeURIComponent(filePath)}`)
-        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
             let htmlContent;
 
@@ -851,9 +850,9 @@ function loadChecklistFile(filePath, fileName) {
 
 function loadResearch() {
     fetch(`/api/research/${currentFeature}`)
-        .then(response => response.ok ? response.json() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.json() : Promise.reject(new Error('Not found')))
         .then(data => {
-            if (data.main_file || (data.artifacts && data.artifacts.length > 0)) {
+            if (data.main_file || (data.artifacts?.length > 0)) {
                 renderResearchContent(data);
             } else {
                 document.getElementById('research-content').innerHTML =
@@ -876,7 +875,7 @@ function renderResearchContent(data) {
     }
 
     let artifactsHtml = '';
-    if (data.artifacts && data.artifacts.length > 0) {
+    if (data.artifacts?.length > 0) {
         const artifactItems = data.artifacts.map(file => {
             const nameEscaped = escapeHtml(file.name);
             const pathEscaped = escapeHtml(file.path);
@@ -918,7 +917,7 @@ function renderResearchContent(data) {
 
 function loadResearchFile(filePath, fileName) {
     fetch(`/api/research/${currentFeature}/${encodeURIComponent(filePath)}`)
-        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
             let htmlContent;
 
@@ -1052,7 +1051,7 @@ function showCharter() {
 
     // Load charter
     fetch('/api/charter')
-        .then(response => response.ok ? response.text() : Promise.reject('Not found'))
+        .then(response => response.ok ? response.text() : Promise.reject(new Error('Not found')))
         .then(content => {
             const htmlContent = marked.parse(content);
             const container = document.getElementById('charter-content');
@@ -1149,12 +1148,12 @@ function updateFeatureList(features, activeFeatureId = null) {
         selectContainer.style.display = 'block';
         singleFeatureName.style.display = 'none';
 
-        const activeFeatureExists = activeFeatureId && features.find(f => f.id === activeFeatureId);
+        const activeFeatureExists = activeFeatureId && features.some(f => f.id === activeFeatureId);
         // Try to restore saved feature, fall back to first feature
-        const savedFeatureExists = savedState.feature && features.find(f => f.id === savedState.feature);
+        const savedFeatureExists = savedState.feature && features.some(f => f.id === savedState.feature);
         if (activeFeatureExists) {
             currentFeature = activeFeatureId;
-        } else if (!currentFeature || !features.find(f => f.id === currentFeature)) {
+        } else if (!currentFeature || !features.some(f => f.id === currentFeature)) {
             currentFeature = savedFeatureExists ? savedState.feature : features[0].id;
         }
 
@@ -1170,9 +1169,9 @@ function updateFeatureList(features, activeFeatureId = null) {
         if (savedState.page === 'charter') {
             // Will be handled by showCharter() call below
             currentPage = savedState.page;
-        } else if (savedState.page === 'kanban' && feature && feature.artifacts && feature.artifacts.kanban?.exists) {
+        } else if (savedState.page === 'kanban' && feature?.artifacts?.kanban?.exists) {
             currentPage = savedState.page;
-        } else if (feature && feature.artifacts) {
+        } else if (feature?.artifacts) {
             const artifactKey = savedState.page.replace('-', '_');
             if (feature.artifacts[artifactKey]?.exists || savedState.page === 'overview') {
                 currentPage = savedState.page;
@@ -1184,7 +1183,7 @@ function updateFeatureList(features, activeFeatureId = null) {
     mainContent.style.display = 'block';
 
     // Update workflow icons based on current feature
-    if (feature && feature.workflow) {
+    if (feature?.workflow) {
         updateWorkflowIcons(feature.workflow);
         computeFeatureWorktreeStatus(feature);
     } else {
@@ -1223,7 +1222,7 @@ function updateFeatureListSilent(features) {
     allFeatures = features;
     const feature = features.find(f => f.id === currentFeature);
 
-    if (feature && feature.workflow) {
+    if (feature?.workflow) {
         updateWorkflowIcons(feature.workflow);
         computeFeatureWorktreeStatus(feature);
     } else {

@@ -1,15 +1,17 @@
 {
   "event_count": 43,
-  "feature_slug": "054-constitution-interview-compiler-and-bootstrap",
   "last_event_id": "01KKBNKKHVEEXANZ9GM2FA55DE",
-  "materialized_at": "2026-03-10T10:45:12.891621+00:00",
+  "materialized_at": "2026-03-10T10:45:12.891085+00:00",
+  "mission_slug": "054-constitution-interview-compiler-and-bootstrap",
   "summary": {
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 12,
     "for_review": 0,
     "in_progress": 0,
+    "in_review": 0,
     "planned": 0
   },
   "work_packages": {

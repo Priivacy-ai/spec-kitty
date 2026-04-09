@@ -16,6 +16,8 @@ import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
+from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
+
 
 @dataclass
 class AcceptanceCriterion:
@@ -55,6 +57,8 @@ class AcceptanceMatrix:
     mission_slug: str
     criteria: list[AcceptanceCriterion] = field(default_factory=list)
     negative_invariants: list[NegativeInvariant] = field(default_factory=list)
+    mission_number: str | None = None
+    mission_type: str | None = None
 
     @property
     def overall_verdict(self) -> str:
@@ -70,7 +74,11 @@ class AcceptanceMatrix:
 
     def to_dict(self) -> dict:
         return {
-            "mission_slug": self.mission_slug,
+            **mission_identity_fields(
+                self.mission_slug,
+                self.mission_number,
+                self.mission_type,
+            ),
             "overall_verdict": self.overall_verdict,
             "criteria": [asdict(c) for c in self.criteria],
             "negative_invariants": [asdict(ni) for ni in self.negative_invariants],
@@ -78,14 +86,21 @@ class AcceptanceMatrix:
 
     @classmethod
     def from_dict(cls, data: dict) -> AcceptanceMatrix:
+        identity = mission_identity_fields(
+            data["mission_slug"],
+            data.get("mission_number"),
+            data.get("mission_type"),
+        )
         return cls(
-            mission_slug=data["mission_slug"],
+            mission_slug=identity["mission_slug"],
             criteria=[
                 AcceptanceCriterion(**c) for c in data.get("criteria", [])
             ],
             negative_invariants=[
                 NegativeInvariant(**ni) for ni in data.get("negative_invariants", [])
             ],
+            mission_number=identity["mission_number"],
+            mission_type=identity["mission_type"],
         )
 
 
@@ -98,6 +113,11 @@ MATRIX_FILENAME = "acceptance-matrix.json"
 
 def write_acceptance_matrix(feature_dir: Path, matrix: AcceptanceMatrix) -> Path:
     """Write acceptance-matrix.json to the feature directory."""
+    if (feature_dir / "meta.json").exists():
+        identity = resolve_mission_identity(feature_dir)
+        matrix.mission_slug = identity.mission_slug
+        matrix.mission_number = identity.mission_number
+        matrix.mission_type = identity.mission_type
     path = feature_dir / MATRIX_FILENAME
     path.write_text(
         json.dumps(matrix.to_dict(), indent=2) + "\n",

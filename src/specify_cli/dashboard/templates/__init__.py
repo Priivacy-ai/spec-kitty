@@ -29,7 +29,14 @@ def get_dashboard_html(*, mission_context: Optional[Dict[str, str]] = None) -> s
     if not mission_context:
         return base_html
 
-    mission_json = json.dumps(mission_context)
+    # Encode as HTML-safe JSON: escape characters that would break a <script> block
+    # (<, >, & must be Unicode-escaped so a value like "</script>" can't inject markup).
+    mission_json = (
+        json.dumps(mission_context)
+        .replace("<", r"\u003c")
+        .replace(">", r"\u003e")
+        .replace("&", r"\u0026")
+    )
     if _MISSION_PLACEHOLDER not in base_html:
         return base_html
 

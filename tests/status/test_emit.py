@@ -15,6 +15,7 @@ import pytest
 
 import specify_cli.status.emit as emit_module
 from specify_cli.frontmatter import FrontmatterError
+from specify_cli.status.wp_metadata import WPMetadata
 from specify_cli.status.emit import (
     TransitionError,
     _build_done_evidence,
@@ -231,16 +232,12 @@ class TestBuildDoneEvidence:
     def test_missing_reference_raises(self):
         """Missing approval reference in review raises TransitionError."""
         with pytest.raises(TransitionError, match="review.reference"):
-            _build_done_evidence(
-                {"review": {"reviewer": "rev", "verdict": "approved"}}
-            )
+            _build_done_evidence({"review": {"reviewer": "rev", "verdict": "approved"}})
 
     def test_empty_reviewer_raises(self):
         """Empty reviewer string raises TransitionError."""
         with pytest.raises(TransitionError, match="review.reviewer"):
-            _build_done_evidence(
-                {"review": {"reviewer": "", "verdict": "approved"}}
-            )
+            _build_done_evidence({"review": {"reviewer": "", "verdict": "approved"}})
 
     def test_minimal_evidence_works(self):
         """Minimal evidence with required review fields succeeds."""
@@ -375,9 +372,7 @@ class TestEmitStatusTransition:
         )
         assert event.to_lane == Lane.IN_PROGRESS
 
-    def test_invalid_transition_rejected_no_persistence(
-        self, feature_dir: Path
-    ):
+    def test_invalid_transition_rejected_no_persistence(self, feature_dir: Path):
         """Invalid transition raises TransitionError and persists nothing."""
         with pytest.raises(TransitionError):
             emit_status_transition(
@@ -563,11 +558,18 @@ class TestForceTransitions:
 
 
 class TestDoneEvidence:
-    """Tests for the done-evidence contract in emit."""
+    """Tests for the done-evidence contract in emit.
+
+    In the 9-lane model, the path to done goes through in_review:
+    planned → claimed → in_progress → for_review → in_review → done
+    (with review_result required for in_review outbound transitions).
+    """
 
     def test_done_without_evidence_rejected(self, feature_dir: Path):
         """Transition to done without evidence is rejected."""
-        # Move through the pipeline to get to for_review
+        from specify_cli.status.models import ReviewResult
+
+        # Move through the pipeline: planned → claimed → in_progress → for_review → in_review
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -589,8 +591,16 @@ class TestDoneEvidence:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
 
-        with pytest.raises(TransitionError, match="evidence"):
+        # in_review → done requires both review_result AND evidence
+        with pytest.raises(TransitionError, match="review_result|evidence"):
             emit_status_transition(
                 feature_dir=feature_dir,
                 mission_slug="034-test",
@@ -599,10 +609,10 @@ class TestDoneEvidence:
                 actor="reviewer",
             )
 
-    def test_done_with_valid_evidence(
-        self, feature_dir: Path, valid_evidence_dict: dict
-    ):
-        """Transition to done with valid evidence succeeds."""
+    def test_done_with_valid_evidence(self, feature_dir: Path, valid_evidence_dict: dict):
+        """Transition to done with valid evidence via in_review succeeds."""
+        from specify_cli.status.models import ReviewResult
+
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -624,7 +634,15 @@ class TestDoneEvidence:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
 
+        review_result = ReviewResult(verdict="approved", reviewer="reviewer-1", reference="PR#42")
         event = emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -632,6 +650,7 @@ class TestDoneEvidence:
             to_lane="done",
             actor="reviewer",
             evidence=valid_evidence_dict,
+            review_result=review_result,
         )
         assert event.to_lane == Lane.DONE
         assert event.evidence is not None
@@ -640,6 +659,8 @@ class TestDoneEvidence:
 
     def test_done_with_bad_evidence_rejected(self, feature_dir: Path):
         """Transition to done with malformed evidence is rejected."""
+        from specify_cli.status.models import ReviewResult
+
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -661,7 +682,15 @@ class TestDoneEvidence:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
 
+        review_result = ReviewResult(verdict="approved", reviewer="reviewer", reference="PR#1")
         with pytest.raises(TransitionError, match="review.reviewer"):
             emit_status_transition(
                 feature_dir=feature_dir,
@@ -670,11 +699,12 @@ class TestDoneEvidence:
                 to_lane="done",
                 actor="reviewer",
                 evidence={"not_review": "data"},
+                review_result=review_result,
             )
 
-        # Verify no done event was persisted (only 3 prior events)
+        # Verify no done event was persisted (only 4 prior events)
         events = read_events(feature_dir)
-        assert len(events) == 3
+        assert len(events) == 4
 
 
 class TestPhase1CompatibilityBridge:
@@ -719,12 +749,18 @@ class TestPhase1CompatibilityBridge:
     ) -> None:
         wp_file = feature_dir / "tasks" / "WP01.md"
         wp_file.parent.mkdir()
-        wp_file.write_text("---\nowner: test\n---\n", encoding="utf-8")
+        wp_file.write_text("---\nwork_package_id: WP01\n---\n", encoding="utf-8")
 
         write_mock = MagicMock()
         monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
-        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"owner": "test"}, "body"))
+        # WPMetadata with no lane field — mirror should be a no-op (no lane to update)
+        monkeypatch.setattr(
+            emit_module,
+            "read_wp_frontmatter",
+            lambda path: (WPMetadata(work_package_id="WP01"), "body"),
+        )
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"work_package_id": "WP01"}, "body"))
         monkeypatch.setattr(emit_module, "write_frontmatter", write_mock)
 
         _mirror_phase1_frontmatter_lane(feature_dir, "WP01", "for_review")
@@ -739,14 +775,15 @@ class TestPhase1CompatibilityBridge:
     ) -> None:
         wp_file = feature_dir / "tasks" / "WP01.md"
         wp_file.parent.mkdir()
-        wp_file.write_text("---\nlane: planned\n---\n", encoding="utf-8")
+        wp_file.write_text("---\nwork_package_id: WP01\nlane: planned\n---\n", encoding="utf-8")
 
         monkeypatch.setattr(emit_module, "_phase1_dual_write_enabled", lambda feature_dir: True)
         monkeypatch.setattr(emit_module, "_find_wp_file", lambda feature_dir, wp_id: wp_file)
 
+        # Part 1: read_wp_frontmatter raises FrontmatterError → logged as "Failed to read"
         monkeypatch.setattr(
             emit_module,
-            "read_frontmatter",
+            "read_wp_frontmatter",
             lambda path: (_ for _ in ()).throw(FrontmatterError("read failed")),
         )
         with caplog.at_level("WARNING"):
@@ -754,7 +791,13 @@ class TestPhase1CompatibilityBridge:
         assert "Failed to read" in caplog.text
 
         caplog.clear()
-        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"lane": "planned"}, "body"))
+        # Part 2: read_wp_frontmatter succeeds (lane="planned"), write_frontmatter raises FrontmatterError
+        monkeypatch.setattr(
+            emit_module,
+            "read_wp_frontmatter",
+            lambda path: (WPMetadata(work_package_id="WP01", lane="planned"), "body"),
+        )
+        monkeypatch.setattr(emit_module, "read_frontmatter", lambda path: ({"work_package_id": "WP01", "lane": "planned"}, "body"))
         monkeypatch.setattr(
             emit_module,
             "write_frontmatter",
@@ -765,22 +808,20 @@ class TestPhase1CompatibilityBridge:
         assert "Failed to write" in caplog.text
 
     def test_legacy_alias_collapses_only_when_alias_resolves_to_current_lane(self) -> None:
-        assert _legacy_alias_collapses_to_current_lane("in_review", "for_review", "for_review") is True
-        assert _legacy_alias_collapses_to_current_lane("for_review", "for_review", "for_review") is False
-        assert _legacy_alias_collapses_to_current_lane("in_review", "for_review", "in_progress") is False
+        # With in_review now a first-class lane, this collapse no longer applies.
+        # The function still works for any OTHER alias that might collapse, so
+        # test with a hypothetical scenario using "doing" -> "in_progress".
+        assert _legacy_alias_collapses_to_current_lane("doing", "in_progress", "in_progress") is True
+        assert _legacy_alias_collapses_to_current_lane("in_progress", "in_progress", "in_progress") is False
+        assert _legacy_alias_collapses_to_current_lane("doing", "in_progress", "planned") is False
+        # in_review is no longer an alias — it resolves to itself, so raw == resolved
+        assert _legacy_alias_collapses_to_current_lane("in_review", "in_review", "in_review") is False
 
-    def test_emit_status_transition_accepts_mission_alias_and_collapses_legacy_in_review(
+    def test_emit_status_transition_accepts_mission_alias_for_review_to_in_review(
         self,
         feature_dir: Path,
     ) -> None:
-        (feature_dir / "meta.json").write_text('{"status_phase": 1}', encoding="utf-8")
-        wp_file = feature_dir / "tasks" / "WP01.md"
-        wp_file.parent.mkdir()
-        wp_file.write_text(
-            "---\nlane: in_progress\n---\n# WP01\n",
-            encoding="utf-8",
-        )
-
+        """in_review is now a first-class lane; transition for_review -> in_review works."""
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test-feature",
@@ -802,7 +843,6 @@ class TestPhase1CompatibilityBridge:
             to_lane="for_review",
             actor="agent-1",
         )
-        before = len(read_events(feature_dir))
 
         event = emit_status_transition(
             mission_dir=feature_dir,
@@ -812,10 +852,8 @@ class TestPhase1CompatibilityBridge:
             actor="reviewer-1",
         )
 
-        assert event.to_lane == Lane.FOR_REVIEW
+        assert event.to_lane == Lane.IN_REVIEW
         assert event.from_lane == Lane.FOR_REVIEW
-        assert len(read_events(feature_dir)) == before
-        assert "lane: for_review" in wp_file.read_text(encoding="utf-8")
 
     def test_emit_status_transition_requires_all_identity_fields(
         self,
@@ -878,9 +916,7 @@ class TestSaasFanOut:
             to_lane=Lane.IN_PROGRESS,
         )
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
 
         mock_emit.assert_called_once_with(
@@ -899,9 +935,7 @@ class TestSaasFanOut:
             to_lane=Lane.CLAIMED,
         )
         mock_emit = MagicMock()
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed", mock_emit
-        ):
+        with patch("specify_cli.sync.events.emit_wp_status_changed", mock_emit):
             _saas_fan_out(event, "034-test-feature", None)
         mock_emit.assert_called_once()
 
@@ -911,10 +945,13 @@ class TestSaasFanOut:
             from_lane=Lane.CLAIMED,
             to_lane=Lane.IN_PROGRESS,
         )
-        with patch(
-            "specify_cli.sync.events.emit_wp_status_changed",
-            side_effect=RuntimeError("network error"),
-        ), patch("specify_cli.status.emit.logger") as mock_logger:
+        with (
+            patch(
+                "specify_cli.sync.events.emit_wp_status_changed",
+                side_effect=RuntimeError("network error"),
+            ),
+            patch("specify_cli.status.emit.logger") as mock_logger,
+        ):
             # Should not raise
             _saas_fan_out(event, "034-test-feature", None)
             mock_logger.warning.assert_called_once()
@@ -960,9 +997,7 @@ class TestPipelineOrder:
         snapshot_path = feature_dir / "status.json"
         assert not snapshot_path.exists()
 
-    def test_event_persisted_even_if_materialize_fails(
-        self, feature_dir: Path
-    ):
+    def test_event_persisted_even_if_materialize_fails(self, feature_dir: Path):
         """If materialize fails, the event is still in the JSONL log."""
         with patch(
             "specify_cli.status.emit._reducer.materialize",
@@ -994,21 +1029,21 @@ class TestPipelineOrder:
         # Confirm no ImportFrom for legacy_bridge exists anywhere
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                assert node.module is None or "legacy_bridge" not in node.module, (
-                    "legacy_bridge was deleted in WP05 — it must not be imported in emit.py"
-                )
+                assert node.module is None or "legacy_bridge" not in node.module, "legacy_bridge was deleted in WP05 — it must not be imported in emit.py"
 
 
 # ── Review-Ref Guard Tests ───────────────────────────────────
 
 
 class TestReviewRefGuard:
-    """Tests for review_ref requirement on for_review -> in_progress."""
+    """Tests for review_result requirement on in_review -> in_progress.
 
-    def test_for_review_to_in_progress_requires_review_ref(
-        self, feature_dir: Path
-    ):
-        """for_review -> in_progress without review_ref is rejected."""
+    In the 9-lane model, rework goes through in_review:
+    for_review → in_review → in_progress (with review_result required).
+    """
+
+    def test_in_review_to_in_progress_requires_review_result(self, feature_dir: Path):
+        """in_review -> in_progress without review_result is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1030,8 +1065,15 @@ class TestReviewRefGuard:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
 
-        with pytest.raises(TransitionError, match="review_ref"):
+        with pytest.raises(TransitionError, match="review_result"):
             emit_status_transition(
                 feature_dir=feature_dir,
                 mission_slug="034-test",
@@ -1040,10 +1082,10 @@ class TestReviewRefGuard:
                 actor="reviewer",
             )
 
-    def test_for_review_to_in_progress_with_review_ref(
-        self, feature_dir: Path
-    ):
-        """for_review -> in_progress with review_ref succeeds."""
+    def test_in_review_to_in_progress_with_review_result(self, feature_dir: Path):
+        """in_review -> in_progress with review_result succeeds."""
+        from specify_cli.status.models import ReviewResult
+
         emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
@@ -1065,17 +1107,24 @@ class TestReviewRefGuard:
             to_lane="for_review",
             actor="a",
         )
+        emit_status_transition(
+            feature_dir=feature_dir,
+            mission_slug="034-test",
+            wp_id="WP01",
+            to_lane="in_review",
+            actor="reviewer",
+        )
 
+        review_result = ReviewResult(verdict="changes_requested", reviewer="reviewer", reference="PR#42-comment-3")
         event = emit_status_transition(
             feature_dir=feature_dir,
             mission_slug="034-test",
             wp_id="WP01",
             to_lane="in_progress",
             actor="reviewer",
-            review_ref="PR#42-comment-3",
+            review_result=review_result,
         )
-        assert event.review_ref == "PR#42-comment-3"
-        assert event.from_lane == Lane.FOR_REVIEW
+        assert event.from_lane == Lane.IN_REVIEW
         assert event.to_lane == Lane.IN_PROGRESS
 
 
@@ -1085,9 +1134,7 @@ class TestReviewRefGuard:
 class TestReasonGuard:
     """Tests for reason requirement on in_progress -> planned."""
 
-    def test_in_progress_to_planned_requires_reason(
-        self, feature_dir: Path
-    ):
+    def test_in_progress_to_planned_requires_reason(self, feature_dir: Path):
         """in_progress -> planned without reason is rejected."""
         emit_status_transition(
             feature_dir=feature_dir,

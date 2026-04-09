@@ -41,15 +41,16 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get in 2.1.x
+## 🚀 What You Get in 3.1.x
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
-| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, and `tasks.md` in `kitty-specs/<feature>/` |
-| **Work package execution** | Uses canonical 2.x lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
-| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every feature executes through lane-based worktrees, with exactly one worktree per computed execution lane |
-| **Live project visibility** | Local dashboard for kanban and feature progress (`spec-kitty dashboard`) |
-| **Acceptance + merge workflow** | Built-in acceptance checks and merge helpers (`spec-kitty accept`, `spec-kitty merge`) |
+| **Spec-driven artifacts** | Generates and maintains `spec.md`, `plan.md`, `wps.yaml`, and `tasks.md` in `kitty-specs/<mission>/` |
+| **Work package execution** | Uses canonical lifecycle lanes (`planned`, `claimed`, `in_progress`, `for_review`, `in_review`, `approved`, `done`, `blocked`, `canceled`) with `doing` as UI alias for `in_progress` |
+| **Parallel implementation model** | Creates isolated git worktrees under `.worktrees/`; every mission executes through lane-based worktrees, with exactly one worktree per computed execution lane |
+| **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
+| **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
+| **Execution resilience** | Interrupted merge recovery (`merge --resume`), crash recovery (`implement --recover`), stale-claim diagnostics (`doctor`) |
 | **Multi-agent support** | Template and command generation for 12 AI agent integrations |
 
 <p align="center">
@@ -96,17 +97,17 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.0.1` (`main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.1.0` (`main`, GitHub Releases, and PyPI)
 
-**3.0.1 highlights:**
-- Canonical status hard cutover completed: active runtime paths no longer fall back to WP frontmatter lane state
-- `finalize-tasks` bootstraps canonical `planned` state for generated work packages
-- Release automation and maintainer tooling now accept semantic `vX.Y.Z` tags for 3.x publishing
-
-**3.0.0 highlights:**
-- Event log is now the sole authority for mutable work-package status
-- Explicit feature targeting, MissionContext identity, and ownership manifests land on the 3.x stable line
-- Sparse checkout is removed in favor of in-repo planning artifacts and standard worktrees
+**3.1.0 highlights:**
+- **Planning integrity** — read-only status commands no longer dirty the git tree; `spec-kitty next` without `--result` is a safe query-only operation
+- **Structured WP manifest** — new `wps.yaml` format is the primary dependency source for `finalize-tasks`, eliminating prose-parser corruption of lane assignments
+- **Review resilience** — focused fix prompts (~40 lines vs 400+), persisted versioned `review-cycle-N.md` artifacts, dirty-state classification, baseline test context, and arbiter checklists
+- **Execution resilience** — `merge --resume` recovers interrupted merges; `implement --recover` handles crash recovery; `doctor` diagnoses stale claims and zombie worktrees
+- **Tasks stabilization** — dependency preservation, lane-graph completeness, parallelism protection, and consistent `--mission` flag naming across all commands
+- **Merge strategy** — MERGE / SQUASH / REBASE via `--strategy` flag or `config.yaml`; linear-history protection hint on push failures
+- **Charter** — `spec-kitty charter` replaces `spec-kitty constitution` across all surfaces; auto-migrated by `spec-kitty upgrade`
+- **Mission identity** — `--mission` is now the canonical flag; `--feature` is retained only as a hidden deprecated alias during migration
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -125,11 +126,12 @@ The former `1.x` line is deprecated and moves to `1.x-maintenance` for maintenan
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **3.0.x** | Current stable line | `pip install spec-kitty-cli` |
+| **main** | **3.1.x** | Current stable line | `pip install spec-kitty-cli` |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
-**For existing 1.x or 2.x users:** migrate to `3.0.x` where possible; `1.x-maintenance` is only for critical maintenance and will no longer publish new PyPI releases.
+**For existing 3.0.x users:** run `spec-kitty upgrade` in each project — the charter rename and mission identity migration are automatic.
+**For existing 1.x or 2.x users:** migrate to `3.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
 
 ---
 
@@ -141,15 +143,15 @@ Terminology note:
 - `Mission Type` = reusable blueprint
 - `Mission` = concrete tracked item
 - `Mission Run` = runtime/session instance
-- `--feature` and commands such as `accept-feature` remain legacy software-dev compatibility surfaces for the tracked mission
+- `--mission` is the canonical flag in 3.1.x; `--feature` is retained only as a hidden deprecated alias
 
 ```bash
 # Verify host contract
 spec-kitty orchestrator-api contract-version --json
 
 # Use the reference external orchestrator
-spec-kitty-orchestrator orchestrate --feature 034-my-feature --dry-run
-spec-kitty-orchestrator orchestrate --feature 034-my-feature
+spec-kitty-orchestrator orchestrate --mission 034-my-mission --dry-run
+spec-kitty-orchestrator orchestrate --mission 034-my-mission
 ```
 
 Docs:
@@ -221,18 +223,26 @@ stateDiagram-v2
     planned --> claimed
     claimed --> in_progress
     in_progress --> for_review
-    for_review --> done
-    for_review --> in_progress: changes requested
-    for_review --> planned: replan
+    in_progress --> approved: direct approval
+    for_review --> in_review: reviewer claims
+    in_review --> approved: approved
+    in_review --> done: approved + done
+    in_review --> in_progress: changes requested
+    in_review --> planned: replan
+    approved --> done
     planned --> blocked
     claimed --> blocked
     in_progress --> blocked
     for_review --> blocked
+    in_review --> blocked
+    approved --> blocked
     blocked --> in_progress
     planned --> canceled
     claimed --> canceled
     in_progress --> canceled
     for_review --> canceled
+    in_review --> canceled
+    approved --> canceled
     blocked --> canceled
 ```
 
@@ -835,12 +845,12 @@ spec-kitty upgrade --no-worktrees
 The `spec-kitty agent` namespace provides programmatic access to all workflow automation commands. All commands support `--json` output for agent consumption.
 
 **Feature Management:**
-- `spec-kitty agent mission create-feature <name>` – Create new feature with worktree
-- `spec-kitty agent mission check-prerequisites` – Validate project setup and feature context
-- `spec-kitty agent mission setup-plan` – Initialize plan template for feature
+- `spec-kitty agent mission create <name>` – Create a new mission with worktree support
+- `spec-kitty agent mission check-prerequisites` – Validate project setup and mission context
+- `spec-kitty agent mission setup-plan` – Initialize the plan template for a mission
 - `spec-kitty agent context update` – Update agent context files
 - `spec-kitty agent mission accept` – Run acceptance workflow
-- `spec-kitty agent mission merge` – Merge feature branch and cleanup
+- `spec-kitty agent mission merge` – Merge the mission branch and clean up
 
 **Task Workflow:**
 - `spec-kitty agent action implement <id> --agent __AGENT__` – Advance planned/claimed → in_progress → for_review automatically
@@ -858,8 +868,8 @@ The `spec-kitty agent` namespace provides programmatic access to all workflow au
 
 **Example Usage:**
 ```bash
-# Create feature (agent-friendly)
-spec-kitty agent mission create-feature "Payment Flow" --json
+# Create mission (agent-friendly)
+spec-kitty agent mission create "Payment Flow" --json
 
 # Display WP prompt and auto-move to in_progress ("Doing")
 spec-kitty agent action implement WP01 --agent __AGENT__
@@ -870,7 +880,7 @@ spec-kitty agent action implement WP01 --agent __AGENT__
 # Validate workflow
 spec-kitty agent tasks validate-workflow WP01 --json
 
-# Accept mission (legacy `--feature` flag name)
+# Accept mission
 spec-kitty agent mission accept --json
 ```
 
@@ -897,7 +907,7 @@ spec-kitty dashboard --kill
 
 | Option | Description |
 |--------|-------------|
-| `--feature <slug>` | Mission slug to accept. Legacy flag name retained as a software-dev compatibility alias. |
+| `--mission <slug>` | Mission slug to accept |
 | `--mode <mode>` | Acceptance mode: `auto`, `pr`, `local`, or `checklist` (default: `auto`) |
 | `--actor <name>` | Name to record as the acceptance actor |
 | `--test <command>` | Validation command to execute (repeatable) |
@@ -912,7 +922,7 @@ spec-kitty dashboard --kill
 spec-kitty accept
 
 # Validate specific mission
-spec-kitty accept --feature 001-auth-system
+spec-kitty accept --mission 001-auth-system
 
 # Get checklist only (no commit)
 spec-kitty accept --mode checklist

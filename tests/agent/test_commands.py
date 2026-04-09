@@ -76,9 +76,15 @@ def test_verify_setup_command_runs(monkeypatch, tmp_path: Path) -> None:
 def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_create_mission(mission_slug: str, mission=None, json_output: bool = False):
+    def fake_create_mission(
+        mission_slug: str,
+        mission=None,
+        mission_type=None,
+        json_output: bool = False,
+    ):
         captured["mission_slug"] = mission_slug
         captured["mission"] = mission
+        captured["mission_type"] = mission_type
         captured["json_output"] = json_output
 
     monkeypatch.setattr(lifecycle_module.agent_feature, "create_mission", fake_create_mission)
@@ -87,6 +93,7 @@ def test_specify_command_delegates_to_agent_lifecycle(monkeypatch) -> None:
     assert result.exit_code == 0
     assert captured["mission_slug"] == "my-great-feature"
     assert captured["mission"] is None
+    assert captured["mission_type"] is None
     assert captured["json_output"] is False
 
 
@@ -165,7 +172,12 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
             return {}
 
         def to_dict(self) -> dict[str, object]:
-            return {"feature": self.feature, "lanes": self.lanes}
+            return {
+                "mission_slug": self.feature,
+                "mission_number": "001",
+                "mission_type": "software-dev",
+                "lanes": self.lanes,
+            }
 
     monkeypatch.setattr(accept_module, "find_repo_root", lambda: repo_root)
     # After WP02 removed heuristic detection, detect_mission_slug no longer exists.
@@ -180,7 +192,9 @@ def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert result.stdout.lstrip().startswith("{")
     data = _load_json_from_output(result.stdout)
-    assert data["feature"] == "001-demo-feature"
+    assert data["mission_slug"] == "001-demo-feature"
+    assert data["mission_number"] == "001"
+    assert data["mission_type"] == "software-dev"
 
 
 def test_accept_requires_explicit_feature_flag(monkeypatch, tmp_path: Path) -> None:
@@ -385,7 +399,15 @@ def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
     monkeypatch.setattr(verify_module, "get_project_root_or_exit", lambda _repo=None: repo_root)
 
     def fake_verify(*_args, **_kwargs):
-        return {"status": "ok", "feature": "001-demo-feature"}
+        return {
+            "status": "ok",
+            "feature_detection": {
+                "detected": True,
+                "mission_slug": "001-demo-feature",
+                "mission_number": "001",
+                "mission_type": "software-dev",
+            },
+        }
 
     monkeypatch.setattr(verify_module, "run_enhanced_verify", fake_verify)
 
@@ -393,4 +415,6 @@ def test_verify_setup_json_output(monkeypatch, tmp_path: Path) -> None:
     assert result.exit_code == 0
     payload = _load_json_from_output(result.stdout)
     assert payload["status"] == "ok"
-    assert payload["feature"] == "001-demo-feature"
+    assert payload["feature_detection"]["mission_slug"] == "001-demo-feature"
+    assert payload["feature_detection"]["mission_number"] == "001"
+    assert payload["feature_detection"]["mission_type"] == "software-dev"

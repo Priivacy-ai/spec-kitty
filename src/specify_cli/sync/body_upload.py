@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import logging
-import re
+from kernel._safe_re import re
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -27,13 +27,21 @@ logger = logging.getLogger(__name__)
 MAX_INLINE_SIZE_BYTES = 512 * 1024  # 512 KiB
 
 # FR-004: Supported feature-scoped surfaces
-_TOP_LEVEL_ARTIFACTS: frozenset[str] = frozenset({
-    "spec.md", "plan.md", "tasks.md", "research.md",
-    "quickstart.md", "data-model.md",
-})
+_TOP_LEVEL_ARTIFACTS: frozenset[str] = frozenset(
+    {
+        "spec.md",
+        "plan.md",
+        "tasks.md",
+        "research.md",
+        "quickstart.md",
+        "data-model.md",
+    }
+)
 
 _DIRECTORY_PREFIXES: tuple[str, ...] = (
-    "research/", "contracts/", "checklists/",
+    "research/",
+    "contracts/",
+    "checklists/",
 )
 
 _WP_PATTERN = re.compile(r"^tasks/WP\d+.*\.md$")
@@ -138,20 +146,24 @@ def prepare_body_uploads(
     for artifact in artifacts:
         # Skip non-present artifacts
         if not artifact.is_present:
-            outcomes.append(UploadOutcome(
-                artifact_path=artifact.relative_path,
-                status=UploadStatus.SKIPPED,
-                reason=f"not_present: {artifact.error_reason or 'unknown'}",
-            ))
+            outcomes.append(
+                UploadOutcome(
+                    artifact_path=artifact.relative_path,
+                    status=UploadStatus.SKIPPED,
+                    reason=f"not_present: {artifact.error_reason or 'unknown'}",
+                )
+            )
             continue
 
         # Filter 1: Supported surface (FR-004)
         if not _is_supported_surface(artifact.relative_path):
-            outcomes.append(UploadOutcome(
-                artifact_path=artifact.relative_path,
-                status=UploadStatus.SKIPPED,
-                reason="unsupported_surface",
-            ))
+            outcomes.append(
+                UploadOutcome(
+                    artifact_path=artifact.relative_path,
+                    status=UploadStatus.SKIPPED,
+                    reason="unsupported_surface",
+                )
+            )
             continue
 
         # Filter 2: Supported format (FR-005/FR-006)
@@ -168,7 +180,9 @@ def prepare_body_uploads(
 
         # Read content + re-hash guard
         result = _read_and_rehash(
-            feature_dir, artifact.relative_path, artifact.content_hash_sha256,
+            feature_dir,
+            artifact.relative_path,
+            artifact.content_hash_sha256,
         )
         if isinstance(result, UploadOutcome):
             outcomes.append(result)
@@ -195,12 +209,14 @@ def prepare_body_uploads(
             status = UploadStatus.FAILED
             reason = "queue_full"
 
-        outcomes.append(UploadOutcome(
-            artifact_path=artifact.relative_path,
-            status=status,
-            reason=reason,
-            content_hash=actual_hash,
-        ))
+        outcomes.append(
+            UploadOutcome(
+                artifact_path=artifact.relative_path,
+                status=status,
+                reason=reason,
+                content_hash=actual_hash,
+            )
+        )
 
     return outcomes
 

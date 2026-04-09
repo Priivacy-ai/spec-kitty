@@ -169,15 +169,9 @@ class TestValidateEventSchema:
         assert any("to_lane is not canonical: reviewing" in f for f in findings)
 
     def test_canonical_lanes_pass(self):
-        for lane in [
-            "planned",
-            "claimed",
-            "in_progress",
-            "for_review",
-            "done",
-            "blocked",
-            "canceled",
-        ]:
+        from specify_cli.status.transitions import CANONICAL_LANES
+
+        for lane in CANONICAL_LANES:
             event = _make_event(from_lane=lane, to_lane=lane)
             findings = validate_event_schema(event)
             assert not any("is not canonical" in f for f in findings)
@@ -193,9 +187,7 @@ class TestValidateEventSchema:
         assert not any("force=true without reason" in f for f in findings)
 
     def test_review_ref_required_for_for_review_to_in_progress(self):
-        event = _make_event(
-            from_lane="for_review", to_lane="in_progress"
-        )
+        event = _make_event(from_lane="for_review", to_lane="in_progress")
         findings = validate_event_schema(event)
         assert any("for_review->in_progress without review_ref" in f for f in findings)
 
@@ -254,31 +246,19 @@ class TestValidateEventSchema:
 
 class TestValidateTransitionLegality:
     def test_all_legal_transitions(self):
-        """Legal transitions should produce zero findings."""
-        legal_pairs = [
-            ("planned", "claimed"),
-            ("claimed", "in_progress"),
-            ("in_progress", "for_review"),
-            ("for_review", "done"),
-            ("for_review", "in_progress"),
-            ("in_progress", "planned"),
-            ("planned", "blocked"),
-            ("claimed", "blocked"),
-            ("in_progress", "blocked"),
-            ("for_review", "blocked"),
-            ("blocked", "in_progress"),
-            ("planned", "canceled"),
-            ("claimed", "canceled"),
-            ("in_progress", "canceled"),
-            ("for_review", "canceled"),
-            ("blocked", "canceled"),
-        ]
+        """Legal transitions should produce zero findings.
+
+        Uses the complete 27-pair 9-lane model from ALLOWED_TRANSITIONS.
+        """
+        from specify_cli.status.transitions import ALLOWED_TRANSITIONS
+
+        legal_pairs = sorted(ALLOWED_TRANSITIONS)
         events = [
             _make_event(
                 event_id=f"01HXYZ012345678{i:09d}ABCDE",
                 from_lane=f,
                 to_lane=t,
-                at=f"2026-02-08T{12+i:02d}:00:00Z",
+                at=f"2026-02-{8 + i // 24:02d}T{i % 24:02d}:00:00Z",
             )
             for i, (f, t) in enumerate(legal_pairs)
         ]
@@ -490,9 +470,7 @@ class TestValidateMaterializationDrift:
     def test_events_without_snapshot(self, tmp_path: Path):
         """Events exist but no status.json: drift."""
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
         findings = validate_materialization_drift(tmp_path)
         assert len(findings) == 1
         assert "status.json is missing" in findings[0]
@@ -501,9 +479,7 @@ class TestValidateMaterializationDrift:
         """status.json matches reducer output: no findings."""
         # Create an event
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         # Materialize correctly
         from specify_cli.status.reducer import materialize
@@ -517,9 +493,7 @@ class TestValidateMaterializationDrift:
         """Manually editing status.json causes drift detection."""
         # Create an event
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         # Materialize correctly first
         from specify_cli.status.reducer import materialize
@@ -530,9 +504,7 @@ class TestValidateMaterializationDrift:
         snapshot_path = tmp_path / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["work_packages"]["WP01"]["lane"] = "done"  # Wrong!
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         findings = validate_materialization_drift(tmp_path)
         assert len(findings) >= 1
@@ -541,12 +513,9 @@ class TestValidateMaterializationDrift:
     def test_event_count_mismatch(self, tmp_path: Path):
         """Event count mismatch is detected."""
         event = _make_event()
-        (tmp_path / "status.events.jsonl").write_text(
-            json.dumps(event, sort_keys=True) + "\n", encoding="utf-8"
-        )
+        (tmp_path / "status.events.jsonl").write_text(json.dumps(event, sort_keys=True) + "\n", encoding="utf-8")
 
         from specify_cli.status.reducer import materialize
-
 
         materialize(tmp_path)
 
@@ -554,9 +523,7 @@ class TestValidateMaterializationDrift:
         snapshot_path = tmp_path / "status.json"
         data = json.loads(snapshot_path.read_text())
         data["event_count"] = 999
-        snapshot_path.write_text(
-            json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n"
-        )
+        snapshot_path.write_text(json.dumps(data, sort_keys=True, indent=2, ensure_ascii=False) + "\n")
 
         findings = validate_materialization_drift(tmp_path)
         assert any("event_count" in f for f in findings)
