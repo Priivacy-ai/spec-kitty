@@ -25,8 +25,8 @@ owned_files:
 - tests/auth/test_device_code_flow.py
 status: pending
 tags: []
-agent: "claude:opus-4-6:python-implementer:implementer"
-shell_pid: "51858"
+agent: "claude:opus-4-6:python-reviewer:reviewer"
+shell_pid: "62961"
 ---
 
 # WP05: Headless Login Flow (`auth login --headless`)
@@ -519,3 +519,4 @@ end-to-end via the dispatch shell.
 
 - 2026-04-09T18:54:32Z – claude:opus-4-6:python-implementer:implementer – shell_pid=51858 – Started implementation via action command
 - 2026-04-09T19:16:02Z – claude:opus-4-6:python-implementer:implementer – shell_pid=51858 – Headless device-code login wired end-to-end: DeviceCodeFlow orchestrates WP03 poller + /api/v1/me + StoredSession with landed refresh-TTL contract
+- 2026-04-09T19:16:29Z – claude:opus-4-6:python-reviewer:reviewer – shell_pid=62961 – Started review via action command
