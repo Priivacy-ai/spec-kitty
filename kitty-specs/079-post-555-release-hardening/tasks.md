@@ -26,9 +26,9 @@ Each WP traces directly to a spec track (§7 of `spec.md`) and its corresponding
 | T004 | Add idempotency check on re-run (fail-fast or no-op) | WP01 | [D] |
 | T005 | Update `init --help` text to describe the new model accurately | WP01 | [D] |
 | T006 | Regression tests for Track 1 (T1.1–T1.7 from test-contracts.md) | WP01 | [D] |
-| T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [P] |
-| T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [P] |
-| T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [P] |
+| T007 | Bound `_split_wp_sections()` at top-level non-WP `##` headings | WP02 | [D] |
+| T008 | Document explicit-dependencies-only invariant in parser docstring | WP02 | [D] |
+| T009 | Regression tests for Track 4 (T4.1, T4.3, T4.4 + all 21 existing tests still pass) | WP02 | [D] |
 | T010 | Stop filtering `PLANNING_ARTIFACT` in `compute.py`; assign to `lane-planning` | WP03 | [P] |
 | T011 | Update `branch_naming.py`: `lane_branch_name(..., "lane-planning")` → planning branch | WP03 | [P] |
 | T012 | `worktree.py` + `workspace_context.py`: route `lane-planning` → main repo checkout; add `get_next_feature_number` display-only docstring | WP03 | [P] |
