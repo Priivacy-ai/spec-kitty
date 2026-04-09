@@ -150,6 +150,16 @@ def sanitize_file(
         return False, f"File not found: {file_path}"
 
     try:
+        try:
+            file_path = file_path.resolve(strict=True)
+        except OSError as exc:
+            return False, f"Error resolving {file_path}: {exc}"
+
+        if file_path.is_symlink():
+            return False, f"Refusing to sanitize symlinked file: {file_path}"
+        if file_path.suffix.lower() != ".md":
+            return False, f"Only markdown files are supported: {file_path}"
+
         # Try reading as UTF-8 first
         try:
             original_text = file_path.read_text(encoding="utf-8-sig")
@@ -187,7 +197,8 @@ def sanitize_file(
             backup_path.write_bytes(file_path.read_bytes())
 
         # Write sanitized content
-        file_path.write_text(sanitized_text, encoding="utf-8")
+        with file_path.open("w", encoding="utf-8", newline="") as handle:
+            handle.write(sanitized_text)
         return True, None
 
     except Exception as exc:

@@ -270,3 +270,56 @@ class TestDossierEndpointRouting:
         mock_cls.return_value.handle_dossier_snapshot_export.assert_called_once_with(
             "064-complete-mission-identity-cutover"
         )
+
+    def test_dossier_handler_hides_internal_errors(self, tmp_path):
+        api_module, handler = self._make_handler(
+            tmp_path,
+            "/api/dossier/overview?feature=064-complete-mission-identity-cutover",
+        )
+        handler._send_json = MagicMock()
+
+        with patch("specify_cli.dossier.api.DossierAPIHandler", side_effect=RuntimeError("secret traceback")):
+            api_module.APIHandler.handle_dossier(handler, handler.path)
+
+        handler._send_json.assert_called_once_with(500, {"error": "dossier_handler_failed"})
+
+
+class TestDashboardApiSecurityHardening:
+    def test_diagnostics_hides_internal_errors(self, tmp_path):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler._send_json = MagicMock()
+
+        with patch.object(api_module, "run_diagnostics", side_effect=RuntimeError("boom")):
+            api_module.APIHandler.handle_diagnostics(handler)
+
+        handler._send_json.assert_called_once_with(500, {"error": "diagnostics_failed"})
+
+    def test_charter_hides_internal_errors(self, tmp_path):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.project_dir = str(tmp_path)
+        handler.send_response = MagicMock()
+        handler.send_header = MagicMock()
+        handler.end_headers = MagicMock()
+        handler.wfile = io.BytesIO()
+
+        with patch.object(api_module, "resolve_project_charter_path", side_effect=RuntimeError("secret")):
+            api_module.APIHandler.handle_charter(handler)
+
+        handler.send_response.assert_called_once_with(500)
+        handler.wfile.seek(0)
+        assert handler.wfile.read().decode("utf-8") == "Error loading charter"
+
+    def test_sync_trigger_request_requires_loopback_origin(self):
+        from specify_cli.dashboard.handlers.api import _build_sync_trigger_request
+
+        request = _build_sync_trigger_request("http://127.0.0.1:8765/status", "tok")
+        assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
+        assert request.get_method() == "POST"
+
+        with pytest.raises(ValueError, match="loopback"):
+            _build_sync_trigger_request("http://example.com:8765/status", "tok")

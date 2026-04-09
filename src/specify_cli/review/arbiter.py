@@ -19,6 +19,8 @@ from enum import StrEnum
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from specify_cli.core.utils import write_text_within_directory
+
 if TYPE_CHECKING:
     from rich.console import Console
 
@@ -466,9 +468,7 @@ def _persist_in_artifact(artifact_path: Path, decision: ArbiterDecision) -> Path
         fm_text = stream.getvalue().rstrip("\n")
         new_content = f"---\n{fm_text}\n---\n{content}"
 
-    artifact_path.write_text(
-        new_content, encoding="utf-8"
-    )  # NOSONAR(pythonsecurity:S2083) - path is resolved from trusted project structure, not user-controlled input
+    write_text_within_directory(artifact_path, new_content, root=artifact_path.parent, encoding="utf-8")
     return artifact_path
 
 
@@ -486,7 +486,12 @@ def _persist_standalone_json(
     existing = sorted(wp_subdir.glob("arbiter-override-*.json"))
     n = len(existing) + 1
     path = wp_subdir / f"arbiter-override-{n}.json"
-    path.write_text(json.dumps(decision.to_dict(), indent=2, sort_keys=True), encoding="utf-8")
+    write_text_within_directory(
+        path,
+        json.dumps(decision.to_dict(), indent=2, sort_keys=True),
+        root=feature_dir,
+        encoding="utf-8",
+    )
     return path
 
 

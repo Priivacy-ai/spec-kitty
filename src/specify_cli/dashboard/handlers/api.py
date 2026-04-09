@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -10,11 +11,39 @@ from pathlib import Path
 from ..api_types import HealthResponse
 from ..charter_path import resolve_project_charter_path
 from ..diagnostics import run_diagnostics
-from ..templates import get_dashboard_html
+from ..templates import get_dashboard_html_bytes
 from .base import DashboardHandler
 from specify_cli.sync.daemon import ensure_sync_daemon_running, get_sync_daemon_status
 
 __all__ = ["APIHandler"]
+
+logger = logging.getLogger(__name__)
+
+
+def _build_sync_trigger_request(base_url: str, token: str) -> urllib.request.Request:
+    """Build a sync-daemon request for the local loopback daemon only."""
+    parsed = urllib.parse.urlparse(base_url)
+    if parsed.scheme != "http":
+        raise ValueError("sync daemon must use http")
+    if parsed.hostname not in {"127.0.0.1", "localhost"}:
+        raise ValueError("sync daemon must bind to loopback")
+
+    trigger_url = urllib.parse.urlunparse(
+        (
+            parsed.scheme,
+            parsed.netloc,
+            "/api/sync/trigger",
+            "",
+            "",
+            "",
+        )
+    )
+    return urllib.request.Request(
+        trigger_url,
+        data=json.dumps({"token": token}).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
 
 
 class APIHandler(DashboardHandler):
@@ -23,9 +52,9 @@ class APIHandler(DashboardHandler):
     def handle_root(self) -> None:
         """Return the rendered dashboard HTML shell."""
         self.send_response(200)
-        self.send_header("Content-type", "text/html")
+        self.send_header("Content-type", "text/html; charset=utf-8")
         self.end_headers()
-        self.wfile.write(get_dashboard_html().encode())  # NOSONAR(pythonsecurity:S5131) - returns compiled static HTML template, no user-controlled data reflected
+        self.wfile.write(get_dashboard_html_bytes())
 
     def handle_health(self) -> None:
         """Return project health metadata."""
@@ -87,19 +116,15 @@ class APIHandler(DashboardHandler):
             if not status.healthy or not status.url or not status.token:
                 self._send_json(503, {"error": "sync_daemon_unavailable"})
                 return
-            request = urllib.request.Request(
-                f"{status.url.rstrip('/')}/api/sync/trigger",
-                data=json.dumps({"token": status.token}).encode("utf-8"),
-                headers={"Content-Type": "application/json"},
-                method="POST",
-            )
+            request = _build_sync_trigger_request(status.url, status.token)
             with urllib.request.urlopen(request, timeout=0.5) as response:
                 if response.status not in {200, 202}:
                     self._send_json(500, {"error": "sync_trigger_failed", "status": response.status})
                     return
             self._send_json(202, {"status": "scheduled"})
-        except Exception as exc:  # pragma: no cover - defensive fallback
-            self._send_json(500, {"error": "sync_trigger_failed", "detail": str(exc)})
+        except Exception:  # pragma: no cover - defensive fallback
+            logger.exception("Dashboard sync trigger failed")
+            self._send_json(500, {"error": "sync_trigger_failed"})
 
     def handle_diagnostics(self) -> None:
         """Run diagnostics and report JSON payloads (or errors)."""
@@ -117,17 +142,9 @@ class APIHandler(DashboardHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(json.dumps(diagnostics).encode())
-        except Exception as exc:  # pragma: no cover - fallback safety
-            import traceback
-
-            error_msg = {
-                "error": str(exc),
-                "traceback": traceback.format_exc(),
-            }
-            self.send_response(500)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            self.wfile.write(json.dumps(error_msg).encode())
+        except Exception:  # pragma: no cover - fallback safety
+            logger.exception("Dashboard diagnostics failed")
+            self._send_json(500, {"error": "diagnostics_failed"})
 
     def handle_charter(self) -> None:
         """Serve project-level charter from new path with legacy fallback."""
@@ -147,14 +164,12 @@ class APIHandler(DashboardHandler):
             self.send_header("Cache-Control", "no-cache")
             self.end_headers()
             self.wfile.write(content.encode("utf-8"))
-        except Exception as exc:  # pragma: no cover - fallback safety
-            import traceback
-
-            error_msg = f"Error loading charter: {exc}\n{traceback.format_exc()}"
+        except Exception:  # pragma: no cover - fallback safety
+            logger.exception("Dashboard charter load failed")
             self.send_response(500)
-            self.send_header("Content-type", "text/plain")
+            self.send_header("Content-type", "text/plain; charset=utf-8")
             self.end_headers()
-            self.wfile.write(error_msg.encode())
+            self.wfile.write(b"Error loading charter")
 
     def handle_dossier(self, _path: str) -> None:
         """Route dossier API requests to appropriate endpoints.
@@ -232,14 +247,6 @@ class APIHandler(DashboardHandler):
                     self.wfile.write(json.dumps(response.dict(), default=str).encode())
                 else:
                     self.wfile.write(json.dumps(response, default=str).encode())
-        except Exception as exc:
-            import traceback
-
-            self.send_response(500)
-            self.send_header("Content-type", "application/json")
-            self.end_headers()
-            error_msg = {
-                "error": f"Dossier handler error: {str(exc)}",
-                "traceback": traceback.format_exc(),
-            }
-            self.wfile.write(json.dumps(error_msg).encode())
+        except Exception:
+            logger.exception("Dashboard dossier handler failed")
+            self._send_json(500, {"error": "dossier_handler_failed"})
