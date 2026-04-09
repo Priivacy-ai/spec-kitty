@@ -16,7 +16,8 @@ subtasks:
 - T021
 - T022
 - T023
-shell_pid: '114'
+shell_pid: "4240"
+agent: "claude:opus:reviewer:reviewer"
 history:
 - at: '2026-04-09T07:30:50Z'
   event: created
@@ -365,3 +366,4 @@ def test_inner_lock_reacquisition_is_no_op(tmp_path, monkeypatch):
 
 - 2026-04-09T09:00:07Z – unknown – shell_pid=114 – Dispatching implementation
 - 2026-04-09T09:09:50Z – unknown – shell_pid=114 – FileLock covers full refresh transaction via cached lock object (reentrancy), stale-401 handled with re-read-on-401 pattern, 7 new concurrent tests pass 5/5 runs without flake
+- 2026-04-09T09:10:00Z – claude:opus:reviewer:reviewer – shell_pid=4240 – Started review via action command
