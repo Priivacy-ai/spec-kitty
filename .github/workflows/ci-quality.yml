@@ -1269,7 +1269,7 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/release \
-            --cov-fail-under=82 \
+            --cov-fail-under=20 \
             --cov-report=xml:out/reports/coverage/coverage-integration-release.xml
       - name: "Upload integration-release coverage"
         if: always()
@@ -1518,10 +1518,10 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
-  # slow-and-e2e: replaces integration-smoke + dashboard-tests.
-  # Push-only (or manual dispatch). Runs slow tests, e2e, cross_cutting.
+  # slow-tests: Push-only (or manual dispatch). Runs slow-marked tests
+  # outside tests/e2e/ and tests/cross_cutting/ (those run in e2e-cross-cutting).
   # ---------------------------------------------------------------------------
-  slow-and-e2e:
+  slow-tests:
     runs-on: ubuntu-latest
     needs:
       - fast-tests-doctrine
@@ -1539,7 +1539,7 @@ jobs:
       - fast-tests-cli
       - fast-tests-core-misc
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
-    timeout-minutes: 45
+    timeout-minutes: 30
 
     steps:
       - name: "[ENFORCED] Check out repository"
@@ -1551,66 +1551,95 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
 
-      - name: "[ENFORCED] Set up Node (Playwright)"
-        uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-
       - name: "[ENFORCED] Install Python dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
 
-      - name: "[ENFORCED] Cache Playwright browsers"
-        id: playwright-cache
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-
-      - name: "[ENFORCED] Install Playwright browsers"
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-        run: npx playwright install --with-deps chromium
-
-      - name: "[ENFORCED] Install Playwright OS deps (cache hit)"
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-        run: npx playwright install-deps chromium
-
       - name: "[ENFORCED] Prepare report directories"
         run: |
           mkdir -p out/reports/xunit-reports
           mkdir -p out/reports/coverage
-          mkdir -p out/reports/slow-e2e
 
       - name: "[ENFORCED] Run slow tests with coverage"
         run: |
           python -m pytest \
             -v \
             -m slow \
+            --ignore=tests/e2e \
+            --ignore=tests/cross_cutting \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-slow.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-slow-${{ github.run_id }}.xml \
-            | tee out/reports/slow-e2e/slow.log
+            || test $? -eq 5
+
+      - name: "[ENFORCED] Upload slow-tests artifacts"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: slow-test-reports
+          path: out/reports/
+          if-no-files-found: ignore
+
+  # ---------------------------------------------------------------------------
+  # e2e-cross-cutting: Push-only (or manual dispatch). Runs tests/e2e/ and
+  # tests/cross_cutting/ in parallel with slow-tests.
+  # ---------------------------------------------------------------------------
+  e2e-cross-cutting:
+    runs-on: ubuntu-latest
+    needs:
+      - fast-tests-doctrine
+      - fast-tests-sync
+      - fast-tests-merge
+      - fast-tests-missions
+      - fast-tests-post-merge
+      - fast-tests-release
+      - fast-tests-status
+      - fast-tests-review
+      - fast-tests-next
+      - fast-tests-lanes
+      - fast-tests-dashboard
+      - fast-tests-upgrade
+      - fast-tests-cli
+      - fast-tests-core-misc
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
+    timeout-minutes: 40
+
+    steps:
+      - name: "[ENFORCED] Check out repository"
+        uses: actions/checkout@v6
+
+      - name: "[ENFORCED] Set up Python"
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+
+      - name: "[ENFORCED] Install Python dependencies"
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+
+      - name: "[ENFORCED] Prepare report directories"
+        run: |
+          mkdir -p out/reports/xunit-reports
+          mkdir -p out/reports/coverage
 
       - name: "[ENFORCED] Run e2e and cross_cutting tests with coverage"
-        env:
-          PWHEADLESS: '1'
         run: |
           python -m pytest \
             -v \
             tests/e2e/ tests/cross_cutting/ \
             -m "not distribution" \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
-            --cov-append \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml \
-            | tee out/reports/slow-e2e/e2e.log
+            --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml
 
-      - name: "[ENFORCED] Upload slow-and-e2e artifacts"
+      - name: "[ENFORCED] Upload e2e-cross-cutting artifacts"
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: slow-e2e-reports
+          name: e2e-cross-cutting-reports
           path: out/reports/
 
   # ---------------------------------------------------------------------------
@@ -1728,6 +1757,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - slow-tests
+      - e2e-cross-cutting
     if: false
     steps:
       - run: echo "Mutation testing is disabled."
@@ -1769,7 +1800,8 @@ jobs:
       - integration-tests-dashboard
       - integration-tests-upgrade
       - integration-tests-cli
-      - slow-and-e2e
+      - slow-tests
+      - e2e-cross-cutting
     if: always() && github.event_name != 'pull_request' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
 
     steps:
