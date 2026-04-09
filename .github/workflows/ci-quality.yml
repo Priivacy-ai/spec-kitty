@@ -160,6 +160,7 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
+          cache: 'npm'
 
       - name: "[ENFORCED] Install Python dependencies"
         run: |
@@ -548,8 +549,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -611,8 +610,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -664,9 +661,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync"
         run: |
-          python -m pytest tests/sync/ -m fast -q --tb=short
+          python -m pytest tests/sync/ -m fast -q --tb=short \
+            --cov=src/specify_cli/sync \
+            --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
+      - name: "Upload fast-sync coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-sync-reports
+          path: out/reports/
 
   fast-tests-merge:
     runs-on: ubuntu-latest
@@ -681,9 +687,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — merge"
         run: |
-          python -m pytest tests/merge/ -m fast -q --tb=short
+          python -m pytest tests/merge/ -m fast -q --tb=short \
+            --cov=src/specify_cli/merge \
+            --cov-report=xml:out/reports/coverage/coverage-fast-merge.xml
+      - name: "Upload fast-merge coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-merge-reports
+          path: out/reports/
 
   fast-tests-missions:
     runs-on: ubuntu-latest
@@ -698,9 +713,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
-          python -m pytest tests/missions/ -m fast -q --tb=short
+          python -m pytest tests/missions/ -m fast -q --tb=short \
+            --cov=src/specify_cli/mission \
+            --cov=src/specify_cli/mission_metadata \
+            --cov=src/doctrine/missions \
+            --cov-report=xml:out/reports/coverage/coverage-fast-missions.xml
+      - name: "Upload fast-missions coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-missions-reports
+          path: out/reports/
 
   fast-tests-post-merge:
     runs-on: ubuntu-latest
@@ -715,9 +741,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — post_merge"
         run: |
-          python -m pytest tests/post_merge/ -m fast -q --tb=short || test $? -eq 5
+          python -m pytest tests/post_merge/ -m fast -q --tb=short \
+            --cov=src/specify_cli/post_merge \
+            --cov-report=xml:out/reports/coverage/coverage-fast-post-merge.xml \
+            || test $? -eq 5
+      - name: "Upload fast-post-merge coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-post-merge-reports
+          path: out/reports/
+          if-no-files-found: ignore
 
   fast-tests-release:
     runs-on: ubuntu-latest
@@ -732,9 +769,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — release"
         run: |
-          python -m pytest tests/release/ -m fast -q --tb=short || test $? -eq 5
+          python -m pytest tests/release/ -m fast -q --tb=short \
+            --cov=src/specify_cli/release \
+            --cov-report=xml:out/reports/coverage/coverage-fast-release.xml \
+            || test $? -eq 5
+      - name: "Upload fast-release coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-release-reports
+          path: out/reports/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # Tier 1 fast-tests: depends on sync
@@ -750,8 +798,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -806,9 +852,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — review"
         run: |
-          python -m pytest tests/review/ -m fast -q --tb=short
+          python -m pytest tests/review/ -m fast -q --tb=short \
+            --cov=src/specify_cli/review \
+            --cov-report=xml:out/reports/coverage/coverage-fast-review.xml
+      - name: "Upload fast-review coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-review-reports
+          path: out/reports/
 
   fast-tests-next:
     runs-on: ubuntu-latest
@@ -826,9 +881,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
-          python -m pytest tests/next/ -m fast -q --tb=short
+          python -m pytest tests/next/ -m fast -q --tb=short \
+            --cov=src/specify_cli/next \
+            --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
+      - name: "Upload fast-next coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-next-reports
+          path: out/reports/
 
   fast-tests-lanes:
     runs-on: ubuntu-latest
@@ -847,9 +911,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
-          python -m pytest tests/lanes/ -m fast -q --tb=short
+          python -m pytest tests/lanes/ -m fast -q --tb=short \
+            --cov=src/specify_cli/lanes \
+            --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
+      - name: "Upload fast-lanes coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-lanes-reports
+          path: out/reports/
 
   fast-tests-dashboard:
     runs-on: ubuntu-latest
@@ -867,9 +940,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — dashboard"
         run: |
-          python -m pytest tests/test_dashboard/ -m fast -q --tb=short || test $? -eq 5
+          python -m pytest tests/test_dashboard/ -m fast -q --tb=short \
+            --cov=src/specify_cli/dashboard \
+            --cov-report=xml:out/reports/coverage/coverage-fast-dashboard.xml \
+            || test $? -eq 5
+      - name: "Upload fast-dashboard coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-dashboard-reports
+          path: out/reports/
+          if-no-files-found: ignore
 
   fast-tests-upgrade:
     runs-on: ubuntu-latest
@@ -887,9 +971,18 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — upgrade"
         run: |
-          python -m pytest tests/upgrade/ -m fast -q --tb=short
+          python -m pytest tests/upgrade/ -m fast -q --tb=short \
+            --cov=src/specify_cli/upgrade \
+            --cov-report=xml:out/reports/coverage/coverage-fast-upgrade.xml
+      - name: "Upload fast-upgrade coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-upgrade-reports
+          path: out/reports/
 
   # ---------------------------------------------------------------------------
   # Tier 3 fast-tests: depends on all Tier 2 jobs
@@ -909,9 +1002,20 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — cli"
         run: |
-          python -m pytest tests/cli/ -m fast -q --tb=short || test $? -eq 5
+          python -m pytest tests/cli/ -m fast -q --tb=short \
+            --cov=src/specify_cli/cli \
+            --cov-report=xml:out/reports/coverage/coverage-fast-cli.xml \
+            || test $? -eq 5
+      - name: "Upload fast-cli coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-cli-reports
+          path: out/reports/
+          if-no-files-found: ignore
 
   # ---------------------------------------------------------------------------
   # fast-tests-core-misc: catch-all for tests not covered by per-module jobs.
@@ -933,6 +1037,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — core misc"
         run: |
           python -m pytest \
@@ -952,7 +1057,15 @@ jobs:
             --ignore=tests/upgrade \
             --ignore=tests/cli \
             --ignore=tests/runtime \
-            -m fast -q --tb=short
+            -m fast -q --tb=short \
+            --cov=src/specify_cli --cov=src/charter \
+            --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
+      - name: "Upload fast-core-misc coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-core-misc-reports
+          path: out/reports/
 
   # ---------------------------------------------------------------------------
   # Integration tests: per-module, gated on their fast-tests counterpart.
@@ -968,8 +1081,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -1020,13 +1131,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — sync"
         run: |
           python -m pytest tests/sync/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/sync \
-            --cov-fail-under=44
+            --cov-fail-under=44 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-sync.xml
+      - name: "Upload integration-sync coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-sync-reports
+          path: out/reports/
 
   integration-tests-merge:
     runs-on: ubuntu-latest
@@ -1044,13 +1163,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — merge"
         run: |
           python -m pytest tests/merge/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/merge \
-            --cov-fail-under=51
+            --cov-fail-under=51 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-merge.xml
+      - name: "Upload integration-merge coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-merge-reports
+          path: out/reports/
 
   integration-tests-missions:
     runs-on: ubuntu-latest
@@ -1068,6 +1195,7 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — missions"
         run: |
           python -m pytest tests/missions/ \
@@ -1076,7 +1204,14 @@ jobs:
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
-            --cov-fail-under=31
+            --cov-fail-under=31 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-missions.xml
+      - name: "Upload integration-missions coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-missions-reports
+          path: out/reports/
 
   integration-tests-post-merge:
     runs-on: ubuntu-latest
@@ -1094,13 +1229,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — post_merge"
         run: |
           python -m pytest tests/post_merge/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/post_merge \
-            --cov-fail-under=84
+            --cov-fail-under=84 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-post-merge.xml
+      - name: "Upload integration-post-merge coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-post-merge-reports
+          path: out/reports/
 
   integration-tests-release:
     runs-on: ubuntu-latest
@@ -1118,13 +1261,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — release"
         run: |
           python -m pytest tests/release/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/release \
-            --cov-fail-under=82
+            --cov-fail-under=82 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-release.xml
+      - name: "Upload integration-release coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-release-reports
+          path: out/reports/
 
   integration-tests-status:
     runs-on: ubuntu-latest
@@ -1137,8 +1288,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -1190,13 +1339,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — review"
         run: |
           python -m pytest tests/review/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/review \
-            --cov-fail-under=48
+            --cov-fail-under=48 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-review.xml
+      - name: "Upload integration-review coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-review-reports
+          path: out/reports/
 
   integration-tests-next:
     runs-on: ubuntu-latest
@@ -1214,13 +1371,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — next"
         run: |
           python -m pytest tests/next/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/next \
-            --cov-fail-under=76
+            --cov-fail-under=76 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
+      - name: "Upload integration-next coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-next-reports
+          path: out/reports/
 
   integration-tests-lanes:
     runs-on: ubuntu-latest
@@ -1238,13 +1403,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — lanes"
         run: |
           python -m pytest tests/lanes/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \
-            --cov-fail-under=60
+            --cov-fail-under=60 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-lanes.xml
+      - name: "Upload integration-lanes coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-lanes-reports
+          path: out/reports/
 
   integration-tests-dashboard:
     runs-on: ubuntu-latest
@@ -1262,13 +1435,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — dashboard"
         run: |
           python -m pytest tests/test_dashboard/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/dashboard \
-            --cov-fail-under=57
+            --cov-fail-under=57 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-dashboard.xml
+      - name: "Upload integration-dashboard coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-dashboard-reports
+          path: out/reports/
 
   integration-tests-upgrade:
     runs-on: ubuntu-latest
@@ -1286,13 +1467,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — upgrade"
         run: |
           python -m pytest tests/upgrade/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/upgrade \
-            --cov-fail-under=21
+            --cov-fail-under=21 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-upgrade.xml
+      - name: "Upload integration-upgrade coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-upgrade-reports
+          path: out/reports/
 
   integration-tests-cli:
     runs-on: ubuntu-latest
@@ -1310,13 +1499,21 @@ jobs:
       - run: |
           python -m pip install --upgrade pip
           pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
       - name: "Run integration tests — cli"
         run: |
           python -m pytest tests/cli/ \
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/cli \
-            --cov-fail-under=11
+            --cov-fail-under=11 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-cli.xml
+      - name: "Upload integration-cli coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-cli-reports
+          path: out/reports/
 
   # ---------------------------------------------------------------------------
   # slow-and-e2e: replaces integration-smoke + dashboard-tests.
@@ -1345,8 +1542,6 @@ jobs:
     steps:
       - name: "[ENFORCED] Check out repository"
         uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
 
       - name: "[ENFORCED] Set up Python"
         uses: actions/setup-python@v6
@@ -1364,8 +1559,20 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test]
 
+      - name: "[ENFORCED] Cache Playwright browsers"
+        id: playwright-cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
       - name: "[ENFORCED] Install Playwright browsers"
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps chromium
+
+      - name: "[ENFORCED] Install Playwright OS deps (cache hit)"
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
 
       - name: "[ENFORCED] Prepare report directories"
         run: |
@@ -1444,44 +1651,12 @@ jobs:
           python -m pip install --upgrade pip
           pip install -e .[test]
 
-      - name: "[ENFORCED] Download fast-doctrine coverage"
-        if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
+      - name: "[ENFORCED] Download all coverage artifacts"
         uses: actions/download-artifact@v8
         with:
-          name: fast-test-doctrine-reports
-          path: out/reports/fast-doctrine
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download integration-doctrine coverage"
-        if: needs.integration-tests-doctrine.result == 'success' || needs.integration-tests-doctrine.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-test-doctrine-reports
-          path: out/reports/integration-doctrine
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download kernel coverage"
-        if: needs.kernel-tests.result == 'success' || needs.kernel-tests.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: kernel-test-reports
-          path: out/reports/kernel
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download fast-status coverage"
-        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: fast-test-status-reports
-          path: out/reports/fast-status
-        continue-on-error: true
-
-      - name: "[ENFORCED] Download integration-status coverage"
-        if: needs.integration-tests-status.result == 'success' || needs.integration-tests-status.result == 'failure'
-        uses: actions/download-artifact@v8
-        with:
-          name: integration-test-status-reports
-          path: out/reports/integration-status
+          pattern: '*-reports'
+          path: out/reports/artifacts
+          merge-multiple: false
         continue-on-error: true
 
       # Critical-path modules: kernel, doctrine, charter, status, mission detection,
@@ -1492,14 +1667,12 @@ jobs:
           git fetch origin "${{ github.base_ref }}" --depth=1
 
           coverage_reports=()
-          for f in \
-            out/reports/kernel/coverage/coverage-kernel.xml \
-            out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
-            out/reports/fast-status/coverage/coverage-fast-status.xml \
-            out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-status/coverage/coverage-integration-status.xml; do
-            [ -f "$f" ] && coverage_reports+=("$f")
-          done
+          while IFS= read -r -d '' f; do
+            coverage_reports+=("$f")
+          done < <(find out/reports/artifacts -name 'coverage-*.xml' -print0 2>/dev/null)
+
+          echo "Found ${#coverage_reports[@]} coverage report(s):"
+          printf '  %s\n' "${coverage_reports[@]}"
 
           if [ ${#coverage_reports[@]} -eq 0 ]; then
             echo "::error::No coverage reports found for diff coverage."
@@ -1524,14 +1697,9 @@ jobs:
         if: always()
         run: |
           coverage_reports=()
-          for f in \
-            out/reports/kernel/coverage/coverage-kernel.xml \
-            out/reports/fast-doctrine/coverage/coverage-fast-doctrine.xml \
-            out/reports/fast-status/coverage/coverage-fast-status.xml \
-            out/reports/integration-doctrine/coverage/coverage-integration-doctrine.xml \
-            out/reports/integration-status/coverage/coverage-integration-status.xml; do
-            [ -f "$f" ] && coverage_reports+=("$f")
-          done
+          while IFS= read -r -d '' f; do
+            coverage_reports+=("$f")
+          done < <(find out/reports/artifacts -name 'coverage-*.xml' -print0 2>/dev/null)
 
           if [ ${#coverage_reports[@]} -gt 0 ]; then
             diff-cover "${coverage_reports[@]}" \
@@ -1563,9 +1731,8 @@ jobs:
       - run: echo "Mutation testing is disabled."
 
   # ---------------------------------------------------------------------------
-  # sonarcloud: generates a single repo-relative coverage report for Sonar.
-  # The shard XMLs are good enough for diff-cover, but they flatten filenames
-  # in ways that Sonar mis-resolves on new-code coverage.
+  # sonarcloud: collects coverage XMLs from all upstream test jobs and feeds
+  # them to SonarCloud. No tests are re-run — coverage is merged from artifacts.
   # Runs only after merges to main, on the nightly schedule, or when manually
   # dispatched against main. PRs skip Sonar entirely to keep review latency low.
   # ---------------------------------------------------------------------------
@@ -1674,6 +1841,41 @@ jobs:
           echo "  organization=$organization"
           echo "  project_key=$project_key"
 
+      - name: "[ENFORCED] Download all coverage artifacts"
+        if: steps.sonar_token.outputs.enabled == 'true'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: '*-reports'
+          path: out/reports/artifacts
+          merge-multiple: false
+        continue-on-error: true
+
+      - name: "[ENFORCED] Discover coverage XMLs and build Sonar config"
+        id: coverage_paths
+        if: steps.sonar_token.outputs.enabled == 'true'
+        run: |
+          mkdir -p out/reports/coverage
+
+          # Find all coverage XMLs from downloaded artifacts
+          report_paths=""
+          while IFS= read -r -d '' f; do
+            if [ -n "$report_paths" ]; then
+              report_paths="$report_paths,$f"
+            else
+              report_paths="$f"
+            fi
+          done < <(find out/reports/artifacts -name 'coverage-*.xml' -print0 2>/dev/null)
+
+          echo "Discovered coverage reports:"
+          find out/reports/artifacts -name 'coverage-*.xml' -print 2>/dev/null || true
+
+          if [ -z "$report_paths" ]; then
+            echo "::warning::No coverage reports found from upstream jobs."
+            report_paths="out/reports/coverage/empty.xml"
+          fi
+
+          echo "report_paths=$report_paths" >> "$GITHUB_OUTPUT"
+
       - name: "[ENFORCED] Materialize effective Sonar config"
         if: steps.sonar_token.outputs.enabled == 'true'
         run: |
@@ -1691,40 +1893,12 @@ jobs:
             echo "sonar.organization=${{ steps.sonar_settings.outputs.organization }}"
             echo "sonar.projectKey=${{ steps.sonar_settings.outputs.project_key }}"
             echo "sonar.branch.name=${{ github.head_ref || github.ref_name }}"
-            echo "sonar.python.coverage.reportPaths=out/reports/coverage/coverage-sonar.xml"
-            echo "sonar.python.xunit.reportPath=out/reports/xunit-reports/xunit-result.xml"
+            echo "sonar.python.coverage.reportPaths=${{ steps.coverage_paths.outputs.report_paths }}"
           } >> "$tmp_file"
 
           mv "$tmp_file" sonar-project.properties
-      - name: "[ENFORCED] Set up Python"
-        if: steps.sonar_token.outputs.enabled == 'true'
-        uses: actions/setup-python@v6
-        with:
-          python-version: '3.12'
-          cache: 'pip'
-
-      - name: "[ENFORCED] Install dependencies"
-        if: steps.sonar_token.outputs.enabled == 'true'
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e .[test]
-
-      - name: "[ENFORCED] Generate unified Sonar coverage report"
-        if: steps.sonar_token.outputs.enabled == 'true'
-        run: |
-          mkdir -p out/reports/coverage
-          mkdir -p out/reports/xunit-reports
-
-          pytest \
-            --cov=src \
-            --cov-report=xml:out/reports/coverage/coverage-sonar.xml \
-            --junitxml=out/reports/xunit-reports/xunit-result.xml \
-            -q
-
-          echo "Sonar coverage report:"
-          ls -l out/reports/coverage/coverage-sonar.xml
-          echo "Sonar xUnit report:"
-          ls -l out/reports/xunit-reports/xunit-result.xml
+          echo "Effective sonar-project.properties:"
+          cat sonar-project.properties
 
       - name: "[ENFORCED] SonarCloud Scan"
         if: steps.sonar_token.outputs.enabled == 'true'
