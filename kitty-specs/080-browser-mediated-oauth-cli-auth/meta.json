@@ -1,10 +1,15 @@
 {
   "created_at": "2026-04-09T13:37:18.687152+00:00",
-  "friendly_name": "browser mediated oauth cli auth",
+  "friendly_name": "Browser-Mediated OAuth/OIDC CLI Authentication",
   "mission_id": "01KNS7C9AZP1MPCFZWM25KV6TM",
   "mission_number": "080",
   "mission_slug": "080-browser-mediated-oauth-cli-auth",
   "mission_type": "software-dev",
-  "slug": "080-browser-mediated-oauth-cli-auth",
-  "target_branch": "main"
+  "slug": "browser-mediated-oauth-cli-auth",
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Replace password-based human CLI auth with browser-mediated OAuth/OIDC (Authorization Code + PKCE) against spec-kitty-saas. Device Authorization Flow fallback for headless human environments. Hard cutover: no password fallback. Centralized TokenManager converges all HTTP/batch/background/tracker/websocket auth. Keychain-first secure storage with file fallback for degraded environments.",
+  "related_issues": ["#559", "#560", "#561", "#562", "#564", "#565"],
+  "related_adr": "architecture/2.x/adr/2026-04-09-2-cli-saas-auth-is-browser-mediated-oauth-not-password.md",
+  "dependencies": ["epic #49 (SaaS OAuth contract)"]
 }
