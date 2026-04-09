@@ -11,6 +11,10 @@ on:
       - main
       - develop
       - 2.x
+  schedule:
+    # Nightly Sonar run on the default branch. Offset from the top of the hour
+    # to avoid GitHub Actions' busiest scheduling window.
+    - cron: '17 2 * * *'
   workflow_dispatch:
     inputs:
       run_extended:
@@ -897,11 +901,13 @@ jobs:
 
   # ---------------------------------------------------------------------------
   # sonarcloud: aggregates coverage from fast + integration + slow-e2e.
+  # Runs only after merges to main, on the nightly schedule, or when manually
+  # dispatched against main. PRs skip Sonar entirely to keep review latency low.
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
     needs: [fast-tests-doctrine, fast-tests-core, integration-tests-doctrine, integration-tests-core, slow-and-e2e]
-    if: always()
+    if: always() && github.event_name != 'pull_request' && (github.event_name == 'schedule' || github.ref == 'refs/heads/main')
 
     steps:
       - name: "[INFO] Check Sonar token availability"
