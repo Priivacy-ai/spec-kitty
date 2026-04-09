@@ -131,7 +131,7 @@ def _mark_wp_merged_done(
             console.print(f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; skipping automatic move to done after merge.")
             return
 
-    if lane == "for_review":
+    if lane in {"planned", "claimed", "in_progress", "for_review"} and evidence is not None:
         # Dedup guard for the intermediate approved transition
         if _has_transition_to(feature_dir, wp_id, "approved"):
             logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
@@ -171,6 +171,40 @@ def _mark_wp_merged_done(
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
+
+
+def _assert_merged_wps_reached_done(
+    repo_root: Path,
+    mission_slug: str,
+    wp_ids: list[str],
+) -> None:
+    """Fail the merge if merged WPs did not reach ``done`` in the event log."""
+    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status.store import StoreError
+    from specify_cli.status.transitions import resolve_lane_alias
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+
+    try:
+        incomplete: list[str] = []
+        for wp_id in wp_ids:
+            lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+            if lane != "done":
+                incomplete.append(f"{wp_id}={lane}")
+    except StoreError as exc:
+        console.print(
+            "[red]Error:[/red] Post-merge status validation failed: "
+            f"could not read {feature_dir / 'status.events.jsonl'} ({exc})"
+        )
+        raise typer.Exit(1) from exc
+
+    if incomplete:
+        console.print(
+            "[red]Error:[/red] Post-merge status validation failed: "
+            "merged WPs did not reach done in the canonical event log."
+        )
+        console.print(f"  Offending WPs: {', '.join(incomplete)}")
+        raise typer.Exit(1)
 
 
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
@@ -413,6 +447,8 @@ def _run_lane_based_merge(
             state.mark_wp_complete(wp_id)
             save_state(state, main_repo)
             completed_set.add(wp_id)
+
+    _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
 
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
     safe_commit(
@@ -690,6 +726,7 @@ def merge(
 
 __all__ = [
     "_has_transition_to",
+    "_assert_merged_wps_reached_done",
     "_mark_wp_merged_done",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",

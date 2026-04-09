@@ -168,7 +168,15 @@ def materialize_worktree_topology(repo_root: Path, mission_slug: str) -> Feature
                 resolution_kind=workspace.resolution_kind,
                 lane_id=lane_entry.lane_id if lane_entry else workspace.lane_id,
                 lane_wp_ids=list(lane_entry.wp_ids) if lane_entry else list(workspace.lane_wp_ids),
-                branch_name=lane_branch_name(mission_slug, lane_entry.lane_id) if lane_entry else workspace.branch_name,
+                branch_name=(
+                    lane_branch_name(
+                        mission_slug,
+                        lane_entry.lane_id,
+                        planning_base_branch=target_branch,
+                    )
+                    if lane_entry
+                    else workspace.branch_name
+                ),
                 base_branch=base_branch,
                 review_paths=(
                     list(normalized_wp.metadata.owned_files)

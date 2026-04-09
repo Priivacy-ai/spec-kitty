@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-import pytest
 from pathlib import Path
 from typing import Any
 from unittest.mock import Mock
 
-from specify_cli.cli.commands.merge import _mark_wp_merged_done
+import click
+import pytest
+
+from specify_cli.cli.commands.merge import (
+    _assert_merged_wps_reached_done,
+    _mark_wp_merged_done,
+)
 
 pytestmark = pytest.mark.fast
 
@@ -125,6 +130,32 @@ def test_mark_wp_merged_done_records_approved_before_done_for_legacy_for_review(
     assert second_call["to_lane"] == "done"
 
 
+@pytest.mark.parametrize("lane_name", ["planned", "claimed", "in_progress"])
+def test_mark_wp_merged_done_recovers_reviewed_wps_from_pre_review_lanes(
+    tmp_path: Path,
+    monkeypatch,
+    lane_name: str,
+) -> None:
+    repo_root = tmp_path
+    feature_dir = repo_root / "kitty-specs" / "021-test"
+    tasks_dir = feature_dir / "tasks"
+    tasks_dir.mkdir(parents=True)
+    _write_wp(tasks_dir / "WP01-test.md", review_status="approved", reviewed_by="reviewer-1")
+
+    emit_mock = Mock()
+    monkeypatch.setattr("specify_cli.status.emit.emit_status_transition", emit_mock)
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: lane_name,
+    )
+
+    _mark_wp_merged_done(repo_root, "021-test", "WP01", "main")
+
+    assert emit_mock.call_count == 2
+    assert emit_mock.call_args_list[0].kwargs["to_lane"] == "approved"
+    assert emit_mock.call_args_list[1].kwargs["to_lane"] == "done"
+
+
 def test_mark_wp_merged_done_synthesized_evidence_uses_typed_agent(
     tmp_path: Path,
     monkeypatch: Any,
@@ -161,3 +192,35 @@ def test_mark_wp_merged_done_uses_typed_frontmatter(
     assert not hasattr(merge_mod, "read_frontmatter"), "merge module still imports read_frontmatter; should use read_wp_frontmatter"
     # The new typed import must be present
     assert hasattr(merge_mod, "read_wp_frontmatter"), "merge module must import read_wp_frontmatter"
+
+
+def test_assert_merged_wps_reached_done_allows_done_snapshot(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda *_a, **_kw: "done",
+    )
+
+    _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])
+
+
+def test_assert_merged_wps_reached_done_fails_when_wp_not_done(
+    tmp_path: Path,
+    monkeypatch: Any,
+) -> None:
+    feature_dir = tmp_path / "kitty-specs" / "021-test"
+    feature_dir.mkdir(parents=True)
+
+    lanes = {"WP01": "done", "WP02": "planned"}
+    monkeypatch.setattr(
+        "specify_cli.status.lane_reader.get_wp_lane",
+        lambda _feature_dir, wp_id: lanes[wp_id],
+    )
+
+    with pytest.raises(click.exceptions.Exit):
+        _assert_merged_wps_reached_done(tmp_path, "021-test", ["WP01", "WP02"])

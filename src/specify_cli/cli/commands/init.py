@@ -51,6 +51,7 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 # =============================================================================
 
 _logger = logging.getLogger(__name__)
+_EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 
 
 def _has_global_runtime() -> bool:
@@ -86,6 +87,20 @@ def _prepare_project_minimal(project_path: Path) -> None:
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "memory").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
+
+
+def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
+    """Ensure new projects track status event logs with the semantic merge driver."""
+    attributes_path = project_path / ".gitattributes"
+    lines: list[str] = []
+    if attributes_path.exists():
+        lines = attributes_path.read_text(encoding="utf-8").splitlines()
+        if _EVENT_LOG_GITATTRIBUTES_ENTRY in lines:
+            return False
+
+    lines.append(_EVENT_LOG_GITATTRIBUTES_ENTRY)
+    attributes_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return True
 
 
 def _get_package_templates_root() -> Path | None:
@@ -690,6 +705,9 @@ def init(  # noqa: C901
     # Show errors if any
     for error in result.errors:
         _console.print(f"[red]❌ {error}[/red]")
+
+    if _ensure_event_log_merge_attributes(project_path):
+        _console.print("[dim]Updated .gitattributes to semantically merge status.events.jsonl[/dim]")
 
     # Copy AGENTS.md from template source (not user project)
     # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.

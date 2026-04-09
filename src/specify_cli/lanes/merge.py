@@ -88,7 +88,11 @@ def merge_lane_to_mission(
             errors=[f"Lane {lane_id} not found in lanes.json"],
         )
 
-    branch = lane_branch_name(mission_slug, lane_id)
+    branch = lane_branch_name(
+        mission_slug,
+        lane_id,
+        planning_base_branch=lanes_manifest.target_branch,
+    )
     mission_branch = lanes_manifest.mission_branch
 
     # Verify the lane branch exists.

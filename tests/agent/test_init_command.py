@@ -42,7 +42,6 @@ def cli_app(monkeypatch: pytest.MonkeyPatch) -> tuple[Typer, Console, list[str]]
         activate_mission=fake_activate,
         ensure_executable_scripts=fake_ensure_scripts,
     )
-    monkeypatch.setattr(init_module, "check_tool", lambda *args, **kwargs: True)
     return app, console, outputs
 
 
@@ -85,7 +84,6 @@ def test_init_creates_vcs_config(cli_app, monkeypatch: pytest.MonkeyPatch, tmp_p
                 "config-project",
                 "--ai",
                 "claude",
-                "--no-git",
                 "--non-interactive",
             ],
         )
@@ -142,7 +140,6 @@ def test_init_non_interactive_no_project_name_defaults_to_current_directory(
             "init",
             "--ai",
             "claude",
-            "--no-git",
             "--non-interactive",
         ],
     )
@@ -177,10 +174,45 @@ def test_init_non_interactive_env_var(cli_app, monkeypatch: pytest.MonkeyPatch, 
             "env-non-interactive",
             "--ai",
             "claude",
-            "--no-git",
         ],
     )
     assert result.exit_code == 0, result.output
+
+
+def test_init_writes_event_log_merge_attributes(
+    cli_app,
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+):
+    app, _, _ = cli_app
+    monkeypatch.chdir(tmp_path)
+
+    def fake_local_repo(override_path=None):
+        return tmp_path / "templates"
+
+    def fake_copy(local_repo: Path, project_path: Path):
+        commands_dir = project_path / ".templates"
+        commands_dir.mkdir(parents=True, exist_ok=True)
+        return commands_dir
+
+    monkeypatch.setattr(init_module, "get_local_repo_root", fake_local_repo)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_local", fake_copy)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        app,
+        [
+            "init",
+            "event-log-project",
+            "--ai",
+            "claude",
+            "--non-interactive",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    attributes = (tmp_path / "event-log-project" / ".gitattributes").read_text(encoding="utf-8")
+    assert "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log" in attributes
 
 
 # test_init_amends_initial_commit_after_cleanup deleted in feature 076:
