@@ -43,6 +43,7 @@ from task_helpers import (  # noqa: E402
     build_document,
     detect_conflicting_wp_status,
     ensure_lane,
+    extract_scalar,
     find_repo_root,
     get_lane_from_frontmatter,
     git_status_lines,
@@ -76,11 +77,12 @@ from specify_cli.status.transitions import resolve_lane_alias  # noqa: E402
 
 def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
     """Derive current canonical lane for a WP from reduced status events."""
-    from specify_cli.status.store import StoreError, read_events
+    from specify_cli.status.models import Lane
+    from specify_cli.status.store import StoreError, read_events  # noqa: F401
 
     events = read_events(feature_dir)  # raises StoreError on corrupt JSONL
     if not events:
-        return "planned"
+        return Lane.PLANNED
 
     from specify_cli.status.reducer import reduce as _reduce
 
@@ -88,7 +90,7 @@ def _derive_current_lane(feature_dir: Path, wp_id: str) -> str:
     wp_state = snapshot.work_packages.get(wp_id)
     if wp_state and isinstance(wp_state.get("lane"), str):
         return wp_state["lane"]
-    return "planned"
+    return Lane.PLANNED
 
 
 def _generate_ulid() -> str:
@@ -256,7 +258,8 @@ def update_command(args: argparse.Namespace) -> None:
 
     wp = locate_work_package(repo_root, feature, args.work_package)
 
-    if wp.current_lane == validated_lane:
+    from specify_cli.status.models import Lane as _LaneCheck  # noqa: PLC0415
+    if _LaneCheck(wp.current_lane) == _LaneCheck(validated_lane):
         raise TaskCliError(f"Work package already in lane '{validated_lane}'.")
 
     timestamp = args.timestamp or now_utc()
@@ -363,12 +366,28 @@ def list_command(args: argparse.Namespace) -> None:
                 )
     else:
         # New format: scan flat tasks/ directory and read canonical lane from the event log
+        from specify_cli.status.store import read_events as _read_events  # noqa: PLC0415
+        from specify_cli.status.wp_state import wp_state_for  # noqa: PLC0415
+
+        # Validate that canonical status events exist for this feature
+        _feature_events = _read_events(feature_path)
+        if not _feature_events:
+            print(
+                "Error: Canonical status not found for this feature.\n"
+                "Run 'spec-kitty agent mission finalize-tasks' to bootstrap status events.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+
         for path in sorted(feature_dir.glob("*.md")):
             if path.name.lower() == "readme.md":
                 continue
             text = path.read_text(encoding="utf-8-sig")
             front, body, padding = split_frontmatter(text)
-            lane = get_lane_from_frontmatter(path, warn_on_missing=False)
+            # Extract wp_id from frontmatter to look up event-log lane
+            wp_id = extract_scalar(front, "work_package_id") or path.stem
+            lane = _derive_current_lane(feature_path, wp_id)
+            display = wp_state_for(lane).display_category()
             wp = WorkPackage(
                 feature=args.feature,
                 path=path,
@@ -378,13 +397,13 @@ def list_command(args: argparse.Namespace) -> None:
                 body=body,
                 padding=padding,
             )
-            wp_id = wp.work_package_id or path.stem
             title = (wp.title or "").strip('"')
             assignee = (wp.assignee or "").strip()
             agent = (wp.agent or "").strip()
             rows.append(
                 {
                     "lane": lane,
+                    "display": display,
                     "id": wp_id,
                     "title": title,
                     "assignee": assignee,
@@ -398,7 +417,7 @@ def list_command(args: argparse.Namespace) -> None:
         return
 
     width_id = max(len(row["id"]) for row in rows)
-    width_lane = max(len(row["lane"]) for row in rows)
+    width_lane = max(len(row.get("display", row["lane"])) for row in rows)
     width_agent = max(len(row["agent"]) for row in rows) if any(row["agent"] for row in rows) else 5
     width_assignee = max(len(row["assignee"]) for row in rows) if any(row["assignee"] for row in rows) else 8
 
@@ -406,8 +425,9 @@ def list_command(args: argparse.Namespace) -> None:
     print(header)
     print("-" * len(header))
     for row in rows:
+        lane_display = row.get("display", row["lane"])
         print(
-            f"{row['lane'].ljust(width_lane)}  "
+            f"{lane_display.ljust(width_lane)}  "
             f"{row['id'].ljust(width_id)}  "
             f"{row['agent'].ljust(width_agent)}  "
             f"{row['assignee'].ljust(width_assignee)}  "
@@ -431,8 +451,8 @@ def rollback_command(args: argparse.Namespace) -> None:
         previous_lane_canonical = str(wp_events[0].from_lane)
     else:
         previous_lane_canonical = str(wp_events[-2].to_lane)
-    reverse_aliases: Dict[str, str] = {"in_progress": "doing"}
-    previous_lane = ensure_lane(reverse_aliases.get(previous_lane_canonical, previous_lane_canonical))
+    # Use the canonical lane value directly — alias resolution stays inside the status boundary.
+    previous_lane = ensure_lane(previous_lane_canonical)
     current_event = wp_events[-1]
     note = args.note or f"Rolled back to {previous_lane}"
     args_for_update = argparse.Namespace(

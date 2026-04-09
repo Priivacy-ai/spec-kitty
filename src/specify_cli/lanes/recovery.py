@@ -31,10 +31,54 @@ RECOVERY_ACTOR = "recovery"
 
 # Status lanes that recovery can advance through (never past in_progress)
 _RECOVERY_CEILING = Lane.IN_PROGRESS
-_RECOVERY_TRANSITIONS = {
-    Lane.PLANNED: [Lane.CLAIMED, Lane.IN_PROGRESS],
-    Lane.CLAIMED: [Lane.IN_PROGRESS],
-}
+
+
+def _get_recovery_transitions(current_lane: Lane) -> list[Lane]:
+    """Return the ordered list of Lane transitions recovery may emit from *current_lane*.
+
+    Recovery is conservative: it never advances a WP past IN_PROGRESS.
+    Uses ``validate_transition()`` from the canonical status module so that
+    the transition matrix is the single source of truth.
+
+    The progression recovery may emit is: planned -> claimed -> in_progress.
+    Starting from *current_lane*, only transitions that are (a) allowed by the
+    canonical matrix and (b) at or below the ceiling (IN_PROGRESS) are included.
+
+    Guard conditions (actor, workspace_context, etc.) are not checked here
+    because the actual ``emit_status_transition()`` call in ``reconcile_status``
+    uses ``RECOVERY_ACTOR`` and handles guard failures by catching exceptions.
+    This function only validates structural matrix membership.
+
+    Returns an empty list when no recovery transition is possible.
+    """
+    from specify_cli.status.transitions import validate_transition
+
+    # Ordered progression that recovery may advance through, capped at ceiling
+    _PROGRESSION = [Lane.PLANNED, Lane.CLAIMED, Lane.IN_PROGRESS]
+    try:
+        ceiling_index = _PROGRESSION.index(_RECOVERY_CEILING)
+        start_index = _PROGRESSION.index(current_lane)
+    except ValueError:
+        # current_lane or ceiling not in the recovery progression
+        return []
+
+    result: list[Lane] = []
+    from_lane: Lane = current_lane
+    for target in _PROGRESSION[start_index + 1: ceiling_index + 1]:
+        # Pass recovery context to satisfy actor/workspace guards.
+        # Recovery is always authoritative and always runs in a worktree.
+        ok, _err = validate_transition(
+            from_lane.value,
+            target.value,
+            actor=RECOVERY_ACTOR,
+            workspace_context="recovery",
+        )
+        if ok:
+            result.append(target)
+            from_lane = target
+        else:
+            break
+    return result
 
 
 @dataclass
@@ -69,7 +113,7 @@ class RecoveryReport:
     # consult_status_events=True).
     ready_to_start_from_target: list[str] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, object]:
         return {
             "recovered_wps": self.recovered_wps,
             "worktrees_recreated": self.worktrees_recreated,
@@ -143,10 +187,10 @@ def _get_wp_lane_from_events(feature_dir: Path, wp_id: str) -> str:
             snapshot = reduce(events)
             state = snapshot.work_packages.get(wp_id)
             if state:
-                return Lane(state.get("lane", Lane.PLANNED))
+                return Lane(state.get("lane", Lane.PLANNED)).value
     except Exception:
         logger.debug("Could not read status events for %s in %s", wp_id, feature_dir)
-    return Lane.PLANNED
+    return Lane.PLANNED.value
 
 
 def _find_wp_ids_for_lane(
@@ -337,7 +381,7 @@ def scan_recovery_state(  # noqa: C901
             elif worktree_exists and not context_exists:
                 # Worktree exists but context is gone
                 recovery_action = "recreate_context"
-            elif has_commits and status_lane in _RECOVERY_TRANSITIONS:
+            elif has_commits and bool(_get_recovery_transitions(Lane(status_lane))):
                 # Everything exists but status is behind
                 recovery_action = "emit_transitions"
             else:
@@ -388,9 +432,9 @@ def scan_recovery_state(  # noqa: C901
         if wp_id in represented_wps:
             continue
 
-        event_lane = all_wp_lanes.get(wp_id, "planned")
+        event_lane = all_wp_lanes.get(wp_id, Lane.PLANNED.value)
 
-        if event_lane == "done":
+        if event_lane == Lane.DONE.value:
             # WP is done in the event log but has no live branch →
             # it was merged-and-deleted. Record it as a synthetic
             # no-action state with a resolution_note so callers know
@@ -418,12 +462,12 @@ def scan_recovery_state(  # noqa: C901
     # merged_and_deleted record above or via event-log lane == "done").
     done_wp_ids: set[str] = set()
     for rs in recovery_states:
-        if rs.status_lane == "done" or rs.resolution_note == "merged_and_deleted":
+        if rs.status_lane == Lane.DONE.value or rs.resolution_note == "merged_and_deleted":
             done_wp_ids.add(rs.wp_id)
     # Also include WPs the event-log says are done that may not appear in
     # the task files list yet.
     for wp_id_ev, lane_ev in all_wp_lanes.items():
-        if lane_ev == "done":
+        if lane_ev == Lane.DONE.value:
             done_wp_ids.add(wp_id_ev)
 
     # We only compute ready_to_start when the event log shows that at least
@@ -582,7 +626,11 @@ def reconcile_status(
     else:
         return 0
 
-    transitions = _RECOVERY_TRANSITIONS.get(current_lane, [])
+    try:
+        current_lane_enum = Lane(current_lane)
+    except ValueError:
+        return 0
+    transitions = _get_recovery_transitions(current_lane_enum)
     if not transitions:
         return 0
 
@@ -671,7 +719,11 @@ def run_recovery(
                 recovered_lanes_context.add(state.lane_id)
 
             # Step 3: Reconcile status (per WP, not per lane)
-            if state.has_commits and state.status_lane in _RECOVERY_TRANSITIONS:
+            try:
+                _status_lane_enum = Lane(state.status_lane)
+            except ValueError:
+                _status_lane_enum = None
+            if state.has_commits and _status_lane_enum is not None and bool(_get_recovery_transitions(_status_lane_enum)):
                 emitted = reconcile_status(repo_root, mission_slug, state)
                 report.transitions_emitted += emitted
 

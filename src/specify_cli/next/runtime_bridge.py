@@ -40,7 +40,8 @@ from spec_kitty_runtime.schema import ActorIdentity, load_mission_template_file
 from specify_cli.core.atomic import atomic_write
 from specify_cli.mission import get_mission_type
 from specify_cli.status.lane_reader import CanonicalStatusNotFoundError
-from specify_cli.status.transitions import resolve_lane_alias
+from specify_cli.status.models import Lane
+from specify_cli.status.wp_state import wp_state_for
 from specify_cli.next.decision import (
     Decision,
     DecisionKind,
@@ -145,12 +146,26 @@ def _should_advance_wp_step(step_id: str, feature_dir: Path) -> bool:
     for wp_file in wp_files:
         wp_match = _re.match(r"(WP\d+)", wp_file.stem)
         wp_id = wp_match.group(1) if wp_match else wp_file.stem
-        lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+        raw_lane = get_wp_lane(feature_dir, wp_id)
+        try:
+            state = wp_state_for(raw_lane)
+        except ValueError:
+            # Unknown lane (e.g. "uninitialized" before status bootstrap) — treat as
+            # not-yet-handed-off, so this WP blocks advancement.
+            return False
+        lane = state.lane
         if step_id == "implement":
-            if lane not in ("done", "approved", "for_review"):
+            # Advance past implement only when the WP has been handed off
+            # (for_review or approved) or completed (done/canceled).
+            # is_run_affecting is True for all active lanes; we further restrict
+            # to only allow advancement for the "handed off" active lanes.
+            if state.is_run_affecting and lane not in (Lane.FOR_REVIEW, Lane.APPROVED):
+                return False
+            # A blocked WP is not run_affecting but also not handed off — blocks advancement.
+            if state.is_blocked:
                 return False
         elif step_id == "review":
-            if lane not in ("done", "approved"):
+            if lane not in (Lane.DONE, Lane.APPROVED):
                 return False
 
     return True

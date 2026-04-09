@@ -38,11 +38,46 @@ class WPState(ABC):
 
     @property
     def is_terminal(self) -> bool:
+        """Return True for terminal lanes (done, canceled).
+
+        Terminal lanes require ``force=True`` to leave. Note that merge
+        validation uses an explicit ``approved|done`` check, NOT this property.
+        """
         return False
 
     @property
     def is_blocked(self) -> bool:
         return False
+
+    @property
+    def is_run_affecting(self) -> bool:
+        """Return True if this WP affects execution progress.
+
+        A WP is "run-affecting" if it is active (planned through approved).
+        Does not include terminal lanes (done, canceled) or the blocked lane.
+
+        Distinction from related properties:
+        - ``is_run_affecting``: True for active lanes (planned through approved)
+        - ``is_terminal``:      True for cleanup-only lanes (done, canceled)
+        - ``is_blocked``:       True only for the blocked lane
+
+        Returns:
+            True  if lane in {planned, claimed, in_progress, for_review, in_review, approved}
+            False if lane in {done, blocked, canceled}
+
+        Usage::
+
+            if state.is_run_affecting:
+                # Route to implementation or review
+        """
+        return self.lane in {
+            Lane.PLANNED,
+            Lane.CLAIMED,
+            Lane.IN_PROGRESS,
+            Lane.FOR_REVIEW,
+            Lane.IN_REVIEW,
+            Lane.APPROVED,
+        }
 
     @abstractmethod
     def allowed_targets(self) -> frozenset[Lane]: ...

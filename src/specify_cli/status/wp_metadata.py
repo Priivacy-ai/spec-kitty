@@ -18,7 +18,7 @@ from typing import Any, ClassVar
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from specify_cli.status.models import Lane
+from specify_cli.status.models import AgentAssignment, Lane
 
 
 class WPMetadata(BaseModel):
@@ -208,6 +208,66 @@ class WPMetadata(BaseModel):
         if self.title is not None:
             return self.title.strip()
         return self.work_package_id
+
+    def resolved_agent(self) -> AgentAssignment:
+        """Resolve agent assignment with legacy coercion and fallback.
+
+        Unifies agent metadata resolution across all legacy formats and fallback fields.
+        Handles string agents, dict agents, None, and falls back to model, agent_profile,
+        and role fields when the primary agent field is incomplete.
+
+        Fallback Order:
+        1. Direct AgentAssignment from agent field (if already an AgentAssignment)
+        2. String agent field → tool=value, model=self.model (fallback to default)
+        3. Dict agent field → tool/model/profile_id/role from dict, fallback to other fields
+        4. None/missing agent → tool=default, model=self.model (fallback to default)
+        5. Fallback to agent_profile field for profile_id
+        6. Fallback to role field for role
+        7. Return sensible defaults for missing values
+
+        Returns:
+            AgentAssignment with all resolved values (no None fields except optional ones)
+        """
+        # Step 1: If already AgentAssignment, return it
+        if isinstance(self.agent, AgentAssignment):
+            return self.agent
+
+        # Step 2-4: Extract from string/dict/None
+        tool: str | None = None
+        model: str | None = None
+        profile_id: str | None = None
+        role_val: str | None = None
+
+        if isinstance(self.agent, str) and self.agent:
+            tool = self.agent
+            model = self.model or "unknown-model"
+        elif isinstance(self.agent, dict):
+            tool = self.agent.get("tool") or None
+            model = self.agent.get("model") or None
+            profile_id = self.agent.get("profile_id") or None
+            role_val = self.agent.get("role") or None
+        else:
+            # None, empty string, or unrecognized type
+            tool = "unknown"
+            model = self.model or "unknown-model"
+
+        # Step 5-7: Fallback and normalize
+        if not profile_id:
+            profile_id = self.agent_profile or None
+        if not role_val:
+            role_val = self.role or None
+
+        if not tool:
+            tool = "unknown"
+        if not model:
+            model = self.model or "unknown-model"
+
+        return AgentAssignment(
+            tool=tool,
+            model=model,
+            profile_id=profile_id,
+            role=role_val,
+        )
 
     # ── Immutable update API ───────────────────────────────────
 
