@@ -124,8 +124,12 @@ class LanesManifest:
         lanes: Ordered list of execution lanes.
         computed_at: ISO 8601 timestamp of computation.
         computed_from: Description of inputs used (e.g. "dependency_graph+ownership").
-        planning_artifact_wps: WP IDs excluded from lane assignment because they
-            are planning artifacts (execution_mode == planning_artifact).
+        planning_artifact_wps: **Derived view** — WP IDs whose ``execution_mode``
+            is ``planning_artifact``.  Populated from the ``lane-planning`` lane's
+            ``wp_ids`` for backward compatibility.  Do NOT use this field as an
+            authoritative source; use ``lane_for_wp()`` instead.  As of 3.1.1
+            planning-artifact WPs are first-class lane-owned entities assigned to
+            the canonical ``"lane-planning"`` lane.
     """
 
     version: int

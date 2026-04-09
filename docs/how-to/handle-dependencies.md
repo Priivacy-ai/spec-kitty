@@ -38,7 +38,7 @@ dependencies: ["WP01", "WP03"]
 When a WP has dependencies, task finalization places it in the correct execution lane:
 
 ```bash
-spec-kitty implement WP02
+spec-kitty agent action implement WP02 --agent <name>
 ```
 
 This resolves the correct lane workspace for WP02 with WP01's changes already present.
@@ -63,7 +63,7 @@ You may need to resolve conflicts during sync. See [Sync Workspaces](sync-worksp
 
 - Influence lane computation during `finalize_tasks`
 - Force dependent work into the same lane or into lanes with explicit ordering
-- Ensure `spec-kitty implement WP##` resolves the correct workspace without manual branch selection
+- Ensure `spec-kitty agent action implement WP## --agent <name>` resolves the correct workspace without manual branch selection
 
 ## Handling Rebase When Parent Changes
 
@@ -107,7 +107,7 @@ WP01 -> WP02 -> WP03 -> WP04
 
 **Error:**
 ```
-WP02 has dependencies. Use: spec-kitty implement WP02
+WP02 has dependencies. Use: spec-kitty agent action implement WP02 --agent <name>
 ```
 
 **Fix:** Re-run task finalization so the dependency graph is reflected in `lanes.json`.

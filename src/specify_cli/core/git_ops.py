@@ -102,7 +102,14 @@ def is_git_repo(path: Path | None = None) -> bool:
 
 
 def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType = None) -> bool:
-    """Initialize a git repository with an initial commit."""
+    """Initialize a git repository with an initial commit.
+
+    NOTE: This function MUST NOT be called from ``init.py``.  As of the
+    post-#555 init-coherence change (FR-001), ``spec-kitty init`` is
+    file-creation-only and never runs git operations.  This function is
+    retained for other callers (e.g. test helpers, one-off utilities) that
+    explicitly need to bootstrap a git repo from Python.
+    """
     resolved_console = _resolve_console(console)
     original_cwd = Path.cwd()
     try:
@@ -112,7 +119,7 @@ def init_git_repo(project_path: Path, quiet: bool = False, console: ConsoleType 
         subprocess.run(["git", "init"], check=True, capture_output=True)
         subprocess.run(["git", "add", "."], check=True, capture_output=True)
         subprocess.run(
-            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Initial commit from Specify template"],
+            ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Initial commit"],
             check=True,
             capture_output=True,
         )

@@ -29,6 +29,7 @@ def _setup_project(
     dependencies: list[str] | None = None,
     owned_files: list[str] | None = None,
     mission_id: str | None = None,
+    lane_id: str = "lane-a",
 ) -> Path:
     """Set up a minimal project structure for resolver tests."""
     # .kittify/config.yaml with project.uuid
@@ -90,7 +91,7 @@ def _setup_project(
             target_branch="main",
             lanes=[
                 ExecutionLane(
-                    lane_id="lane-a",
+                    lane_id=lane_id,
                     wp_ids=(wp_code,),
                     write_scope=("src/**",),
                     predicted_surfaces=("context",),
@@ -150,9 +151,11 @@ class TestResolveContext:
         assert ctx.authoritative_ref == "kitty/mission-057-test-feature-lane-a"
 
     def test_authoritative_ref_none_for_planning_artifact(self, tmp_path: Path) -> None:
-        repo = _setup_project(tmp_path, execution_mode="planning_artifact")
+        # planning_artifact WPs are assigned to lane-planning; lane_branch_name returns
+        # target_branch ("main") for lane-planning (FR-102, FR-103).
+        repo = _setup_project(tmp_path, execution_mode="planning_artifact", lane_id="lane-planning")
         ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        assert ctx.authoritative_ref is None
+        assert ctx.authoritative_ref == "main"
 
     def test_dependency_mode_chained(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, dependencies=["WP00"])

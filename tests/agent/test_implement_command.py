@@ -281,7 +281,7 @@ class TestImplementCommand:
             assert kwargs["wp_id"] == "WP02"
             assert kwargs["declared_deps"] == ["WP01"]
 
-    def test_implement_allows_planning_artifact_without_lane_membership(self, tmp_path: Path) -> None:
+    def test_implement_allows_planning_artifact_in_lane_planning(self, tmp_path: Path) -> None:
         feature_dir = tmp_path / "kitty-specs" / "010-feature"
         create_meta_json(feature_dir)
         wp_file = feature_dir / "tasks" / "WP02-plan.md"
@@ -322,21 +322,22 @@ class TestImplementCommand:
             ) as mock_create_lane_workspace,
         ):
             mock_ensure_vcs.return_value = MagicMock(value="git")
+            from specify_cli.lanes.compute import PLANNING_LANE_ID
             mock_resolve_workspace.return_value = MagicMock(
                 execution_mode="planning_artifact",
                 worktree_path=tmp_path,
-                workspace_name="010-feature-repo-root",
-                branch_name=None,
-                lane_id=None,
-                lane_wp_ids=[],
+                workspace_name=f"010-feature-{PLANNING_LANE_ID}",
+                branch_name="main",
+                lane_id=PLANNING_LANE_ID,
+                lane_wp_ids=["WP02"],
                 resolution_kind="repo_root",
                 exists=True,
             )
             mock_create_lane_workspace.return_value = MagicMock(
                 workspace_path=tmp_path,
                 branch_name=None,
-                workspace_name="010-feature-repo-root",
-                lane_id=None,
+                workspace_name=f"010-feature-{PLANNING_LANE_ID}",
+                lane_id=PLANNING_LANE_ID,
                 mission_branch=None,
                 is_reuse=False,
                 execution_mode="planning_artifact",

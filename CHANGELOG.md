@@ -9,6 +9,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.1] - 2026-04-09
+
+### Added
+
+- **Semantic status-event merge driver** — `kitty-specs/**/status.events.jsonl` now uses a Spec Kitty merge driver that unions append-only event logs by `event_id`, rejects conflicting payloads, and fails closed when merged WPs do not reach `done` in the canonical event log.
+- **Forward-safe mission identity** — newly created missions now mint a ULID `mission_id` at creation time, persist it to `meta.json`, and emit it through mission-created event payloads.
+- **Release hygiene guardrail** — release validation now enforces `pyproject.toml` and `.kittify/metadata.yaml` version sync before a cut can proceed.
+
+### Changed
+
+- **`spec-kitty init` now produces a minimal file scaffold** — init no longer initializes git, creates bootstrap commits, or seeds `.agents/skills/`. The generated next steps now point users at `spec-kitty next` plus `spec-kitty agent action implement/review` as the canonical workflow.
+- **Planning-artifact WPs are first-class lane-owned items** — the canonical planning lane is now `lane-planning`, and it resolves to the main repository checkout instead of an ad hoc special-case path.
+- **Top-level `implement` is de-emphasized** — onboarding and command docs now treat `spec-kitty implement` as internal infrastructure rather than the primary user-facing flow.
+
+### Fixed
+
+- **Merge conflict recovery for `status.events.jsonl`** — append-only status events are no longer silently dropped during merge conflict resolution, and fresh repositories now self-heal the local git merge-driver config when running merge flows. Closes #574.
+- **Planning/query consistency after PR #555** — mixed planning/code review-context resolution no longer crashes when a dependency resolves to the repo-root workspace, and fresh-run query mode now returns `run_id: null` instead of leaking a deleted temporary run id.
+- **Dependency parser trailing-prose bleed** — the final WP section is now bounded at non-WP `##` headings so trailing prose does not get misread as dependency declarations.
+- **Concurrent auth refresh race** — stale 401 responses during token rotation no longer wipe valid shared credentials from active CLI sessions.
+
 ## [3.1.1a3] - 2026-04-07
 
 ### Added

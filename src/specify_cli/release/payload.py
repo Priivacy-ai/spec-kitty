@@ -28,6 +28,8 @@ class ReleasePrepPayload:
         current_version: Version string from ``pyproject.toml``.
         proposed_version: Next version string computed from channel rules.
         changelog_block: Multi-line markdown ready to paste into CHANGELOG.md.
+        proposed_changelog_block: Alias for ``changelog_block``. Included for
+            downstream tooling that looks for this key in JSON output (FR-603).
         mission_slug_list: Slugs of missions included in this release window.
         target_branch: Branch being released into (always ``"main"`` for
             spec-kitty core).
@@ -51,6 +53,7 @@ class ReleasePrepPayload:
     current_version: str
     proposed_version: str
     changelog_block: str
+    proposed_changelog_block: str
     mission_slug_list: list[str]
     target_branch: str
     structured_inputs: dict[str, str]
@@ -117,6 +120,7 @@ def build_release_prep_payload(
         current_version=current_version,
         proposed_version=proposed_version,
         changelog_block=changelog_block,
+        proposed_changelog_block=changelog_block,  # FR-603: alias for downstream tooling
         mission_slug_list=mission_slug_list,
         target_branch="main",
         structured_inputs=structured_inputs,

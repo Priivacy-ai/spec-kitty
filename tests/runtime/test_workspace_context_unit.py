@@ -333,7 +333,7 @@ class TestContextIndexAndResolution:
         assert resolved.resolution_kind == "repo_root"
         assert resolved.worktree_path == kittify_project
         assert resolved.branch_name is None
-        assert resolved.lane_id is None
+        assert resolved.lane_id == "lane-planning"
         assert resolved.lane_wp_ids == []
 
     def test_resolve_workspace_for_wp_is_deterministic_across_working_directories(self, kittify_project: Path, monkeypatch: pytest.MonkeyPatch) -> None:

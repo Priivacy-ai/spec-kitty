@@ -13,7 +13,7 @@ guardrails for bulk operations.
 ## Working Directory
 
 **IMPORTANT**: This step works inside the execution workspace (worktree)
-allocated by `spec-kitty implement WPxx`. Do NOT modify files outside
+allocated by `spec-kitty agent action implement WPxx --agent <name>`. Do NOT modify files outside
 your `owned_files` boundaries.
 
 **In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**

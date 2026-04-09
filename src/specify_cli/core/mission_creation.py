@@ -16,6 +16,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from ulid import ULID
+
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
 from specify_cli.core.worktree import get_next_feature_number
@@ -293,6 +295,9 @@ def create_mission_core(
         with contextlib.suppress(json.JSONDecodeError, OSError):
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
+    # Mint canonical machine-facing identity. The ULID is immutable after creation.
+    # mission_number (the numeric prefix) is display-only; see ADR b85116ed.
+    meta.setdefault("mission_id", str(ULID()))
     meta.setdefault("mission_number", f"{feature_number:03d}")
     meta.setdefault("slug", mission_slug_formatted)
     meta.setdefault("mission_slug", mission_slug_formatted)
@@ -334,6 +339,7 @@ def create_mission_core(
             mission_number=f"{feature_number:03d}",
             target_branch=planning_branch,
             wp_count=0,
+            mission_id=meta.get("mission_id"),
         )
 
     # Dossier sync (fire-and-forget)

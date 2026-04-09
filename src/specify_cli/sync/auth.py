@@ -30,14 +30,25 @@ class CredentialStore:
     def __init__(self):
         self.credentials_path = CREDENTIALS_PATH
         self.lock_path = LOCK_PATH
+        # Cached FileLock instance — reusing the same object is required for reentrancy.
+        # filelock.FileLock is reentrant per-thread only when the SAME object is reused.
+        # Creating a new FileLock object for the same path does NOT exhibit reentrancy.
+        self._file_lock: FileLock | None = None
 
     def _ensure_directory(self):
         """Create ~/.spec-kitty/ directory if it doesn't exist."""
         SPEC_KITTY_DIR.mkdir(mode=0o700, exist_ok=True)
 
     def _acquire_lock(self) -> FileLock:
-        """Create a file lock with a timeout."""
-        return FileLock(self.lock_path, timeout=10)
+        """Return the shared FileLock instance (timeout=10s).
+
+        Reuses the same FileLock object so that reentrant acquisition by the
+        same thread (e.g., inside refresh_tokens()) is a no-op rather than a
+        deadlock. See FR-401.
+        """
+        if self._file_lock is None:
+            self._file_lock = FileLock(self.lock_path, timeout=10)
+        return self._file_lock
 
     def load(self) -> dict | None:
         """Load credentials from TOML file. Returns None if not exists or invalid."""
@@ -334,62 +345,86 @@ class AuthClient:
         """
         self._require_saas_sync("token refresh")
 
-        refresh_token = self.credential_store.get_refresh_token()
-        if not refresh_token:
-            raise AuthenticationError("No valid refresh token. Please log in again.")
+        # T020: Acquire the lock for the FULL transaction (read → network → persist).
+        # Inner load()/save()/clear() calls reacquire the same lock as no-ops
+        # (filelock.FileLock is reentrant per thread). See FR-401.
+        with self.credential_store._acquire_lock():
+            # Inner get_refresh_token() calls load() which reacquires the lock as a no-op.
+            refresh_token = self.credential_store.get_refresh_token()
+            if not refresh_token:
+                raise AuthenticationError("No valid refresh token. Please log in again.")
 
-        client = self._get_http_client()
-        url = f"{self.server_url}/api/v1/token/refresh/"
+            # Capture the refresh token at transaction entry for stale-401 detection (T021).
+            entry_refresh_token = refresh_token
 
-        try:
-            response = client.post(url, json={"refresh": refresh_token})
-        except httpx.RequestError as exc:
-            raise AuthenticationError(f"Cannot reach server: {exc}") from exc
+            client = self._get_http_client()
+            url = f"{self.server_url}/api/v1/token/refresh/"
 
-        if response.status_code == 401:
-            self.clear_credentials()
-            raise AuthenticationError("Session expired. Please log in again.")
-        if response.status_code != 200:
-            raise AuthenticationError(f"Server error: {response.status_code}")
+            try:
+                # T022: HTTP timeout (8s) must be < FileLock timeout (10s) to prevent
+                # deadlock if the server hangs. See FR-401.
+                # INVARIANT: HTTP timeout (8s) < FileLock timeout (10s) — prevents deadlock
+                response = client.post(url, json={"refresh": refresh_token}, timeout=8.0)
+            except httpx.RequestError as exc:
+                raise AuthenticationError(f"Cannot reach server: {exc}") from exc
 
-        try:
-            data = response.json()
-        except ValueError as exc:
-            raise AuthenticationError("Invalid server response") from exc
+            if response.status_code == 401:
+                # T021: Re-read credentials under the same lock (reacquires as no-op).
+                # If the refresh token on disk has changed since we entered this transaction,
+                # another process already rotated the token successfully — our 401 is stale.
+                # Exit cleanly without clearing. See FR-402.
+                current_creds = self.credential_store.load()
+                if current_creds is not None and current_creds["tokens"].get("refresh") != entry_refresh_token:
+                    # Stale 401: another process rotated the token — we can exit safely.
+                    return True  # Caller should retry get_access_token() to use the new token.
 
-        try:
-            new_access_token = data["access"]
-            new_refresh_token = data["refresh"]
-        except KeyError as exc:
-            raise AuthenticationError("Invalid server response") from exc
+                # Real 401: the token on disk matches what we started with → server rejected it.
+                # Clear credentials under the same lock. See FR-403.
+                self.credential_store.clear()  # reacquires lock as no-op
+                raise AuthenticationError("Session expired. Please log in again.")
 
-        username = self.credential_store.get_username() or "unknown"
-        server_url = self.credential_store.get_server_url() or self.server_url
-        server_url = self._validate_server_url(server_url)
-        # Preserve existing team_slug or use server-provided value if available
-        team_slug = data.get("team_slug") or self.credential_store.get_team_slug()
+            if response.status_code != 200:
+                raise AuthenticationError(f"Server error: {response.status_code}")
 
-        # Use server-provided expiry if available, else use defaults
-        access_lifetime = self._coerce_lifetime(
-            data.get("access_lifetime") or data.get("expires_in"),
-            default=900,  # 15 min
-        )
-        refresh_lifetime = self._coerce_lifetime(
-            data.get("refresh_lifetime") or data.get("refresh_expires_in"),
-            default=604800,  # 7 days
-        )
-        access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
-        refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
+            try:
+                data = response.json()
+            except ValueError as exc:
+                raise AuthenticationError("Invalid server response") from exc
 
-        self.credential_store.save(
-            access_token=new_access_token,
-            refresh_token=new_refresh_token,
-            access_expires_at=access_expires_at,
-            refresh_expires_at=refresh_expires_at,
-            username=username,
-            server_url=server_url,
-            team_slug=team_slug,
-        )
+            try:
+                new_access_token = data["access"]
+                new_refresh_token = data["refresh"]
+            except KeyError as exc:
+                raise AuthenticationError("Invalid server response") from exc
+
+            username = self.credential_store.get_username() or "unknown"
+            server_url = self.credential_store.get_server_url() or self.server_url
+            server_url = self._validate_server_url(server_url)
+            # Preserve existing team_slug or use server-provided value if available
+            team_slug = data.get("team_slug") or self.credential_store.get_team_slug()
+
+            # Use server-provided expiry if available, else use defaults
+            access_lifetime = self._coerce_lifetime(
+                data.get("access_lifetime") or data.get("expires_in"),
+                default=900,  # 15 min
+            )
+            refresh_lifetime = self._coerce_lifetime(
+                data.get("refresh_lifetime") or data.get("refresh_expires_in"),
+                default=604800,  # 7 days
+            )
+            access_expires_at = datetime.now(UTC) + timedelta(seconds=access_lifetime)
+            refresh_expires_at = datetime.now(UTC) + timedelta(seconds=refresh_lifetime)
+
+            # Inner save() reacquires the lock as a no-op (reentrancy).
+            self.credential_store.save(
+                access_token=new_access_token,
+                refresh_token=new_refresh_token,
+                access_expires_at=access_expires_at,
+                refresh_expires_at=refresh_expires_at,
+                username=username,
+                server_url=server_url,
+                team_slug=team_slug,
+            )
 
         return True
 

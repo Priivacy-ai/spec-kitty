@@ -46,6 +46,7 @@ Skills should teach agents to load doctrine **iteratively**:
 | `spec-kitty-mission-system` | Mission types, step contracts, procedures, action indices, template resolution |
 | `ad-hoc-profile-load` | Load an agent profile on demand for interactive sessions outside the mission loop |
 | `spec-kitty-runtime-review` | Review workflow surface: claim, review, approve/reject |
+| `spec-kitty-mission-review` | Post-merge mission review: FR trace, drift analysis, risk/security audit, final verdict |
 | `spec-kitty-implement-review` | Implement-review orchestration loop across WPs |
 | `spec-kitty-setup-doctor` | Installation diagnostics and repair |
 | `spec-kitty-git-workflow` | Git operations, worktree lifecycle, safe-commit pattern |

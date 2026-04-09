@@ -19,11 +19,7 @@ from ruamel.yaml import YAML
 from specify_cli.cli import StepTracker, multi_select_with_arrows
 from specify_cli.core import (
     AI_CHOICES,
-    check_tool,
-    init_git_repo,
-    is_git_repo,
 )
-from specify_cli.core.git_ops import exclude_from_git_index
 from specify_cli.core.vcs import (
     is_git_available,
     VCSBackend,
@@ -55,6 +51,7 @@ _ensure_executable_scripts: Callable[[Path, StepTracker | None], None] | None = 
 # =============================================================================
 
 _logger = logging.getLogger(__name__)
+_EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-kitty-event-log"
 
 
 def _has_global_runtime() -> bool:
@@ -90,6 +87,20 @@ def _prepare_project_minimal(project_path: Path) -> None:
     kittify.mkdir(parents=True, exist_ok=True)
     (kittify / "memory").mkdir(exist_ok=True)
     _logger.debug("Minimal project skeleton created at %s", kittify)
+
+
+def _ensure_event_log_merge_attributes(project_path: Path) -> bool:
+    """Ensure new projects track status event logs with the semantic merge driver."""
+    attributes_path = project_path / ".gitattributes"
+    lines: list[str] = []
+    if attributes_path.exists():
+        lines = attributes_path.read_text(encoding="utf-8").splitlines()
+        if _EVENT_LOG_GITATTRIBUTES_ENTRY in lines:
+            return False
+
+    lines.append(_EVENT_LOG_GITATTRIBUTES_ENTRY)
+    attributes_path.write_text("\n".join(lines).rstrip() + "\n", encoding="utf-8")
+    return True
 
 
 def _get_package_templates_root() -> Path | None:
@@ -264,7 +275,6 @@ def init(  # noqa: C901
         help="Name for your new project directory (omit to initialize current directory)",
     ),
     ai_assistant: str | None = typer.Option(None, "--ai", help="Comma-separated AI assistants (claude,codex,gemini,...)", rich_help_panel="Selection"),
-    no_git: bool = typer.Option(False, "--no-git", help="Skip git repository initialization"),
     non_interactive: bool = typer.Option(False, "--non-interactive", "--yes", help="Run without interactive prompts (suitable for CI/CD)"),
 ) -> None:
     """Initialize a new Spec Kitty project."""
@@ -306,6 +316,21 @@ def init(  # noqa: C901
             _console.print(error_panel)
             raise typer.Exit(1)
 
+    # T004 — Idempotency check: exit 0 cleanly if already initialized.
+    # This prevents silent re-init and makes CI-driven init safe to re-run.
+    _config_yaml = project_path / ".kittify" / "config.yaml"
+    if _config_yaml.exists():
+        _console.print(
+            Panel(
+                "[yellow]Already initialized.[/yellow]\n"
+                "Run [cyan]spec-kitty upgrade[/cyan] to migrate to the latest version.",
+                title="[yellow]Already Initialized[/yellow]",
+                border_style="yellow",
+                padding=(1, 2),
+            )
+        )
+        raise typer.Exit(0)
+
     current_dir = Path.cwd()
 
     setup_lines = [
@@ -320,14 +345,6 @@ def init(  # noqa: C901
         setup_lines.append(f"{'Target Path':<15} [dim]{project_path}[/dim]")
 
     _console.print(Panel("\n".join(setup_lines), border_style="cyan", padding=(1, 2)))
-
-    # Check git only if we might need it (not --no-git)
-    # Only set to True if the user wants it and the tool is available
-    should_init_git = False
-    if not no_git:
-        should_init_git = check_tool("git", "https://git-scm.com/downloads")
-        if not should_init_git:
-            _console.print("[yellow]Git not found - will skip repository initialization[/yellow]")
 
     # Detect VCS (git only, jj support removed)
     selected_vcs: VCSBackend | None = None
@@ -410,7 +427,6 @@ def init(  # noqa: C901
         tracker.add(f"{agent_key}-skills", f"{label}: install skill pack")
     for key, label in [
         ("chmod", "Ensure scripts executable"),
-        ("git", "Initialize git repository"),
         ("final", "Finalize"),
     ]:
         tracker.add(key, label)
@@ -512,27 +528,39 @@ def init(  # noqa: C901
                     tracker.start(f"{agent_key}-cleanup")
                     tracker.complete(f"{agent_key}-cleanup", "done")
 
-                # Install skill pack for this agent (non-fatal)
+                # Install skill pack for this agent (non-fatal).
+                # T002: Only NATIVE-class agents install into per-agent directories
+                # (e.g. .claude/skills/, .qwen/skills/).  SHARED-class agents
+                # previously installed into .agents/skills/ — that shared root is
+                # intentionally NOT seeded during init (FR-003).
                 tracker.start(f"{agent_key}-skills")
                 try:
-                    if skill_registry_per_agent is None:
-                        if template_mode == "local" and local_repo is not None:
-                            skill_registry_per_agent = SkillRegistry.from_local_repo(local_repo)
-                        else:
-                            skill_registry_per_agent = SkillRegistry.from_package()
-                    agent_skills = skill_registry_per_agent.discover_skills()
-                    if agent_skills:
-                        entries = install_skills_for_agent(
-                            project_path,
-                            agent_key,
-                            agent_skills,
-                            shared_root_installed=shared_root_installed,
-                        )
-                        for entry in entries:
-                            skill_manifest.add_entry(entry)
-                        tracker.complete(f"{agent_key}-skills", f"{len(agent_skills)} skills installed")
+                    from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_SHARED, SKILL_CLASS_WRAPPER
+
+                    agent_skill_class = (AGENT_SKILL_CONFIG.get(agent_key) or {}).get("class", "")
+                    if agent_skill_class in (SKILL_CLASS_SHARED, SKILL_CLASS_WRAPPER):
+                        # SHARED installs to .agents/skills/ — skip to avoid creating that dir.
+                        # WRAPPER agents have no installable root.
+                        tracker.complete(f"{agent_key}-skills", "skipped (global runtime)")
                     else:
-                        tracker.complete(f"{agent_key}-skills", "no skills found")
+                        if skill_registry_per_agent is None:
+                            if template_mode == "local" and local_repo is not None:
+                                skill_registry_per_agent = SkillRegistry.from_local_repo(local_repo)
+                            else:
+                                skill_registry_per_agent = SkillRegistry.from_package()
+                        agent_skills = skill_registry_per_agent.discover_skills()
+                        if agent_skills:
+                            entries = install_skills_for_agent(
+                                project_path,
+                                agent_key,
+                                agent_skills,
+                                shared_root_installed=shared_root_installed,
+                            )
+                            for entry in entries:
+                                skill_manifest.add_entry(entry)
+                            tracker.complete(f"{agent_key}-skills", f"{len(agent_skills)} skills installed")
+                        else:
+                            tracker.complete(f"{agent_key}-skills", "no skills found")
                 except Exception as exc:
                     tracker.error(f"{agent_key}-skills", str(exc))
                     _logger.warning("Skill installation failed for %s: %s", agent_key, exc)
@@ -545,25 +573,9 @@ def init(  # noqa: C901
             # Ensure scripts are executable (POSIX)
             _ensure_executable_scripts(project_path, tracker)
 
-            # Git step
-            if not no_git:
-                tracker.start("git")
-                if is_git_repo(project_path):
-                    tracker.complete("git", "existing repo detected")
-                elif should_init_git:
-                    if init_git_repo(project_path, quiet=True):
-                        tracker.complete("git", "initialized")
-                    else:
-                        tracker.error("git", "init failed")
-                        raise RuntimeError("Git repository initialization failed")
-                else:
-                    tracker.skip("git", "git not available")
-            else:
-                tracker.skip("git", "--no-git flag")
-
-            # Exclude .worktrees/ from git index (defensive protection)
-            if not no_git and is_git_repo(project_path):
-                exclude_from_git_index(project_path, [".worktrees/"])
+            # T001: No git initialization. init is file-creation-only.
+            # Git management is the user's responsibility. Running init inside
+            # an existing repo leaves the repo untouched.
 
             tracker.complete("final", "project ready")
         except typer.Exit:
@@ -635,19 +647,28 @@ def init(  # noqa: C901
     )
     step_num += 1
 
-    steps_lines.append(f"{step_num}. Start using slash commands with your AI agent (in workflow order):")
+    steps_lines.append(f"{step_num}. Build your specification with slash commands (in workflow order):")
     step_num += 1
 
     steps_lines.append("   - [cyan]/spec-kitty.dashboard[/] - Open the real-time kanban dashboard")
-    steps_lines.append("   - [cyan]/spec-kitty.charter[/] - Establish project principles")
-    steps_lines.append("   - [cyan]/spec-kitty.specify[/] - Create baseline specification")
-    steps_lines.append("   - [cyan]/spec-kitty.plan[/] - Create implementation plan")
-    steps_lines.append("   - [cyan]/spec-kitty.research[/] - Run mission-specific Phase 0 research scaffolding")
-    steps_lines.append("   - [cyan]/spec-kitty.tasks[/] - Generate tasks and kanban-ready prompt files")
-    steps_lines.append("   - [cyan]/spec-kitty.implement[/] - Execute implementation from /tasks/doing/")
-    steps_lines.append("   - [cyan]/spec-kitty.review[/] - Review prompts and move them to /tasks/done/")
-    steps_lines.append("   - [cyan]/spec-kitty.accept[/] - Run acceptance checks and verify mission complete")
-    steps_lines.append("   - [cyan]/spec-kitty.merge[/] - Merge mission into target branch and cleanup worktree")
+    steps_lines.append("   - [cyan]/spec-kitty.charter[/]   - Establish project principles")
+    steps_lines.append("   - [cyan]/spec-kitty.specify[/]   - Create baseline specification")
+    steps_lines.append("   - [cyan]/spec-kitty.plan[/]      - Create implementation plan")
+    steps_lines.append("   - [cyan]/spec-kitty.research[/]  - Run mission-specific Phase 0 research scaffolding")
+    steps_lines.append("   - [cyan]/spec-kitty.tasks[/]     - Generate work packages")
+    steps_lines.append("   - [cyan]/spec-kitty.review[/]    - Review prompts and move them to /tasks/done/")
+    steps_lines.append("   - [cyan]/spec-kitty.accept[/]    - Run acceptance checks and verify mission complete")
+    steps_lines.append("   - [cyan]/spec-kitty.merge[/]     - Merge mission into target branch and cleanup worktree")
+    step_num += 1
+
+    # T003: Canonical post-#555 agent loop path
+    steps_lines.append(f"{step_num}. Run your agent loop (canonical workflow):")
+    steps_lines.append("   [dim]Enter the mission loop:[/dim]")
+    steps_lines.append("     [cyan]spec-kitty next --agent <agent> --mission <slug>[/cyan]")
+    steps_lines.append("")
+    steps_lines.append("   [dim]Your agent will call per-WP actions:[/dim]")
+    steps_lines.append("     [cyan]spec-kitty agent action implement <WP> --agent <name>[/cyan]  [dim](implement a work package)[/dim]")  # noqa: E501
+    steps_lines.append("     [cyan]spec-kitty agent action review    <WP> --agent <name>[/cyan]  [dim](review a work package)[/dim]")  # noqa: E501
 
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
     _console.print()
@@ -656,7 +677,7 @@ def init(  # noqa: C901
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
         "",
-        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/], before [cyan]/spec-kitty.implement[/])",  # noqa: E501
+        "○ [cyan]/spec-kitty.analyze[/] [bright_black](optional)[/bright_black] - Cross-artifact consistency & alignment report (after [cyan]/spec-kitty.tasks[/])",  # noqa: E501
         "○ [cyan]/spec-kitty.checklist[/] [bright_black](optional)[/bright_black] - Generate quality checklists to validate requirements completeness, clarity, and consistency (after [cyan]/spec-kitty.plan[/])",  # noqa: E501
     ]
     enhancements_panel = Panel("\n".join(enhancement_lines), title="Enhancement Commands", border_style="cyan", padding=(1, 2))
@@ -684,6 +705,9 @@ def init(  # noqa: C901
     # Show errors if any
     for error in result.errors:
         _console.print(f"[red]❌ {error}[/red]")
+
+    if _ensure_event_log_merge_attributes(project_path):
+        _console.print("[dim]Updated .gitattributes to semantically merge status.events.jsonl[/dim]")
 
     # Copy AGENTS.md from template source (not user project)
     # In global runtime mode, AGENTS.md resolves from ~/.kittify/ so skip copying.

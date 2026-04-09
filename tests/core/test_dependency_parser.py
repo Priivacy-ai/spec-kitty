@@ -222,3 +222,79 @@ class TestSectionHeaderVariants:
         content = "### WP01\n\nNo deps.\n\n### WP02\n\nDepends on WP01.\n"
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == ["WP01"]
+
+
+# ---------------------------------------------------------------------------
+# FR-304 regression: trailing ## sections must not bleed into final WP
+# ---------------------------------------------------------------------------
+
+
+class TestTrailingProseDoesNotBleedIntoFinalWP:
+    def test_trailing_non_wp_heading_stops_final_wp_section(self) -> None:
+        """FR-304: trailing ## heading does not bleed into final WP's deps."""
+        content = (
+            "## Plan\n\n"
+            "Some intro.\n\n"
+            "## WP01\n\n"
+            "**Dependencies**: WP00\n\n"
+            "Body of WP01.\n\n"
+            "## WP02\n\n"
+            "**Dependencies**: []\n\n"
+            "Body of WP02.\n\n"
+            "## Notes\n\n"
+            "This component depends on WP01 being signed off. Depends on WP01.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result.get("WP01", []) == ["WP00"]
+        # WP02 must NOT have WP01 from the ## Notes section
+        assert result.get("WP02", []) == []
+        assert "WP01" not in result.get("WP02", [])
+
+    def test_trailing_appendix_heading_stops_final_wp_section(self) -> None:
+        """FR-304 variant: ## Appendix at end must not bleed into final WP."""
+        content = (
+            "## WP01\n\n"
+            "Body of WP01.\n\n"
+            "## Appendix\n\n"
+            "This appendix depends on WP01 for context. Depends on WP01.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result.get("WP01", []) == []
+
+    def test_subheadings_inside_wp_section_preserved(self) -> None:
+        """FR-301 edge case: ### headings inside a WP section are NOT a stop boundary."""
+        content = (
+            "## WP01\n\n"
+            "### Implementation notes\n\n"
+            "Some notes.\n\n"
+            "Depends on WP02\n\n"
+            "## WP02\n\n"
+            "Body.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        # ### sub-heading inside WP01 must not stop the section early
+        assert "WP02" in result.get("WP01", [])
+
+    def test_dependencies_h2_inside_final_wp_not_a_stop_boundary(self) -> None:
+        """## Dependencies heading inside final WP is Pattern 3, not a stop boundary."""
+        content = (
+            "## WP01\n\n"
+            "Some body.\n\n"
+            "## Dependencies\n"
+            "- WP00\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        # ## Dependencies is a valid dep header; WP00 should be parsed
+        assert result.get("WP01", []) == ["WP00"]
+
+    def test_explicit_empty_dependencies_not_overwritten(self) -> None:
+        """FR-302/FR-303: WP with no dependency text in section yields empty list."""
+        content = (
+            "## WP01\n\n"
+            "This WP has no dependency declarations.\n\n"
+            "## Notes\n\n"
+            "This section depends on WP01 being done. Depends on WP01.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        # The parser found nothing in WP01's bounded section — result is []
+        assert result.get("WP01", []) == []

@@ -70,9 +70,10 @@ This becomes critical in parallel development where multiple AI agents implement
 │                (in separate worktrees)                          │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  spec-kitty implement WP01   →   Agent A implements WP01        │
-│  spec-kitty implement WP02   →   Agent B implements WP02        │
-│  spec-kitty implement WP03   →   Agent C implements WP03        │
+│  spec-kitty next --agent <agent> --mission <slug>               │
+│    → Agent A: spec-kitty agent action implement WP01 --agent A  │
+│    → Agent B: spec-kitty agent action implement WP02 --agent B  │
+│    → Agent C: spec-kitty agent action implement WP03 --agent C  │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
                               ↓

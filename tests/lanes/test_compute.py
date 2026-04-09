@@ -196,9 +196,10 @@ class TestSurfaceGrouping:
 # ---------------------------------------------------------------------------
 
 
-class TestPlanningArtifactExclusion:
-    def test_planning_artifacts_excluded(self):
-        """Planning artifact WPs are not assigned to any lane."""
+class TestPlanningArtifactLane:
+    def test_planning_artifacts_get_lane_planning(self):
+        """Planning-artifact WPs are assigned to the canonical lane-planning lane."""
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -206,22 +207,42 @@ class TestPlanningArtifactExclusion:
             "WP03": _manifest(["src/merge/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        # WP02 excluded, WP01 and WP03 are independent → two lanes
-        assert len(result.lanes) == 2
-        all_wp_ids = set()
+        # WP02 → lane-planning, WP01 and WP03 each → independent code lanes
+        assert len(result.lanes) == 3
+        lane_ids = {lane.lane_id for lane in result.lanes}
+        assert PLANNING_LANE_ID in lane_ids
+        planning_lane = next(l for l in result.lanes if l.lane_id == PLANNING_LANE_ID)
+        assert "WP02" in planning_lane.wp_ids
+        # Code WPs are NOT in lane-planning
+        code_wp_ids: set[str] = set()
         for lane in result.lanes:
-            all_wp_ids.update(lane.wp_ids)
-        assert "WP02" not in all_wp_ids
+            if lane.lane_id != PLANNING_LANE_ID:
+                code_wp_ids.update(lane.wp_ids)
+        assert "WP01" in code_wp_ids
+        assert "WP03" in code_wp_ids
 
-    def test_all_planning_artifacts_empty_manifest(self):
-        """All WPs are planning artifacts → empty manifest."""
+    def test_planning_artifact_wps_is_derived_view(self):
+        """LanesManifest.planning_artifact_wps is a derived view from lane-planning."""
+        graph = {"WP01": [], "WP02": []}
+        manifests = {
+            "WP01": _manifest(["src/core/**"]),
+            "WP02": _manifest(["kitty-specs/docs/**"], mode="planning_artifact"),
+        }
+        result = compute_lanes(graph, manifests, "test-feat")
+        assert result.planning_artifact_wps == ["WP02"]
+
+    def test_all_planning_artifacts_single_planning_lane(self):
+        """All WPs are planning artifacts → only lane-planning lane exists."""
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
             "WP02": _manifest(["docs/**"], mode="planning_artifact"),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 0
+        assert len(result.lanes) == 1
+        assert result.lanes[0].lane_id == PLANNING_LANE_ID
+        assert set(result.lanes[0].wp_ids) == {"WP01", "WP02"}
 
 
 # ---------------------------------------------------------------------------
@@ -446,8 +467,9 @@ class TestMissingManifestError:
 
 
 class TestPlanningArtifactDiagnostic:
-    def test_planning_artifact_excluded_with_diagnostic(self):
-        """Planning WPs are excluded from lanes and listed in planning_artifact_wps."""
+    def test_planning_artifact_in_lane_planning_and_diagnostic(self):
+        """Planning WPs are in lane-planning lane and listed in planning_artifact_wps."""
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
         graph = {"WP01": [], "WP02": [], "WP03": []}
         manifests = {
             "WP01": _manifest(["src/core/**"]),
@@ -455,12 +477,17 @@ class TestPlanningArtifactDiagnostic:
             "WP03": _manifest(["src/merge/**"]),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        # WP02 excluded from lanes
-        all_wp_ids: set[str] = set()
+        # WP02 in lane-planning, not in code lanes
+        code_wp_ids: set[str] = set()
+        planning_wp_ids: set[str] = set()
         for lane in result.lanes:
-            all_wp_ids.update(lane.wp_ids)
-        assert "WP02" not in all_wp_ids
-        # WP02 listed in diagnostic
+            if lane.lane_id == PLANNING_LANE_ID:
+                planning_wp_ids.update(lane.wp_ids)
+            else:
+                code_wp_ids.update(lane.wp_ids)
+        assert "WP02" not in code_wp_ids
+        assert "WP02" in planning_wp_ids
+        # WP02 listed in diagnostic derived view
         assert "WP02" in result.planning_artifact_wps
 
     def test_planning_artifact_wps_empty_when_none(self):
@@ -473,15 +500,17 @@ class TestPlanningArtifactDiagnostic:
         result = compute_lanes(graph, manifests, "test-feat")
         assert result.planning_artifact_wps == []
 
-    def test_all_planning_artifacts_empty_manifest_with_diagnostic(self):
-        """When all WPs are planning artifacts, planning_artifact_wps contains them all."""
+    def test_all_planning_artifacts_planning_lane_only(self):
+        """When all WPs are planning artifacts, only lane-planning lane exists."""
+        from specify_cli.lanes.compute import PLANNING_LANE_ID
         graph = {"WP01": [], "WP02": []}
         manifests = {
             "WP01": _manifest(["kitty-specs/**"], mode="planning_artifact"),
             "WP02": _manifest(["docs/**"], mode="planning_artifact"),
         }
         result = compute_lanes(graph, manifests, "test-feat")
-        assert len(result.lanes) == 0
+        assert len(result.lanes) == 1
+        assert result.lanes[0].lane_id == PLANNING_LANE_ID
         assert set(result.planning_artifact_wps) == {"WP01", "WP02"}
 
     def test_planning_artifact_wps_in_serialized_dict(self):

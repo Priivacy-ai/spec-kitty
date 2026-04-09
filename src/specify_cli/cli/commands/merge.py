@@ -131,7 +131,7 @@ def _mark_wp_merged_done(
             console.print(f"[yellow]Warning:[/yellow] {wp_id} has no recorded approval metadata; skipping automatic move to done after merge.")
             return
 
-    if lane == "for_review":
+    if lane in {"planned", "claimed", "in_progress", "for_review"} and evidence is not None:
         # Dedup guard for the intermediate approved transition
         if _has_transition_to(feature_dir, wp_id, "approved"):
             logger.debug("Dedup: %s already has 'approved' transition, skipping emit", wp_id)
@@ -171,6 +171,40 @@ def _mark_wp_merged_done(
         )
     except TransitionError as exc:
         console.print(f"[yellow]Warning:[/yellow] Failed to mark {wp_id} done after merge: {exc}")
+
+
+def _assert_merged_wps_reached_done(
+    repo_root: Path,
+    mission_slug: str,
+    wp_ids: list[str],
+) -> None:
+    """Fail the merge if merged WPs did not reach ``done`` in the event log."""
+    from specify_cli.status.lane_reader import get_wp_lane
+    from specify_cli.status.store import StoreError
+    from specify_cli.status.transitions import resolve_lane_alias
+
+    feature_dir = repo_root / "kitty-specs" / mission_slug
+
+    try:
+        incomplete: list[str] = []
+        for wp_id in wp_ids:
+            lane = resolve_lane_alias(get_wp_lane(feature_dir, wp_id))
+            if lane != "done":
+                incomplete.append(f"{wp_id}={lane}")
+    except StoreError as exc:
+        console.print(
+            "[red]Error:[/red] Post-merge status validation failed: "
+            f"could not read {feature_dir / 'status.events.jsonl'} ({exc})"
+        )
+        raise typer.Exit(1) from exc
+
+    if incomplete:
+        console.print(
+            "[red]Error:[/red] Post-merge status validation failed: "
+            "merged WPs did not reach done in the canonical event log."
+        )
+        console.print(f"  Offending WPs: {', '.join(incomplete)}")
+        raise typer.Exit(1)
 
 
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
@@ -305,6 +339,7 @@ def _run_lane_based_merge(
             Lane→mission step always uses merge commits regardless of this value.
     """
     from specify_cli.lanes.branch_naming import lane_branch_name
+    from specify_cli.lanes.compute import PLANNING_LANE_ID
     from specify_cli.lanes.merge import merge_lane_to_mission, merge_mission_to_target
     from specify_cli.policy.config import load_policy_config
     from specify_cli.policy.merge_gates import evaluate_merge_gates
@@ -413,6 +448,8 @@ def _run_lane_based_merge(
             save_state(state, main_repo)
             completed_set.add(wp_id)
 
+    _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
+
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
     safe_commit(
         repo_path=main_repo,
@@ -472,6 +509,13 @@ def _run_lane_based_merge(
     # -- T005: Branch deletion with retry tolerance --
     if delete_branch:
         for lane in lanes_manifest.lanes:
+            # Skip the planning lane: lane_branch_name() defaults it to the target
+            # branch (e.g. "main") when no planning_base_branch is supplied, so
+            # deleting it would attempt `git branch -D main` — destroying the
+            # persistent target branch.  Planning lanes never have a dedicated
+            # lane branch to clean up.
+            if lane.lane_id == PLANNING_LANE_ID:
+                continue
             branch_name = lane_branch_name(mission_slug, lane.lane_id)
             # T005: check if branch exists before attempting deletion
             ret, _, _ = run_command(
@@ -676,9 +720,13 @@ def merge(
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
 
+    # -- Post-merge: Suggest mission review --
+    console.print("\n[cyan]Next:[/cyan] Run [bold]/spec-kitty-mission-review[/bold] to audit the merged mission for spec→code fidelity, drift, risks, and security.")
+
 
 __all__ = [
     "_has_transition_to",
+    "_assert_merged_wps_reached_done",
     "_mark_wp_merged_done",
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
