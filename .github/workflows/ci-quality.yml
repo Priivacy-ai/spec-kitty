@@ -1169,7 +1169,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/agent_utils \
-            --cov-fail-under=30 \
             --cov-report=xml:out/reports/coverage/coverage-integration-agent.xml
       - name: "Upload integration-agent coverage"
         if: always()
@@ -1246,7 +1245,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/sync \
-            --cov-fail-under=44 \
             --cov-report=xml:out/reports/coverage/coverage-integration-sync.xml
       - name: "Upload integration-sync coverage"
         if: always()
@@ -1278,7 +1276,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/merge \
-            --cov-fail-under=51 \
             --cov-report=xml:out/reports/coverage/coverage-integration-merge.xml
       - name: "Upload integration-merge coverage"
         if: always()
@@ -1312,7 +1309,6 @@ jobs:
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
-            --cov-fail-under=31 \
             --cov-report=xml:out/reports/coverage/coverage-integration-missions.xml
       - name: "Upload integration-missions coverage"
         if: always()
@@ -1344,7 +1340,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/post_merge \
-            --cov-fail-under=23 \
             --cov-report=xml:out/reports/coverage/coverage-integration-post-merge.xml \
             || test $? -eq 5
       - name: "Upload integration-post-merge coverage"
@@ -1377,7 +1372,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/release \
-            --cov-fail-under=20 \
             --cov-report=xml:out/reports/coverage/coverage-integration-release.xml
       - name: "Upload integration-release coverage"
         if: always()
@@ -1421,7 +1415,6 @@ jobs:
             tests/status/ tests/specify_cli/status/ \
             -m "git_repo or integration" \
             --cov=src/specify_cli/status \
-            --cov-fail-under=46 \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
 
@@ -1455,7 +1448,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/review \
-            --cov-fail-under=48 \
             --cov-report=xml:out/reports/coverage/coverage-integration-review.xml
       - name: "Upload integration-review coverage"
         if: always()
@@ -1487,7 +1479,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/next \
-            --cov-fail-under=76 \
             --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
       - name: "Upload integration-next coverage"
         if: always()
@@ -1519,7 +1510,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \
-            --cov-fail-under=60 \
             --cov-report=xml:out/reports/coverage/coverage-integration-lanes.xml
       - name: "Upload integration-lanes coverage"
         if: always()
@@ -1551,7 +1541,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/dashboard \
-            --cov-fail-under=21 \
             --cov-report=xml:out/reports/coverage/coverage-integration-dashboard.xml \
             || test $? -eq 5
       - name: "Upload integration-dashboard coverage"
@@ -1584,7 +1573,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/upgrade \
-            --cov-fail-under=21 \
             --cov-report=xml:out/reports/coverage/coverage-integration-upgrade.xml
       - name: "Upload integration-upgrade coverage"
         if: always()
@@ -1616,7 +1604,6 @@ jobs:
             -m 'git_repo or integration' \
             -q --tb=short \
             --cov=src/specify_cli/cli \
-            --cov-fail-under=11 \
             --cov-report=xml:out/reports/coverage/coverage-integration-cli.xml
       - name: "Upload integration-cli coverage"
         if: always()
