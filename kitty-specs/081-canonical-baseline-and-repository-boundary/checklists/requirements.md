@@ -3,7 +3,7 @@
 **Purpose**: Validate specification completeness and quality before proceeding to planning
 **Created**: 2026-04-10
 **Feature**: [spec.md](../spec.md)
-**Revision**: 2 (post-review, identity model corrected)
+**Revision**: 3 (post-plan-review, namespace key and slug semantics corrected)
 
 ## Content Quality
 
@@ -36,12 +36,14 @@
 
 ## Review Findings Addressed
 
-- [x] P1: Identity model is internally consistent (repository_uuid is local, project_uuid is optional SaaS binding, migration preserves values)
-- [x] P2: repo_slug downgraded to mutable locator, not presented as stable identity
-- [x] Open question resolved: Option A selected — separate local repository identity layer introduced
+- [x] P1 (rev 2): Identity model is internally consistent (repository_uuid is local, project_uuid is optional SaaS binding)
+- [x] P2 (rev 2): repo_slug downgraded from identity (but see rev 3 correction below)
+- [x] P1 (rev 3): repository_uuid explicitly replaces project_uuid as required namespace key for body sync, queue dedup, upstream contract (FR-013, Scenario 7)
+- [x] P1 (rev 3): repo_slug retains current owner/repo meaning; new field repository_label introduced for display name (FR-005, FR-006, C-006, Invariant 6)
+- [x] P2 (rev 3): Wire protocol dual-write explicitly covers both UUID and label renames (research.md R3, quickstart.md step 6)
 
 ## Notes
 
-- All items pass validation. Spec is ready for `/spec-kitty.plan`.
-- Revision 2 addresses review findings P1 and P2 by introducing the corrected 4-field identity layer model.
-- Six user scenarios cover: new user, contributor, SaaS consumer, multi-repo future, tracker integration, and existing repository migration.
+- All items pass validation. Spec is ready for `/spec-kitty.tasks`.
+- Revision 3 addresses plan review findings: namespace key gap, repo_slug semantic flip, and dual-write omission.
+- Seven user scenarios cover: new user, contributor, SaaS consumer, multi-repo future, tracker integration, existing repository migration, and body sync after migration.

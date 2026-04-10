@@ -19,7 +19,7 @@ No code renames, help-text rewrites, config migrations, or SaaS contract changes
 **Project Type**: Single project (spec-kitty CLI)
 **Performance Goals**: N/A (document-only mission)
 **Constraints**: Contract-only; no code, CLI, config, or wire protocol changes
-**Scale/Scope**: Terminology contract covering 6 subsystems, 47+ call sites, 2 wire protocols
+**Scale/Scope**: Terminology contract covering 6 subsystems, 47+ call sites, 2 wire protocols, 1 SQLite schema, 1 upstream contract
 
 ## Charter Check
 
@@ -76,24 +76,26 @@ This mission produces five concrete deliverables:
 
 ### D1: Canonical Identity Model Definition
 
-The corrected 4-field identity model documented in [data-model.md](data-model.md):
+The corrected identity model documented in [data-model.md](data-model.md):
 
-- `repository_uuid`: Stable local repository identity (renamed from mislabeled `project_uuid`)
+- `repository_uuid`: Stable local repository identity and required namespace key (renamed from mislabeled `project_uuid`)
+- `repository_label`: Human-readable display name (renamed from `project_slug`)
+- `repo_slug`: Optional `owner/repo` Git provider reference (unchanged meaning)
 - `project_uuid`: Optional SaaS-assigned collaboration binding (absent until binding)
-- `repo_slug`: Mutable human-readable repository locator (downgraded from identity)
 - `build_id`: Checkout/worktree identity (unchanged)
+- `node_id`: Machine fingerprint (unchanged)
 
-Including before/after config.yaml schema, before/after wire protocol schema, and field mapping tables for all renames.
+Including before/after config.yaml schema, before/after wire protocol schema, namespace/dedup key migration, and field mapping tables for all renames.
 
 ### D2: Terminology Contract
 
 The canonical definitions, invariants, and rules documented in [spec.md](spec.md):
 
 - 3 domain terms defined (project, repository, build)
-- 8 invariants that all surfaces must satisfy
-- Representative drift catalog across 6 categories
-- 11 functional requirements, 3 non-functional requirements, 5 constraints
-- 6 user scenarios with acceptance criteria
+- 9 invariants that all surfaces must satisfy
+- Representative drift catalog across 6 categories (including namespace/dedup drift)
+- 13 functional requirements, 3 non-functional requirements, 6 constraints
+- 7 user scenarios with acceptance criteria (including body sync after migration)
 
 ### D3: Glossary Definitions
 
@@ -104,9 +106,10 @@ Machine-readable canonical term entries for the glossary system:
 | project | The SaaS collaboration surface grouping one or more repositories | "project" when meaning repository or checkout |
 | repository | The local Git resource (one `.git` directory) | "project" when meaning the Git resource |
 | build | One checkout or worktree of one repository | "project" when meaning a checkout |
-| repository_uuid | Stable local repository identity, minted once | "project_uuid" for locally minted identity |
+| repository_uuid | Stable local repository identity and required namespace key, minted once | "project_uuid" for locally minted identity |
+| repository_label | Human-readable repository display name, mutable | "project_slug" |
 | project_uuid | Optional SaaS-assigned collaboration identity | "project_uuid" for locally minted identity |
-| repo_slug | Mutable human-readable repository locator | "project_slug", "repository identity" |
+| repo_slug | Optional `owner/repo` Git provider reference (unchanged meaning) | Repurposing for display names |
 | build_id | Per-checkout/worktree identity | (no prohibited aliases; already correct) |
 
 ### D4: Migration Strategy and Sequencing
@@ -114,17 +117,18 @@ Machine-readable canonical term entries for the glossary system:
 The implementation ordering for follow-up missions, documented in [quickstart.md](quickstart.md) and [research.md](research.md):
 
 **Phase 1 — CLI-only (can ship in one release):**
-1. Config migration: `project:` → `repository:` section with deprecated reader
-2. Identity class rename: `ProjectIdentity` → `RepositoryIdentity`
-3. Path resolution rename: `locate_project_root` → `locate_repository_root` (consolidate duplicates first)
-4. CLI help text, error messages, and variable names
+1. Config migration: `project:` → `repository:` section, `uuid` → `repository_uuid`, `slug` → `repository_label`, `repo_slug` unchanged. Add deprecated-key reader.
+2. Identity class rename: `ProjectIdentity` → `RepositoryIdentity`, `project_slug` → `repository_label`. `repo_slug` unchanged.
+3. Namespace/queue key migration: `project_uuid` → `repository_uuid` in `NamespaceRef`, `body_upload_queue` SQLite schema, upstream contract, and coalescence keys. Same UUID value, new field name.
+4. Path resolution rename: `locate_project_root` → `locate_repository_root` (consolidate duplicates first)
+5. CLI help text, error messages, and variable names
 
 **Phase 2 — Coordinated CLI + SaaS:**
-5. Wire protocol dual-write: CLI sends both old and new field names
-6. SaaS cutover: server reads new names, tolerates old
-7. Wire protocol cleanup: CLI drops old field names
+6. Wire protocol dual-write: CLI sends both old and new field names for **all renamed fields** (`project_uuid`/`repository_uuid` AND `project_slug`/`repository_label`). `repo_slug` unchanged (no dual-write needed).
+7. SaaS cutover: server reads new names, tolerates old
+8. Wire protocol cleanup: CLI drops old field names
 
-**Key constraint**: Steps 1-4 are internal to the CLI and can be released together. Steps 5-7 require coordinated releases between CLI and SaaS, with a deprecation window between each step.
+**Key constraint**: Steps 1-5 are internal to the CLI and can be released together. Steps 6-8 require coordinated releases between CLI and SaaS, with a deprecation window between each step.
 
 ### D5: Contributor Terminology Reference
 
@@ -139,7 +143,7 @@ A quick-reference document for contributors ([quickstart.md](quickstart.md)) cov
 
 Since this is a contract-only mission, the implementation consists of:
 
-1. **Add glossary entries** to `src/specify_cli/glossary/` for each canonical term (project, repository, build, repository_uuid, project_uuid, repo_slug, build_id)
+1. **Add glossary entries** to `src/specify_cli/glossary/` for each canonical term (project, repository, build, repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id)
 2. **Add terminology reference** to `docs/reference/` as a human-readable version of the quickstart
 3. **Validate** that no existing glossary entries conflict with the new definitions
 4. **Update** any existing docs that reference the glossary to include the new terms
