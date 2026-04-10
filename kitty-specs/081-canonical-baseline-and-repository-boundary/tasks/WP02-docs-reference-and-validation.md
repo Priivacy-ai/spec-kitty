@@ -18,6 +18,8 @@ subtasks:
 - T007
 - T008
 - T009
+agent: "claude:opus-4-6:implementer:implementer"
+shell_pid: "6340"
 history:
 - timestamp: '2026-04-10T16:55:49Z'
   action: created
@@ -236,3 +238,7 @@ spec-kitty agent action implement WP02 --agent <name>
 - Confirm that "Project Charter" and "Charter Library" entries are NOT renamed (they correctly use "project" for governance)
 - Check that `terminology.md` follows the style of existing docs in `docs/reference/`
 - Run the glossary tests yourself to confirm they pass
+
+## Activity Log
+
+- 2026-04-10T17:13:27Z – claude:opus-4-6:implementer:implementer – shell_pid=6340 – Started implementation via action command
