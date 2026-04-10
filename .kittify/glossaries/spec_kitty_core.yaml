@@ -53,7 +53,12 @@ terms:
     status: active
 
   - surface: project root checkout
-    definition: The root directory of the current git repository on the target branch — not a worktree, not an external repository. Planning commands (specify, plan, tasks) run here. Formerly called "planning repository" which was ambiguous (could be misread as a separate repo).
+    definition: "DEPRECATED (mission 081): Use 'repository root checkout' instead. The root directory of the current git repository on the target branch."
+    confidence: 1.0
+    status: deprecated
+
+  - surface: repository root checkout
+    definition: The root directory of the current git repository on the target branch — not a worktree, not an external repository. Planning commands (specify, plan, tasks) run here.
     confidence: 1.0
     status: active
 
@@ -61,3 +66,48 @@ terms:
     definition: DEPRECATED alias for "project root checkout". Do not use — agents interpret this as a separate repository. Use "project root checkout" or "project root" instead.
     confidence: 1.0
     status: deprecated
+
+  - surface: project
+    definition: SaaS collaboration surface grouping one or more repositories. Not the local Git resource.
+    confidence: 1.0
+    status: active
+
+  - surface: repository
+    definition: Local Git resource (one .git directory) holding mission artifacts. Formerly called "project" in pre-081 code.
+    confidence: 1.0
+    status: active
+
+  - surface: build
+    definition: One checkout or worktree of one repository with its own execution context.
+    confidence: 1.0
+    status: active
+
+  - surface: repository_uuid
+    definition: Stable local repository identity, minted once per repository. Required namespace key for body sync and dedup. Was mislabeled as project_uuid before mission 081.
+    confidence: 1.0
+    status: active
+
+  - surface: repository_label
+    definition: Human-readable repository display name derived from git remote or directory name. Mutable, not a stable identity. Was called project_slug before mission 081.
+    confidence: 1.0
+    status: active
+
+  - surface: project_uuid
+    definition: Optional SaaS-assigned collaboration identity. Absent until a repository is bound to a SaaS project. Never locally minted.
+    confidence: 1.0
+    status: active
+
+  - surface: repo_slug
+    definition: Optional owner/repo Git provider reference (e.g. Priivacy-ai/spec-kitty). Unchanged from pre-081 meaning.
+    confidence: 1.0
+    status: active
+
+  - surface: build_id
+    definition: Per-checkout/worktree identity, unique per working tree. Unchanged from pre-081.
+    confidence: 1.0
+    status: active
+
+  - surface: node_id
+    definition: Stable machine fingerprint (12-char hex). Unchanged from pre-081.
+    confidence: 1.0
+    status: active

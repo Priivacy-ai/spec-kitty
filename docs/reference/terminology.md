@@ -1,0 +1,130 @@
+# Terminology Reference
+
+This document defines the canonical terminology for Spec Kitty's three-tier domain model and identity layer. All contributors, CLI surfaces, documentation, and API contracts must use these terms consistently.
+
+**Canonical source**: Mission 081 -- Canonical Baseline and Repository Boundary
+
+---
+
+## The Three Domain Terms
+
+| Term | Definition | Identity Field | Example Usage |
+|------|-----------|----------------|---------------|
+| **Project** | SaaS collaboration surface that groups one or more repositories under a shared identity for collaboration, visibility, and governance. A project may span multiple repositories and exists independent of any single Git checkout. | `project_uuid` (optional, SaaS-assigned) | "Bind this repository to a project" |
+| **Repository** | Local Git resource (one `.git` directory) that holds mission artifacts, source code, and `.kittify/` configuration. Multiple checkouts (worktrees) of the same repository share one repository identity. | `repository_uuid` (stable, locally minted) | "Initialize a new repository" |
+| **Build** | One checkout or worktree of one repository. Each build has its own working tree, `.kittify/` state snapshot, and execution context. Builds are ephemeral relative to the repository they belong to. | `build_id` (per worktree) | "This build is running lane-a" |
+
+---
+
+## Identity Fields
+
+| Field | Scope | Description | Stability | Migration Note |
+|-------|-------|-------------|-----------|----------------|
+| `repository_uuid` | Repository | Stable local repository identity, minted once per repository. Required namespace key for body sync and deduplication. | Immutable once minted | Was mislabeled as `project_uuid` before mission 081 |
+| `repository_label` | Repository | Human-readable display name derived from git remote or directory name. | Mutable; display only | Was called `project_slug` before mission 081 |
+| `repo_slug` | Repository | Optional `owner/repo` Git provider reference (e.g. `Priivacy-ai/spec-kitty`). | Unchanged from current; optional | No change -- retains pre-081 meaning |
+| `project_uuid` | Collaboration | SaaS-assigned project binding. Absent until a repository is bound to a SaaS project. Never locally minted. | Absent until binding | Was incorrectly used for locally minted repository identity |
+| `build_id` | Build | Per-checkout/worktree identity, unique per working tree. | Stable per worktree | No change -- already correctly scoped |
+| `node_id` | Machine | Stable machine fingerprint (12-char hex). | Stable per host | No change -- already correctly scoped |
+
+---
+
+## Quick Rules
+
+1. If you mean the local Git directory, say **repository**.
+2. If you mean the SaaS collaboration group, say **project**.
+3. If you mean one specific checkout or worktree, say **build**.
+4. If you mean the Jira/Linear/GitHub workspace, say **tracker project** (qualified).
+5. `repository_label` is a mutable display name -- never use it as a primary key.
+6. `repo_slug` means `owner/repo` from the Git provider -- do not repurpose it for display names.
+7. `repository_uuid` is the required namespace key for local operations -- not `project_uuid`.
+
+---
+
+## Naming Conventions
+
+### Variables and parameters
+
+| Correct | Incorrect | Why |
+|---------|-----------|-----|
+| `repo_root` | `project_root` | It is a repository root, not a project root |
+| `repository_uuid` | `project_uuid` (for local identity) | The locally minted UUID is repository-scoped |
+| `repository_label` | `project_slug` (for the display name) | It is a repository label, not a project slug |
+| `repo_slug` | (no change needed) | Already correct for `owner/repo` Git provider reference |
+
+### Functions
+
+| Correct | Incorrect |
+|---------|-----------|
+| `locate_repository_root()` | `locate_project_root()` |
+| `get_repository_root_or_exit()` | `get_project_root_or_exit()` |
+| `generate_repository_uuid()` | `generate_project_uuid()` |
+| `derive_repository_label()` | `derive_project_slug()` |
+
+### Config keys
+
+| Correct | Incorrect |
+|---------|-----------|
+| `repository.repository_uuid` | `project.uuid` |
+| `repository.repository_label` | `project.slug` |
+| `repository.repo_slug` | `project.repo_slug` |
+| `project.project_uuid` (SaaS binding only) | `project.uuid` (for local identity) |
+
+### Wire protocol fields
+
+| Correct | Incorrect |
+|---------|-----------|
+| `repository_uuid` | `project_uuid` (for locally minted identity) |
+| `repository_label` | `project_slug` (for display name) |
+| `repo_slug` (unchanged) | Repurposing `repo_slug` for display names |
+| `project_uuid` (only when SaaS binding exists) | `project_uuid` (for local identity) |
+
+### CLI help text
+
+| Correct | Incorrect |
+|---------|-----------|
+| "Path to repository to repair" | "Path to project to repair" |
+| "Name for your new repository directory" | "Name for your new project directory" |
+| "Initialize a new spec-kitty repository" | "Setup tool for spec-driven development projects" |
+
+---
+
+## Decision Tree
+
+Use this tree to resolve ambiguous naming cases:
+
+```
+Is the thing you're naming...
++-- The local .git directory?
+|   +-- Use "repository" / repo_root / repository_uuid
++-- A specific checkout or worktree?
+|   +-- Use "build" / build_id
++-- The SaaS collaboration group?
+|   +-- Use "project" / project_uuid
++-- A Jira/Linear/GitHub workspace?
+|   +-- Use "tracker project" / tracker_project_slug
++-- A human-readable label for the repo?
+|   +-- Use repository_label (and note it's display-only, not an identity)
++-- The owner/repo Git provider reference?
+|   +-- Use repo_slug (and note it's optional, unchanged from current)
++-- A namespace key for body sync or dedup?
+    +-- Use repository_uuid (never project_uuid, which is optional)
+```
+
+---
+
+## What Changed (Migration Summary)
+
+Mission 081 established canonical definitions and identified naming drift. No existing identity values are lost. Only names and labels change.
+
+| Old Name | New Name | Reason |
+|----------|----------|--------|
+| `project_uuid` (locally minted) | `repository_uuid` | The locally minted UUID is repository-scoped, not project-scoped |
+| `project_slug` | `repository_label` | It is a repository display name, not a project slug |
+| `project_root` | `repo_root` | The path refers to the repository root directory |
+| `locate_project_root()` | `locate_repository_root()` | Resolves the repository, not a project |
+| `get_project_root_or_exit()` | `get_repository_root_or_exit()` | Resolves the repository, not a project |
+| `ProjectIdentity` | `RepositoryIdentity` | The identity class represents a repository |
+| "project" (meaning local Git resource) | "repository" | Reserved "project" for SaaS collaboration surface |
+
+Fields that are **unchanged**: `repo_slug`, `build_id`, `node_id`, `project_uuid` (when used for actual SaaS binding).
