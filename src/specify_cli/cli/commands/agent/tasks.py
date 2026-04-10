@@ -1895,12 +1895,22 @@ def finalize_tasks(
         from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
 
         dependencies_map: dict[str, list[str]] = _shared_parse_deps(tasks_content)
-
-        # Ensure all WP files in tasks/ dir are in the map (with empty deps if not mentioned)
-        for wp_file in tasks_dir.glob("WP*.md"):
-            wp_id_stem = wp_file.stem.split("-")[0]  # Extract WP## from WP##-title.md
-            if re.match(r"^WP\d{2}$", wp_id_stem) and wp_id_stem not in dependencies_map:
-                dependencies_map[wp_id_stem] = []
+        expected_wp_ids = sorted(
+            wp_file.stem.split("-")[0]
+            for wp_file in tasks_dir.glob("WP*.md")
+            if re.match(r"^WP\d{2}$", wp_file.stem.split("-")[0])
+        )
+        missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in dependencies_map]
+        extra_wp_sections = sorted(set(dependencies_map) - set(expected_wp_ids))
+        if missing_wp_sections or extra_wp_sections:
+            _output_error(
+                json_output,
+                (
+                    "tasks.md work package coverage is incomplete. finalize-tasks could not match "
+                    "all WP files to parsed sections, so dependency lanes would be unreliable."
+                ),
+            )
+            raise typer.Exit(1)
 
         # Validate dependency graph for cycles
         from specify_cli.core.dependency_graph import detect_cycles

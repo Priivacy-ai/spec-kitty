@@ -40,13 +40,26 @@ import re
 # ---------------------------------------------------------------------------
 
 _WP_SECTION_HEADER = re.compile(
-    r"(?m)^(?:##\s+(?:Work Package\s+)?|###\s+)(WP\d{2})(?:\b|:)"
+    r"(?m)^(?:##\s+|###\s+)(?:(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)|Work Package\s+(?P<wp_number>\d{1,2})(?:\b|\s*[—:-]|$))"
 )
 
 # Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
 # to find the stop boundary for the final WP section.  Sub-headings (### or
 # deeper) are intentionally NOT matched — they must not trigger a stop.
 _ANY_H2_HEADER = re.compile(r"^## ", re.MULTILINE)
+
+
+def _normalize_wp_section_id(match: re.Match[str]) -> str:
+    """Return canonical ``WP##`` for a parsed section header match."""
+    wp_id = match.group("wp_id")
+    if wp_id:
+        return wp_id
+
+    wp_number = match.group("wp_number")
+    if wp_number is None:
+        raise ValueError("WP section header match did not capture a work package identifier")
+
+    return f"WP{int(wp_number):02d}"
 
 
 def _split_wp_sections(tasks_content: str) -> dict[str, str]:
@@ -64,7 +77,7 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
     matches = list(_WP_SECTION_HEADER.finditer(tasks_content))
 
     for idx, match in enumerate(matches):
-        wp_id = match.group(1)
+        wp_id = _normalize_wp_section_id(match)
         start = match.end()
         if idx + 1 < len(matches):
             # There is a next WP header — use it as the end (existing behaviour).

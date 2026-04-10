@@ -556,8 +556,8 @@ WP01 (approved) --> WP02 (approved) --> WP03 (approved) --> merge --> all done
 ```
 
 1. Implement WP01, review, approve
-2. THEN implement WP02 (`--base WP01`), review, approve
-3. THEN implement WP03 (`--base WP02`), review, approve
+2. THEN implement WP02, review, approve. The implementation workspace base is inferred automatically from the approved dependency graph.
+3. THEN implement WP03, review, approve. The implementation workspace base is inferred automatically from the approved dependency graph.
 4. `spec-kitty merge --mission <slug>`
 
 ### Parallel Opportunities (Independent WPs)

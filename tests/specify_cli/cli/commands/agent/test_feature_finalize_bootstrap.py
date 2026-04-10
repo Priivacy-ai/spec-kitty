@@ -532,6 +532,112 @@ class TestWP01Regressions:
                 continue
         pytest.fail("No JSON output with 'result': 'success' found")
 
+    def test_finalize_rejects_incomplete_tasks_md_wp_coverage(
+        self,
+        tmp_path: Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        """Fail loudly when tasks.md headings do not cover all WP files."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature(tmp_path, mission_slug)
+        (feature_dir / "tasks.md").write_text(
+            "# Tasks\n\n## Package 1\n\nNo dependencies.\n\n## Package 2\n\nDepends on WP01.\n",
+            encoding="utf-8",
+        )
+
+        patches = _common_patches(tmp_path, mission_slug)
+        mock_bootstrap = MagicMock(return_value=_make_bootstrap_result())
+        patches[f"{MODULE}.bootstrap_canonical_state"] = mock_bootstrap
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        for p in ctx_patches.values():
+            p.start()
+
+        try:
+            with pytest.raises(typer.Exit):
+                finalize_tasks(
+                    feature=mission_slug,
+                    json_output=True,
+                    validate_only=False,
+                )
+        finally:
+            for p in ctx_patches.values():
+                p.stop()
+
+        mock_bootstrap.assert_not_called()
+        captured = capsys.readouterr()
+        for line in captured.out.strip().splitlines():
+            try:
+                data = json.loads(line)
+                assert data["missing_wp_sections"] == ["WP01", "WP02"]
+                assert "coverage is incomplete" in data["error"]
+                return
+            except json.JSONDecodeError:
+                continue
+        pytest.fail("No JSON error payload found for incomplete WP coverage")
+
+    def test_finalize_commits_status_and_snapshot_artifacts(self, tmp_path: Path) -> None:
+        """Commit set must include bootstrap status artifacts and dossier snapshot."""
+        mission_slug = "060-test-feature"
+        feature_dir = _setup_feature(tmp_path, mission_slug)
+        captured_files: list[Path] = []
+
+        def _bootstrap_side_effect(feature_path: Path, slug: str, dry_run: bool) -> BootstrapResult:
+            assert feature_path == feature_dir
+            assert slug == mission_slug
+            assert dry_run is False
+            (feature_path / "status.events.jsonl").write_text('{"event":"seeded"}\n', encoding="utf-8")
+            (feature_path / "status.json").write_text("{}", encoding="utf-8")
+            return _make_bootstrap_result()
+
+        def _safe_commit_spy(**kwargs: object) -> bool:
+            nonlocal captured_files
+            captured_files = list(kwargs["files_to_commit"])  # type: ignore[index]
+            return True
+
+        def _write_snapshot(feature_path: Path, slug: str, repo_root: Path) -> None:
+            assert feature_path == feature_dir
+            assert slug == mission_slug
+            assert repo_root == tmp_path
+            snapshot_path = feature_path / ".kittify" / "dossiers" / slug / "snapshot-latest.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            snapshot_path.write_text("{}", encoding="utf-8")
+
+        patches = _common_patches(tmp_path, mission_slug)
+        patches[f"{MODULE}.bootstrap_canonical_state"] = MagicMock(side_effect=_bootstrap_side_effect)
+        patches[f"{MODULE}.safe_commit"] = _safe_commit_spy
+
+        from specify_cli.cli.commands.agent.mission import finalize_tasks
+
+        ctx_patches = {k: patch(k, v) for k, v in patches.items()}
+        extra_patch = patch(
+            "specify_cli.sync.dossier_pipeline.trigger_feature_dossier_sync_if_enabled",
+            side_effect=_write_snapshot,
+        )
+        for p in ctx_patches.values():
+            p.start()
+        extra_patch.start()
+
+        try:
+            finalize_tasks(
+                feature=mission_slug,
+                json_output=True,
+                validate_only=False,
+            )
+        except (typer.Exit, SystemExit):
+            pass
+        finally:
+            extra_patch.stop()
+            for p in ctx_patches.values():
+                p.stop()
+
+        committed_paths = {path.relative_to(tmp_path).as_posix() for path in captured_files}
+        assert "kitty-specs/060-test-feature/status.events.jsonl" in committed_paths
+        assert "kitty-specs/060-test-feature/status.json" in committed_paths
+        assert "kitty-specs/060-test-feature/.kittify/dossiers/060-test-feature/snapshot-latest.json" in committed_paths
+
 
 class TestValidateOnlyUsesInMemoryOwnership:
     """Regression test for validate-only ownership inference and manifest reuse."""

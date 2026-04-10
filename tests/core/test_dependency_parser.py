@@ -218,6 +218,15 @@ class TestSectionHeaderVariants:
         assert result["WP01"] == []
         assert result["WP02"] == ["WP01"]
 
+    def test_numeric_work_package_headers_normalize_to_wp_ids(self) -> None:
+        content = (
+            "## Work Package 1 — Foundation\n\nNo deps.\n\n"
+            "## Work Package 2: Follow Up\n\nDepends on WP01.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert result["WP01"] == []
+        assert result["WP02"] == ["WP01"]
+
     def test_hash_hash_hash_header_style(self) -> None:
         content = "### WP01\n\nNo deps.\n\n### WP02\n\nDepends on WP01.\n"
         result = parse_dependencies_from_tasks_md(content)
