@@ -511,3 +511,31 @@ class TestImplementReviewFeedbackHandoff:
         assert "## Review Findings" in prompt_content
         assert "Use the canonical review artifact instead of the claim token." in prompt_content
         assert "action-review-claim" not in prompt_content
+
+    def test_implement_fails_when_canonical_review_artifact_is_unreadable(
+        self,
+        workflow_cli_repo: tuple[Path, Path],
+    ) -> None:
+        _repo, feature_dir = workflow_cli_repo
+        review_cycle_ref = "review-cycle://001-test-feature/WP01-test-task/review-cycle-9.md"
+
+        append_event(feature_dir, _make_event(event_id="01BBB000000000000000000001"))
+        append_event(
+            feature_dir,
+            _make_event(
+                event_id="01BBB000000000000000000002",
+                from_lane=Lane.IN_PROGRESS,
+                to_lane=Lane.PLANNED,
+                review_ref=review_cycle_ref,
+            ),
+        )
+
+        runner = CliRunner()
+        result = runner.invoke(
+            workflow.app,
+            ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"],
+        )
+
+        assert result.exit_code == 1, result.stdout
+        assert "review feedback artifact is missing or unreadable" in result.stdout
+        assert review_cycle_ref in result.stdout

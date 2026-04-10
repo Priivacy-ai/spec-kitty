@@ -211,9 +211,11 @@ def test_implement_prompt_warns_when_feedback_pointer_artifact_is_missing(workfl
     runner = CliRunner()
     result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"])
 
-    assert result.exit_code == 1, result.stdout
-    assert "review feedback artifact is missing or unreadable" in result.stdout
-    assert "Re-run move-task with --review-feedback-file" in result.stdout
+    assert result.exit_code == 0, result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    prompt_content = prompt_file.read_text(encoding="utf-8")
+    assert "WARNING: review feedback reference is set, but the artifact is missing/unreadable." in prompt_content
+    assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
 
 
 def test_implement_prompt_warns_when_review_status_has_feedback_without_reference(
@@ -230,9 +232,13 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     runner = CliRunner()
     result = runner.invoke(workflow.app, ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"])
 
-    assert result.exit_code == 1, result.stdout
-    assert "has review feedback but no readable review reference" in result.stdout
-    assert "Re-run move-task with --review-feedback-file" in result.stdout
+    assert result.exit_code == 0, result.stdout
+    assert "Has review feedback - but no review_feedback reference is set" in result.stdout
+
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    prompt_content = prompt_file.read_text(encoding="utf-8")
+    assert "WARNING: review_status=has_feedback but no review_feedback reference is set." in prompt_content
+    assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
 
 
 def test_implement_fix_cycle_prefers_review_cycle_artifact_over_review_claim_token(

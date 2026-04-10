@@ -170,20 +170,20 @@ def _resolve_review_feedback_context(
     repo_root: Path,
     wp_id: str,
     wp_frontmatter: str,
-) -> tuple[bool, str | None, Path | None]:
+) -> tuple[bool, str | None, Path | None, str | None]:
     """Resolve review-feedback presence and the canonical readable artifact."""
     review_feedback_ref, review_feedback_file, _ = _latest_review_feedback_reference(feature_dir, repo_root, wp_id)
     if review_feedback_ref is not None:
-        return True, review_feedback_ref, review_feedback_file
+        return True, review_feedback_ref, review_feedback_file, "canonical"
 
     fm_review_status = extract_scalar(wp_frontmatter, "review_status")
     fm_review_feedback = extract_scalar(wp_frontmatter, "review_feedback")
     if fm_review_status and str(fm_review_status) == "has_feedback":
         ref = str(fm_review_feedback).strip() if fm_review_feedback else None
         path = _resolve_review_feedback_pointer(repo_root, ref) if ref else None
-        return True, ref, path
+        return True, ref, path, "frontmatter"
 
-    return False, None, None
+    return False, None, None, None
 
 
 def _render_charter_context(repo_root: Path, action: str) -> str:
@@ -547,7 +547,7 @@ def implement(
         needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
         wp_slug = wp.path.stem
-        has_feedback, review_feedback_ref, review_feedback_file = _resolve_review_feedback_context(
+        has_feedback, review_feedback_ref, review_feedback_file, review_feedback_source = _resolve_review_feedback_context(
             feature_dir=feature_dir,
             repo_root=main_repo_root,
             wp_id=normalized_wp_id,
@@ -555,12 +555,7 @@ def implement(
         )
         fix_mode_active = _has_prior_rejection(feature_dir, wp_slug, normalized_wp_id)
 
-        if has_feedback and review_feedback_ref is None:
-            print(f"Error: {normalized_wp_id} has review feedback but no readable review reference.")
-            print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
-            raise typer.Exit(1)
-
-        if has_feedback and review_feedback_file is None:
+        if review_feedback_source == "canonical" and review_feedback_file is None:
             print(f"Error: {normalized_wp_id} review feedback artifact is missing or unreadable: {review_feedback_ref}")
             print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
             raise typer.Exit(1)
