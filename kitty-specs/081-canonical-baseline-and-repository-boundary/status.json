@@ -1,18 +1,18 @@
 {
-  "event_count": 11,
-  "last_event_id": "01KNW6K6N177EE8VBDEZMAVPB1",
-  "materialized_at": "2026-04-10T17:21:20.033165+00:00",
+  "event_count": 12,
+  "last_event_id": "01KNW6TVKRAJKMNGCVARC2WM8M",
+  "materialized_at": "2026-04-10T17:25:30.872470+00:00",
   "mission_number": "081",
   "mission_slug": "081-canonical-baseline-and-repository-boundary",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 1,
+    "approved": 2,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-10T17:12:37.940511+00:00"
     },
     "WP02": {
-      "actor": "claude:opus-4-6:reviewer:reviewer",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KNW6K6N177EE8VBDEZMAVPB1",
-      "last_transition_at": "2026-04-10T17:21:20.033165+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KNW6TVKRAJKMNGCVARC2WM8M",
+      "last_transition_at": "2026-04-10T17:25:30.872470+00:00"
     }
   }
 }
