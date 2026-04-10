@@ -9,12 +9,12 @@
 
 | ID | Description | WP | Parallel |
 |----|------------|----|---------| 
-| T001 | Audit existing glossary entries for conflicts with canonical terms | WP01 | |
-| T002 | Update `orchestration.md` — fix `Project` definition, add `Repository` and `Build` | WP01 | |
-| T003 | Add domain terms to glossary seed file (project, repository, build) | WP01 | |
-| T004 | Update `spec_kitty_core.yaml` — deprecate `project root checkout`, add `repository root checkout` | WP01 | |
-| T005 | Add identity field terms to seed file (repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id) | WP01 | |
-| T006 | Create `glossary/contexts/identity-fields.md` — identity layer reference | WP01 | |
+| T001 | Audit existing glossary entries for conflicts with canonical terms | WP01 | | [D] |
+| T002 | Update `orchestration.md` — fix `Project` definition, add `Repository` and `Build` | WP01 | | [D] |
+| T003 | Add domain terms to glossary seed file (project, repository, build) | WP01 | | [D] |
+| T004 | Update `spec_kitty_core.yaml` — deprecate `project root checkout`, add `repository root checkout` | WP01 | | [D] |
+| T005 | Add identity field terms to seed file (repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id) | WP01 | | [D] |
+| T006 | Create `glossary/contexts/identity-fields.md` — identity layer reference | WP01 | | [D] |
 | T007 | Update `glossary/contexts/configuration-project-structure.md` — align with canonical terminology | WP02 | [P] |
 | T008 | Create `docs/reference/terminology.md` — human-readable terminology reference | WP02 | [P] |
 | T009 | Validate no glossary conflicts and run existing glossary tests | WP02 | |
@@ -32,12 +32,12 @@
 
 **Included subtasks**:
 
-- [ ] T001 Audit existing glossary entries for conflicts with canonical terms (WP01)
-- [ ] T002 Update `orchestration.md` — fix `Project` definition, add `Repository` and `Build` (WP01)
-- [ ] T003 Add domain terms to glossary seed file (project, repository, build) (WP01)
-- [ ] T004 Update `spec_kitty_core.yaml` — deprecate `project root checkout`, add `repository root checkout` (WP01)
-- [ ] T005 Add identity field terms to seed file (repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id) (WP01)
-- [ ] T006 Create `glossary/contexts/identity-fields.md` — identity layer reference (WP01)
+- [x] T001 Audit existing glossary entries for conflicts with canonical terms (WP01)
+- [x] T002 Update `orchestration.md` — fix `Project` definition, add `Repository` and `Build` (WP01)
+- [x] T003 Add domain terms to glossary seed file (project, repository, build) (WP01)
+- [x] T004 Update `spec_kitty_core.yaml` — deprecate `project root checkout`, add `repository root checkout` (WP01)
+- [x] T005 Add identity field terms to seed file (repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id) (WP01)
+- [x] T006 Create `glossary/contexts/identity-fields.md` — identity layer reference (WP01)
 
 **Implementation sketch**:
 1. Read all existing glossary seed files and context docs to identify conflicts
