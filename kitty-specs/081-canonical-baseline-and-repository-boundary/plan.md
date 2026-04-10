@@ -1,108 +1,164 @@
-# Implementation Plan: [FEATURE]
-*Path: [templates/plan-template.md](templates/plan-template.md)*
+# Implementation Plan: Canonical Baseline and Repository Boundary
 
-
-**Branch**: `[###-feature-name]` | **Date**: [DATE] | **Spec**: [link]
-**Input**: Feature specification from `/kitty-specs/[###-feature-name]/spec.md`
-
-**Note**: This template is filled in by the `/spec-kitty.plan` command. See `src/specify_cli/missions/software-dev/command-templates/plan.md` for the execution workflow.
-
-The planner will not begin until all planning questions have been answered—capture those answers in this document before progressing to later phases.
+**Branch**: `main` | **Date**: 2026-04-10 | **Spec**: [spec.md](spec.md)
+**Input**: Feature specification from `kitty-specs/081-canonical-baseline-and-repository-boundary/spec.md`
 
 ## Summary
 
-[Extract from feature spec: primary requirement + technical approach from research]
+This mission is **contract-only**: it defines the canonical 3-tier terminology (project / repository / build), a corrected identity layer model (`repository_uuid` as stable local identity, `project_uuid` as optional SaaS binding), and migration sequencing guidance for follow-up implementation missions.
+
+No code renames, help-text rewrites, config migrations, or SaaS contract changes are executed in this mission. The deliverables are the terminology contract documents, glossary definitions, and migration strategy — all of which serve as the authoritative reference for subsequent missions.
 
 ## Technical Context
 
-<!--
-  ACTION REQUIRED: Replace the content in this section with the technical details
-  for the project. The structure here is presented in advisory capacity to guide
-  the iteration process.
--->
-
-**Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]  
-**Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]  
-**Storage**: [if applicable, e.g., PostgreSQL, CoreData, files or N/A]  
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]  
-**Target Platform**: [e.g., Linux server, iOS 15+, WASM or NEEDS CLARIFICATION]
-**Project Type**: [single/web/mobile - determines source structure]  
-**Performance Goals**: [domain-specific, e.g., 1000 req/s, 10k lines/sec, 60 fps or NEEDS CLARIFICATION]  
-**Constraints**: [domain-specific, e.g., <200ms p95, <100MB memory, offline-capable or NEEDS CLARIFICATION]  
-**Scale/Scope**: [domain-specific, e.g., 10k users, 1M LOC, 50 screens or NEEDS CLARIFICATION]
+**Language/Version**: Python 3.11+ (existing spec-kitty codebase)
+**Primary Dependencies**: ruamel.yaml (YAML frontmatter for glossary), rich (console output for any validation tooling)
+**Storage**: Filesystem only (glossary YAML, markdown documents)
+**Testing**: pytest (glossary integration tests, terminology validation)
+**Target Platform**: Cross-platform (Linux, macOS, Windows 10+)
+**Project Type**: Single project (spec-kitty CLI)
+**Performance Goals**: N/A (document-only mission)
+**Constraints**: Contract-only; no code, CLI, config, or wire protocol changes
+**Scale/Scope**: Terminology contract covering 6 subsystems, 47+ call sites, 2 wire protocols
 
 ## Charter Check
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on charter file]
+| Charter Requirement | Status | Notes |
+|-------------------|--------|-------|
+| Python 3.11+ | Pass | Existing codebase; glossary entries are YAML/markdown |
+| pytest 90%+ coverage for new code | Pass | Glossary entries and docs don't require test coverage; any validation scripts will have tests |
+| mypy --strict | Pass | No new Python modules in this mission |
+| CLI operations < 2 seconds | N/A | No CLI changes |
+| Cross-platform | Pass | Documents are platform-independent |
+| Architecture decisions in ADRs | Pass | The terminology contract itself serves as the ADR (decision + rationale + alternatives) |
+| Terminology canon: Mission not Feature | Pass | Spec and plan use "mission" throughout; checked for stray "feature" usage |
+
+**Post-Phase 1 re-check**: All gates still pass. No design decisions introduced charter conflicts.
 
 ## Project Structure
 
-### Documentation (this feature)
+### Documentation (this mission)
 
 ```
-kitty-specs/[###-feature]/
-├── plan.md              # This file (/spec-kitty.plan command output)
-├── research.md          # Phase 0 output (/spec-kitty.plan command)
-├── data-model.md        # Phase 1 output (/spec-kitty.plan command)
-├── quickstart.md        # Phase 1 output (/spec-kitty.plan command)
-├── contracts/           # Phase 1 output (/spec-kitty.plan command)
-└── tasks.md             # Phase 2 output (/spec-kitty.tasks command - NOT created by /spec-kitty.plan)
+kitty-specs/081-canonical-baseline-and-repository-boundary/
+├── spec.md              # Terminology contract specification (complete)
+├── plan.md              # This file
+├── research.md          # Phase 0: identity consumer map, migration strategies
+├── data-model.md        # Phase 1: before/after identity model, field mappings
+├── quickstart.md        # Phase 1: contributor reference for canonical terms
+├── checklists/
+│   └── requirements.md  # Specification quality checklist (complete)
+└── tasks/
+    └── README.md        # Placeholder (tasks generated by /spec-kitty.tasks)
 ```
 
 ### Source Code (repository root)
-<!--
-  ACTION REQUIRED: Replace the placeholder tree below with the concrete layout
-  for this feature. Delete unused options and expand the chosen structure with
-  real paths (e.g., apps/admin, packages/something). The delivered plan must
-  not include Option labels.
--->
+
+This mission adds terminology contract artifacts only. No source code changes.
 
 ```
-# [REMOVE IF UNUSED] Option 1: Single project (DEFAULT)
-src/
-├── models/
-├── services/
-├── cli/
-└── lib/
+src/specify_cli/
+└── glossary/            # Existing glossary system (mission 047+)
+    └── ...              # New canonical term entries added here
 
-tests/
-├── contract/
-├── integration/
-└── unit/
-
-# [REMOVE IF UNUSED] Option 2: Web application (when "frontend" + "backend" detected)
-backend/
-├── src/
-│   ├── models/
-│   ├── services/
-│   └── api/
-└── tests/
-
-frontend/
-├── src/
-│   ├── components/
-│   ├── pages/
-│   └── services/
-└── tests/
-
-# [REMOVE IF UNUSED] Option 3: Mobile + API (when "iOS/Android" detected)
-api/
-└── [same as backend above]
-
-ios/ or android/
-└── [platform-specific structure: feature modules, UI flows, platform tests]
+docs/
+└── reference/
+    └── ...              # New terminology reference document added here
 ```
 
-**Structure Decision**: [Document the selected structure and reference the real
-directories captured above]
+**Structure Decision**: Single-project layout. This mission adds glossary entries to the existing `src/specify_cli/glossary/` system and a terminology reference to `docs/reference/`. No new packages or modules.
+
+## Deliverables
+
+This mission produces five concrete deliverables:
+
+### D1: Canonical Identity Model Definition
+
+The corrected 4-field identity model documented in [data-model.md](data-model.md):
+
+- `repository_uuid`: Stable local repository identity (renamed from mislabeled `project_uuid`)
+- `project_uuid`: Optional SaaS-assigned collaboration binding (absent until binding)
+- `repo_slug`: Mutable human-readable repository locator (downgraded from identity)
+- `build_id`: Checkout/worktree identity (unchanged)
+
+Including before/after config.yaml schema, before/after wire protocol schema, and field mapping tables for all renames.
+
+### D2: Terminology Contract
+
+The canonical definitions, invariants, and rules documented in [spec.md](spec.md):
+
+- 3 domain terms defined (project, repository, build)
+- 8 invariants that all surfaces must satisfy
+- Representative drift catalog across 6 categories
+- 11 functional requirements, 3 non-functional requirements, 5 constraints
+- 6 user scenarios with acceptance criteria
+
+### D3: Glossary Definitions
+
+Machine-readable canonical term entries for the glossary system:
+
+| Term | Canonical Definition | Prohibited Aliases |
+|------|---------------------|-------------------|
+| project | The SaaS collaboration surface grouping one or more repositories | "project" when meaning repository or checkout |
+| repository | The local Git resource (one `.git` directory) | "project" when meaning the Git resource |
+| build | One checkout or worktree of one repository | "project" when meaning a checkout |
+| repository_uuid | Stable local repository identity, minted once | "project_uuid" for locally minted identity |
+| project_uuid | Optional SaaS-assigned collaboration identity | "project_uuid" for locally minted identity |
+| repo_slug | Mutable human-readable repository locator | "project_slug", "repository identity" |
+| build_id | Per-checkout/worktree identity | (no prohibited aliases; already correct) |
+
+### D4: Migration Strategy and Sequencing
+
+The implementation ordering for follow-up missions, documented in [quickstart.md](quickstart.md) and [research.md](research.md):
+
+**Phase 1 — CLI-only (can ship in one release):**
+1. Config migration: `project:` → `repository:` section with deprecated reader
+2. Identity class rename: `ProjectIdentity` → `RepositoryIdentity`
+3. Path resolution rename: `locate_project_root` → `locate_repository_root` (consolidate duplicates first)
+4. CLI help text, error messages, and variable names
+
+**Phase 2 — Coordinated CLI + SaaS:**
+5. Wire protocol dual-write: CLI sends both old and new field names
+6. SaaS cutover: server reads new names, tolerates old
+7. Wire protocol cleanup: CLI drops old field names
+
+**Key constraint**: Steps 1-4 are internal to the CLI and can be released together. Steps 5-7 require coordinated releases between CLI and SaaS, with a deprecation window between each step.
+
+### D5: Contributor Terminology Reference
+
+A quick-reference document for contributors ([quickstart.md](quickstart.md)) covering:
+
+- The three canonical terms and when to use each
+- Naming conventions for variables, functions, classes, config keys, and CLI help text
+- Decision tree for ambiguous cases
+- Migration sequencing for follow-up work
+
+## Implementation Approach
+
+Since this is a contract-only mission, the implementation consists of:
+
+1. **Add glossary entries** to `src/specify_cli/glossary/` for each canonical term (project, repository, build, repository_uuid, project_uuid, repo_slug, build_id)
+2. **Add terminology reference** to `docs/reference/` as a human-readable version of the quickstart
+3. **Validate** that no existing glossary entries conflict with the new definitions
+4. **Update** any existing docs that reference the glossary to include the new terms
+
+The spec, plan, research, data-model, and quickstart documents produced during this mission serve as the authoritative contract that follow-up missions implement against.
+
+## Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|-----------|--------|------------|
+| Follow-up missions deviate from the contract | Medium | High | Glossary enforcement catches non-canonical usage; review checklist references this contract |
+| SaaS wire protocol migration takes longer than expected | Medium | Low (for this mission) | This mission only defines the strategy; timeline is a planning decision for follow-up missions |
+| Contributors continue using old terminology in new code | High | Medium | Glossary linting flags violations; quickstart reference is discoverable in docs |
+| Existing config.yaml migration breaks on edge cases | Low | Medium | Migration strategy includes backwards-compatible reader during deprecation |
 
 ## Complexity Tracking
 
-*Fill ONLY if Charter Check has violations that must be justified*
-
-| Violation | Why Needed | Simpler Alternative Rejected Because |
-|-----------|------------|-------------------------------------|
-| [e.g., 4th project] | [current need] | [why 3 projects insufficient] |
-| [e.g., Repository pattern] | [specific problem] | [why direct DB access insufficient] |
+No charter violations to justify. This mission stays within charter constraints:
+- Single project (spec-kitty CLI)
+- No new dependencies
+- No architectural pattern violations
+- Terminology canon ("Mission" not "Feature") followed throughout
