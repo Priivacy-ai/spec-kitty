@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01KNW6X7P3FCYAHMYXF3SRQJJX",
-  "materialized_at": "2026-04-10T17:26:48.771874+00:00",
+  "event_count": 15,
+  "last_event_id": "01KNW6YQ0XGF7HBVH46Q5G52BH",
+  "materialized_at": "2026-04-10T17:27:37.245508+00:00",
   "mission_number": "081",
   "mission_slug": "081-canonical-baseline-and-repository-boundary",
   "mission_type": "software-dev",
@@ -18,11 +18,11 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "merge",
-      "force_count": 3,
+      "actor": "user",
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KNW6X7C72DY0B5W9EP4Q1QMZ",
-      "last_transition_at": "2026-04-10T17:26:48.455274+00:00"
+      "last_event_id": "01KNW6YQ0XGF7HBVH46Q5G52BH",
+      "last_transition_at": "2026-04-10T17:27:37.245508+00:00"
     },
     "WP02": {
       "actor": "merge",
