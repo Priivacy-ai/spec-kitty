@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import os
+import tempfile
 import shutil
 import sys
 from pathlib import Path
@@ -36,9 +38,18 @@ def ensure_within_directory(path: Path, root: Path) -> Path:
 
 
 def write_text_within_directory(path: Path, content: str, *, root: Path, encoding: str = "utf-8") -> Path:
-    """Write text to a file only when the resolved path stays under ``root``."""
+    """Atomically write text to a file only when the resolved path stays under ``root``."""
     safe_path = ensure_within_directory(path, root)
-    safe_path.write_text(content, encoding=encoding)
+    safe_path.parent.mkdir(parents=True, exist_ok=True)
+
+    fd, temp_path = tempfile.mkstemp(dir=safe_path.parent, prefix=f".{safe_path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding=encoding, newline="") as handle:
+            handle.write(content)
+        Path(temp_path).replace(safe_path)
+    except Exception:
+        Path(temp_path).unlink(missing_ok=True)
+        raise
     return safe_path
 
 

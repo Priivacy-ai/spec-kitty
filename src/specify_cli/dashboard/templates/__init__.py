@@ -4,29 +4,27 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Dict, Optional
 
 __all__ = ["get_dashboard_html", "get_dashboard_html_bytes"]
 
 _TEMPLATE_PATH = Path(__file__).with_name('index.html')
-_DASHBOARD_HTML_CACHE: Optional[str] = None
-_DASHBOARD_HTML_BYTES_CACHE: Optional[bytes] = None
 _MISSION_PLACEHOLDER = "window.__INITIAL_MISSION__ = null;"
 
 
-def _load_dashboard_template() -> str:
-    global _DASHBOARD_HTML_CACHE
-    if _DASHBOARD_HTML_CACHE is None:
-        try:
-            _DASHBOARD_HTML_CACHE = _TEMPLATE_PATH.read_text(encoding='utf-8')
-        except OSError as exc:  # pragma: no cover - defensive
-            raise RuntimeError(f"Dashboard template missing at {_TEMPLATE_PATH}: {exc}") from exc
-    return _DASHBOARD_HTML_CACHE
+def _read_dashboard_html_bytes() -> bytes:
+    try:
+        return _TEMPLATE_PATH.read_bytes()
+    except OSError as exc:  # pragma: no cover - defensive
+        raise RuntimeError(f"Dashboard template missing at {_TEMPLATE_PATH}: {exc}") from exc
 
 
-def get_dashboard_html(*, mission_context: Optional[Dict[str, str]] = None) -> str:
+_DASHBOARD_HTML_BYTES = _read_dashboard_html_bytes()
+_DASHBOARD_HTML = _DASHBOARD_HTML_BYTES.decode("utf-8")
+
+
+def get_dashboard_html(*, mission_context: dict[str, str] | None = None) -> str:
     """Return dashboard HTML with optional inline mission context."""
-    base_html = _load_dashboard_template()
+    base_html = _DASHBOARD_HTML
     if not mission_context:
         return base_html
 
@@ -46,7 +44,4 @@ def get_dashboard_html(*, mission_context: Optional[Dict[str, str]] = None) -> s
 
 def get_dashboard_html_bytes() -> bytes:
     """Return the static dashboard shell as UTF-8 bytes."""
-    global _DASHBOARD_HTML_BYTES_CACHE
-    if _DASHBOARD_HTML_BYTES_CACHE is None:
-        _DASHBOARD_HTML_BYTES_CACHE = _load_dashboard_template().encode("utf-8")
-    return _DASHBOARD_HTML_BYTES_CACHE
+    return _DASHBOARD_HTML_BYTES

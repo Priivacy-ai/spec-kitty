@@ -7,6 +7,7 @@ problematic characters that can cause UTF-8 encoding errors in markdown files.
 from __future__ import annotations
 
 import re
+import shutil
 from pathlib import Path
 
 __all__ = [
@@ -194,7 +195,8 @@ def sanitize_file(
         # Create backup if requested
         if backup:
             backup_path = file_path.with_suffix(file_path.suffix + ".bak")
-            backup_path.write_bytes(file_path.read_bytes())
+            with file_path.open("rb") as source, backup_path.open("xb") as target:
+                shutil.copyfileobj(source, target)
 
         # Write sanitized content
         with file_path.open("w", encoding="utf-8", newline="") as handle:
