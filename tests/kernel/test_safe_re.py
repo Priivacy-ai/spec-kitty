@@ -15,6 +15,7 @@ import types
 
 import pytest
 
+import kernel._safe_re as safe_re_mod
 from kernel._safe_re import is_re2_active, re
 
 pytestmark = pytest.mark.fast
@@ -191,6 +192,20 @@ class TestEscape:
         """re.escape delegates to stdlib re.escape."""
         result = re.escape("a.b")  # type: ignore[attr-defined]
         assert result == _stdlib_re.escape("a.b")
+
+
+class TestPurge:
+    """re.purge should tolerate RE2 bindings without a purge() helper."""
+
+    def test_purge_ignores_missing_re2_purge(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        calls: list[str] = []
+
+        monkeypatch.setattr(safe_re_mod, "_re2_mod", object())
+        monkeypatch.setattr(safe_re_mod._stdlib_re, "purge", lambda: calls.append("stdlib"))
+
+        re.purge()  # type: ignore[attr-defined]
+
+        assert calls == ["stdlib"]
 
 
 class TestPCREPatternsFail:

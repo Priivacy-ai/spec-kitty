@@ -1749,6 +1749,7 @@ jobs:
     runs-on: ubuntu-latest
     needs:
       - kernel-tests
+      - fast-tests-charter
       - integration-tests-doctrine
       - integration-tests-sync
       - integration-tests-merge
@@ -2065,6 +2066,7 @@ jobs:
   quality-gate:
     needs:
       - lint
+      - diff-coverage
       - kernel-tests
       - fast-tests-doctrine
       - fast-tests-sync
@@ -2105,6 +2107,7 @@ jobs:
           # Fail if any required job failed (skipped is OK)
           for result in \
             "${{ needs.lint.result }}" \
+            "${{ needs.diff-coverage.result }}" \
             "${{ needs.kernel-tests.result }}" \
             "${{ needs.fast-tests-doctrine.result }}" \
             "${{ needs.fast-tests-sync.result }}" \
