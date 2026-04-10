@@ -20,6 +20,7 @@ Key behaviors under test (per WP04 acceptance criteria):
 from __future__ import annotations
 
 from datetime import datetime, timedelta, UTC
+import re
 from unittest.mock import AsyncMock, patch
 
 import pytest
@@ -86,8 +87,9 @@ class TestAuthLoginHelp:
     def test_help_shows_new_flags(self):
         result = runner.invoke(app, ["login", "--help"])
         assert result.exit_code == 0
-        assert "--headless" in result.stdout
-        assert "--force" in result.stdout
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.stdout)
+        assert "--headless" in plain
+        assert "--force" in plain
 
     def test_help_describes_browser_flow(self):
         result = runner.invoke(app, ["login", "--help"])
