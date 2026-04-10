@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "mission_slug": "081-canonical-baseline-and-repository-boundary",
+  "mission_id": "01KNW332GD2V6C1WWANMQZ9D8D",
+  "mission_branch": "kitty/mission-081-canonical-baseline-and-repository-boundary",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02"
+      ],
+      "write_scope": [
+        ".kittify/glossaries/spec_kitty_core.yaml",
+        "docs/reference/terminology.md",
+        "glossary/contexts/configuration-project-structure.md",
+        "glossary/contexts/identity-fields.md",
+        "glossary/contexts/orchestration.md"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-10T17:03:34.949548+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      }
+    ],
+    "total_merges": 1,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 1
+    }
+  }
+}
