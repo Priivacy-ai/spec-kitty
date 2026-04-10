@@ -28,7 +28,12 @@ pytestmark = pytest.mark.fast
 class TestNetworkFailureQueuesEvent:
     """Test that events are queued when network is unavailable (SC-006)."""
 
-    def test_websocket_failure_falls_back_to_queue(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+    def test_websocket_failure_falls_back_to_queue(
+        self,
+        emitter: EventEmitter,
+        temp_queue: OfflineQueue,
+        mock_auth: MagicMock,
+    ):
         """WebSocket send failure queues the event instead."""
         mock_ws = MagicMock()
         mock_ws.connected = True
@@ -38,16 +43,21 @@ class TestNetworkFailureQueuesEvent:
         emitter.ws_client = mock_ws
 
         # mock auth as authenticated so it tries WS first
-        emitter._auth.is_authenticated.return_value = True
+        mock_auth.is_authenticated = True
 
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         # Event should be in offline queue as fallback
         assert temp_queue.size() == 1
 
-    def test_unauthenticated_queues_directly(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+    def test_unauthenticated_queues_directly(
+        self,
+        emitter: EventEmitter,
+        temp_queue: OfflineQueue,
+        mock_auth: MagicMock,
+    ):
         """Unauthenticated state queues events directly."""
-        emitter._auth.is_authenticated.return_value = False
+        mock_auth.is_authenticated = False
         event = emitter.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
         assert temp_queue.size() == 1
@@ -143,18 +153,18 @@ class TestQueueOverflow:
         events = queue.drain_queue(limit=1)
         assert events[0]["event_id"] != "evt0000000000000000000000"
 
-    def test_emitter_handles_full_queue(self, tmp_path: Path):
+    def test_emitter_handles_full_queue(self, tmp_path: Path, mock_auth: MagicMock):
         """EventEmitter handles queue persistence gracefully (non-blocking)."""
         queue = MagicMock(spec=OfflineQueue)
         queue.queue_event.return_value = True
 
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test-team"
-        auth.is_authenticated.return_value = False
         config = MagicMock()
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        # Force unauthenticated path so event goes straight to the queue.
+        mock_auth.is_authenticated = False
+
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
         # Should not raise even though queue is full
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         # Event is still returned when it can be persisted.
@@ -164,16 +174,14 @@ class TestQueueOverflow:
 class TestConcurrentEmission:
     """Test thread safety of concurrent event emission."""
 
-    def test_concurrent_emits_no_corruption(self, tmp_path: Path):
+    def test_concurrent_emits_no_corruption(self, tmp_path: Path, mock_auth: MagicMock):
         """Concurrent emits don't corrupt queue or clock."""
         queue = OfflineQueue(db_path=tmp_path / "concurrent.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test-team"
-        auth.is_authenticated.return_value = False
         config = MagicMock()
+        mock_auth.is_authenticated = False
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         errors = []
         count = 50
@@ -197,16 +205,16 @@ class TestConcurrentEmission:
         # All events should be queued (4 threads x 50 events)
         assert queue.size() == 4 * count
 
-    def test_clock_values_unique_under_concurrency(self, tmp_path: Path):
+    def test_clock_values_unique_under_concurrency(
+        self, tmp_path: Path, mock_auth: MagicMock
+    ):
         """Lamport clock values are unique even with concurrent access."""
         queue = OfflineQueue(db_path=tmp_path / "concurrent2.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test-team"
-        auth.is_authenticated.return_value = False
         config = MagicMock()
+        mock_auth.is_authenticated = False
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         results = []
         lock = threading.Lock()
@@ -233,48 +241,51 @@ class TestConcurrentEmission:
 class TestNonBlockingEmission:
     """Test that emission failures never block CLI commands (SC-008)."""
 
-    def test_exception_in_emit_returns_none(self, tmp_path: Path):
+    def test_exception_in_emit_returns_none(self, tmp_path: Path, mock_auth: MagicMock):
         """Exception during _emit returns None, doesn't raise."""
+        del mock_auth  # fixture is side-effect-only (installs fake token manager)
         queue = MagicMock(spec=OfflineQueue)
         clock = MagicMock()
         clock.tick.side_effect = Exception("Clock exploded")
-        auth = MagicMock()
         config = MagicMock()
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         # Should not raise
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is None
 
-    def test_queue_exception_returns_event(self, tmp_path: Path):
+    def test_queue_exception_returns_event(self, tmp_path: Path, mock_auth: MagicMock):
         """Queue failure during routing doesn't prevent event creation."""
         queue = MagicMock(spec=OfflineQueue)
         queue.queue_event.side_effect = Exception("SQLite locked")
 
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
-        auth = MagicMock()
-        auth.get_team_slug.return_value = "test-team"
-        auth.is_authenticated.return_value = False
         config = MagicMock()
+        mock_auth.is_authenticated = False
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         # _route_event catches the exception, so _emit still returns the event
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None
 
-    def test_auth_exception_uses_local_team_slug(self, tmp_path: Path):
-        """Auth exception during team_slug resolution falls back to 'local'."""
+    def test_auth_exception_uses_local_team_slug(
+        self, tmp_path: Path, monkeypatch
+    ):
+        """Auth exception during team-slug resolution falls back to 'local'."""
         queue = OfflineQueue(db_path=tmp_path / "q.db")
         clock = LamportClock(value=0, node_id="test", _storage_path=tmp_path / "c.json")
-        auth = MagicMock()
-        # Accessing auth.get_team_slug raises
-        auth.get_team_slug.side_effect = Exception("Not authenticated")
-        auth.is_authenticated.return_value = False
         config = MagicMock()
 
-        em = EventEmitter(clock=clock, config=config, queue=queue, _auth=auth, ws_client=None)
+        # Force get_token_manager() to raise so _current_team_slug() returns None
+        # and the emitter falls back to 'local'.
+        def _boom():
+            raise RuntimeError("Not authenticated")
+
+        monkeypatch.setattr("specify_cli.auth.get_token_manager", _boom)
+
+        em = EventEmitter(clock=clock, config=config, queue=queue, ws_client=None)
 
         event = em.emit_wp_status_changed("WP01", "planned", "in_progress")
         assert event is not None

@@ -1,0 +1,369 @@
+# Data Model: Browser-Mediated OAuth/OIDC CLI Authentication
+
+**Mission**: 080-browser-mediated-oauth-cli-auth  
+**Date**: 2026-04-09  
+**Status**: Phase 1 Design
+
+---
+
+## 1. Entity Definitions
+
+### 1.1 OAuthTokenResponse
+
+**Source**: Returned by SaaS `POST /oauth/token` (all flows: authorization code, device code, refresh)
+
+```python
+class OAuthTokenResponse:
+    """OAuth token response from SaaS endpoint."""
+    
+    # Issued tokens
+    access_token: str              # Bearer token for API calls
+    token_type: str                # "Bearer"
+    refresh_token: str             # Opaque refresh token (long-lived)
+    
+    # Lifetime information
+    expires_in: int                # Seconds from now (typically 3600 for 1 hour)
+    scope: str                     # Space-separated scopes (must include "offline_access")
+    
+    # Session binding
+    session_id: str                # Server-side session identifier (ULID format)
+```
+
+**Validation Rules**:
+- `expires_in` must be positive integer (>0)
+- `access_token` must not be empty
+- `refresh_token` must not be empty (when issued)
+- `scope` must include "offline_access"
+- `session_id` must be non-empty ULID
+
+---
+
+### 1.2 ComputedTokenExpiry
+
+**Source**: Derived by CLI from OAuthTokenResponse + local time
+
+```python
+class ComputedTokenExpiry:
+    """Computed token expiration times."""
+    
+    issued_at: datetime                    # UTC timestamp when token was issued
+    access_token_expires_at: datetime       # issued_at + expires_in
+    refresh_token_expires_at: datetime      # issued_at + 90 days (SaaS policy)
+```
+
+**Validation Rules**:
+- `access_token_expires_at` must be > `issued_at`
+- `refresh_token_expires_at` must be > `access_token_expires_at`
+- Both must be in future (relative to system clock)
+
+---
+
+### 1.3 StoredSession
+
+**Source**: Persisted by CLI in secure storage (keychain or file)
+
+```python
+class Team:
+    """User's team membership."""
+    id: str                        # Team identifier (e.g., "tm_acme")
+    name: str                      # Team name (e.g., "Acme Corp")
+    role: str                      # User's role in team (e.g., "admin", "member")
+
+class StoredSession:
+    """Session credentials stored in local secure storage."""
+
+    # User Identity (from GET /api/v1/me — see SaaS contract protected-endpoints.md)
+    user_id: str                   # User identifier (e.g., "u_alice")
+    email: str                     # Sourced from /api/v1/me .email (e.g., "alice@example.com")
+    name: str                      # Display name from /api/v1/me .name
+
+    # Team Memberships
+    teams: list[Team]              # All teams user belongs to (from /api/v1/me .teams)
+    default_team_id: str           # CLIENT-PICKED default team. NOT returned by SaaS.
+                                   # CLI sets default_team_id = teams[0].id on first
+                                   # login (or whichever team the user picks via a
+                                   # future `auth set-default-team` command).
+
+    # Token Material
+    access_token: str              # Bearer token (never logged)
+    refresh_token: str             # Refresh token (never logged, server-managed)
+    session_id: str                # Session ID from SaaS
+
+    # Expiry Information
+    issued_at: datetime            # When tokens were issued
+    access_token_expires_at: datetime
+    refresh_token_expires_at: Optional[datetime]
+                                   # Always populated by the landed 2026-04-09
+                                   # SaaS contract amendment (see
+                                   # contracts/saas-amendment-refresh-ttl.md —
+                                   # LANDED). The type annotation remains
+                                   # Optional as a defensive fallback for
+                                   # replayed/legacy sessions written before
+                                   # the amendment landed; new sessions always
+                                   # carry a concrete datetime supplied
+                                   # verbatim by the server. The CLI never
+                                   # hardcodes or locally computes a TTL.
+
+    # Session Metadata
+    scope: str                     # Scopes granted
+    storage_backend: str           # "keychain" | "credential_manager" | "secret_service" | "file"
+    last_used_at: datetime         # When this session was last used
+
+    # Auth Context
+    auth_method: str               # "authorization_code" | "device_code"
+```
+
+**Validation Rules**:
+- `user_id` and `email` must not be empty
+- `teams` must not be empty (user must belong to at least one team)
+- `default_team_id` must be one of the team IDs in `teams[]`
+- `session_id` must match SaaS session_id
+- `access_token` and `refresh_token` must not be empty
+- `issued_at` < `access_token_expires_at`
+- If `refresh_token_expires_at is not None`: `access_token_expires_at < refresh_token_expires_at`
+- `storage_backend` must be one of the four allowed values
+
+---
+
+### 1.4 PKCEState
+
+**Source**: Generated by CLI during authorization code flow
+
+```python
+class PKCEState:
+    """PKCE state for OAuth authorization code flow."""
+    
+    # CSRF Protection
+    state: str                     # CSRF nonce (≥128 bits random, base64url-encoded)
+    
+    # PKCE Challenge
+    code_verifier: str             # 43-character cryptographically secure random string
+    code_challenge: str            # SHA256(code_verifier) base64url-encoded
+    code_challenge_method: str     # "S256" (only supported method)
+    
+    # Lifecycle
+    created_at: datetime           # When state was generated
+    expires_at: datetime           # created_at + 5 minutes (callback timeout)
+```
+
+**Validation Rules**:
+- `state` must be exactly 128+ bits of entropy (base64url)
+- `code_verifier` must be exactly 43 ASCII characters (RFC 7636)
+- `code_challenge` must be base64url-encoded
+- `code_challenge_method` must be "S256" (not "plain")
+- `expires_at` must be 5 minutes from `created_at`
+
+---
+
+### 1.5 DeviceFlowState
+
+**Source**: Returned by SaaS `POST /oauth/device`
+
+```python
+class DeviceFlowState:
+    """Device Authorization Flow state."""
+    
+    # Issued Codes
+    device_code: str               # Code used by CLI for polling (opaque)
+    user_code: str                 # Code displayed to user (e.g., "ABCD-1234")
+    verification_uri: str          # URL user visits to approve (e.g., "https://api.spec-kitty.com/device")
+    
+    # Polling Information
+    expires_in: int                # Device code lifetime in seconds (typically 900 = 15 min)
+    interval: int                  # Recommended polling interval in seconds (typically 5)
+    
+    # Lifecycle
+    created_at: datetime           # When device code was requested
+    expires_at: datetime           # created_at + expires_in
+    last_polled_at: datetime       # Last poll attempt timestamp
+    poll_count: int                # Number of polls attempted
+    
+    # State
+    status: str                    # "pending" | "approved" | "denied" | "expired"
+```
+
+**Validation Rules**:
+- `device_code` and `user_code` must not be empty
+- `expires_in` must be positive (typically 900)
+- `interval` must be positive and >= 1 second (cap at 10s on CLI side)
+- `created_at` < `expires_at`
+- `status` must be one of the four values
+
+---
+
+## 2. Relationships
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│ OAuth Flow                                                       │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                  │
+│ Browser/Headless Login                                          │
+│   ↓                                                              │
+│ [PKCEState OR DeviceFlowState] ─────→ SaaS /oauth/* endpoints   │
+│   ↓                                                              │
+│ OAuthTokenResponse ─────────→ [TokenManager stores]             │
+│   ↓                                                              │
+│ StoredSession ──────────────→ [Secure Storage Backend]          │
+│   ↓                          (Keychain/File/Secret Service)     │
+│ [CLI Commands] ◄─────────────── [TokenManager provides]         │
+│   ↓                                                              │
+│ [HTTP Clients] ──────→ Bearer Token from StoredSession          │
+│                                                                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 3. State Transitions
+
+### 3.1 TokenManager Lifecycle
+
+```
+[NotAuthenticated]
+    │
+    ├──→ login_interactive() ─→ [PKCEState] ─→ OAuthTokenResponse
+    │
+    ├──→ login_headless() ──→ [DeviceFlowState] ─→ OAuthTokenResponse
+    │                           (polling loop)
+    │
+    ↓
+[Authenticated] ◄────── StoredSession ◄──── TokenManager._load_from_storage()
+    │
+    ├──→ get_access_token() ───→ Checks expiry
+    │                           ├──→ Valid: return token
+    │                           └──→ Expired: refresh_if_needed()
+    │
+    ├──→ refresh_if_needed() ──→ POST /oauth/token (refresh_token grant)
+    │                           ├──→ Success: new OAuthTokenResponse → StoredSession
+    │                           └──→ Fail: session_invalid → NotAuthenticated
+    │
+    ├──→ logout() ─────────────→ POST /api/v1/logout
+    │                           ├──→ Success: delete StoredSession
+    │                           └──→ Fail: delete StoredSession anyway
+    │
+    ↓
+[NotAuthenticated]
+```
+
+### 3.2 Token Error States
+
+```
+HTTP 401 Response (all endpoints)
+    │
+    ├──→ error_code: "access_token_expired"
+    │    └──→ CLI: auto-refresh ──→ POST /oauth/token (refresh)
+    │         ├──→ Success: retry original request (1x)
+    │         └──→ Fail: force re-login (error: session_invalid)
+    │
+    ├──→ error_code: "session_invalid"
+    │    └──→ CLI: force re-login, delete StoredSession
+    │         Message: "Session expired or revoked. Run spec-kitty auth login"
+    │
+    └──→ other 401 codes
+         └──→ CLI: generic error handling
+```
+
+### 3.3 Device Flow Polling States
+
+```
+[DeviceFlowState] (status: "pending")
+    │
+    ├──→ Poll /oauth/token (grant_type: device_code)
+    │    ├──→ 200 OK + tokens ──→ [DeviceFlowState] (status: "approved")
+    │    │                        └──→ OAuthTokenResponse ──→ StoredSession
+    │    │
+    │    ├──→ 400 + error: "authorization_pending"
+    │    │    └──→ [DeviceFlowState] (status: "pending")
+    │    │        └──→ Wait `interval` seconds, retry
+    │    │
+    │    ├──→ 400 + error: "access_denied"
+    │    │    └──→ [DeviceFlowState] (status: "denied")
+    │    │        └──→ CLI: "Authorization denied. Please try again."
+    │    │
+    │    └──→ 400 + error: "expired_token"
+    │         └──→ [DeviceFlowState] (status: "expired")
+    │             └──→ CLI: "Device code expired. Run spec-kitty auth login --headless again."
+    │
+    └──→ Timeout (expires_in seconds exceeded)
+         └──→ [DeviceFlowState] (status: "expired")
+             └──→ CLI: "Device authorization timed out."
+```
+
+---
+
+## 4. Storage Schema
+
+### 4.1 File Fallback (`~/.config/spec-kitty/credentials.json`)
+
+```json
+{
+  "version": "1.0",
+  "backend": "file",
+  "session": {
+    "user_id": "u_alice",
+    "username": "alice@example.com",
+    "name": "Alice Developer",
+    "teams": [
+      {"id": "tm_acme", "name": "Acme Corp", "role": "admin"},
+      {"id": "tm_widgets", "name": "Widgets Inc", "role": "member"}
+    ],
+    "default_team_id": "tm_acme",
+    "access_token": "eyJ0eXAiOiJKV1QiLCJhbGc...",
+    "refresh_token": "rf_5C4E9...",
+    "session_id": "sess_...",
+    "issued_at": "2026-04-09T13:37:00Z",
+    "access_token_expires_at": "2026-04-09T14:37:00Z",
+    "refresh_token_expires_at": "2026-07-08T13:37:00Z",
+    "scope": "offline_access cli api.read api.write",
+    "storage_backend": "file",
+    "last_used_at": "2026-04-09T13:45:00Z",
+    "auth_method": "authorization_code"
+  }
+}
+```
+
+**File Permissions**: 0600 (owner read/write only)  
+**Validation on Read**: chmod verification, JSON parse, schema validation
+
+### 4.2 Keychain (macOS)
+
+```
+Service: spec-kitty-cli
+Account: session
+Password: [JSON-encoded StoredSession, same as file format above]
+```
+
+### 4.3 Credential Manager (Windows)
+
+```
+Target: spec-kitty-cli/session
+Credential: [JSON-encoded StoredSession]
+```
+
+### 4.4 Secret Service (Linux/GNOME Keyring)
+
+```
+Collection: default
+Label: spec-kitty-cli session
+Attributes: { "app": "spec-kitty-cli", "type": "session" }
+Secret: [JSON-encoded StoredSession]
+```
+
+---
+
+## 5. Validation Rules Summary
+
+| Entity | Rules |
+|--------|-------|
+| **OAuthTokenResponse** | expires_in > 0, tokens non-empty, session_id non-empty, scope includes "offline_access" |
+| **ComputedTokenExpiry** | both expiry times in future, access < refresh |
+| **StoredSession** | no empty critical fields, expiry times consistent, backend in allowed list |
+| **PKCEState** | code_verifier exactly 43 chars, code_challenge is base64url, method is S256, expires_at = created + 5min |
+| **DeviceFlowState** | expires_in > 0, interval > 0, created < expires, status in enum, user_code human-readable |
+
+---
+
+## End of Data Model
+
+This data model is derived from the finalized SaaS contract (epic #49) and the CLI specification. All entities are synchronized with SaaS response schemas.

@@ -1,6 +1,6 @@
 [project]
 name = "spec-kitty-cli"
-version = "3.1.1"
+version = "3.1.2a1"
 description = "Spec Kitty, a tool for Specification Driven Development (SDD) agentic projects, with kanban and git worktree isolation."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -71,6 +71,8 @@ dependencies = [
     "jsonschema>=4.0",  # JSON Schema validation for mission configs
     "python-ulid>=3.0",  # ULID generation for event IDs
     "google-re2>=1.1",  # RE2 engine for linear-time regex (ReDoS prevention)
+    "cryptography>=42.0",  # AES-256-GCM + scrypt KDF for auth file fallback storage (feature 080)
+    "keyring>=24.0",  # OS keystore abstraction for auth secure storage backends (feature 080)
 ]
 
 [project.urls]
@@ -85,6 +87,7 @@ test = [
     "pytest-asyncio>=0.21.0",  # Required for async tests
     "pytest-cov>=4.1.0",  # Required by CI coverage flags
     "pytest-timeout>=2.2.0",  # Required by mutmut pytest_add_cli_args --timeout flag
+    "respx>=0.21.1",  # HTTPX mocking for auth transport tests (feature 080)
     "diff-cover>=10.0.0",  # Enforce changed-line coverage in CI
     "chardet>=3.0.4,<6",  # Pin chardet below 6.x to avoid requests compatibility warning
     "build>=1.0.0",  # Required for distribution tests (wheel building)

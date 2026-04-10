@@ -4,7 +4,7 @@ Sync module for spec-kitty CLI.
 Provides real-time synchronization with spec-kitty-saas server via:
 - WebSocket client for event streaming
 - Offline queue for resilience
-- JWT authentication
+- OAuth authentication via ``specify_cli.auth.get_token_manager``
 - Batch sync for offline queue replay
 - Event emission with Lamport clock ordering
 
@@ -14,6 +14,12 @@ do not pull in optional packages.
 
 SaaS connectivity is feature-flagged and disabled by default. Set
 ``SPEC_KITTY_ENABLE_SAAS_SYNC=1`` to enable auth/network sync flows.
+
+As of mission 080 (browser-mediated OAuth) the legacy
+``specify_cli.sync.auth`` module has been removed entirely. All callers
+must fetch bearer tokens via
+``from specify_cli.auth import get_token_manager`` (WP08 rewire, WP10
+deletion).
 """
 
 from .clock import LamportClock, generate_node_id
@@ -38,9 +44,6 @@ from .feature_flags import (
 
 # Lazy-loaded names (require 'requests' or 'websockets' at runtime)
 _LAZY_IMPORTS: dict[str, tuple[str, str]] = {
-    "AuthClient": (".auth", "AuthClient"),
-    "AuthenticationError": (".auth", "AuthenticationError"),
-    "CredentialStore": (".auth", "CredentialStore"),
     "BatchEventResult": (".batch", "BatchEventResult"),
     "BatchSyncResult": (".batch", "BatchSyncResult"),
     "batch_sync": (".batch", "batch_sync"),
@@ -75,9 +78,6 @@ def __getattr__(name: str) -> object:
 
 
 __all__ = [
-    "AuthClient",
-    "AuthenticationError",
-    "CredentialStore",
     "WebSocketClient",
     "SyncConfig",
     "OfflineQueue",

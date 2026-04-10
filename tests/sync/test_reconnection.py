@@ -33,38 +33,38 @@ class TestExponentialBackoffFormula:
 
     def test_delay_attempt_0(self):
         """Test delay for attempt 0: 500ms * 2^0 = 500ms"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delay = client.get_reconnect_delay(0)
         assert delay == 0.5
 
     def test_delay_attempt_1(self):
         """Test delay for attempt 1: 500ms * 2^1 = 1s"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delay = client.get_reconnect_delay(1)
         assert delay == 1.0
 
     def test_delay_attempt_2(self):
         """Test delay for attempt 2: 500ms * 2^2 = 2s"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delay = client.get_reconnect_delay(2)
         assert delay == 2.0
 
     def test_delay_attempt_5(self):
         """Test delay for attempt 5: 500ms * 2^5 = 16s"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delay = client.get_reconnect_delay(5)
         assert delay == 16.0
 
     def test_delay_capped_at_30_seconds(self):
         """Test delay is capped at 30 seconds for high attempt numbers"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         # 500ms * 2^7 = 64s, should be capped at 30s
         delay = client.get_reconnect_delay(7)
         assert delay == 30.0
 
     def test_delay_still_capped_at_higher_attempts(self):
         """Test delay remains capped for very high attempt numbers"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delay = client.get_reconnect_delay(10)
         assert delay == 30.0
 
@@ -74,12 +74,12 @@ class TestReconnectionAttemptCounter:
 
     def test_initial_attempt_count_is_zero(self):
         """Test client starts with zero reconnect attempts"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         assert client.reconnect_attempts == 0
 
     def test_reset_reconnect_attempts(self):
         """Test resetting reconnect attempt counter"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         client.reconnect_attempts = 5
         client.reset_reconnect_attempts()
         assert client.reconnect_attempts == 0
@@ -90,17 +90,17 @@ class TestReconnectionStatus:
 
     def test_initial_status_is_offline(self):
         """Test client starts in offline status"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         assert client.status == ConnectionStatus.OFFLINE
 
     def test_is_in_batch_mode_false_initially(self):
         """Test is_in_batch_mode returns False initially"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         assert client.is_in_batch_mode() is False
 
     def test_is_in_batch_mode_true_when_batch_mode(self):
         """Test is_in_batch_mode returns True when in batch mode"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         client.status = ConnectionStatus.BATCH_MODE
         assert client.is_in_batch_mode() is True
 
@@ -111,7 +111,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_max_attempts_switches_to_batch_mode(self):
         """Test reconnect switches to batch mode after max attempts"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
 
         # Mock connect to always fail
         with (
@@ -128,7 +128,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_success_resets_attempts(self):
         """Test successful reconnection resets attempt counter"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         client.reconnect_attempts = 3
 
         # Mock connect to succeed
@@ -144,7 +144,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_returns_true_on_success(self):
         """Test reconnect returns True when connection succeeds"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
 
         with (
             patch.object(client, "connect", new_callable=AsyncMock),
@@ -157,7 +157,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_stops_after_success(self):
         """Test reconnect stops trying after successful connection"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         connect_calls = 0
 
         async def mock_connect():
@@ -175,7 +175,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_increments_attempts_on_failure(self):
         """Test each failed attempt increments the counter"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         attempts_seen = []
 
         async def track_attempts():
@@ -195,7 +195,7 @@ class TestReconnectMethod:
     @pytest.mark.asyncio
     async def test_reconnect_calls_sleep_with_exponential_delays(self):
         """Test reconnect sleeps between attempts with exponential backoff"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         sleep_calls = []
 
         async def mock_sleep(delay):
@@ -221,7 +221,7 @@ class TestJitterBehavior:
     @pytest.mark.asyncio
     async def test_jitter_applied_to_delay(self):
         """Test that jitter is applied to the calculated delay"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delays = []
 
         async def capture_delay(delay):
@@ -250,7 +250,7 @@ class TestJitterBehavior:
     @pytest.mark.asyncio
     async def test_negative_delay_clamped_to_zero(self):
         """Test that delay is clamped to 0 if jitter makes it negative"""
-        client = WebSocketClient("ws://localhost", "token")
+        client = WebSocketClient()
         delays = []
 
         async def capture_delay(delay):
@@ -301,12 +301,50 @@ class TestClientLifecycle:
     """Tests for connect/disconnect task lifecycle hygiene."""
 
     @pytest.mark.asyncio
-    async def test_disconnect_cancels_listener_task(self):
-        """disconnect() should cancel the background listener task."""
-        client = WebSocketClient("https://example.test", "token")
+    async def test_disconnect_cancels_listener_task(self, monkeypatch):
+        """disconnect() should cancel the background listener task.
+
+        Post-WP08 connect() resolves the ws URL and token through
+        ``provision_ws_token`` instead of taking them as constructor
+        arguments; patch that bridge along with the websockets transport.
+        """
+        from specify_cli.auth import errors as auth_errors  # noqa: F401
+
+        client = WebSocketClient()
+
+        # Patch the authenticated-session accessor used by
+        # ``_current_team_id`` so connect() doesn't blow up on NotAuthenticated.
+        class _Team:
+            id = "team-42"
+
+        class _Session:
+            default_team_id = "team-42"
+            teams = [_Team()]
+
+        class _TM:
+            def get_current_session(self):
+                return _Session()
+
+        monkeypatch.setattr("specify_cli.sync.client.get_token_manager", lambda: _TM())
+
+        async def fake_provision(_team_id):
+            return {
+                "ws_url": "https://example.test/ws",
+                "ws_token": "provisioned-token",
+                "expires_in": 60,
+            }
+
+        monkeypatch.setattr(
+            "specify_cli.sync.client.provision_ws_token", fake_provision
+        )
 
         async def fake_connect(*_args, **_kwargs):
             return _FakeWebSocket()
+
+        # Pretend the SaaS feature flag is on for this test.
+        monkeypatch.setattr(
+            "specify_cli.sync.client.is_saas_sync_enabled", lambda: True
+        )
 
         with patch("specify_cli.sync.client.websockets.connect", side_effect=fake_connect):
             await client.connect()

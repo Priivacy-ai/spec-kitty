@@ -2,7 +2,9 @@
   "event_count": 12,
   "last_event_id": "01KN237661MQ1NGSA7QR51PRWS",
   "materialized_at": "2026-03-31T14:02:05.355182+00:00",
+  "mission_number": "014",
   "mission_slug": "014-comprehensive-end-user-documentation",
+  "mission_type": "documentation",
   "summary": {
     "approved": 0,
     "blocked": 0,

@@ -2,7 +2,9 @@
   "event_count": 9,
   "last_event_id": "01KN23769DG64TR0F7DB8ENWVG",
   "materialized_at": "2026-03-31T14:02:05.469893+00:00",
+  "mission_number": "023",
   "mission_slug": "023-documentation-sprint-agent-management-cleanup",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

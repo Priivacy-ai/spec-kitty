@@ -1,392 +1,185 @@
-"""Unit tests for AuthClient."""
+"""Regression tests for the WP10 password-era removal.
+
+Mission 080 (browser-mediated OAuth) deleted the legacy
+``specify_cli.sync.auth`` module, which contained the password-based
+``AuthClient`` and the TOML-backed ``CredentialStore``. This file replaces
+the old unit tests, which exclusively exercised those deleted classes.
+
+Equivalent coverage now lives in:
+- ``tests/auth/test_secure_storage_keychain.py`` (WP01)
+- ``tests/auth/test_secure_storage_file.py`` (WP01)
+- ``tests/auth/test_token_manager.py`` (WP02)
+- ``tests/auth/test_refresh_flow.py`` (WP04)
+- ``tests/auth/concurrency/test_single_flight_refresh.py`` (WP11)
+
+The remaining tests in this file are user-facing regression gates that
+guard the hard cutover (C-001):
+
+1. ``specify_cli.sync.auth`` must not exist.
+2. The Typer auth app must expose exactly ``login``, ``logout``, and
+   ``status`` commands (no parallel ``oauth-*`` commands).
+3. ``auth login --help`` must mention neither "password" nor "username".
+4. ``AuthClient`` / ``CredentialStore`` must not be reintroduced anywhere
+   under ``src/specify_cli/`` (except, historically, in the deleted
+   module itself — which no longer exists, so this check is total).
+"""
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, UTC
-from unittest.mock import Mock, patch
+from pathlib import Path
 
-import httpx
 import pytest
-
-from specify_cli.sync.auth import AuthClient, AuthenticationError
-from specify_cli.sync.feature_flags import SAAS_SYNC_ENV_VAR
+from typer.testing import CliRunner
 
 pytestmark = pytest.mark.fast
 
 
-@pytest.fixture
-def auth_client(tmp_path):
-    """Create AuthClient with temp credential store and test server URL."""
-    client = AuthClient()
-    cred_dir = tmp_path / ".spec-kitty"
-    cred_dir.mkdir()
-    client.credential_store.credentials_path = cred_dir / "credentials"
-    client.credential_store.lock_path = client.credential_store.credentials_path.with_suffix(".lock")
-    client.config.get_server_url = lambda: "https://test.example.com"
-    return client
+# ---------------------------------------------------------------------------
+# T052: the legacy module must be gone
+# ---------------------------------------------------------------------------
 
 
-class TestObtainTokens:
-    """Tests for AuthClient.obtain_tokens()."""
-
-    def test_obtain_tokens_success(self, auth_client):
-        """obtain_tokens() should store tokens on success."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            result = auth_client.obtain_tokens("user@example.com", "password")
-
-            assert result is True
-            assert auth_client.credential_store.get_access_token() == "new_access_token"
-
-    def test_obtain_tokens_invalid_credentials(self, auth_client):
-        """obtain_tokens() should raise on 401."""
-        mock_response = Mock()
-        mock_response.status_code = 401
-        mock_response.json.return_value = {"detail": "Invalid credentials"}
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            with pytest.raises(AuthenticationError) as exc_info:
-                auth_client.obtain_tokens("user@example.com", "wrong")
-
-            assert "Invalid username or password" in str(exc_info.value)
-
-    def test_obtain_tokens_network_error(self, auth_client):
-        """obtain_tokens() should raise on network error."""
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.side_effect = httpx.RequestError("Connection failed")
-
-            with pytest.raises(AuthenticationError) as exc_info:
-                auth_client.obtain_tokens("user@example.com", "password")
-
-            assert "Cannot reach server" in str(exc_info.value)
-
-    def test_rejects_non_https_server_url(self, auth_client):
-        """Non-HTTPS server URLs should be rejected."""
-        auth_client.config.get_server_url = lambda: "http://insecure.example.com"
-
-        with pytest.raises(AuthenticationError) as exc_info:
-            _ = auth_client.server_url
-
-        assert "https://" in str(exc_info.value)
+def test_legacy_sync_auth_module_is_gone() -> None:
+    """Attempting to import the deleted legacy module must fail."""
+    with pytest.raises(ImportError):
+        import specify_cli.sync.auth  # noqa: F401
 
 
-class TestRefreshTokens:
-    """Tests for AuthClient.refresh_tokens()."""
+def test_legacy_auth_classes_not_reintroduced_in_src() -> None:
+    """Guard against accidental re-introduction of the password-era classes.
 
-    def test_refresh_tokens_success(self, auth_client):
-        """refresh_tokens() should update stored tokens."""
-        auth_client.credential_store.save(
-            access_token="old_access",
-            refresh_token="old_refresh",
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
+    Scans every ``.py`` file under ``src/specify_cli/`` and asserts that
+    neither ``class AuthClient`` nor ``class CredentialStore`` is defined
+    anywhere. (``TrackerCredentialStore`` in ``tracker/credentials.py`` is
+    an unrelated class and is explicitly allowed.)
+    """
+    src_root = Path(__file__).resolve().parents[2] / "src" / "specify_cli"
+    assert src_root.is_dir(), f"expected src tree at {src_root}"
+
+    offenders: list[tuple[Path, str]] = []
+    for py_file in src_root.rglob("*.py"):
+        text = py_file.read_text(encoding="utf-8")
+        if "class AuthClient" in text:
+            offenders.append((py_file, "class AuthClient"))
+        # Match the exact legacy class name (word boundary sensitive):
+        # ``TrackerCredentialStore`` is a different, allowed class.
+        for line in text.splitlines():
+            if "class CredentialStore" in line and "TrackerCredentialStore" not in line:
+                offenders.append((py_file, line.strip()))
+
+    assert not offenders, (
+        "Legacy password-era classes were reintroduced: "
+        + "; ".join(f"{p}: {snippet}" for p, snippet in offenders)
+    )
+
+
+# ---------------------------------------------------------------------------
+# T056: Typer app surface regression
+# ---------------------------------------------------------------------------
+
+
+def _registered_command_names(app) -> set[str]:
+    """Return the effective command names registered on a Typer app.
+
+    Typer uses the callback function's ``__name__`` as the command name
+    when the decorator is invoked without an explicit ``name=``. This
+    helper normalises to the same surface the CLI user sees.
+    """
+    names: set[str] = set()
+    for cmd in app.registered_commands:
+        if cmd.name:
+            names.add(cmd.name)
+        elif cmd.callback is not None:
+            names.add(cmd.callback.__name__)
+    return names
+
+
+def test_typer_app_has_required_commands() -> None:
+    """Regression: the auth Typer app must expose login, logout, and status."""
+    from specify_cli.cli.commands.auth import app
+
+    command_names = _registered_command_names(app)
+    assert "login" in command_names, command_names
+    assert "logout" in command_names, command_names
+    assert "status" in command_names, command_names
+
+
+def test_no_oauth_prefixed_commands() -> None:
+    """Regression: no parallel ``oauth-*`` commands.
+
+    Hard cutover (C-001) means the new browser-mediated OAuth flow IS the
+    ``auth login`` command, not a sibling set of commands.
+    """
+    from specify_cli.cli.commands.auth import app
+
+    command_names = _registered_command_names(app)
+    for forbidden in (
+        "oauth-login",
+        "oauth_login",
+        "oauth-logout",
+        "oauth_logout",
+        "oauth-status",
+        "oauth_status",
+    ):
+        assert forbidden not in command_names, (
+            f"Unexpected parallel command '{forbidden}' found: {sorted(command_names)}"
         )
 
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-        }
 
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            result = auth_client.refresh_tokens()
-
-            assert result is True
-            data = auth_client.credential_store.load()
-            assert data["tokens"]["access"] == "new_access_token"
-            assert data["tokens"]["refresh"] == "new_refresh_token"
-
-    def test_refresh_tokens_no_refresh_token(self, auth_client):
-        """refresh_tokens() should raise when no refresh token stored."""
-        with pytest.raises(AuthenticationError) as exc_info:
-            auth_client.refresh_tokens()
-
-        assert "No valid refresh token" in str(exc_info.value)
-
-    def test_refresh_tokens_does_not_leak_token(self, auth_client):
-        """refresh_tokens() errors should not include token values."""
-        sensitive_token = "SECRET_REFRESH_TOKEN"
-        auth_client.credential_store.save(
-            access_token="old_access",
-            refresh_token=sensitive_token,
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-
-        mock_response = Mock()
-        mock_response.status_code = 401
-        mock_response.json.return_value = {"detail": "Token invalid"}
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            with pytest.raises(AuthenticationError) as exc_info:
-                auth_client.refresh_tokens()
-
-        assert sensitive_token not in str(exc_info.value)
+# ---------------------------------------------------------------------------
+# T055: user-facing help text has no password/username leftovers
+# ---------------------------------------------------------------------------
 
 
-class TestGetAccessToken:
-    """Tests for AuthClient.get_access_token()."""
+def test_login_command_no_password_in_help() -> None:
+    """``auth login --help`` must mention neither "password" nor "username"."""
+    from specify_cli.cli.commands.auth import app
 
-    def test_get_access_token_returns_valid(self, auth_client):
-        """get_access_token() should return valid token directly."""
-        auth_client.credential_store.save(
-            access_token="valid_access",
-            refresh_token="test",
-            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-
-        token = auth_client.get_access_token()
-        assert token == "valid_access"
-
-    def test_get_access_token_refreshes_expired(self, auth_client):
-        """get_access_token() should refresh expired access token."""
-        auth_client.credential_store.save(
-            access_token="expired_access",
-            refresh_token="valid_refresh",
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "refreshed_access",
-            "refresh": "new_refresh",
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            token = auth_client.get_access_token()
-
-            assert token == "refreshed_access"
+    runner = CliRunner()
+    result = runner.invoke(app, ["login", "--help"])
+    assert result.exit_code == 0, result.output
+    help_lower = result.output.lower()
+    assert "password" not in help_lower, result.output
+    assert "username" not in help_lower, result.output
 
 
-class TestIsAuthenticated:
-    """Tests for AuthClient.is_authenticated()."""
+def test_logout_command_no_password_in_help() -> None:
+    """``auth logout --help`` must mention neither "password" nor "username"."""
+    from specify_cli.cli.commands.auth import app
 
-    def test_is_authenticated_true(self, auth_client):
-        """is_authenticated() should return True when tokens valid."""
-        auth_client.credential_store.save(
-            access_token="test",
-            refresh_token="test",
-            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-
-        assert auth_client.is_authenticated() is True
-
-    def test_is_authenticated_false(self, auth_client):
-        """is_authenticated() should return False when no tokens."""
-        assert auth_client.is_authenticated() is False
+    runner = CliRunner()
+    result = runner.invoke(app, ["logout", "--help"])
+    assert result.exit_code == 0, result.output
+    help_lower = result.output.lower()
+    assert "password" not in help_lower, result.output
+    assert "username" not in help_lower, result.output
 
 
-class TestClearCredentials:
-    """Tests for AuthClient.clear_credentials()."""
+def test_status_command_no_password_in_help() -> None:
+    """``auth status --help`` must mention neither "password" nor "username"."""
+    from specify_cli.cli.commands.auth import app
 
-    def test_clear_credentials(self, auth_client):
-        """clear_credentials() should remove stored credentials."""
-        auth_client.credential_store.save(
-            access_token="test",
-            refresh_token="test",
-            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-
-        auth_client.clear_credentials()
-
-        assert auth_client.is_authenticated() is False
+    runner = CliRunner()
+    result = runner.invoke(app, ["status", "--help"])
+    assert result.exit_code == 0, result.output
+    help_lower = result.output.lower()
+    assert "password" not in help_lower, result.output
+    assert "username" not in help_lower, result.output
 
 
-class TestGetTeamSlug:
-    """Tests for AuthClient.get_team_slug()."""
-
-    def test_get_team_slug_authenticated_with_slug(self, auth_client):
-        """get_team_slug() returns stored slug when authenticated."""
-        auth_client.credential_store.save(
-            access_token="test",
-            refresh_token="test",
-            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-            team_slug="my-team",
-        )
-
-        assert auth_client.get_team_slug() == "my-team"
-
-    def test_get_team_slug_unauthenticated(self, auth_client):
-        """get_team_slug() returns None when not authenticated."""
-        assert auth_client.get_team_slug() is None
-
-    def test_get_team_slug_missing_from_creds(self, auth_client):
-        """get_team_slug() returns None when field missing from creds."""
-        # Authenticated but no team_slug field
-        auth_client.credential_store.save(
-            access_token="test",
-            refresh_token="test",
-            access_expires_at=datetime.now(UTC) + timedelta(minutes=15),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-            # team_slug not provided
-        )
-
-        assert auth_client.get_team_slug() is None
-
-    def test_obtain_tokens_stores_team_slug(self, auth_client):
-        """obtain_tokens() stores team_slug from server response."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-            "team_slug": "server-provided-team",
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            auth_client.obtain_tokens("user@example.com", "password")
-
-            assert auth_client.get_team_slug() == "server-provided-team"
-
-    def test_obtain_tokens_no_team_slug_from_server(self, auth_client):
-        """obtain_tokens() handles missing team_slug from server gracefully."""
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-            # No team_slug in response
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            auth_client.obtain_tokens("user@example.com", "password")
-
-            # Should still authenticate successfully, team_slug will be None
-            assert auth_client.is_authenticated() is True
-            assert auth_client.get_team_slug() is None
-
-    def test_refresh_tokens_preserves_team_slug(self, auth_client):
-        """refresh_tokens() preserves existing team_slug."""
-        # First, save credentials with team_slug
-        auth_client.credential_store.save(
-            access_token="old_access",
-            refresh_token="old_refresh",
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-            team_slug="existing-team",
-        )
-
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-            # Server doesn't include team_slug in refresh response
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            auth_client.refresh_tokens()
-
-            # team_slug should be preserved
-            assert auth_client.get_team_slug() == "existing-team"
-
-    def test_refresh_tokens_updates_team_slug_if_provided(self, auth_client):
-        """refresh_tokens() updates team_slug if server provides it."""
-        # First, save credentials with old team_slug
-        auth_client.credential_store.save(
-            access_token="old_access",
-            refresh_token="old_refresh",
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-            team_slug="old-team",
-        )
-
-        mock_response = Mock()
-        mock_response.status_code = 200
-        mock_response.json.return_value = {
-            "access": "new_access_token",
-            "refresh": "new_refresh_token",
-            "team_slug": "new-team",  # Server provides updated team_slug
-        }
-
-        with patch.object(auth_client, "_get_http_client") as mock_client:
-            mock_client.return_value.post.return_value = mock_response
-
-            auth_client.refresh_tokens()
-
-            # team_slug should be updated to new value
-            assert auth_client.get_team_slug() == "new-team"
+# ---------------------------------------------------------------------------
+# T052: CLI smoke — the dispatch shell still imports cleanly
+# ---------------------------------------------------------------------------
 
 
-class TestSaasFeatureFlag:
-    """Feature-flag behavior for SaaS auth paths."""
+def test_auth_dispatch_module_imports_cleanly() -> None:
+    """``specify_cli.cli.commands.auth`` must import without errors.
 
-    def test_obtain_tokens_blocked_when_disabled(self, auth_client, monkeypatch):
-        """obtain_tokens() should fail before any network call."""
-        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
+    This is the CLI smoke test from the WP10 acceptance criteria.
+    """
+    from specify_cli.cli.commands.auth import app  # noqa: F401
 
-        with (
-            patch.object(auth_client, "_get_http_client") as mock_client,
-            pytest.raises(AuthenticationError) as exc_info,
-        ):
-            auth_client.obtain_tokens("user@example.com", "password")
 
-        assert "disabled" in str(exc_info.value).lower()
-        mock_client.assert_not_called()
-
-    def test_get_access_token_does_not_refresh_when_disabled(self, auth_client, monkeypatch):
-        """Expired access token should not trigger refresh when feature is disabled."""
-        auth_client.credential_store.save(
-            access_token="expired_access",
-            refresh_token="valid_refresh",
-            access_expires_at=datetime.now(UTC) - timedelta(minutes=1),
-            refresh_expires_at=datetime.now(UTC) + timedelta(days=7),
-            username="user@example.com",
-            server_url="https://test.example.com",
-        )
-        monkeypatch.delenv(SAAS_SYNC_ENV_VAR, raising=False)
-
-        with patch.object(auth_client, "refresh_tokens") as mock_refresh:
-            token = auth_client.get_access_token()
-
-        assert token is None
-        mock_refresh.assert_not_called()
+def test_auth_package_exposes_token_manager() -> None:
+    """The new canonical surface must still be importable."""
+    from specify_cli.auth import get_token_manager  # noqa: F401

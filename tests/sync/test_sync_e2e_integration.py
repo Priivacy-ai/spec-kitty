@@ -166,7 +166,6 @@ class TestIdentityAwareFlow:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -204,7 +203,6 @@ class TestIdentityAwareFlow:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -256,7 +254,6 @@ class TestUnauthenticatedGracefulDegradation:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,  # No WebSocket when unauthenticated
             _identity=identity,
         )
@@ -277,11 +274,15 @@ class TestUnauthenticatedGracefulDegradation:
         mock_service = MagicMock()
         with patch("specify_cli.sync.background.get_sync_service") as mock_get_service:
             mock_get_service.return_value = mock_service
-            with patch("specify_cli.sync.auth.AuthClient") as mock_auth_class:
-                mock_auth = MagicMock()
-                mock_auth.is_authenticated.return_value = False
-                mock_auth_class.return_value = mock_auth
-
+            # Mission 080: ``SyncRuntime`` now reads auth state via
+            # ``specify_cli.auth.get_token_manager`` instead of the deleted
+            # ``sync.auth.AuthClient``. Patch the token manager factory to
+            # force the unauthenticated branch.
+            mock_tm = MagicMock()
+            mock_tm.is_authenticated = False
+            with patch(
+                "specify_cli.auth.get_token_manager", return_value=mock_tm
+            ):
                 runtime = SyncRuntime()
                 runtime.start()
 
@@ -420,7 +421,6 @@ class TestNoDuplicateEmissions:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -467,7 +467,6 @@ class TestNoDuplicateEmissions:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -529,7 +528,6 @@ class TestFullWorkflowIntegration:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -619,7 +617,6 @@ class TestFullWorkflowIntegration:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,  # No WebSocket
             _identity=identity,
         )
@@ -671,7 +668,6 @@ class TestEventPayloadValidation:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -722,7 +718,6 @@ class TestEventPayloadValidation:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )
@@ -756,7 +751,6 @@ class TestEventPayloadValidation:
             clock=clock,
             config=mock_config,
             queue=mock_queue,
-            _auth=mock_auth,
             ws_client=None,
             _identity=identity,
         )

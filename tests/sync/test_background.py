@@ -32,12 +32,17 @@ def mock_queue(tmp_path) -> OfflineQueue:
 
 
 @pytest.fixture
-def mock_auth() -> MagicMock:
-    """Mock AuthClient."""
-    auth = MagicMock()
-    auth.get_access_token.return_value = "token"
-    auth.is_authenticated.return_value = True
-    return auth
+def mock_auth(monkeypatch):
+    """Mock token-fetching helper used by BackgroundSyncService.
+
+    Returns a MagicMock whose ``return_value`` is the token string; tests can
+    set ``.return_value = None`` to simulate the unauthenticated state.
+    """
+    fake_fetch = MagicMock(return_value="token")
+    monkeypatch.setattr(
+        "specify_cli.sync.background._fetch_access_token_sync", fake_fetch
+    )
+    return fake_fetch
 
 
 @pytest.fixture
@@ -50,10 +55,13 @@ def mock_config() -> MagicMock:
 
 @pytest.fixture
 def service(mock_queue, mock_auth, mock_config) -> BackgroundSyncService:
-    """BackgroundSyncService with mocked dependencies."""
+    """BackgroundSyncService with mocked dependencies.
+
+    The ``mock_auth`` fixture already patched the token-fetch bridge, so
+    constructing the service is a no-op w.r.t. auth plumbing.
+    """
     return BackgroundSyncService(
         queue=mock_queue,
-        auth=mock_auth,
         config=mock_config,
         sync_interval_seconds=0.1,  # Fast for testing
     )
@@ -212,7 +220,7 @@ class TestSyncNow:
 
     def test_sync_now_when_not_authenticated(self, service, mock_auth):
         """sync_now() returns empty result when not authenticated."""
-        mock_auth.get_access_token.return_value = None
+        mock_auth.return_value = None
 
         result = service.sync_now()
         assert result.synced_count == 0
@@ -269,10 +277,9 @@ class TestSingletonAccessor:
                         _bg._service._timer.cancel()
                 _bg._service = None
 
-    @patch("specify_cli.sync.background.AuthClient")
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    def test_get_sync_service_returns_same_instance(self, mock_q, _c, _a):
+    def test_get_sync_service_returns_same_instance(self, mock_q, _c):
         """get_sync_service() returns the same instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()
@@ -280,10 +287,9 @@ class TestSingletonAccessor:
         assert s1 is s2
         s1.stop()
 
-    @patch("specify_cli.sync.background.AuthClient")
     @patch("specify_cli.sync.background.SyncConfig")
     @patch("specify_cli.sync.background.OfflineQueue")
-    def test_reset_clears_singleton(self, mock_q, _c, _a):
+    def test_reset_clears_singleton(self, mock_q, _c):
         """reset_sync_service() allows new instance."""
         mock_q.return_value.size.return_value = 0
         s1 = get_sync_service()

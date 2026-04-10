@@ -21,7 +21,6 @@ from .queue import OfflineQueue
 from specify_cli.core.contract_gate import validate_outbound_payload
 
 if TYPE_CHECKING:
-    from .auth import AuthClient
     from .client import WebSocketClient
     from .git_metadata import GitMetadata, GitMetadataResolver
     from .project_identity import ProjectIdentity
@@ -299,7 +298,6 @@ class EventEmitter:
     clock: LamportClock = field(default_factory=LamportClock.load)
     config: SyncConfig = field(default_factory=SyncConfig)
     queue: OfflineQueue = field(default_factory=OfflineQueue)
-    _auth: AuthClient | None = field(default=None, repr=False)
     ws_client: WebSocketClient | None = field(default=None, repr=False)
     _pending_tasks: set = field(default_factory=set, repr=False)
     _identity: "ProjectIdentity | None" = field(default=None, repr=False)
@@ -329,13 +327,32 @@ class EventEmitter:
             logger.debug("Git metadata resolution failed: %s", e)
             return GitMetadata()
 
-    @property
-    def auth(self) -> AuthClient:
-        """Lazy-load AuthClient to avoid circular imports."""
-        if self._auth is None:
-            from .auth import AuthClient
-            self._auth = AuthClient()
-        return self._auth
+    @staticmethod
+    def _is_authenticated() -> bool:
+        """Check authentication via the process-wide TokenManager."""
+        try:
+            from specify_cli.auth import get_token_manager
+
+            return bool(get_token_manager().is_authenticated)
+        except Exception:
+            return False
+
+    @staticmethod
+    def _current_team_slug() -> str | None:
+        """Return the current team slug (team id) from the active session, if any."""
+        try:
+            from specify_cli.auth import get_token_manager
+
+            session = get_token_manager().get_current_session()
+            if session is None or not session.teams:
+                return None
+            # Prefer the default team; fall back to the first team in the list.
+            for team in session.teams:
+                if team.id == session.default_team_id:
+                    return team.id
+            return session.teams[0].id
+        except Exception:
+            return None
 
     def get_connection_status(self) -> str:
         """Return current connection status."""
@@ -654,12 +671,11 @@ class EventEmitter:
             return None
 
     def _get_team_slug(self) -> str:
-        """Get team_slug from AuthClient. Returns 'local' if unavailable."""
+        """Get team_slug from the active TokenManager session. Returns 'local' if unavailable."""
         try:
-            if hasattr(self.auth, "get_team_slug"):
-                slug = self.auth.get_team_slug()
-                if slug:
-                    return slug
+            slug = self._current_team_slug()
+            if slug:
+                return slug
         except Exception as e:
             _console.print(f"[yellow]Warning: Could not resolve team_slug: {e}[/yellow]")
         return "local"
@@ -778,13 +794,8 @@ class EventEmitter:
         Returns True if event was sent/queued successfully.
         """
         try:
-            # Check if authenticated
-            authenticated = False
-            try:
-                if hasattr(self.auth, "is_authenticated"):
-                    authenticated = self.auth.is_authenticated()
-            except Exception:
-                pass
+            # Check if authenticated (via TokenManager)
+            authenticated = self._is_authenticated()
 
             # If authenticated and WebSocket connected, send directly
             if authenticated and self.ws_client is not None and self.ws_client.connected:

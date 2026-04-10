@@ -2,7 +2,9 @@
   "event_count": 39,
   "last_event_id": "01KNKNXF0N1ZQSKEVCAQNGEC32",
   "materialized_at": "2026-04-07T09:55:55.029821+00:00",
+  "mission_number": "068",
   "mission_slug": "068-post-merge-reliability-and-release-hardening",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 0,
     "blocked": 0,

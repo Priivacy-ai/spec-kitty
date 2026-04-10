@@ -1,0 +1,158 @@
+{
+  "version": 1,
+  "mission_slug": "080-browser-mediated-oauth-cli-auth",
+  "mission_id": "01KNS7C9AZP1MPCFZWM25KV6TM",
+  "mission_branch": "kitty/mission-080-browser-mediated-oauth-cli-auth",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP07",
+        "WP09",
+        "WP08",
+        "WP06",
+        "WP10",
+        "WP11"
+      ],
+      "write_scope": [
+        "pyproject.toml",
+        "src/specify_cli/auth/__init__.py",
+        "src/specify_cli/auth/config.py",
+        "src/specify_cli/auth/device_flow/**",
+        "src/specify_cli/auth/errors.py",
+        "src/specify_cli/auth/flows/__init__.py",
+        "src/specify_cli/auth/flows/authorization_code.py",
+        "src/specify_cli/auth/flows/device_code.py",
+        "src/specify_cli/auth/flows/refresh.py",
+        "src/specify_cli/auth/http/**",
+        "src/specify_cli/auth/loopback/**",
+        "src/specify_cli/auth/secure_storage/**",
+        "src/specify_cli/auth/session.py",
+        "src/specify_cli/auth/token_manager.py",
+        "src/specify_cli/auth/websocket/**",
+        "src/specify_cli/cli/commands/_auth_login.py",
+        "src/specify_cli/cli/commands/_auth_logout.py",
+        "src/specify_cli/cli/commands/_auth_status.py",
+        "src/specify_cli/cli/commands/auth.py",
+        "src/specify_cli/sync/auth.py",
+        "src/specify_cli/sync/background.py",
+        "src/specify_cli/sync/batch.py",
+        "src/specify_cli/sync/body_transport.py",
+        "src/specify_cli/sync/client.py",
+        "src/specify_cli/sync/emitter.py",
+        "src/specify_cli/sync/events.py",
+        "src/specify_cli/sync/runtime.py",
+        "src/specify_cli/tracker/saas_client.py",
+        "tests/auth/concurrency/**",
+        "tests/auth/integration/**",
+        "tests/auth/stress/**",
+        "tests/auth/test_authorization_code_flow.py",
+        "tests/auth/test_browser_launcher.py",
+        "tests/auth/test_config.py",
+        "tests/auth/test_device_code_flow.py",
+        "tests/auth/test_device_flow_poller.py",
+        "tests/auth/test_http_transport.py",
+        "tests/auth/test_loopback_callback.py",
+        "tests/auth/test_pkce.py",
+        "tests/auth/test_refresh_flow.py",
+        "tests/auth/test_secure_storage_file.py",
+        "tests/auth/test_secure_storage_keychain.py",
+        "tests/auth/test_session.py",
+        "tests/auth/test_state_manager.py",
+        "tests/auth/test_token_manager.py",
+        "tests/auth/test_websocket_provisioning.py",
+        "tests/cli/commands/test_auth_login.py",
+        "tests/cli/commands/test_auth_logout.py",
+        "tests/cli/commands/test_auth_status.py",
+        "tests/sync/test_auth.py",
+        "tests/sync/test_auth_concurrent_refresh.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-09T16:53:13.526094+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP01"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP08",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP08"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP01"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP09",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP09"
+      },
+      {
+        "wp_a": "WP10",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP10 depends on WP04"
+      },
+      {
+        "wp_a": "WP11",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP11 depends on WP01"
+      }
+    ],
+    "total_merges": 10,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 10
+    }
+  }
+}

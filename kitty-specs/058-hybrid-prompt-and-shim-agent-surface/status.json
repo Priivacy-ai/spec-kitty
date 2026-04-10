@@ -2,7 +2,9 @@
   "event_count": 23,
   "last_event_id": "01KMZNKTJ3DAYHBCBJA2Q9C8ZV",
   "materialized_at": "2026-03-30T15:25:50.531561+00:00",
+  "mission_number": "058",
   "mission_slug": "058-hybrid-prompt-and-shim-agent-surface",
+  "mission_type": "software-dev",
   "summary": {
     "approved": 6,
     "blocked": 0,

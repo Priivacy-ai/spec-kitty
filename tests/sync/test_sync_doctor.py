@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from io import StringIO
 from unittest.mock import MagicMock, patch
 
@@ -12,6 +13,26 @@ from specify_cli.cli.commands.sync import format_queue_health
 from specify_cli.sync.queue import DEFAULT_MAX_QUEUE_SIZE, QueueStats
 
 pytestmark = pytest.mark.fast
+
+
+def _make_fake_session(
+    *,
+    access_expires_at: datetime,
+    refresh_expires_at: datetime | None,
+    email: str = "testuser@example.com",
+    team_id: str = "test-team",
+) -> MagicMock:
+    """Build a MagicMock that quacks like a StoredSession for sync doctor."""
+    session = MagicMock()
+    session.access_token_expires_at = access_expires_at
+    session.refresh_token_expires_at = refresh_expires_at
+    session.email = email
+    session.name = email
+    session.default_team_id = team_id
+    team = MagicMock()
+    team.id = team_id
+    session.teams = [team]
+    return session
 
 
 class TestFormatQueueHealthCapacity:
@@ -55,9 +76,9 @@ class TestDoctorCommand:
 
     @patch("specify_cli.sync.queue.OfflineQueue")
     @patch("specify_cli.cli.commands.sync._check_server_connection")
-    @patch("specify_cli.sync.auth.CredentialStore")
+    @patch("specify_cli.auth.get_token_manager")
     @patch("specify_cli.sync.config.SyncConfig")
-    def test_doctor_healthy(self, mock_config_cls, mock_store_cls, mock_check, mock_queue_cls, capsys):
+    def test_doctor_healthy(self, mock_config_cls, mock_get_tm, mock_check, mock_queue_cls, capsys):
         """Doctor reports no issues when queue is empty, auth is valid, server reachable."""
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(total_queued=0)
@@ -68,15 +89,14 @@ class TestDoctorCommand:
         mock_config.get_server_url.return_value = "https://test.example.com"
         mock_config_cls.return_value = mock_config
 
-        mock_store = MagicMock()
-        mock_store.exists.return_value = True
-        mock_store.get_token_expiry_info.return_value = {
-            "access_expires_at": "2099-01-01T00:00:00+00:00",
-            "refresh_expires_at": "2099-01-01T00:00:00+00:00",
-        }
-        mock_store.get_username.return_value = "testuser"
-        mock_store.get_team_slug.return_value = "test-team"
-        mock_store_cls.return_value = mock_store
+        now = datetime.now(timezone.utc)
+        session = _make_fake_session(
+            access_expires_at=now + timedelta(days=30),
+            refresh_expires_at=now + timedelta(days=30),
+        )
+        fake_tm = MagicMock()
+        fake_tm.get_current_session.return_value = session
+        mock_get_tm.return_value = fake_tm
 
         mock_check.return_value = ("[green]Connected[/green]", "Server reachable.")
 
@@ -88,9 +108,9 @@ class TestDoctorCommand:
 
     @patch("specify_cli.sync.queue.OfflineQueue")
     @patch("specify_cli.cli.commands.sync._check_server_connection")
-    @patch("specify_cli.sync.auth.CredentialStore")
+    @patch("specify_cli.auth.get_token_manager")
     @patch("specify_cli.sync.config.SyncConfig")
-    def test_doctor_full_queue_expired_auth(self, mock_config_cls, mock_store_cls, mock_check, mock_queue_cls, capsys):
+    def test_doctor_full_queue_expired_auth(self, mock_config_cls, mock_get_tm, mock_check, mock_queue_cls, capsys):
         """Doctor reports issues when queue is full and auth is expired."""
         mock_queue = MagicMock()
         mock_queue.get_queue_stats.return_value = QueueStats(
@@ -105,15 +125,14 @@ class TestDoctorCommand:
         mock_config.get_server_url.return_value = "https://test.example.com"
         mock_config_cls.return_value = mock_config
 
-        mock_store = MagicMock()
-        mock_store.exists.return_value = True
-        mock_store.get_token_expiry_info.return_value = {
-            "access_expires_at": "2020-01-01T00:00:00+00:00",
-            "refresh_expires_at": "2020-01-01T00:00:00+00:00",
-        }
-        mock_store.get_username.return_value = "testuser"
-        mock_store.get_team_slug.return_value = "test-team"
-        mock_store_cls.return_value = mock_store
+        past = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        session = _make_fake_session(
+            access_expires_at=past,
+            refresh_expires_at=past,
+        )
+        fake_tm = MagicMock()
+        fake_tm.get_current_session.return_value = session
+        mock_get_tm.return_value = fake_tm
 
         mock_check.return_value = ("[red]Unreachable[/red]", "Connection refused.")
 

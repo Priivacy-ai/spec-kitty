@@ -368,7 +368,7 @@ class TestErrorPropagation:
         ]
 
         with (
-            patch("specify_cli.tracker.saas_client.AuthClient"),
+            patch("specify_cli.tracker.saas_client._force_refresh_sync"),
             pytest.raises(OriginBindingError, match="Session expired|login"),
         ):
             search_origin_candidates(
@@ -544,7 +544,7 @@ class TestSaaSFirstWriteOrdering:
         candidate = _make_candidate()
 
         with (
-            patch("specify_cli.tracker.saas_client.AuthClient"),
+            patch("specify_cli.tracker.saas_client._force_refresh_sync"),
             pytest.raises(OriginBindingError),
         ):
             bind_mission_origin(

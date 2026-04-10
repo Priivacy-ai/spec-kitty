@@ -74,7 +74,13 @@ def _make_service(
     tmp_path: Path,
     auth_token: str | None = "test-token",
 ):
-    """Create a BackgroundSyncService with real body queue and mocked dependencies."""
+    """Create a BackgroundSyncService with real body queue and mocked dependencies.
+
+    The sync→async auth bridge (``_fetch_access_token_sync``) is patched at the
+    module level so tests can control what the service sees without needing a
+    real ``TokenManager``.
+    """
+    from specify_cli.sync import background as bg_mod
     from specify_cli.sync.background import BackgroundSyncService
     from specify_cli.sync.queue import OfflineQueue
 
@@ -82,15 +88,15 @@ def _make_service(
     event_queue = OfflineQueue(db_path=db_path)
     body_queue = OfflineBodyUploadQueue(db_path=db_path)
 
-    mock_auth = MagicMock()
-    mock_auth.get_access_token.return_value = auth_token
-
     mock_config = MagicMock()
     mock_config.get_server_url.return_value = "https://test.example.com"
 
+    # Patch the token-fetch bridge at the module level. Tests that want to
+    # simulate the unauthenticated state pass ``auth_token=None``.
+    bg_mod._fetch_access_token_sync = MagicMock(return_value=auth_token)
+
     service = BackgroundSyncService(
         queue=event_queue,
-        auth=mock_auth,
         config=mock_config,
     )
     service._body_queue = body_queue

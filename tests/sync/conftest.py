@@ -24,13 +24,37 @@ def temp_queue(tmp_path: Path) -> OfflineQueue:
 
 
 @pytest.fixture
-def mock_auth() -> MagicMock:
-    """Mock AuthClient for testing."""
-    auth = MagicMock()
-    auth.is_authenticated.return_value = True
-    auth.get_access_token.return_value = "test_token"
-    auth.get_team_slug.return_value = "test-team"
-    return auth
+def mock_auth(monkeypatch) -> MagicMock:
+    """Patched TokenManager accessor used by the sync layer.
+
+    Post-WP08 the sync layer reaches for ``specify_cli.auth.get_token_manager``
+    instead of the legacy ``AuthClient``. This fixture installs a MagicMock
+    so tests that previously depended on ``is_authenticated`` / team slug
+    lookups continue to see an authenticated state without needing a real
+    ``StoredSession`` on disk.
+    """
+    # Build a session-like mock with a single default team.
+    team = MagicMock()
+    team.id = "test-team"
+    team.slug = "test-team"
+
+    session = MagicMock()
+    session.default_team_id = "test-team"
+    session.teams = [team]
+    session.email = "tester@example.com"
+
+    tm = MagicMock()
+    tm.is_authenticated = True
+    tm.get_current_session.return_value = session
+
+    def _get_tm():
+        return tm
+
+    # Patch the process-wide factory at its canonical location. This covers
+    # every call site because all sync-layer modules call it via
+    # ``from specify_cli.auth import get_token_manager`` rebinding each time.
+    monkeypatch.setattr("specify_cli.auth.get_token_manager", _get_tm)
+    return tm
 
 
 @pytest.fixture
@@ -92,12 +116,17 @@ def emitter(
     mock_identity: ProjectIdentity,
     mock_git_resolver: MagicMock,
 ) -> EventEmitter:
-    """EventEmitter wired to temp queue, mock auth, isolated clock, mock identity, and mock git resolver."""
+    """EventEmitter wired to temp queue, isolated clock, mock identity, and mock git resolver.
+
+    ``mock_auth`` is included for its monkeypatch side-effect (installs a
+    fake ``get_token_manager``); the emitter itself reaches for that
+    accessor internally so no ``auth`` kwarg is needed post-WP08.
+    """
+    del mock_auth  # side-effect-only dependency
     em = EventEmitter(
         clock=temp_clock,
         config=mock_config,
         queue=temp_queue,
-        _auth=mock_auth,
         ws_client=None,
         _identity=mock_identity,  # Pre-populate with mock identity
         _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver
@@ -115,11 +144,11 @@ def emitter_without_identity(
     mock_git_resolver: MagicMock,
 ) -> EventEmitter:
     """EventEmitter with empty identity (simulates non-project context)."""
+    del mock_auth  # side-effect-only dependency
     em = EventEmitter(
         clock=temp_clock,
         config=mock_config,
         queue=temp_queue,
-        _auth=mock_auth,
         ws_client=None,
         _identity=empty_identity,  # Pre-populate with empty identity
         _git_resolver=mock_git_resolver,  # Pre-populate with mock git resolver

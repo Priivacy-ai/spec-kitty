@@ -2,18 +2,31 @@
 
 All SaaS-backed tracker operations flow through ``SaaSTrackerClient``.
 Endpoint paths match the PRI-12 frozen contract exactly.
+
+Authentication (WP08 rewiring):
+    Tokens and team context are read from the process-wide ``TokenManager``
+    via ``specify_cli.auth.get_token_manager()``. Because the public surface
+    is synchronous (``httpx.Client``) but ``TokenManager`` is async, a small
+    sync bridge (``_fetch_access_token_sync`` + ``_force_refresh_sync``)
+    runs token operations on a short-lived event loop.
 """
 
 from __future__ import annotations
 
+import asyncio
 import secrets
 import time
 import uuid
+from datetime import datetime, timedelta, UTC
 from typing import Any
 
 import httpx
 
-from specify_cli.sync.auth import AuthClient, CredentialStore
+from specify_cli.auth import get_token_manager
+from specify_cli.auth.errors import (
+    AuthenticationError,
+    NotAuthenticatedError,
+)
 from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
 
@@ -46,6 +59,65 @@ class SaaSTrackerClientError(RuntimeError):
 def _poll_jitter_multiplier() -> float:
     """Return a cryptographically strong jitter multiplier in [0.8, 1.2]."""
     return 0.8 + (secrets.randbelow(4001) / 10000.0)
+
+
+def _run_in_fresh_loop(coro):
+    """Run ``coro`` on a fresh asyncio loop and return its result.
+
+    Assumes the caller is not running inside an event loop itself. The
+    SaaSTrackerClient is a synchronous transport so this assumption holds
+    for the CLI code paths that use it.
+    """
+    new_loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(new_loop)
+        return new_loop.run_until_complete(coro)
+    finally:
+        try:
+            asyncio.set_event_loop(None)
+        except Exception:
+            pass
+        new_loop.close()
+
+
+def _fetch_access_token_sync() -> str | None:
+    """Return a valid access token from TokenManager, or ``None`` if unauth."""
+    tm = get_token_manager()
+    if not tm.is_authenticated:
+        return None
+    try:
+        return _run_in_fresh_loop(tm.get_access_token())
+    except AuthenticationError:
+        return None
+
+
+def _force_refresh_sync() -> bool:
+    """Force a token refresh via TokenManager (sync bridge).
+
+    Marks the current session's access token as expired so the single-flight
+    ``refresh_if_needed()`` actually runs. Returns ``True`` on success,
+    raises ``AuthenticationError`` if refresh fails.
+    """
+    tm = get_token_manager()
+    session = tm.get_current_session()
+    if session is None:
+        raise NotAuthenticatedError("No session to refresh")
+    # Bump expiry so refresh_if_needed treats the token as stale.
+    session.access_token_expires_at = datetime.now(UTC) - timedelta(seconds=60)
+    _run_in_fresh_loop(tm.refresh_if_needed())
+    return True
+
+
+def _current_team_slug_sync() -> str | None:
+    """Return the current team slug (team id) from TokenManager session, or None."""
+    tm = get_token_manager()
+    session = tm.get_current_session()
+    if session is None or not session.teams:
+        return None
+    for team in session.teams:
+        if team.id == session.default_team_id:
+            return team.id
+    return session.teams[0].id
 
 
 # ---------------------------------------------------------------------------
@@ -92,24 +164,24 @@ class SaaSTrackerClient:
 
     Parameters
     ----------
-    credential_store:
-        Provides Bearer tokens and team slug.  Falls back to a default
-        ``CredentialStore()`` when *None*.
     sync_config:
         Provides the server base URL.  Falls back to a default
         ``SyncConfig()`` when *None*.
     timeout:
         Per-request HTTP timeout in seconds (default 30).
+
+    Notes
+    -----
+    Tokens and team slug are sourced from the process-wide TokenManager
+    (see module docstring). Callers no longer pass a credential store.
     """
 
     def __init__(
         self,
-        credential_store: CredentialStore | None = None,
         sync_config: SyncConfig | None = None,
         *,
         timeout: float = 30.0,
     ) -> None:
-        self._credential_store = credential_store or CredentialStore()
         self._sync_config = sync_config or SyncConfig()
         self._base_url: str = self._sync_config.get_server_url()
         self._timeout = timeout
@@ -166,14 +238,19 @@ class SaaSTrackerClient:
         headers: dict[str, str] | None = None,
         params: dict[str, Any] | None = None,
     ) -> httpx.Response:
-        """Issue a single HTTP request with auth + team-slug headers."""
-        access_token = self._credential_store.get_access_token()
+        """Issue a single HTTP request with auth + team-slug headers.
+
+        Tokens and team slug come from the process-wide ``TokenManager``
+        via the sync bridge helpers at the top of this module. No direct
+        filesystem or credential-store access.
+        """
+        access_token = _fetch_access_token_sync()
         if access_token is None:
             raise SaaSTrackerClientError(
                 "No valid access token. Run `spec-kitty auth login` to authenticate."
             )
 
-        team_slug = self._credential_store.get_team_slug()
+        team_slug = _current_team_slug_sync()
         if not team_slug:
             raise SaaSTrackerClientError(
                 "No team context available. Run `spec-kitty auth login` to authenticate."
@@ -225,10 +302,17 @@ class SaaSTrackerClient:
         # --- 401: one refresh + retry ---
         if response.status_code == 401:
             try:
-                auth_client = AuthClient()
-                auth_client.credential_store = self._credential_store
-                auth_client.config = self._sync_config
-                auth_client.refresh_tokens()
+                # Force a refresh via TokenManager (sync bridge). The single-flight
+                # lock inside TokenManager guarantees at most one concurrent refresh
+                # across threads / callers.
+                _force_refresh_sync()
+            except AuthenticationError as exc:
+                raise SaaSTrackerClientError(
+                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    error_code="session_expired",
+                    status_code=401,
+                    user_action_required=True,
+                ) from exc
             except Exception as exc:
                 raise SaaSTrackerClientError(
                     "Session expired. Run `spec-kitty auth login` to re-authenticate.",
