@@ -23,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '3145'
+shell_pid: "3145"
+agent: "claude:opus-4-6:implementer:implementer"
 history:
 - timestamp: '2026-04-10T16:55:49Z'
   action: created
@@ -341,3 +342,7 @@ spec-kitty agent action implement WP01 --agent <name>
 - Check that `status` fields are correct (`active` for new terms, `deprecated` for replaced terms)
 - Verify cross-references between terms are valid links
 - Ensure the `identity-fields.md` format matches other context docs
+
+## Activity Log
+
+- 2026-04-10T17:05:13Z – claude:opus-4-6:implementer:implementer – shell_pid=3145 – Assigned agent via action command
