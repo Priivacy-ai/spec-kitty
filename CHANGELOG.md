@@ -9,6 +9,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2a1] - 2026-04-10
+
+### Added
+
+- **Browser-mediated CLI auth preview** — `spec-kitty auth login` now supports browser-based OAuth with Device Authorization Flow fallback, centralized token management, secure storage, and WebSocket token provisioning against the SaaS contract.
+
+### Changed
+
+- **Human CLI auth now flows through the new auth subsystem** — HTTP transport, sync runtime, and tracker SaaS callers now refresh through the shared token manager instead of the legacy password/JWT credential path.
+
+### Fixed
+
+- **Browser auth CI coverage gaps** — test dependencies and stale tracker refresh patch targets were corrected so the new auth stack passes the core and integration suites reliably in CI.
+
 ## [3.1.1] - 2026-04-09
 
 ### Added
