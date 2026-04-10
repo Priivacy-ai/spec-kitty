@@ -60,6 +60,42 @@ app = typer.Typer(name="mission", help="Mission lifecycle commands for AI agents
 console = Console()
 
 
+def _extract_wp_ids_from_task_files(wp_files: list[Path]) -> list[str]:
+    """Return canonical WP IDs discovered from task filenames."""
+    wp_ids: set[str] = set()
+    for wp_file in wp_files:
+        wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
+        if wp_id_match:
+            wp_ids.add(wp_id_match.group(1))
+    return sorted(wp_ids)
+
+
+def _collect_finalize_artifacts(
+    feature_dir: Path,
+    tasks_dir: Path,
+    mission_slug: str,
+    lanes_path: Path | None = None,
+) -> list[Path]:
+    """Return all deterministic artifacts finalize-tasks may need to commit."""
+    candidates: list[Path] = [
+        feature_dir / "status.events.jsonl",
+        feature_dir / "status.json",
+        feature_dir / "tasks.md",
+        feature_dir / ".kittify" / "dossiers" / mission_slug / "snapshot-latest.json",
+    ]
+    candidates.extend(sorted(path for path in tasks_dir.iterdir() if path.is_file()))
+    if lanes_path is not None:
+        candidates.append(lanes_path)
+
+    seen: set[Path] = set()
+    artifacts: list[Path] = []
+    for candidate in candidates:
+        if candidate.exists() and candidate not in seen:
+            artifacts.append(candidate)
+            seen.add(candidate)
+    return artifacts
+
+
 def _with_cli_version(payload: dict[str, object]) -> dict[str, object]:
     """Attach CLI version metadata to JSON payloads for log observability."""
     if "spec_kitty_version" in payload:
@@ -1312,6 +1348,7 @@ def finalize_tasks(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1)
         wp_files = list(tasks_dir.glob("WP*.md"))
+        expected_wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
         spec_md = feature_dir / "spec.md"
         if not spec_md.exists():
@@ -1363,6 +1400,30 @@ def finalize_tasks(
             from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md as _shared_parse_deps
 
             wp_dependencies = _shared_parse_deps(tasks_content)
+            missing_wp_sections = [wp_id for wp_id in expected_wp_ids if wp_id not in wp_dependencies]
+            extra_wp_sections = sorted(set(wp_dependencies) - set(expected_wp_ids))
+            if missing_wp_sections or extra_wp_sections:
+                error_msg = (
+                    "tasks.md work package coverage is incomplete. "
+                    "finalize-tasks could not match all WP files to parsed sections, "
+                    "so dependency lanes would be unreliable."
+                )
+                payload = {
+                    "error": error_msg,
+                    "missing_wp_sections": missing_wp_sections,
+                    "extra_wp_sections": extra_wp_sections,
+                    "hint": "Use supported section headers such as '## WP01', '## Work Package WP01', or '## Work Package 1 — Title'.",
+                }
+                if json_output:
+                    _emit_json(payload)
+                else:
+                    console.print(f"[red]Error:[/red] {error_msg}")
+                    if missing_wp_sections:
+                        console.print(f"  Missing WP sections: {', '.join(missing_wp_sections)}")
+                    if extra_wp_sections:
+                        console.print(f"  Extra WP sections: {', '.join(extra_wp_sections)}")
+                    console.print(f"  {payload['hint']}")
+                raise typer.Exit(1)
 
             # FALLBACK: tasks.md text (backward compat for pre-API projects)
             tasks_md_refs = _parse_requirement_refs_from_tasks_md(tasks_content)
@@ -1399,11 +1460,7 @@ def finalize_tasks(
 
         # Update each WP file's frontmatter with dependencies + requirement refs
         wp_files = list(tasks_dir.glob("WP*.md"))
-        wp_ids: list[str] = []
-        for wp_file in wp_files:
-            wp_id_match = re.match(r"^(WP\d{2})(?:[-_.]|$)", wp_file.name)
-            if wp_id_match:
-                wp_ids.append(wp_id_match.group(1))
+        wp_ids = _extract_wp_ids_from_task_files(wp_files)
 
         missing_requirement_refs_wps: list[str] = []
         unknown_requirement_refs: dict[str, list[str]] = {}
@@ -1834,7 +1891,10 @@ def finalize_tasks(
                         for c in pr.import_coupling[:3]:
                             console.print(f"    coupling: {c}")
             if risk_report.exceeds_threshold and _policy.risk.mode == "block":
-                error_msg = f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold {risk_report.threshold:.2f}. Use --force to override."
+                error_msg = (
+                    f"Parallelization risk {risk_report.overall_score:.2f} exceeds threshold "
+                    f"{risk_report.threshold:.2f}. Adjust the risk policy to proceed."
+                )
                 if json_output:
                     _emit_json(
                         {
@@ -1849,32 +1909,28 @@ def finalize_tasks(
                     console.print(f"[red]Error:[/red] {error_msg}")
                 raise typer.Exit(1)
 
+        # Run dossier sync before the commit so its deterministic snapshot lands
+        # atomically with the rest of the planning artifacts.
+        with contextlib.suppress(Exception):
+            from specify_cli.sync.dossier_pipeline import (
+                trigger_feature_dossier_sync_if_enabled,
+            )
+
+            trigger_feature_dossier_sync_if_enabled(
+                feature_dir,
+                mission_slug,
+                repo_root,
+            )
+
         try:
-            # Build list of all files to commit via safe_commit
-            files_to_commit = []
-            files_to_commit_rel = []
-
-            # Include tasks.md (if present)
-            if tasks_md.exists():
-                files_to_commit.append(tasks_md)
-                rel_path = str(tasks_md.relative_to(repo_root))
-                files_to_commit_rel.append(rel_path)
-                files_committed.append(rel_path)
-
-            # Include all files in tasks_dir
-            for f in tasks_dir.iterdir():
-                if f.is_file():
-                    files_to_commit.append(f)
-                    rel_path = str(f.relative_to(repo_root))
-                    files_to_commit_rel.append(rel_path)
-                    files_committed.append(rel_path)
-
-            # Include lanes.json if computed
-            if lanes_path and lanes_path.exists():
-                files_to_commit.append(lanes_path)
-                rel_path = str(lanes_path.relative_to(repo_root))
-                files_to_commit_rel.append(rel_path)
-                files_committed.append(rel_path)
+            files_to_commit = _collect_finalize_artifacts(
+                feature_dir,
+                tasks_dir,
+                mission_slug,
+                lanes_path=lanes_path,
+            )
+            files_to_commit_rel = [str(path.relative_to(repo_root)) for path in files_to_commit]
+            files_committed = list(files_to_commit_rel)
 
             # Detect changes only within finalize-tasks outputs.
             # This avoids treating unrelated dirty files as commit failures.
@@ -1948,18 +2004,6 @@ def finalize_tasks(
                 )
             except Exception as exc:
                 console.print(f"[yellow]Warning:[/yellow] WPCreated emission failed for {wp['id']}: {exc}")
-
-        # Dossier sync (fire-and-forget)
-        with contextlib.suppress(Exception):
-            from specify_cli.sync.dossier_pipeline import (
-                trigger_feature_dossier_sync_if_enabled,
-            )
-
-            trigger_feature_dossier_sync_if_enabled(
-                feature_dir,
-                mission_slug,
-                repo_root,
-            )
 
         if json_output:
             _emit_json(
