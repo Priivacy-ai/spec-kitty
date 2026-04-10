@@ -40,6 +40,8 @@ from specify_cli.tasks_support import (
 )
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
+_REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+
 
 def _write_prompt_to_file(
     command_type: str,
@@ -96,11 +98,12 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
       → ``.git/spec-kitty/feedback/<mission_slug>/<task_id>/<filename>``
 
     Also handles legacy absolute-path strings.
-    Returns None for the sentinel string ``"force-override"`` or any
+    Returns None for sentinel values such as ``"force-override"`` and
+    ``"action-review-claim"``, or any
     unrecognised / non-existent pointer.
     """
     value = pointer.strip()
-    if not value or value == "force-override":
+    if not value or value in _REVIEW_FEEDBACK_SENTINELS:
         return None
 
     if value.startswith("review-cycle://"):
@@ -127,6 +130,60 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
     if candidate.exists() and candidate.is_file():
         return candidate
     return None
+
+
+def _read_wp_events(feature_dir: Path, wp_id: str):
+    """Return canonical status events for a single work package."""
+    try:
+        from specify_cli.status.store import read_events as _read_status_events
+
+        return [event for event in _read_status_events(feature_dir) if event.wp_id == wp_id]
+    except Exception:
+        return []
+
+
+def _latest_review_feedback_reference(
+    feature_dir: Path,
+    repo_root: Path,
+    wp_id: str,
+) -> tuple[str | None, Path | None, int | None]:
+    """Return the newest canonical review feedback reference for *wp_id*.
+
+    Operational sentinels like ``action-review-claim`` are intentionally
+    skipped so implement/fix handoff uses the persisted review artifact
+    instead of the transient reviewer claim marker.
+    """
+    wp_events = _read_wp_events(feature_dir, wp_id)
+    for index in range(len(wp_events) - 1, -1, -1):
+        event = wp_events[index]
+        if event.review_ref is None:
+            continue
+        review_ref = event.review_ref.strip()
+        if not review_ref or review_ref in _REVIEW_FEEDBACK_SENTINELS:
+            continue
+        return review_ref, _resolve_review_feedback_pointer(repo_root, review_ref), index
+    return None, None, None
+
+
+def _resolve_review_feedback_context(
+    feature_dir: Path,
+    repo_root: Path,
+    wp_id: str,
+    wp_frontmatter: str,
+) -> tuple[bool, str | None, Path | None]:
+    """Resolve review-feedback presence and the canonical readable artifact."""
+    review_feedback_ref, review_feedback_file, _ = _latest_review_feedback_reference(feature_dir, repo_root, wp_id)
+    if review_feedback_ref is not None:
+        return True, review_feedback_ref, review_feedback_file
+
+    fm_review_status = extract_scalar(wp_frontmatter, "review_status")
+    fm_review_feedback = extract_scalar(wp_frontmatter, "review_feedback")
+    if fm_review_status and str(fm_review_status) == "has_feedback":
+        ref = str(fm_review_feedback).strip() if fm_review_feedback else None
+        path = _resolve_review_feedback_pointer(repo_root, ref) if ref else None
+        return True, ref, path
+
+    return False, None, None
 
 
 def _render_charter_context(repo_root: Path, action: str) -> str:
@@ -185,12 +242,11 @@ def _has_prior_rejection(
 ) -> bool:
     """Check if a WP has review-cycle artifacts from a prior rejection.
 
-    Both conditions must be true:
+    A prior rejection is active when:
     1. Review-cycle artifact files exist in the sub-artifact directory.
-    2. The latest event for this WP is a rejection (from_lane=for_review).
-
-    This prevents false positives when artifacts exist from a cycle that was
-    already resolved (last event is not a rejection).
+    2. The newest canonical review feedback reference for this WP resolves to a
+       readable artifact.
+    3. The WP has not since resolved to an approved/done terminal state.
 
     Args:
         feature_dir: Path to kitty-specs/<mission>/ in the main repo.
@@ -206,19 +262,24 @@ def _has_prior_rejection(
     if not list(sub_artifact_dir.glob("review-cycle-*.md")):
         return False
 
-    # Check that the latest event for this WP is a rejection transition
-    try:
-        from specify_cli.status.store import read_events as _read_status_events
+    wp_events = _read_wp_events(feature_dir, normalized_wp_id)
+    if not wp_events:
+        return False
 
-        _events = _read_status_events(feature_dir)
-        for _ev in reversed(_events):
-            if _ev.wp_id == normalized_wp_id:
-                # Latest event for this WP found — check if it came from for_review
-                return _ev.from_lane == Lane.FOR_REVIEW
-    except Exception:
-        pass
+    repo_root = feature_dir.parent.parent
+    review_feedback_ref, review_feedback_file, review_feedback_index = _latest_review_feedback_reference(
+        feature_dir,
+        repo_root,
+        normalized_wp_id,
+    )
+    if review_feedback_ref is None or review_feedback_file is None or review_feedback_index is None:
+        return False
 
-    return False
+    if any(event.to_lane in {Lane.APPROVED, Lane.DONE} for event in wp_events[review_feedback_index + 1 :]):
+        return False
+
+    latest_event = wp_events[-1]
+    return latest_event.to_lane not in {Lane.APPROVED, Lane.DONE}
 
 
 def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tuple[Path, str]:
@@ -484,6 +545,25 @@ def implement(
             raise RuntimeError(_missing_canonical_status_message(normalized_wp_id, mission_slug))
         current_lane = _wf_get_wp_lane(_wf_feature_dir, normalized_wp_id)
         needs_agent_assignment = _wp_agent_assignment.tool == "unknown"
+        feature_dir = main_repo_root / "kitty-specs" / mission_slug
+        wp_slug = wp.path.stem
+        has_feedback, review_feedback_ref, review_feedback_file = _resolve_review_feedback_context(
+            feature_dir=feature_dir,
+            repo_root=main_repo_root,
+            wp_id=normalized_wp_id,
+            wp_frontmatter=wp.frontmatter,
+        )
+        fix_mode_active = _has_prior_rejection(feature_dir, wp_slug, normalized_wp_id)
+
+        if has_feedback and review_feedback_ref is None:
+            print(f"Error: {normalized_wp_id} has review feedback but no readable review reference.")
+            print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
+            raise typer.Exit(1)
+
+        if has_feedback and review_feedback_file is None:
+            print(f"Error: {normalized_wp_id} review feedback artifact is missing or unreadable: {review_feedback_ref}")
+            print("Re-run move-task with --review-feedback-file so the fix cycle can attach the canonical review artifact.")
+            raise typer.Exit(1)
 
         if current_lane != Lane.IN_PROGRESS or needs_agent_assignment:
             # Require --agent parameter to track who is working
@@ -614,49 +694,20 @@ def implement(
         else:
             print(f"⚠️  {normalized_wp_id} is already in lane: {current_lane}. Action implement will not move it to in_progress.")
 
-        # Check review feedback from canonical event log (review_ref stored in events)
-        # Also check frontmatter review_feedback/review_status as fallback
-        feature_dir = repo_root / "kitty-specs" / mission_slug
-        has_feedback = False
-        review_feedback_ref = None
-        review_feedback_file = None
-        try:
-            from specify_cli.status.store import read_events as _read_status_events
-
-            _events = _read_status_events(feature_dir)
-            # Find the most recent rejection event for this WP (for_review -> planned/in_progress with review_ref)
-            for _ev in reversed(_events):
-                if _ev.wp_id == normalized_wp_id and _ev.from_lane == Lane.FOR_REVIEW and _ev.review_ref is not None:
-                    has_feedback = True
-                    review_feedback_ref = _ev.review_ref
-                    break
-        except Exception:
-            pass
-
-        # Fallback: check frontmatter review metadata (handles transition period)
-        if not has_feedback:
-            fm_review_status = extract_scalar(wp.frontmatter, "review_status")
-            fm_review_feedback = extract_scalar(wp.frontmatter, "review_feedback")
-            if fm_review_status and str(fm_review_status) == "has_feedback":
-                has_feedback = True
-                if fm_review_feedback and str(fm_review_feedback).startswith("feedback://"):
-                    review_feedback_ref = str(fm_review_feedback)
-
-        if review_feedback_ref:
-            review_feedback_file = _resolve_review_feedback_pointer(main_repo_root, review_feedback_ref)
-
         # Fix-mode detection: if the WP was rejected and has review-cycle artifacts,
         # generate a focused fix-mode prompt instead of the full WP prompt.
         # The fix-prompt completely replaces the full WP prompt (not appended to it).
-        _wp_slug = wp.path.stem  # e.g. "WP01-some-title"
-        if _has_prior_rejection(feature_dir, _wp_slug, normalized_wp_id):
+        if fix_mode_active:
             try:
                 from rich.console import Console as _RichConsole
                 from specify_cli.review.artifacts import ReviewCycleArtifact as _ReviewCycleArtifact
                 from specify_cli.review.fix_prompt import generate_fix_prompt as _generate_fix_prompt
 
-                _sub_artifact_dir = feature_dir / "tasks" / _wp_slug
-                _latest_artifact = _ReviewCycleArtifact.latest(_sub_artifact_dir)
+                _sub_artifact_dir = feature_dir / "tasks" / wp_slug
+                if review_feedback_ref and review_feedback_ref.startswith("review-cycle://") and review_feedback_file is not None:
+                    _latest_artifact = _ReviewCycleArtifact.from_file(review_feedback_file)
+                else:
+                    _latest_artifact = _ReviewCycleArtifact.latest(_sub_artifact_dir)
                 if _latest_artifact is not None:
                     _console = _RichConsole()
                     _console.print(
