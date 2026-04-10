@@ -1,6 +1,8 @@
 # Terminology Reference
 
-This document defines the canonical terminology for Spec Kitty's three-tier domain model and identity layer. All contributors, CLI surfaces, documentation, and API contracts must use these terms consistently.
+This document defines the **target-state** canonical terminology for Spec Kitty's three-tier domain model and identity layer. All new code, CLI surfaces, documentation, and API contracts should converge on these terms.
+
+> **Not yet implemented.** This reference describes the canonical model defined by mission 081. The current codebase still uses the pre-081 names (`project_uuid` for the locally minted identity, `project_slug` for the display label, `ProjectIdentity` for the identity class, etc.). Follow-up implementation missions will rename code, config keys, and wire protocol fields to match these definitions. Until then, treat this document as the authoritative *target* — not a description of current behavior.
 
 **Canonical source**: Mission 081 -- Canonical Baseline and Repository Boundary
 
@@ -115,7 +117,7 @@ Is the thing you're naming...
 
 ## What Changed (Migration Summary)
 
-Mission 081 established canonical definitions and identified naming drift. No existing identity values are lost. Only names and labels change.
+Mission 081 established canonical definitions and identified naming drift. The renames below are the target state for follow-up implementation missions. No existing identity values are lost — only names and labels change.
 
 | Old Name | New Name | Reason |
 |----------|----------|--------|

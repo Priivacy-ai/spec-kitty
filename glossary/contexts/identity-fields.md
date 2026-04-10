@@ -2,8 +2,8 @@
 
 Terms describing the 3-tier identity model introduced in mission 081. The identity layer separates three boundary levels:
 
-- **Repository** (`repository_uuid`, `repository_label`): The local Git resource. `repository_uuid` is the primary stable identity, minted once per repository and used as the namespace key for body sync and deduplication.
-- **Collaboration** (`project_uuid`, `repo_slug`): Optional external bindings. `project_uuid` is a SaaS-assigned identity that is absent until a repository is explicitly bound to a project. `repo_slug` is the Git provider reference.
+- **Repository** (`repository_uuid`, `repository_label`, `repo_slug`): The local Git resource. `repository_uuid` is the primary stable identity, minted once per repository and used as the namespace key for body sync and deduplication. `repo_slug` is the optional `owner/repo` Git provider reference.
+- **Collaboration** (`project_uuid`): Optional external binding. `project_uuid` is a SaaS-assigned identity that is absent until a repository is explicitly bound to a project.
 - **Build / Machine** (`build_id`, `node_id`): Per-checkout and per-machine fingerprints for execution context isolation.
 
 See `kitty-specs/081-canonical-baseline-and-repository-boundary/spec.md` for the full contract.
@@ -58,9 +58,9 @@ See `kitty-specs/081-canonical-baseline-and-repository-boundary/spec.md` for the
 | **Context** | Identity Fields |
 | **Status** | canonical |
 | **Applicable to** | `3.x` |
-| **Scope** | Collaboration |
-| **Note** | Derived from the git remote URL. Used for GitHub/GitLab integration features. Absent when no remote is configured. |
-| **Related terms** | [repository_label](#repository_label), [project_uuid](#project_uuid), [Repository](./orchestration.md#repository) |
+| **Scope** | Repository |
+| **Note** | Derived from the git remote URL. Used for GitHub/GitLab integration features. Absent when no remote is configured. This is a repository-scoped field — it identifies the repository on the Git provider, not a SaaS collaboration binding. |
+| **Related terms** | [repository_label](#repository_label), [repository_uuid](#repository_uuid), [Repository](./orchestration.md#repository) |
 
 ---
 

@@ -6,38 +6,10 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | SaaS collaboration surface that groups one or more repositories under a shared identity for collaboration, visibility, and governance. A project may span multiple repositories and exists independent of any single Git checkout. |
+| **Definition** | Entire repository initialized for Spec Kitty workflow execution. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `3.x` |
-| **Note** | Prior to mission 081, "project" was used interchangeably with "repository" to mean the local Git resource. That usage is now prohibited. See [Repository](#repository). |
-| **Related terms** | [Repository](#repository), [Build](#build), [Mission](#mission) |
-
----
-
-### Repository
-
-| | |
-|---|---|
-| **Definition** | Local Git resource (one `.git` directory) that holds mission artifacts, source code, and `.kittify/` configuration. Multiple checkouts (worktrees) of the same repository share one repository identity. |
-| **Context** | Orchestration |
-| **Status** | canonical |
-| **Applicable to** | `3.x` |
-| **Note** | Replaces the pre-081 usage of "project" for the local Git resource. The canonical identity field is `repository_uuid`. |
-| **Related terms** | [Project](#project), [Build](#build) |
-
----
-
-### Build
-
-| | |
-|---|---|
-| **Definition** | One checkout or worktree of one repository. Each build has its own working tree, `.kittify/` state snapshot, and execution context. Builds are ephemeral relative to the repository they belong to. |
-| **Context** | Orchestration |
-| **Status** | canonical |
-| **Applicable to** | `3.x` |
-| **Note** | The canonical identity field is `build_id`. |
-| **Related terms** | [Repository](#repository), [Workspace](../contexts/orchestration.md#workspace) |
+| **Applicable to** | `1.x`, `2.x` |
 
 ---
 

@@ -63,7 +63,7 @@ terms:
     status: active
 
   - surface: planning repository
-    definition: DEPRECATED alias for "project root checkout". Do not use — agents interpret this as a separate repository. Use "project root checkout" or "project root" instead.
+    definition: "DEPRECATED alias for 'repository root checkout'. Do not use — agents interpret this as a separate repository. Use 'repository root checkout' instead."
     confidence: 1.0
     status: deprecated
 

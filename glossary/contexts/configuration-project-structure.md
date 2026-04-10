@@ -1,12 +1,12 @@
 ## Context: Configuration and Project Structure
 
-Terms describing where policy, runtime configuration, and mission artifacts live in a Spec Kitty **repository**.
+Terms describing where policy, runtime configuration, and mission artifacts live in a Spec Kitty project.
 
 ### `.kittify/`
 
 | | |
 |---|---|
-| **Definition** | Repository-local configuration and shared memory directory. |
+| **Definition** | Project-local configuration and shared memory directory. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -55,7 +55,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 
 | | |
 |---|---|
-| **Definition** | Proposed onboarding flow to collect repository intent, constraints, and glossary context early. |
+| **Definition** | Proposed onboarding flow to collect project intent, constraints, and glossary context early. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -71,7 +71,6 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
-| **Note** | In this context, 'Project Charter' refers to the governance document, not the SaaS collaboration surface. See [Project](./orchestration.md#project) for the canonical definition of 'project'. |
 | **Related terms** | [Charter](./governance.md#charter), [Charter Library](#charter-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
