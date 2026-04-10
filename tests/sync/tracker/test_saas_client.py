@@ -540,12 +540,12 @@ class TestPolling:
 
 
 class TestRetryBehaviors:
-    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client._force_refresh_sync")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_401_refresh_retry_success(
         self,
         mock_cls: MagicMock,
-        mock_auth_cls: MagicMock,
+        mock_force_refresh: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_http = MagicMock()
@@ -557,19 +557,16 @@ class TestRetryBehaviors:
             _make_response(401, {"message": "Unauthorized"}),
             _make_response(200, {"ok": True}),
         ]
-        mock_auth_instance = MagicMock()
-        mock_auth_cls.return_value = mock_auth_instance
-
         result = client._request_with_retry("GET", "/api/v1/tracker/status")
         assert result.status_code == 200
-        mock_auth_instance.refresh_tokens.assert_called_once()
+        mock_force_refresh.assert_called_once()
 
-    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client._force_refresh_sync")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_401_double_failure_halts(
         self,
         mock_cls: MagicMock,
-        mock_auth_cls: MagicMock,
+        mock_force_refresh: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_http = MagicMock()
@@ -581,18 +578,15 @@ class TestRetryBehaviors:
             _make_response(401, {"message": "Unauthorized"}),
             _make_response(401, {"message": "Unauthorized"}),
         ]
-        mock_auth_instance = MagicMock()
-        mock_auth_cls.return_value = mock_auth_instance
-
         with pytest.raises(SaaSTrackerClientError, match="Session expired"):
             client._request_with_retry("GET", "/api/v1/tracker/status")
 
-    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client._force_refresh_sync")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_401_refresh_itself_fails(
         self,
         mock_cls: MagicMock,
-        mock_auth_cls: MagicMock,
+        mock_force_refresh: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         mock_http = MagicMock()
@@ -600,9 +594,7 @@ class TestRetryBehaviors:
         mock_cls.return_value.__exit__ = MagicMock(return_value=False)
 
         mock_http.request.return_value = _make_response(401, {"message": "Unauthorized"})
-        mock_auth_instance = MagicMock()
-        mock_auth_instance.refresh_tokens.side_effect = RuntimeError("refresh failed")
-        mock_auth_cls.return_value = mock_auth_instance
+        mock_force_refresh.side_effect = RuntimeError("refresh failed")
 
         with pytest.raises(SaaSTrackerClientError, match="Session expired"):
             client._request_with_retry("GET", "/api/v1/tracker/status")
@@ -1067,12 +1059,12 @@ class TestErrorEnrichmentAttributes:
         assert exc_info.value.error_code == "rate_limited"
         assert exc_info.value.status_code == 429
 
-    @patch("specify_cli.tracker.saas_client.AuthClient")
+    @patch("specify_cli.tracker.saas_client._force_refresh_sync")
     @patch("specify_cli.tracker.saas_client.httpx.Client")
     def test_401_enrichment_has_error_code_and_status(
         self,
         mock_cls: MagicMock,
-        mock_auth_cls: MagicMock,
+        mock_force_refresh: MagicMock,
         client: SaaSTrackerClient,
     ) -> None:
         """Double 401 raises with error_code='session_expired' and status_code=401."""
@@ -1084,9 +1076,6 @@ class TestErrorEnrichmentAttributes:
             _make_response(401, {"message": "Unauthorized"}),
             _make_response(401, {"message": "Unauthorized"}),
         ]
-        mock_auth_instance = MagicMock()
-        mock_auth_cls.return_value = mock_auth_instance
-
         with pytest.raises(SaaSTrackerClientError) as exc_info:
             client._request_with_retry("GET", "/api/v1/tracker/status")
 

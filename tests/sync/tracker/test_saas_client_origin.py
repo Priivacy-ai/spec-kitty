@@ -171,10 +171,7 @@ class TestSearchIssues:
             ),
         ]
 
-        with patch("specify_cli.tracker.saas_client.AuthClient") as mock_auth_cls:
-            mock_auth = MagicMock()
-            mock_auth_cls.return_value = mock_auth
-
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"):
             with pytest.raises(SaaSTrackerClientError, match="Session expired"):
                 client.search_issues("jira", "proj-1", query_text="test")
 
@@ -369,10 +366,7 @@ class TestBindMissionOrigin:
             _make_response(401, {"message": "Unauthorized"}),
         ]
 
-        with patch("specify_cli.tracker.saas_client.AuthClient") as mock_auth_cls:
-            mock_auth = MagicMock()
-            mock_auth_cls.return_value = mock_auth
-
+        with patch("specify_cli.tracker.saas_client._force_refresh_sync"):
             with pytest.raises(SaaSTrackerClientError, match="Session expired"):
                 client.bind_mission_origin("jira", "proj-1", **self._BIND_KWARGS)
 

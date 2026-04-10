@@ -35,18 +35,14 @@ from specify_cli.tracker import saas_client as _saas_mod
 
 
 class _LegacyAuthClientShim:
-    """Dummy class exposed on the saas_client module as ``AuthClient``.
+    """Dummy class exposed on the saas_client module for tracker-test compatibility.
 
-    Legacy tests call ``patch("specify_cli.tracker.saas_client.AuthClient")``
-    and then assert on ``mock_auth_instance.refresh_tokens.assert_called_once()``.
-    They also sometimes configure ``side_effect`` on ``refresh_tokens`` to
-    simulate a failed refresh.
-
-    The compat ``_force_refresh_sync`` in this conftest reads the currently
-    attached module attribute (which ``patch`` replaces with a ``MagicMock``)
-    and forwards to ``AuthClient().refresh_tokens()``, turning any
-    side_effect into a ``RuntimeError`` that the tracker client will translate
-    into ``SaaSTrackerClientError("Session expired")``.
+    Older tracker tests historically patched a module-level auth client class and
+    asserted that ``refresh_tokens()`` was invoked during 401 recovery. The compat
+    ``_force_refresh_sync`` bridge below preserves that behavior by instantiating
+    whichever class is currently attached and forwarding to its
+    ``refresh_tokens()`` method, turning any ``side_effect`` into the runtime
+    error path that the tracker client translates into ``Session expired``.
     """
 
     credential_store: Any = None
@@ -77,8 +73,8 @@ def _patch_saas_token_bridges(monkeypatch, request):
         fake_store.get_team_slug.return_value = "team-acme"
         fake_store.get_refresh_token.return_value = "test-refresh-token"
 
-    # Expose a legacy-compatible ``AuthClient`` attribute on the module so
-    # tests can ``patch("specify_cli.tracker.saas_client.AuthClient")``.
+    # Expose a legacy-compatible auth-client attribute on the module so older
+    # tracker tests can still swap in a MagicMock class if needed.
     monkeypatch.setattr(
         _saas_mod, "AuthClient", _LegacyAuthClientShim, raising=False
     )
