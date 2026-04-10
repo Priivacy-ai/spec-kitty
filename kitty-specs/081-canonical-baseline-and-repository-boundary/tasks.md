@@ -15,9 +15,9 @@
 | T004 | Update `spec_kitty_core.yaml` — deprecate `project root checkout`, add `repository root checkout` | WP01 | | [D] |
 | T005 | Add identity field terms to seed file (repository_uuid, repository_label, project_uuid, repo_slug, build_id, node_id) | WP01 | | [D] |
 | T006 | Create `glossary/contexts/identity-fields.md` — identity layer reference | WP01 | | [D] |
-| T007 | Update `glossary/contexts/configuration-project-structure.md` — align with canonical terminology | WP02 | [P] |
-| T008 | Create `docs/reference/terminology.md` — human-readable terminology reference | WP02 | [P] |
-| T009 | Validate no glossary conflicts and run existing glossary tests | WP02 | |
+| T007 | Update `glossary/contexts/configuration-project-structure.md` — align with canonical terminology | WP02 | [D] |
+| T008 | Create `docs/reference/terminology.md` — human-readable terminology reference | WP02 | [D] |
+| T009 | Validate no glossary conflicts and run existing glossary tests | WP02 | | [D] |
 
 ## Work Packages
 
@@ -63,9 +63,9 @@
 
 **Included subtasks**:
 
-- [ ] T007 Update `glossary/contexts/configuration-project-structure.md` — align with canonical terminology (WP02)
-- [ ] T008 Create `docs/reference/terminology.md` — human-readable terminology reference (WP02)
-- [ ] T009 Validate no glossary conflicts and run existing glossary tests (WP02)
+- [x] T007 Update `glossary/contexts/configuration-project-structure.md` — align with canonical terminology (WP02)
+- [x] T008 Create `docs/reference/terminology.md` — human-readable terminology reference (WP02)
+- [x] T009 Validate no glossary conflicts and run existing glossary tests (WP02)
 
 **Implementation sketch**:
 1. Update `configuration-project-structure.md` to use "repository" instead of "project" where the Git resource is meant
