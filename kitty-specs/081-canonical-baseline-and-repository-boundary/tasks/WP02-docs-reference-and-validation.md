@@ -6,6 +6,7 @@ dependencies:
 requirement_refs:
 - FR-001
 - FR-002
+- FR-007
 - FR-008
 - FR-010
 - FR-011
