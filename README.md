@@ -97,7 +97,7 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.0` (`main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v3.1.x` (development version 3.1.2a1; `main`, GitHub Releases, and PyPI)
 
 **3.1.0 highlights:**
 - **Planning integrity** — read-only status commands no longer dirty the git tree; `spec-kitty next` without `--result` is a safe query-only operation
@@ -204,7 +204,7 @@ Spec Kitty includes a **live dashboard** that automatically tracks your feature 
   <p><em>Feature overview with completion metrics and available artifacts</em></p>
 </div>
 
-The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port`, or stop it cleanly with `--kill`.
+The dashboard starts automatically when you run `spec-kitty init` and runs in the background. Access it anytime with the `/spec-kitty.dashboard` command or `spec-kitty dashboard`—the CLI will start the correct project dashboard automatically if it isn't already running, let you request a specific port with `--port <PORT>` (defaults to auto-select from 3000-5000), or stop it cleanly with `--kill`.
 
 **Key Features:**
 - 📋 **Kanban Board**: Visual workflow across canonical lifecycle lanes (including `blocked` and `canceled`) with `Doing` rendered as `in_progress`
@@ -245,6 +245,14 @@ stateDiagram-v2
     approved --> canceled
     blocked --> canceled
 ```
+
+**Key Lane Transitions & CLI Commands:**
+- `planned → in_progress`: `/spec-kitty.implement` or `spec-kitty implement WP##`
+- `in_progress → for_review`: Automatic on completion, or manual via `/spec-kitty.finalize WP##`
+- `for_review → in_review`: Automated by reviewer claim
+- `in_review → approved`: `/spec-kitty.review --approve WP##`
+- `in_review → done`: `/spec-kitty.review --approve --done WP##`
+- `in_progress → approved`: Direct approval (bypasses review), see [`docs/how-to/direct-approval.md`](docs/how-to/direct-approval.md)
 
 Lane terminology follows the glossary: see
 [`glossary/contexts/orchestration.md#lane`](glossary/contexts/orchestration.md#lane).

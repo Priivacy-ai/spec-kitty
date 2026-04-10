@@ -36,7 +36,11 @@ These are one time installations required to be able to test your changes locall
 
 ### Private Dependencies
 
-Spec-kitty depends on the private [spec-kitty-events](https://github.com/Priivacy-ai/spec-kitty-events) library. For CI/CD setup, see [SSH Deploy Keys documentation](docs/development/ssh-deploy-keys.md).
+Spec-kitty depends on two private libraries:
+- **[spec-kitty-events](https://github.com/Priivacy-ai/spec-kitty-events)** v3.0.0 - Event system and mission-next integration
+- **[spec-kitty-runtime](https://github.com/Priivacy-ai/spec-kitty-runtime)** v0.4.3 - Runtime execution engine
+
+For CI/CD setup, see [SSH Deploy Keys documentation](docs/development/ssh-deploy-keys.md).
 
 For local development, ensure you have SSH access to the repository.
 

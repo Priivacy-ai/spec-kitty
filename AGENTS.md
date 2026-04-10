@@ -216,7 +216,7 @@ For adding new agent support, the key integration points are:
 2. **Update init command** to generate commands for the new agent
 3. **Create command templates** if agent needs custom format (optional)
 
-Most agents use the same command template format from `.kittify/templates/command-templates/`.
+All mission template content now lives exclusively in `doctrine/missions/`. Command templates are generated from there during project initialization.
 
 #### 6. Update CLI Tool Checks (Optional)
 
@@ -277,11 +277,27 @@ Command content with {SCRIPT} and {{args}} placeholders.
 
 ## Directory Conventions
 
-- **CLI agents**: Usually `.<agent-name>/commands/`
-- **IDE agents**: Follow IDE-specific patterns:
-  - Copilot: `.github/prompts/`
-  - Cursor: `.cursor/commands/`
-  - Windsurf: `.windsurf/workflows/`
+| Agent | Directory | Subdirectory | Format |
+|-------|-----------|--------------|--------|
+| Claude Code | `.claude/` | `commands/` | Markdown |
+| GitHub Copilot | `.github/` | `prompts/` | Markdown |
+| Google Gemini | `.gemini/` | `commands/` | TOML |
+| Cursor | `.cursor/` | `commands/` | Markdown |
+| Qwen Code | `.qwen/` | `commands/` | TOML |
+| OpenCode | `.opencode/` | `command/` | Markdown |
+| Windsurf | `.windsurf/` | `workflows/` | Markdown |
+| GitHub Codex | `.codex/` | `prompts/` | Markdown |
+| Kilocode | `.kilocode/` | `workflows/` | Markdown |
+| Augment Code | `.augment/` | `commands/` | Markdown |
+| Roo Cline | `.roo/` | `commands/` | Markdown |
+| Amazon Q | `.amazonq/` | `prompts/` | Markdown |
+
+**Note**: Agent keys differ from directory names for some agents:
+- `copilot` → `.github/prompts` (not `.github`)
+- `auggie` → `.augment/commands` (not `.augment`)
+- `q` → `.amazonq/prompts` (not `.amazonq`)
+
+See [`src/specify_cli/agent_utils/directories.py`](src/specify_cli/agent_utils/directories.py) for the complete `AGENT_DIR_TO_KEY` mapping.
 
 ## Argument Patterns
 
