@@ -61,6 +61,8 @@ jobs:
       cli: ${{ steps.filter.outputs.cli }}
       orchestrator_api: ${{ steps.filter.outputs.orchestrator_api }}
       core_misc: ${{ steps.filter.outputs.core_misc }}
+      charter: ${{ steps.filter.outputs.charter }}
+      agent: ${{ steps.filter.outputs.agent }}
       kernel: ${{ steps.filter.outputs.kernel }}
       doctrine: ${{ steps.filter.outputs.doctrine }}
     steps:
@@ -113,22 +115,25 @@ jobs:
             orchestrator_api:
               - 'src/specify_cli/orchestrator_api/**'
             core_misc:
-              - 'src/charter/**'
               - 'src/kernel/**'
               - 'src/doctrine/**'
-              - 'tests/charter/**'
               - 'tests/kernel/**'
               - 'tests/doctrine/**'
               - 'tests/policy/**'
               - 'tests/core/**'
               - 'tests/contract/**'
-              - 'tests/agent/**'
               - 'tests/init/**'
               - 'tests/e2e/**'
               - 'tests/integration/**'
               - 'tests/dossier/**'
               - 'tests/git_ops/**'
               - 'tests/tasks/**'
+            charter:
+              - 'src/charter/**'
+              - 'tests/charter/**'
+            agent:
+              - 'src/specify_cli/agent_utils/**'
+              - 'tests/agent/**'
             kernel:
               - 'src/kernel/**'
               - 'tests/kernel/**'
@@ -1057,8 +1062,10 @@ jobs:
             --ignore=tests/upgrade \
             --ignore=tests/cli \
             --ignore=tests/runtime \
+            --ignore=tests/charter \
+            --ignore=tests/agent \
             -m fast -q --tb=short \
-            --cov=src/specify_cli --cov=src/charter \
+            --cov=src/specify_cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
       - name: "Upload fast-core-misc coverage"
         if: always()
@@ -1068,8 +1075,109 @@ jobs:
           path: out/reports/
 
   # ---------------------------------------------------------------------------
+  # fast-tests-charter: charter package, depends on doctrine.
+  # ---------------------------------------------------------------------------
+  fast-tests-charter:
+    runs-on: ubuntu-latest
+    needs: [changes, kernel-tests, fast-tests-doctrine]
+    if: >-
+      always() &&
+      needs.changes.outputs.charter == 'true' &&
+      needs.kernel-tests.result != 'failure' &&
+      needs.fast-tests-doctrine.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
+      - name: "Run fast tests — charter"
+        run: |
+          python -m pytest tests/charter \
+            -m fast -q --tb=short \
+            --cov=src/charter \
+            --cov-fail-under=55 \
+            --cov-report=xml:out/reports/coverage/coverage-fast-charter.xml
+      - name: "Upload fast-charter coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-charter-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
+  # fast-tests-agent: agent surface (agent_utils + workflow tests), depends on charter.
+  # ---------------------------------------------------------------------------
+  fast-tests-agent:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-charter]
+    if: >-
+      always() &&
+      needs.changes.outputs.agent == 'true' &&
+      needs.fast-tests-charter.result != 'failure'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
+      - name: "Run fast tests — agent"
+        run: |
+          python -m pytest tests/agent \
+            -m fast -q --tb=short \
+            --cov=src/specify_cli/agent_utils \
+            --cov-fail-under=40 \
+            --cov-report=xml:out/reports/coverage/coverage-fast-agent.xml
+      - name: "Upload fast-agent coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fast-test-agent-reports
+          path: out/reports/
+
+  # ---------------------------------------------------------------------------
   # Integration tests: per-module, gated on their fast-tests counterpart.
   # ---------------------------------------------------------------------------
+  integration-tests-agent:
+    runs-on: ubuntu-latest
+    needs: [changes, fast-tests-agent]
+    if: >-
+      always() &&
+      needs.changes.outputs.agent == 'true' &&
+      needs.fast-tests-agent.result == 'success'
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+      - run: |
+          python -m pip install --upgrade pip
+          pip install -e .[test]
+      - run: mkdir -p out/reports/coverage
+      - name: "Run integration tests — agent"
+        run: |
+          python -m pytest tests/agent \
+            -m 'git_repo or integration' \
+            -q --tb=short \
+            --cov=src/specify_cli/agent_utils \
+            --cov-fail-under=30 \
+            --cov-report=xml:out/reports/coverage/coverage-integration-agent.xml
+      - name: "Upload integration-agent coverage"
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-test-agent-reports
+          path: out/reports/
+
   integration-tests-doctrine:
     runs-on: ubuntu-latest
     needs: [changes, fast-tests-doctrine]
@@ -1538,6 +1646,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-charter
+      - fast-tests-agent
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 30
 
@@ -1602,6 +1712,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-charter
+      - fast-tests-agent
     if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.run_extended))
     timeout-minutes: 40
 
@@ -1757,6 +1869,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-charter
+      - fast-tests-agent
       - slow-tests
       - e2e-cross-cutting
     if: false
@@ -1766,8 +1880,8 @@ jobs:
   # ---------------------------------------------------------------------------
   # sonarcloud: collects coverage XMLs from all upstream test jobs and feeds
   # them to SonarCloud. No tests are re-run — coverage is merged from artifacts.
-  # Runs only on push to main or manual dispatch. PRs and scheduled runs skip
-  # Sonar entirely to keep iteration speed high.
+  # Runs on push to main, the nightly schedule, or manual dispatch. PRs skip
+  # Sonar entirely to keep review latency low.
   # ---------------------------------------------------------------------------
   sonarcloud:
     runs-on: ubuntu-latest
@@ -1787,6 +1901,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-charter
+      - fast-tests-agent
       - integration-tests-doctrine
       - integration-tests-sync
       - integration-tests-merge
@@ -1800,9 +1916,10 @@ jobs:
       - integration-tests-dashboard
       - integration-tests-upgrade
       - integration-tests-cli
+      - integration-tests-agent
       - slow-tests
       - e2e-cross-cutting
-    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
+    if: always() && (github.ref == 'refs/heads/main' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
 
     steps:
       - name: "[INFO] Check Sonar token availability"
@@ -1976,6 +2093,8 @@ jobs:
       - fast-tests-upgrade
       - fast-tests-cli
       - fast-tests-core-misc
+      - fast-tests-charter
+      - fast-tests-agent
       - integration-tests-doctrine
       - integration-tests-sync
       - integration-tests-merge
@@ -1989,6 +2108,7 @@ jobs:
       - integration-tests-dashboard
       - integration-tests-upgrade
       - integration-tests-cli
+      - integration-tests-agent
     runs-on: ubuntu-latest
     if: always()
     steps:
@@ -2013,6 +2133,8 @@ jobs:
             "${{ needs.fast-tests-upgrade.result }}" \
             "${{ needs.fast-tests-cli.result }}" \
             "${{ needs.fast-tests-core-misc.result }}" \
+            "${{ needs.fast-tests-charter.result }}" \
+            "${{ needs.fast-tests-agent.result }}" \
             "${{ needs.integration-tests-doctrine.result }}" \
             "${{ needs.integration-tests-sync.result }}" \
             "${{ needs.integration-tests-merge.result }}" \
@@ -2025,7 +2147,8 @@ jobs:
             "${{ needs.integration-tests-lanes.result }}" \
             "${{ needs.integration-tests-dashboard.result }}" \
             "${{ needs.integration-tests-upgrade.result }}" \
-            "${{ needs.integration-tests-cli.result }}"; do
+            "${{ needs.integration-tests-cli.result }}" \
+            "${{ needs.integration-tests-agent.result }}"; do
             if [ "$result" = "failure" ]; then
               echo "A required job failed."
               exit 1
