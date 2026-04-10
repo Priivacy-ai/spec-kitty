@@ -13,6 +13,9 @@ from typer.testing import CliRunner
 from tests.branch_contract import IS_2X_BRANCH
 from specify_cli.cli.commands.agent import workflow
 from specify_cli.frontmatter import write_frontmatter
+from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
+from specify_cli.status.models import Lane, StatusEvent
+from specify_cli.status.store import append_event
 
 pytestmark = [
     pytest.mark.skipif(not IS_2X_BRANCH, reason="2.x-only review feedback pointer contract"),
@@ -71,6 +74,31 @@ def _write_wp(
     }
     wp_body = f"# WP01 Prompt\n\n## Activity Log\n- 2026-01-01T00:00:00Z – system – lane={lane} – Prompt created.\n"
     write_frontmatter(wp_path, wp_frontmatter, wp_body)
+
+
+def _append_event(
+    feature_dir: Path,
+    *,
+    event_id: str,
+    from_lane: Lane,
+    to_lane: Lane,
+    review_ref: str | None = None,
+) -> None:
+    append_event(
+        feature_dir,
+        StatusEvent(
+            event_id=event_id,
+            mission_slug="001-test-feature",
+            wp_id="WP01",
+            from_lane=from_lane,
+            to_lane=to_lane,
+            at="2026-01-01T00:00:00Z",
+            actor="tester",
+            force=False,
+            execution_mode="worktree",
+            review_ref=review_ref,
+        ),
+    )
 
 
 @pytest.fixture()
@@ -211,6 +239,60 @@ def test_implement_prompt_warns_when_review_status_has_feedback_without_referenc
     prompt_content = prompt_file.read_text(encoding="utf-8")
     assert "WARNING: review_status=has_feedback but no review_feedback reference is set." in prompt_content
     assert "Ask reviewer to re-run move-task with --review-feedback-file." in prompt_content
+
+
+def test_implement_fix_cycle_prefers_review_cycle_artifact_over_review_claim_token(
+    workflow_repo: tuple[Path, str, Path],
+):
+    repo, _feedback_pointer, _feedback_file = workflow_repo
+    feature_dir = repo / "kitty-specs" / "001-test-feature"
+    review_cycle_dir = feature_dir / "tasks" / "WP01-test-task"
+    review_cycle_path = review_cycle_dir / "review-cycle-2.md"
+    review_cycle_ref = "review-cycle://001-test-feature/WP01-test-task/review-cycle-2.md"
+    ReviewCycleArtifact(
+        cycle_number=2,
+        wp_id="WP01",
+        mission_slug="001-test-feature",
+        reviewer_agent="codex",
+        verdict="rejected",
+        reviewed_at="2026-04-10T06:36:14Z",
+        affected_files=[AffectedFile(path="apps/cli_auth/views_authorization.py", line_range="51-88")],
+        reproduction_command="pytest tests/agent -q",
+        body="**Issue 1**: Persist the validated GET request server-side.\n",
+    ).write(review_cycle_path)
+
+    _append_event(feature_dir, event_id="01AAA000000000000000000001", from_lane=Lane.PLANNED, to_lane=Lane.CLAIMED)
+    _append_event(feature_dir, event_id="01AAA000000000000000000002", from_lane=Lane.CLAIMED, to_lane=Lane.IN_PROGRESS)
+    _append_event(feature_dir, event_id="01AAA000000000000000000003", from_lane=Lane.IN_PROGRESS, to_lane=Lane.FOR_REVIEW)
+    _append_event(
+        feature_dir,
+        event_id="01AAA000000000000000000004",
+        from_lane=Lane.FOR_REVIEW,
+        to_lane=Lane.IN_PROGRESS,
+        review_ref="action-review-claim",
+    )
+    _append_event(
+        feature_dir,
+        event_id="01AAA000000000000000000005",
+        from_lane=Lane.IN_PROGRESS,
+        to_lane=Lane.PLANNED,
+        review_ref=review_cycle_ref,
+    )
+
+    runner = CliRunner()
+    result = runner.invoke(
+        workflow.app,
+        ["implement", "WP01", "--feature", "001-test-feature", "--agent", "test-agent"],
+    )
+
+    assert result.exit_code == 0, result.stdout
+    assert "Fix mode" in result.stdout
+    assert "Cycle 2" in result.stdout
+    prompt_file = Path(tempfile.gettempdir()) / "spec-kitty-implement-WP01.md"
+    prompt_content = prompt_file.read_text(encoding="utf-8")
+    assert "## Review Findings" in prompt_content
+    assert "Persist the validated GET request server-side." in prompt_content
+    assert "action-review-claim" not in prompt_content
 
 
 def test_review_prompt_mentions_shared_git_common_dir_feedback_storage(workflow_repo: tuple[Path, str, Path]):
