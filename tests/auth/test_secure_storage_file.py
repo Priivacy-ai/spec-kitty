@@ -21,7 +21,7 @@ from pathlib import Path
 
 import pytest
 
-from specify_cli.auth.errors import StorageDecryptionError
+from specify_cli.auth.errors import SecureStorageError, StorageDecryptionError
 from specify_cli.auth.secure_storage.file_fallback import FileFallbackStorage
 from specify_cli.auth.session import StoredSession, Team
 
@@ -142,6 +142,7 @@ def test_v1_plaintext_is_rejected(storage: FastFileFallback, tmp_path: Path):
     (tmp_path / "credentials.json").write_text(
         json.dumps({"version": 1, "user_id": "old"})
     )
+    os.chmod(tmp_path / "credentials.json", 0o600)
     with pytest.raises(StorageDecryptionError) as excinfo:
         storage.read()
     assert "v1" in str(excinfo.value) or "version" in str(excinfo.value).lower()
@@ -194,6 +195,7 @@ def test_malformed_json_raises_decryption_error(
 ):
     (tmp_path).mkdir(parents=True, exist_ok=True)
     (tmp_path / "credentials.json").write_text("{not-json")
+    os.chmod(tmp_path / "credentials.json", 0o600)
     with pytest.raises(StorageDecryptionError):
         storage.read()
 
@@ -231,6 +233,31 @@ def test_concurrent_writes_do_not_corrupt(tmp_path: Path):
     assert loaded is not None
     # The final access_token must match one of the worker tokens.
     assert loaded.access_token.startswith("token-")
+
+
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
+def test_read_rejects_group_readable_credentials(
+    storage: FastFileFallback, tmp_path: Path
+):
+    """NFR-013: read() must reject credentials files that are not owner-only."""
+    storage.write(_make_session())
+    cred_file = tmp_path / "credentials.json"
+    # Widen permissions to group-readable (0640).
+    os.chmod(cred_file, 0o640)
+    with pytest.raises(SecureStorageError, match="unsafe permissions"):
+        storage.read()
+
+
+@pytest.mark.skipif(not hasattr(os, "getuid"), reason="POSIX-only permission check")
+def test_read_rejects_world_readable_credentials(
+    storage: FastFileFallback, tmp_path: Path
+):
+    """NFR-013: read() must reject world-readable credentials files."""
+    storage.write(_make_session())
+    cred_file = tmp_path / "credentials.json"
+    os.chmod(cred_file, 0o644)
+    with pytest.raises(SecureStorageError, match="unsafe permissions"):
+        storage.read()
 
 
 def test_backend_name_is_file(storage: FastFileFallback):

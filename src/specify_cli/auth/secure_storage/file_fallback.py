@@ -22,6 +22,7 @@ import logging
 import os
 import secrets
 import socket
+import stat
 from pathlib import Path
 from typing import Any
 
@@ -155,12 +156,29 @@ class FileFallbackStorage(SecureStorage):
                 f"Failed to decrypt credentials file: {exc}"
             ) from exc
 
+    def _check_file_permissions(self, path: Path) -> None:
+        """Reject files that are not owner-only (NFR-013: chmod verification on read).
+
+        On platforms without POSIX permission semantics (Windows), the check
+        is skipped — mirroring the best-effort chmod on the write path.
+        """
+        if not hasattr(os, "getuid"):
+            return  # Windows — no POSIX perms to verify
+        mode = stat.S_IMODE(path.stat().st_mode)
+        if mode & 0o077:
+            raise SecureStorageError(
+                f"Credentials file {path} has unsafe permissions "
+                f"(mode={oct(mode)}); expected 0600. "
+                f"Fix with: chmod 600 {path}"
+            )
+
     # ---- public API ------------------------------------------------------
 
     def read(self) -> StoredSession | None:
         if not self._cred_file.exists():
             return None
         self._ensure_dir()
+        self._check_file_permissions(self._cred_file)
         with FileLock(str(self._lock_file), timeout=10):
             raw = self._cred_file.read_text(encoding="utf-8")
         try:
