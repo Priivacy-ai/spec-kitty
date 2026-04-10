@@ -6,10 +6,35 @@ Terms describing lifecycle and runtime orchestration semantics.
 
 | | |
 |---|---|
-| **Definition** | Entire repository initialized for Spec Kitty workflow execution. |
+| **Definition** | SaaS collaboration surface that groups one or more repositories under a shared identity for collaboration, visibility, and governance. A project exists independent of any single Git checkout. |
 | **Context** | Orchestration |
 | **Status** | canonical |
-| **Applicable to** | `1.x`, `2.x` |
+| **Applicable to** | `3.x` |
+| **Note** | Prior to mission 081, "project" was often used to mean the local Git resource. That usage is now deprecated in favor of [Repository](#repository). |
+
+---
+
+### Repository
+
+| | |
+|---|---|
+| **Definition** | Local Git resource (one `.git` directory) that holds mission artifacts, source code, and `.kittify/` configuration. Multiple checkouts (worktrees) of the same repository share one repository identity. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Project](#project), [Build](#build), [Mission](#mission) |
+
+---
+
+### Build
+
+| | |
+|---|---|
+| **Definition** | One checkout or worktree of one repository. Each build has its own working tree, `.kittify/` state snapshot, and execution context. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Related terms** | [Repository](#repository), [Lane](#lane) |
 
 ---
 

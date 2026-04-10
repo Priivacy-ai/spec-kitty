@@ -1,12 +1,12 @@
 ## Context: Configuration and Project Structure
 
-Terms describing where policy, runtime configuration, and mission artifacts live in a Spec Kitty project.
+Terms describing where policy, runtime configuration, and mission artifacts live in a Spec Kitty repository.
 
 ### `.kittify/`
 
 | | |
 |---|---|
-| **Definition** | Project-local configuration and shared memory directory. |
+| **Definition** | Repository-local configuration and shared memory directory. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
@@ -55,7 +55,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 
 | | |
 |---|---|
-| **Definition** | Proposed onboarding flow to collect project intent, constraints, and glossary context early. |
+| **Definition** | Proposed onboarding flow to collect repository intent, constraints, and glossary context early. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
@@ -67,10 +67,11 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 
 | | |
 |---|---|
-| **Definition** | The compiled, project-specific charter containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/charter/`. Use "Project Charter" when distinguishing from the Charter Library. |
+| **Definition** | The compiled, repository-specific charter containing the HiC's governance decisions, doctrine selections, interview answers, and reference manifest. Stored in `.kittify/charter/`. Use "Project Charter" when distinguishing from the Charter Library. |
 | **Context** | Configuration & Project Structure |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+| **Note** | In this context, "Project Charter" names the governance artifact. It does not redefine [Project](./orchestration.md#project) as the local Git resource. |
 | **Related terms** | [Charter](./governance.md#charter), [Charter Library](#charter-library), [Human-in-Charge (HiC)](./identity.md#human-in-charge-hic) |
 
 ---
@@ -79,7 +80,7 @@ Terms describing where policy, runtime configuration, and mission artifacts live
 
 | | |
 |---|---|
-| **Definition** | The project-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Charter and indexed by a reference manifest. |
+| **Definition** | The repository-local collection of doctrine source documents that the HiC has selected, stored alongside the Project Charter and indexed by a reference manifest. |
 | **Context** | Configuration & Project Structure |
 | **Status** | candidate |
 | **Applicable to** | `1.x`, `2.x` |
