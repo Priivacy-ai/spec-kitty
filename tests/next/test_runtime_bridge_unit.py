@@ -13,7 +13,7 @@ from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.decision import DecisionKind
 from spec_kitty_runtime import DiscoveryContext
 
-pytestmark = pytest.mark.git_repo
+pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------
@@ -95,6 +95,8 @@ def _add_wp_files(feature_dir: Path, wps: dict[str, str]) -> None:
 
 
 class TestRuntimeTemplateKey:
+    pytestmark = pytest.mark.git_repo
+
     def test_project_override_takes_precedence(self, tmp_path: Path) -> None:
         """Project-level mission-runtime.yaml shadows the built-in."""
         repo_root = _scaffold_project(tmp_path)
@@ -191,6 +193,8 @@ class TestRuntimeTemplateKey:
 
 
 class TestGetOrStartRun:
+    pytestmark = pytest.mark.git_repo
+
     def test_creates_new_run(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
@@ -280,6 +284,8 @@ class TestRuntimeBridgeCompatibilityHelpers:
 
 
 class TestWPIteration:
+    pytestmark = pytest.mark.git_repo
+
     def test_wp_iteration_does_not_advance_runtime(self, tmp_path: Path) -> None:
         """When WPs remain, runtime step should not advance."""
         repo_root = _scaffold_project(tmp_path)
@@ -357,6 +363,8 @@ class TestWPIteration:
 
 
 class TestRuntimeResultFlow:
+    pytestmark = pytest.mark.git_repo
+
     @staticmethod
     def _read_run_events(run_dir: Path) -> list[dict]:
         event_file = run_dir / "run.events.jsonl"
@@ -417,6 +425,8 @@ class TestRuntimeResultFlow:
 
 
 class TestGuardChecks:
+    pytestmark = pytest.mark.git_repo
+
     def test_specify_guard_blocks_without_spec(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
 
@@ -473,6 +483,8 @@ class TestGuardChecks:
 
 
 class TestMapRuntimeDecision:
+    pytestmark = pytest.mark.git_repo
+
     def test_map_preserves_json_contract(self, tmp_path: Path) -> None:
         """Mapped decisions have all required JSON fields."""
         repo_root = _scaffold_project(tmp_path)
@@ -506,6 +518,8 @@ class TestMapRuntimeDecision:
 
 
 class TestAnswerDecision:
+    pytestmark = pytest.mark.git_repo
+
     def test_answer_without_pending_raises(self, tmp_path: Path) -> None:
         """Answering when no decisions pending raises error."""
         repo_root = _scaffold_project(tmp_path)
@@ -529,6 +543,8 @@ class TestAnswerDecision:
 
 
 class TestFullLoop:
+    pytestmark = pytest.mark.git_repo
+
     def test_full_loop_step_to_terminal(self, tmp_path: Path) -> None:
         """Drive mission from start to terminal through all steps."""
         repo_root = _scaffold_project(tmp_path)
@@ -606,6 +622,7 @@ class TestWPStepHelpers:
 
         assert _should_advance_wp_step("implement", tmp_path) is True
 
+    @pytest.mark.git_repo
     def test_should_advance_hardfails_without_canonical_status(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -622,6 +639,7 @@ class TestWPStepHelpers:
         with pytest.raises(CanonicalStatusNotFoundError):
             _should_advance_wp_step("implement", feature_dir)
 
+    @pytest.mark.git_repo
     def test_should_advance_all_done(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -632,6 +650,7 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is True
 
+    @pytest.mark.git_repo
     def test_should_not_advance_planned_remain(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -641,6 +660,7 @@ class TestWPStepHelpers:
 
         assert _should_advance_wp_step("implement", feature_dir) is False
 
+    @pytest.mark.git_repo
     def test_implement_allows_for_review(self, tmp_path: Path) -> None:
         """Implement step allows for_review WPs (they're in progress of review)."""
         repo_root = _scaffold_project(tmp_path)
@@ -652,6 +672,7 @@ class TestWPStepHelpers:
         assert _should_advance_wp_step("implement", feature_dir) is True
         assert _should_advance_wp_step("review", feature_dir) is False
 
+    @pytest.mark.git_repo
     def test_review_allows_approved(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -669,6 +690,7 @@ class TestWPStepHelpers:
 
 
 class TestAtomicTaskSteps:
+    @pytest.mark.git_repo
     def test_tasks_outline_guard_blocks_without_tasks_md(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -679,6 +701,7 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "tasks.md" in failures[0]
 
+    @pytest.mark.git_repo
     def test_tasks_outline_guard_passes_with_tasks_md(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -689,6 +712,7 @@ class TestAtomicTaskSteps:
         failures = _check_cli_guards("tasks_outline", feature_dir)
         assert len(failures) == 0
 
+    @pytest.mark.git_repo
     def test_tasks_packages_guard_blocks_without_wp_files(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -699,6 +723,7 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "WP*.md" in failures[0]
 
+    @pytest.mark.git_repo
     def test_tasks_packages_guard_passes_with_wp_files(self, tmp_path: Path) -> None:
         repo_root = _scaffold_project(tmp_path)
         feature_dir = repo_root / "kitty-specs" / "042-test-feature"
@@ -709,6 +734,7 @@ class TestAtomicTaskSteps:
         failures = _check_cli_guards("tasks_packages", feature_dir)
         assert len(failures) == 0
 
+    @pytest.mark.git_repo
     def test_tasks_finalize_guard_blocks_without_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files exist but no explicit dependencies: in raw frontmatter."""
         repo_root = _scaffold_project(tmp_path)
@@ -722,6 +748,7 @@ class TestAtomicTaskSteps:
         assert len(failures) == 1
         assert "dependencies" in failures[0]
 
+    @pytest.mark.git_repo
     def test_tasks_finalize_guard_passes_with_raw_dependencies(self, tmp_path: Path) -> None:
         """WP files have dependencies: [...] explicitly written."""
         repo_root = _scaffold_project(tmp_path)
@@ -738,6 +765,7 @@ class TestAtomicTaskSteps:
         failures = _check_cli_guards("tasks_finalize", feature_dir)
         assert len(failures) == 0
 
+    @pytest.mark.git_repo
     def test_tasks_finalize_guard_rejects_auto_injected_dependencies(self, tmp_path: Path) -> None:
         """WP file with NO dependencies line — read_frontmatter would inject [],
         but raw check correctly rejects."""

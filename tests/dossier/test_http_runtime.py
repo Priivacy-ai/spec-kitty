@@ -80,7 +80,7 @@ class TestDossierHTTPRuntime:
         ]
 
         dossier = MissionDossier(
-            mission_type="042-test-feature",
+            mission_slug="042-test-feature",
             feature_dir=str(feature_dir),
             artifacts=artifacts,
             mission_type="software-dev",

@@ -4,6 +4,8 @@ import pytest
 
 from specify_cli.lanes.models import CollapseEvent, CollapseReport, ExecutionLane, LanesManifest
 
+pytestmark = pytest.mark.fast
+
 
 def test_execution_lane_round_trip():
     lane = ExecutionLane(

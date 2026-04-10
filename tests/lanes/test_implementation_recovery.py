@@ -29,6 +29,8 @@ from specify_cli.workspace_context import (
     save_context,
 )
 
+pytestmark = pytest.mark.git_repo
+
 
 def _make_git_repo(path: Path) -> None:
     """Create a minimal git repo with an initial commit on 'main'."""

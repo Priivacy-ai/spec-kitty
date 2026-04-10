@@ -11,6 +11,8 @@ from pathlib import Path
 
 import pytest
 
+pytestmark = pytest.mark.git_repo
+
 from specify_cli.merge.workspace import (
     cleanup_merge_workspace,
     create_merge_workspace,

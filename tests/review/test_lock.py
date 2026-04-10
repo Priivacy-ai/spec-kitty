@@ -22,6 +22,8 @@ from specify_cli.review.lock import (
     _get_isolation_config,
 )
 
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # Helpers

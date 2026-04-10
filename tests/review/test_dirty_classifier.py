@@ -10,6 +10,8 @@ import pytest
 
 from specify_cli.review.dirty_classifier import classify_dirty_paths
 
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # Helper

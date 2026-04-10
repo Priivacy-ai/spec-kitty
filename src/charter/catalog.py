@@ -242,7 +242,7 @@ def _load_template_sets(doctrine_root: Path) -> set[str]:
     return template_sets
 
 
-def _load_template_sets_with_presence(doctrine_root: Path) -> tuple[set[str], bool]:
+def _load_template_sets_with_presence(_doctrine_root: Path) -> tuple[set[str], bool]:
     """Load available template set IDs, also reporting domain presence.
 
     Returns:

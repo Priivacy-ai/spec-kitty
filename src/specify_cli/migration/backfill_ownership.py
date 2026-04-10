@@ -14,6 +14,7 @@ import logging
 import re
 import subprocess
 from pathlib import Path
+from typing import Any
 
 from specify_cli.ownership.inference import (
     infer_authoritative_surface,
@@ -83,7 +84,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
         return
 
     manager = FrontmatterManager()
-    manifests: dict = {}  # wp_code → OwnershipManifest
+    manifests: dict[str, Any] = {}  # wp_code → OwnershipManifest
 
     # Locate repo root: walk up until we find a .git directory
     repo_root: Path | None = None
@@ -148,7 +149,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
                 except Exception as exc:
                     logger.debug("lane diff inference failed for %s: %s", wp_file.name, exc)
 
-        updates: dict = {}
+        updates: dict[str, Any] = {}
 
         if not has_mode:
             mode = infer_execution_mode(full_content, git_files)
@@ -162,7 +163,7 @@ def backfill_ownership(feature_dir: Path, feature_slug: str) -> None:
             updates["owned_files"] = owned
 
         if not has_surface:
-            current_files = updates.get("owned_files") or frontmatter.get("owned_files") or []  # MIGRATION-ONLY: raw dict read-mutate-write
+            current_files: list[str] = updates.get("owned_files") or frontmatter.get("owned_files") or []  # MIGRATION-ONLY: raw dict read-mutate-write
             surface = infer_authoritative_surface(current_files)
             updates["authoritative_surface"] = surface
 

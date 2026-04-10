@@ -25,7 +25,8 @@ def read_version_from_pyproject() -> str | None:
         match = pattern.search(content)
 
         if match:
-            return match.group(1)
+            result: str = match.group(1)
+            return result
 
         return None
     except Exception:

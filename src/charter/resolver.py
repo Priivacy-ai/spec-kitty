@@ -117,10 +117,11 @@ def resolve_governance(
         resolved_directives = list(doctrine.selected_directives)
         directives_source = "charter"
     else:
-        if directives_cfg.directives:
-            resolved_directives = [directive.id for directive in directives_cfg.directives]
-        else:
-            resolved_directives = sorted(doctrine_catalog.directives)
+        resolved_directives = (
+            [directive.id for directive in directives_cfg.directives]
+            if directives_cfg.directives
+            else sorted(doctrine_catalog.directives)
+        )
         directives_source = "catalog_fallback"
 
     if doctrine.template_set:

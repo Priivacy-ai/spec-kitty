@@ -11,7 +11,7 @@ from specify_cli.mission_v1 import PhaseMission, StateMachineMission, load_missi
 
 import pytest
 
-pytestmark = pytest.mark.git_repo
+pytestmark = pytest.mark.fast
 
 def _write_yaml(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)

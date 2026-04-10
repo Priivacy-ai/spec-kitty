@@ -294,16 +294,38 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
         )
 
     # ------------------------------------------------------------------
-    # 4. New status-layer and kernel coverage reports are wired into
-    #    both the enforced and advisory steps (FR-012 tightening)
+    # 4. Coverage artifacts are downloaded and discovered dynamically
+    #    (FR-012 tightening). The diff-coverage job must use a wildcard
+    #    download pattern and find-based discovery so that ALL upstream
+    #    coverage reports (including kernel and status) feed the gate.
     # ------------------------------------------------------------------
-    new_coverage_files = [
-        "coverage-kernel.xml",
-        "coverage-fast-status.xml",
-        "coverage-integration-status.xml",
-    ]
-    for cov_file in new_coverage_files:
-        assert cov_file in enforced_run, (
-            f"New coverage report '{cov_file}' is missing from the critical-path enforced step. Mission 065 status-layer coverage must feed the diff-coverage gate."
-        )
-        assert cov_file in advisory_run, f"New coverage report '{cov_file}' is missing from the full-diff advisory step."
+    assert "coverage-*.xml" in enforced_run, (
+        "The enforced diff-coverage step must use a dynamic find pattern "
+        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+    )
+    assert "coverage-*.xml" in advisory_run, (
+        "The advisory diff-coverage step must use a dynamic find pattern "
+        "(coverage-*.xml) to discover all coverage reports from upstream jobs."
+    )
+
+    # ------------------------------------------------------------------
+    # 5. diff-coverage must wait for charter coverage uploads when the
+    #    enforced gate includes charter files.
+    # ------------------------------------------------------------------
+    assert "fast-tests-charter" in workflow_text, (
+        "The CI workflow must define a fast-tests-charter job so charter "
+        "coverage can feed the enforced diff-coverage gate."
+    )
+    assert re.search(r"diff-coverage:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- fast-tests-charter", workflow_text), (
+        "diff-coverage must depend on fast-tests-charter; otherwise charter-only "
+        "changes can race artifact upload and produce timing-dependent results."
+    )
+
+    # ------------------------------------------------------------------
+    # 6. quality-gate is the aggregate signal and must fail when
+    #    diff-coverage fails on PRs.
+    # ------------------------------------------------------------------
+    assert re.search(r"quality-gate:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- diff-coverage", workflow_text), (
+        "quality-gate must depend on diff-coverage so a red coverage gate "
+        "cannot be masked by a green aggregate check."
+    )

@@ -120,9 +120,9 @@ def materialize(
             console.print("[dim]No features materialised.[/dim]")
         else:
             for entry in processed:
-                slug = entry.get("mission_slug") or entry.get("mission_slug")
+                display_slug = str(entry.get("mission_slug") or entry.get("mission_slug") or "")
                 files = ", ".join(entry["files_written"])
-                console.print(f"[green]OK[/green] {slug} — {files}")
+                console.print(f"[green]OK[/green] {display_slug} — {files}")
         if errors:
             console.print()
             for err in errors:

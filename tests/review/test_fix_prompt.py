@@ -15,6 +15,8 @@ from specify_cli.review.fix_prompt import (
     generate_fix_prompt,
 )
 
+pytestmark = pytest.mark.fast
+
 
 # ---------------------------------------------------------------------------
 # Helpers

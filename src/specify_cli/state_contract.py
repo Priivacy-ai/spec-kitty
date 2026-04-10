@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import StrEnum
+from typing import Any
 
 
 # ---------------------------------------------------------------------------
@@ -77,7 +78,7 @@ class StateSurface:
     atomic_write: bool = False
     notes: str = ""
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         """Return a JSON-serializable dictionary representation."""
         return {
             "name": self.name,

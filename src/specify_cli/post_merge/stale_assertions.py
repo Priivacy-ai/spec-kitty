@@ -314,14 +314,14 @@ def _is_directly_inside_assert(
         test = assertion.test
         # Direct Name or Attribute in the test expression.
         if isinstance(test, ast.Name) and isinstance(node, ast.Name):
-            return test.id == node.id  # type: ignore[attr-defined]
+            return test.id == node.id
         if isinstance(test, ast.Attribute) and isinstance(node, ast.Attribute):
-            return test.attr == node.attr  # type: ignore[attr-defined]
+            return test.attr == node.attr
         # Walk one level: Compare, BoolOp, etc.
         for direct_child in ast.iter_child_nodes(test):
-            if isinstance(direct_child, ast.Name) and isinstance(node, ast.Name) and direct_child.id == node.id:  # type: ignore[attr-defined]
+            if isinstance(direct_child, ast.Name) and isinstance(node, ast.Name) and direct_child.id == node.id:
                 return True
-            if isinstance(direct_child, ast.Attribute) and isinstance(node, ast.Attribute) and direct_child.attr == node.attr:  # type: ignore[attr-defined]
+            if isinstance(direct_child, ast.Attribute) and isinstance(node, ast.Attribute) and direct_child.attr == node.attr:
                 return True
     return False
 

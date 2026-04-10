@@ -15,6 +15,7 @@ import json
 import subprocess
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from typing import Any
 
 from specify_cli.mission_metadata import mission_identity_fields, resolve_mission_identity
 
@@ -72,7 +73,7 @@ class AcceptanceMatrix:
             return "pending"
         return "pass"
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> dict[str, Any]:
         return {
             **mission_identity_fields(
                 self.mission_slug,
@@ -85,7 +86,7 @@ class AcceptanceMatrix:
         }
 
     @classmethod
-    def from_dict(cls, data: dict) -> AcceptanceMatrix:
+    def from_dict(cls, data: dict[str, Any]) -> AcceptanceMatrix:
         identity = mission_identity_fields(
             data["mission_slug"],
             data.get("mission_number"),

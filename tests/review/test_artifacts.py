@@ -12,6 +12,8 @@ import pytest
 
 from specify_cli.review.artifacts import AffectedFile, ReviewCycleArtifact
 
+pytestmark = pytest.mark.git_repo
+
 
 # ---------------------------------------------------------------------------
 # Helpers

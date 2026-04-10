@@ -12,7 +12,7 @@ Tests cover:
 
 import json
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 from pathlib import Path
 from uuid import UUID
 from unittest.mock import MagicMock, patch
@@ -762,7 +762,7 @@ class TestCaptureBaseline:
             mission_slug="042-local-mission-dossier",
             parity_hash_sha256="a" * 64,
         )
-        before = datetime.utcnow()
+        before = datetime.now(UTC)
         baseline = capture_baseline(
             mission_slug="042-local-mission-dossier",
             current_snapshot=snapshot,
@@ -772,7 +772,7 @@ class TestCaptureBaseline:
             mission_type="software-dev",
             manifest_version="1",
         )
-        after = datetime.utcnow()
+        after = datetime.now(UTC)
         assert before <= baseline.captured_at <= after
 
 

@@ -18,6 +18,8 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+pytestmark = pytest.mark.git_repo
+
 from specify_cli.merge.state import (
     MergeState,
     clear_state,

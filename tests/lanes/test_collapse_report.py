@@ -1,6 +1,10 @@
 """Tests for CollapseEvent and CollapseReport data models."""
 
+import pytest
+
 from specify_cli.lanes.models import CollapseEvent, CollapseReport
+
+pytestmark = pytest.mark.fast
 
 
 # ---------------------------------------------------------------------------

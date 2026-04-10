@@ -9,6 +9,8 @@ from specify_cli.lanes.persistence import (
     write_lanes_json,
 )
 
+pytestmark = pytest.mark.fast
+
 
 def _make_manifest() -> LanesManifest:
     return LanesManifest(

@@ -12,6 +12,8 @@ from specify_cli.lanes.merge import (
 )
 from specify_cli.lanes.models import ExecutionLane, LanesManifest
 
+pytestmark = pytest.mark.git_repo
+
 
 def _run(cmd, cwd):
     subprocess.run(cmd, cwd=str(cwd), capture_output=True, check=True)

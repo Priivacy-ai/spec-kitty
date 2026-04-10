@@ -1,0 +1,91 @@
+{
+  "event_count": 29,
+  "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
+  "materialized_at": "2026-04-09T15:03:35.312539+00:00",
+  "mission_number": "080",
+  "mission_slug": "080-ci-hardening-and-lint-cleanup",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 3,
+    "in_review": 0,
+    "planned": 7
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "opencode",
+      "force_count": 4,
+      "lane": "in_progress",
+      "last_event_id": "01KNSC9C8JFFQ72FYSWRSNKVZG",
+      "last_transition_at": "2026-04-09T15:03:06.258196+00:00"
+    },
+    "WP02": {
+      "actor": "implement-command",
+      "force_count": 1,
+      "lane": "in_progress",
+      "last_event_id": "01KNSB1QSHWXR559E4YGMC0043",
+      "last_transition_at": "2026-04-09T14:41:27.345801+00:00"
+    },
+    "WP03": {
+      "actor": "codex:gpt-5:python-implementer:implementer",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
+      "last_transition_at": "2026-04-09T15:03:35.312539+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZNW019SH51ZX5HZP5C7",
+      "last_transition_at": "2026-04-09T12:41:59.228988+00:00"
+    },
+    "WP05": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZNZX1Q0W942A03P779G",
+      "last_transition_at": "2026-04-09T12:41:59.231261+00:00"
+    },
+    "WP06": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZP1J32YE3A86QSFAD5A",
+      "last_transition_at": "2026-04-09T12:41:59.233283+00:00"
+    },
+    "WP07": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZP34QF12915NSJRR0V3",
+      "last_transition_at": "2026-04-09T12:41:59.235398+00:00"
+    },
+    "WP08": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZP5G0MJ272FNHFZZQ8R",
+      "last_transition_at": "2026-04-09T12:41:59.237449+00:00"
+    },
+    "WP09": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZP7XGR47YFW4K9F4QTV",
+      "last_transition_at": "2026-04-09T12:41:59.239849+00:00"
+    },
+    "WP10": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KNS46ZP95VVP765DP9JCB7S4",
+      "last_transition_at": "2026-04-09T12:41:59.241858+00:00"
+    }
+  }
+}

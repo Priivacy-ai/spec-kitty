@@ -8,12 +8,9 @@ Test coverage:
 - T027: Snapshot equality comparison
 """
 
-import json
 import random
 from datetime import datetime
 from pathlib import Path
-
-import pytest
 
 from specify_cli.dossier.models import ArtifactRef, MissionDossier, MissionDossierSnapshot
 from specify_cli.dossier.snapshot import (
@@ -29,12 +26,12 @@ from specify_cli.dossier.snapshot import (
 class TestComputeSnapshotDeterministic:
     """T023: Deterministic snapshot computation"""
 
-    def test_snapshot_computes_without_errors(self):
+    def test_snapshot_computes_without_errors(self) -> None:
         """Snapshot should compute without errors for valid dossier."""
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-001",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=[
                 ArtifactRef(
@@ -43,11 +40,15 @@ class TestComputeSnapshotDeterministic:
                     relative_path="spec.md",
                     content_hash_sha256="a" * 64,
                     size_bytes=1000,
+                    wp_id=None,
+                    step_id=None,
                     required_status="required",
                     is_present=True,
+                    error_reason=None,
                 ),
             ],
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
@@ -56,7 +57,7 @@ class TestComputeSnapshotDeterministic:
         assert snapshot.mission_slug == "042-local-mission-dossier"
         assert snapshot.total_artifacts == 1
 
-    def test_artifact_counts_accurate(self):
+    def test_artifact_counts_accurate(self) -> None:
         """Artifact counts should be accurate."""
         artifacts = []
         # Create 10 required, 8 present
@@ -68,8 +69,11 @@ class TestComputeSnapshotDeterministic:
                     relative_path=f"required-{i}.md",
                     content_hash_sha256=hex(i)[2:].zfill(64),
                     size_bytes=1000 + i,
+                    wp_id=None,
+                    step_id=None,
                     required_status="required",
                     is_present=i < 8,  # First 8 present, last 2 missing
+                    error_reason=None,
                 )
             )
 
@@ -82,18 +86,22 @@ class TestComputeSnapshotDeterministic:
                     relative_path=f"optional-{i}.md",
                     content_hash_sha256=hex(10 + i)[2:].zfill(64),
                     size_bytes=2000 + i,
+                    wp_id=None,
+                    step_id=None,
                     required_status="optional",
                     is_present=i < 3,  # First 3 present, last 2 missing
+                    error_reason=None,
                 )
             )
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-002",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
@@ -105,7 +113,7 @@ class TestComputeSnapshotDeterministic:
         assert snapshot.optional_artifacts == 5
         assert snapshot.optional_present == 3
 
-    def test_completeness_status_complete(self):
+    def test_completeness_status_complete(self) -> None:
         """Completeness status should be 'complete' when all required present."""
         artifacts = [
             ArtifactRef(
@@ -114,8 +122,11 @@ class TestComputeSnapshotDeterministic:
                 relative_path="required-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="required-2",
@@ -123,24 +134,28 @@ class TestComputeSnapshotDeterministic:
                 relative_path="required-2.md",
                 content_hash_sha256="b" * 64,
                 size_bytes=2000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-003",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
         assert snapshot.completeness_status == "complete"
 
-    def test_completeness_status_incomplete(self):
+    def test_completeness_status_incomplete(self) -> None:
         """Completeness status should be 'incomplete' when required missing."""
         artifacts = [
             ArtifactRef(
@@ -149,8 +164,11 @@ class TestComputeSnapshotDeterministic:
                 relative_path="required-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="required-2",
@@ -158,6 +176,8 @@ class TestComputeSnapshotDeterministic:
                 relative_path="required-2.md",
                 content_hash_sha256="b" * 64,
                 size_bytes=2000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=False,
                 error_reason="not_found",
@@ -167,16 +187,17 @@ class TestComputeSnapshotDeterministic:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-004",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
         assert snapshot.completeness_status == "incomplete"
 
-    def test_completeness_status_unknown_no_manifest(self):
+    def test_completeness_status_unknown_no_manifest(self) -> None:
         """Completeness status should be 'unknown' when no manifest."""
         artifacts = [
             ArtifactRef(
@@ -185,24 +206,28 @@ class TestComputeSnapshotDeterministic:
                 relative_path="artifact-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-005",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest=None,
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
         assert snapshot.completeness_status == "unknown"
 
-    def test_artifact_summaries_complete(self):
+    def test_artifact_summaries_complete(self) -> None:
         """Artifact summaries should include all required fields."""
         artifacts = [
             ArtifactRef(
@@ -222,10 +247,11 @@ class TestComputeSnapshotDeterministic:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-006",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
@@ -239,7 +265,7 @@ class TestComputeSnapshotDeterministic:
         assert summary["is_present"] is True
         assert summary["error_reason"] is None
 
-    def test_artifacts_sorted_by_key(self):
+    def test_artifacts_sorted_by_key(self) -> None:
         """Artifacts should be sorted by artifact_key in summaries."""
         artifacts = [
             ArtifactRef(
@@ -248,8 +274,11 @@ class TestComputeSnapshotDeterministic:
                 relative_path="z.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="a-artifact",
@@ -257,8 +286,11 @@ class TestComputeSnapshotDeterministic:
                 relative_path="a.md",
                 content_hash_sha256="b" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="m-artifact",
@@ -266,18 +298,22 @@ class TestComputeSnapshotDeterministic:
                 relative_path="m.md",
                 content_hash_sha256="c" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-007",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
@@ -289,7 +325,7 @@ class TestComputeSnapshotDeterministic:
 class TestParityHashAlgorithm:
     """T024: Order-independent parity hash algorithm"""
 
-    def test_parity_hash_deterministic_single_artifact(self):
+    def test_parity_hash_deterministic_single_artifact(self) -> None:
         """Parity hash should be deterministic for single artifact."""
         artifacts = [
             ArtifactRef(
@@ -298,18 +334,22 @@ class TestParityHashAlgorithm:
                 relative_path="spec.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="required",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-008",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         hash1 = compute_parity_hash_from_dossier(dossier)
@@ -318,7 +358,7 @@ class TestParityHashAlgorithm:
         assert hash1 == hash2
         assert len(hash1) == 64  # SHA256 is 64 hex characters
 
-    def test_parity_hash_order_independence(self):
+    def test_parity_hash_order_independence(self) -> None:
         """Same artifacts in different order should produce same parity hash."""
         # Create 30 artifacts
         artifacts = [
@@ -328,8 +368,11 @@ class TestParityHashAlgorithm:
                 relative_path=f"artifact-{i:02d}.md",
                 content_hash_sha256=hex(i)[2:].zfill(64),
                 size_bytes=1000 + i,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             )
             for i in range(30)
         ]
@@ -338,10 +381,11 @@ class TestParityHashAlgorithm:
         dossier1 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-009",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         hash1 = compute_parity_hash_from_dossier(dossier1)
 
@@ -352,16 +396,17 @@ class TestParityHashAlgorithm:
         dossier2 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-009b",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=shuffled_artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         hash2 = compute_parity_hash_from_dossier(dossier2)
 
         assert hash1 == hash2
 
-    def test_parity_hash_different_artifacts_different_hash(self):
+    def test_parity_hash_different_artifacts_different_hash(self) -> None:
         """Different artifacts should produce different parity hash."""
         artifacts1 = [
             ArtifactRef(
@@ -370,18 +415,22 @@ class TestParityHashAlgorithm:
                 relative_path="artifact-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier1 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-010",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts1,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         hash1 = compute_parity_hash_from_dossier(dossier1)
 
@@ -392,24 +441,28 @@ class TestParityHashAlgorithm:
                 relative_path="artifact-2.md",
                 content_hash_sha256="b" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier2 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-011",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts2,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         hash2 = compute_parity_hash_from_dossier(dossier2)
 
         assert hash1 != hash2
 
-    def test_missing_artifacts_excluded_from_parity(self):
+    def test_missing_artifacts_excluded_from_parity(self) -> None:
         """Missing artifacts should be excluded from parity hash."""
         artifacts = [
             ArtifactRef(
@@ -418,8 +471,11 @@ class TestParityHashAlgorithm:
                 relative_path="present-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="missing-1",
@@ -427,6 +483,8 @@ class TestParityHashAlgorithm:
                 relative_path="missing-1.md",
                 content_hash_sha256="b" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=False,
                 error_reason="not_found",
@@ -436,10 +494,11 @@ class TestParityHashAlgorithm:
         dossier_with_missing = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-012",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         # Dossier with only present artifact
@@ -447,10 +506,11 @@ class TestParityHashAlgorithm:
         dossier_present_only = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-013",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts_present_only,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         hash_with_missing = compute_parity_hash_from_dossier(dossier_with_missing)
@@ -458,7 +518,7 @@ class TestParityHashAlgorithm:
 
         assert hash_with_missing == hash_present_only
 
-    def test_duplicate_hashes_included(self):
+    def test_duplicate_hashes_included(self) -> None:
         """Duplicate artifact hashes should be included (not deduplicated)."""
         # Two artifacts with identical content hash
         artifacts = [
@@ -468,8 +528,11 @@ class TestParityHashAlgorithm:
                 relative_path="artifact-1.md",
                 content_hash_sha256="a" * 64,
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
             ArtifactRef(
                 artifact_key="artifact-2",
@@ -477,18 +540,22 @@ class TestParityHashAlgorithm:
                 relative_path="artifact-2.md",
                 content_hash_sha256="a" * 64,  # Same hash
                 size_bytes=1000,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             ),
         ]
 
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-014",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         components = get_parity_hash_components(dossier)
@@ -500,7 +567,7 @@ class TestParityHashAlgorithm:
 class TestSnapshotPersistence:
     """T025: Snapshot persistence (save/load)"""
 
-    def test_snapshot_saves_to_correct_path(self, tmp_path):
+    def test_snapshot_saves_to_correct_path(self, tmp_path: Path) -> None:
         """Snapshot should save to correct file path."""
         snapshot = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -519,7 +586,7 @@ class TestSnapshotPersistence:
         )
         assert expected_file.exists()
 
-    def test_snapshot_loads_from_json(self, tmp_path):
+    def test_snapshot_loads_from_json(self, tmp_path: Path) -> None:
         """Snapshot should load from JSON without errors."""
         snapshot = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -539,7 +606,7 @@ class TestSnapshotPersistence:
         assert loaded.completeness_status == "complete"
         assert loaded.total_artifacts == 5
 
-    def test_snapshot_roundtrip_preserves_all_fields(self, tmp_path):
+    def test_snapshot_roundtrip_preserves_all_fields(self, tmp_path: Path) -> None:
         """Round-trip (save, load) should preserve all fields."""
         snapshot = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -560,6 +627,7 @@ class TestSnapshotPersistence:
         save_snapshot(snapshot, tmp_path)
         loaded = load_snapshot(tmp_path, "042-local-mission-dossier")
 
+        assert loaded is not None
         assert loaded.total_artifacts == snapshot.total_artifacts
         assert loaded.required_artifacts == snapshot.required_artifacts
         assert loaded.required_present == snapshot.required_present
@@ -569,12 +637,12 @@ class TestSnapshotPersistence:
         assert loaded.parity_hash_components == snapshot.parity_hash_components
         assert loaded.artifact_summaries == snapshot.artifact_summaries
 
-    def test_load_missing_file_returns_none(self, tmp_path):
+    def test_load_missing_file_returns_none(self, tmp_path: Path) -> None:
         """Loading non-existent snapshot should return None."""
         loaded = load_snapshot(tmp_path, "nonexistent-feature")
         assert loaded is None
 
-    def test_get_latest_snapshot_convenience_alias(self, tmp_path):
+    def test_get_latest_snapshot_convenience_alias(self, tmp_path: Path) -> None:
         """get_latest_snapshot should work as convenience alias."""
         snapshot = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -593,7 +661,7 @@ class TestSnapshotPersistence:
 class TestSnapshotReproducibility:
     """T026: Snapshot reproducibility validation"""
 
-    def test_snapshot_reproducibility_multiple_runs(self):
+    def test_snapshot_reproducibility_multiple_runs(self) -> None:
         """Same content, multiple runs should produce identical snapshot."""
         artifacts = [
             ArtifactRef(
@@ -602,8 +670,11 @@ class TestSnapshotReproducibility:
                 relative_path=f"artifact-{i}.md",
                 content_hash_sha256=hex(i)[2:].zfill(64),
                 size_bytes=1000 + i,
+                wp_id=None,
+                step_id=None,
                 required_status="required" if i < 20 else "optional",
                 is_present=i < 25,
+                error_reason=None,
             )
             for i in range(30)
         ]
@@ -612,10 +683,11 @@ class TestSnapshotReproducibility:
         dossier1 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-015",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         snapshot1 = compute_snapshot(dossier1)
 
@@ -623,10 +695,11 @@ class TestSnapshotReproducibility:
         dossier2 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-016",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         snapshot2 = compute_snapshot(dossier2)
 
@@ -636,7 +709,7 @@ class TestSnapshotReproducibility:
         assert snapshot1.total_artifacts == snapshot2.total_artifacts
         assert snapshot1.required_present == snapshot2.required_present
 
-    def test_snapshot_reproducibility_order_independence(self):
+    def test_snapshot_reproducibility_order_independence(self) -> None:
         """Different artifact ordering should produce identical snapshot."""
         artifacts = [
             ArtifactRef(
@@ -645,8 +718,11 @@ class TestSnapshotReproducibility:
                 relative_path=f"artifact-{i}.md",
                 content_hash_sha256=hex(i)[2:].zfill(64),
                 size_bytes=1000 + i,
+                wp_id=None,
+                step_id=None,
                 required_status="optional",
                 is_present=True,
+                error_reason=None,
             )
             for i in range(30)
         ]
@@ -655,10 +731,11 @@ class TestSnapshotReproducibility:
         dossier1 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-017",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         snapshot1 = compute_snapshot(dossier1)
 
@@ -668,10 +745,11 @@ class TestSnapshotReproducibility:
         dossier2 = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-018",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=shuffled,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
         snapshot2 = compute_snapshot(dossier2)
 
@@ -681,7 +759,7 @@ class TestSnapshotReproducibility:
 class TestSnapshotEquality:
     """T027: Snapshot equality comparison"""
 
-    def test_same_parity_hash_equal_snapshots(self):
+    def test_same_parity_hash_equal_snapshots(self) -> None:
         """Snapshots with same parity hash should be equal."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -697,7 +775,7 @@ class TestSnapshotEquality:
 
         assert snapshot1 == snapshot2
 
-    def test_different_parity_hash_unequal_snapshots(self):
+    def test_different_parity_hash_unequal_snapshots(self) -> None:
         """Snapshots with different parity hash should be unequal."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -713,7 +791,7 @@ class TestSnapshotEquality:
 
         assert snapshot1 != snapshot2
 
-    def test_snapshot_equality_ignores_timestamp(self):
+    def test_snapshot_equality_ignores_timestamp(self) -> None:
         """Equality should ignore timestamp differences."""
         now = datetime.utcnow()
         snapshot1 = MissionDossierSnapshot(
@@ -733,7 +811,7 @@ class TestSnapshotEquality:
 
         assert snapshot1 == snapshot2
 
-    def test_snapshot_equality_ignores_id(self):
+    def test_snapshot_equality_ignores_id(self) -> None:
         """Equality should ignore snapshot_id differences."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -751,7 +829,7 @@ class TestSnapshotEquality:
 
         assert snapshot1 == snapshot2
 
-    def test_snapshot_equality_requires_same_completeness_status(self):
+    def test_snapshot_equality_requires_same_completeness_status(self) -> None:
         """Equality requires same completeness status."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -767,7 +845,7 @@ class TestSnapshotEquality:
 
         assert snapshot1 != snapshot2
 
-    def test_snapshot_has_parity_diff(self):
+    def test_snapshot_has_parity_diff(self) -> None:
         """has_parity_diff should detect parity differences."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -783,7 +861,7 @@ class TestSnapshotEquality:
 
         assert snapshot1.has_parity_diff(snapshot2)
 
-    def test_snapshot_equality_with_non_snapshot_returns_false(self):
+    def test_snapshot_equality_with_non_snapshot_returns_false(self) -> None:
         """Equality with non-snapshot object should return False."""
         snapshot = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -793,9 +871,9 @@ class TestSnapshotEquality:
 
         assert snapshot != "not a snapshot"
         assert snapshot != 123
-        assert snapshot != None
+        assert snapshot != None  # noqa: E711
 
-    def test_snapshot_hash_for_set_usage(self):
+    def test_snapshot_hash_for_set_usage(self) -> None:
         """Snapshot should be hashable for set/dict usage."""
         snapshot1 = MissionDossierSnapshot(
             mission_slug="042-local-mission-dossier",
@@ -817,7 +895,7 @@ class TestSnapshotEquality:
 class TestLargeSnapshot:
     """Test with 30+ artifacts"""
 
-    def test_snapshot_computes_for_30_plus_artifacts(self):
+    def test_snapshot_computes_for_30_plus_artifacts(self) -> None:
         """Snapshot should compute without errors for 30+ artifacts."""
         artifacts = [
             ArtifactRef(
@@ -838,10 +916,11 @@ class TestLargeSnapshot:
         dossier = MissionDossier(
             mission_type="software-dev",
             mission_run_id="test-run-019",
-            mission_type="042-local-mission-dossier",
+            mission_slug="042-local-mission-dossier",
             feature_dir="/test/feature",
             artifacts=artifacts,
             manifest={"test": "manifest"},
+            latest_snapshot=None,
         )
 
         snapshot = compute_snapshot(dossier)
