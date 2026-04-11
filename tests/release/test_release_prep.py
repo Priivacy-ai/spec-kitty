@@ -19,7 +19,12 @@ import pytest
 from typer.testing import CliRunner
 
 from specify_cli.cli.commands.agent.release import app
-from specify_cli.release.changelog import build_changelog_block
+from specify_cli.release.changelog import (
+    _parse_wp_frontmatter_status,
+    _parse_wp_id,
+    _parse_wp_title,
+    build_changelog_block,
+)
 from specify_cli.release.payload import ReleasePrepPayload, build_release_prep_payload
 from specify_cli.release.version import propose_version
 
@@ -194,6 +199,63 @@ def test_changelog_accepts_since_tag_none(tmp_path: Path) -> None:
     changelog, slugs = build_changelog_block(tmp_path, since_tag=None)
     assert isinstance(changelog, str)
     assert isinstance(slugs, list)
+
+
+def test_wp_frontmatter_status_parses_quoted_values_without_regex(tmp_path: Path) -> None:
+    wp_file = tmp_path / "WP01-test.md"
+    wp_file.write_text(
+        dedent(
+            """\
+            ---
+            work_package_id: "WP01"
+            status: 'done'
+            ---
+
+            ## WP01
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert _parse_wp_frontmatter_status(wp_file) == "done"
+
+
+def test_wp_id_parses_values_containing_colons(tmp_path: Path) -> None:
+    wp_file = tmp_path / "custom-name.md"
+    wp_file.write_text(
+        dedent(
+            """\
+            ---
+            work_package_id: "WP:01"
+            status: done
+            ---
+
+            ## WP01
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert _parse_wp_id(wp_file) == "WP:01"
+
+
+def test_wp_title_strips_heading_markers_without_regex(tmp_path: Path) -> None:
+    wp_file = tmp_path / "WP01-title.md"
+    wp_file.write_text(
+        dedent(
+            """\
+            ---
+            work_package_id: WP01
+            status: done
+            ---
+
+            ##   Release Prep Title
+            """
+        ),
+        encoding="utf-8",
+    )
+
+    assert _parse_wp_title(wp_file) == "Release Prep Title"
 
 
 # ---------------------------------------------------------------------------
