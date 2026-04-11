@@ -19,8 +19,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: "93867"
-agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "36093"
+agent: "claude:opus-4-6:reviewer:reviewer"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -202,3 +202,4 @@ spec-kitty agent action implement WP01 --agent <name>
 
 - 2026-04-11T07:37:17Z – claude:sonnet:python-implementer:implementer – shell_pid=93867 – Assigned agent via action command
 - 2026-04-11T08:06:34Z – claude:sonnet:python-implementer:implementer – shell_pid=93867 – Canonical rollout gate + BC shims landed. pytest green.
+- 2026-04-11T08:08:18Z – claude:opus-4-6:reviewer:reviewer – shell_pid=36093 – Started review via action command
