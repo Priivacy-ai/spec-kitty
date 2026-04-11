@@ -128,16 +128,17 @@ The decision matrix (restated from `contracts/background_daemon_policy.md`):
 
    `intent` is **keyword-only and mandatory**. There is no default.
 
-2. At the top of the function body, load the config if not supplied:
+2. At the top of the function body, load the config if not supplied. **`SyncConfig` is a class with no-arg construction and on-demand getter methods** — there is no `SyncConfig.load()` classmethod:
    ```python
    if config is None:
-       config = SyncConfig.load()  # or whatever the current loader pattern is
+       config = SyncConfig()
+   policy = config.get_background_daemon()  # new method from WP03
    ```
 
 3. Apply the decision matrix in order:
    - Rollout disabled → return `DaemonStartOutcome(started=False, skipped_reason="rollout_disabled", pid=None)`
    - `intent == LOCAL_ONLY` → return `DaemonStartOutcome(started=False, skipped_reason="intent_local_only", pid=None)`
-   - `config.background_daemon == MANUAL` → return `DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None)`
+   - `policy == BackgroundDaemonPolicy.MANUAL` → return `DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None)`
    - Otherwise → delegate to the existing start logic, returning `DaemonStartOutcome(started=True, skipped_reason=None, pid=<actual_pid>)` on success or `DaemonStartOutcome(started=False, skipped_reason=f"start_failed: {reason}", pid=None)` on failure.
 
 4. Do **not** rewrite the inner "actually start the daemon" logic — preserve the existing PID lifecycle and state-file handling. This WP only gates the entry.
@@ -180,21 +181,57 @@ The decision matrix (restated from `contracts/background_daemon_policy.md`):
 
 ### T019 — Update `src/specify_cli/sync/events.py` caller → `REMOTE_REQUIRED`
 
-**Purpose**: Event emission is the canonical trigger for remote sync. This is the one call site that legitimately wants the daemon up.
+**Purpose**: Event emission is the canonical trigger for remote sync. This WP updates the ONE `ensure_sync_daemon_running()` call site in this file to satisfy the new mandatory-keyword signature, without touching the other two urllib call paths.
+
+**IMPORTANT — events.py has three related functions, but ONLY ONE needs the intent gate**:
+
+The file currently defines three private helpers that interact with the sync daemon. Based on source inspection of `src/specify_cli/sync/events.py`:
+
+| Function | Line | What it does | Action in this WP |
+|---|---|---|---|
+| `_ensure_dashboard_sync_daemon` | ~43-66 | Calls `ensure_sync_daemon_running()` at line 63 to start the daemon | **Update**: add `intent=DaemonIntent.REMOTE_REQUIRED`, handle the new `DaemonStartOutcome` return value |
+| `_request_dashboard_sync` | ~75-95 | Calls `urllib.request.urlopen({status.url}/api/sync/trigger, ...)` | **Do NOT modify** — this is localhost HTTP IPC to the already-running sync daemon, not a direct SaaS call. Already gated. |
+| `_publish_event_via_sync_daemon` | ~98-120 | Calls `urllib.request.urlopen({status.url}/api/sync/publish, ...)` | **Do NOT modify** — same reason. |
+
+The second and third functions talk to the local sync-daemon process via its `http://127.0.0.1:<port>/api/sync/*` endpoints (they read `status.url` from `get_sync_daemon_status()`). They are **not** direct SaaS calls. Rewriting them would break the localhost IPC path without benefit.
+
+**All three functions already check `is_saas_sync_enabled()` at the top of their body** (lines 45, 77, 100 in the current file). These checks are part of the fail-closed guarantee and **must be preserved verbatim**.
 
 **Steps**:
 
-1. Grep the file for `ensure_sync_daemon_running(` and update every call to pass `intent=DaemonIntent.REMOTE_REQUIRED`.
-2. Handle each possible `DaemonStartOutcome`:
-   - `started=True` → continue as today
-   - `started=False, skipped_reason="rollout_disabled"` → silently swallow; events should be local-only when the gate is off. (NFR-001 fail-closed requirement.)
-   - `started=False, skipped_reason="policy_manual"` → log at INFO level; events accumulate in the local queue for the next manual `spec-kitty sync run`.
-   - `started=False, skipped_reason="start_failed: ..."` → preserve current error path (whatever the existing code does today).
-3. Do not introduce retry loops — that is a separate concern.
+1. Locate `_ensure_dashboard_sync_daemon` (currently around line 43–66). The existing call at ~line 63 is:
+   ```python
+   from .daemon import ensure_sync_daemon_running
+   ensure_sync_daemon_running()
+   ```
+   Update it to:
+   ```python
+   from .daemon import DaemonIntent, ensure_sync_daemon_running
+   outcome = ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED)
+   ```
 
-**Files**: `src/specify_cli/sync/events.py` (modifications per call site)
+2. Handle each possible `DaemonStartOutcome` from that call:
+   - `outcome.started == True` → continue as today (daemon is up, nothing more to do in this helper)
+   - `outcome.skipped_reason == "rollout_disabled"` → **unreachable** because the function already bails on `not is_saas_sync_enabled()` at line 45, but the branch exists defensively. Swallow silently.
+   - `outcome.skipped_reason == "policy_manual"` → call `logger.debug("Background sync in manual mode; skipping daemon auto-start")`. Do NOT warn — this is operator intent, not an error. Events that would have been flushed by the daemon will accumulate in the local offline queue and flush on the next `spec-kitty sync run`.
+   - `outcome.skipped_reason == "intent_local_only"` → **unreachable** by construction (this function passes `REMOTE_REQUIRED`). An `assert` is fine; this indicates a code bug if it ever fires.
+   - `outcome.skipped_reason.startswith("start_failed:")` → preserve the existing `except Exception` warning path at ~line 64-65. The old code logged `"Could not ensure global sync daemon: %s"`; keep that semantics.
 
-**Validation**: Event emission still works when `AUTO`; silently skips daemon start when `MANUAL` or rollout-disabled; preserves error handling on genuine start failures.
+3. **Do NOT modify** `_request_dashboard_sync` or `_publish_event_via_sync_daemon`. Leave the `urllib.request.urlopen` calls and their existing `is_saas_sync_enabled()` short-circuits untouched. A code comment above `_request_dashboard_sync` and `_publish_event_via_sync_daemon` explaining "this is localhost IPC, not a SaaS call; already gated by is_saas_sync_enabled" is welcome but not required.
+
+4. Do not introduce retry loops — that is a separate concern.
+
+**Fail-closed behavior table after this change**:
+
+| Rollout | Policy | `_ensure_dashboard_sync_daemon` | `_request_dashboard_sync` | `_publish_event_via_sync_daemon` | Network activity |
+|---|---|---|---|---|---|
+| OFF | any | returns at `is_saas_sync_enabled()` check (line 45) | returns at line 77 | returns at line 100 | **ZERO** ✓ |
+| ON | AUTO | daemon starts; outcome.started=True | IPC to local daemon succeeds | IPC to local daemon succeeds | All localhost (daemon → SaaS is the daemon's job) ✓ |
+| ON | MANUAL | outcome.skipped_reason="policy_manual"; debug log | `get_sync_daemon_status` reports unhealthy; returns at line 84 | reports unhealthy; returns at line 107 | **ZERO** (daemon is not running) ✓ |
+
+**Files**: `src/specify_cli/sync/events.py` (modifications to `_ensure_dashboard_sync_daemon` only)
+
+**Validation**: Event emission still works when `AUTO`; silently logs at DEBUG when `MANUAL`; zero network activity on rollout-off. `pytest tests/sync/test_daemon_intent_gate.py -q` (from T020) exercises the decision matrix for this call site.
 
 ### T020 — Tests: `tests/sync/test_daemon_intent_gate.py`
 

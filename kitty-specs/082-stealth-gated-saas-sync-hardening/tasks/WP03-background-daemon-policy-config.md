@@ -46,18 +46,29 @@ This WP is independent of WP01 and WP02 and can run in parallel with them.
 
 | File | Action | Notes |
 |---|---|---|
-| `src/specify_cli/sync/config.py` | **modify** | Add `BackgroundDaemonPolicy` enum; add `background_daemon` field to `SyncConfig`; extend loader. |
+| `src/specify_cli/sync/config.py` | **modify** | Add `BackgroundDaemonPolicy` enum; add `get_background_daemon()` and `set_background_daemon()` methods to the existing `SyncConfig` class. |
 | `tests/sync/test_config_background_daemon.py` | **create** | Coverage of default, case-insensitive parsing, warn-and-default on unknown, reject-empty. |
+
+## IMPORTANT — `SyncConfig` shape
+
+**`SyncConfig` is NOT a `@dataclass`.** It is a plain Python class defined at `src/specify_cli/sync/config.py:12-70`. It has no fields — configuration lives in `~/.spec-kitty/config.toml` and is read/written on demand through method pairs backed by private `_load()` and `_save()` helpers:
+
+- `_load() -> dict[str, Any]` — returns `toml.load(config_file)` or `{}` on missing/invalid (lines 19-26)
+- `_save(config: dict[str, Any]) -> None` — persists via `atomic_write` (lines 28-31)
+- `get_server_url() -> str` / `set_server_url(url: str) -> None` (lines 33-45)
+- `get_max_queue_size() -> int` / `set_max_queue_size(size: int) -> None` (lines 47-68)
+
+This mission adds a new **method pair** — `get_background_daemon()` and `set_background_daemon()` — that mirrors the existing getter/setter pattern. **Do NOT convert `SyncConfig` to a dataclass** and do NOT add instance fields; that would be a breaking shape change out of scope for this mission.
 
 ## Subtasks
 
-### T012 — Add `BackgroundDaemonPolicy` enum and `SyncConfig` field
+### T012 — Add `BackgroundDaemonPolicy` enum and `SyncConfig` methods
 
-**Purpose**: Provide the typed vocabulary for the new key and wire it into the existing dataclass.
+**Purpose**: Provide the typed vocabulary for the new key and add the getter/setter pair to the existing `SyncConfig` class.
 
 **Steps**:
 
-1. At the top of `src/specify_cli/sync/config.py` (near other imports), add:
+1. At the top of `src/specify_cli/sync/config.py` (near other imports, after the existing `import toml` / `from .queue import DEFAULT_MAX_QUEUE_SIZE` block), add:
 
    ```python
    from enum import Enum
@@ -68,34 +79,54 @@ This WP is independent of WP01 and WP02 and can run in parallel with them.
        MANUAL = "manual"
    ```
 
-2. Extend the `SyncConfig` dataclass (currently at lines 12–70) with a new field **after** the existing `max_queue_size` field so existing positional construction is preserved:
+2. Add `get_background_daemon()` to the existing `SyncConfig` class, mirroring `get_max_queue_size`'s on-demand `_load()` pattern. Skeleton:
 
    ```python
-   background_daemon: BackgroundDaemonPolicy = BackgroundDaemonPolicy.AUTO
+   def get_background_daemon(self) -> BackgroundDaemonPolicy:
+       """Get background daemon policy from config.
+
+       Config key: [sync] background_daemon = "auto" | "manual"
+       Default: "auto"
+       """
+       config = self._load()
+       raw = config.get("sync", {}).get("background_daemon")
+       # (parsing logic per T013)
    ```
 
-3. Update `__all__` (if present) to include `BackgroundDaemonPolicy`.
-4. Do not change the existing `server_url` or `max_queue_size` defaults or validation.
+3. Add `set_background_daemon(policy: BackgroundDaemonPolicy) -> None` mirroring `set_server_url`:
 
-**Files**: `src/specify_cli/sync/config.py` (modifications totaling ~15 lines)
+   ```python
+   def set_background_daemon(self, policy: BackgroundDaemonPolicy) -> None:
+       config = self._load()
+       if "sync" not in config:
+           config["sync"] = {}
+       config["sync"]["background_daemon"] = policy.value
+       self._save(config)
+   ```
 
-**Validation**: `python -c "from specify_cli.sync.config import SyncConfig, BackgroundDaemonPolicy; print(SyncConfig().background_daemon)"` prints `BackgroundDaemonPolicy.AUTO`. mypy --strict clean.
+4. Do not touch the existing `get_server_url` / `set_server_url` / `get_max_queue_size` / `set_max_queue_size` methods.
 
-### T013 — Loader: case-insensitive parsing, warn+default, reject empty
+**Files**: `src/specify_cli/sync/config.py` (additions totaling ~30 lines)
 
-**Purpose**: Parse the new TOML key with the resilience characteristics called out in `contracts/background_daemon_policy.md`.
+**Validation**: `python -c "from specify_cli.sync.config import SyncConfig, BackgroundDaemonPolicy; print(SyncConfig().get_background_daemon())"` prints `BackgroundDaemonPolicy.AUTO` on a fresh machine with no config file. mypy --strict clean.
+
+### T013 — `get_background_daemon` parsing: case-insensitive, warn+default, reject empty
+
+**Purpose**: Parse the new TOML value with the resilience characteristics called out in `contracts/background_daemon_policy.md`, inside the getter introduced by T012.
 
 **Steps**:
 
-1. Locate the `SyncConfig` loader function in `src/specify_cli/sync/config.py`. It currently reads `[sync].server_url` and `[sync].max_queue_size` from the TOML tree. Add a third read:
-   - If the `background_daemon` key is **missing** → use the default `BackgroundDaemonPolicy.AUTO`.
-   - If the value is a non-empty string → `.strip().casefold()` → look up in `BackgroundDaemonPolicy._value2member_map_` (or equivalent) → match found → use the member.
-   - If the value is an **empty string** → raise the existing config error type (whatever `SyncConfig` currently raises for malformed input — check `sync/config.py:12-70` to find the pattern). The error message should say `"[sync].background_daemon must be 'auto' or 'manual', not an empty string"`.
-   - If the value is a **string that does not match any member** (e.g., `"banana"`, `"sometimes"`) → emit a **one-line warning to stderr** using Rich's existing console pattern if already available in this module, otherwise a plain `print(..., file=sys.stderr)`: `"[sync].background_daemon value 'banana' is unknown; defaulting to 'auto'"`. Then use `AUTO`.
-2. Case-insensitive matching: `"AUTO"`, `"Auto"`, `"auto"`, `"MANUAL"`, `"Manual"`, `"manual"` all round-trip.
-3. Make sure the loader is called during `SyncConfig.load()` (or whatever the existing entry point is) — do **not** duplicate the loader logic.
+1. Fill in the body of `get_background_daemon()` (the skeleton from T012) to handle every case:
+   - Missing key / `raw is None` → return `BackgroundDaemonPolicy.AUTO`.
+   - Non-string value (e.g., TOML somehow decoded an int) → emit warning and return `AUTO`.
+   - Empty string after `.strip()` → **raise** the config error idiom the rest of `sync/config.py` uses. If no existing error type is present (the current file uses `return {}` on parse failure rather than raising), raise a new `ValueError` with message `"[sync].background_daemon must be 'auto' or 'manual', not an empty string"`. Keep the behavior consistent with whatever T014 tests assert.
+   - Non-empty string → `.strip().casefold()` and look up in `{"auto": AUTO, "manual": MANUAL}` (or `BackgroundDaemonPolicy._value2member_map_`). Match found → return the member.
+   - String that does not match any member (e.g., `"banana"`, `"sometimes"`) → emit a one-line warning to stderr: `"[sync].background_daemon value 'banana' is unknown; defaulting to 'auto'"` and return `AUTO`. Use `print(..., file=sys.stderr)` — do not introduce a new logging dependency. Note that the existing `sync/config.py` does not currently import `sys`; add the import.
 
-**Files**: `src/specify_cli/sync/config.py` (modifications totaling ~30 lines)
+2. Case-insensitive matching: `"AUTO"`, `"Auto"`, `"auto"`, `"MANUAL"`, `"Manual"`, `"manual"` all round-trip.
+3. Each call to `get_background_daemon()` re-reads the file via `_load()`. There is no caching. This is intentional — mirrors `get_server_url` / `get_max_queue_size`.
+
+**Files**: `src/specify_cli/sync/config.py` (modifications within the method body, ~30 lines)
 
 **Validation**: T014 tests assert every branch. mypy --strict clean.
 
@@ -106,15 +137,18 @@ This WP is independent of WP01 and WP02 and can run in parallel with them.
 **Steps**:
 
 1. Create the new test module under `tests/sync/` (package already exists per exploration).
-2. Write test cases:
-   - `test_default_when_missing` — TOML with no `background_daemon` key → `SyncConfig.background_daemon == BackgroundDaemonPolicy.AUTO`
-   - `test_auto_lowercase`, `test_auto_uppercase`, `test_auto_mixed_case` — `"auto"` / `"AUTO"` / `"Auto"` all parse to `AUTO`
-   - `test_manual_lowercase`, `test_manual_mixed_case` — same for `"manual"` / `"Manual"`
-   - `test_unknown_value_warns_and_defaults` — value `"banana"` → result is `AUTO` AND stderr (captured via `capsys`) contains the warning wording
-   - `test_empty_string_rejected` — value `""` → `pytest.raises(<the config error type>)`
-   - `test_whitespace_value_rejected_or_accepted` — decide: value `"  auto  "` should be accepted after `.strip()`. Assert behavior matches the loader's intent; document either way.
-   - `test_backcompat_existing_config_without_new_key_loads_cleanly` — regression guard: an existing minimal `[sync]\nserver_url = "..."` config loads without errors and gets `AUTO`
-3. Each test builds a temporary TOML file in `tmp_path` and passes it to the loader (mirror the pattern used by existing tests in `tests/sync/` — e.g., `tests/sync/test_daemon.py` likely has a similar fixture).
+2. Each test builds a temporary `config.toml` in `tmp_path`, monkey-patches `SyncConfig` to point at it (the simplest way is to monkeypatch `Path.home` to return `tmp_path` so `SyncConfig.__init__` resolves `config_dir` there; follow whatever pattern existing `tests/sync/test_daemon.py` uses).
+3. Write test cases calling `SyncConfig().get_background_daemon()`:
+   - `test_default_when_missing` — no config file at all → returns `BackgroundDaemonPolicy.AUTO`.
+   - `test_default_when_sync_table_missing` — file exists with no `[sync]` table → returns `AUTO`.
+   - `test_default_when_key_missing` — `[sync]` exists with `server_url` but no `background_daemon` → returns `AUTO`.
+   - `test_auto_lowercase`, `test_auto_uppercase`, `test_auto_mixed_case` — `"auto"` / `"AUTO"` / `"Auto"` → `AUTO`.
+   - `test_manual_lowercase`, `test_manual_mixed_case` — `"manual"` / `"Manual"` → `MANUAL`.
+   - `test_unknown_value_warns_and_defaults` — value `"banana"` → returns `AUTO` AND stderr (captured via `capsys`) contains the warning wording `"[sync].background_daemon value 'banana' is unknown; defaulting to 'auto'"`.
+   - `test_empty_string_raises` — value `""` → `pytest.raises(<error type chosen in T013>)`.
+   - `test_whitespace_value_accepted` — value `"  auto  "` → returns `AUTO` (the getter strips before parsing).
+   - `test_backcompat_existing_config_without_new_key_loads_cleanly` — regression guard: an existing `[sync]\nserver_url = "https://example.com"\nmax_queue_size = 500` config still returns `AUTO` and existing getters still return their values.
+   - `test_setter_roundtrip` — `set_background_daemon(MANUAL)` followed by `get_background_daemon()` returns `MANUAL`.
 
 **Files**: `tests/sync/test_config_background_daemon.py` (~180 lines, ~8 test cases)
 
@@ -127,8 +161,9 @@ Test coverage for this WP is the whole point — the loader must never silently 
 ## Definition of Done
 
 - [ ] `BackgroundDaemonPolicy` enum exists and is importable from `specify_cli.sync.config`.
-- [ ] `SyncConfig.background_daemon` field exists with default `AUTO`.
-- [ ] Loader parses case-insensitive values, warns-and-defaults on unknown, rejects empty strings.
+- [ ] `SyncConfig.get_background_daemon()` and `SyncConfig.set_background_daemon()` methods exist, mirroring the existing getter/setter pattern on the class.
+- [ ] `SyncConfig` remains a regular class (NOT converted to `@dataclass`); no new instance fields were added.
+- [ ] `get_background_daemon()` parses case-insensitive values, warns-and-defaults on unknown, rejects empty strings.
 - [ ] `tests/sync/test_config_background_daemon.py` passes with all test cases above.
 - [ ] Existing tests in `tests/sync/` still pass (backcompat).
 - [ ] `pytest -q` full suite green.
@@ -139,17 +174,18 @@ Test coverage for this WP is the whole point — the loader must never silently 
 
 | Risk | Mitigation |
 |---|---|
-| `SyncConfig` is constructed positionally somewhere and the new field breaks the call | Add the field **last** in the dataclass (after `max_queue_size`). Default value means no caller needs to update. Verify with `rg "SyncConfig\(" src/ tests/`. |
+| Implementer converts `SyncConfig` to a dataclass "for consistency" | Explicitly prohibited in this WP's IMPORTANT section. `SyncConfig` is a regular class; we add methods only. |
+| `_load()` returns `{}` on TOML parse errors today — empty-string rejection may silently pass through | Check `_load()` at `sync/config.py:19-26`: it returns `{}` only when the file is missing or the TOML parse raises. An empty string value inside an otherwise valid TOML file still reaches the getter, which is where rejection happens. |
 | Warning output interferes with JSON command output in some code path | The warning is stderr-only; JSON output is stdout. Verify with an end-to-end `spec-kitty` command that produces JSON. |
-| The existing `tests/sync/test_daemon.py` fixture pattern is different from TOML-based | Use whatever pattern already exists; mirror, do not reinvent. |
-| Rich console vs plain print — which does `sync/config.py` use today? | Inspect the existing file before adding the warning call; match the existing style. Do not introduce a new logging dependency. |
+| Rich console vs plain print — which does `sync/config.py` use today? | The existing file uses neither — it's pure stdlib. Use `print(..., file=sys.stderr)` and `import sys` at the top. Do not introduce a logging dependency. |
 
 ## Reviewer Guidance
 
-- Verify the loader handles every input branch via tests.
-- Confirm no positional `SyncConfig(...)` construction exists that would break with the new field. Run `rg "SyncConfig\("` across the repo.
-- Confirm the error type for empty-string rejection matches whatever the existing `server_url` validation raises (consistency).
-- Confirm the backcompat test uses a realistic "pre-0.11.0" TOML shape.
+- Verify `get_background_daemon()` handles every input branch via tests.
+- Confirm `SyncConfig` is still a regular class — NO `@dataclass` decorator, no instance fields added.
+- Confirm the two existing methods (`get_server_url`, `get_max_queue_size`) still work exactly as before.
+- Confirm the error type for empty-string rejection matches whatever the existing `sync/config.py` or its test fixtures already use.
+- Confirm the backcompat test uses a realistic "pre-0.11.0" TOML shape with only `server_url` and `max_queue_size` keys present.
 
 ## Implementation command
 

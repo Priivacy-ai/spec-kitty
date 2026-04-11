@@ -87,7 +87,7 @@ This WP introduces `src/specify_cli/saas/readiness.py` alongside the rollout mod
    |---|---|---|
    | `ROLLOUT_DISABLED` | `"Hosted SaaS sync is not enabled on this machine."` | `"Set \`SPEC_KITTY_ENABLE_SAAS_SYNC=1\` to opt in."` |
    | `MISSING_AUTH` | `"No SaaS authentication token is present."` | `"Run \`spec-kitty auth login\`."` |
-   | `MISSING_HOST_CONFIG` | `"No SaaS host URL is configured."` | `"Set \`[sync].server_url\` in \`~/.spec-kitty/config.toml\`."` |
+   | `MISSING_HOST_CONFIG` | `"No SaaS host URL is configured."` | `"Set \`SPEC_KITTY_SAAS_URL\` in your environment."` |
    | `HOST_UNREACHABLE` | `"The configured SaaS host did not respond within 2 seconds."` | `"Check network connectivity to \`{server_url}\` and retry."` |
    | `MISSING_MISSION_BINDING` | `"No tracker binding exists for feature \`{feature_slug}\`."` | `"Run \`spec-kitty tracker bind\` from this repo."` |
 
@@ -104,18 +104,27 @@ This WP introduces `src/specify_cli/saas/readiness.py` alongside the rollout mod
 
 **Steps**:
 
-1. Define private module-level helpers, each returning `bool` (passed / not passed) **and raising no exceptions of their own** — they catch and return False on any internal failure. This is what unit tests will monkey-patch:
+1. Define private module-level helpers. **Helpers must not raise to callers**; they catch their own exceptions and report a signal value. This is what unit tests will monkey-patch:
    - `_probe_rollout() -> bool` — calls `is_saas_sync_enabled()`
-   - `_probe_auth(repo_root: Path) -> bool` — calls into the existing auth lookup used by `TrackerService` (research notes: auth lookup is in `src/specify_cli/auth/config.py` — confirm during implementation; if the function name differs, wire it through without refactoring auth itself)
-   - `_probe_host_config(config: SyncConfig) -> bool` — returns `bool(config.server_url)` after `.strip()`
-   - `_probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool` — single HTTP `HEAD` with a 2-second total budget; **any** exception returns False
-   - `_probe_mission_binding(repo_root: Path, feature_slug: str | None) -> bool` — calls the existing binding lookup path (the one at `src/specify_cli/cli/commands/tracker.py:345-351` in the current codebase)
+   - `_probe_auth(repo_root: Path) -> bool` — calls into the existing auth lookup used by `TrackerService`. The auth token manager lives under `src/specify_cli/auth/` (e.g., `get_token_manager()` — confirm the exact callable and `is_authenticated` property during implementation; do not refactor auth itself).
+   - `_probe_host_config() -> str | None` — **calls `specify_cli.auth.config.get_saas_base_url()` and catches `ConfigurationError`, returning `None` on failure and the stripped URL string on success**. This is the authoritative source per decision D-5 at `src/specify_cli/auth/config.py:1-35`: *"there is NO hardcoded SaaS domain anywhere in the codebase — callers must set `SPEC_KITTY_SAAS_URL` in the environment."* Do **not** fall back to `SyncConfig.get_server_url()` — that method has a legacy hardcoded default and is not the spec-referenced source. The spec's Edge Case explicitly names `SPEC_KITTY_SAAS_URL`.
+   - `_probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool` — single HTTP `HEAD` against the URL returned by `_probe_host_config()`, with a 2-second total budget; **any** exception returns False.
+   - `_probe_mission_binding(repo_root: Path, feature_slug: str | None) -> bool` — calls the existing binding lookup path (the one at `src/specify_cli/cli/commands/tracker.py:345-351` in the current codebase).
+
 2. Write `evaluate_readiness()` to:
-   - Load `SyncConfig` if not supplied (follow the existing pattern from `sync/config.py`)
-   - Wrap the entire check sequence in a `try/except Exception as exc` — on any exception, return `_build_result(HOST_UNREACHABLE, server_url=<config.server_url or "">)` with `details={"error": type(exc).__name__}`
-   - Inside the try: call probes in declaration order. First failing probe builds the corresponding result via `_build_result(...)` and returns immediately.
-   - After all probes pass, return `_build_result(READY)`.
+   - **Do not accept a `SyncConfig` parameter.** The authoritative host URL comes from `get_saas_base_url()`; the evaluator does not need `SyncConfig` for any step.
+   - Wrap the entire check sequence in a `try/except Exception as exc` — on any exception, return `_build_result(HOST_UNREACHABLE, server_url="")` with `details={"error": type(exc).__name__}`.
+   - Inside the try, call probes in declaration order:
+     1. `_probe_rollout()` → on False return `_build_result(ROLLOUT_DISABLED)`.
+     2. `_probe_auth(repo_root)` → on False return `_build_result(MISSING_AUTH)`.
+     3. `server_url = _probe_host_config()` → on `None` return `_build_result(MISSING_HOST_CONFIG)`; otherwise retain `server_url` for steps 4 and 6.
+     4. (if `probe_reachability=True`) `_probe_reachability(server_url)` → on False return `_build_result(HOST_UNREACHABLE, server_url=server_url)`.
+     5. (if `require_mission_binding=True`) `_probe_mission_binding(repo_root, feature_slug)` → on False return `_build_result(MISSING_MISSION_BINDING, feature_slug=feature_slug or "")`.
+   - After all applicable probes pass, return `_build_result(READY)`.
+
 3. The `require_mission_binding` and `probe_reachability` flags gate steps 4 and 5 respectively — when False, skip the probe entirely and consider that state "passed".
+
+**Note on the spec edge case "SPEC_KITTY_SAAS_URL unset"**: This mission does **not** introduce a new env var. `SPEC_KITTY_SAAS_URL` already exists in the codebase as a mandatory, no-fallback env var (see `src/specify_cli/auth/config.py`, `src/specify_cli/auth/flows/authorization_code.py:86`, `src/specify_cli/auth/flows/device_code.py:84`, `src/specify_cli/sync/runtime.py:154`). The edge case is answered by the existing decision D-5 and is surfaced via `MISSING_HOST_CONFIG`. No new reader is added; the readiness evaluator consumes the authoritative helper that already exists.
 
 **Files**: `src/specify_cli/saas/readiness.py` (extended, +80 lines)
 
@@ -130,15 +139,15 @@ This WP introduces `src/specify_cli/saas/readiness.py` alongside the rollout mod
 1. Create `tests/saas/conftest.py` with:
    - `@pytest.fixture def rollout_disabled(monkeypatch): monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False); yield`
    - `@pytest.fixture def rollout_enabled(monkeypatch): monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1"); yield`
-   - `@pytest.fixture def fake_auth_present(tmp_path, monkeypatch) -> Path` — writes a minimal valid auth token file into `tmp_path` and monkey-patches whatever env/path the auth lookup consults so it returns that token. Document the monkeypatch target in a comment for future maintainers.
-   - `@pytest.fixture def fake_auth_absent(tmp_path, monkeypatch) -> Path` — symmetric; ensures the auth lookup returns nothing.
-   - `@pytest.fixture def fake_host_config_present(tmp_path) -> SyncConfig` — returns a `SyncConfig(server_url="http://127.0.0.1:<port>", ...)` where port is captured from the stub server fixture.
-   - `@pytest.fixture def fake_host_config_empty(tmp_path) -> SyncConfig` — returns `SyncConfig(server_url="", ...)`.
+   - `@pytest.fixture def fake_auth_present(tmp_path, monkeypatch)` — monkey-patches whatever `get_token_manager().is_authenticated` consults so the auth probe returns `True`. Document the monkeypatch target in a comment.
+   - `@pytest.fixture def fake_auth_absent(tmp_path, monkeypatch)` — symmetric; forces the auth probe to return `False`.
+   - `@pytest.fixture def fake_host_config_present(monkeypatch, local_http_stub) -> str` — sets `SPEC_KITTY_SAAS_URL` via `monkeypatch.setenv("SPEC_KITTY_SAAS_URL", local_http_stub)`. Returns the URL. This drives `get_saas_base_url()` through the authoritative env-var path.
+   - `@pytest.fixture def fake_host_config_absent(monkeypatch)` — `monkeypatch.delenv("SPEC_KITTY_SAAS_URL", raising=False)`. This makes `get_saas_base_url()` raise `ConfigurationError` and the host-config probe return `None`.
    - `@pytest.fixture def fake_mission_binding_present(tmp_path, monkeypatch) -> str` — writes a fake binding into the repo fixture and returns the feature_slug.
    - `@pytest.fixture def fake_mission_binding_absent(tmp_path) -> str` — returns a feature_slug but establishes no binding.
    - `@pytest.fixture def local_http_stub() -> str` — starts an `http.server.HTTPServer` bound to `127.0.0.1:0`, captures the assigned port, handles `HEAD` requests with a 200, yields the URL, and shuts down the server on teardown. Use `threading.Thread(target=server.serve_forever, daemon=True)`.
 2. The autouse fixture at `tests/conftest.py:57-60` (`_enable_saas_sync_feature_flag`) is **global** — `rollout_disabled` uses `monkeypatch.delenv(..., raising=False)` to override it safely inside the specific test scope.
-3. Export the `SyncConfig` import for convenience.
+3. **Do not** create a `SyncConfig`-based fixture. `SyncConfig.get_server_url()` is not consulted by the readiness evaluator (per decision D-5 and spec edge case — see T008).
 
 **Files**: `tests/saas/conftest.py` (~150 lines)
 
@@ -172,11 +181,11 @@ This WP introduces `src/specify_cli/saas/readiness.py` alongside the rollout mod
 
 1. Import the fixture factories from `conftest.py`. **Do not** stub `_probe_*` here — that is the whole point of this layer.
 2. Test cases:
-   - **Happy path**: `rollout_enabled` + `fake_auth_present` + `fake_host_config_present` (pointing at `local_http_stub`) + `fake_mission_binding_present` + `require_mission_binding=True` + `probe_reachability=True` → `ReadinessState.READY`.
+   - **Happy path**: `rollout_enabled` + `fake_auth_present` + `fake_host_config_present` (sets `SPEC_KITTY_SAAS_URL` to the local HTTP stub) + `fake_mission_binding_present` + `require_mission_binding=True` + `probe_reachability=True` → `ReadinessState.READY`.
    - **MISSING_AUTH**: `rollout_enabled` + `fake_auth_absent` → returns `MISSING_AUTH` with the stable wording.
-   - **MISSING_HOST_CONFIG**: `rollout_enabled` + `fake_auth_present` + `fake_host_config_empty` → returns `MISSING_HOST_CONFIG`.
+   - **MISSING_HOST_CONFIG**: `rollout_enabled` + `fake_auth_present` + `fake_host_config_absent` (`SPEC_KITTY_SAAS_URL` unset) → returns `MISSING_HOST_CONFIG` with `next_action == "Set \`SPEC_KITTY_SAAS_URL\` in your environment."`
    - **MISSING_MISSION_BINDING**: `rollout_enabled` + all earlier prerequisites present + `fake_mission_binding_absent` + `require_mission_binding=True` → returns `MISSING_MISSION_BINDING` with the feature_slug interpolated into the message.
-   - **HOST_UNREACHABLE**: `rollout_enabled` + auth present + config pointing at `http://127.0.0.1:1` (port 1 is unused) + `probe_reachability=True` → returns `HOST_UNREACHABLE` within ~2 seconds.
+   - **HOST_UNREACHABLE**: `rollout_enabled` + auth present + `monkeypatch.setenv("SPEC_KITTY_SAAS_URL", "http://127.0.0.1:1")` (port 1 is unused) + `probe_reachability=True` → returns `HOST_UNREACHABLE` within ~2 seconds.
 3. Each test asserts the full `ReadinessResult` shape (`state`, `message`, `next_action`) — not just the enum.
 4. The `HOST_UNREACHABLE` test's 2-second timeout budget is enforced with `pytest.mark.timeout(5)` to flag any regression.
 
