@@ -36,12 +36,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 | T012 | Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig`                          | WP03 | —        | [D] |
 | T013 | Update TOML loader: parse `[sync].background_daemon` (case-insensitive, warn+default, reject empty)     | WP03 | —        | [D] |
 | T014 | Write `tests/sync/test_config_background_daemon.py`                                                      | WP03 | —        | [D] |
-| T015 | Add `DaemonIntent` enum and `DaemonStartOutcome` dataclass to `src/specify_cli/sync/daemon.py`           | WP04 | —        |
-| T016 | Refactor `ensure_sync_daemon_running()` — mandatory `intent=`, full decision matrix, outcome return     | WP04 | —        |
-| T017 | Update `src/specify_cli/dashboard/server.py` to pass `intent=LOCAL_ONLY`                                 | WP04 | [P]      |
-| T018 | Update `src/specify_cli/dashboard/handlers/api.py` (read endpoints `LOCAL_ONLY`; sync-now `REMOTE_REQUIRED`) | WP04 | [P]  |
-| T019 | Update `src/specify_cli/sync/events.py` to pass `intent=REMOTE_REQUIRED`                                 | WP04 | [P]      |
-| T020 | Write `tests/sync/test_daemon_intent_gate.py` (decision matrix, missing-intent TypeError, audit-grep guard) | WP04 | — |
+| T015 | Add `DaemonIntent` enum and `DaemonStartOutcome` dataclass to `src/specify_cli/sync/daemon.py`           | WP04 | —        | [D] |
+| T016 | Refactor `ensure_sync_daemon_running()` — mandatory `intent=`, full decision matrix, outcome return     | WP04 | —        | [D] |
+| T017 | Update `src/specify_cli/dashboard/server.py` to pass `intent=LOCAL_ONLY`                                 | WP04 | [D] |
+| T018 | Update `src/specify_cli/dashboard/handlers/api.py` (read endpoints `LOCAL_ONLY`; sync-now `REMOTE_REQUIRED`) | WP04 | [D] |
+| T019 | Update `src/specify_cli/sync/events.py` to pass `intent=REMOTE_REQUIRED`                                 | WP04 | [D] |
+| T020 | Write `tests/sync/test_daemon_intent_gate.py` (decision matrix, missing-intent TypeError, audit-grep guard) | WP04 | — | [D] |
 | T021 | Rewrite tracker callback in `src/specify_cli/cli/commands/tracker.py` — per-command `evaluate_readiness()` | WP05 | — |
 | T022 | Implement manual-mode CLI surfacing for `sync run`/`pull`/`push`/`publish` (exit 0, stable wording)      | WP05 | —        |
 | T023 | Update `src/specify_cli/cli/commands/__init__.py` conditional import to source from `specify_cli.saas.rollout` | WP05 | — |
@@ -174,12 +174,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T015 Add `DaemonIntent` enum and `DaemonStartOutcome` dataclass to `src/specify_cli/sync/daemon.py` (WP04)
-- [ ] T016 Refactor `ensure_sync_daemon_running()` for mandatory `intent=`, apply decision matrix, return `DaemonStartOutcome` (WP04)
-- [ ] T017 Update `src/specify_cli/dashboard/server.py` caller to `intent=LOCAL_ONLY` (WP04)
-- [ ] T018 Update `src/specify_cli/dashboard/handlers/api.py` callers (LOCAL_ONLY reads, REMOTE_REQUIRED sync-now) (WP04)
-- [ ] T019 Update `src/specify_cli/sync/events.py` event-upload caller to `REMOTE_REQUIRED` (WP04)
-- [ ] T020 Write `tests/sync/test_daemon_intent_gate.py` (decision matrix, TypeError guard, audit-grep guard) (WP04)
+- [x] T015 Add `DaemonIntent` enum and `DaemonStartOutcome` dataclass to `src/specify_cli/sync/daemon.py` (WP04)
+- [x] T016 Refactor `ensure_sync_daemon_running()` for mandatory `intent=`, apply decision matrix, return `DaemonStartOutcome` (WP04)
+- [x] T017 Update `src/specify_cli/dashboard/server.py` caller to `intent=LOCAL_ONLY` (WP04)
+- [x] T018 Update `src/specify_cli/dashboard/handlers/api.py` callers (LOCAL_ONLY reads, REMOTE_REQUIRED sync-now) (WP04)
+- [x] T019 Update `src/specify_cli/sync/events.py` event-upload caller to `REMOTE_REQUIRED` (WP04)
+- [x] T020 Write `tests/sync/test_daemon_intent_gate.py` (decision matrix, TypeError guard, audit-grep guard) (WP04)
 
 ### Implementation sketch
 
