@@ -198,3 +198,4 @@ spec-kitty agent action implement WP03 --agent <name>
 ## Activity Log
 
 - 2026-04-11T08:43:43Z – claude:sonnet:python-implementer:implementer – shell_pid=66132 – Started implementation via action command
+- 2026-04-11T08:51:12Z – claude:sonnet:python-implementer:implementer – shell_pid=66132 – BackgroundDaemonPolicy + getter/setter pair added to existing SyncConfig class
