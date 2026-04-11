@@ -11,6 +11,8 @@ subtasks:
 - T012
 - T013
 - T014
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "66132"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -192,3 +194,7 @@ Test coverage for this WP is the whole point — the loader must never silently 
 ```bash
 spec-kitty agent action implement WP03 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-11T08:43:43Z – claude:sonnet:python-implementer:implementer – shell_pid=66132 – Started implementation via action command
