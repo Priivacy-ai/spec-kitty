@@ -47,6 +47,7 @@ Project profiles override shipped profiles at field level when sharing the same
 
 - `AgentProfile` — Pydantic domain model
 - `AgentProfileRepository` — Two-source loading, hierarchy, weighted matching
+- `validate_agent_profile_yaml()` — JSON Schema (Draft 7) validation
 - `RoleCapabilities` / `DEFAULT_ROLE_CAPABILITIES` — Role-based capability defaults
 
 ## Schema

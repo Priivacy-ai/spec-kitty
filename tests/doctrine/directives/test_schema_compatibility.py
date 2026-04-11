@@ -5,11 +5,11 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from pydantic import ValidationError
 from ruamel.yaml import YAML
 
 from doctrine.directives.models import Directive
 from doctrine.directives.repository import DirectiveRepository
+from doctrine.directives.validation import validate_directive
 
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -33,7 +33,8 @@ class TestDirectiveSchemaCompatibility:
     def test_existing_shipped_directives_still_validate(self, directive_path: Path) -> None:
         """Backward compatibility: all shipped directives remain valid."""
         data = _load_yaml(directive_path)
-        Directive.model_validate(data)
+        errors = validate_directive(data)
+        assert errors == []
 
     def test_minimal_required_fields_validate_and_parse(self) -> None:
         """A minimal directive with only required fields remains valid."""
@@ -45,6 +46,7 @@ class TestDirectiveSchemaCompatibility:
             "enforcement": "required",
         }
 
+        assert validate_directive(minimal) == []
         parsed = Directive.model_validate(minimal)
         assert parsed.scope is None
         assert parsed.procedures == []
@@ -80,6 +82,7 @@ class TestDirectiveSchemaCompatibility:
             ],
         }
 
+        assert validate_directive(enriched) == []
         parsed = Directive.model_validate(enriched)
         assert parsed.scope == enriched["scope"]
         assert parsed.procedures == enriched["procedures"]
@@ -100,6 +103,7 @@ class TestDirectiveSchemaCompatibility:
             "procedures": ["Run selected checks"],
         }
 
+        assert validate_directive(partially_enriched) == []
         parsed = Directive.model_validate(partially_enriched)
         assert parsed.scope == "Applies to partial enrichment tests."
         assert parsed.procedures == ["Run selected checks"]
@@ -116,8 +120,8 @@ class TestDirectiveSchemaCompatibility:
             "enforcement": "lenient-adherence",
         }
 
-        with pytest.raises(ValidationError, match="explicit_allowances"):
-            Directive.model_validate(invalid)
+        errors = validate_directive(invalid)
+        assert any("explicit_allowances" in error for error in errors)
 
     def test_lenient_adherence_with_allowances_validates_and_parses(self) -> None:
         valid = {
@@ -131,6 +135,7 @@ class TestDirectiveSchemaCompatibility:
             ],
         }
 
+        assert validate_directive(valid) == []
         parsed = Directive.model_validate(valid)
         assert parsed.enforcement.value == "lenient-adherence"
         assert parsed.explicit_allowances == valid["explicit_allowances"]
@@ -146,8 +151,8 @@ class TestDirectiveSchemaCompatibility:
             "procedures": "this should be a list, not a string",
         }
 
-        with pytest.raises(ValidationError, match="procedures"):
-            Directive.model_validate(invalid)
+        errors = validate_directive(invalid)
+        assert any("procedures" in error for error in errors)
 
     def test_repository_save_and_reload_preserves_enrichment(self, tmp_path: Path) -> None:
         """Roundtrip through repository save/load preserves optional fields."""
