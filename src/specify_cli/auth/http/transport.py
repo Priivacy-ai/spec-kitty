@@ -30,7 +30,6 @@ from specify_cli.auth import get_token_manager
 from specify_cli.auth.errors import (
     NetworkError,
     NotAuthenticatedError,
-    TokenRefreshError,
 )
 
 # Default timeout for all HTTP operations (per WP08 spec).
@@ -99,11 +98,7 @@ class OAuthHttpClient:
         tm = get_token_manager()
 
         # First attempt: inject the current access token (auto-refresh if near expiry).
-        try:
-            access_token = await tm.get_access_token()
-        except (NotAuthenticatedError, TokenRefreshError):
-            # Propagate auth errors unchanged — callers differentiate these.
-            raise
+        access_token = await tm.get_access_token()
 
         response = await self._send(method, url, access_token, kwargs)
 

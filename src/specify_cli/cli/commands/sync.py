@@ -916,6 +916,10 @@ def doctor() -> None:
     server_url = config.get_server_url()
     table.add_row("Server URL", server_url)
 
+    token_labels = {
+        "access": "Access token",
+        "refresh": "Refresh token",
+    }
     tm = get_token_manager()
     session = tm.get_current_session()
     if session is None:
@@ -935,27 +939,30 @@ def doctor() -> None:
 
         if access_ok:
             table.add_row(
-                "Access token",
+                token_labels["access"],
                 f"[green]Valid[/green] (expires {access_exp_dt.isoformat()})",
             )
         elif access_exp_dt is not None:
             table.add_row(
-                "Access token",
+                token_labels["access"],
                 f"[red]Expired[/red] ({access_exp_dt.isoformat()})",
             )
         else:
-            table.add_row("Access token", "[red]Missing[/red]")
+            table.add_row(token_labels["access"], "[red]Missing[/red]")
 
         if refresh_exp_dt is None:
-            table.add_row("Refresh token", "[green]Valid[/green] (no expiry stored)")
+            table.add_row(
+                token_labels["refresh"],
+                "[green]Valid[/green] (no expiry stored)",
+            )
         elif refresh_ok:
             table.add_row(
-                "Refresh token",
+                token_labels["refresh"],
                 f"[green]Valid[/green] (expires {refresh_exp_dt.isoformat()})",
             )
         else:
             table.add_row(
-                "Refresh token",
+                token_labels["refresh"],
                 f"[red]Expired[/red] ({refresh_exp_dt.isoformat()})",
             )
 

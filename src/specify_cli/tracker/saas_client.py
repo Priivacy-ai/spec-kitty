@@ -30,6 +30,10 @@ from specify_cli.auth.errors import (
 from specify_cli.sync.config import SyncConfig
 from specify_cli.core.contract_gate import validate_outbound_payload
 
+_SESSION_EXPIRED_MESSAGE = (
+    "Session expired. Run `spec-kitty auth login` to re-authenticate."
+)
+
 
 class SaaSTrackerClientError(RuntimeError):
     """Raised when a SaaS tracker API call fails.
@@ -308,14 +312,14 @@ class SaaSTrackerClient:
                 _force_refresh_sync()
             except AuthenticationError as exc:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    _SESSION_EXPIRED_MESSAGE,
                     error_code="session_expired",
                     status_code=401,
                     user_action_required=True,
                 ) from exc
             except Exception as exc:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    _SESSION_EXPIRED_MESSAGE,
                     error_code="session_expired",
                     status_code=401,
                     user_action_required=True,
@@ -326,7 +330,7 @@ class SaaSTrackerClient:
             )
             if response.status_code == 401:
                 raise SaaSTrackerClientError(
-                    "Session expired. Run `spec-kitty auth login` to re-authenticate.",
+                    _SESSION_EXPIRED_MESSAGE,
                     error_code="session_expired",
                     status_code=401,
                     user_action_required=True,

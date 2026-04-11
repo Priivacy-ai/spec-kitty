@@ -41,6 +41,7 @@ from specify_cli.tasks_support import (
 from specify_cli.workspace_context import resolve_workspace_for_wp
 
 _REVIEW_FEEDBACK_SENTINELS = frozenset({"force-override", "action-review-claim"})
+_REVIEW_CYCLE_SCHEME = "review-cycle://"
 
 
 def _write_prompt_to_file(
@@ -106,8 +107,8 @@ def _resolve_review_feedback_pointer(repo_root: Path, pointer: str) -> Path | No
     if not value or value in _REVIEW_FEEDBACK_SENTINELS:
         return None
 
-    if value.startswith("review-cycle://"):
-        relative = value[len("review-cycle://") :]
+    if value.startswith(_REVIEW_CYCLE_SCHEME):
+        relative = value.removeprefix(_REVIEW_CYCLE_SCHEME)
         parts = [p for p in relative.split("/") if p]
         if len(parts) != 3:
             return None
@@ -699,7 +700,11 @@ def implement(
                 from specify_cli.review.fix_prompt import generate_fix_prompt as _generate_fix_prompt
 
                 _sub_artifact_dir = feature_dir / "tasks" / wp_slug
-                if review_feedback_ref and review_feedback_ref.startswith("review-cycle://") and review_feedback_file is not None:
+                if (
+                    review_feedback_ref
+                    and review_feedback_ref.startswith(_REVIEW_CYCLE_SCHEME)
+                    and review_feedback_file is not None
+                ):
                     _latest_artifact = _ReviewCycleArtifact.from_file(review_feedback_file)
                 else:
                     _latest_artifact = _ReviewCycleArtifact.latest(_sub_artifact_dir)
