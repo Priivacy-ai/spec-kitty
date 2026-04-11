@@ -18,6 +18,8 @@ subtasks:
 - T018
 - T019
 - T020
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "71430"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -332,3 +334,7 @@ Unit/integration tests cover the decision matrix (every row). The TypeError regr
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-11T08:53:05Z – claude:sonnet:python-implementer:implementer – shell_pid=71430 – Started implementation via action command
