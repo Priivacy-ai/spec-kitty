@@ -153,7 +153,7 @@ class TestShowOriginExtendedAssets:
         project = tmp_path / "project"
         scripts_dir = project / ".kittify" / "scripts"
         scripts_dir.mkdir(parents=True)
-        (scripts_dir / "validate_encoding.py").write_text("# script\n")
+        (scripts_dir / "helper.py").write_text("# script\n")
 
         monkeypatch.setenv("SPEC_KITTY_HOME", str(tmp_path / "global"))
 
@@ -164,7 +164,7 @@ class TestShowOriginExtendedAssets:
             entries = collect_origins(project)
 
         script_entries = [e for e in entries if e.asset_type == "script"]
-        assert any(e.name == "validate_encoding.py" for e in script_entries)
+        assert any(e.name == "helper.py" for e in script_entries)
 
     def test_dynamic_command_discovery(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
         """Command templates are dynamically discovered from package defaults."""

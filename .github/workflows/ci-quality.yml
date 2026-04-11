@@ -165,15 +165,11 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: '22'
-          cache: 'npm'
 
       - name: "[ENFORCED] Install Python dependencies"
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[test,lint]"
-
-      - name: "[ENFORCED] Install Node dependencies"
-        run: npm ci
 
       - name: "[ENFORCED] Prepare report directories"
         run: |

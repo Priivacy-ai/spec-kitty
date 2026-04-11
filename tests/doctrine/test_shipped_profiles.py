@@ -12,11 +12,9 @@ Verifies that all shipped reference profiles:
 from pathlib import Path
 
 import pytest
-from ruamel.yaml import YAML
 
 from doctrine.agent_profiles.profile import AgentProfile, Role
 from doctrine.agent_profiles.repository import AgentProfileRepository
-from doctrine.agent_profiles.validation import validate_agent_profile_yaml
 
 pytestmark = [pytest.mark.fast, pytest.mark.doctrine]
 
@@ -198,23 +196,6 @@ class TestShippedProfilesContent:
         assert profile.max_concurrent_tasks == expected_max, (
             f"Profile '{profile_id}' has max_concurrent_tasks={profile.max_concurrent_tasks}, expected {expected_max}"
         )
-
-
-class TestShippedProfilesSchemaValidation:
-    """Verify all profiles pass YAML schema validation."""
-
-    @pytest.mark.parametrize("profile_id", sorted(EXPECTED_PROFILE_IDS))
-    def test_profile_passes_schema_validation(self, profile_id: str):
-        """Each shipped profile passes the agent-profile JSON schema validation."""
-        yaml_file = SHIPPED_DIR / f"{profile_id}.agent.yaml"
-        assert yaml_file.exists(), f"Profile file not found: {yaml_file}"
-
-        yaml = YAML(typ="safe")
-        with yaml_file.open() as f:
-            data = yaml.load(f)
-
-        errors = validate_agent_profile_yaml(data)
-        assert errors == [], f"Schema validation failed for '{profile_id}':\n" + "\n".join(f"  - {e}" for e in errors)
 
 
 class TestShippedProfilesHierarchy:

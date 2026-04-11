@@ -140,15 +140,6 @@ Pipeline row, or in the runtime-execution-domain container detail.
 
 ## Observations (Aligned, No Action Needed)
 
-### `CentralTemplateRepository` is Implementation-Only
-
-The migration created a `CentralTemplateRepository` class
-(`src/doctrine/templates/repository.py`) to provide API access to non-mission-
-scoped central command templates. This is not mentioned in any architecture
-document. This is acceptable -- it is an implementation detail of the doctrine
-package, not an architectural component. If it grows in scope, consider adding
-it to the Doctrine component table.
-
 ### `specify_cli/templates/` Correctly Removed
 
 The non-mission-scoped content templates directory was correctly removed. The
