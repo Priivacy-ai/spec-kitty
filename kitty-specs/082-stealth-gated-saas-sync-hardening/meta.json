@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-11T06:02:53.070650+00:00",
+  "friendly_name": "stealth gated saas sync hardening",
+  "mission_id": "01KNXJ5MREJK8ZBRABRE401W39",
+  "mission_number": "082",
+  "mission_slug": "082-stealth-gated-saas-sync-hardening",
+  "mission_type": "software-dev",
+  "slug": "082-stealth-gated-saas-sync-hardening",
+  "target_branch": "main"
+}
