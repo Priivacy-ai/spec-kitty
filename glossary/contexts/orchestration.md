@@ -2,6 +2,19 @@
 
 Terms describing lifecycle and runtime orchestration semantics.
 
+### Repository
+
+| | |
+|---|---|
+| **Definition** | The local git repository that a [Project](#project) is initialized from and executes within. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Note** | Use this term when the repository boundary itself matters, especially for repository-scoped identity and sync semantics. |
+| **Related terms** | [Project](#project), [Build](#build) |
+
+---
+
 ### Project
 
 | | |
@@ -21,6 +34,19 @@ Terms describing lifecycle and runtime orchestration semantics.
 | **Context** | Orchestration |
 | **Status** | canonical |
 | **Applicable to** | `1.x`, `2.x` |
+
+---
+
+### Build
+
+| | |
+|---|---|
+| **Definition** | One checkout or worktree execution context inside a [Repository](#repository), identified by machine and build-scoped runtime identity. |
+| **Context** | Orchestration |
+| **Status** | canonical |
+| **Applicable to** | `3.x` |
+| **Note** | Use this term when distinguishing per-worktree or per-machine runtime context from the repository boundary itself. |
+| **Related terms** | [Repository](#repository), [Mission Run](#mission-run) |
 
 ---
 
