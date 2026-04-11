@@ -27,12 +27,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 | T003 | Convert `src/specify_cli/tracker/feature_flags.py` to a re-export shim                                   | WP01 | [D] |
 | T004 | Convert `src/specify_cli/sync/feature_flags.py` to a re-export shim                                      | WP01 | [D] |
 | T005 | Write `tests/saas/test_rollout.py` (env-var variants, shim re-export, stable message)                    | WP01 | —        | [D] |
-| T006 | Create `src/specify_cli/saas/readiness.py` with `ReadinessState`, `ReadinessResult`, `evaluate_readiness` | WP02 | —        |
-| T007 | Implement the stable failure-message catalog per `contracts/hosted_readiness.md`                         | WP02 | —        |
-| T008 | Implement check ordering, short-circuit, and exception→`HOST_UNREACHABLE` conversion                     | WP02 | —        |
-| T009 | Create `tests/saas/conftest.py` with rollout + auth/config/binding fixtures                              | WP02 | —        |
-| T010 | Write `tests/saas/test_readiness_unit.py` (stubbed probes, every state, wording, ordering)               | WP02 | [P]      |
-| T011 | Write `tests/saas/test_readiness_integration.py` (real evaluator, tmp_path fixtures, local stub server)  | WP02 | [P]      |
+| T006 | Create `src/specify_cli/saas/readiness.py` with `ReadinessState`, `ReadinessResult`, `evaluate_readiness` | WP02 | —        | [D] |
+| T007 | Implement the stable failure-message catalog per `contracts/hosted_readiness.md`                         | WP02 | —        | [D] |
+| T008 | Implement check ordering, short-circuit, and exception→`HOST_UNREACHABLE` conversion                     | WP02 | —        | [D] |
+| T009 | Create `tests/saas/conftest.py` with rollout + auth/config/binding fixtures                              | WP02 | —        | [D] |
+| T010 | Write `tests/saas/test_readiness_unit.py` (stubbed probes, every state, wording, ordering)               | WP02 | [D] |
+| T011 | Write `tests/saas/test_readiness_integration.py` (real evaluator, tmp_path fixtures, local stub server)  | WP02 | [D] |
 | T012 | Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig`                          | WP03 | —        |
 | T013 | Update TOML loader: parse `[sync].background_daemon` (case-insensitive, warn+default, reject empty)     | WP03 | —        |
 | T014 | Write `tests/sync/test_config_background_daemon.py`                                                      | WP03 | —        |
@@ -104,12 +104,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T006 Create `src/specify_cli/saas/readiness.py` with `ReadinessState`, `ReadinessResult`, `evaluate_readiness` (WP02)
-- [ ] T007 Implement the stable failure-message catalog per contract (WP02)
-- [ ] T008 Implement check ordering, short-circuit, and exception→`HOST_UNREACHABLE` conversion (WP02)
-- [ ] T009 Create `tests/saas/conftest.py` with rollout + auth/config/binding fixtures (WP02)
-- [ ] T010 Write `tests/saas/test_readiness_unit.py` with stubbed probes (WP02)
-- [ ] T011 Write `tests/saas/test_readiness_integration.py` with the real evaluator (WP02)
+- [x] T006 Create `src/specify_cli/saas/readiness.py` with `ReadinessState`, `ReadinessResult`, `evaluate_readiness` (WP02)
+- [x] T007 Implement the stable failure-message catalog per contract (WP02)
+- [x] T008 Implement check ordering, short-circuit, and exception→`HOST_UNREACHABLE` conversion (WP02)
+- [x] T009 Create `tests/saas/conftest.py` with rollout + auth/config/binding fixtures (WP02)
+- [x] T010 Write `tests/saas/test_readiness_unit.py` with stubbed probes (WP02)
+- [x] T011 Write `tests/saas/test_readiness_integration.py` with the real evaluator (WP02)
 
 ### Implementation sketch
 
