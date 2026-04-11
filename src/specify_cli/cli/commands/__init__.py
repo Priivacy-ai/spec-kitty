@@ -28,7 +28,7 @@ from specify_cli import orchestrator_api as orchestrator_api_module
 from . import repair as repair_module
 from . import research as research_module
 from . import sync as sync_module
-from specify_cli.tracker.feature_flags import is_saas_sync_enabled
+from specify_cli.saas.rollout import is_saas_sync_enabled
 from . import upgrade as upgrade_module
 from . import validate_encoding as validate_encoding_module
 from . import validate_tasks as validate_tasks_module

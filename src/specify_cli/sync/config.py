@@ -1,4 +1,6 @@
 """Sync configuration management"""
+import sys
+from enum import Enum
 from pathlib import Path
 from typing import Any
 
@@ -7,6 +9,19 @@ import toml
 from specify_cli.core.atomic import atomic_write
 
 from .queue import DEFAULT_MAX_QUEUE_SIZE
+
+
+class BackgroundDaemonPolicy(str, Enum):
+    """Policy controlling how the background sync daemon is started."""
+
+    AUTO = "auto"
+    MANUAL = "manual"
+
+
+_BACKGROUND_DAEMON_VALUES: dict[str, BackgroundDaemonPolicy] = {
+    "auto": BackgroundDaemonPolicy.AUTO,
+    "manual": BackgroundDaemonPolicy.MANUAL,
+}
 
 
 class SyncConfig:
@@ -67,3 +82,48 @@ class SyncConfig:
         config["sync"]["max_queue_size"] = size
         self._save(config)
         print(f"Max queue size set to: {size:,}")
+
+    def get_background_daemon(self) -> BackgroundDaemonPolicy:
+        """Get background daemon policy from config.
+
+        Config key: [sync] background_daemon = "auto" | "manual"
+        Default: BackgroundDaemonPolicy.AUTO (when key or [sync] table is absent)
+        """
+        config = self._load()
+        raw = config.get("sync", {}).get("background_daemon")
+
+        if raw is None:
+            return BackgroundDaemonPolicy.AUTO
+
+        if not isinstance(raw, str):
+            print(
+                f"[sync].background_daemon has a non-string value {raw!r}; defaulting to 'auto'",
+                file=sys.stderr,
+            )
+            return BackgroundDaemonPolicy.AUTO
+
+        stripped = raw.strip()
+
+        if stripped == "":
+            raise ValueError(
+                "[sync].background_daemon must be 'auto' or 'manual', not an empty string"
+            )
+
+        folded = stripped.casefold()
+        policy = _BACKGROUND_DAEMON_VALUES.get(folded)
+        if policy is None:
+            print(
+                f"[sync].background_daemon value {raw!r} is unknown; defaulting to 'auto'",
+                file=sys.stderr,
+            )
+            return BackgroundDaemonPolicy.AUTO
+
+        return policy
+
+    def set_background_daemon(self, policy: BackgroundDaemonPolicy) -> None:
+        """Set background daemon policy in config."""
+        config = self._load()
+        if "sync" not in config:
+            config["sync"] = {}
+        config["sync"]["background_daemon"] = policy.value
+        self._save(config)

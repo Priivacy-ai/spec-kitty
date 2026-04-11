@@ -61,11 +61,14 @@ def _build_handler_class(project_dir: Path, project_token: Optional[str]) -> typ
 def run_dashboard_server(project_dir: Path, port: int, project_token: Optional[str]) -> None:
     """Run the dashboard server forever (used by detached child processes)."""
     try:
-        from specify_cli.sync.daemon import ensure_sync_daemon_running
+        from specify_cli.sync.daemon import DaemonIntent, ensure_sync_daemon_running
 
-        ensure_sync_daemon_running()
+        # Dashboard reads local state from DAEMON_STATE_FILE; it does not need
+        # the sync daemon to boot just because the dashboard process started.
+        outcome = ensure_sync_daemon_running(intent=DaemonIntent.LOCAL_ONLY)
+        logger.debug("Sync daemon startup skipped: %s", outcome.skipped_reason)
     except Exception as exc:  # pragma: no cover - defensive fallback
-        logger.warning("Global sync daemon failed to start: %s", exc)
+        logger.warning("Global sync daemon check failed: %s", exc)
 
     handler_class = _build_handler_class(project_dir, project_token)
     server = HTTPServer(('127.0.0.1', port), handler_class)

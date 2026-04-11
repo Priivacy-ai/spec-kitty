@@ -9,6 +9,7 @@ providers -- authentication flows through ``spec-kitty auth login``.
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -26,7 +27,9 @@ from specify_cli.tracker.config import (
 from specify_cli.sync.project_identity import ensure_identity
 from specify_cli.tracker.discovery import BindResult, ResolutionResult
 from specify_cli.tracker.factory import normalize_provider
-from specify_cli.tracker.feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
+from specify_cli.saas.readiness import evaluate_readiness
+from specify_cli.saas.rollout import is_saas_sync_enabled, saas_sync_disabled_message
+from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.tracker.service import TrackerService, TrackerServiceError, parse_kv_pairs
 
 app = typer.Typer(
@@ -42,16 +45,88 @@ sync_app = typer.Typer(help="Tracker synchronization commands")
 app.add_typer(map_app, name="map")
 app.add_typer(sync_app, name="sync")
 
+# ---------------------------------------------------------------------------
+# Stable wording constants (asserted byte-for-byte by tests)
+# ---------------------------------------------------------------------------
+
+_MANUAL_MODE_MESSAGE = (
+    'Background sync is in manual mode (`[sync].background_daemon = "manual"`).\n'
+    "Run `spec-kitty sync run` to perform a one-shot remote sync."
+)
+
+_MANUAL_MODE_SYNC_RUN_MESSAGE = (
+    "Background sync is in manual mode. Running a one-shot remote sync now."
+)
+
 
 def _print_json(payload: Any) -> None:
     typer.echo(json.dumps(payload, indent=2, sort_keys=True, default=str))
 
 
-def _require_enabled() -> None:
-    if is_saas_sync_enabled():
-        return
-    typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
-    raise typer.Exit(1)
+def _resolve_active_feature_slug(repo_root: Path) -> str | None:
+    """Return the active feature slug from .kittify/meta.json, or None.
+
+    Used by _check_readiness to supply a feature_slug when
+    require_mission_binding=True.  A missing or unreadable meta.json is
+    treated as "no active feature" — the readiness evaluator handles
+    MISSING_MISSION_BINDING gracefully in that case.
+    """
+    try:
+        meta_path = repo_root / ".kittify" / "meta.json"
+        if not meta_path.exists():
+            return None
+        data = json.loads(meta_path.read_text(encoding="utf-8"))
+        slug = data.get("feature_slug") or data.get("slug")
+        return str(slug) if slug else None
+    except Exception:  # noqa: BLE001
+        return None
+
+
+def _check_readiness(
+    *,
+    require_mission_binding: bool,
+    probe_reachability: bool,
+) -> None:
+    """Check hosted readiness; raise typer.Exit(1) with actionable message on failure.
+
+    Calls evaluate_readiness with the supplied flags and the current repo root.
+    On non-READY results, prints message + next_action to stderr and exits 1.
+    """
+    try:
+        repo_root = require_repo_root()
+    except Exception as exc:  # noqa: BLE001
+        typer.secho(str(exc), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1) from exc
+
+    feature_slug = _resolve_active_feature_slug(repo_root)
+    result = evaluate_readiness(
+        repo_root=repo_root,
+        feature_slug=feature_slug,
+        require_mission_binding=require_mission_binding,
+        probe_reachability=probe_reachability,
+    )
+    if not result.is_ready:
+        typer.secho(result.message, fg=typer.colors.RED, err=True)
+        if result.next_action:
+            typer.echo(result.next_action, err=True)
+        raise typer.Exit(1)
+
+
+def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
+    """Pre-flight: handle manual daemon policy for sync sub-commands.
+
+    For sync pull/push/publish: prints the manual-mode message and exits 0.
+    For sync run (is_sync_run=True): prints the one-shot message and returns
+    (does NOT exit — sync run proceeds as a foreground one-shot).
+    """
+    cfg = SyncConfig()
+    if cfg.get_background_daemon() == BackgroundDaemonPolicy.MANUAL:
+        if is_sync_run:
+            typer.echo(_MANUAL_MODE_SYNC_RUN_MESSAGE)
+            # Do NOT exit — sync run is the explicit one-shot.
+        else:
+            typer.echo(_MANUAL_MODE_MESSAGE)
+            raise typer.Exit(0)
 
 
 def _service() -> TrackerService:
@@ -77,8 +152,17 @@ def _run_or_exit(fn):  # type: ignore[no-untyped-def]
 
 @app.callback()
 def tracker_callback() -> None:
-    """Guard tracker commands behind the SaaS sync feature flag."""
-    _require_enabled()
+    """Defense-in-depth rollout gate for tracker commands.
+
+    The conditional registration in cli/commands/__init__.py already hides
+    this group entirely when the flag is off.  This callback is a
+    defense-in-depth check in case the env-var state drifts between import
+    time and invocation time.  Per-command readiness checks handle all
+    prerequisite validation beyond the rollout gate.
+    """
+    if not is_saas_sync_enabled():
+        typer.secho(saas_sync_disabled_message(), fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
 
 
 # ---------------------------------------------------------------------------
@@ -97,6 +181,7 @@ def providers_command(
 
     Local providers use direct connectors with locally stored credentials.
     """
+    _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         saas = sorted(SAAS_PROVIDERS)
@@ -135,6 +220,7 @@ def discover_command(
     with the specified provider.  Each row is numbered 1-indexed to align
     with ``tracker bind --select N``.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=False)
     normalized = normalize_provider(provider)
 
     try:
@@ -245,6 +331,7 @@ def bind_command(
     For local providers (beads, fp):
       Requires --provider, --workspace, and --credential flags.
     """
+    _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         provider_normalized = normalize_provider(provider)
@@ -454,6 +541,7 @@ def status_command(
     With --all: shows installation-wide summary across all bindings
     (SaaS providers only).
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=False)
 
     def _run() -> None:
         payload = _service().status(all=all_installations)
@@ -598,6 +686,7 @@ def map_add_command(
     For SaaS-backed providers: this command is not available.  Manage
     mappings in the Spec Kitty dashboard instead.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=False)
 
     def _run() -> None:
         _service().map_add(
@@ -627,6 +716,7 @@ def map_list_command(
     For SaaS-backed providers: shows SaaS-authoritative mappings from the
     control plane.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=False)
 
     def _run() -> None:
         mappings = _service().map_list()
@@ -663,6 +753,8 @@ def sync_pull_command(
 
     For local providers: pulls directly from the tracker API.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=True)
+    _check_daemon_policy()
 
     def _run() -> None:
         payload = _service().sync_pull(limit=limit)
@@ -721,6 +813,8 @@ def sync_push_command(
 
     For local providers: pushes directly to the tracker API using --limit.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=True)
+    _check_daemon_policy()
     import sys as _sys
 
     def _run() -> None:
@@ -802,6 +896,8 @@ def sync_run_command(
 
     For local providers: runs pull then push using direct connectors.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=True)
+    _check_daemon_policy(is_sync_run=True)
 
     def _run() -> None:
         payload = _service().sync_run(limit=limit)
@@ -849,6 +945,8 @@ def sync_publish_command(
     For local providers: the facade will raise an error if this operation
     is not supported by the bound provider.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=True)
+    _check_daemon_policy()
 
     def _run() -> None:
         payload = _service().sync_publish()
@@ -876,6 +974,7 @@ def unbind_command() -> None:
     For SaaS-backed providers this clears only local project configuration.
     Provider unlinking remains a SaaS dashboard action.
     """
+    _check_readiness(require_mission_binding=True, probe_reachability=False)
 
     def _run() -> None:
         _service().unbind()

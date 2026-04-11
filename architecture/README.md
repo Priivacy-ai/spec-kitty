@@ -72,6 +72,12 @@ ls -1 architecture/2.x/adr | sort
 rg -n "Status:|Decision Outcome|Technical Story" architecture/1.x/adr architecture/2.x/adr
 ```
 
+### Notable Recent ADRs (2.x)
+
+| Filename | Title | Status | Date |
+|---|---|---|---|
+| `2026-04-11-1-saas-rollout-and-readiness.md` | SaaS Rollout Gate and Hosted Readiness Split | Accepted | 2026-04-11 |
+
 See also:
 
 - `architecture/ARCHITECTURE_DOCS_GUIDE.md`

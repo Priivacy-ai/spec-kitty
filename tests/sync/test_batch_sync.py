@@ -103,7 +103,7 @@ class TestSaasFeatureFlag:
 
         assert populated_queue.size() == initial_size
         assert result.total_events == 0
-        assert any("disabled" in msg.lower() for msg in result.error_messages)
+        assert any("not enabled" in msg.lower() for msg in result.error_messages)
         mock_post.assert_not_called()
 
 

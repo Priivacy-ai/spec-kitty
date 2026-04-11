@@ -13,7 +13,7 @@ from ..charter_path import resolve_project_charter_path
 from ..diagnostics import run_diagnostics
 from ..templates import get_dashboard_html_bytes
 from .base import DashboardHandler
-from specify_cli.sync.daemon import ensure_sync_daemon_running, get_sync_daemon_status
+from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_sync_daemon_running, get_sync_daemon_status
 
 __all__ = ["APIHandler"]
 
@@ -111,7 +111,18 @@ class APIHandler(DashboardHandler):
             return
 
         try:
-            ensure_sync_daemon_running()
+            # Explicit "sync now" endpoint — remote sync is the caller's intent.
+            outcome: DaemonStartOutcome = ensure_sync_daemon_running(
+                intent=DaemonIntent.REMOTE_REQUIRED
+            )
+            if not outcome.started:
+                reason = outcome.skipped_reason or "unknown"
+                if reason in {"rollout_disabled", "policy_manual"}:
+                    logger.info("Sync daemon not started: %s", reason)
+                    self._send_json(202, {"status": "skipped", "manual_mode": True, "reason": reason})
+                    return
+                self._send_json(503, {"error": "sync_daemon_unavailable", "reason": reason})
+                return
             status = get_sync_daemon_status(timeout=0.2)
             if not status.healthy or not status.url or not status.token:
                 self._send_json(503, {"error": "sync_daemon_unavailable"})
