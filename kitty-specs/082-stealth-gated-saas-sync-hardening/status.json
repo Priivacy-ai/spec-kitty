@@ -1,7 +1,7 @@
 {
-  "event_count": 15,
-  "last_event_id": "01KNXTJRBQ8XENF1PWHW60YHHT",
-  "materialized_at": "2026-04-11T08:29:51.351659+00:00",
+  "event_count": 16,
+  "last_event_id": "01KNXV711P3ENHDTZNC2XV3WH7",
+  "materialized_at": "2026-04-11T08:40:55.606922+00:00",
   "mission_number": "082",
   "mission_slug": "082-stealth-gated-saas-sync-hardening",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 0,
-    "in_progress": 1,
+    "for_review": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 4
   },
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-11T08:28:57.129033+00:00"
     },
     "WP02": {
-      "actor": "claude:sonnet:python-implementer:implementer",
+      "actor": "user",
       "force_count": 1,
-      "lane": "in_progress",
-      "last_event_id": "01KNXTJRBQ8XENF1PWHW60YHHT",
-      "last_transition_at": "2026-04-11T08:29:51.351659+00:00"
+      "lane": "for_review",
+      "last_event_id": "01KNXV711P3ENHDTZNC2XV3WH7",
+      "last_transition_at": "2026-04-11T08:40:55.606922+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
