@@ -16,6 +16,8 @@ subtasks:
 - T009
 - T010
 - T011
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "55366"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -232,3 +234,7 @@ Unit tests (T010) cover every branch; integration tests (T011) cover the real ev
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-11T08:29:51Z – claude:sonnet:python-implementer:implementer – shell_pid=55366 – Started implementation via action command
