@@ -10,7 +10,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from specify_cli.sync.daemon import SyncDaemonStatus
+from specify_cli.sync.daemon import DaemonStartOutcome, SyncDaemonStatus
 from specify_cli.mission import MissionError
 
 pytestmark = pytest.mark.fast
@@ -374,3 +374,43 @@ class TestDashboardApiSecurityHardening:
         request = mock_urlopen.call_args.args[0]
         assert request.full_url == "http://127.0.0.1:8765/api/sync/trigger"
         handler._send_json.assert_called_once_with(202, {"status": "scheduled"})
+
+    def test_sync_trigger_manual_mode_returns_202(self):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.path = "/api/sync/trigger?token=tok"
+        handler.project_token = "tok"
+        handler._send_json = MagicMock()
+
+        with patch.object(
+            api_module,
+            "ensure_sync_daemon_running",
+            return_value=DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None),
+        ):
+            api_module.APIHandler.handle_sync_trigger(handler)
+
+        handler._send_json.assert_called_once_with(
+            202,
+            {"status": "skipped", "manual_mode": True, "reason": "policy_manual"},
+        )
+
+    def test_sync_trigger_unavailable_reason_returns_503(self):
+        from specify_cli.dashboard.handlers import api as api_module
+
+        handler = MagicMock()
+        handler.path = "/api/sync/trigger?token=tok"
+        handler.project_token = "tok"
+        handler._send_json = MagicMock()
+
+        with patch.object(
+            api_module,
+            "ensure_sync_daemon_running",
+            return_value=DaemonStartOutcome(started=False, skipped_reason="start_failed:port busy", pid=None),
+        ):
+            api_module.APIHandler.handle_sync_trigger(handler)
+
+        handler._send_json.assert_called_once_with(
+            503,
+            {"error": "sync_daemon_unavailable", "reason": "start_failed:port busy"},
+        )

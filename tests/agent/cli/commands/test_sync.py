@@ -406,7 +406,7 @@ class TestSyncNowExitCodes:
             res = runner.invoke(sync_app, ["now"])
 
         assert res.exit_code == 0
-        assert "disabled by feature flag" in res.output.lower()
+        assert "saas sync is not enabled" in res.output.lower()
         get_service.assert_not_called()
 
     def test_strict_exits_0_on_success(self):

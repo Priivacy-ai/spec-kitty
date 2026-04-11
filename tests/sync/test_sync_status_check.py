@@ -84,7 +84,7 @@ def test_check_server_connection_reports_disabled_when_flag_off(monkeypatch):
     status, note = _check_server_connection(SERVER_URL)
 
     assert "Disabled" in status
-    assert "disabled by feature flag" in note
+    assert "not enabled" in note.lower()
 
 
 class TestCheckServerConnectionNoCredentials:

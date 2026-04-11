@@ -2,22 +2,41 @@
 
 Scope: mock-boundary tests for the --all flag on the status command,
 installation-wide output formatting, SaaS-only guard, and error handling.
+Extended by WP05 of feature 082-stealth-gated-saas-sync-hardening (readiness-aware).
 """
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli.saas.readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.service import TrackerServiceError
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# Autouse fixture: stub _check_readiness for all existing tests.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _stub_check_readiness(request, monkeypatch):
+    """Make _check_readiness a no-op for all tests unless marked otherwise."""
+    if "no_readiness_stub" in {m.name for m in request.node.iter_markers()}:
+        return
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._check_readiness",
+        lambda *, require_mission_binding, probe_reachability: None,
+    )
 
 
 def _make_app(monkeypatch) -> typer.Typer:
@@ -221,3 +240,130 @@ def test_status_all_error_does_not_print_rich_panel(mock_service_fn, monkeypatch
     assert result.exit_code == 1
     assert "Installation-wide tracker status" not in result.output
     assert "Auth expired" in result.output
+
+
+# ---------------------------------------------------------------------------
+# T026: Readiness-aware + manual-mode tests for status commands
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.no_readiness_stub
+@pytest.mark.parametrize(
+    "state,expected_message",
+    [
+        (
+            ReadinessState.MISSING_AUTH,
+            "No SaaS authentication token is present.",
+        ),
+        (
+            ReadinessState.MISSING_HOST_CONFIG,
+            "No SaaS host URL is configured.",
+        ),
+        (
+            ReadinessState.MISSING_MISSION_BINDING,
+            "No tracker binding exists for feature",
+        ),
+    ],
+)
+def test_status_readiness_failure_messages(state, expected_message, monkeypatch, tmp_path) -> None:
+    """status exits 1 with the per-prerequisite message on readiness failure."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    failing_result = ReadinessResult(
+        state=state,
+        message=expected_message,
+        next_action="Do something.",
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: failing_result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+    result = runner.invoke(tracker_module.app, ["status"])
+    assert result.exit_code == 1
+    assert expected_message in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_status_host_unreachable_message(monkeypatch, tmp_path) -> None:
+    """status exits 1 when HOST_UNREACHABLE is returned from evaluator (exception path).
+
+    This validates that the try/except in evaluate_readiness is exercised via the CLI path.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    unreachable_result = ReadinessResult(
+        state=ReadinessState.HOST_UNREACHABLE,
+        message="The configured SaaS host did not respond within 2 seconds.",
+        next_action="Check network connectivity to `https://example.com` and retry.",
+        details={"error": "TimeoutError"},
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: unreachable_result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+    result = runner.invoke(tracker_module.app, ["status"])
+    assert result.exit_code == 1
+    assert "did not respond within 2 seconds" in result.output
+    assert "Check network connectivity" in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_sync_pull_manual_mode_exits_zero_from_status_file(monkeypatch, tmp_path) -> None:
+    """sync pull exits 0 with manual-mode message when background_daemon=manual.
+
+    This test uses the status-file tracker test module to verify the manual-mode
+    behavior is consistent across tracker test files.
+    """
+    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
+    from specify_cli.cli.commands.tracker import _MANUAL_MODE_MESSAGE
+
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    ready_result = ReadinessResult(
+        state=ReadinessState.READY,
+        message="",
+        next_action=None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: ready_result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+    mock_cfg = MagicMock(spec=SyncConfig)
+    mock_cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.MANUAL
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.SyncConfig",
+        lambda: mock_cfg,
+    )
+
+    result = runner.invoke(tracker_module.app, ["sync", "pull"])
+    assert result.exit_code == 0, result.output
+    assert _MANUAL_MODE_MESSAGE in result.output

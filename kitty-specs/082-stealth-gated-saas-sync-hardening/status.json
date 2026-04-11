@@ -1,0 +1,63 @@
+{
+  "event_count": 46,
+  "last_event_id": "01KNXZPH9TZAYDQ2Y10EKN9A0S",
+  "materialized_at": "2026-04-11T09:59:18.074809+00:00",
+  "mission_number": "082",
+  "mission_slug": "082-stealth-gated-saas-sync-hardening",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 6,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KNXZPGP37QX6B4JEE75MD5NX",
+      "last_transition_at": "2026-04-11T09:59:17.443269+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KNXZPH0CBXB3CPJCE6HW38QR",
+      "last_transition_at": "2026-04-11T09:59:17.772075+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KNXZPH235GC8CSJ17P1QQJV3",
+      "last_transition_at": "2026-04-11T09:59:17.827208+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KNXZPH6CWY0VYXM72KM7JTA2",
+      "last_transition_at": "2026-04-11T09:59:17.964492+00:00"
+    },
+    "WP05": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KNXZPH84RYYJTM79K267BS5D",
+      "last_transition_at": "2026-04-11T09:59:18.020228+00:00"
+    },
+    "WP06": {
+      "actor": "merge",
+      "force_count": 1,
+      "lane": "done",
+      "last_event_id": "01KNXZPH9TZAYDQ2Y10EKN9A0S",
+      "last_transition_at": "2026-04-11T09:59:18.074809+00:00"
+    }
+  }
+}

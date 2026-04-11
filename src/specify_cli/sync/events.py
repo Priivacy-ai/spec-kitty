@@ -58,9 +58,22 @@ def _ensure_dashboard_sync_daemon(repo_root: Path | None) -> None:
         return
 
     try:
-        from .daemon import ensure_sync_daemon_running
+        from .daemon import DaemonIntent, ensure_sync_daemon_running
 
-        ensure_sync_daemon_running()
+        outcome = ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED)
+        if outcome.started:
+            pass  # Daemon is up; continue.
+        elif outcome.skipped_reason == "rollout_disabled":
+            # Unreachable: the is_saas_sync_enabled() check at line 45 already
+            # bailed before we get here. Present only as a defensive branch.
+            pass
+        elif outcome.skipped_reason == "policy_manual":
+            logger.debug("Background sync in manual mode; skipping daemon auto-start")
+        elif outcome.skipped_reason == "intent_local_only":
+            # Unreachable by construction — this function passes REMOTE_REQUIRED.
+            assert False, "intent_local_only reached in REMOTE_REQUIRED path"  # noqa: B011
+        elif outcome.skipped_reason is not None and outcome.skipped_reason.startswith("start_failed:"):
+            logger.warning("Could not ensure global sync daemon: %s", outcome.skipped_reason)
     except Exception as exc:
         logger.warning("Could not ensure global sync daemon: %s", exc)
 

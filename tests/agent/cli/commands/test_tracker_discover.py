@@ -1,23 +1,42 @@
 """Scope: mock-boundary tests for `tracker discover` command — no real git or SaaS calls.
 
 Owned by WP10 of feature 062-tracker-binding-context-discovery.
+Extended by WP05 of feature 082-stealth-gated-saas-sync-hardening (readiness-aware).
 """
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 import typer
 from typer.testing import CliRunner
 
+from specify_cli.saas.readiness import ReadinessResult, ReadinessState
 from specify_cli.tracker.discovery import BindableResource
 from specify_cli.tracker.service import TrackerServiceError
 
 pytestmark = pytest.mark.fast
 
 runner = CliRunner()
+
+
+# ---------------------------------------------------------------------------
+# Autouse fixture: stub _check_readiness for all existing tests.
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(autouse=True)
+def _stub_check_readiness(request, monkeypatch):
+    """Make _check_readiness a no-op for all tests unless marked otherwise."""
+    if "no_readiness_stub" in {m.name for m in request.node.iter_markers()}:
+        return
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._check_readiness",
+        lambda *, require_mission_binding, probe_reachability: None,
+    )
 
 
 def _make_app(monkeypatch) -> typer.Typer:
@@ -271,3 +290,166 @@ def test_discover_json_unbound_resource(mock_service_fn, monkeypatch) -> None:
     assert item["bound_project_slug"] is None
     assert item["bound_at"] is None
     assert item["is_bound"] is False
+
+
+# ---------------------------------------------------------------------------
+# T025: Readiness-aware tests for discover
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.no_readiness_stub
+@pytest.mark.parametrize(
+    "state,expected_message",
+    [
+        (
+            ReadinessState.MISSING_AUTH,
+            "No SaaS authentication token is present.",
+        ),
+        (
+            ReadinessState.MISSING_HOST_CONFIG,
+            "No SaaS host URL is configured.",
+        ),
+        # NOTE: ``MISSING_MISSION_BINDING`` is *deliberately absent* from this
+        # parametrize matrix.  ``tracker discover`` is the pre-binding command
+        # users run to *find* something to bind, so it must NOT gate on an
+        # existing binding.  A regression that reintroduces
+        # ``require_mission_binding=True`` on this command would be caught by
+        # ``test_discover_does_not_require_binding`` below.
+    ],
+)
+def test_discover_readiness_failure(state, expected_message, monkeypatch, tmp_path) -> None:
+    """discover exits 1 with the per-prerequisite message on readiness failure."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    failing_result = ReadinessResult(
+        state=state,
+        message=expected_message,
+        next_action="Do something to fix it.",
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: failing_result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+    result = runner.invoke(tracker_module.app, ["discover", "--provider", "linear"])
+    assert result.exit_code == 1
+    assert expected_message in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_discover_readiness_rollout_disabled(monkeypatch) -> None:
+    """discover is invisible (not registered) when rollout flag is off."""
+    monkeypatch.delenv("SPEC_KITTY_ENABLE_SAAS_SYNC", raising=False)
+
+    import importlib
+    import specify_cli.cli.commands as commands_module
+
+    commands_module = importlib.reload(commands_module)
+    root = typer.Typer()
+    commands_module.register_commands(root)
+
+    result = runner.invoke(root, ["--help"])
+    assert result.exit_code == 0
+    assert "discover" not in result.output or "tracker" not in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_discover_readiness_ready_passes_through(monkeypatch, tmp_path) -> None:
+    """When readiness is READY, discover proceeds to the service call."""
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    ready_result = ReadinessResult(
+        state=ReadinessState.READY,
+        message="",
+        next_action=None,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        lambda **_kwargs: ready_result,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+    mock_svc = MagicMock()
+    mock_svc.discover.return_value = [
+        _make_resource(display_label="Alpha Project"),
+    ]
+
+    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+        result = runner.invoke(tracker_module.app, ["discover", "--provider", "linear"])
+
+    assert result.exit_code == 0, result.output
+    assert "Alpha Project" in result.output
+
+
+@pytest.mark.no_readiness_stub
+def test_discover_does_not_require_binding(monkeypatch, tmp_path) -> None:
+    """`tracker discover` must proceed when no mission binding exists.
+
+    This is a regression guard against a real P1 bug: ``discover`` was
+    once wired with ``require_mission_binding=True``, which made fresh
+    bind flows impossible because users need ``discover`` to find
+    something to bind.  This test asserts the ``require_mission_binding``
+    kwarg reaching the readiness evaluator is always ``False`` for
+    ``discover``, regardless of whether a binding happens to exist.
+    """
+    monkeypatch.setenv("SPEC_KITTY_ENABLE_SAAS_SYNC", "1")
+    from specify_cli.cli.commands import tracker as tracker_module
+
+    captured_kwargs: dict[str, object] = {}
+
+    def _fake_evaluate(**kwargs: object) -> ReadinessResult:
+        captured_kwargs.update(kwargs)
+        return ReadinessResult(
+            state=ReadinessState.READY,
+            message="",
+            next_action=None,
+        )
+
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.evaluate_readiness",
+        _fake_evaluate,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker.require_repo_root",
+        lambda: tmp_path,
+    )
+    monkeypatch.setattr(
+        "specify_cli.cli.commands.tracker._resolve_active_feature_slug",
+        lambda _repo_root: None,
+    )
+
+    mock_svc = MagicMock()
+    mock_svc.discover.return_value = [
+        _make_resource(display_label="Pre-binding Project"),
+    ]
+
+    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+        result = runner.invoke(tracker_module.app, ["discover", "--provider", "linear"])
+
+    # The command must proceed to the service call — discover is the
+    # pre-binding lookup, so it must never gate on binding presence.
+    assert result.exit_code == 0, result.output
+    assert "Pre-binding Project" in result.output
+
+    # And the flag that would enforce binding presence must be False.
+    assert captured_kwargs.get("require_mission_binding") is False, (
+        f"discover must pass require_mission_binding=False to the "
+        f"readiness evaluator; got {captured_kwargs.get('require_mission_binding')!r}"
+    )

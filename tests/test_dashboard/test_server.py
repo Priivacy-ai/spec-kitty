@@ -1,4 +1,5 @@
 import socket
+from types import SimpleNamespace
 
 from specify_cli.dashboard import server
 
@@ -67,9 +68,10 @@ def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_pat
         def serve_forever(self):
             calls["served"] = True
 
-    def fake_ensure_sync_daemon_running():
+    def fake_ensure_sync_daemon_running(*, intent):
         calls["daemon"] = True
-        return ("http://127.0.0.1:9248", 9248, True)
+        calls["intent"] = intent
+        return SimpleNamespace(skipped_reason="intent_local_only")
 
     monkeypatch.setattr(server, "HTTPServer", FakeServer)
     monkeypatch.setattr("specify_cli.sync.daemon.ensure_sync_daemon_running", fake_ensure_sync_daemon_running)
@@ -77,4 +79,5 @@ def test_run_dashboard_server_bootstraps_global_sync_daemon(monkeypatch, tmp_pat
     server.run_dashboard_server(tmp_path, 12347, None)
 
     assert calls["daemon"] is True
+    assert calls["intent"].value == "local_only"
     assert calls["served"] is True

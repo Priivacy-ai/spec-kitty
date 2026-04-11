@@ -9,6 +9,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2a2] - 2026-04-11
+
+### Added
+
+- **Hosted readiness control surfaces** — the CLI now exposes the canonical SaaS rollout/readiness module, a six-state hosted readiness evaluator, and a background-daemon policy/intent model that keeps stealth rollout behavior explicit while making enabled-mode failures actionable.
+
+### Changed
+
+- **Tracker command classification is corrected for first-run flows** — `tracker discover` no longer requires an existing mission binding, `tracker providers` remains available as static output without hosted prerequisites, and hosted/manual-daemon checks are applied according to command intent rather than indiscriminately.
+- **Tracker dependency advances to the hardened hosted-discovery release line** — the CLI now targets `spec-kitty-tracker==0.4.1`, aligning the prerelease with the published runtime validation and canonical discovery contract shipped in the tracker SDK.
+
+### Fixed
+
+- **Background-daemon policy no longer blocks local-provider sync flows** — local tracker providers continue to execute direct sync operations even when hosted SaaS daemon startup is set to manual.
+
 ## [3.1.2a1] - 2026-04-10
 
 ### Added

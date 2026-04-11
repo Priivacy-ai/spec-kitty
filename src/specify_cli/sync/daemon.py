@@ -16,9 +16,13 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
+from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Optional, Tuple
+
+if TYPE_CHECKING:
+    from specify_cli.sync.config import SyncConfig
 
 import psutil
 
@@ -30,6 +34,22 @@ SPEC_KITTY_DIR = Path.home() / ".spec-kitty"
 DAEMON_STATE_FILE = SPEC_KITTY_DIR / "sync-daemon"
 DAEMON_LOG_FILE = SPEC_KITTY_DIR / "sync-daemon.log"
 DAEMON_LOCK_FILE = SPEC_KITTY_DIR / "sync-daemon.lock"
+
+
+class DaemonIntent(str, Enum):
+    """Caller intent for daemon startup — LOCAL_ONLY suppresses auto-start."""
+
+    LOCAL_ONLY = "local_only"
+    REMOTE_REQUIRED = "remote_required"
+
+
+@dataclass(frozen=True)
+class DaemonStartOutcome:
+    """Structured result from ensure_sync_daemon_running()."""
+
+    started: bool
+    skipped_reason: str | None
+    pid: int | None
 
 # Port range for the sync daemon — well above the dashboard range (9237-9337)
 # to prevent overlap.
@@ -435,18 +455,65 @@ def _kill_and_cleanup(pid: Optional[int]) -> None:
     DAEMON_STATE_FILE.unlink(missing_ok=True)
 
 
-def ensure_sync_daemon_running(preferred_port: Optional[int] = None) -> Tuple[str, int, bool]:
+def ensure_sync_daemon_running(
+    *,
+    intent: DaemonIntent,
+    config: "SyncConfig | None" = None,
+) -> DaemonStartOutcome:
     """Ensure the machine-global sync daemon is running.
+
+    This function is intent-gated: callers must declare whether they require
+    remote sync (``REMOTE_REQUIRED``) or only read local state (``LOCAL_ONLY``).
+    The ``intent`` parameter is keyword-only and mandatory.
+
+    Decision matrix (first match wins):
+    1. Rollout disabled → skipped_reason="rollout_disabled"
+    2. intent == LOCAL_ONLY → skipped_reason="intent_local_only"
+    3. policy == MANUAL → skipped_reason="policy_manual"
+    4. Otherwise → delegate to inner start logic (AUTO policy + REMOTE_REQUIRED intent)
 
     Uses an advisory file lock (``DAEMON_LOCK_FILE``) to serialise
     concurrent spawn attempts and prevent TOCTOU races.
     """
+    from specify_cli.saas.rollout import is_saas_sync_enabled
+    from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig as _SyncConfig
+
+    if config is None:
+        config = _SyncConfig()
+    policy = config.get_background_daemon()
+
+    # Row 1: rollout disabled
+    if not is_saas_sync_enabled():
+        return DaemonStartOutcome(started=False, skipped_reason="rollout_disabled", pid=None)
+
+    # Row 2: caller declared local-only intent
+    if intent == DaemonIntent.LOCAL_ONLY:
+        return DaemonStartOutcome(started=False, skipped_reason="intent_local_only", pid=None)
+
+    # Row 3: operator policy is manual
+    if policy == BackgroundDaemonPolicy.MANUAL:
+        return DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None)
+
+    # Row 4 & 5: AUTO + REMOTE_REQUIRED — attempt to start
     SPEC_KITTY_DIR.mkdir(parents=True, exist_ok=True)
 
     lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115
     try:
         fcntl.flock(lock_fd, fcntl.LOCK_EX)
-        return _ensure_sync_daemon_running_locked(preferred_port)
+        try:
+            _url, _port, _started = _ensure_sync_daemon_running_locked()
+        except Exception as exc:
+            return DaemonStartOutcome(
+                started=False, skipped_reason=f"start_failed: {exc}", pid=None
+            )
+        # Retrieve the PID from the state file after successful start
+        pid: int | None = None
+        if DAEMON_STATE_FILE.exists():
+            try:
+                _u, _p, _t, pid = _parse_daemon_file(DAEMON_STATE_FILE)
+            except Exception:
+                pid = None
+        return DaemonStartOutcome(started=True, skipped_reason=None, pid=pid)
     finally:
         fcntl.flock(lock_fd, fcntl.LOCK_UN)
         lock_fd.close()

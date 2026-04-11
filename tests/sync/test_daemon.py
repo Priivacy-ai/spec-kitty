@@ -11,6 +11,9 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 from specify_cli.sync import daemon
+from specify_cli.sync.daemon import DaemonIntent
+from specify_cli.sync.config import BackgroundDaemonPolicy
+from unittest.mock import MagicMock as _MagicMock
 
 pytestmark = pytest.mark.fast
 
@@ -71,10 +74,12 @@ class TestDaemonFileLock:
         }
         monkeypatch.setattr(daemon.urllib.request, "urlopen", _fake_urlopen_factory(health_payload))
 
-        url, port, started = daemon.ensure_sync_daemon_running()
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
 
         assert lock_file.exists()
-        assert not started  # reused existing
+        assert outcome.started is True  # reused existing daemon (started=True means daemon is up)
 
     def test_concurrent_spawn_serialised(self, monkeypatch, tmp_path):
         """Two concurrent callers should not both spawn; file lock serialises them."""
@@ -88,8 +93,6 @@ class TestDaemonFileLock:
         spawn_count = {"n": 0}
         call_order = []
 
-        original_locked = daemon._ensure_sync_daemon_running_locked
-
         def fake_locked(preferred_port=None):
             spawn_count["n"] += 1
             call_order.append(spawn_count["n"])
@@ -100,10 +103,15 @@ class TestDaemonFileLock:
 
         monkeypatch.setattr(daemon, "_ensure_sync_daemon_running_locked", fake_locked)
 
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+
         results = []
 
         def call():
-            results.append(daemon.ensure_sync_daemon_running())
+            results.append(
+                daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
+            )
 
         t1 = threading.Thread(target=call)
         t2 = threading.Thread(target=call)
@@ -186,7 +194,9 @@ class TestDaemonLogging:
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", fake_check)
         monkeypatch.setattr(daemon, "time", type("T", (), {"sleep": staticmethod(lambda x: None), "monotonic": staticmethod(time.monotonic)}))
 
-        daemon.ensure_sync_daemon_running()
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
 
         # stdout and stderr should NOT be DEVNULL
         assert popen_kwargs.get("stdout") is not None
@@ -257,9 +267,14 @@ class TestHealthCheckRetryWindow:
 
         monkeypatch.setattr(daemon.time, "sleep", counting_sleep)
 
-        with pytest.raises(RuntimeError, match="failed to start"):
-            daemon.ensure_sync_daemon_running()
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
 
+        # When inner start fails with RuntimeError, outcome is start_failed (not raised)
+        assert outcome.started is False
+        assert outcome.skipped_reason is not None
+        assert outcome.skipped_reason.startswith("start_failed:")
         # Dashboard uses ~20s; daemon should be at least 15s
         assert total_sleep["s"] >= 15.0
 
@@ -326,11 +341,12 @@ class TestDaemonVersionCheck:
 
         monkeypatch.setattr(daemon, "_daemon_version_matches", version_matches)
 
-        url, port, started = daemon.ensure_sync_daemon_running()
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
 
         assert stop_calls["n"] >= 1  # old daemon was stopped
-        assert started  # new daemon was spawned
-        assert port == 9401
+        assert outcome.started  # new daemon was spawned
 
     def test_version_match_reuses_daemon(self, monkeypatch, tmp_path):
         state_file = tmp_path / "sync-daemon"
@@ -344,10 +360,12 @@ class TestDaemonVersionCheck:
         monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: True)
         monkeypatch.setattr(daemon, "_daemon_version_matches", lambda *a, **kw: True)
 
-        url, port, started = daemon.ensure_sync_daemon_running()
+        cfg = _MagicMock()
+        cfg.get_background_daemon.return_value = BackgroundDaemonPolicy.AUTO
+        outcome = daemon.ensure_sync_daemon_running(intent=DaemonIntent.REMOTE_REQUIRED, config=cfg)
 
-        assert not started  # reused
-        assert port == 9400
+        assert outcome.started  # daemon is available (reused)
+        assert outcome.pid == 1234  # PID read from state file
 
     def test_daemon_version_matches_checks_both_fields(self, monkeypatch):
         """_daemon_version_matches rejects if protocol or package differs."""
