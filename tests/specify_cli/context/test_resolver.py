@@ -20,6 +20,13 @@ from specify_cli.lanes.models import ExecutionLane, LanesManifest
 from specify_cli.lanes.persistence import write_lanes_json
 
 
+# Default canonical mission_id (ULID shape) used by the fixture.
+# WP07 removed silent fallback: meta.json MUST carry mission_id, or the
+# resolver raises MissingIdentityError. Legacy tests that previously relied
+# on implicit slug-as-mission_id must now pass an explicit mission_id.
+_DEFAULT_TEST_MISSION_ID = "01HVXYZTESTMISSION000000000"
+
+
 def _setup_project(
     tmp_path: Path,
     *,
@@ -30,8 +37,14 @@ def _setup_project(
     owned_files: list[str] | None = None,
     mission_id: str | None = None,
     lane_id: str = "lane-a",
+    omit_mission_id: bool = False,
 ) -> Path:
-    """Set up a minimal project structure for resolver tests."""
+    """Set up a minimal project structure for resolver tests.
+
+    By default the fixture writes a canonical ``mission_id`` into
+    ``meta.json`` because the resolver (post-WP07) hard-fails without one.
+    Pass ``omit_mission_id=True`` to exercise the MissingIdentityError path.
+    """
     # .kittify/config.yaml with project.uuid
     kittify_dir = tmp_path / ".kittify"
     kittify_dir.mkdir(parents=True)
@@ -50,8 +63,8 @@ def _setup_project(
         "target_branch": "main",
         "created_at": "2026-03-27T16:00:00+00:00",
     }
-    if mission_id:
-        meta["mission_id"] = mission_id
+    if not omit_mission_id:
+        meta["mission_id"] = mission_id or _DEFAULT_TEST_MISSION_ID
     (feature_dir / "meta.json").write_text(
         json.dumps(meta, indent=2, sort_keys=True) + "\n",
         encoding="utf-8",
@@ -117,7 +130,12 @@ class TestResolveContext:
         assert isinstance(ctx, MissionContext)
         assert ctx.wp_code == "WP01"
         assert ctx.mission_slug == "057-test-feature"
+        # mission_number is display-only. The legacy fixture stores
+        # feature_number="057" as a string, which the resolver preserves
+        # verbatim via mission_identity_fields (it only drops leading zeros
+        # when the source is an int). Canonical identity is mission_id.
         assert ctx.mission_number == "057"
+        assert ctx.mission_id == _DEFAULT_TEST_MISSION_ID
         assert ctx.mission_type == "software-dev"
         assert ctx.project_uuid == "test-project-uuid-1234"
         assert ctx.target_branch == "main"
@@ -173,12 +191,17 @@ class TestResolveContext:
         assert isinstance(ctx.owned_files, tuple)
         assert ctx.owned_files == ("src/**", "tests/**")
 
-    def test_mission_id_falls_back_to_mission_slug(self, tmp_path: Path) -> None:
-        """When meta.json has no mission_id, use mission_slug."""
-        repo = _setup_project(tmp_path)
-        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
-        # mission_slug is used as mission_id when mission_id is absent
-        assert ctx.mission_id == "057-test-feature"
+    def test_missing_mission_id_raises_missing_identity_error(self, tmp_path: Path) -> None:
+        """WP07 removed silent fallback: missing mission_id is a hard error.
+
+        Pre-083 tests expected resolve_context to silently fall back to the
+        mission_slug when meta.json had no mission_id. That fallback has been
+        removed — the canonical identity is mission_id and missing it must
+        raise MissingIdentityError, never silently succeed.
+        """
+        repo = _setup_project(tmp_path, omit_mission_id=True)
+        with pytest.raises(MissingIdentityError, match="mission_id"):
+            resolve_context("WP01", "057-test-feature", "claude", repo)
 
     def test_mission_id_from_meta_json(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, mission_id="01HVXYZ-REAL-MISSION-ID")

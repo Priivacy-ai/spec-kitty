@@ -20,8 +20,8 @@ from ulid import ULID
 
 from specify_cli.core.git_ops import get_current_branch, is_git_repo
 from specify_cli.core.paths import is_worktree_context, locate_project_root
-from specify_cli.core.worktree import get_next_feature_number
 from specify_cli.git import safe_commit
+from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
 from specify_cli.sync.events import emit_mission_created
 
 
@@ -35,7 +35,7 @@ class MissionCreationResult:
 
     feature_dir: Path
     mission_slug: str
-    mission_number: str
+    mission_number: int | None  # None for pre-merge missions (FR-044)
     meta: dict[str, Any]
     target_branch: str
     current_branch: str
@@ -241,10 +241,16 @@ def create_mission_core(
     planning_branch = target_branch if target_branch else current_branch
 
     # ------------------------------------------------------------------
-    # 4. Feature number allocation + directory creation
+    # 4. Directory creation — human-slug + mid8 format (FR-032, FR-044)
+    #
+    # Pre-merge missions are identified by mission_id (ULID) only.
+    # No feature_number is allocated here; mission_number stays None
+    # until merge time (single-writer context on main).
     # ------------------------------------------------------------------
-    feature_number = get_next_feature_number(resolved_root)
-    mission_slug_formatted = f"{feature_number:03d}-{mission_slug}"
+    # Mint the ULID first so we can derive mid8 for the directory name.
+    mission_id = str(ULID())
+    human_slug = strip_numeric_prefix(mission_slug)
+    mission_slug_formatted = f"{human_slug}-{mid8(mission_id)}"
 
     feature_dir = resolved_root / "kitty-specs" / mission_slug_formatted
     feature_dir.mkdir(parents=True, exist_ok=True)
@@ -295,10 +301,12 @@ def create_mission_core(
         with contextlib.suppress(json.JSONDecodeError, OSError):
             meta = json.loads(meta_file.read_text(encoding="utf-8"))
 
-    # Mint canonical machine-facing identity. The ULID is immutable after creation.
-    # mission_number (the numeric prefix) is display-only; see ADR b85116ed.
-    meta.setdefault("mission_id", str(ULID()))
-    meta.setdefault("mission_number", f"{feature_number:03d}")
+    # Mint canonical machine-facing identity. The ULID was already generated
+    # above (needed for mid8 directory naming). The ULID is immutable after creation.
+    # mission_number is null pre-merge; a dense display number is assigned only
+    # at merge time (single-writer context on main). See FR-044.
+    meta.setdefault("mission_id", mission_id)
+    meta.setdefault("mission_number", None)  # JSON null — pre-merge missions have no number
     meta.setdefault("slug", mission_slug_formatted)
     meta.setdefault("mission_slug", mission_slug_formatted)
     meta.setdefault("friendly_name", mission_slug.replace("-", " ").strip())
@@ -336,7 +344,7 @@ def create_mission_core(
     with contextlib.suppress(Exception):
         emit_mission_created(
             mission_slug=mission_slug_formatted,
-            mission_number=f"{feature_number:03d}",
+            mission_number="",  # no number pre-merge (FR-044)
             target_branch=planning_branch,
             wp_count=0,
             mission_id=meta.get("mission_id"),
@@ -362,7 +370,7 @@ def create_mission_core(
     return MissionCreationResult(
         feature_dir=feature_dir,
         mission_slug=mission_slug_formatted,
-        mission_number=f"{feature_number:03d}",
+        mission_number=None,  # pre-merge: no display number assigned (FR-044)
         meta=meta,
         target_branch=planning_branch,
         current_branch=current_branch,

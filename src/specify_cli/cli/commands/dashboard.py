@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import webbrowser
 
 import typer
@@ -26,10 +27,31 @@ def dashboard(
         "--open",
         help="Open dashboard URL in your default browser (disabled by default).",
     ),
+    emit_json: bool = typer.Option(
+        False,
+        "--json",
+        help=(
+            "Print the mission registry as JSON (keyed by mission_id) and exit. "
+            "Does not start the dashboard server."
+        ),
+    ),
 ) -> None:
     """Open or stop the Spec Kitty dashboard."""
     project_root = get_project_root_or_exit()
     check_version_compatibility(project_root, "dashboard")
+
+    # --json: emit mission registry keyed by mission_id and exit early.
+    if emit_json:
+        from specify_cli.dashboard.scanner import build_mission_registry, sort_missions_for_display
+
+        registry = build_mission_registry(project_root)
+        display_order = sort_missions_for_display(registry)
+        payload = {
+            "missions": registry,
+            "display_order": display_order,
+        }
+        console.print(json.dumps(payload, indent=2, ensure_ascii=False))
+        return
 
     console.print()
 

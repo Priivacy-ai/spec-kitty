@@ -10,7 +10,7 @@ import typer
 from rich.console import Console
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.paths import locate_project_root
 from specify_cli.core.execution_context import (
     ACTION_NAMES,
@@ -36,6 +36,9 @@ def _find_feature_directory(
 ) -> Path:
     """Find the mission directory from an explicit mission slug.
 
+    Uses the canonical mission resolver which handles ambiguous numeric-prefix
+    handles, mid8 prefixes, and full ULID forms.
+
     Args:
         repo_root: Repository root path
         cwd: Current working directory (unused — kept for signature compatibility)
@@ -46,24 +49,14 @@ def _find_feature_directory(
         Path to mission directory
 
     Raises:
-        ValueError: If mission slug is not provided, selectors conflict, or directory doesn't exist
+        ValueError: If mission slug is not provided or directory doesn't exist.
     """
-    resolved = resolve_selector(
-        canonical_value=explicit_mission,
-        canonical_flag="--mission",
-        alias_value=explicit_feature,
-        alias_flag="--feature",
-        suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-        command_hint="--mission <slug>",
-    )
-    slug = resolved.canonical_value
-    feature_dir = repo_root / "kitty-specs" / slug
-    if not feature_dir.exists():
-        raise ValueError(
-            f"Mission directory not found: {feature_dir}. "
-            f"Check that '{slug}' is the correct mission slug."
-        )
-    return feature_dir
+    raw_handle = explicit_mission or explicit_feature
+    if not raw_handle:
+        raise ValueError("--mission <slug> is required")
+    # resolve_mission_handle calls sys.exit(2) on error; on success returns ResolvedMission.
+    resolved = resolve_mission_handle(raw_handle, repo_root)
+    return resolved.feature_dir
 
 
 @app.command(name="resolve")
@@ -99,14 +92,11 @@ def resolve_context(
                 f"Invalid action '{action}'. Expected one of: {', '.join(ACTION_NAMES)}.",
             )
 
-        mission_slug = resolve_selector(
-            canonical_value=mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        ).canonical_value
+        raw_handle = mission or feature
+        if not raw_handle:
+            raise ActionContextError("MISSING_MISSION", "--mission <slug> is required")
+        mission_resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+        mission_slug = mission_resolved.mission_slug
 
         context = resolve_action_context(
             repo_root,

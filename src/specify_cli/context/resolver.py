@@ -62,14 +62,14 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
 
     data = json.loads(meta_path.read_text(encoding="utf-8"))
 
-    # mission_id may not exist yet in current metadata;
-    # fall back to mission_slug as the identifier during transition
-    mission_id = data.get("mission_id", data.get("mission_slug", ""))
-    target_branch = data.get("target_branch", "main")
-
+    mission_id = data.get("mission_id")
     if not mission_id:
-        msg = f"Neither mission_id nor mission_slug found in {meta_path}. The feature metadata is incomplete."
-        raise MissingIdentityError(msg)
+        raise MissingIdentityError(
+            f"meta.json at {meta_path} is missing mission_id. "
+            f"This mission was authored before the mission_id migration landed. "
+            f"Run `spec-kitty migrate backfill-identity` to fix."
+        )
+    target_branch = data.get("target_branch", "main")
 
     identity = mission_identity_fields(
         str(data.get("mission_slug") or data.get("slug") or feature_dir.name),

@@ -14,14 +14,16 @@ description: Create a mission specification
 cd /path/to/project/root  # Your project root checkout
 
 # All planning artifacts are created in the project root and committed:
-# - kitty-specs/###-feature/spec.md → Created in project root
+# - kitty-specs/<mission_slug>/spec.md → Created in project root
+#   (use the mission_slug returned by `mission create`; the numeric NNN- prefix
+#    is display-only and is assigned at merge time)
 # - Committed to target branch (from create JSON: target_branch/base_branch)
 # - NO worktrees created
 ```
 
 **Worktrees are created later** during `/spec-kitty.implement`, after task finalization computes execution lanes.
 
-**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -141,16 +143,16 @@ Store the final mission selection in your notes and include it in the spec outpu
 
 **Planning happens in the project root checkout - NO worktree created!**
 
-1. Creates `kitty-specs/###-mission/spec.md` directly in project root
+1. Creates `kitty-specs/<mission_slug>/spec.md` directly in project root (the optional `NNN-` prefix is display-only metadata assigned at merge time)
 2. Automatically commits to target branch
 3. No worktree created during specify
 
-**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <slug>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/###-feature-lane-a`.
+**Worktrees created later**: After `/spec-kitty.tasks` finishes, run: `spec-kitty next --agent <agent> --mission <handle>`. The `--mission` handle can be the mission's `mission_id` (ULID), `mid8` (first 8 chars), or `mission_slug`; the resolver disambiguates by `mission_id` and returns a structured error on ambiguity (no silent fallback). Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. Each lane gets exactly one worktree, for example `.worktrees/<human-slug>-<mid8>-lane-a/` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`).
 
 ## Location
 
 - Work in: **Project root checkout** (not a worktree)
-- Creates: `kitty-specs/###-feature/spec.md`
+- Creates: `kitty-specs/<mission_slug>/spec.md` (the `NNN-` prefix is display-only and assigned at merge time)
 - Commits to: target branch (from `create --json` → `target_branch`)
 
 ## Outline
@@ -183,8 +185,9 @@ Given that feature description, do this:
 
    The command returns JSON with:
    - `result`: "success" or error message
-   - `mission_slug`: Mission number and slug (e.g., "014-checkout-upsell-flow")
-   - `mission_number`: Mission number (e.g., "014")
+   - `mission_id`: Canonical ULID machine identity (e.g., `01J6XW9KQT7M0YB3N4R5CQZ2EX`). Immutable.
+   - `mission_slug`: Human-readable mission slug (e.g., `checkout-upsell-flow`)
+   - `mission_number`: **Display-only** numeric prefix, `null` pre-merge. Assigned at merge time. **Never** use this as a selector or identity.
    - `mission_type`: Mission type key (for example `software-dev`)
    - `slug`: Unnumbered mission slug (e.g., `checkout-upsell-flow`)
    - `feature_dir`: Absolute path to the feature directory inside the main repo
@@ -210,7 +213,7 @@ Given that feature description, do this:
    **Do NOT try to read a template file.** The spec structure is defined in this prompt (see sections below). The `create` command scaffolds an initial `spec.md` — read it, then update it following the structure in this prompt.
 
 5. Update `<feature_dir>/meta.json` only when needed:
-   - Keep identity fields from `create` unchanged (`mission_number`, `slug`, `mission_slug`, `created_at`, `target_branch`).
+   - **Never** modify identity fields from `create` (`mission_id`, `slug`, `mission_slug`, `created_at`, `target_branch`). `mission_id` is the canonical ULID and is immutable. `mission_number` is display-only and is `null` pre-merge — do not set it by hand.
    - Keep `target_branch` aligned to the value from `create --json` output. Never hardcode `main`.
    - Ensure `friendly_name` matches the confirmed title.
    - Ensure `mission_type` is correct.
@@ -220,9 +223,10 @@ Given that feature description, do this:
    Example `meta.json` schema (identity fields that must be present explicitly):
    ```json
    {
-     "mission_number": "042",
+     "mission_id": "01J6XW9KQT7M0YB3N4R5CQZ2EX",
+     "mission_number": null,
      "slug": "my-feature",
-     "mission_slug": "042-my-feature",
+     "mission_slug": "my-feature",
      "friendly_name": "My Mission",
      "mission_type": "software-dev",
      "target_branch": "main",
@@ -230,6 +234,10 @@ Given that feature description, do this:
      "created_at": "2026-01-01T00:00:00+00:00"
    }
    ```
+
+   `mission_number` becomes a concrete integer only at merge time, assigned as
+   `max(existing_numbers)+1` inside the merge-state lock. Selectors disambiguate
+   by `mission_id` (or its 8-char prefix `mid8`), never by `mission_number`.
 
    **Do not regenerate timestamps or directory paths via shell commands.**
 

@@ -17,9 +17,26 @@ Spec Kitty uses a lane-based execution model.
 
 ## Naming
 
-- Mission branch: `kitty/mission-<feature>`
-- Lane branch: `kitty/mission-<feature>-lane-a`
-- Lane worktree: `.worktrees/<feature>-lane-a/`
+As of mission `083-mission-id-canonical-identity-migration`, every mission carries a ULID
+identity (`mission_id`), and branch and worktree names embed the first 8 characters of
+that ULID (`mid8`) to guarantee collision-free naming even when two missions share the
+same human slug.
+
+- Mission branch: `kitty/mission-<human-slug>-<mid8>`
+- Lane branch: `kitty/mission-<human-slug>-<mid8>-lane-a`
+- Lane worktree: `.worktrees/<human-slug>-<mid8>-lane-a/`
+
+Example, for a mission with `mission_slug=my-feature` and
+`mission_id=01J6XW9KQT7M0YB3N4R5CQZ2EX` (so `mid8=01J6XW9K`):
+
+- Mission branch: `kitty/mission-my-feature-01J6XW9K`
+- Lane branch: `kitty/mission-my-feature-01J6XW9K-lane-a`
+- Lane worktree: `.worktrees/my-feature-01J6XW9K-lane-a/`
+
+Legacy (pre-083) forms such as `kitty/mission-001-my-feature-lane-a` and
+`.worktrees/001-my-feature-lane-a/` remain readable by current tooling but
+are no longer the form produced by `implement`. Upgrade via the
+[mission identity migration runbook](../migration/mission-id-canonical-identity.md).
 
 ## Why This Replaced Per-WP Worktrees
 

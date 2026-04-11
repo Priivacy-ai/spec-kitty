@@ -1,4 +1,26 @@
-"""EventEmitter: core event creation and dispatch for CLI sync."""
+"""EventEmitter: core event creation and dispatch for CLI sync.
+
+Outbound SaaS payload contract (FR-024, ADR 2026-04-09-1, WP06):
+  All mission-lifecycle events (MissionCreated, MissionClosed,
+  MissionOriginBound) use ``aggregate_id = mission_id`` (a ULID) as
+  the canonical machine-facing identity.  The human-readable slug and
+  numeric identifier survive as display-metadata fields in the payload:
+
+    ``aggregate_id``   — mission_id (ULID) — primary join key for SaaS
+    ``payload.mission_id``     — same ULID, for payload-level consumers
+    ``payload.mission_slug``   — human slug (display / backward compat)
+    ``payload.mission_number`` — int | None (None for pre-merge missions)
+
+  WP-level event emitters (WPStatusChanged, WPCreated, WPAssigned,
+  DependencyResolved, HistoryAdded) are NOT affected; they use
+  ``aggregate_id = wp_id``.
+
+  Error events use ``aggregate_id = wp_id`` or ``"error"``; also
+  NOT affected.
+
+  The SaaS-side schema update is tracked in spec-kitty-saas#47 (WP12).
+  Remove ``mission_slug`` display fields after that PR lands.
+"""
 
 from __future__ import annotations
 
@@ -150,10 +172,12 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
         },
     },
     "MissionCreated": {
+        # mission_number is int | None (FR-044, WP02): None for pre-merge,
+        # int for post-merge.  mission_id (ULID) is the aggregate identity.
         "required": {"mission_slug", "mission_number", "target_branch", "wp_count"},
         "validators": {
             "mission_slug": lambda v: isinstance(v, str) and bool(_FEATURE_SLUG_PATTERN.match(v)),
-            "mission_number": lambda v: isinstance(v, str) and bool(_FEATURE_NUMBER_PATTERN.match(v)),
+            "mission_number": lambda v: v is None or (isinstance(v, int) and v >= 0),
             "target_branch": lambda v: isinstance(v, str) and len(v) >= 1,
             "wp_count": lambda v: isinstance(v, int) and v >= 0,
             "created_at": lambda v: _is_datetime_string(v),
@@ -442,14 +466,24 @@ class EventEmitter:
     def emit_mission_created(
         self,
         mission_slug: str,
-        mission_number: str,
+        mission_number: int | None,
         target_branch: str,
         wp_count: int,
         created_at: str | None = None,
         causation_id: str | None = None,
         mission_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit MissionCreated event (FR-011)."""
+        """Emit MissionCreated event (FR-011, FR-024).
+
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided, enabling the SaaS
+        side to join events without relying on mutable slug strings (ADR 2026-04-09-1).
+
+        Payload always includes:
+          - ``mission_id``     — ULID primary key (equals aggregate_id when present)
+          - ``mission_slug``   — human display string (never used as join key)
+          - ``mission_number`` — int | None (None for pre-merge, int for post-merge)
+        """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
             "mission_number": mission_number,
@@ -458,11 +492,18 @@ class EventEmitter:
         }
         if created_at is not None:
             payload["created_at"] = created_at
+        # mission_id is the aggregate identity (FR-024).  Always include in
+        # payload when present so SaaS consumers see both the join key and
+        # display slug.  aggregate_id switches from mission_slug → mission_id
+        # when mission_id is available; legacy call sites that omit mission_id
+        # fall back to mission_slug for backward compat during the drift window.
+        effective_aggregate_id = mission_slug
         if mission_id is not None:
             payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionCreated",
-            aggregate_id=mission_slug,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -475,8 +516,17 @@ class EventEmitter:
         completed_at: str | None = None,
         total_duration: str | None = None,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit MissionClosed event (FR-012)."""
+        """Emit MissionClosed event (FR-012, FR-024).
+
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided (ADR 2026-04-09-1).
+
+        Payload always includes:
+          - ``mission_id``   — ULID primary key (when present)
+          - ``mission_slug`` — human display string (backward compat)
+        """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
             "total_wps": total_wps,
@@ -485,9 +535,14 @@ class EventEmitter:
             payload["completed_at"] = completed_at
         if total_duration is not None:
             payload["total_duration"] = total_duration
+        # mission_id is the aggregate identity (FR-024).
+        effective_aggregate_id = mission_slug
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionClosed",
-            aggregate_id=mission_slug,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,
@@ -577,8 +632,17 @@ class EventEmitter:
         external_issue_url: str,
         title: str,
         causation_id: str | None = None,
+        mission_id: str | None = None,
     ) -> dict[str, Any] | None:
-        """Emit MissionOriginBound event (observational telemetry only)."""
+        """Emit MissionOriginBound event (observational telemetry, FR-024).
+
+        ``mission_id`` is the canonical aggregate identity (ULID from meta.json).
+        ``aggregate_id`` is set to ``mission_id`` when provided (ADR 2026-04-09-1).
+
+        Payload always includes:
+          - ``mission_id``   — ULID primary key (when present)
+          - ``mission_slug`` — human display string (backward compat)
+        """
         payload: dict[str, Any] = {
             "mission_slug": mission_slug,
             "provider": provider,
@@ -587,9 +651,14 @@ class EventEmitter:
             "external_issue_url": external_issue_url,
             "title": title,
         }
+        # mission_id is the aggregate identity (FR-024).
+        effective_aggregate_id = mission_slug
+        if mission_id is not None:
+            payload["mission_id"] = mission_id
+            effective_aggregate_id = mission_id
         return self._emit(
             event_type="MissionOriginBound",
-            aggregate_id=mission_slug,
+            aggregate_id=effective_aggregate_id,
             aggregate_type="Mission",
             payload=payload,
             causation_id=causation_id,

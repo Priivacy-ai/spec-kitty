@@ -15,7 +15,13 @@ from specify_cli.core.dependency_graph import (
     topological_sort,
 )
 
-__all__ = ["get_merge_order", "MergeOrderError", "has_dependency_info", "display_merge_order"]
+__all__ = [
+    "get_merge_order",
+    "MergeOrderError",
+    "has_dependency_info",
+    "display_merge_order",
+    "assign_next_mission_number",
+]
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +111,75 @@ def get_merge_order(
             result.append(wp_map[wp_id])
 
     return result
+
+
+def assign_next_mission_number(target_branch_path: Path, kitty_specs_dir: Path) -> int:
+    """Compute the next dense integer ``mission_number`` for the target branch.
+
+    Walks ``kitty_specs_dir`` (which should reflect the checked-out target
+    branch's ``kitty-specs/`` view), reads every mission's ``meta.json`` via
+    the canonical metadata loader, collects all non-null integer
+    ``mission_number`` values, and returns ``max(collected) + 1`` -- or ``1``
+    if no missions on the target branch have an integer assigned yet.
+
+    **Locking invariant (FR-044, WP10/T052/T055):** This helper does **not**
+    acquire any lock.  It assumes the caller is already holding the
+    merge-state lock for the mission being merged, which provides
+    single-writer semantics against the target branch.  Calling this without
+    the lock is a race-condition bug.
+
+    Args:
+        target_branch_path: Path to the checked-out target branch worktree
+            (e.g. the merge worktree at
+            ``.kittify/runtime/merge/<mission_id>/workspace/``). Currently
+            unused for I/O -- present in the signature so callers explicitly
+            document which branch's view they are reading.  ``kitty_specs_dir``
+            must be a child of (or otherwise consistent with) this path.
+        kitty_specs_dir: Path to the ``kitty-specs/`` directory on the
+            target branch worktree.  Each immediate subdirectory containing a
+            ``meta.json`` is treated as a mission.
+
+    Returns:
+        The next available integer ``mission_number`` (>= 1).
+
+    Notes:
+        - Pre-merge missions (``mission_number: null``) are excluded from the
+          max computation by virtue of being ``None`` after coercion.
+        - Legacy string forms (``"042"``) are coerced to ``int`` by
+          :func:`specify_cli.mission_metadata.resolve_mission_identity` and
+          participate in the max.
+        - Missions whose ``meta.json`` is missing or unreadable are skipped.
+    """
+    # Lazy import to keep merge.ordering import-cheap and avoid any
+    # mission_metadata <-> merge cycles.
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    del target_branch_path  # Documentation only -- see docstring.
+
+    if not kitty_specs_dir.exists() or not kitty_specs_dir.is_dir():
+        return 1
+
+    collected: list[int] = []
+    for child in sorted(kitty_specs_dir.iterdir()):
+        if not child.is_dir():
+            continue
+        if not (child / "meta.json").exists():
+            continue
+        try:
+            identity = resolve_mission_identity(child)
+        except (ValueError, TypeError):
+            # Malformed mission_number — skip rather than crash the merge.
+            logger.warning(
+                "Skipping mission %s during number assignment scan: malformed mission_number",
+                child.name,
+            )
+            continue
+        if identity.mission_number is not None:
+            collected.append(identity.mission_number)
+
+    if not collected:
+        return 1
+    return max(collected) + 1
 
 
 def display_merge_order(

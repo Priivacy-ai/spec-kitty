@@ -59,10 +59,17 @@ class TestIsLaneBranch:
 
 class TestParseFeatureSlug:
     def test_from_mission_branch(self):
-        assert parse_mission_slug_from_branch("kitty/mission-057-feat") == "057-feat"
+        result = parse_mission_slug_from_branch("kitty/mission-057-feat")
+        assert result is not None
+        assert result.slug == "057-feat"
+        assert result.mid8_token is None
+        assert result.lane_id is None
 
     def test_from_lane_branch(self):
-        assert parse_mission_slug_from_branch("kitty/mission-057-feat-lane-a") == "057-feat"
+        result = parse_mission_slug_from_branch("kitty/mission-057-feat-lane-a")
+        assert result is not None
+        assert result.slug == "057-feat"
+        assert result.lane_id == "lane-a"
 
     def test_from_regular_branch(self):
         assert parse_mission_slug_from_branch("main") is None

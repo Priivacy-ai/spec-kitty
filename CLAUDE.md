@@ -650,6 +650,52 @@ phase, source = resolve_phase(repo_root, "034-feature")
 - Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
 
 
+## Mission Identity Model (083+)
+
+As of mission `083-mission-id-canonical-identity-migration`, every mission carries a ULID-based canonical identity in `meta.json`. The three-digit numeric prefix is display-only and is not assigned until merge time. This fixes the collision problem where two missions could share the same `NNN-` prefix and confuse selectors, branches, and dashboards.
+
+**ADR:** [2026-04-09-1](architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md) - **Issue:** [Priivacy-ai/spec-kitty#557](https://github.com/Priivacy-ai/spec-kitty/issues/557)
+
+### Identity Fields
+
+| Field | Type | Role | When assigned |
+|-------|------|------|---------------|
+| `mission_id` | ULID (26 chars) | **Canonical machine identity**, immutable | At `mission create` |
+| `mid8` | First 8 chars of `mission_id` | Short disambiguator used in branch / worktree names | Derived |
+| `mission_slug` | Human-readable kebab slug (e.g. `my-feature`) | Human handle | At `mission create` |
+| `mission_number` | `int \| None` | **Display-only** metadata, `null` pre-merge | At merge time, via `max(existing)+1` inside the merge-state lock |
+| `friendly_name` | Title string | Human display | At `mission create` |
+
+`mission_id` is the only field the runtime treats as identity. `mission_number` is never used for lookup, locking, or event routing.
+
+### Branch and Worktree Naming
+
+- **Branch:** `kitty/mission-<human-slug>-<mid8>-lane-<id>` (e.g. `kitty/mission-my-feature-01J6XW9K-lane-a`)
+- **Worktree:** `.worktrees/<human-slug>-<mid8>-lane-<id>` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a`)
+
+The `<mid8>` segment guarantees two missions with the same human slug never collide on disk or in git refs.
+
+### Selector Disambiguation
+
+`spec-kitty agent context resolve --mission <handle>` resolves handles against `mission_id` first, then against `mid8`, then against `mission_slug`. Ambiguous handles produce a **structured error** listing the candidates; there is **no silent fallback** to the first match. WP07 removed fallback semantics on purpose — any code path that reintroduces them is a regression.
+
+The dashboard scanner (WP09) is keyed by `mission_id` and surfaces distinct rows for every duplicate prefix, so operators can tell collisions apart at a glance.
+
+### Migration
+
+Pre-083 projects have `mission_number` as identity and no `mission_id`. Operators upgrade via:
+
+```bash
+spec-kitty doctor identity --json          # audit current state
+spec-kitty migrate backfill-identity       # mint mission_id for legacy missions
+spec-kitty doctor identity --json          # confirm zero legacy state
+```
+
+Backfill is additive-only: existing `mission_number` values are preserved, a `mission_id` is minted, and branch/worktree names rename on the next `implement` cycle.
+
+Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/mission-id-canonical-identity.md).
+
+
 ## Agent Utilities for Work Package Status
 
 **Quick Status Check (Recommended for Agents)**

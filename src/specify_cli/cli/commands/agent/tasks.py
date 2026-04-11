@@ -15,7 +15,7 @@ import typer
 from rich.console import Console
 from typing import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.sync.events import (
     emit_history_added,
     emit_error_logged,
@@ -30,10 +30,7 @@ from specify_cli.status.store import read_events
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
 from specify_cli.lanes.persistence import MissingLanesError
 from specify_cli.core.paths import locate_project_root, get_main_repo_root, is_worktree_context
-from specify_cli.core.paths import (
-    get_feature_target_branch,
-    require_explicit_feature,
-)
+from specify_cli.core.paths import get_feature_target_branch
 from specify_cli.mission_metadata import resolve_mission_identity
 from specify_cli.mission import get_mission_type
 from specify_cli.git import safe_commit
@@ -162,12 +159,23 @@ def _find_mission_slug(
     explicit_feature: str | None = None,
     *,
     json_output: bool = False,
+    repo_root: Path | None = None,
 ) -> str:
     """Require an explicit mission slug (no auto-detection).
+
+    When repo_root is supplied the handle is resolved via the canonical
+    mission resolver (resolve_mission_handle), which handles ambiguous
+    numeric-prefix handles, mid8 prefixes, and full ULID forms.  The
+    resolver calls sys.exit(2) on error so no try/except is needed.
+
+    Without repo_root the function falls back to the legacy selector
+    logic (bare slug parsing with deprecation warnings for --feature).
 
     Args:
         explicit_mission: Mission slug provided via --mission.
         explicit_feature: Mission slug provided via hidden --feature alias.
+        json_output: Propagate to resolver error rendering.
+        repo_root: Repository root; if provided, enables canonical resolver.
 
     Returns:
         Mission slug (e.g., "008-unified-python-cli")
@@ -175,6 +183,12 @@ def _find_mission_slug(
     Raises:
         typer.Exit: If mission slug is not provided or selectors conflict.
     """
+    raw_handle = explicit_mission or explicit_feature
+    if raw_handle is not None and repo_root is not None:
+        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+        return resolved.mission_slug
+
+    # Legacy path: no repo_root available — fall back to bare slug parsing.
     try:
         return resolve_selector(
             canonical_value=explicit_mission,
@@ -989,7 +1003,7 @@ def move_task(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -1555,7 +1569,7 @@ def mark_status(
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, target_branch = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -1710,7 +1724,7 @@ def list_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -1797,7 +1811,7 @@ def add_history(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -1875,7 +1889,7 @@ def finalize_tasks(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -2130,7 +2144,7 @@ def map_requirements(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 
@@ -2366,7 +2380,7 @@ def validate_workflow(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -2475,7 +2489,7 @@ def status(
             raise typer.Exit(1)
 
         # Auto-detect or use provided feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
@@ -2857,7 +2871,7 @@ def list_dependents(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
 

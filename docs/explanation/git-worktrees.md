@@ -2,6 +2,15 @@
 
 Git worktrees are the technology that enables Spec Kitty's parallel development model. This document explains what worktrees are, why Spec Kitty uses them, and how they work in the modern lane-based execution model.
 
+> **Naming note (mission 083+):** Lane worktree paths now embed `mid8` — the
+> first 8 characters of the mission's ULID `mission_id` — as in
+> `.worktrees/my-feature-01J6XW9K-lane-a/`. This is the current form produced
+> by `spec-kitty implement`. The legacy numeric-prefix form
+> `.worktrees/001-my-feature-lane-a/` shown in some examples below still
+> resolves for pre-083 projects. See the
+> [mission identity migration runbook](../migration/mission-id-canonical-identity.md)
+> for upgrade steps.
+
 ## What is a Git Worktree?
 
 A git worktree is a linked working directory that lets you check out multiple branches simultaneously, each in its own directory. Unlike cloning a repository multiple times, all worktrees share the same `.git` directory and repository history.
@@ -251,8 +260,8 @@ git worktree list
 
 **Solution**:
 ```bash
-cd .worktrees/feature-lane-a
-git checkout -b kitty/mission-feature-lane-a  # Create and switch to branch
+cd .worktrees/my-feature-01J6XW9K-lane-a
+git checkout -b kitty/mission-my-feature-01J6XW9K-lane-a  # Create and switch to branch
 ```
 
 ## Further Reading

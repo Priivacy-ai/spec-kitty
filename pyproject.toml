@@ -201,6 +201,9 @@ max-complexity = 15  # Match SonarCloud S3776 threshold
 [tool.mypy]
 # Keep strict mode as the default quality bar for actively maintained code.
 strict = true
+# Point mypy at the source tree so it resolves specify_cli from src/ rather than
+# an installed wheel that may lack a py.typed marker.
+mypy_path = "src"
 
 [[tool.mypy.overrides]]
 # When checking a narrow file path under ``specify_cli``, mypy otherwise walks

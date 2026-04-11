@@ -171,6 +171,15 @@ class StatusEvent:
     """Immutable record of a single lane transition.
 
     Each event is one line in status.events.jsonl.
+
+    Wire-format evolution (FR-023, ADR 2026-04-09-1):
+    - Legacy events: carry only ``mission_slug`` for mission identity.
+    - New events (post-WP05): carry both ``mission_slug`` AND ``mission_id``
+      (the ULID from meta.json).  ``mission_id`` becomes the canonical
+      machine-facing identity; ``mission_slug`` is retained for human
+      readability and backward compatibility.
+    - ``legacy_aggregate_id``: drift-window compat field, equals ``mission_slug``
+      on new writes, absent on legacy events.  Readers ignore it.
     """
 
     event_id: str  # ULID
@@ -186,6 +195,9 @@ class StatusEvent:
     review_ref: str | None = None
     evidence: DoneEvidence | None = None
     policy_metadata: dict[str, Any] | None = None
+    # mission_id (ULID) added in WP05; None for legacy events read from disk
+    # before the migration, or for missions that pre-date mission_id minting.
+    mission_id: str | None = None
 
     def to_dict(self) -> dict[str, Any]:
         d: dict[str, Any] = {
@@ -203,6 +215,12 @@ class StatusEvent:
             "evidence": self.evidence.to_dict() if self.evidence else None,
             "policy_metadata": self.policy_metadata,
         }
+        if self.mission_id is not None:
+            d["mission_id"] = self.mission_id
+            # Drift-window shim (T025): legacy_aggregate_id carries mission_slug
+            # so downstream SaaS consumers that index by slug can still find events.
+            # Remove after SaaS side migrates to mission_id (tracked in WP12).
+            d["legacy_aggregate_id"] = self.mission_slug
         return d
 
     # Legacy lane name aliases from older event log formats.
@@ -231,6 +249,7 @@ class StatusEvent:
             review_ref=data.get("review_ref"),
             evidence=DoneEvidence.from_dict(evidence_data) if evidence_data else None,
             policy_metadata=data.get("policy_metadata"),
+            mission_id=data.get("mission_id"),  # None for legacy events
         )
 
 

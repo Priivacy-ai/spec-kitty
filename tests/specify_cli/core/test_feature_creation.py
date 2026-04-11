@@ -69,27 +69,36 @@ def test_happy_path_creates_directory_and_returns_result(tmp_path: Path) -> None
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "test-feature")
 
     assert isinstance(result, MissionCreationResult)
-    assert result.mission_slug == "001-test-feature"
-    assert result.mission_number == "001"
+    # Post-083: mission_slug is "<human-slug>-<mid8>" where mid8 is the first
+    # 8 chars of the ULID mission_id. No NNN- prefix is assigned pre-merge.
+    assert result.mission_slug.startswith("test-feature-")
+    assert len(result.mission_slug) == len("test-feature-") + 8
+    # mission_number is None pre-merge (FR-044); a dense display number is
+    # assigned only at merge time. Canonical identity is mission_id (ULID).
+    assert result.mission_number is None
     assert result.target_branch == "main"
     assert result.current_branch == "main"
-    assert result.feature_dir == tmp_path / "kitty-specs" / "001-test-feature"
+    assert result.feature_dir == tmp_path / "kitty-specs" / result.mission_slug
     assert result.feature_dir.is_dir()
 
     # meta.json exists and has correct content
     meta_file = result.feature_dir / "meta.json"
     assert meta_file.exists()
     meta = json.loads(meta_file.read_text(encoding="utf-8"))
-    assert meta["mission_slug"] == "001-test-feature"
+    assert meta["mission_slug"] == result.mission_slug
     assert meta["target_branch"] == "main"
     assert meta["mission_type"] == "software-dev"
+    # Canonical mission identity fields (083+)
+    assert "mission_id" in meta
+    assert isinstance(meta["mission_id"], str)
+    assert len(meta["mission_id"]) == 26  # ULID is 26 chars
+    assert meta["mission_number"] is None  # pre-merge: JSON null
 
     # spec.md exists
     assert (result.feature_dir / "spec.md").exists()
@@ -112,7 +121,6 @@ def test_result_created_files_populated(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=5),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -216,7 +224,6 @@ def test_explicit_target_branch(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -243,7 +250,6 @@ def test_target_branch_defaults_to_current(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="develop"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=2),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -274,7 +280,6 @@ def test_documentation_mission_sets_doc_state(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=3),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -295,7 +300,6 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -305,12 +309,17 @@ def test_default_mission_is_software_dev(tmp_path: Path) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Feature number / slug formatting tests
+# Mission identity / slug formatting tests (post-083: ULID + mid8)
 # ---------------------------------------------------------------------------
 
 
-def test_feature_number_zero_padded(tmp_path: Path) -> None:
-    """Feature number is zero-padded to 3 digits."""
+def test_slug_uses_mid8_suffix_not_numeric_prefix(tmp_path: Path) -> None:
+    """Post-083: mission_slug is '<human-slug>-<mid8>', not '<NNN>-<slug>'.
+
+    The canonical machine identity is mission_id (ULID); mission_number is
+    None until merge time. The 8-char mid8 suffix disambiguates missions
+    that share a human slug (FR-032, FR-044).
+    """
     _init_git_repo(tmp_path)
 
     with (
@@ -318,11 +327,18 @@ def test_feature_number_zero_padded(tmp_path: Path) -> None:
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=42),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
         result = create_mission_core(tmp_path, "padded-test")
 
-    assert result.mission_number == "042"
-    assert result.mission_slug == "042-padded-test"
+    # No NNN- prefix — slug is "<human-slug>-<mid8>".
+    assert result.mission_slug.startswith("padded-test-")
+    assert len(result.mission_slug) == len("padded-test-") + 8
+    # mission_number is None pre-merge (no dense number assigned).
+    assert result.mission_number is None
+    # Canonical identity lives in meta.mission_id (ULID, 26 chars).
+    assert isinstance(result.meta["mission_id"], str)
+    assert len(result.meta["mission_id"]) == 26
+    # The mid8 suffix on the slug matches the first 8 chars of mission_id.
+    assert result.mission_slug.endswith(result.meta["mission_id"][:8])

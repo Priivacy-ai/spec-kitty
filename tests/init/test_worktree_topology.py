@@ -118,7 +118,11 @@ class TestRenderTopologyJson:
 
         payload = json.loads("\n".join(lines[1:-1]))
         assert payload["mission_slug"] == "002-feature"
-        assert payload["mission_number"] == "002"
+        # mission_number is display-only: mission_identity_fields() strips
+        # leading zeros, so the slug prefix "002" renders as "2" at the
+        # payload boundary. Canonical identity is mission_id (not asserted
+        # here because FeatureTopology was constructed without one).
+        assert payload["mission_number"] == "2"
         assert payload["mission_type"] == "software-dev"
         assert payload["mission_branch"] == "kitty/mission-002-feature"
         assert payload["shared_lane"] is True

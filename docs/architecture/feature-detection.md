@@ -1,8 +1,17 @@
 # Architecture: Centralized Feature Detection
 
-**Status**: Implemented (v0.14.0)
+**Status**: Implemented (v0.14.0); superseded in part by mission `083-mission-id-canonical-identity-migration`.
 **Author**: System Architecture
 **Last Updated**: 2026-01-27
+
+> **Note (mission 083+):** This document describes the v0.14.0 feature-detection
+> cleanup. It is retained for historical context. The canonical selector as of
+> mission `083-mission-id-canonical-identity-migration` is `mission_id` (a ULID),
+> resolved through `spec-kitty agent context resolve --mission <handle>`, which
+> accepts `mission_id`, `mid8`, or `mission_slug` and returns a structured error
+> on ambiguity. Numeric prefixes like `020-feature-a` are **display-only metadata**
+> — they are never used for identity or routing. See the
+> [mission identity migration runbook](../migration/mission-id-canonical-identity.md).
 
 ## Problem Statement
 

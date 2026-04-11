@@ -402,9 +402,11 @@ register, login, logout, and recover forgotten passwords.
 ```
 
 **What this does:**
-- Creates `kitty-specs/001-auth-system/spec.md` with user stories
+- Creates `kitty-specs/auth-system/spec.md` with user stories and mints a canonical `mission_id` (ULID) in `meta.json`
 - **Enters discovery interview** - Answer questions before continuing!
 - All planning happens in the main repo (worktrees created later during implementation)
+
+> **Note:** Mission identity is a ULID (`mission_id` in `meta.json`). The three-digit numeric prefix (e.g. `001-auth-system`) is display-only and is only assigned at merge time. Branches and worktrees use the mission's `mid8` (first 8 chars of the ULID) for collision-free naming. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
 
 **⚠️ Important:** Continue in the same session - no need to change directories!
 
@@ -560,7 +562,7 @@ Spec Kitty automatically protects you with multiple layers:
 **Worktree Charter Sharing:**
 When creating execution workspaces, Spec Kitty uses symlinks to share the charter:
 ```
-.worktrees/001-feature-lane-a/.kittify/memory -> ../../../../.kittify/memory
+.worktrees/my-feature-01J6XW9K-lane-a/.kittify/memory -> ../../../../.kittify/memory
 ```
 This ensures all work packages follow the same project principles.
 
@@ -607,16 +609,18 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ### Feature
 **Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more execution worktrees.
 
+> **Mission identity (as of mission 083):** A mission's canonical machine identity is `mission_id` — a ULID minted at creation and immutable for the lifetime of the mission. The three-digit `mission_number` prefix shown in directory names is **display-only metadata** and is assigned at merge time. Selectors use `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`; ambiguous handles return a structured error. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
+
 **Examples**:
 - "001-auth-system feature"
 - "005-refactor-mission-system feature" (this document)
 - "042-dashboard-refresh feature"
 
 **Structure**:
-- Specification: `/kitty-specs/###-feature-name/spec.md`
-- Plan: `/kitty-specs/###-feature-name/plan.md`
-- Tasks: `/kitty-specs/###-feature-name/tasks.md`
-- Implementation: `.worktrees/###-feature-name-lane-a/`, `.worktrees/###-feature-name-lane-b/`, and so on
+- Specification: `/kitty-specs/<human-slug>/spec.md` (directory listing shows `NNN-<human-slug>` once `mission_number` is assigned at merge)
+- Plan: `/kitty-specs/<human-slug>/plan.md`
+- Tasks: `/kitty-specs/<human-slug>/tasks.md`
+- Implementation: `.worktrees/<human-slug>-<mid8>-lane-a/`, `.worktrees/<human-slug>-<mid8>-lane-b/`, and so on (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`)
 
 **Lifecycle**:
 1. `/spec-kitty.specify` – Create the feature and its branch

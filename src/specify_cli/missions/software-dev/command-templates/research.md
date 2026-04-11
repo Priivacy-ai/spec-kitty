@@ -3,7 +3,7 @@ description: Generate research documents for the current mission
 ---
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<feature>/tasks/`). Never refer to a folder by name alone.
 
-**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## Location Pre-flight Check
 
@@ -16,7 +16,7 @@ git branch --show-current
 
 **Expected output:**
 - `pwd`: Should end with your project root directory path
-- Branch: Should show your feature branch name like `001-feature-name` (NOT `main`)
+- Branch: Should show your mission branch (e.g. `kitty/mission-<slug>-<mid8>` or a legacy `NNN-feature-name` form), NOT `main`
 
 **If you see the main branch or the wrong directory path:**
 

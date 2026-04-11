@@ -31,9 +31,13 @@ from specify_cli.core.atomic import atomic_write
 
 
 class MissionMetaRequired(TypedDict):
-    """Required fields -- always present in a valid meta.json."""
+    """Required fields -- always present in a valid meta.json.
 
-    mission_number: str
+    Note: ``mission_number`` is stored as ``int | null`` in meta.json
+    (per FR-044).  This TypedDict uses ``str`` for backward-compatibility
+    documentation only; the actual runtime type is ``int | None``.
+    """
+
     slug: str
     mission_slug: str
     friendly_name: str
@@ -77,10 +81,19 @@ _MISSION_NUMBER_PATTERN = re.compile(r"^(?P<number>\d+)-")
 
 @dataclass(frozen=True, slots=True)
 class MissionIdentity:
-    """Canonical machine-facing mission identity fields."""
+    """Canonical machine-facing mission identity fields.
+
+    ``mission_number`` is ``int | None``:
+    - ``None``  — pre-merge mission (no number assigned yet; FR-044)
+    - ``int``   — post-merge mission (dense display number assigned at merge)
+
+    Legacy missions stored as strings (``"042"``) are coerced to ``int`` by
+    the reader (``resolve_mission_identity``).  The write path always emits
+    ``null`` or an integer, never a string sentinel (FR-044, T008).
+    """
 
     mission_slug: str
-    mission_number: str
+    mission_number: int | None
     mission_type: str
     mission_id: str | None = None  # Canonical identity per ADR b85116ed. None only for pre-3.1.1 missions.
 
@@ -95,22 +108,92 @@ def _now_iso() -> str:
     return _dt.datetime.now(_dt.UTC).isoformat()
 
 
-def mission_number_from_slug(mission_slug: str) -> str:
-    """Extract the numeric mission prefix from a mission slug when present."""
+def mission_number_from_slug(mission_slug: str) -> int | None:
+    """Extract the numeric mission prefix from a mission slug when present.
+
+    Returns the prefix as an ``int`` if the slug starts with ``NNN-``,
+    or ``None`` if no numeric prefix is found.
+
+    Examples:
+        "083-foo-bar" -> 83
+        "foo-bar"     -> None
+    """
     match = _MISSION_NUMBER_PATTERN.match(str(mission_slug).strip())
     if match is None:
-        return ""
-    return match.group("number")
+        return None
+    raw = match.group("number")
+    try:
+        return int(raw.lstrip("0") or "0") or int(raw)
+    except ValueError:
+        return None
+
+
+def _coerce_mission_number(raw: object) -> int | None:
+    """Coerce a raw meta.json ``mission_number`` value to ``int | None``.
+
+    Canonical coercion matrix (T008 / FR-044):
+
+    - ``None``, ``""`` (missing or empty)   → ``None``
+    - ``int``                                → pass through
+    - ``str`` that parses as positive int    → ``int`` (leading zeros stripped)
+    - ``str`` "pending", "unassigned", "TBD" → ``ValueError``
+    - ``str`` not parseable as int           → ``ValueError``
+    - ``float``, ``list``, etc.              → ``TypeError``
+    """
+    _SENTINEL_STRINGS = frozenset({"pending", "unassigned", "TBD"})
+
+    if raw is None:
+        return None
+    if isinstance(raw, bool):
+        # bool is a subclass of int, but a bool mission_number is a bug
+        raise TypeError(
+            f"meta.json mission_number must be int or null, got bool {raw!r}."
+        )
+    if isinstance(raw, int):
+        return raw
+    if isinstance(raw, str):
+        if not raw.strip():
+            # empty or whitespace-only string → None
+            return None
+        if raw.strip() in _SENTINEL_STRINGS:
+            raise ValueError(
+                f"meta.json mission_number must be int or null, got {raw!r}. "
+                "Run `spec-kitty migrate backfill-identity` to migrate."
+            )
+        try:
+            stripped = raw.strip().lstrip("0")
+            return int(stripped) if stripped else 0
+        except ValueError:
+            raise ValueError(
+                f"meta.json mission_number must be int or null, got {raw!r}. "
+                "Run `spec-kitty migrate backfill-identity` to migrate."
+            ) from None
+    raise TypeError(
+        f"meta.json mission_number must be int, str, or null, got {type(raw).__name__!r}."
+    )
 
 
 def mission_identity_fields(
     mission_slug: str,
-    mission_number: str | None = None,
+    mission_number: int | str | None = None,
     mission_type: str | None = None,
 ) -> dict[str, str]:
-    """Normalize canonical mission identity fields for machine-facing payloads."""
+    """Normalize canonical mission identity fields for machine-facing payloads.
+
+    Converts ``mission_number`` to a display string at the payload boundary.
+    ``None`` becomes ``""``; integers are formatted as their decimal string
+    representation (no leading-zero padding — that is display-layer choice).
+    """
     resolved_slug = str(mission_slug).strip()
-    resolved_number = str(mission_number or "").strip() or mission_number_from_slug(resolved_slug)
+    # Stringify mission_number at the display boundary
+    if isinstance(mission_number, int):
+        resolved_number: str = str(mission_number)
+    else:
+        resolved_number = str(mission_number or "").strip()
+    # Fall back to slug-derived prefix if no number provided
+    if not resolved_number:
+        slug_number = mission_number_from_slug(resolved_slug)
+        resolved_number = str(slug_number) if slug_number is not None else ""
     resolved_type = str(mission_type or "").strip() or "software-dev"
     return {
         "mission_slug": resolved_slug,
@@ -120,15 +203,27 @@ def mission_identity_fields(
 
 
 def resolve_mission_identity(feature_dir: Path) -> MissionIdentity:
-    """Resolve canonical mission identity fields from a mission directory."""
+    """Resolve canonical mission identity fields from a mission directory.
+
+    Reads ``meta.json`` and coerces ``mission_number`` to ``int | None``
+    using the legacy coercion rule (T008):
+
+    - Stored as JSON null   → ``None``
+    - Stored as JSON int    → ``int``
+    - Stored as string "042" → ``42`` (leading zeros stripped)
+    - Stored as "pending" / sentinel → raises ``ValueError``
+    """
     meta = load_meta(feature_dir) or {}
-    fields = mission_identity_fields(
-        str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name),
-        str(meta.get("mission_number") or "").strip() or None,
-        str(meta.get("mission_type") or meta.get("mission") or "").strip() or None,
-    )
+    raw_number = meta.get("mission_number")
+    mission_number: int | None = _coerce_mission_number(raw_number)
+
+    resolved_slug = str(meta.get("mission_slug") or meta.get("slug") or feature_dir.name)
+    resolved_type = str(meta.get("mission_type") or meta.get("mission") or "").strip() or "software-dev"
+
     return MissionIdentity(
-        **fields,
+        mission_slug=resolved_slug,
+        mission_number=mission_number,
+        mission_type=resolved_type,
         mission_id=meta.get("mission_id"),  # None if not present (legacy mission)
     )
 

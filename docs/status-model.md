@@ -6,6 +6,7 @@
 **Terminology note**
 - Canonical 2.x model: `Mission Type -> Mission -> Mission Run`
 - Status commands now use `--mission` as the canonical tracked-mission selector. Legacy `--feature` remains a hidden deprecated alias for compatibility only.
+- As of mission `083-mission-id-canonical-identity-migration`, a mission's canonical machine identity is `mission_id` (a ULID). The `--mission` flag accepts `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`. The numeric prefix in slug examples below (e.g. `034-feature-name`) is display-only metadata — the event log's aggregate key is `mission_id`, not the prefix. See the [mission identity migration runbook](migration/mission-id-canonical-identity.md).
 
 ## Overview
 

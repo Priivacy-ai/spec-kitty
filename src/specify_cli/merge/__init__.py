@@ -14,7 +14,12 @@ from specify_cli.merge.conflict_resolver import (
     classify_conflict,
     resolve_owned_conflicts,
 )
-from specify_cli.merge.ordering import MergeOrderError, get_merge_order, has_dependency_info
+from specify_cli.merge.ordering import (
+    MergeOrderError,
+    assign_next_mission_number,
+    get_merge_order,
+    has_dependency_info,
+)
 from specify_cli.merge.state import (
     MergeState,
     acquire_merge_lock,
@@ -22,6 +27,7 @@ from specify_cli.merge.state import (
     has_active_merge,
     is_merge_locked,
     load_state,
+    needs_number_assignment,
     release_merge_lock,
     save_state,
 )
@@ -47,6 +53,7 @@ __all__ = [
     "get_merge_order",
     "MergeOrderError",
     "has_dependency_info",
+    "assign_next_mission_number",
     # State persistence
     "MergeState",
     "save_state",
@@ -56,6 +63,7 @@ __all__ = [
     "acquire_merge_lock",
     "release_merge_lock",
     "is_merge_locked",
+    "needs_number_assignment",
     # Workspace
     "create_merge_workspace",
     "cleanup_merge_workspace",

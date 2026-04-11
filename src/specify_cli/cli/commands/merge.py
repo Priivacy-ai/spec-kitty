@@ -33,7 +33,14 @@ from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.git import safe_commit
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.merge.config import MergeStrategy, load_merge_config
-from specify_cli.merge.state import MergeState, clear_state, load_state, save_state
+from specify_cli.merge.ordering import assign_next_mission_number
+from specify_cli.merge.state import (
+    MergeState,
+    clear_state,
+    load_state,
+    needs_number_assignment,
+    save_state,
+)
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -212,6 +219,181 @@ def _assert_merged_wps_reached_done(
         raise typer.Exit(1)
 
 
+def _bake_mission_number_into_mission_branch(
+    main_repo: Path,
+    mission_slug: str,
+    mission_branch: str,
+    target_branch: str,
+    *,
+    dry_run: bool = False,
+) -> int | None:
+    """Assign and persist a dense integer ``mission_number`` for a pre-merge mission.
+
+    Implements WP10 / FR-044 / T053:
+
+    1. If the mission's ``meta.json`` already has an integer ``mission_number``
+       (legacy or previously-merged), this is a no-op and returns ``None``.
+    2. Otherwise, scan the target branch's ``kitty-specs/`` view for the next
+       available integer (``max + 1``, or ``1`` if empty).
+    3. In dry-run mode, log the value but do not write or commit.
+    4. Otherwise, create a detached worktree at the mission branch tip, update
+       ``meta.json`` in place, commit the change, and fast-forward the mission
+       branch ref so the integer lands in the eventual mission→target merge.
+
+    The caller MUST hold the per-mission merge-state lock for the duration of
+    this call.  See WP10/T055.
+
+    Returns:
+        The assigned integer if a new number was written; ``None`` if the
+        mission already had a number (no-op) or in dry-run mode.
+    """
+    import json as _json
+    import subprocess as _subprocess
+    import tempfile as _tempfile
+
+    feature_dir = main_repo / "kitty-specs" / mission_slug
+
+    if not needs_number_assignment(feature_dir):
+        logger.debug("Mission %s already has an integer mission_number; skipping assignment", mission_slug)
+        return None
+
+    # Compute against the target branch's view of kitty-specs/.  We use a
+    # short-lived detached worktree at the target tip so the scan reflects
+    # the most recent committed state of `target_branch`, NOT the current
+    # mission branch (which is what we are about to update).
+    tmp_dir = _tempfile.mkdtemp(prefix="kitty-numassign-")
+    tmp_path = Path(tmp_dir)
+    next_number: int
+    try:
+        result = _subprocess.run(
+            ["git", "worktree", "add", "--detach", str(tmp_path), target_branch],
+            cwd=str(main_repo),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            logger.warning(
+                "Could not create scan worktree for mission_number assignment: %s",
+                result.stderr.strip(),
+            )
+            # Fall back to scanning main_repo's working tree.  Best effort.
+            next_number = assign_next_mission_number(
+                main_repo, main_repo / "kitty-specs"
+            )
+        else:
+            next_number = assign_next_mission_number(tmp_path, tmp_path / "kitty-specs")
+    finally:
+        _subprocess.run(
+            ["git", "worktree", "remove", str(tmp_path), "--force"],
+            cwd=str(main_repo),
+            capture_output=True,
+        )
+
+    if dry_run:
+        console.print(
+            f"[cyan]would assign[/cyan] mission_number={next_number} to mission {mission_slug}"
+        )
+        return None
+
+    # Write the integer into meta.json on the mission branch via a detached
+    # worktree at the mission branch tip, then update the ref.
+    mission_tmp_dir = _tempfile.mkdtemp(prefix="kitty-numwrite-")
+    mission_tmp_path = Path(mission_tmp_dir)
+    try:
+        result = _subprocess.run(
+            ["git", "worktree", "add", "--detach", str(mission_tmp_path), mission_branch],
+            cwd=str(main_repo),
+            capture_output=True,
+            text=True,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Failed to create mission-branch worktree for mission_number write: "
+                f"{result.stderr.strip()}"
+            )
+
+        meta_path = mission_tmp_path / "kitty-specs" / mission_slug / "meta.json"
+        if not meta_path.exists():
+            logger.warning(
+                "meta.json missing on mission branch %s for %s; cannot bake mission_number",
+                mission_branch,
+                mission_slug,
+            )
+            return None
+
+        # Read, mutate, write preserving sort_keys + 2-space indent + trailing newline.
+        meta_data = _json.loads(meta_path.read_text(encoding="utf-8"))
+        if not isinstance(meta_data, dict):
+            logger.warning(
+                "meta.json for %s is not a JSON object; cannot bake mission_number",
+                mission_slug,
+            )
+            return None
+
+        # Idempotency guard at the write boundary: if some other concurrent
+        # writer already filled it in (shouldn't happen under the lock, but
+        # belt-and-braces), respect that and return.
+        existing = meta_data.get("mission_number")
+        if isinstance(existing, int) and not isinstance(existing, bool):
+            return None
+        if isinstance(existing, str) and existing.strip():
+            return None
+
+        meta_data["mission_number"] = next_number
+        new_content = _json.dumps(meta_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
+        meta_path.write_text(new_content, encoding="utf-8")
+
+        # Stage and commit the change on the mission branch.
+        rel_meta = meta_path.relative_to(mission_tmp_path)
+        _subprocess.run(
+            ["git", "add", str(rel_meta)],
+            cwd=str(mission_tmp_path),
+            capture_output=True,
+            check=True,
+        )
+        commit_msg = f"chore({mission_slug}): assign mission_number={next_number}"
+        _subprocess.run(
+            [
+                "git",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "-m",
+                commit_msg,
+            ],
+            cwd=str(mission_tmp_path),
+            capture_output=True,
+            check=True,
+        )
+
+        # Get the new commit and fast-forward the mission branch ref.
+        new_sha = _subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=str(mission_tmp_path),
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+        _subprocess.run(
+            ["git", "update-ref", f"refs/heads/{mission_branch}", new_sha],
+            cwd=str(main_repo),
+            capture_output=True,
+            check=True,
+        )
+    finally:
+        _subprocess.run(
+            ["git", "worktree", "remove", str(mission_tmp_path), "--force"],
+            cwd=str(main_repo),
+            capture_output=True,
+        )
+
+    console.print(
+        f"[green]Assigned[/green] mission_number={next_number} to mission {mission_slug}"
+    )
+    logger.info("Assigned mission_number=%d to mission %s", next_number, mission_slug)
+    return next_number
+
+
 def _enforce_git_preflight(repo_root: Path, *, json_output: bool) -> None:
     """Run git preflight checks and stop early with deterministic remediation."""
     if not (repo_root / ".git").exists():
@@ -239,7 +421,8 @@ def _extract_mission_slug(branch_name: str) -> str | None:
 
     parsed = parse_mission_slug_from_branch(branch_name)
     if parsed:
-        return parsed
+        # BranchParseResult(slug, mid8_token, lane_id) — return the slug portion
+        return parsed.slug
 
     match = re.match(r"^(\d{3}-[a-z0-9][a-z0-9-]*?)(?:-(?:lane-[a-z]))?$", branch_name)
     if match:
@@ -420,6 +603,25 @@ def _run_lane_based_merge(
         cwd=main_repo,
     )
     merge_base_sha = merge_base_sha.strip() if _ret == 0 else "HEAD~1"
+
+    # -- WP10/T053/T055: assign dense integer mission_number on mission branch --
+    # Inside merge-state lock (single-writer): safe to compute max + 1.
+    # We are running in the per-mission merge flow that owns the merge-state
+    # entry under .kittify/runtime/merge/<mission_slug>/, which serializes
+    # concurrent merges of the same mission. Concurrent merges of *different*
+    # missions still serialize against the target branch's kitty-specs/ scan
+    # because each computes max+1 from the same target snapshot and the second
+    # merger picks up the first merger's commit only after that commit lands
+    # in the target ref via mission→target — so the natural cascade gives
+    # distinct integers as long as each mission's assignment is computed from
+    # the most recent target tip at the moment of mission→target.
+    _bake_mission_number_into_mission_branch(
+        main_repo=main_repo,
+        mission_slug=mission_slug,
+        mission_branch=lanes_manifest.mission_branch,
+        target_branch=lanes_manifest.target_branch,
+        dry_run=False,
+    )
 
     # -- Mission-to-target merge (T010: honor strategy for this step only) --
     mission_result = merge_mission_to_target(main_repo, mission_slug, lanes_manifest, strategy=strategy)
@@ -690,6 +892,21 @@ def merge(
                 console.print(f"[red]Error:[/red] {error_msg}")
             raise typer.Exit(1) from exc
 
+        # WP10/T053: dry-run preview of merge-time mission_number assignment.
+        feature_dir_for_preview = (
+            get_main_repo_root(repo_root) / "kitty-specs" / resolved_feature
+        )
+        would_assign_number: int | None = None
+        if needs_number_assignment(feature_dir_for_preview):
+            try:
+                would_assign_number = assign_next_mission_number(
+                    get_main_repo_root(repo_root),
+                    get_main_repo_root(repo_root) / "kitty-specs",
+                )
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("dry-run mission_number scan failed: %s", exc)
+                would_assign_number = None
+
         payload: dict[str, object] = {
             "spec_kitty_version": SPEC_KITTY_VERSION,
             "mission_slug": resolved_feature,
@@ -700,7 +917,12 @@ def merge(
             "push": push,
             "mission_branch": lanes_manifest.mission_branch,
             "lanes": [lane.to_dict() for lane in lanes_manifest.lanes],
+            "would_assign_mission_number": would_assign_number,
         }
+        if would_assign_number is not None and not json_output:
+            console.print(
+                f"[cyan]would assign[/cyan] mission_number={would_assign_number} to mission {resolved_feature}"
+            )
         if json_output:
             print(json.dumps(payload))
         else:
@@ -736,6 +958,7 @@ __all__ = [
     "_run_lane_based_merge",
     "_is_linear_history_rejection",
     "_emit_remediation_hint",
+    "_bake_mission_number_into_mission_branch",
     "LINEAR_HISTORY_REJECTION_TOKENS",
     "merge",
 ]

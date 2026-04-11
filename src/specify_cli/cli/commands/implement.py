@@ -16,7 +16,7 @@ from pydantic import ValidationError
 from rich.console import Console
 
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
 from specify_cli.core.vcs import VCSBackend
 from specify_cli.mission_metadata import resolve_mission_identity, set_vcs_lock
@@ -100,23 +100,28 @@ def _json_safe_output(func):
 def detect_feature_context(
     mission_flag: str | None = None,
     feature_flag: str | None = None,
+    repo_root: Path | None = None,
 ) -> tuple[str, str]:
-    """Require an explicit mission slug and return (number, slug)."""
+    """Require an explicit mission slug and return (number, slug).
+
+    Uses the canonical mission resolver (resolve_mission_handle) when
+    repo_root is supplied, falling back to bare slug parsing otherwise.
+    The repo_root is always available in the callers that matter.
+    """
     import re as _re
 
-    try:
-        resolved = resolve_selector(
-            canonical_value=mission_flag,
-            canonical_flag="--mission",
-            alias_value=feature_flag,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        )
-        slug = resolved.canonical_value
-    except typer.BadParameter as exc:
-        console.print(f"[red]Error:[/red] {exc}")
-        raise typer.Exit(1) from exc
+    raw_handle = mission_flag or feature_flag
+    if raw_handle is None:
+        console.print("[red]Error:[/red] --mission <slug> is required")
+        raise typer.Exit(1)
+
+    if repo_root is not None:
+        # Use canonical resolver — handles ambiguity, mid8, full ULID, etc.
+        resolved = resolve_mission_handle(raw_handle, repo_root)
+        slug = resolved.mission_slug
+    else:
+        # Bare-slug fallback for callers without a repo_root (e.g., unit tests).
+        slug = raw_handle
 
     match = _re.match(r"^(\d{3})-", slug)
     if not match:
@@ -305,7 +310,7 @@ def _run_recover_mode(
 
     try:
         repo_root = find_repo_root()
-        _feature_number, mission_slug = detect_feature_context(mission, feature)
+        _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
     except (TaskCliError, typer.Exit) as exc:
         if json_output:
             print(json.dumps({"status": "error", "error": str(exc)}))
@@ -440,7 +445,7 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
         repo_root = find_repo_root()
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
-        _feature_number, mission_slug = detect_feature_context(mission, feature)
+        _feature_number, mission_slug = detect_feature_context(mission, feature, repo_root=repo_root)
         feature_dir = repo_root / "kitty-specs" / mission_slug
         wp_file = find_wp_file(repo_root, mission_slug, wp_id)
         declared_deps = parse_wp_dependencies(wp_file)
