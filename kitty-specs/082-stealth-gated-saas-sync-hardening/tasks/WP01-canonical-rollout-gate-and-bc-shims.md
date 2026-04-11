@@ -19,7 +19,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '93867'
+shell_pid: "93867"
+agent: "claude:sonnet:python-implementer:implementer"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -196,3 +197,7 @@ Tests are **required** for this WP and land in the same commit as the implementa
 ```bash
 spec-kitty agent action implement WP01 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-11T07:37:17Z – claude:sonnet:python-implementer:implementer – shell_pid=93867 – Assigned agent via action command
