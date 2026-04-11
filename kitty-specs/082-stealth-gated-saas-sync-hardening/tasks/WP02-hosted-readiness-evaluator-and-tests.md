@@ -16,8 +16,8 @@ subtasks:
 - T009
 - T010
 - T011
-agent: "claude:sonnet:python-implementer:implementer"
-shell_pid: "55366"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "65504"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -239,3 +239,4 @@ spec-kitty agent action implement WP02 --agent <name>
 
 - 2026-04-11T08:29:51Z – claude:sonnet:python-implementer:implementer – shell_pid=55366 – Started implementation via action command
 - 2026-04-11T08:40:55Z – claude:sonnet:python-implementer:implementer – shell_pid=55366 – HostedReadiness evaluator + unit/integration tests landed. All checks green.
+- 2026-04-11T08:41:58Z – claude:opus-4-6:reviewer:reviewer – shell_pid=65504 – Started review via action command
