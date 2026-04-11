@@ -7,6 +7,8 @@ contexts:
   - name: "Orchestration"
     domainVisionStatement: "Terms describing lifecycle and runtime orchestration semantics."
     terms:
+      - name: "Build"
+        definition: "One checkout or worktree execution context inside a Repository, identified by machine and build-scoped runtime identity."
       - name: "Command Envelope"
         definition: "Standard JSON wrapper used to send commands to the orchestrator API. Contains identity fields, a version number, and the command payload."
       - name: "Command Template"
@@ -39,6 +41,8 @@ contexts:
         definition: "JSON-based interface that lets external orchestration tools interact with spec-kitty CLI operations programmatically, without going through the human-facing CLI."
       - name: "Project"
         definition: "Entire repository initialized for Spec Kitty workflow execution."
+      - name: "Repository"
+        definition: "The local git repository that a Project is initialized from and executes within."
       - name: "Runtime Bridge"
         definition: "The adapter that connects the CLI's decision loop to the mission execution engine. It translates internal runtime decisions into the format the HiC or agent sees while keeping mission identity separate from mission-run identity."
       - name: "Step Contract"
