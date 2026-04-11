@@ -638,7 +638,10 @@ def test_cli_status_command_renders_output_and_exits_zero(
         "sync_state": "idle",
     }
 
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+    with (
+        patch("specify_cli.cli.commands.tracker._check_binding_readiness"),
+        patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
+    ):
         result = cli_runner.invoke(app, ["status"])
 
     assert result.exit_code == 0
@@ -659,7 +662,10 @@ def test_cli_status_json_returns_valid_json(
         "display_label": "Engineering",
     }
 
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+    with (
+        patch("specify_cli.cli.commands.tracker._check_binding_readiness"),
+        patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
+    ):
         result = cli_runner.invoke(app, ["status", "--json"])
 
     assert result.exit_code == 0
@@ -677,7 +683,10 @@ def test_cli_bind_saas_with_project_slug_persists_and_renders(
     mock_config = TrackerProjectConfig(provider="linear", binding_ref="bind-ref-1")
     mock_svc.bind.return_value = mock_config
 
-    with patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc):
+    with (
+        patch("specify_cli.cli.commands.tracker._check_readiness"),
+        patch("specify_cli.cli.commands.tracker._service", return_value=mock_svc),
+    ):
         result = cli_runner.invoke(
             app, ["bind", "--provider", "linear", "--bind-ref", "bind-ref-1"]
         )

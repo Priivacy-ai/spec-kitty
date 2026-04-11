@@ -14,6 +14,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+from specify_cli.dashboard.handlers.api import APIHandler
 from specify_cli.sync.config import BackgroundDaemonPolicy, SyncConfig
 from specify_cli.sync.daemon import DaemonIntent, DaemonStartOutcome, ensure_sync_daemon_running
 
@@ -167,6 +168,49 @@ class TestDaemonStartOutcome:
 
         assert DaemonIntent.LOCAL_ONLY.value == "local_only"
         assert DaemonIntent.REMOTE_REQUIRED.value == "remote_required"
+
+
+# ---------------------------------------------------------------------------
+# Dashboard sync-trigger response branches (diff-cover enforced)
+# ---------------------------------------------------------------------------
+
+
+def _api_handler(path: str, *, project_token: str | None = "tok") -> APIHandler:
+    handler = APIHandler.__new__(APIHandler)
+    handler.path = path
+    handler.project_token = project_token
+    handler._send_json = MagicMock()
+    return handler
+
+
+def test_dashboard_sync_trigger_manual_mode_returns_202() -> None:
+    handler = _api_handler("/api/sync/trigger?token=tok")
+
+    with patch(
+        "specify_cli.dashboard.handlers.api.ensure_sync_daemon_running",
+        return_value=DaemonStartOutcome(started=False, skipped_reason="policy_manual", pid=None),
+    ):
+        handler.handle_sync_trigger()
+
+    handler._send_json.assert_called_once_with(
+        202,
+        {"status": "skipped", "manual_mode": True, "reason": "policy_manual"},
+    )
+
+
+def test_dashboard_sync_trigger_unavailable_reason_returns_503() -> None:
+    handler = _api_handler("/api/sync/trigger?token=tok")
+
+    with patch(
+        "specify_cli.dashboard.handlers.api.ensure_sync_daemon_running",
+        return_value=DaemonStartOutcome(started=False, skipped_reason="start_failed:port busy", pid=None),
+    ):
+        handler.handle_sync_trigger()
+
+    handler._send_json.assert_called_once_with(
+        503,
+        {"error": "sync_daemon_unavailable", "reason": "start_failed:port busy"},
+    )
 
 
 # ---------------------------------------------------------------------------
