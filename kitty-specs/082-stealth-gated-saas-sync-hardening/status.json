@@ -1,7 +1,7 @@
 {
-  "event_count": 6,
-  "last_event_id": "01KNXM37MEQ9KC7CJPZNV13M8S",
-  "materialized_at": "2026-04-11T06:36:31.246384+00:00",
+  "event_count": 8,
+  "last_event_id": "01KNXQJFZXG5PNJTAEW94D6D0V",
+  "materialized_at": "2026-04-11T07:37:17.053093+00:00",
   "mission_number": "082",
   "mission_slug": "082-stealth-gated-saas-sync-hardening",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 6
+    "planned": 5
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KNXM37F06EDG33ZKKA822MSW",
-      "last_transition_at": "2026-04-11T06:36:31.072360+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KNXQJFZXG5PNJTAEW94D6D0V",
+      "last_transition_at": "2026-04-11T07:37:17.053093+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",

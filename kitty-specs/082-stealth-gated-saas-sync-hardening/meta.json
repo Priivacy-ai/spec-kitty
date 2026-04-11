@@ -6,5 +6,7 @@
   "mission_slug": "082-stealth-gated-saas-sync-hardening",
   "mission_type": "software-dev",
   "slug": "082-stealth-gated-saas-sync-hardening",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "vcs_locked_at": "2026-04-11T07:37:15.963030+00:00"
 }

@@ -10,12 +10,16 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-082-stealth-gated-saas-sync-hardening
+base_commit: 2c2bf6734293a83c3582bff4c7ae3b908a834255
+created_at: '2026-04-11T07:37:16.717184+00:00'
 subtasks:
 - T001
 - T002
 - T003
 - T004
 - T005
+shell_pid: '93867'
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
