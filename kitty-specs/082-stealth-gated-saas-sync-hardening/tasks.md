@@ -42,12 +42,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 | T018 | Update `src/specify_cli/dashboard/handlers/api.py` (read endpoints `LOCAL_ONLY`; sync-now `REMOTE_REQUIRED`) | WP04 | [D] |
 | T019 | Update `src/specify_cli/sync/events.py` to pass `intent=REMOTE_REQUIRED`                                 | WP04 | [D] |
 | T020 | Write `tests/sync/test_daemon_intent_gate.py` (decision matrix, missing-intent TypeError, audit-grep guard) | WP04 | — | [D] |
-| T021 | Rewrite tracker callback in `src/specify_cli/cli/commands/tracker.py` — per-command `evaluate_readiness()` | WP05 | — |
-| T022 | Implement manual-mode CLI surfacing for `sync run`/`pull`/`push`/`publish` (exit 0, stable wording)      | WP05 | —        |
-| T023 | Update `src/specify_cli/cli/commands/__init__.py` conditional import to source from `specify_cli.saas.rollout` | WP05 | — |
-| T024 | Parametrize `tests/agent/cli/commands/test_tracker.py` (rollout-on/off × prerequisite-state matrix)      | WP05 | [P]      |
-| T025 | Update `tests/agent/cli/commands/test_tracker_discover.py` to readiness-aware assertions                 | WP05 | [P]      |
-| T026 | Update `tests/agent/cli/commands/test_tracker_status.py` (readiness-aware + manual-mode behavior)        | WP05 | [P]      |
+| T021 | Rewrite tracker callback in `src/specify_cli/cli/commands/tracker.py` — per-command `evaluate_readiness()` | WP05 | — | [D] |
+| T022 | Implement manual-mode CLI surfacing for `sync run`/`pull`/`push`/`publish` (exit 0, stable wording)      | WP05 | —        | [D] |
+| T023 | Update `src/specify_cli/cli/commands/__init__.py` conditional import to source from `specify_cli.saas.rollout` | WP05 | — | [D] |
+| T024 | Parametrize `tests/agent/cli/commands/test_tracker.py` (rollout-on/off × prerequisite-state matrix)      | WP05 | [D] |
+| T025 | Update `tests/agent/cli/commands/test_tracker_discover.py` to readiness-aware assertions                 | WP05 | [D] |
+| T026 | Update `tests/agent/cli/commands/test_tracker_status.py` (readiness-aware + manual-mode behavior)        | WP05 | [D] |
 | T027 | Write `architecture/ADR-XXXX-saas-rollout-and-readiness.md` (DIRECTIVE_003)                              | WP06 | —        |
 | T028 | Update `architecture/README.md` index to reference the new ADR                                           | WP06 | —        |
 | T029 | Refresh `docs/` cross-references if any existing SaaS-sync doc points at the old single gate             | WP06 | —        |
@@ -216,12 +216,12 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T021 Rewrite tracker callback in `src/specify_cli/cli/commands/tracker.py` to use per-command `evaluate_readiness()` (WP05)
-- [ ] T022 Implement manual-mode CLI surfacing for `sync run`/`pull`/`push`/`publish` (WP05)
-- [ ] T023 Update `src/specify_cli/cli/commands/__init__.py` conditional import to source from `specify_cli.saas.rollout` (WP05)
-- [ ] T024 Parametrize `tests/agent/cli/commands/test_tracker.py` over rollout × prerequisite-state matrix (WP05)
-- [ ] T025 Update `tests/agent/cli/commands/test_tracker_discover.py` to readiness-aware assertions (WP05)
-- [ ] T026 Update `tests/agent/cli/commands/test_tracker_status.py` (readiness-aware + manual-mode behavior) (WP05)
+- [x] T021 Rewrite tracker callback in `src/specify_cli/cli/commands/tracker.py` to use per-command `evaluate_readiness()` (WP05)
+- [x] T022 Implement manual-mode CLI surfacing for `sync run`/`pull`/`push`/`publish` (WP05)
+- [x] T023 Update `src/specify_cli/cli/commands/__init__.py` conditional import to source from `specify_cli.saas.rollout` (WP05)
+- [x] T024 Parametrize `tests/agent/cli/commands/test_tracker.py` over rollout × prerequisite-state matrix (WP05)
+- [x] T025 Update `tests/agent/cli/commands/test_tracker_discover.py` to readiness-aware assertions (WP05)
+- [x] T026 Update `tests/agent/cli/commands/test_tracker_status.py` (readiness-aware + manual-mode behavior) (WP05)
 
 ### Implementation sketch
 
