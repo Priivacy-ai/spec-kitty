@@ -48,9 +48,9 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 | T024 | Parametrize `tests/agent/cli/commands/test_tracker.py` (rollout-on/off × prerequisite-state matrix)      | WP05 | [D] |
 | T025 | Update `tests/agent/cli/commands/test_tracker_discover.py` to readiness-aware assertions                 | WP05 | [D] |
 | T026 | Update `tests/agent/cli/commands/test_tracker_status.py` (readiness-aware + manual-mode behavior)        | WP05 | [D] |
-| T027 | Write `architecture/ADR-XXXX-saas-rollout-and-readiness.md` (DIRECTIVE_003)                              | WP06 | —        |
-| T028 | Update `architecture/README.md` index to reference the new ADR                                           | WP06 | —        |
-| T029 | Refresh `docs/` cross-references if any existing SaaS-sync doc points at the old single gate             | WP06 | —        |
+| T027 | Write `architecture/ADR-XXXX-saas-rollout-and-readiness.md` (DIRECTIVE_003)                              | WP06 | —        | [D] |
+| T028 | Update `architecture/README.md` index to reference the new ADR                                           | WP06 | —        | [D] |
+| T029 | Refresh `docs/` cross-references if any existing SaaS-sync doc points at the old single gate             | WP06 | —        | [D] |
 
 *The `[P]` column marks subtasks that can be parallelized **within** their WP (different files, no shared state). It is a reference column, not a status column.*
 
@@ -255,9 +255,9 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T027 Write `architecture/ADR-XXXX-saas-rollout-and-readiness.md` (WP06)
-- [ ] T028 Update `architecture/README.md` index to reference the new ADR (WP06)
-- [ ] T029 Refresh `docs/` cross-references if any existing SaaS-sync doc points at the old single gate (WP06)
+- [x] T027 Write `architecture/ADR-XXXX-saas-rollout-and-readiness.md` (WP06)
+- [x] T028 Update `architecture/README.md` index to reference the new ADR (WP06)
+- [x] T029 Refresh `docs/` cross-references if any existing SaaS-sync doc points at the old single gate (WP06)
 
 ### Implementation sketch
 
