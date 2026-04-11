@@ -118,6 +118,12 @@ def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
     For sync pull/push/publish: prints the manual-mode message and exits 0.
     For sync run (is_sync_run=True): prints the one-shot message and returns
     (does NOT exit — sync run proceeds as a foreground one-shot).
+
+    **Only applies to SaaS-backed bindings.**  Callers that may hit a local
+    provider should invoke :func:`_check_sync_readiness` or manually gate on
+    :func:`_is_local_binding` before calling this helper.  The background
+    daemon belongs to the SaaS sync path; local providers use direct
+    connectors and are unaffected by the policy.
     """
     cfg = SyncConfig()
     if cfg.get_background_daemon() == BackgroundDaemonPolicy.MANUAL:
@@ -127,6 +133,55 @@ def _check_daemon_policy(*, is_sync_run: bool = False) -> None:
         else:
             typer.echo(_MANUAL_MODE_MESSAGE)
             raise typer.Exit(0)
+
+
+def _is_local_binding() -> bool:
+    """Return True iff the current repo has a bound *local* tracker provider.
+
+    Used to short-circuit readiness and daemon-policy checks for commands
+    whose local-provider code path does not touch the SaaS surface.  Returns
+    ``False`` when no binding is configured, when the binding is SaaS-backed,
+    or when config loading fails for any reason — in all those cases callers
+    fall through to the full SaaS readiness chain, which is the safer default.
+    """
+    try:
+        config = load_tracker_config(require_repo_root())
+        if config.provider and normalize_provider(config.provider) in LOCAL_PROVIDERS:
+            return True
+    except Exception:  # noqa: BLE001
+        pass
+    return False
+
+
+def _check_sync_readiness(*, is_sync_run: bool = False) -> None:
+    """Provider-aware readiness gate for sync subcommands.
+
+    Local providers (beads, fp) reach the sync command without going through
+    the SaaS surface at all: no auth token, no ``SPEC_KITTY_SAAS_URL``, no
+    reachability probe, no background daemon.  Their direct connectors handle
+    connectivity errors on their own.  For those bindings this helper is a
+    no-op — the rollout gate is already enforced by :func:`tracker_callback`
+    and the binding itself is the proof that setup is complete.
+
+    SaaS-backed (or unknown/unconfigured) bindings get the full readiness
+    chain plus the manual-mode daemon-policy check.
+    """
+    if _is_local_binding():
+        return
+    _check_readiness(require_mission_binding=True, probe_reachability=True)
+    _check_daemon_policy(is_sync_run=is_sync_run)
+
+
+def _check_binding_readiness(*, probe_reachability: bool = False) -> None:
+    """Provider-aware readiness gate for non-sync commands that act on a binding.
+
+    Mirrors :func:`_check_sync_readiness` without the daemon-policy step: used
+    by ``status``, ``map add``, ``map list``, and ``unbind`` which require a
+    binding to operate on but do not interact with the background sync daemon.
+    """
+    if _is_local_binding():
+        return
+    _check_readiness(require_mission_binding=True, probe_reachability=probe_reachability)
 
 
 def _service() -> TrackerService:
@@ -180,8 +235,13 @@ def providers_command(
     route sync operations through the Spec Kitty SaaS control plane.
 
     Local providers use direct connectors with locally stored credentials.
+
+    This command is purely informational and prints the hard-coded provider
+    categories.  It does **not** consult hosted readiness — the rollout gate
+    itself is enforced by ``tracker_callback`` (and by the conditional
+    registration in ``cli/commands/__init__.py``), which is all the gating
+    this static output needs.
     """
-    _check_readiness(require_mission_binding=False, probe_reachability=False)
 
     def _run() -> None:
         saas = sorted(SAAS_PROVIDERS)
@@ -219,8 +279,13 @@ def discover_command(
     Lists all resources (projects, teams, boards) available for binding
     with the specified provider.  Each row is numbered 1-indexed to align
     with ``tracker bind --select N``.
+
+    ``discover`` is explicitly the *pre-binding* command — it is how users
+    find something to bind to — so it MUST NOT require an existing mission
+    binding.  Requiring a binding here would make fresh bind flows
+    impossible.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=False)
+    _check_readiness(require_mission_binding=False, probe_reachability=False)
     normalized = normalize_provider(provider)
 
     try:
@@ -541,7 +606,7 @@ def status_command(
     With --all: shows installation-wide summary across all bindings
     (SaaS providers only).
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=False)
+    _check_binding_readiness(probe_reachability=False)
 
     def _run() -> None:
         payload = _service().status(all=all_installations)
@@ -686,7 +751,7 @@ def map_add_command(
     For SaaS-backed providers: this command is not available.  Manage
     mappings in the Spec Kitty dashboard instead.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=False)
+    _check_binding_readiness(probe_reachability=False)
 
     def _run() -> None:
         _service().map_add(
@@ -716,7 +781,7 @@ def map_list_command(
     For SaaS-backed providers: shows SaaS-authoritative mappings from the
     control plane.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=False)
+    _check_binding_readiness(probe_reachability=False)
 
     def _run() -> None:
         mappings = _service().map_list()
@@ -753,8 +818,7 @@ def sync_pull_command(
 
     For local providers: pulls directly from the tracker API.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy()
+    _check_sync_readiness()
 
     def _run() -> None:
         payload = _service().sync_pull(limit=limit)
@@ -813,8 +877,7 @@ def sync_push_command(
 
     For local providers: pushes directly to the tracker API using --limit.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy()
+    _check_sync_readiness()
     import sys as _sys
 
     def _run() -> None:
@@ -896,8 +959,7 @@ def sync_run_command(
 
     For local providers: runs pull then push using direct connectors.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy(is_sync_run=True)
+    _check_sync_readiness(is_sync_run=True)
 
     def _run() -> None:
         payload = _service().sync_run(limit=limit)
@@ -945,8 +1007,7 @@ def sync_publish_command(
     For local providers: the facade will raise an error if this operation
     is not supported by the bound provider.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=True)
-    _check_daemon_policy()
+    _check_sync_readiness()
 
     def _run() -> None:
         payload = _service().sync_publish()
@@ -974,7 +1035,7 @@ def unbind_command() -> None:
     For SaaS-backed providers this clears only local project configuration.
     Provider unlinking remains a SaaS dashboard action.
     """
-    _check_readiness(require_mission_binding=True, probe_reachability=False)
+    _check_binding_readiness(probe_reachability=False)
 
     def _run() -> None:
         _service().unbind()
