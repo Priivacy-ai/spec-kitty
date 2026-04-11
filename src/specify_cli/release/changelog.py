@@ -7,7 +7,6 @@ Zero network calls (FR-014).
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 from pathlib import Path
 
@@ -96,10 +95,10 @@ def _parse_wp_frontmatter_status(wp_file: Path) -> str | None:
     if end == -1:
         return None
     fm_block = content[3:end]
-    # Simple regex extraction — avoids YAML parser dependency
-    match = re.search(r"^\s*status\s*:\s*(.+)$", fm_block, re.MULTILINE)
-    if match:
-        return match.group(1).strip().strip("'\"")
+    for raw_line in fm_block.splitlines():
+        key, separator, value = raw_line.partition(":")
+        if separator and key.strip() == "status":
+            return value.strip().strip("'\"")
     return None
 
 
@@ -112,8 +111,7 @@ def _parse_wp_title(wp_file: Path) -> str:
     for line in content.splitlines():
         stripped = line.strip()
         if stripped.startswith("## ") or stripped.startswith("# "):
-            # Remove leading #s and whitespace
-            return re.sub(r"^#+\s*", "", stripped)
+            return stripped.lstrip("#").strip()
     return wp_file.stem
 
 
@@ -127,11 +125,10 @@ def _parse_wp_id(wp_file: Path) -> str:
         end = content.find("\n---", 3)
         if end != -1:
             fm_block = content[3:end]
-            match = re.search(
-                r"^\s*work_package_id\s*:\s*(.+)$", fm_block, re.MULTILINE
-            )
-            if match:
-                return match.group(1).strip().strip("'\"")
+            for raw_line in fm_block.splitlines():
+                key, separator, value = raw_line.partition(":")
+                if separator and key.strip() == "work_package_id":
+                    return value.strip().strip("'\"")
     return wp_file.stem
 
 
