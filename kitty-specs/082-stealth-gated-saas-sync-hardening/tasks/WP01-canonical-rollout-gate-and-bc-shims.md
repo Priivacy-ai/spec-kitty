@@ -201,3 +201,4 @@ spec-kitty agent action implement WP01 --agent <name>
 ## Activity Log
 
 - 2026-04-11T07:37:17Z – claude:sonnet:python-implementer:implementer – shell_pid=93867 – Assigned agent via action command
+- 2026-04-11T08:06:34Z – claude:sonnet:python-implementer:implementer – shell_pid=93867 – Canonical rollout gate + BC shims landed. pytest green.
