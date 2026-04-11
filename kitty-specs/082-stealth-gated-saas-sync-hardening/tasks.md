@@ -33,9 +33,9 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 | T009 | Create `tests/saas/conftest.py` with rollout + auth/config/binding fixtures                              | WP02 | —        | [D] |
 | T010 | Write `tests/saas/test_readiness_unit.py` (stubbed probes, every state, wording, ordering)               | WP02 | [D] |
 | T011 | Write `tests/saas/test_readiness_integration.py` (real evaluator, tmp_path fixtures, local stub server)  | WP02 | [D] |
-| T012 | Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig`                          | WP03 | —        |
-| T013 | Update TOML loader: parse `[sync].background_daemon` (case-insensitive, warn+default, reject empty)     | WP03 | —        |
-| T014 | Write `tests/sync/test_config_background_daemon.py`                                                      | WP03 | —        |
+| T012 | Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig`                          | WP03 | —        | [D] |
+| T013 | Update TOML loader: parse `[sync].background_daemon` (case-insensitive, warn+default, reject empty)     | WP03 | —        | [D] |
+| T014 | Write `tests/sync/test_config_background_daemon.py`                                                      | WP03 | —        | [D] |
 | T015 | Add `DaemonIntent` enum and `DaemonStartOutcome` dataclass to `src/specify_cli/sync/daemon.py`           | WP04 | —        |
 | T016 | Refactor `ensure_sync_daemon_running()` — mandatory `intent=`, full decision matrix, outcome return     | WP04 | —        |
 | T017 | Update `src/specify_cli/dashboard/server.py` to pass `intent=LOCAL_ONLY`                                 | WP04 | [P]      |
@@ -142,9 +142,9 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T012 Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig` (WP03)
-- [ ] T013 Update TOML loader for case-insensitive parsing with warn+default and empty-string rejection (WP03)
-- [ ] T014 Write `tests/sync/test_config_background_daemon.py` (WP03)
+- [x] T012 Add `BackgroundDaemonPolicy` enum and `background_daemon` field to `SyncConfig` (WP03)
+- [x] T013 Update TOML loader for case-insensitive parsing with warn+default and empty-string rejection (WP03)
+- [x] T014 Write `tests/sync/test_config_background_daemon.py` (WP03)
 
 ### Implementation sketch
 
