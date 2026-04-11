@@ -22,11 +22,11 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 | ID   | Description                                                                                              | WP   | Parallel |
 |------|----------------------------------------------------------------------------------------------------------|------|----------|
-| T001 | Create `src/specify_cli/saas/__init__.py` with rollout-symbol exports                                    | WP01 | —        |
-| T002 | Create canonical `src/specify_cli/saas/rollout.py` (`is_saas_sync_enabled`, `saas_sync_disabled_message`) | WP01 | —        |
-| T003 | Convert `src/specify_cli/tracker/feature_flags.py` to a re-export shim                                   | WP01 | [P]      |
-| T004 | Convert `src/specify_cli/sync/feature_flags.py` to a re-export shim                                      | WP01 | [P]      |
-| T005 | Write `tests/saas/test_rollout.py` (env-var variants, shim re-export, stable message)                    | WP01 | —        |
+| T001 | Create `src/specify_cli/saas/__init__.py` with rollout-symbol exports                                    | WP01 | —        | [D] |
+| T002 | Create canonical `src/specify_cli/saas/rollout.py` (`is_saas_sync_enabled`, `saas_sync_disabled_message`) | WP01 | —        | [D] |
+| T003 | Convert `src/specify_cli/tracker/feature_flags.py` to a re-export shim                                   | WP01 | [D] |
+| T004 | Convert `src/specify_cli/sync/feature_flags.py` to a re-export shim                                      | WP01 | [D] |
+| T005 | Write `tests/saas/test_rollout.py` (env-var variants, shim re-export, stable message)                    | WP01 | —        | [D] |
 | T006 | Create `src/specify_cli/saas/readiness.py` with `ReadinessState`, `ReadinessResult`, `evaluate_readiness` | WP02 | —        |
 | T007 | Implement the stable failure-message catalog per `contracts/hosted_readiness.md`                         | WP02 | —        |
 | T008 | Implement check ordering, short-circuit, and exception→`HOST_UNREACHABLE` conversion                     | WP02 | —        |
@@ -68,11 +68,11 @@ This mission preserves the stealth rollout posture of the CLI's hosted SaaS/trac
 
 ### Included subtasks
 
-- [ ] T001 Create `src/specify_cli/saas/__init__.py` with rollout-symbol exports (WP01)
-- [ ] T002 Create canonical `src/specify_cli/saas/rollout.py` (WP01)
-- [ ] T003 Convert `src/specify_cli/tracker/feature_flags.py` to a re-export shim (WP01)
-- [ ] T004 Convert `src/specify_cli/sync/feature_flags.py` to a re-export shim (WP01)
-- [ ] T005 Write `tests/saas/test_rollout.py` (WP01)
+- [x] T001 Create `src/specify_cli/saas/__init__.py` with rollout-symbol exports (WP01)
+- [x] T002 Create canonical `src/specify_cli/saas/rollout.py` (WP01)
+- [x] T003 Convert `src/specify_cli/tracker/feature_flags.py` to a re-export shim (WP01)
+- [x] T004 Convert `src/specify_cli/sync/feature_flags.py` to a re-export shim (WP01)
+- [x] T005 Write `tests/saas/test_rollout.py` (WP01)
 
 ### Implementation sketch
 
