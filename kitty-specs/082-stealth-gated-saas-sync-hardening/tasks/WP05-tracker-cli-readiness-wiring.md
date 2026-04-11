@@ -26,6 +26,8 @@ subtasks:
 - T024
 - T025
 - T026
+agent: "claude:sonnet:python-implementer:implementer"
+shell_pid: "78529"
 history:
 - at: '2026-04-11T06:22:58Z'
   actor: claude:/spec-kitty.tasks
@@ -301,3 +303,7 @@ All tracker test modules parametrize over both rollout modes. Shared fixtures li
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-11T09:11:21Z – claude:sonnet:python-implementer:implementer – shell_pid=78529 – Started implementation via action command
