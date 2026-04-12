@@ -213,12 +213,8 @@ def is_legacy_branch(branch_name: str) -> bool:
     """
     if not branch_name.startswith(_MISSION_PREFIX):
         return False
-    return (
-        _LEGACY_LANE_RE.match(branch_name) is not None
-        or _LEGACY_MISSION_RE.match(branch_name) is not None
-        or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None
-        or _PLAIN_LEGACY_MISSION_RE.match(branch_name) is not None
-    )
+    parsed = parse_mission_slug_from_branch(branch_name)
+    return parsed is not None and parsed.mid8_token is None
 
 
 # ---------------------------------------------------------------------------

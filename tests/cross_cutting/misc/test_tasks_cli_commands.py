@@ -89,7 +89,7 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     assert_success(status)
     data = json.loads(status.stdout)
     assert data["mission_slug"] == mission_slug
-    assert data["mission_number"] == mission_slug.split("-")[0]
+    assert data["mission_number"] is None
     assert data["mission_type"] == "software-dev"
 
     verify = run_tasks_cli(["verify", "--feature", mission_slug, "--json", "--lenient"], cwd=feature_repo)
@@ -113,7 +113,7 @@ def test_acceptance_commands(feature_repo: Path, mission_slug: str) -> None:
     assert_success(accept)
     accept_payload = json.loads(accept.stdout)
     assert accept_payload["mission_slug"] == mission_slug
-    assert accept_payload["mission_number"] == mission_slug.split("-")[0]
+    assert accept_payload["mission_number"] is None
     assert accept_payload["mission_type"] == "software-dev"
 
 

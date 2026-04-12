@@ -121,7 +121,7 @@ _ULID_PATTERN = re.compile(r"^[0-9A-HJKMNP-TV-Z]{26}$")  # kept for test compat
 # Broader ID validation via normalize_event_id (accepts ULID + UUID)
 from specify_cli.spec_kitty_events import normalize_event_id as _normalize_event_id
 _WP_ID_PATTERN = re.compile(r"^WP\d{2}$")
-_FEATURE_SLUG_PATTERN = re.compile(r"^\d{3}-[a-z0-9-]+$")
+_FEATURE_SLUG_PATTERN = re.compile(r"^[A-Za-z0-9]+(?:-[A-Za-z0-9]+)*$")
 _FEATURE_NUMBER_PATTERN = re.compile(r"^\d{3}$")
 
 

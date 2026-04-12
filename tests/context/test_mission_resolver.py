@@ -19,8 +19,6 @@ from specify_cli.context.mission_resolver import (
     ResolvedMission,
     resolve_mission,
 )
-from specify_cli.context.errors import MissingIdentityError
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -220,7 +218,7 @@ class TestMissingIdentityError:
             resolve_mission("101-no-id", repo_root)
 
     def test_resolver_py_raises_missing_identity_error(self, tmp_path: Path) -> None:
-        """context/resolver.py:_read_meta_json raises MissingIdentityError for missing mission_id."""
+        """context/resolver.py:_read_meta_json falls back to feature_dir.name when mission_id is missing."""
         from specify_cli.context.resolver import _read_meta_json
 
         feature_dir = tmp_path / "kitty-specs" / "legacy-mission"
@@ -228,15 +226,12 @@ class TestMissingIdentityError:
         meta = {"mission_slug": "legacy-mission"}
         (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-        with pytest.raises(MissingIdentityError) as exc_info:
-            _read_meta_json(feature_dir)
-
-        msg = str(exc_info.value)
-        assert "mission_id" in msg
-        assert "spec-kitty migrate backfill-identity" in msg
+        data = _read_meta_json(feature_dir)
+        assert data["mission_id"] == "legacy-mission"
+        assert data["mission_number"] == ""
 
     def test_missing_identity_error_null_mission_id(self, tmp_path: Path) -> None:
-        """JSON null mission_id also raises MissingIdentityError."""
+        """JSON null mission_id also falls back to the directory name."""
         from specify_cli.context.resolver import _read_meta_json
 
         feature_dir = tmp_path / "kitty-specs" / "null-id-mission"
@@ -244,10 +239,9 @@ class TestMissingIdentityError:
         meta = {"mission_slug": "null-id-mission", "mission_id": None}
         (feature_dir / "meta.json").write_text(json.dumps(meta), encoding="utf-8")
 
-        with pytest.raises(MissingIdentityError) as exc_info:
-            _read_meta_json(feature_dir)
-
-        assert "spec-kitty migrate backfill-identity" in str(exc_info.value)
+        data = _read_meta_json(feature_dir)
+        assert data["mission_id"] == "null-id-mission"
+        assert data["mission_number"] == ""
 
 
 class TestResolvedMissionDataclass:

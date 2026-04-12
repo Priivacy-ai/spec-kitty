@@ -194,16 +194,20 @@ Create a hello module.
 """
         (tasks_dir / "WP01-hello-world.md").write_text(wp01_content, encoding="utf-8")
 
-        # Create meta.json (required by finalize-tasks for event emission)
+        # Preserve the mission_id minted at create time; only layer in the
+        # fields the synthetic finalize-tasks fixture needs.
         import json as json_mod
 
-        meta_content = {
-            "mission_number": "001",
-            "mission_slug": mission_slug,
-            "mission_type": "software-dev",
-            "created_at": "2026-02-12T00:00:00Z",
-            "vcs": "git",
-        }
+        meta_content = json.loads((feature_dir / "meta.json").read_text(encoding="utf-8"))
+        meta_content.update(
+            {
+                "mission_number": None,
+                "mission_slug": mission_slug,
+                "mission_type": "software-dev",
+                "created_at": "2026-02-12T00:00:00Z",
+                "vcs": "git",
+            }
+        )
         (feature_dir / "meta.json").write_text(
             json_mod.dumps(meta_content, indent=2),
             encoding="utf-8",

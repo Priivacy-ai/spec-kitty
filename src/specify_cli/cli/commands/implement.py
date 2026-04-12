@@ -101,8 +101,8 @@ def detect_feature_context(
     mission_flag: str | None = None,
     feature_flag: str | None = None,
     repo_root: Path | None = None,
-) -> tuple[str, str]:
-    """Require an explicit mission slug and return (number, slug).
+) -> tuple[str | None, str]:
+    """Require an explicit mission slug and return ``(mission_number, slug)``.
 
     Uses the canonical mission resolver (resolve_mission_handle) when
     repo_root is supplied, falling back to bare slug parsing otherwise.
@@ -124,11 +124,7 @@ def detect_feature_context(
         slug = raw_handle
 
     match = _re.match(r"^(\d{3})-", slug)
-    if not match:
-        console.print(f"[red]Error:[/red] Invalid feature slug format: {slug}\nExpected format: ###-feature-name (for example, 010-lane-only-runtime)")
-        raise typer.Exit(1)
-
-    return match.group(1), slug
+    return (match.group(1) if match else None), slug
 
 
 def find_wp_file(repo_root: Path, mission_slug: str, wp_id: str) -> Path:

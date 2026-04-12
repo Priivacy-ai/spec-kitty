@@ -77,7 +77,7 @@ FIXTURE_EVENTS = [
         "aggregate_id": "040-next-feature",
         "payload": {
             "mission_slug": "040-next-feature",
-            "mission_number": "040",
+            "mission_number": 40,
             "target_branch": "main",
             "wp_count": 5,
             "created_at": "2026-02-12T11:02:00+00:00",
