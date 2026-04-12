@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from typing import Any
+from typing import Any, NoReturn
 from collections.abc import Awaitable, Callable
 
 from ..errors import DeviceFlowDenied, DeviceFlowExpired, NetworkError
@@ -95,7 +95,7 @@ class DeviceFlowPoller:
             )
 
     @staticmethod
-    def _raise_terminal_error(error: str, response: dict[str, Any]) -> None:
+    def _raise_terminal_error(error: str, response: dict[str, Any]) -> NoReturn:
         """Raise the terminal exception for a non-retriable OAuth error."""
         if error == "access_denied":
             raise DeviceFlowDenied(
