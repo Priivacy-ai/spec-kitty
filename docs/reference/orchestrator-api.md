@@ -61,9 +61,15 @@ Success payloads that identify a tracked mission emit:
 
 | Field | Meaning |
 |---|---|
-| `mission_slug` | Canonical tracked mission slug |
-| `mission_number` | Numeric mission prefix |
+| `mission_id` | Canonical ULID machine identity. Aggregate routing uses this field. |
+| `mission_slug` | Human-readable mission slug. Display context only. |
+| `mission_number` | **Display-only** numeric prefix. `null` pre-merge, assigned at merge time. Never used for identity. |
 | `mission_type` | Blueprint key |
+
+The `--mission` selector accepts any of `mission_id`, `mid8` (first 8 chars of
+the ULID), or `mission_slug`. Ambiguous handles return
+`MISSION_AMBIGUOUS_SELECTOR` and list the candidates — there is no silent
+fallback. See [Mission ID Canonical Identity Migration](../migration/mission-id-canonical-identity.md).
 
 Forbidden in orchestrator-api payloads:
 

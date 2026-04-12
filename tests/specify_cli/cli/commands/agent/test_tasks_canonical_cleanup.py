@@ -168,7 +168,13 @@ class TestFinalizeTasksBootstrap:
         # JSON output includes bootstrap stats
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        assert data["mission_number"] == "060"
+        # _build_minimal_feature does not write meta.json, so
+        # resolve_mission_identity() yields mission_number=None (JSON null).
+        # Post-083, mission_number is display-only and pre-merge missions
+        # legitimately have no numeric prefix. The canonical identity is
+        # mission_id, which is not asserted here because the fixture skips
+        # meta.json entirely.
+        assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
         assert "bootstrap" in data
         assert data["bootstrap"]["total_wps"] == 2
@@ -208,7 +214,9 @@ class TestFinalizeTasksBootstrap:
         assert result.exit_code == 0, f"CLI error: {result.output}"
         data = json.loads(result.output)
         assert data["mission_slug"] == mission_slug
-        assert data["mission_number"] == "060"
+        # Fixture omits meta.json — mission_number resolves to None (JSON null)
+        # per the post-083 canonical identity model (FR-044).
+        assert data["mission_number"] is None
         assert data["mission_type"] == "software-dev"
 
         mock_bootstrap.assert_called_once_with(ANY, mission_slug, dry_run=True)

@@ -10,6 +10,7 @@ import json
 import os
 import subprocess
 import sys
+import hashlib
 from pathlib import Path
 
 import pytest
@@ -20,10 +21,12 @@ pytestmark = pytest.mark.git_repo
 
 
 def _write_valid_meta(feature_dir: Path, slug: str, target_branch: str) -> None:
+    mission_id = "01" + hashlib.sha1(slug.encode("utf-8")).hexdigest().upper()[:24]
     feature_dir.joinpath("meta.json").write_text(
         json.dumps(
             {
-                "mission_number": slug.split("-", 1)[0],
+                "mission_id": mission_id,
+                "mission_number": None,
                 "slug": slug,
                 "mission_slug": slug,
                 "friendly_name": "Test Feature",

@@ -268,7 +268,7 @@ class TestOtherPayloads:
             aggregate_type="Mission",
             payload={
                 "mission_slug": "039-test-feature",
-                "mission_number": "039",
+                "mission_number": 39,  # int, not str (FR-044, WP02)
                 "target_branch": "main",
                 "wp_count": 5,
             },
@@ -284,7 +284,7 @@ class TestOtherPayloads:
             aggregate_type="Mission",
             payload={
                 "mission_slug": "BAD FORMAT",
-                "mission_number": "039",
+                "mission_number": 39,  # int, not str (FR-044, WP02)
                 "target_branch": "main",
                 "wp_count": 5,
             },

@@ -9,8 +9,10 @@ The current contract version is `3.0.0`.
 ## Canonical Terms
 
 - `Mission Type` is the reusable blueprint key, serialized as `mission_type`.
-- `Mission` is the tracked item under `kitty-specs/<mission-slug>/`, serialized as `mission_slug` and `mission_number`.
+- `Mission` is the tracked item under `kitty-specs/<mission-slug>/`. Its **canonical** machine identity is `mission_id` (a ULID). The human-readable `mission_slug` and the display-only `mission_number` are serialized alongside it for context, but **selectors and event routing use `mission_id`**.
 - `Mission Run` is the runtime/session concept. It is not serialized as tracked-mission identity.
+
+See [Mission ID Canonical Identity Migration](../migration/mission-id-canonical-identity.md) for the rationale and ADR 2026-04-09-1.
 
 ## Core Envelope
 
@@ -30,13 +32,14 @@ Forbidden top-level fields in the envelope:
 
 ## Mission-Scoped Payloads
 
-Any first-party payload that identifies a tracked mission must carry the full
-canonical identity triplet:
+Any first-party payload that identifies a tracked mission must carry the
+canonical identity fields:
 
 | Field | Required | Meaning |
 |---|---|---|
-| `mission_slug` | Yes | Canonical tracked mission slug. |
-| `mission_number` | Yes | Numeric mission prefix (for example `077`). |
+| `mission_id` | Yes | Canonical ULID machine identity (e.g. `01J6XW9KQT7M0YB3N4R5CQZ2EX`). Aggregate routing uses this field. |
+| `mission_slug` | Yes | Human-readable mission slug (e.g. `my-feature`). Display context only. |
+| `mission_number` | Yes, nullable | Display-only numeric prefix (e.g. `77`). `null` pre-merge, assigned at merge time. Never used for identity. |
 | `mission_type` | Yes | Blueprint key (for example `software-dev`). |
 
 Forbidden mission-scoped payload fields:

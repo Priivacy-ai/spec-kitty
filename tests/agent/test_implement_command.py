@@ -75,8 +75,9 @@ class TestDetectFeatureContext:
             detect_feature_context(None)
 
     def test_detect_invalid_format(self) -> None:
-        with pytest.raises(typer.Exit):
-            detect_feature_context("lane-only-runtime")
+        number, slug = detect_feature_context("lane-only-runtime")
+        assert number is None
+        assert slug == "lane-only-runtime"
 
 
 class TestFindWpFile:
@@ -187,7 +188,7 @@ class TestImplementCommand:
         assert payload["branch"] == "kitty/mission-010-feature-lane-a"
         assert payload["lane_id"] == "lane-a"
         assert payload["mission_slug"] == "010-feature"
-        assert payload["mission_number"] == "010"
+        assert payload["mission_number"] is None
         assert payload["mission_type"] == "software-dev"
 
     def test_implement_json_error_output_is_clean(self, tmp_path: Path, capsys: pytest.CaptureFixture[str]) -> None:

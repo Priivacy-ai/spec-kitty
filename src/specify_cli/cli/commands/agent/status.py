@@ -17,7 +17,7 @@ from rich.console import Console
 from rich.table import Table
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.core.paths import locate_project_root, get_main_repo_root
 from specify_cli.status.locking import feature_status_lock
 
@@ -37,12 +37,19 @@ def _find_mission_slug(
     explicit_feature: str | None = None,
     *,
     json_output: bool = False,
+    repo_root: Path | None = None,
 ) -> str:
     """Require an explicit mission slug.
+
+    When repo_root is supplied, the handle is resolved via the canonical
+    mission resolver which handles ambiguous numeric-prefix handles, mid8
+    prefixes, and full ULID forms.
 
     Args:
         explicit_mission: Mission slug provided explicitly.
         explicit_feature: Mission slug provided via hidden --feature alias.
+        json_output: Propagate to resolver error rendering.
+        repo_root: Repository root; if provided, enables canonical resolver.
 
     Returns:
         Mission slug (e.g., "034-feature-name")
@@ -51,7 +58,7 @@ def _find_mission_slug(
         typer.Exit: If the mission slug is not provided.
     """
     try:
-        resolved = resolve_selector(
+        selector = resolve_selector(
             canonical_value=explicit_mission,
             canonical_flag="--mission",
             alias_value=explicit_feature,
@@ -59,13 +66,27 @@ def _find_mission_slug(
             suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
         )
-        return resolved.canonical_value
     except typer.BadParameter as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
+
+    raw_handle = selector.canonical_value
+    if repo_root is not None:
+        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        if legacy_dir.exists():
+            return raw_handle
+        try:
+            resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+            return resolved.mission_slug
+        except (SystemExit, typer.Exit):
+            if legacy_dir.exists():
+                return raw_handle
+            raise
+
+    return raw_handle
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str | None = None):
@@ -109,6 +130,7 @@ def _resolve_feature_dir(
         explicit_mission=explicit_mission,
         explicit_feature=explicit_feature,
         json_output=json_output,
+        repo_root=repo_root,
     )
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -155,7 +177,7 @@ def emit(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Construct mission directory
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -257,7 +279,7 @@ def materialize(
         main_repo_root = get_main_repo_root(repo_root)
 
         # Resolve feature slug
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Construct mission directory
         feature_dir = main_repo_root / "kitty-specs" / mission_slug
@@ -624,8 +646,6 @@ def validate(
         validate_transition_legality,
     )
 
-    mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output)
-
     cwd = Path.cwd().resolve()
     repo_root = locate_project_root(cwd)
     if repo_root is None:
@@ -634,6 +654,8 @@ def validate(
         else:
             console.print("[red]Error:[/red] Could not locate project root")
         raise typer.Exit(1)
+
+    mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
     main_repo_root = get_main_repo_root(repo_root)
     feature_dir = main_repo_root / "kitty-specs" / mission_slug

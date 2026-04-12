@@ -7,6 +7,10 @@ import subprocess
 from datetime import datetime, timezone
 from pathlib import Path
 
+from ulid import ULID
+
+from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
+
 
 def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
     """Create a mission in-process, bypassing CLI subprocess overhead.
@@ -16,7 +20,9 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
     create command itself.  Saves ~1 s per call by avoiding a full Python
     subprocess startup.
     """
-    mission_slug = f"{number:03d}-{slug}"
+    mission_id = str(ULID())
+    human_slug = strip_numeric_prefix(slug)
+    mission_slug = f"{human_slug}-{mid8(mission_id)}"
     feature_dir = project / "kitty-specs" / mission_slug
 
     # Directory structure
@@ -34,7 +40,8 @@ def create_mission_fast(project: Path, slug: str, number: int = 1) -> Path:
 
     # meta.json
     meta = {
-        "mission_number": f"{number:03d}",
+        "mission_id": mission_id,
+        "mission_number": None,
         "slug": mission_slug,
         "mission_slug": mission_slug,
         "friendly_name": slug.replace("-", " "),

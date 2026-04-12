@@ -33,14 +33,13 @@ def _init_git_repo(repo: Path) -> None:
     subprocess.run(["git", "commit", "-m", "init", "--allow-empty"], cwd=repo, capture_output=True, check=True)
 
 
-def _run_create(tmp_path: Path, slug: str, feature_number: int = 1) -> dict:
-    """Helper: call create_mission_core with standard mocks, return meta dict."""
+def _run_create(tmp_path: Path, slug: str) -> object:
+    """Helper: call create_mission_core with standard mocks."""
     with (
         patch(f"{_CORE_MODULE}.locate_project_root", return_value=tmp_path),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value="main"),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=feature_number),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
         patch(f"{_CORE_MODULE}._commit_feature_file"),
     ):
@@ -55,9 +54,10 @@ def _run_create(tmp_path: Path, slug: str, feature_number: int = 1) -> dict:
 def test_mission_id_minted_at_creation(tmp_path: Path) -> None:
     """create_mission_core writes a 26-char ULID mission_id to meta.json."""
     _init_git_repo(tmp_path)
-    result = _run_create(tmp_path, "test-identity")
+    _run_create(tmp_path, "test-identity")
 
-    meta_path = tmp_path / "kitty-specs" / "001-test-identity" / "meta.json"
+    mission_dir = next((tmp_path / "kitty-specs").iterdir())
+    meta_path = mission_dir / "meta.json"
     assert meta_path.exists()
     meta = json.loads(meta_path.read_text())
 
@@ -86,8 +86,8 @@ def test_mission_id_present_in_result_meta(tmp_path: Path) -> None:
 def test_mission_id_is_not_derived_from_prefix_scan(tmp_path: Path) -> None:
     """Two missions with different numeric prefixes get different, independent ULIDs."""
     _init_git_repo(tmp_path)
-    result_a = _run_create(tmp_path, "feature-alpha", feature_number=1)
-    result_b = _run_create(tmp_path, "feature-beta", feature_number=2)
+    result_a = _run_create(tmp_path, "feature-alpha")
+    result_b = _run_create(tmp_path, "feature-beta")
 
     id_a = result_a.meta["mission_id"]
     id_b = result_b.meta["mission_id"]
@@ -117,7 +117,7 @@ def test_concurrent_creates_no_collision(tmp_path: Path) -> None:
             counter[0] += 1
             n = counter[0]
         try:
-            result = _run_create(tmp_path, slug, feature_number=n)
+            result = _run_create(tmp_path, slug)
             results.append(result.meta)
         except Exception as exc:
             errors.append(exc)

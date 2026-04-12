@@ -1,15 +1,41 @@
-"""Helpers for canonical selector resolution and deprecated aliases."""
+"""Helpers for canonical selector resolution and deprecated aliases.
+
+Mission handle resolution
+-------------------------
+``resolve_mission_handle`` wraps :func:`~specify_cli.context.mission_resolver.resolve_mission`
+and translates resolver exceptions into user-facing error messages.  Call it
+after obtaining a raw ``--mission`` / ``--feature`` flag value and before
+performing any kitty-specs directory access.
+
+Example::
+
+    from specify_cli.cli.selector_resolution import resolve_mission_handle
+
+    resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=False)
+    feature_dir = resolved.feature_dir
+    mission_slug = resolved.mission_slug
+"""
 
 from __future__ import annotations
 
+import json as _json
 import os
+import sys
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Any
 
 import click
 import typer
 from rich.console import Console
 
+from specify_cli.context.errors import MissingIdentityError
+from specify_cli.context.mission_resolver import (
+    AmbiguousHandleError,
+    MissionNotFoundError,
+    ResolvedMission,
+    resolve_mission,
+)
 from specify_cli.core.paths import require_explicit_feature
 
 _err_console = Console(stderr=True)
@@ -149,3 +175,75 @@ def resolve_selector(
         alias_flag=alias_flag,
         warning_emitted=warning_emitted,
     )
+
+
+# ---------------------------------------------------------------------------
+# Mission handle resolver (T036 / T037 / T038)
+# ---------------------------------------------------------------------------
+
+
+def resolve_mission_handle(
+    handle: str,
+    repo_root: Path,
+    *,
+    json_mode: bool = False,
+) -> ResolvedMission:
+    """Resolve a user-supplied mission handle to a canonical :class:`~specify_cli.context.mission_resolver.ResolvedMission`.
+
+    Accepted input forms (priority order):
+
+    1. Full 26-char ULID ``mission_id``
+    2. 8-char ``mid8`` prefix
+    3. Full slug with numeric prefix (e.g. ``"083-foo-bar"``)
+    4. Human slug without prefix (e.g. ``"foo-bar"``)
+    5. Numeric prefix alone (e.g. ``"083"``)
+
+    On success the :class:`~specify_cli.context.mission_resolver.ResolvedMission`
+    is returned.  On failure the appropriate error message is printed to *stderr*
+    and :func:`sys.exit` is called with exit code 2.
+
+    Args:
+        handle: Raw flag value from ``--mission`` or ``--feature``.
+        repo_root: Absolute path to the repository root.
+        json_mode: When ``True``, error payloads are emitted as JSON (for
+            callers that pass ``--json``).
+
+    Returns:
+        The uniquely resolved mission.
+
+    Raises:
+        SystemExit(2): On ``AmbiguousHandleError``, ``MissionNotFoundError``, or
+            ``MissingIdentityError``.
+    """
+    try:
+        return resolve_mission(handle, repo_root)
+    except AmbiguousHandleError as exc:
+        if json_mode:
+            _err_console.print_json(_json.dumps(exc.to_dict()))
+        else:
+            _err_console.print(str(exc))
+        sys.exit(2)
+    except MissionNotFoundError as exc:
+        if json_mode:
+            payload = {"error": "mission_not_found", "handle": exc.handle}
+            _err_console.print_json(_json.dumps(payload))
+        else:
+            _err_console.print(
+                f'[red]Error:[/red] No mission found for handle "{exc.handle}". '
+                f"Check that the handle is correct and that the mission exists in kitty-specs/."
+            )
+        sys.exit(2)
+    except MissingIdentityError as exc:
+        if json_mode:
+            payload = {
+                "error": "missing_mission_id",
+                "detail": str(exc),
+                "remediation": "spec-kitty migrate backfill-identity",
+            }
+            _err_console.print_json(_json.dumps(payload))
+        else:
+            _err_console.print(
+                f"[red]Error:[/red] {exc}\n"
+                f"[yellow]Remediation:[/yellow] Run `spec-kitty migrate backfill-identity` to fix."
+            )
+        sys.exit(2)

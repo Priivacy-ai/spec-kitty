@@ -1,24 +1,22 @@
-"""CLI command for migrating per-project .kittify/ to centralized model.
+"""CLI commands for runtime migration and identity backfill.
 
-Usage:
-    spec-kitty migrate              # Migrate with confirmation
-    spec-kitty migrate --dry-run    # Preview changes without modifying
-    spec-kitty migrate --force      # Skip confirmation prompt
-    spec-kitty migrate --verbose    # Show file-by-file detail
+Subcommands:
 
-The migrate command performs two operations:
+- ``spec-kitty migrate`` — Migrate project .kittify/ to centralized model.
+- ``spec-kitty migrate backfill-identity`` — Write ULID ``mission_id`` into
+  any ``meta.json`` that lacks one.  Idempotent and non-destructive.
 
-1. **Global runtime install** -- ensures ``~/.kittify/`` is populated with
-   up-to-date package assets (idempotent; uses ``ensure_runtime()``).
-2. **Per-project cleanup** -- classifies per-project ``.kittify/`` files as
-   identical (removed), customized (moved to overrides/), or project-specific
-   (kept).
+Usage examples::
 
-After a successful migration, legacy-tier warnings are fully suppressed
-during normal template resolution.
+    spec-kitty migrate --dry-run
+    spec-kitty migrate backfill-identity --dry-run --json
+    spec-kitty migrate backfill-identity --mission 083-foo-bar
 """
 
 from __future__ import annotations
+
+import json
+from typing import Annotated
 
 import typer
 from rich.console import Console
@@ -27,10 +25,21 @@ from specify_cli.core.paths import locate_project_root
 from specify_cli.runtime.bootstrap import ensure_runtime
 from specify_cli.runtime.migrate import execute_migration
 
+app = typer.Typer(
+    name="migrate",
+    help=(
+        "Migration commands: update .kittify/ layout and backfill identity fields "
+        "in legacy missions."
+    ),
+    no_args_is_help=False,
+    invoke_without_command=True,
+)
 console = Console()
 
 
-def migrate(
+@app.callback(invoke_without_command=True)
+def migrate(  # noqa: C901
+    ctx: typer.Context,
     dry_run: bool = typer.Option(
         False, "--dry-run", help="Show what would change without modifying the filesystem"
     ),
@@ -55,6 +64,10 @@ def migrate(
         spec-kitty migrate --dry-run    # Preview
         spec-kitty migrate --force      # Apply without confirmation
     """
+    # If a subcommand was invoked, don't run the migrate callback body.
+    if ctx.invoked_subcommand is not None:
+        return
+
     project_dir = locate_project_root()
     if project_dir is None:
         console.print(
@@ -132,3 +145,138 @@ def migrate(
     # This is a security boundary decision -- credentials have a different
     # lifecycle and permission model from runtime assets.  Documented here
     # per WP08 acceptance criteria.
+
+
+@app.command(name="backfill-identity")
+def backfill_identity(
+    json_output: Annotated[
+        bool,
+        typer.Option("--json", help="Emit per-mission result list as structured JSON"),
+    ] = False,
+    dry_run: Annotated[
+        bool,
+        typer.Option(
+            "--dry-run",
+            help=(
+                "Report what would change without writing any files. "
+                "The JSON shape is identical to a live run."
+            ),
+        ),
+    ] = False,
+    mission: Annotated[
+        str | None,
+        typer.Option(
+            "--mission",
+            help="Scope to a single mission slug (e.g. 083-foo-bar). Omit to process all.",
+            metavar="SLUG",
+        ),
+    ] = None,
+) -> None:
+    """Write a ULID mission_id into any meta.json that lacks one.
+
+    This command is **idempotent** — running it twice produces identical
+    state.  Existing ``mission_id`` values are never overwritten.  The
+    command also coerces legacy string-typed ``mission_number`` values
+    (e.g. ``"042"`` → ``42``) while walking each mission.
+
+    After writing, the dossier parity hash is recomputed for every mission
+    that was modified.  Individual dossier failures are logged as warnings
+    and do not abort the run.
+
+    **When to run:**
+
+    - After upgrading from a spec-kitty version that predates ``mission_id``
+    - After pulling a clone that has legacy missions (no ``mission_id``)
+    - As part of CI checks on legacy repositories
+
+    Exit codes:
+
+    - ``0`` — all results are ``wrote`` or ``skip``
+    - ``1`` — one or more ``error`` results (corrupt JSON, sentinel strings, …)
+
+    Examples:
+
+        spec-kitty migrate backfill-identity --dry-run --json
+
+        spec-kitty migrate backfill-identity --mission 083-foo-bar
+
+        spec-kitty migrate backfill-identity
+    """
+    from specify_cli.migration.backfill_identity import backfill_repo
+
+    repo_root = locate_project_root()
+    if repo_root is None:
+        _error("Could not locate project root. No .kittify/ directory found in any parent directory.")
+        raise typer.Exit(1)
+
+    results = backfill_repo(repo_root, dry_run=dry_run, mission_slug=mission)
+
+    wrote = [r for r in results if r.action == "wrote"]
+    skipped = [r for r in results if r.action == "skip"]
+    errored = [r for r in results if r.action == "error"]
+    coerced = [r for r in results if r.number_coerced]
+    warned = [r for r in results if r.dossier_warning]
+
+    if json_output:
+        payload = {
+            "dry_run": dry_run,
+            "summary": {
+                "total": len(results),
+                "wrote": len(wrote),
+                "skip": len(skipped),
+                "error": len(errored),
+                "number_coerced": len(coerced),
+                "dossier_warnings": len(warned),
+            },
+            "results": [
+                {
+                    "slug": r.slug,
+                    "action": r.action,
+                    "mission_id": r.mission_id,
+                    "number_coerced": r.number_coerced,
+                    "reason": r.reason,
+                    "dossier_warning": r.dossier_warning,
+                }
+                for r in results
+            ],
+        }
+        print(json.dumps(payload, indent=2))
+    else:
+        prefix = "[dim](dry-run)[/dim] " if dry_run else ""
+        console.print(f"\n{prefix}[bold]backfill-identity summary[/bold]")
+        console.print(f"  Total missions scanned : {len(results)}")
+        console.print(f"  Written (mission_id)   : {len(wrote)}")
+        console.print(f"  Skipped (already set)  : {len(skipped)}")
+        console.print(f"  Errors                 : {len(errored)}")
+        console.print(f"  Number coerced         : {len(coerced)}")
+        if warned:
+            console.print(f"  [yellow]Dossier warnings       : {len(warned)}[/yellow]")
+
+        if errored:
+            console.print("\n[red]Errors:[/red]")
+            for r in errored:
+                console.print(f"  [red]{r.slug}:[/red] {r.reason}")
+
+        if dry_run:
+            console.print("\n[dim]Dry run — no files were modified.[/dim]")
+        elif wrote:
+            console.print(
+                f"\n[green]Done.[/green] {len(wrote)} mission(s) received a "
+                f"``mission_id``."
+            )
+        else:
+            console.print("\n[green]Done.[/green] All missions already have a ``mission_id``.")
+
+    if errored:
+        raise typer.Exit(1)
+
+
+# ---------------------------------------------------------------------------
+# Internal helpers
+# ---------------------------------------------------------------------------
+
+
+def _error(message: str) -> None:
+    """Print an error message to stderr via Rich console."""
+    err_console = Console(stderr=True)
+    err_console.print(f"[red]Error:[/red] {message}")

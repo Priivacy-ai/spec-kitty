@@ -22,6 +22,7 @@ from specify_cli.status.emit import (
     _derive_from_lane,
     _find_wp_file,
     _legacy_alias_collapses_to_current_lane,
+    _load_mission_id,
     _mirror_phase1_frontmatter_lane,
     _phase1_dual_write_enabled,
     _saas_fan_out,
@@ -268,6 +269,19 @@ class TestBuildDoneEvidence:
             }
         )
         assert result.review.reviewer == "rev"
+
+
+# ── _load_mission_id ────────────────────────────────────────
+
+
+class TestLoadMissionId:
+    """Tests for tolerant mission_id reads from meta.json."""
+
+    def test_malformed_meta_returns_none(self, feature_dir: Path) -> None:
+        """Malformed meta.json degrades to None instead of raising."""
+        (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+        assert _load_mission_id(feature_dir) is None
 
 
 # ── emit_status_transition ───────────────────────────────────

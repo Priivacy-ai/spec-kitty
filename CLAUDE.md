@@ -186,6 +186,7 @@ agents:
 *Auto-generated from all feature plans. Last updated: 2025-11-10*
 
 ## Active Technologies
+
 - Python 3.11+ (existing spec-kitty codebase) + pathlib, Rich (for console output), subprocess (for git operations) (003-auto-protect-agent)
 - Python 3.11+ (existing spec-kitty codebase) + yper, rich, httpx, pyyaml, readchar (004-modular-code-refactoring)
 - File system (no database) (004-modular-code-refactoring)
@@ -207,7 +208,9 @@ agents:
 - SQLite (existing `OfflineQueue` DB file, new sibling table) (047-namespace-aware-artifact-body-sync)
 - Python 3.11+ + stdlib `ast` (no new dependency), existing `safe_commit` from `specify_cli.git`, existing `scan_recovery_state` from `specify_cli.lanes.recovery` (068-post-merge-reliability-and-release-hardening)
 - Filesystem only — `.kittify/config.yaml` gains a `merge.strategy` key; `kitty-specs/<mission>/status.events.jsonl` becomes the canonical surface for the FR-019 safe_commit fix (068-post-merge-reliability-and-release-hardening)
+
 ## Project Structure
+
 ```
 architecture/           # Architectural design decisions and technical specifications
   ├── README.md        # Overview of architecture documentation
@@ -233,6 +236,7 @@ docs/                 # User documentation
 - Reference from code comments for major components
 
 ## Commands
+
 cd src [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] pytest [ONLY COMMANDS FOR ACTIVE TECHNOLOGIES][ONLY COMMANDS FOR ACTIVE TECHNOLOGIES] ruff check .
 
 ## Testing
@@ -248,9 +252,11 @@ pytest tests/ --browser-channel=chromium --headed=false
 ```
 
 ## Code Style
+
 Python 3.11+ (existing spec-kitty codebase): Follow standard conventions
 
 ## Recent Changes
+
 - 068-post-merge-reliability-and-release-hardening: Added new `src/specify_cli/post_merge/` package (stdlib `ast`-based stale-assertion analyzer), new `agent tests` CLI subgroup, populated `agent/release.py` stub with `prep` subcommand, FR-019 status-events safe_commit fix in `_run_lane_based_merge`, FR-021 `scan_recovery_state` extension + `implement --base` flag
 - 047-namespace-aware-artifact-body-sync: Added Python 3.11+ + typer, rich, ruamel.yaml, requests, pytest, mypy
 - 023-documentation-sprint-agent-management-cleanup: Added Markdown (documentation only) + None (pure documentation)
@@ -361,8 +367,6 @@ Work package status remains tracked in the feature artifacts on the main branch.
 - [docs/explanation/execution-lanes.md](docs/explanation/execution-lanes.md) - lane computation and worktree ownership
 - [docs/explanation/git-worktrees.md](docs/explanation/git-worktrees.md) - git worktree mechanics
 - [kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md](kitty-specs/010-workspace-per-work-package-for-parallel-development/spec.md) - original design history
-
-
 
 ## Merge & Preflight Patterns (0.11.0+)
 
@@ -547,7 +551,6 @@ spec-kitty merge --feature 017-my-feature
 - `src/specify_cli/merge/status_resolver.py` - Auto-resolution for status file conflicts
 - `src/specify_cli/cli/commands/merge.py` - CLI command with --resume/--abort flags
 
-
 ## Status Model Patterns (034+, 060 cleanup)
 
 The canonical status model uses an append-only event log per feature as the **sole authority** for WP lane state. Every lane transition is an immutable `StatusEvent` in `status.events.jsonl`. As of 3.0 (feature 060), frontmatter `lane` is no longer part of the active model -- it is retained only in migration code paths for backward compatibility with pre-3.0 features.
@@ -649,6 +652,50 @@ phase, source = resolve_phase(repo_root, "034-feature")
 - Data model: [kitty-specs/034-feature-status-state-model-remediation/data-model.md](kitty-specs/034-feature-status-state-model-remediation/data-model.md)
 - Quickstart: [kitty-specs/034-feature-status-state-model-remediation/quickstart.md](kitty-specs/034-feature-status-state-model-remediation/quickstart.md)
 
+## Mission Identity Model (083+)
+
+As of mission `083-mission-id-canonical-identity-migration`, every mission carries a ULID-based canonical identity in `meta.json`. The three-digit numeric prefix is display-only and is not assigned until merge time. This fixes the collision problem where two missions could share the same `NNN-` prefix and confuse selectors, branches, and dashboards.
+
+**ADR:** [2026-04-09-1](architecture/adrs/2026-04-09-1-mission-identity-uses-ulid-not-sequential-prefix.md) - **Issue:** [Priivacy-ai/spec-kitty#557](https://github.com/Priivacy-ai/spec-kitty/issues/557)
+
+### Identity Fields
+
+| Field | Type | Role | When assigned |
+|-------|------|------|---------------|
+| `mission_id` | ULID (26 chars) | **Canonical machine identity**, immutable | At `mission create` |
+| `mid8` | First 8 chars of `mission_id` | Short disambiguator used in branch / worktree names | Derived |
+| `mission_slug` | Human-readable kebab slug (e.g. `my-feature`) | Human handle | At `mission create` |
+| `mission_number` | `int \| None` | **Display-only** metadata, `null` pre-merge | At merge time, via `max(existing)+1` inside the merge-state lock |
+| `friendly_name` | Title string | Human display | At `mission create` |
+
+`mission_id` is the only field the runtime treats as identity. `mission_number` is never used for lookup, locking, or event routing.
+
+### Branch and Worktree Naming
+
+- **Branch:** `kitty/mission-<human-slug>-<mid8>-lane-<id>` (e.g. `kitty/mission-my-feature-01J6XW9K-lane-a`)
+- **Worktree:** `.worktrees/<human-slug>-<mid8>-lane-<id>` (e.g. `.worktrees/my-feature-01J6XW9K-lane-a`)
+
+The `<mid8>` segment guarantees two missions with the same human slug never collide on disk or in git refs.
+
+### Selector Disambiguation
+
+`spec-kitty agent context resolve --mission <handle>` resolves handles against `mission_id` first, then against `mid8`, then against `mission_slug`. Ambiguous handles produce a **structured error** listing the candidates; there is **no silent fallback** to the first match. WP07 removed fallback semantics on purpose — any code path that reintroduces them is a regression.
+
+The dashboard scanner (WP09) is keyed by `mission_id` and surfaces distinct rows for every duplicate prefix, so operators can tell collisions apart at a glance.
+
+### Migration
+
+Pre-083 projects have `mission_number` as identity and no `mission_id`. Operators upgrade via:
+
+```bash
+spec-kitty doctor identity --json          # audit current state
+spec-kitty migrate backfill-identity       # mint mission_id for legacy missions
+spec-kitty doctor identity --json          # confirm zero legacy state
+```
+
+Backfill is additive-only: existing `mission_number` values are preserved, a `mission_id` is minted, and branch/worktree names rename on the next `implement` cycle.
+
+Full runbook: [docs/migration/mission-id-canonical-identity.md](docs/migration/mission-id-canonical-identity.md).
 
 ## Agent Utilities for Work Package Status
 

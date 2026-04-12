@@ -32,17 +32,18 @@ description: Break a plan into work packages
 # You should already be here if you just ran /spec-kitty.plan
 
 # Creates:
-# - kitty-specs/###-feature/tasks/WP01-*.md → In project root checkout
-# - kitty-specs/###-feature/tasks/WP02-*.md → In project root checkout
+# - kitty-specs/<mission_slug>/tasks/WP01-*.md → In project root checkout
+# - kitty-specs/<mission_slug>/tasks/WP02-*.md → In project root checkout
+#   (the NNN- prefix in directory listings is display-only metadata)
 # - Commits ALL to target branch
 # - NO worktrees created
 ```
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <slug>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
+**Worktrees created later**: After tasks are finalized, run your agent loop: `spec-kitty next --agent <agent> --mission <handle>`. Your agent will call `spec-kitty agent action implement WP## --agent <name>` for each WP. `finalize_tasks` computes the execution lanes, and each lane gets exactly one worktree.
 
-**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -634,4 +635,3 @@ A rushed job with vague, oversized WPs causes:
 - Implementation taking 2-3x longer
 - Rework and review cycles
 - Feature failure
-

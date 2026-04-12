@@ -28,7 +28,7 @@ class TestEmitMissionCreatedMissionId:
         """EventEmitter.emit_mission_created adds mission_id to payload when provided."""
         event = emitter.emit_mission_created(
             mission_slug="079-post-hardening",
-            mission_number="079",
+            mission_number=79,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=4,
             mission_id="01KNRQK0R1ZDS8Z57M1TRXF0XR",
@@ -45,7 +45,7 @@ class TestEmitMissionCreatedMissionId:
         """EventEmitter.emit_mission_created does NOT include mission_id key when not provided."""
         event = emitter.emit_mission_created(
             mission_slug="079-post-hardening",
-            mission_number="079",
+            mission_number=79,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=4,
             # mission_id omitted — legacy call
@@ -66,7 +66,7 @@ class TestEmitMissionCreatedMissionId:
         ):
             emit_mission_created(
                 mission_slug="079-post-hardening",
-                mission_number="079",
+                mission_number=79,  # int, not str (FR-044, WP02)
                 target_branch="main",
                 wp_count=4,
                 mission_id="01TESTULID12345678901234AB",
@@ -91,7 +91,7 @@ class TestEmitMissionCreatedMissionId:
         ):
             emit_mission_created(
                 mission_slug="028-sync",
-                mission_number="028",
+                mission_number=28,  # int, not str (FR-044, WP02)
                 target_branch="main",
                 wp_count=5,
                 # No mission_id

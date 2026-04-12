@@ -17,7 +17,7 @@ from specify_cli.acceptance import (
     perform_acceptance,
 )
 from specify_cli.cli import StepTracker
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.cli.helpers import check_version_compatibility, console, show_banner
 from specify_cli.tasks_support import LANES, TaskCliError, find_repo_root
 from specify_cli.sync.events import emit_wp_status_changed
@@ -158,24 +158,24 @@ def accept(
         tracker.add("verify", "Run readiness checks")
         console.print()
         tracker.start("detect")
-    try:
-        mission_slug = resolve_selector(
-            canonical_value=mission,
-            canonical_flag="--mission",
-            alias_value=feature,
-            alias_flag="--feature",
-            suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
-            command_hint="--mission <slug>",
-        ).canonical_value
-    except typer.BadParameter as exc:
-        _safe_emit_error_logged(str(exc))
+
+    # Resolve mission handle — supports slug, numeric prefix, mid8, or full ULID.
+    # resolve_mission_handle() handles AmbiguousHandleError / MissionNotFoundError
+    # and calls sys.exit(2) on failure; no try/except needed.
+    raw_handle = mission or feature
+    if raw_handle is None:
+        _safe_emit_error_logged("No mission handle provided")
         if json_output:
-            print(json.dumps({"error": str(exc)}))
+            print(json.dumps({"error": "--mission <slug> is required"}))
         else:
-            tracker.error("detect", str(exc))
+            tracker.error("detect", "--mission <slug> is required")
             console.print(tracker.render())
-            console.print(f"[red]Error:[/red] {exc}")
+            console.print("[red]Error:[/red] --mission <slug> is required")
         raise typer.Exit(1)
+
+    resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+    mission_slug = resolved.mission_slug
+
     if not json_output:
         tracker.complete("detect", mission_slug)
 

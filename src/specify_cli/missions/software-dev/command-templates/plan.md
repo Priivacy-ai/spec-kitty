@@ -14,14 +14,15 @@ description: Create an implementation plan
 # You should already be here if you just ran /spec-kitty.specify
 
 # Creates:
-# - kitty-specs/###-feature/plan.md → In project root checkout
+# - kitty-specs/<mission_slug>/plan.md → In project root checkout
+#   (the NNN- prefix in the directory listing is display-only metadata)
 # - Commits to target branch
 # - NO worktrees created
 ```
 
 **Do NOT cd anywhere**. Stay in the project root checkout root.
 
-**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## User Input
 
@@ -60,7 +61,7 @@ This command runs in the **project root checkout**, not in a worktree.
   - Run `spec-kitty agent mission setup-plan --mission <mission-slug> --json`
   - Use `current_branch`, `target_branch` / `base_branch`, and `planning_base_branch` / `merge_target_branch` (plus uppercase aliases) from that payload
   - Use `branch_matches_target` from that payload to detect branch mismatch; do not probe branch state manually inside the prompt
-- Planning artifacts live in `kitty-specs/###-mission/`
+- Planning artifacts live in `kitty-specs/<mission_slug>/` (the `NNN-` prefix is display-only metadata)
 - The plan template is committed to the target branch after generation
 
 **Path reference rule:** When you mention directories or files, provide either the absolute path or a path relative to the project root (for example, `kitty-specs/<mission>/tasks/`). Never refer to a folder by name alone.
@@ -123,11 +124,14 @@ Planning requirements (scale to complexity):
 
    **Example**:
    ```bash
-   # If detected feature is 020-my-feature:
-   spec-kitty agent mission setup-plan --mission 020-my-feature --json
+   # Resolve the active mission handle, then pass it to setup-plan.
+   # The --mission flag accepts mission_id (ULID), mid8 (first 8 chars), or mission_slug.
+   # The resolver disambiguates by mission_id; ambiguous handles become structured errors.
+   spec-kitty agent context resolve --mission <handle> --json
+   spec-kitty agent mission setup-plan --mission <handle> --json
    ```
 
-   **Error handling**: If the command fails with "Cannot detect feature" or "Multiple features found", verify your feature detection logic in step 2 and ensure you're passing the correct feature slug.
+   **Error handling**: If the command fails with "Cannot detect mission", "Multiple missions found", or `MISSION_AMBIGUOUS_SELECTOR`, pass an unambiguous handle — the `mission_id` or its 8-char prefix `mid8` always disambiguates.
 
 4. **Load context**: Read `spec_file` from setup-plan JSON output and `.kittify/charter/charter.md` if it exists. If the charter file is missing, skip Charter Check and note that it is absent. Load IMPL_PLAN template (already copied).
 

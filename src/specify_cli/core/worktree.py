@@ -128,12 +128,13 @@ def create_wp_workspace(
         mode = ExecutionMode.CODE_CHANGE
 
     if mode == ExecutionMode.PLANNING_ARTIFACT:
-        return create_planning_workspace(
+        result_path = create_planning_workspace(
             mission_slug=mission_slug,
             wp_code=wp_code,
             owned_files=list(owned_files_raw) if isinstance(owned_files_raw, (list, tuple)) else [],
             repo_root=repo_root,
         )
+        return Path(result_path)
 
     # code_change: create a standard git worktree (full checkout)
     workspace_path.parent.mkdir(parents=True, exist_ok=True)
@@ -160,91 +161,55 @@ def create_wp_workspace(
     return workspace_path
 
 
-def get_next_feature_number(repo_root: Path) -> int:
-    """Determine next sequential feature number.
-
-    Scans both kitty-specs/ and .worktrees/ directories for existing features
-    (###-name format) and returns next number in sequence. This prevents number
-    reuse when features exist only in worktrees.
-
-    .. note::
-        **Display-only**: This function computes a human-friendly sequential
-        display number for a mission. It MUST NOT be used as the canonical
-        machine-facing identity. The canonical identity is the ``mission_id``
-        (ULID) in ``meta.json``. See FR-204.
-
-    Args:
-        repo_root: Repository root path
-
-    Returns:
-        Next feature number (e.g., 9 if highest existing is 008)
-
-    Examples:
-        >>> repo_root = Path("/path/to/repo")
-        >>> next_num = get_next_feature_number(repo_root)
-        >>> assert next_num > 0
-    """
-    max_number = 0
-
-    # Scan kitty-specs/ for feature numbers
-    specs_dir = repo_root / KITTY_SPECS_DIR
-    if specs_dir.exists():
-        for item in sorted(specs_dir.iterdir(), key=lambda p: p.name):
-            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                try:
-                    number = int(item.name[:3])
-                    max_number = max(max_number, number)
-                except ValueError:
-                    # Not a valid number, skip
-                    continue
-
-    # Also scan .worktrees/ for feature numbers
-    worktrees_dir = repo_root / WORKTREES_DIR
-    if worktrees_dir.exists():
-        for item in sorted(worktrees_dir.iterdir(), key=lambda p: p.name):
-            if item.is_dir() and len(item.name) >= 3 and item.name[:3].isdigit():
-                try:
-                    number = int(item.name[:3])
-                    max_number = max(max_number, number)
-                except ValueError:
-                    # Not a valid number, skip
-                    continue
-
-    return max_number + 1
-
-
-def create_feature_worktree(repo_root: Path, mission_slug: str, feature_number: int | None = None) -> tuple[Path, Path]:
+def create_feature_worktree(
+    repo_root: Path,
+    mission_slug: str,
+    mission_id: str | None = None,
+) -> tuple[Path, Path]:
     """Create workspace (git worktree) for feature development.
 
     Creates a new workspace with a feature branch and sets up the
     feature directory structure. Uses VCS abstraction.
 
+    The worktree is named ``<human-slug>-<mid8>[-lane-<id>]`` using the new
+    identity-stable format (FR-033).  The ``mission_id`` is required; if it
+    is missing, the call fails with a clear error pointing at the backfill
+    command (FR-052 edge case).
+
     Args:
         repo_root: Repository root path
-        mission_slug: Feature identifier (e.g., "test-feature")
-        feature_number: Optional feature number (auto-detected if None)
+        mission_slug: Feature identifier (e.g., "083-foo-bar" or "foo-bar").
+        mission_id: ULID from ``meta.json``.  Required.  Must be present for
+            new and backfilled legacy missions; raise on missing (FR-052).
 
     Returns:
         Tuple of (worktree_path, feature_dir)
 
     Raises:
-        RuntimeError: If workspace creation fails
-        FileExistsError: If worktree path already exists
+        RuntimeError: If workspace creation fails or ``mission_id`` is missing.
+        FileExistsError: If worktree path already exists.
 
     Examples:
         >>> repo_root = Path("/path/to/repo")
-        >>> worktree, feature_dir = create_feature_worktree(repo_root, "new-feature")
+        >>> worktree, feature_dir = create_feature_worktree(
+        ...     repo_root, "new-feature", mission_id="01KNXQS9ATWWFXS3K5ZJ9E5008"
+        ... )
         >>> assert worktree.exists()
         >>> assert feature_dir.exists()
     """
-    # Auto-detect feature number if not provided
-    if feature_number is None:
-        feature_number = get_next_feature_number(repo_root)
+    if not mission_id:
+        raise RuntimeError(
+            "create_feature_worktree requires mission_id from meta.json. "
+            "For legacy missions that pre-date mission_id, run "
+            "`spec-kitty migrate backfill-identity` first."
+        )
 
-    # Format: 001-test-feature
-    branch_name = f"{feature_number:03d}-{mission_slug}"
+    from specify_cli.lanes.branch_naming import mid8, strip_numeric_prefix
 
-    # Create worktree at .worktrees/001-test-feature
+    human_slug = strip_numeric_prefix(mission_slug)
+    branch_name = f"{human_slug}-{mid8(mission_id)}"
+
+    # Create worktree at .worktrees/<human-slug>-<mid8>
     worktree_path = repo_root / WORKTREES_DIR / branch_name
 
     # Ensure .worktrees directory exists

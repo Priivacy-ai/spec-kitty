@@ -11,7 +11,7 @@ $ARGUMENTS
 
 You **MUST** consider the user input before proceeding (if not empty).
 
-**In repos with multiple missions, always pass `--mission <slug>` to every spec-kitty command.**
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
 
 ## Command Contract
 

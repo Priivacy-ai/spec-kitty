@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -44,12 +45,21 @@ def _write_wp(path: Path, wp_id: str, lane: str, dependencies: str = "[]") -> No
 
 
 def _make_feature(repo_root: Path, slug: str, *, target_branch: str = "main") -> Path:
+    config_path = repo_root / ".kittify" / "config.yaml"
+    if not config_path.exists():
+        config_path.write_text(
+            "project:\n  uuid: 00000000-0000-0000-0000-000000000001\n",
+            encoding="utf-8",
+        )
+
+    mission_id = "01" + hashlib.sha1(slug.encode("utf-8")).hexdigest().upper()[:24]
     feature_dir = repo_root / "kitty-specs" / slug
     feature_dir.mkdir(parents=True)
     (feature_dir / "meta.json").write_text(
         json.dumps(
             {
-                "mission_number": slug.split("-", 1)[0],
+                "mission_id": mission_id,
+                "mission_number": None,
                 "mission_slug": slug,
                 "mission_type": "software-dev",
                 "target_branch": target_branch,

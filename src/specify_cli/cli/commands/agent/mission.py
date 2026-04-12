@@ -18,7 +18,7 @@ from rich.console import Console
 from typing import Annotated
 
 from specify_cli import __version__ as SPEC_KITTY_VERSION
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.cli.commands.accept import accept as top_level_accept
 from specify_cli.cli.commands.merge import merge as top_level_merge
 from specify_cli.core.dependency_graph import (
@@ -33,7 +33,6 @@ from specify_cli.core.git_preflight import (
 from specify_cli.core.paths import get_main_repo_root, locate_project_root
 from specify_cli.core.paths import (
     get_feature_target_branch,
-    require_explicit_feature,
 )
 from specify_cli.git import safe_commit
 from specify_cli.core.worktree import (
@@ -367,22 +366,30 @@ def _find_feature_directory(
 ) -> Path:
     """Find the mission directory from an explicit mission slug.
 
+    Uses the canonical mission resolver which handles ambiguous numeric-prefix
+    handles, mid8 prefixes, and full ULID forms.
+
     Args:
         repo_root: Repository root path
-        cwd: Current working directory (unused — kept for signature compatibility)
-        explicit_feature: Mission slug provided explicitly (required)
+        _cwd: Current working directory (unused — kept for signature compatibility)
+        explicit_feature: Mission handle provided explicitly (required)
 
     Returns:
         Path to mission directory
 
     Raises:
-        ValueError: If feature slug is not provided or directory doesn't exist
+        ValueError: If no handle is provided.
     """
-    slug = require_explicit_feature(explicit_feature, command_hint="--mission <slug>")
-    feature_dir = repo_root / "kitty-specs" / slug
-    if not feature_dir.exists():
-        raise ValueError(f"Mission directory not found: {feature_dir}. Check that '{slug}' is the correct mission slug.")
-    return feature_dir
+    if not explicit_feature:
+        raise ValueError("--mission <slug> is required")
+    try:
+        resolved = resolve_mission_handle(explicit_feature, repo_root)
+        return resolved.feature_dir
+    except (SystemExit, typer.Exit):
+        candidate = repo_root / "kitty-specs" / explicit_feature
+        if candidate.exists():
+            return candidate
+        raise ValueError(f"Mission directory not found: {explicit_feature}") from None
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -394,9 +401,12 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
 
     candidates: list[dict[str, object]] = []
     for feature_dir in sorted(kitty_specs_dir.iterdir()):
-        if not feature_dir.is_dir() or not re.match(r"^\d{3}-.+$", feature_dir.name):
+        if not feature_dir.is_dir():
             continue
         spec_file = feature_dir / "spec.md"
+        meta_file = feature_dir / "meta.json"
+        if not spec_file.exists() and not meta_file.exists():
+            continue
         candidates.append(
             {
                 "mission_slug": feature_dir.name,
@@ -1164,10 +1174,24 @@ def merge_feature(
             print(json.dumps({"error": error, "success": False}))
             sys.exit(1)
 
+        # Resolve the mission handle to a canonical slug before delegating.
+        resolved_feature = feature
+        if feature:
+            try:
+                _resolved = resolve_mission_handle(feature, repo_root)
+            except (SystemExit, typer.Exit):
+                # Preserve legacy wrapper behavior in tests and programmatic
+                # callers that pass a raw slug/worktree hint without a real
+                # mission directory. The delegated merge flow still performs
+                # its own resolution when operating against a real repo.
+                _resolved = None
+            if _resolved is not None:
+                resolved_feature = _resolved.mission_slug
+
         # Resolve target branch dynamically if not specified
         if target is None:
-            if feature:
-                target = get_feature_target_branch(repo_root, feature)
+            if resolved_feature:
+                target = get_feature_target_branch(repo_root, resolved_feature)
             else:
                 from specify_cli.core.git_ops import resolve_primary_branch
 
@@ -1179,12 +1203,12 @@ def merge_feature(
             is_feature_branch = re.match(r"^\d{3}-", current_branch)
 
             if not is_feature_branch:
-                if not feature:
+                if not resolved_feature:
                     raise RuntimeError(f"Not on mission branch ({current_branch}). Auto-retry requires --mission to choose a deterministic worktree.")
 
-                retry_worktree = _find_feature_worktree(repo_root, feature)
+                retry_worktree = _find_feature_worktree(repo_root, resolved_feature)
                 if not retry_worktree:
-                    raise RuntimeError(f"Could not find worktree for mission {feature} under {repo_root / '.worktrees'}.")
+                    raise RuntimeError(f"Could not find worktree for mission {resolved_feature} under {repo_root / '.worktrees'}.")
 
                 console.print(f"[yellow]Auto-retry:[/yellow] Not on mission branch ({current_branch}). Running merge in {retry_worktree.name}")
 
@@ -1192,9 +1216,9 @@ def merge_feature(
                 env = os.environ.copy()
                 env["SPEC_KITTY_AUTORETRY"] = "1"
 
-                # Re-run command in worktree
+                # Re-run command in worktree; pass canonical slug so retry is unambiguous.
                 retry_cmd = ["spec-kitty", "agent", "mission", "merge"]
-                retry_cmd.extend(["--mission", feature])
+                retry_cmd.extend(["--mission", resolved_feature])
                 retry_cmd.extend(["--target", target, "--strategy", strategy])
                 if push:
                     retry_cmd.append("--push")
@@ -1226,7 +1250,7 @@ def merge_feature(
                 target_branch=target,  # Note: parameter name differs
                 dry_run=dry_run,
                 json_output=False,
-                mission=(feature or ""),
+                mission=(resolved_feature or ""),
                 feature=None,
                 resume=False,  # Agent commands don't support resume
                 abort=False,  # Agent commands don't support abort

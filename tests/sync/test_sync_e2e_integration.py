@@ -476,7 +476,7 @@ class TestNoDuplicateEmissions:
 
         emitter.emit_mission_created(
             mission_slug="032-identity-aware",
-            mission_number="032",
+            mission_number=32,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=3,
             causation_id=causation_id,
@@ -537,7 +537,7 @@ class TestFullWorkflowIntegration:
         # 1. Mission created (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_mission_created(
             mission_slug="001-test-feature",
-            mission_number="001",
+            mission_number=1,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=1,
             causation_id=causation_id,

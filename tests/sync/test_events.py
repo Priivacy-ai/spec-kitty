@@ -167,7 +167,7 @@ class TestEventEnvelope:
         events = [
             emitter.emit_wp_status_changed("WP01", "planned", "in_progress"),
             emitter.emit_wp_created("WP01", "Test", "033-test"),
-            emitter.emit_mission_created("033-test", "033", "2.x", 1),
+            emitter.emit_mission_created("033-test", 33, "2.x", 1),
         ]
         for event in events:
             assert event is not None
@@ -312,7 +312,7 @@ class TestMissionCreated:
         """MissionCreated event has correct structure."""
         event = emitter.emit_mission_created(
             mission_slug="028-cli-event-emission-sync",
-            mission_number="028",
+            mission_number=28,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=7,
         )
@@ -326,7 +326,7 @@ class TestMissionCreated:
         """created_at is optional."""
         event = emitter.emit_mission_created(
             "028-sync",
-            "028",
+            28,  # int, not str (FR-044, WP02)
             "main",
             5,
             created_at="2026-02-04T12:00:00+00:00",
@@ -495,7 +495,7 @@ class TestValidation:
 
     def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
         """Invalid mission_slug format for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("NoNumbers", "abc", "main", 5)
+        event = emitter.emit_mission_created("NoNumbers", 1, "main", 5)
         assert event is None
 
     def test_invalid_resolution_type_returns_none(self, emitter: EventEmitter, temp_queue):
@@ -510,7 +510,7 @@ class TestValidation:
 
     def test_negative_wp_count_returns_none(self, emitter: EventEmitter, temp_queue):
         """Negative wp_count for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("028-sync", "028", "main", -1)
+        event = emitter.emit_mission_created("028-sync", 28, "main", -1)
         assert event is None
 
 
@@ -775,7 +775,7 @@ class TestInternalValidation:
         """Invalid created_at datetime string fails MissionCreated validation."""
         event = emitter.emit_mission_created(
             "028-sync",
-            "028",
+            28,  # int, not str (FR-044, WP02)
             "main",
             5,
             created_at="not-a-date",

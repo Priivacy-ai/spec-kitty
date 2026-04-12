@@ -147,6 +147,44 @@ class ResearchResponse(TypedDict):
 
 
 # ---------------------------------------------------------------------------
+# Mission registry types (T048, WP09)
+# ---------------------------------------------------------------------------
+
+
+class MissionRecord(TypedDict, total=False):
+    """Single mission record from :func:`scanner.build_mission_registry`.
+
+    This is the canonical wire shape for per-mission data keyed by
+    ``mission_id`` (a ULID) or a pseudo-key (``legacy:<slug>`` or
+    ``orphan:<path.name>``).
+
+    Fields
+    ------
+    mission_id
+        The registry key itself.  For assigned/pending missions this is the
+        ULID from ``meta.json``.  For legacy missions it is ``legacy:<slug>``;
+        for orphan missions it is ``orphan:<dir-name>``.
+    mission_slug
+        Directory name (e.g. ``"080-foo"``).  Used for display and URL routing.
+    display_number
+        Integer numeric prefix (e.g. ``80`` for ``080-foo``), or ``None`` for
+        pre-merge missions.  This is a *display* metadata field — it is NOT
+        the identity key.
+    mid8
+        First 8 characters of the ULID ``mission_id``, precomputed for compact
+        display.  ``None`` for pseudo-key (legacy/orphan) records.
+    feature_dir
+        Absolute path to the mission directory as a string.
+    """
+
+    mission_id: str  # ULID or pseudo-key
+    mission_slug: str  # directory name
+    display_number: int | None  # numeric prefix for display sort; None = pre-merge
+    mid8: str | None  # first 8 chars of mission_id; None for pseudo-keys
+    feature_dir: str  # absolute path as string
+
+
+# ---------------------------------------------------------------------------
 # Features-list endpoint (the largest shape)
 # ---------------------------------------------------------------------------
 
@@ -341,6 +379,7 @@ __all__ = [
     "KanbanStats",
     "KanbanTaskData",
     "MissionContext",
+    "MissionRecord",
     "ResearchArtifact",
     "ResearchResponse",
     "SyncInfo",

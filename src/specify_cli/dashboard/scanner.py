@@ -35,6 +35,7 @@ _KANBAN_COLUMN_FOR_LANE: dict[Lane, str] = {
 logger = logging.getLogger(__name__)
 
 __all__ = [
+    "build_mission_registry",
     "format_path_for_display",
     "gather_feature_paths",
     "get_feature_artifacts",
@@ -44,6 +45,7 @@ __all__ = [
     "resolve_active_feature",
     "scan_all_features",
     "scan_feature_kanban",
+    "sort_missions_for_display",
 ]
 
 
@@ -272,6 +274,114 @@ def gather_feature_paths(project_dir: Path) -> dict[str, Path]:
                 feature_paths[feature_dir.name] = feature_dir
 
     return feature_paths
+
+
+def _read_mission_identity(feature_dir: Path) -> tuple[str | None, int | None]:
+    """Return (mission_id, mission_number) from meta.json, or (None, None) if unreadable.
+
+    Returns empty strings coerced to None for mission_id.
+    """
+    meta_path = feature_dir / "meta.json"
+    if not meta_path.exists():
+        return None, None
+    try:
+        raw = json.loads(meta_path.read_text(encoding="utf-8-sig"))
+        if not isinstance(raw, dict):
+            return None, None
+        mission_id: str | None = raw.get("mission_id") or None  # "" -> None
+        raw_number = raw.get("mission_number")
+        mission_number: int | None = None
+        if isinstance(raw_number, int):
+            mission_number = raw_number
+        elif isinstance(raw_number, str) and raw_number.isdigit():
+            mission_number = int(raw_number)
+    except (json.JSONDecodeError, OSError, ValueError):
+        return None, None
+    return mission_id, mission_number
+
+
+def _mission_record_key(feature_dir: Path, mission_id: str | None, mission_number: int | None) -> str:
+    """Compute the canonical registry key for a mission.
+
+    - Assigned (mission_id present, mission_number present): use mission_id
+    - Pending (mission_id present, mission_number absent): use mission_id
+    - Legacy (mission_id absent, mission_number present): use ``legacy:<slug>``
+    - Orphan (both absent): use ``orphan:<path.name>``
+    """
+    if mission_id is not None:
+        return mission_id
+    slug = feature_dir.name
+    if mission_number is not None:
+        return f"legacy:{slug}"
+    return f"orphan:{slug}"
+
+
+def build_mission_registry(project_dir: Path) -> dict[str, dict[str, Any]]:
+    """Return a dict keyed by ``mission_id`` (or pseudo-key) mapping to mission records.
+
+    Each record is a minimal dict with at least:
+    - ``mission_id``: str — the ULID (or the pseudo-key for legacy/orphan)
+    - ``mission_slug``: str — the directory name
+    - ``display_number``: int | None — the numeric prefix for display sorting
+    - ``mid8``: str | None — first 8 chars of mission_id (None for pseudo-keys)
+
+    Duplicate numeric prefixes produce DISTINCT records because each gets its own
+    ``mission_id`` key.  The three ``080-*`` missions on a real repo each appear
+    as a separate entry.
+
+    Args:
+        project_dir: Repository root containing ``kitty-specs/``.
+
+    Returns:
+        ``{mission_id_or_pseudo_key: record}`` dict.
+    """
+    registry: dict[str, dict[str, Any]] = {}
+    feature_paths = gather_feature_paths(project_dir)
+
+    for _feature_id, feature_dir in feature_paths.items():
+        mission_id, mission_number = _read_mission_identity(feature_dir)
+        key = _mission_record_key(feature_dir, mission_id, mission_number)
+
+        # mid8 is meaningful only when key is an actual mission_id (ULID).
+        is_pseudo = key.startswith(("legacy:", "orphan:"))
+        mid8: str | None = None if is_pseudo else (mission_id[:8] if mission_id else None)
+
+        registry[key] = {
+            "mission_id": key,  # canonical key, may be pseudo
+            "mission_slug": feature_dir.name,
+            "display_number": mission_number,
+            "mid8": mid8,
+            "feature_dir": str(feature_dir),
+        }
+
+    return registry
+
+
+def sort_missions_for_display(registry: dict[str, dict[str, Any]]) -> list[str]:
+    """Return an ordered list of registry keys suitable for display.
+
+    Sort order:
+    1. ``display_number`` ascending (missions with a numeric prefix come first)
+    2. ``None`` display_number last (pre-merge / pending missions)
+    3. Secondary: ``mission_slug`` ascending (stable tie-break among same-prefix missions)
+
+    Args:
+        registry: Output of :func:`build_mission_registry`.
+
+    Returns:
+        Ordered list of mission_id strings (or pseudo-keys).
+    """
+
+    def _sort_key(key: str) -> tuple[int, int, str]:
+        record = registry[key]
+        number = record.get("display_number")
+        slug = record.get("mission_slug", key)
+        # None sorts last: use (1, 0, slug) vs (0, number, slug)
+        if number is None:
+            return (1, 0, slug)
+        return (0, number, slug)
+
+    return sorted(registry.keys(), key=_sort_key)
 
 
 def resolve_feature_dir(project_dir: Path, feature_id: str) -> Path | None:

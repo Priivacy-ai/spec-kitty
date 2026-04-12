@@ -53,6 +53,24 @@ logger = logging.getLogger(__name__)
 _LEGACY_LANE_FIELD = "lane"
 
 
+def _load_mission_id(feature_dir: Path) -> str | None:
+    """Load the canonical mission_id (ULID) from meta.json.
+
+    Returns None when meta.json is absent or does not contain
+    a ``mission_id`` key (legacy missions pre-dating 3.1.1).
+    Never raises — missing/corrupt meta is a silent degradation.
+    """
+    try:
+        meta = load_meta(feature_dir)
+    except ValueError:
+        logger.debug("Malformed meta.json in %s; mission_id will be None", feature_dir)
+        return None
+    if not isinstance(meta, dict):
+        return None
+    raw_id = meta.get("mission_id")
+    return str(raw_id) if raw_id else None
+
+
 class TransitionError(Exception):
     """Raised when a status transition is invalid."""
 
@@ -293,6 +311,10 @@ def emit_status_transition(
     if feature_dir is None or mission_slug is None or wp_id is None or to_lane is None or actor is None:
         raise TypeError("emit_status_transition requires feature_dir/mission_dir, mission_slug, wp_id, to_lane, and actor")
 
+    # T023: Load mission_id (ULID) from meta.json to use as the canonical
+    # machine-facing identity for new events.  None for legacy/pre-3.1.1 missions.
+    mission_id = _load_mission_id(feature_dir)
+
     raw_to_lane = to_lane.strip().lower()
 
     # Step 1: Resolve alias
@@ -332,6 +354,7 @@ def emit_status_transition(
             review_ref=review_ref,
             evidence=None,
             policy_metadata=policy_metadata,
+            mission_id=mission_id,
         )
 
     # Step 3: Validate the transition
@@ -356,7 +379,11 @@ def emit_status_transition(
     if not ok:
         raise TransitionError(error_msg)
 
-    # Step 4: Create StatusEvent with ULID event_id
+    # Step 4: Create StatusEvent with ULID event_id.
+    # mission_id is the canonical machine-facing identity (ULID from meta.json).
+    # T023: New events carry mission_id alongside mission_slug.
+    # T025: to_dict() emits legacy_aggregate_id=mission_slug as a drift-window
+    # compatibility shim for downstream SaaS consumers (removable after WP12).
     event = StatusEvent(
         event_id=_generate_ulid(),
         mission_slug=mission_slug,
@@ -371,6 +398,7 @@ def emit_status_transition(
         review_ref=review_ref,
         evidence=done_evidence,
         policy_metadata=policy_metadata,
+        mission_id=mission_id,
     )
 
     # Step 5: Persist event to JSONL log

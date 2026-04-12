@@ -30,6 +30,7 @@ __all__ = [
     "is_merge_locked",
     "detect_git_merge_state",
     "abort_git_merge",
+    "needs_number_assignment",
 ]
 
 _STATE_FILE = "state.json"
@@ -306,6 +307,35 @@ def is_merge_locked(mission_id: str, repo_root: Path) -> bool:
 # ---------------------------------------------------------------------------
 # Git merge state helpers (unchanged from original)
 # ---------------------------------------------------------------------------
+
+def needs_number_assignment(feature_dir: Path) -> bool:
+    """Return True if the mission's ``meta.json`` lacks an integer ``mission_number``.
+
+    The merge-time number-assignment gate (FR-044, WP10/T051): a mission needs
+    a number assigned when its ``meta.json`` carries ``mission_number: null``.
+    Any non-null value -- including legacy string forms like ``"042"`` -- is
+    treated as already assigned because the mission_metadata loader coerces
+    string forms to ``int`` at read time.
+
+    Args:
+        feature_dir: Path to the mission's ``kitty-specs/<slug>/`` directory.
+
+    Returns:
+        ``True`` if ``mission_number`` resolves to ``None``; ``False`` if it
+        resolves to any integer (including ``0``).  Returns ``False`` if the
+        ``meta.json`` file is missing -- there is nothing to assign into.
+    """
+    # Imported lazily to avoid a circular import (mission_metadata may import
+    # nothing in this module today, but the merge package wires into many
+    # higher-level subsystems and we want to keep the import surface tight).
+    from specify_cli.mission_metadata import resolve_mission_identity
+
+    if not (feature_dir / "meta.json").exists():
+        return False
+
+    identity = resolve_mission_identity(feature_dir)
+    return identity.mission_number is None
+
 
 def detect_git_merge_state(repo_root: Path) -> bool:
     """Check if git has an active merge in progress via MERGE_HEAD."""

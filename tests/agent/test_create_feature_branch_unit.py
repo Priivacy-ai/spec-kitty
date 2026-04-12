@@ -40,7 +40,6 @@ def _run_create_feature(
         patch(f"{_CORE_MODULE}.is_git_repo", return_value=True),
         patch(f"{_CORE_MODULE}.is_worktree_context", return_value=False),
         patch(f"{_CORE_MODULE}.get_current_branch", return_value=current_branch),
-        patch(f"{_CORE_MODULE}.get_next_feature_number", return_value=1),
         patch(f"{_CORE_MODULE}.safe_commit", return_value=True),
         patch(f"{_CORE_MODULE}.emit_mission_created"),
     ):

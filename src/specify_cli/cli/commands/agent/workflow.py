@@ -15,7 +15,7 @@ logger = logging.getLogger(__name__)
 import typer
 from typing_extensions import Annotated
 
-from specify_cli.cli.selector_resolution import resolve_selector
+from specify_cli.cli.selector_resolution import resolve_mission_handle, resolve_selector
 from specify_cli.cli.commands.implement import implement as top_level_implement
 from specify_cli.charter.context import build_charter_context
 from specify_cli.core.dependency_graph import build_dependency_graph, get_dependents
@@ -314,12 +314,18 @@ def _ensure_target_branch_checked_out(repo_root: Path, mission_slug: str) -> tup
 def _find_mission_slug(
     explicit_mission: str | None = None,
     explicit_feature: str | None = None,
+    repo_root: Path | None = None,
 ) -> str:
     """Require an explicit mission slug (no auto-detection).
+
+    When repo_root is supplied the handle is resolved via the canonical
+    mission resolver which handles ambiguous numeric-prefix handles, mid8
+    prefixes, and full ULID forms.
 
     Args:
         explicit_mission: Mission slug provided explicitly.
         explicit_feature: Mission slug provided via hidden --feature alias.
+        repo_root: Repository root; if provided, enables canonical resolver.
 
     Returns:
         Mission slug (e.g., "008-unified-python-cli")
@@ -328,7 +334,7 @@ def _find_mission_slug(
         typer.Exit: If mission slug is not provided or selectors conflict.
     """
     try:
-        resolved = resolve_selector(
+        selector = resolve_selector(
             canonical_value=explicit_mission,
             canonical_flag="--mission",
             alias_value=explicit_feature,
@@ -336,10 +342,24 @@ def _find_mission_slug(
             suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
         )
-        return resolved.canonical_value
     except typer.BadParameter as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
+
+    raw_handle = selector.canonical_value
+    if raw_handle is not None and repo_root is not None:
+        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        if legacy_dir.exists():
+            return raw_handle
+        try:
+            resolved = resolve_mission_handle(raw_handle, repo_root)
+            return resolved.mission_slug
+        except (SystemExit, typer.Exit):
+            if legacy_dir.exists():
+                return raw_handle
+            raise
+
+    return raw_handle
 
 
 def _normalize_wp_id(wp_arg: str) -> str:
@@ -457,7 +477,7 @@ def implement(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)
@@ -1218,7 +1238,7 @@ def review(
             print("Error: Could not locate project root")
             raise typer.Exit(1)
 
-        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature)
+        mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)

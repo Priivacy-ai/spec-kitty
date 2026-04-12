@@ -26,8 +26,14 @@ This document defines the **target-state** canonical terminology for Spec Kitty'
 | `repository_label` | Repository | Human-readable display name derived from git remote or directory name. | Mutable; display only | Was called `project_slug` before mission 081 |
 | `repo_slug` | Repository | Optional `owner/repo` Git provider reference (e.g. `Priivacy-ai/spec-kitty`). | Unchanged from current; optional | No change -- retains pre-081 meaning |
 | `project_uuid` | Collaboration | SaaS-assigned project binding. Absent until a repository is bound to a SaaS project. Never locally minted. | Absent until binding | Was incorrectly used for locally minted repository identity |
+| `mission_id` | Mission | **Canonical mission machine identity.** ULID (26 chars), minted at `mission create`. Aggregate key for events, selectors, and dashboard scanner. | Immutable once minted | Replaces `mission_number` as canonical identity as of mission 083 |
+| `mid8` | Mission | First 8 characters of `mission_id`. Short disambiguator used in branch and worktree names. | Derived from `mission_id` | New in mission 083 |
+| `mission_slug` | Mission | Human-readable kebab slug (e.g. `auth-system`). Used in directory names and as a convenience selector. | Mutable in principle; stable in practice | Pre-083 slugs embedded a `NNN-` numeric prefix; that prefix is display-only as of mission 083 |
+| `mission_number` | Mission | **Display-only** numeric prefix (`int \| None`). `null` pre-merge, assigned at merge time via `max(existing)+1` inside the merge-state lock. Never used for identity, routing, or locking. | Assigned once at merge time | Was canonical identity pre-mission-083 |
 | `build_id` | Build | Per-checkout/worktree identity, unique per working tree. | Stable per worktree | No change -- already correctly scoped |
 | `node_id` | Machine | Stable machine fingerprint (12-char hex). | Stable per host | No change -- already correctly scoped |
+
+See the [mission identity migration runbook](../migration/mission-id-canonical-identity.md) for the operator upgrade path and ADR 2026-04-09-1 for the design rationale.
 
 ---
 

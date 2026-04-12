@@ -402,9 +402,11 @@ register, login, logout, and recover forgotten passwords.
 ```
 
 **What this does:**
-- Creates `kitty-specs/001-auth-system/spec.md` with user stories
+- Creates `kitty-specs/auth-system/spec.md` with user stories and mints a canonical `mission_id` (ULID) in `meta.json`
 - **Enters discovery interview** - Answer questions before continuing!
 - All planning happens in the main repo (worktrees created later during implementation)
+
+> **Note:** Mission identity is a ULID (`mission_id` in `meta.json`). The three-digit numeric prefix (e.g. `001-auth-system`) is display-only and is only assigned at merge time. Branches and worktrees use the mission's `mid8` (first 8 chars of the ULID) for collision-free naming. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
 
 **⚠️ Important:** Continue in the same session - no need to change directories!
 
@@ -512,11 +514,13 @@ spec-kitty next --agent <agent> --mission <slug>
 ## 📋 Quick Reference: Command Order
 
 ### Required Workflow (Once per project)
+
 ```
 1️⃣  /spec-kitty.charter     → In main repo (sets project principles)
 ```
 
 ### Required Workflow (Each feature)
+
 ```
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
@@ -529,6 +533,7 @@ spec-kitty next --agent <agent> --mission <slug>
 ```
 
 ### Optional Enhancement Commands
+
 ```
 /spec-kitty.research   → After /plan: Investigate technical decisions
 /spec-kitty.analyze    → After /tasks: Cross-artifact consistency check
@@ -560,7 +565,7 @@ Spec Kitty automatically protects you with multiple layers:
 **Worktree Charter Sharing:**
 When creating execution workspaces, Spec Kitty uses symlinks to share the charter:
 ```
-.worktrees/001-feature-lane-a/.kittify/memory -> ../../../../.kittify/memory
+.worktrees/my-feature-01J6XW9K-lane-a/.kittify/memory -> ../../../../.kittify/memory
 ```
 This ensures all work packages follow the same project principles.
 
@@ -588,6 +593,7 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 For glossary-first terminology (including semantic-integrity rules), see [`glossary/README.md`](glossary/README.md).
 
 ### Project
+
 **Definition**: The entire codebase (one Git repository) that contains all missions, features, and `.kittify/` automation.
 
 **Examples**:
@@ -605,7 +611,10 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ---
 
 ### Feature
+
 **Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more execution worktrees.
+
+> **Mission identity (as of mission 083):** A mission's canonical machine identity is `mission_id` — a ULID minted at creation and immutable for the lifetime of the mission. The three-digit `mission_number` prefix shown in directory names is **display-only metadata** and is assigned at merge time. Selectors use `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`; ambiguous handles return a structured error. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
 
 **Examples**:
 - "001-auth-system feature"
@@ -613,10 +622,10 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - "042-dashboard-refresh feature"
 
 **Structure**:
-- Specification: `/kitty-specs/###-feature-name/spec.md`
-- Plan: `/kitty-specs/###-feature-name/plan.md`
-- Tasks: `/kitty-specs/###-feature-name/tasks.md`
-- Implementation: `.worktrees/###-feature-name-lane-a/`, `.worktrees/###-feature-name-lane-b/`, and so on
+- Specification: `/kitty-specs/<human-slug>/spec.md` (directory listing shows `NNN-<human-slug>` once `mission_number` is assigned at merge)
+- Plan: `/kitty-specs/<human-slug>/plan.md`
+- Tasks: `/kitty-specs/<human-slug>/tasks.md`
+- Implementation: `.worktrees/<human-slug>-<mid8>-lane-a/`, `.worktrees/<human-slug>-<mid8>-lane-b/`, and so on (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`)
 
 **Lifecycle**:
 1. `/spec-kitty.specify` – Create the feature and its branch
@@ -634,6 +643,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ---
 
 ### Mission
+
 **Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
 
 **Examples**:
@@ -1069,6 +1079,7 @@ graph TD
 - Main branch stays clean without manual `git checkout` juggling
 
 ### The Pattern
+
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
@@ -1081,6 +1092,7 @@ my-project/                    # Main repo (main branch)
 ```
 
 ### The Rules
+
 1. **Planning commands** run in the primary repo root
 2. **Implementation branches** live under `.worktrees/`
 3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
@@ -1165,7 +1177,6 @@ cat .kittify/metadata.yaml
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
 | `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
-
 
 ## 🔧 Prerequisites
 

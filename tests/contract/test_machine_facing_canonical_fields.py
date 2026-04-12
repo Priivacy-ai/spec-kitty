@@ -118,7 +118,12 @@ def test_status_snapshot_emits_canonical_mission_fields(tmp_path: Path) -> None:
     payload = materialize(mission_dir).to_dict()
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # Post-083: mission_number is display-only (FR-044). Pipelines that route
+    # through resolve_mission_identity coerce the legacy string "064" to the
+    # canonical int 64, which mission_identity_fields stringifies as "64"
+    # (no leading zeros at the payload boundary). Canonical identity is
+    # mission_id (ULID), not mission_number.
+    assert payload["mission_number"] == "64"
     assert payload["mission_type"] == "software-dev"
 
 
@@ -131,7 +136,9 @@ def test_board_summary_emits_canonical_mission_fields(tmp_path: Path) -> None:
     payload = json.loads((derived_dir / mission_dir.name / "board-summary.json").read_text(encoding="utf-8"))
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # board-summary.json serializes mission_number as an int after WP02:
+    # resolve_mission_identity coerces legacy "064" to int 64.
+    assert payload["mission_number"] == 64
     assert payload["mission_type"] == "software-dev"
 
 
@@ -144,7 +151,8 @@ def test_progress_json_emits_canonical_mission_fields(tmp_path: Path) -> None:
     payload = json.loads((derived_dir / mission_dir.name / "progress.json").read_text(encoding="utf-8"))
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # Display string form (no leading zeros) — see status_snapshot test above.
+    assert payload["mission_number"] == "64"
     assert payload["mission_type"] == "software-dev"
 
 
@@ -181,7 +189,8 @@ def test_acceptance_matrix_emits_canonical_mission_fields(tmp_path: Path) -> Non
     payload = json.loads((mission_dir / "acceptance-matrix.json").read_text(encoding="utf-8"))
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # Display string form (no leading zeros).
+    assert payload["mission_number"] == "64"
     assert payload["mission_type"] == "software-dev"
 
 
@@ -198,7 +207,8 @@ def test_merge_gate_evaluation_emits_canonical_mission_fields(tmp_path: Path) ->
     ).to_dict()
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # Display string form (no leading zeros).
+    assert payload["mission_number"] == "64"
     assert payload["mission_type"] == "software-dev"
 
 
@@ -213,7 +223,9 @@ def test_next_decision_payload_emits_canonical_mission_fields() -> None:
     ).to_dict()
 
     assert payload["mission_slug"] == "064-complete-mission-identity-cutover"
-    assert payload["mission_number"] == "064"
+    # Decision builds mission_number from mission_number_from_slug (int) via
+    # mission_identity_fields, so "064" prefix renders as "64" in the payload.
+    assert payload["mission_number"] == "64"
     assert payload["mission_type"] == "software-dev"
 
 
@@ -242,7 +254,8 @@ def test_acceptance_summary_emits_canonical_mission_fields(tmp_path: Path) -> No
 
     payload = summary.to_dict()
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # AcceptanceSummary emits mission_number as int after WP02.
+    assert payload["mission_number"] == 64
     assert payload["mission_type"] == "software-dev"
 
 
@@ -281,7 +294,8 @@ def test_agent_status_payload_emits_canonical_mission_fields(tmp_path: Path) -> 
         payload = show_kanban_status(mission_dir.name)
 
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # show_kanban_status returns mission_number as int after WP02.
+    assert payload["mission_number"] == 64
     assert payload["mission_type"] == "software-dev"
 
 
@@ -324,7 +338,8 @@ def test_verify_enhanced_feature_detection_emits_canonical_mission_fields(tmp_pa
 
     detected = payload["feature_detection"]
     assert detected["mission_slug"] == mission_dir.name
-    assert detected["mission_number"] == "064"
+    # run_enhanced_verify returns mission_number as int after WP02.
+    assert detected["mission_number"] == 64
     assert detected["mission_type"] == "software-dev"
 
 
@@ -339,7 +354,8 @@ def test_orchestrator_query_payloads_emit_canonical_mission_fields(tmp_path: Pat
         envelope = _invoke_orchestrator(args, repo_root)
         payload = envelope["data"]
         assert payload["mission_slug"] == mission_dir.name
-        assert payload["mission_number"] == "064"
+        # orchestrator-api returns mission_number as int after WP02.
+        assert payload["mission_number"] == 64
         assert payload["mission_type"] == "software-dev"
 
 
@@ -362,7 +378,8 @@ def test_orchestrator_transition_payloads_emit_canonical_mission_fields(tmp_path
     )
     payload = envelope["data"]
     assert payload["mission_slug"] == mission_dir.name
-    assert payload["mission_number"] == "064"
+    # orchestrator-api transition payloads return mission_number as int.
+    assert payload["mission_number"] == 64
     assert payload["mission_type"] == "software-dev"
 
 
@@ -376,7 +393,8 @@ def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Pat
     incomplete_payload = incomplete["data"]
     assert incomplete["error_code"] == "MISSION_NOT_READY"
     assert incomplete_payload["mission_slug"] == mission_dir.name
-    assert incomplete_payload["mission_number"] == "064"
+    # orchestrator-api error payloads return mission_number as int.
+    assert incomplete_payload["mission_number"] == 64
     assert incomplete_payload["mission_type"] == "software-dev"
 
     mock_preflight = MagicMock(target_branch="main", errors=["lanes.json is missing for this mission"])
@@ -391,7 +409,8 @@ def test_orchestrator_error_payloads_emit_canonical_mission_fields(tmp_path: Pat
     preflight_payload = preflight["data"]
     assert preflight["error_code"] == "PREFLIGHT_FAILED"
     assert preflight_payload["mission_slug"] == mission_dir.name
-    assert preflight_payload["mission_number"] == "064"
+    # Preflight error payloads also return mission_number as int.
+    assert preflight_payload["mission_number"] == 64
     assert preflight_payload["mission_type"] == "software-dev"
 
 

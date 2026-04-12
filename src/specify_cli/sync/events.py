@@ -247,7 +247,7 @@ def emit_wp_assigned(
 
 def emit_mission_created(
     mission_slug: str,
-    mission_number: str,
+    mission_number: int | None,
     target_branch: str,
     wp_count: int,
     created_at: str | None = None,

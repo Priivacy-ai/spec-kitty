@@ -54,7 +54,13 @@ def _read_project_uuid(repo_root: Path) -> str:
 
 
 def _read_meta_json(feature_dir: Path) -> dict[str, str]:
-    """Read mission_id and target_branch from meta.json."""
+    """Read mission identity and target_branch from meta.json.
+
+    Legacy missions authored before the identity backfill may lack
+    ``mission_id``. In that case, fall back to ``feature_dir.name`` so
+    context-bound commands can still operate deterministically on a
+    single explicit mission directory.
+    """
     meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
         msg = f"meta.json not found at {meta_path}."
@@ -62,14 +68,8 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
 
     data = json.loads(meta_path.read_text(encoding="utf-8"))
 
-    # mission_id may not exist yet in current metadata;
-    # fall back to mission_slug as the identifier during transition
-    mission_id = data.get("mission_id", data.get("mission_slug", ""))
+    mission_id = data.get("mission_id") or feature_dir.name
     target_branch = data.get("target_branch", "main")
-
-    if not mission_id:
-        msg = f"Neither mission_id nor mission_slug found in {meta_path}. The feature metadata is incomplete."
-        raise MissingIdentityError(msg)
 
     identity = mission_identity_fields(
         str(data.get("mission_slug") or data.get("slug") or feature_dir.name),

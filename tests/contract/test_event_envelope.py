@@ -64,7 +64,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -75,7 +75,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -87,7 +87,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -98,7 +98,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -109,7 +109,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -121,7 +121,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -137,7 +137,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )
@@ -148,7 +148,7 @@ class TestMissionCreatedEnvelope:
         emitter = _make_emitter()
         event = emitter.emit_mission_created(
             mission_slug="064-test-mission",
-            mission_number="064",
+            mission_number=64,
             target_branch="main",
             wp_count=3,
         )

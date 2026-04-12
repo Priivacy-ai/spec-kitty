@@ -101,8 +101,7 @@ class TestValidateMeta:
         meta = _minimal_meta()
         del meta["mission_number"]
         errors = validate_meta(meta)
-        assert len(errors) == 1
-        assert "mission_number" in errors[0]
+        assert errors == []
 
     def test_empty_field_is_error(self) -> None:
         meta = _minimal_meta()
@@ -116,7 +115,7 @@ class TestValidateMeta:
         del meta["slug"]
         del meta["mission_type"]
         errors = validate_meta(meta)
-        assert len(errors) == 3
+        assert len(errors) == 2
 
     def test_unknown_fields_no_errors(self) -> None:
         meta = _minimal_meta()
@@ -127,7 +126,6 @@ class TestValidateMeta:
 
     def test_required_fields_constant(self) -> None:
         expected = {
-            "mission_number",
             "slug",
             "mission_slug",
             "friendly_name",
@@ -184,7 +182,7 @@ class TestWriteMeta:
 
     def test_invalid_meta_raises_valueerror(self, tmp_path: Path) -> None:
         meta = _minimal_meta()
-        del meta["mission_number"]
+        del meta["slug"]
 
         # Pre-create a valid file to check it is preserved
         _write_meta_file(tmp_path, _minimal_meta())
