@@ -9,6 +9,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.2a3] - 2026-04-12
+
+### Fixed
+
+- **Merge-time numbering lock and retry safety** — `mission_number` assignment now acquires a file lock before scanning existing prefixes, MergeState uses `mission_id` as its canonical key, and interrupted merges no longer risk duplicate or skipped numbers on retry. Closes #601.
+- **CLI no longer hangs 15–20 min when offline queue is full and session expired** — the offline queue drain path now respects a bounded timeout instead of blocking indefinitely on expired-session retries. Closes #598, #602.
+- **Sonar readiness and parser findings addressed** — actionable maintenance issues flagged by SonarCloud (code smells, complexity, minor bugs) are resolved. Closes #599, #600.
+
 ## [3.1.2a2] - 2026-04-11
 
 ### Added
