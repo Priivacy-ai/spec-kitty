@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import pytest
 
+import specify_cli.core.dependency_parser as dependency_parser
 from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md
 
 
@@ -231,6 +232,12 @@ class TestSectionHeaderVariants:
         content = "### WP01\n\nNo deps.\n\n### WP02\n\nDepends on WP01.\n"
         result = parse_dependencies_from_tasks_md(content)
         assert result["WP02"] == ["WP01"]
+
+    def test_non_wp_headings_are_ignored_by_section_matcher(self) -> None:
+        assert dependency_parser._match_wp_section_id("Notes") is None
+
+    def test_numeric_heading_without_suffix_normalizes(self) -> None:
+        assert dependency_parser._match_wp_section_id("Work Package 7") == "WP07"
 
 
 # ---------------------------------------------------------------------------
