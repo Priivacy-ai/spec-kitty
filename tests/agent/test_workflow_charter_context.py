@@ -158,6 +158,17 @@ class TestPromptBuilderGovernanceContext:
         text = _governance_context(tmp_path, action="specify")
         assert "Governance:" in text
 
+    def test_compact_mode_auto_syncs_missing_governance_bundle(self, tmp_path: Path) -> None:
+        charter_dir = _make_charter_bundle(tmp_path, include_governance=False)
+
+        _governance_context(tmp_path, action="specify")
+        text = _governance_context(tmp_path, action="specify")
+
+        assert "Governance:" in text
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
+
     def test_missing_charter_falls_back_to_legacy_governance(self, tmp_path: Path) -> None:
         """Missing charter skips context injection and falls back gracefully."""
         (tmp_path / ".kittify" / "charter").mkdir(parents=True)

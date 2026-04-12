@@ -210,6 +210,37 @@ def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
         assert second_payload["first_load"] is False
 
 
+def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: Path) -> None:
+    repo_root = tmp_path / "repo"
+    repo_root.mkdir()
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_dir.mkdir(parents=True)
+
+    with patch("specify_cli.cli.commands.charter.find_repo_root") as mock_find_root:
+        mock_find_root.return_value = repo_root
+
+        generate_result = runner.invoke(app, ["generate", "--json"])
+        assert generate_result.exit_code == 0
+
+        first = runner.invoke(app, ["context", "--action", "plan", "--json"])
+        assert first.exit_code == 0
+        first_payload = json.loads(first.stdout)
+        assert first_payload["mode"] == "bootstrap"
+
+        for name in ("governance.yaml", "directives.yaml", "metadata.yaml"):
+            (charter_dir / name).unlink()
+
+        second = runner.invoke(app, ["context", "--action", "plan", "--json"])
+        assert second.exit_code == 0
+        second_payload = json.loads(second.stdout)
+        assert second_payload["mode"] == "compact"
+        assert second_payload["first_load"] is False
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
+        assert "Run 'spec-kitty charter sync'" not in second.stdout
+
+
 def test_help_output() -> None:
     result = runner.invoke(app, ["--help"])
 

@@ -35,6 +35,49 @@ class SyncResult:
     error: str | None = None  # Error message if sync failed
 
 
+def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
+    """Auto-refresh extracted charter artifacts when charter.md exists."""
+    charter_dir = repo_root / ".kittify" / "charter"
+    charter_path = charter_dir / "charter.md"
+    if not charter_path.exists():
+        return None
+
+    metadata_path = charter_dir / "metadata.yaml"
+    expected_paths = (
+        charter_dir / "governance.yaml",
+        charter_dir / "directives.yaml",
+        metadata_path,
+    )
+    missing_files = [path.name for path in expected_paths if not path.exists()]
+    should_force = bool(missing_files)
+    stale = False
+
+    if not should_force:
+        try:
+            stale, _, _ = is_stale(charter_path, metadata_path)
+        except Exception as exc:
+            logger.warning("Failed to evaluate charter bundle freshness: %s", exc)
+            should_force = True
+
+    if not should_force and not stale:
+        return SyncResult(
+            synced=False,
+            stale_before=False,
+            files_written=[],
+            extraction_mode="",
+        )
+
+    if missing_files:
+        logger.info("Charter bundle incomplete (%s). Attempting auto-sync.", ", ".join(missing_files))
+    else:
+        logger.info("Charter bundle stale. Attempting auto-sync.")
+
+    result = sync(charter_path, charter_dir, force=should_force)
+    if result.error:
+        logger.warning("Charter auto-sync failed while refreshing extracted artifacts: %s", result.error)
+    return result
+
+
 def sync(
     charter_path: Path,
     output_dir: Path | None = None,
@@ -148,19 +191,26 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
         GovernanceConfig instance (empty if file missing)
     """
     charter_dir = repo_root / ".kittify" / "charter"
+    charter_path = charter_dir / "charter.md"
     governance_path = charter_dir / "governance.yaml"
+    refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not governance_path.exists():
-        logger.warning("governance.yaml not found. Run 'spec-kitty charter sync'.")
+        if charter_path.exists():
+            logger.warning("governance.yaml unavailable after charter auto-sync. Using empty governance config.")
+        else:
+            logger.warning("governance.yaml not found and charter.md is absent. Using empty governance config.")
         return GovernanceConfig()
 
     # Check staleness
-    charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
     if charter_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
-            logger.warning("Charter changed since last sync. Run 'spec-kitty charter sync' to update.")
+            if refresh_result and refresh_result.error:
+                logger.warning("Charter bundle is stale after auto-sync failure. Using last synced governance config.")
+            else:
+                logger.warning("Charter bundle remains stale. Using last synced governance config.")
 
     # Load and validate
     yaml = YAML()
@@ -181,18 +231,25 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
         DirectivesConfig instance (empty if file missing)
     """
     charter_dir = repo_root / ".kittify" / "charter"
+    charter_path = charter_dir / "charter.md"
     directives_path = charter_dir / "directives.yaml"
+    refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not directives_path.exists():
-        logger.warning("directives.yaml not found. Run 'spec-kitty charter sync'.")
+        if charter_path.exists():
+            logger.warning("directives.yaml unavailable after charter auto-sync. Using empty directives config.")
+        else:
+            logger.warning("directives.yaml not found and charter.md is absent. Using empty directives config.")
         return DirectivesConfig()
 
-    charter_path = charter_dir / "charter.md"
     metadata_path = charter_dir / "metadata.yaml"
     if charter_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
-            logger.warning("Charter changed since last sync. Run 'spec-kitty charter sync' to update.")
+            if refresh_result and refresh_result.error:
+                logger.warning("Charter bundle is stale after auto-sync failure. Using last synced directives config.")
+            else:
+                logger.warning("Charter bundle remains stale. Using last synced directives config.")
 
     yaml = YAML()
     data = yaml.load(directives_path)
