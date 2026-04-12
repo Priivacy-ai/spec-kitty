@@ -35,6 +35,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Maximum seconds the stop() best-effort sync may run before being
+# abandoned.  Events stay in the durable queue for the daemon to drain.
+_STOP_SYNC_TIMEOUT_SECONDS = 5
+
 
 def _fetch_access_token_sync() -> str | None:
     """Fetch a valid access token from the TokenManager (sync bridge).
@@ -132,24 +136,52 @@ class BackgroundSyncService:
         """Stop the background sync service gracefully.
 
         Cancels the pending timer and attempts a best-effort final sync
-        if there are queued events.
+        if there are queued events.  The final sync is bounded to
+        ``_STOP_SYNC_TIMEOUT_SECONDS`` so process exit is never blocked
+        indefinitely (see #598).
         """
-        with self._lock:
+        acquired = self._lock.acquire(timeout=5.0)
+        try:
             self._running = False
             if self._timer is not None:
                 self._timer.cancel()
                 self._timer = None
+        finally:
+            if acquired:
+                self._lock.release()
 
-        # Best-effort final sync
+        if not acquired:
+            # Timer thread is stuck holding the lock; skip the final sync
+            # rather than blocking shutdown.
+            logger.warning("Could not acquire sync lock within 5 s; skipping final sync")
+            return
+
+        # Best-effort final sync with a bounded timeout so atexit never
+        # hangs the process.  Events stay in the durable queue and will
+        # be drained on the next daemon tick.
         body_queue_has_work = (
             self._body_queue is not None and self._body_queue.size() > 0
         )
         if self.queue.size() > 0 or body_queue_has_work:
-            try:
-                self._perform_sync()
-            except Exception:
-                pass
+            sync_thread = threading.Thread(
+                target=self._guarded_final_sync, daemon=True,
+            )
+            sync_thread.start()
+            sync_thread.join(timeout=_STOP_SYNC_TIMEOUT_SECONDS)
+            if sync_thread.is_alive():
+                logger.warning(
+                    "Final sync did not complete within %ds; "
+                    "queued events will be drained by the daemon",
+                    _STOP_SYNC_TIMEOUT_SECONDS,
+                )
         logger.debug("Background sync service stopped")
+
+    def _guarded_final_sync(self) -> None:
+        """Run a single sync batch; swallows all exceptions."""
+        try:
+            self._perform_sync()
+        except Exception:
+            pass
 
     @property
     def last_sync(self) -> Optional[datetime]:
@@ -238,6 +270,16 @@ class BackgroundSyncService:
                     batch_size=1000,
                     show_progress=False,
                 )
+                # Treat auth failures as hard errors (#598)
+                if "auth_expired" in result.category_counts:
+                    self._consecutive_failures += 1
+                    self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+                    logger.warning(
+                        "Full sync auth failure (attempt %d): "
+                        "run `spec-kitty auth login` to re-authenticate",
+                        self._consecutive_failures,
+                    )
+                    return result
                 # Drain body upload queue after events (FR-007)
                 if self._body_queue is not None:
                     self._drain_body_queue()
@@ -284,11 +326,26 @@ class BackgroundSyncService:
                 limit=1000,
                 show_progress=False,
             )
-            # Success: reset backoff
-            self._consecutive_failures = 0
-            self._backoff_seconds = 0.5
-            self._last_sync = datetime.now(timezone.utc)
-            event_sync_succeeded = True
+            # Treat auth failures (HTTP 401) as hard errors for backoff
+            # purposes.  batch_sync() handles 401 internally and returns
+            # a result with error_category="auth_expired" rather than
+            # raising, so without this check the service would reset
+            # backoff and keep retrying at the normal cadence (#598).
+            if "auth_expired" in result.category_counts:
+                self._consecutive_failures += 1
+                self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
+                logger.warning(
+                    "Sync auth failure (attempt %d, next backoff %.1fs): "
+                    "run `spec-kitty auth login` to re-authenticate",
+                    self._consecutive_failures,
+                    self._backoff_seconds,
+                )
+            else:
+                # Genuine success: reset backoff
+                self._consecutive_failures = 0
+                self._backoff_seconds = 0.5
+                self._last_sync = datetime.now(timezone.utc)
+                event_sync_succeeded = True
         except Exception as exc:
             self._consecutive_failures += 1
             self._backoff_seconds = min(self._backoff_seconds * 2, 30.0)
