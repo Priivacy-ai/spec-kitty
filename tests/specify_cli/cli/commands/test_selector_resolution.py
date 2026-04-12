@@ -68,6 +68,23 @@ def _build_task_repo(tmp_path: Path, mission_slug: str = "077-demo-mission") -> 
     return repo_root
 
 
+def _extract_json(output: str) -> dict:
+    """Extract the first JSON object from mixed stdout output."""
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError:
+        pass
+    for line in output.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    raise ValueError(f"No valid JSON found in output:\n{output}")
+
+
 def test_canonical_only_returns_value(warning_stream: io.StringIO) -> None:
     result = resolve_selector(
         canonical_value="077-demo",
@@ -395,7 +412,7 @@ def test_agent_mission_create_canonical_succeeds(tmp_path: Path) -> None:
 
     assert result.exit_code == 0, result.output
     assert captured["mission"] == "software-dev"
-    payload = json.loads(result.output)
+    payload = _extract_json(result.output)
     assert payload["mission_type"] == "software-dev"
     assert "Warning:" not in result.output
 
@@ -549,7 +566,7 @@ def test_agent_tasks_status_canonical_selector_succeeds(tmp_path: Path) -> None:
         result = runner.invoke(tasks_app, ["status", "--mission", "077-demo-mission", "--json"])
 
     assert result.exit_code == 0, result.output
-    payload = json.loads(result.output)
+    payload = _extract_json(result.output)
     assert payload["total_wps"] == 1
     assert payload["work_packages"][0]["id"] == "WP01"
 

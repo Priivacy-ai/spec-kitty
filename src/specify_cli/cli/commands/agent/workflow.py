@@ -333,14 +333,8 @@ def _find_mission_slug(
     Raises:
         typer.Exit: If mission slug is not provided or selectors conflict.
     """
-    raw_handle = explicit_mission or explicit_feature
-    if raw_handle is not None and repo_root is not None:
-        resolved = resolve_mission_handle(raw_handle, repo_root)
-        return resolved.mission_slug
-
-    # Legacy path: no repo_root available.
     try:
-        resolved = resolve_selector(
+        selector = resolve_selector(
             canonical_value=explicit_mission,
             canonical_flag="--mission",
             alias_value=explicit_feature,
@@ -348,10 +342,24 @@ def _find_mission_slug(
             suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
         )
-        return resolved.canonical_value
     except typer.BadParameter as e:
         print(f"Error: {e}")
         raise typer.Exit(1)
+
+    raw_handle = selector.canonical_value
+    if raw_handle is not None and repo_root is not None:
+        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        if legacy_dir.exists():
+            return raw_handle
+        try:
+            resolved = resolve_mission_handle(raw_handle, repo_root)
+            return resolved.mission_slug
+        except (SystemExit, typer.Exit):
+            if legacy_dir.exists():
+                return raw_handle
+            raise
+
+    return raw_handle
 
 
 def _normalize_wp_id(wp_arg: str) -> str:

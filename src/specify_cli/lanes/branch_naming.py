@@ -35,6 +35,8 @@ _MISSION_PREFIX = "kitty/mission-"
 # Legacy regex: NNN-slug (3 digits + hyphen prefix)
 _LEGACY_MISSION_RE = re.compile(r"^kitty/mission-(\d{3}-.+)$")
 _LEGACY_LANE_RE = re.compile(r"^kitty/mission-(\d{3}-.+)-(lane-[a-z])$")
+_PLAIN_LEGACY_MISSION_RE = re.compile(r"^kitty/mission-(.+)$")
+_PLAIN_LEGACY_LANE_RE = re.compile(r"^kitty/mission-(.+)-(lane-[a-z])$")
 
 # New regex: <human-slug>-<mid8>[-lane-<id>]
 # Mid8 = exactly 8 uppercase alphanumeric characters (ULID character set)
@@ -214,6 +216,8 @@ def is_legacy_branch(branch_name: str) -> bool:
     return (
         _LEGACY_LANE_RE.match(branch_name) is not None
         or _LEGACY_MISSION_RE.match(branch_name) is not None
+        or _PLAIN_LEGACY_LANE_RE.match(branch_name) is not None
+        or _PLAIN_LEGACY_MISSION_RE.match(branch_name) is not None
     )
 
 
@@ -289,6 +293,16 @@ def parse_mission_slug_from_branch(branch_name: str) -> BranchParseResult | None
     if m:
         return BranchParseResult(slug=m.group(1), mid8_token=None, lane_id=None)
 
+    # Try compatibility legacy lane form without numeric prefix.
+    m = _PLAIN_LEGACY_LANE_RE.match(branch_name)
+    if m:
+        return BranchParseResult(slug=m.group(1), mid8_token=None, lane_id=m.group(2))
+
+    # Try compatibility legacy mission form without numeric prefix.
+    m = _PLAIN_LEGACY_MISSION_RE.match(branch_name)
+    if m:
+        return BranchParseResult(slug=m.group(1), mid8_token=None, lane_id=None)
+
     return None
 
 
@@ -303,6 +317,10 @@ def parse_lane_id_from_branch(branch_name: str) -> str | None:
         return m.group(3)
     # Legacy form
     m = _LEGACY_LANE_RE.match(branch_name)
+    if m:
+        return m.group(2)
+    # Compatibility legacy form without numeric prefix
+    m = _PLAIN_LEGACY_LANE_RE.match(branch_name)
     if m:
         return m.group(2)
     return None

@@ -161,6 +161,23 @@ def test_research_creates_artifacts(monkeypatch, tmp_path: Path) -> None:
 def test_accept_checklist_json_output(monkeypatch, tmp_path: Path) -> None:
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    feature_dir = repo_root / "kitty-specs" / "001-demo-feature"
+    feature_dir.mkdir(parents=True)
+    (feature_dir / "meta.json").write_text(
+        json.dumps(
+            {
+                "mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008",
+                "mission_slug": "001-demo-feature",
+                "slug": "001-demo-feature",
+                "friendly_name": "Demo Feature",
+                "mission_type": "software-dev",
+                "target_branch": "main",
+                "created_at": "2026-04-12T00:00:00+00:00",
+                "mission_number": 1,
+            }
+        ),
+        encoding="utf-8",
+    )
 
     class DummySummary:
         ok = True

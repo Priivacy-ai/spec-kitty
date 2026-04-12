@@ -142,11 +142,13 @@ def test_collision_different_ulids_produce_distinct_branches() -> None:
 LEGACY_BRANCHES: list[tuple[str, str | None]] = [
     ("kitty/mission-080-browser-mediated-oauth-cli-auth", None),
     ("kitty/mission-080-ci-hardening-and-lint-cleanup", None),
+    ("kitty/mission-feature-without-number", None),
     # "lane-consumer" is part of the slug, NOT a lane suffix — lane_id must be None
     ("kitty/mission-080-wpstate-lane-consumer-strangler-fig-phase-2", None),
     # These end with a real lane suffix
     ("kitty/mission-080-browser-mediated-oauth-cli-auth-lane-a", "lane-a"),
     ("kitty/mission-082-stealth-gated-saas-sync-hardening-lane-b", "lane-b"),
+    ("kitty/mission-feature-without-number-lane-a", "lane-a"),
 ]
 
 
@@ -216,6 +218,8 @@ def test_parse_non_kitty_prefix_returns_none() -> None:
 def test_is_legacy_branch_with_numeric_prefix() -> None:
     assert is_legacy_branch("kitty/mission-080-browser-mediated-oauth-cli-auth") is True
     assert is_legacy_branch("kitty/mission-080-foo-lane-a") is True
+    assert is_legacy_branch("kitty/mission-feature-without-number") is True
+    assert is_legacy_branch("kitty/mission-feature-without-number-lane-a") is True
 
 
 def test_is_legacy_branch_new_form() -> None:

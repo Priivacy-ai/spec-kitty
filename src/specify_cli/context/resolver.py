@@ -54,7 +54,13 @@ def _read_project_uuid(repo_root: Path) -> str:
 
 
 def _read_meta_json(feature_dir: Path) -> dict[str, str]:
-    """Read mission_id and target_branch from meta.json."""
+    """Read mission identity and target_branch from meta.json.
+
+    Legacy missions authored before the identity backfill may lack
+    ``mission_id``. In that case, fall back to ``feature_dir.name`` so
+    context-bound commands can still operate deterministically on a
+    single explicit mission directory.
+    """
     meta_path = feature_dir / "meta.json"
     if not meta_path.exists():
         msg = f"meta.json not found at {meta_path}."
@@ -62,13 +68,7 @@ def _read_meta_json(feature_dir: Path) -> dict[str, str]:
 
     data = json.loads(meta_path.read_text(encoding="utf-8"))
 
-    mission_id = data.get("mission_id")
-    if not mission_id:
-        raise MissingIdentityError(
-            f"meta.json at {meta_path} is missing mission_id. "
-            f"This mission was authored before the mission_id migration landed. "
-            f"Run `spec-kitty migrate backfill-identity` to fix."
-        )
+    mission_id = data.get("mission_id") or feature_dir.name
     target_branch = data.get("target_branch", "main")
 
     identity = mission_identity_fields(

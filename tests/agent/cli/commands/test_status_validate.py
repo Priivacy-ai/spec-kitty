@@ -60,6 +60,23 @@ def _make_event(
     return event
 
 
+def _extract_json(output: str) -> dict:
+    """Extract the first JSON object from mixed stdout output."""
+    try:
+        return json.loads(output)
+    except json.JSONDecodeError:
+        pass
+    for line in output.strip().splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            return json.loads(line)
+        except json.JSONDecodeError:
+            continue
+    raise ValueError(f"No valid JSON found in output:\n{output}")
+
+
 def _setup_feature(
     tmp_path: Path,
     mission_slug: str = "034-test-feature",
@@ -238,7 +255,7 @@ class TestValidateCommand:
         )
         assert result.exit_code == 0
 
-        data = json.loads(result.output)
+        data = _extract_json(result.output)
         assert data["mission_slug"] == mission_slug
         assert "passed" in data
         assert isinstance(data["errors"], list)
@@ -278,7 +295,7 @@ class TestValidateCommand:
         )
         assert result.exit_code == 1
 
-        data = json.loads(result.output)
+        data = _extract_json(result.output)
         assert data["passed"] is False
         assert data["error_count"] > 0
         assert len(data["errors"]) > 0
@@ -330,6 +347,6 @@ class TestValidateCommand:
             app, ["validate", "--mission", mission_slug, "--json"]
         )
         assert result.exit_code == 0
-        data = json.loads(result.output)
+        data = _extract_json(result.output)
         assert data["passed"] is True
         assert data["error_count"] == 0

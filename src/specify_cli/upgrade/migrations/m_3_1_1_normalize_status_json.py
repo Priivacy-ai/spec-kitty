@@ -21,8 +21,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from specify_cli.mission_metadata import resolve_mission_identity
-from specify_cli.status.reducer import SNAPSHOT_FILENAME, materialize, materialize_to_json, reduce
+from specify_cli.status.reducer import SNAPSHOT_FILENAME, reduce
 from specify_cli.status.store import read_events
 
 from ..registry import MigrationRegistry
@@ -37,7 +36,7 @@ def _iter_feature_dirs(project_path: Path) -> list[Path]:
 
 
 def _needs_normalisation(feature_dir: Path) -> bool:
-    """Return True when status.json differs from the canonical reduced snapshot.
+    """Return True when status.json has a stale ``materialized_at`` value.
 
     This check must stay read-only. Calling ``materialize()`` here would rewrite
     ``status.json`` during detect()/dry_run evaluation and hide stale files from
@@ -47,13 +46,10 @@ def _needs_normalisation(feature_dir: Path) -> bool:
     if not status_path.exists():
         return False
     try:
+        actual = json.loads(status_path.read_text(encoding="utf-8"))
         snapshot = reduce(read_events(feature_dir))
-        identity = resolve_mission_identity(feature_dir)
-        snapshot.mission_number = identity.mission_number
-        snapshot.mission_type = identity.mission_type
-        expected = materialize_to_json(snapshot)
-        actual = status_path.read_text(encoding="utf-8")
-        return actual != expected
+        expected_materialized_at = snapshot.materialized_at
+        return actual.get("materialized_at") != expected_materialized_at
     except Exception:
         return False
 
@@ -88,10 +84,14 @@ class NormalizeStatusJsonMigration(BaseMigration):
                     if _needs_normalisation(feature_dir):
                         changes.append(f"{feature_dir.name}: would normalise status.json")
                 else:
-                    before = status_path.read_text(encoding="utf-8")
-                    materialize(feature_dir)
-                    after = status_path.read_text(encoding="utf-8")
-                    if before != after:
+                    if _needs_normalisation(feature_dir):
+                        current = json.loads(status_path.read_text(encoding="utf-8"))
+                        snapshot = reduce(read_events(feature_dir))
+                        current["materialized_at"] = snapshot.materialized_at
+                        status_path.write_text(
+                            json.dumps(current, sort_keys=True, indent=2, ensure_ascii=False) + "\n",
+                            encoding="utf-8",
+                        )
                         changes.append(f"{feature_dir.name}: normalised status.json")
             except Exception as exc:
                 errors.append(f"{feature_dir.name}: {exc}")

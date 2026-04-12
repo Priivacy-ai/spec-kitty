@@ -75,8 +75,16 @@ def _find_mission_slug(
 
     raw_handle = selector.canonical_value
     if repo_root is not None:
-        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-        return resolved.mission_slug
+        legacy_dir = get_main_repo_root(repo_root) / "kitty-specs" / raw_handle
+        if legacy_dir.exists():
+            return raw_handle
+        try:
+            resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+            return resolved.mission_slug
+        except (SystemExit, typer.Exit):
+            if legacy_dir.exists():
+                return raw_handle
+            raise
 
     return raw_handle
 
