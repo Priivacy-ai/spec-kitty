@@ -86,6 +86,55 @@ class DeviceFlowPoller:
         """Return the wrapped :class:`DeviceFlowState`."""
         return self._state
 
+    def _raise_if_expired(self) -> None:
+        """Stop polling once the local device-flow state has expired."""
+        if self._state.is_expired():
+            raise DeviceFlowExpired(
+                f"Device authorization expired after {self._state.expires_in} seconds. "
+                "Run `spec-kitty auth login --headless` again."
+            )
+
+    @staticmethod
+    def _raise_terminal_error(error: str, response: dict[str, Any]) -> None:
+        """Raise the terminal exception for a non-retriable OAuth error."""
+        if error == "access_denied":
+            raise DeviceFlowDenied(
+                "User denied the authorization request. "
+                "Run `spec-kitty auth login --headless` to try again."
+            )
+
+        if error == "expired_token":
+            raise DeviceFlowExpired(
+                "Device code expired before approval. "
+                "Run `spec-kitty auth login --headless` to try again."
+            )
+
+        desc = response.get("error_description", error)
+        raise DeviceFlowDenied(f"Unexpected device flow error: {desc}")
+
+    def _handle_response(
+        self,
+        response: dict[str, Any],
+        *,
+        interval: int,
+        on_pending: Callable[[DeviceFlowState], None] | None,
+    ) -> tuple[dict[str, Any] | None, int]:
+        """Classify a token response and return the next loop state."""
+        error = response.get("error")
+        if error is None:
+            return response, interval
+
+        if error == "authorization_pending":
+            if on_pending is not None:
+                on_pending(self._state)
+            return None, interval
+
+        if error == "slow_down":
+            next_interval = min(interval + _SLOW_DOWN_BACKOFF, _MAX_INTERVAL_SECONDS)
+            return None, next_interval
+
+        self._raise_terminal_error(error, response)
+
     async def poll(
         self,
         token_request: Callable[[str], Awaitable[dict[str, Any]]],
@@ -131,11 +180,7 @@ class DeviceFlowPoller:
         interval = min(self._state.interval, _MAX_INTERVAL_SECONDS)
 
         while True:
-            if self._state.is_expired():
-                raise DeviceFlowExpired(
-                    f"Device authorization expired after {self._state.expires_in} seconds. "
-                    "Run `spec-kitty auth login --headless` again."
-                )
+            self._raise_if_expired()
 
             # Sleep BEFORE the first poll too -- gives the user time to open
             # the browser and approve. This is intentional UX, not a bug.
@@ -150,33 +195,10 @@ class DeviceFlowPoller:
                 log.warning("Network error during device flow poll: %s", exc)
                 continue
 
-            error = response.get("error")
-            if error is None:
-                # Success: response contains access_token, refresh_token, etc.
-                return response
-
-            if error == "authorization_pending":
-                if on_pending is not None:
-                    on_pending(self._state)
-                continue
-
-            if error == "slow_down":
-                # RFC 8628 §3.5: bump interval, but still cap at 10s (FR-018).
-                interval = min(interval + _SLOW_DOWN_BACKOFF, _MAX_INTERVAL_SECONDS)
-                continue
-
-            if error == "access_denied":
-                raise DeviceFlowDenied(
-                    "User denied the authorization request. "
-                    "Run `spec-kitty auth login --headless` to try again."
-                )
-
-            if error == "expired_token":
-                raise DeviceFlowExpired(
-                    "Device code expired before approval. "
-                    "Run `spec-kitty auth login --headless` to try again."
-                )
-
-            # Unknown error -- propagate with whatever description SaaS gave us.
-            desc = response.get("error_description", error)
-            raise DeviceFlowDenied(f"Unexpected device flow error: {desc}")
+            handled_response, interval = self._handle_response(
+                response,
+                interval=interval,
+                on_pending=on_pending,
+            )
+            if handled_response is not None:
+                return handled_response

@@ -36,6 +36,10 @@ from specify_cli.sync.feature_flags import (
 
 console = Console()
 
+_STATUS_ACCESS_TOKEN_LABEL = "Access token"
+_STATUS_REFRESH_TOKEN_LABEL = "Refresh token"
+_STATUS_LAST_SYNC_LABEL = "Last Sync"
+
 
 def humanize_timedelta(td: "timedelta") -> str:
     """Convert a timedelta into a concise human-readable string.
@@ -726,11 +730,14 @@ def status(
     if daemon_status.last_sync:
         try:
             parsed_sync_time = datetime.fromisoformat(daemon_status.last_sync)
-            table.add_row("Last Sync", parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"))
+            table.add_row(
+                _STATUS_LAST_SYNC_LABEL,
+                parsed_sync_time.strftime("%Y-%m-%d %H:%M:%S UTC"),
+            )
         except ValueError:
-            table.add_row("Last Sync", daemon_status.last_sync)
+            table.add_row(_STATUS_LAST_SYNC_LABEL, daemon_status.last_sync)
     else:
-        table.add_row("Last Sync", "[dim]Never[/dim]")
+        table.add_row(_STATUS_LAST_SYNC_LABEL, "[dim]Never[/dim]")
 
     if daemon_status.consecutive_failures > 0:
         table.add_row("Failures", f"[yellow]{daemon_status.consecutive_failures} consecutive[/yellow]")
@@ -935,27 +942,30 @@ def doctor() -> None:
 
         if access_ok:
             table.add_row(
-                "Access token",
+                _STATUS_ACCESS_TOKEN_LABEL,
                 f"[green]Valid[/green] (expires {access_exp_dt.isoformat()})",
             )
         elif access_exp_dt is not None:
             table.add_row(
-                "Access token",
+                _STATUS_ACCESS_TOKEN_LABEL,
                 f"[red]Expired[/red] ({access_exp_dt.isoformat()})",
             )
         else:
-            table.add_row("Access token", "[red]Missing[/red]")
+            table.add_row(_STATUS_ACCESS_TOKEN_LABEL, "[red]Missing[/red]")
 
         if refresh_exp_dt is None:
-            table.add_row("Refresh token", "[green]Valid[/green] (no expiry stored)")
+            table.add_row(
+                _STATUS_REFRESH_TOKEN_LABEL,
+                "[green]Valid[/green] (no expiry stored)",
+            )
         elif refresh_ok:
             table.add_row(
-                "Refresh token",
+                _STATUS_REFRESH_TOKEN_LABEL,
                 f"[green]Valid[/green] (expires {refresh_exp_dt.isoformat()})",
             )
         else:
             table.add_row(
-                "Refresh token",
+                _STATUS_REFRESH_TOKEN_LABEL,
                 f"[red]Expired[/red] ({refresh_exp_dt.isoformat()})",
             )
 
