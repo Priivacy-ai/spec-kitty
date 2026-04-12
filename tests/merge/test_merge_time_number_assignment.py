@@ -183,6 +183,22 @@ class TestAssignNextMissionNumber:
 
         assert assign_next_mission_number(target_root, kitty_specs) == 2
 
+    def test_skips_non_directory_entries(self, tmp_path: Path) -> None:
+        """Files directly under kitty-specs/ are ignored during the scan."""
+        target_root, kitty_specs = _make_target_view(tmp_path)
+        _write_meta(kitty_specs / "001-good", slug="001-good", mission_number=1)
+        (kitty_specs / "README.md").write_text("hi", encoding="utf-8")
+
+        assert assign_next_mission_number(target_root, kitty_specs) == 2
+
+    def test_skips_malformed_mission_numbers(self, tmp_path: Path) -> None:
+        """Malformed mission_number values are warned on and skipped."""
+        target_root, kitty_specs = _make_target_view(tmp_path)
+        _write_meta(kitty_specs / "001-good", slug="001-good", mission_number=1)
+        _write_meta(kitty_specs / "broken", slug="broken", mission_number=[])
+
+        assert assign_next_mission_number(target_root, kitty_specs) == 2
+
 
 # ---------------------------------------------------------------------------
 # T056 — Test 1: assignment writes an integer into meta.json

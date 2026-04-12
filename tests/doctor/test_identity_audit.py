@@ -117,6 +117,43 @@ def test_classify_mission_corrupt_meta_json(tmp_path: Path) -> None:
     assert state.error is not None
 
 
+def test_classify_mission_non_object_meta_json(tmp_path: Path) -> None:
+    """A non-object JSON document is classified as orphan with an error."""
+    d = tmp_path / "kitty-specs" / "083-list-meta"
+    d.mkdir(parents=True)
+    (d / "meta.json").write_text('["not", "an", "object"]', encoding="utf-8")
+
+    state = classify_mission(d)
+
+    assert state.state == "orphan"
+    assert state.error is not None
+    assert "Expected JSON object" in state.error
+
+
+def test_classify_mission_invalid_number_with_mission_id_is_pending(tmp_path: Path) -> None:
+    """A bad mission_number is coerced to None, keeping mission_id-backed rows pending."""
+    d = tmp_path / "kitty-specs" / "083-bad-number"
+    _write_meta(d, {"mission_id": _ULID_A, "mission_number": {"bad": "shape"}})
+
+    state = classify_mission(d)
+
+    assert state.state == "pending"
+    assert state.mission_id == _ULID_A
+    assert state.mission_number is None
+
+
+def test_classify_mission_invalid_number_without_mission_id_is_orphan(tmp_path: Path) -> None:
+    """A bad mission_number without mission_id becomes an orphan."""
+    d = tmp_path / "kitty-specs" / "083-bad-legacy"
+    _write_meta(d, {"mission_number": {"bad": "shape"}})
+
+    state = classify_mission(d)
+
+    assert state.state == "orphan"
+    assert state.mission_id is None
+    assert state.mission_number is None
+
+
 # ---------------------------------------------------------------------------
 # audit_repo
 # ---------------------------------------------------------------------------
@@ -190,6 +227,21 @@ def test_summarize_legacy_and_orphan_paths(tmp_path: Path) -> None:
     assert not any("003-assigned" in p for p in legacy + orphan)
 
 
+def test_summarize_counts_assigned_and_pending(tmp_path: Path) -> None:
+    """summarize increments assigned and pending counts without path buckets."""
+    specs = tmp_path / "kitty-specs"
+    _mission_dir(specs, "001-assigned", _ULID_A, 1)
+    _mission_dir(specs, "002-pending", _ULID_B, None)
+
+    summary = summarize(audit_repo(tmp_path))
+
+    counts = summary["counts"]
+    assert counts["assigned"] == 1
+    assert counts["pending"] == 1
+    assert summary["legacy_paths"] == []
+    assert summary["orphan_paths"] == []
+
+
 # ---------------------------------------------------------------------------
 # T014: Duplicate-prefix report
 # ---------------------------------------------------------------------------
@@ -221,6 +273,25 @@ def test_find_duplicate_prefixes_no_duplicates(tmp_path: Path) -> None:
     _mission_dir(specs, "002-beta", _ULID_B, 2)
     dupes = find_duplicate_prefixes(tmp_path)
     assert dupes == {}
+
+
+def test_find_duplicate_prefixes_missing_specs_dir_returns_empty(tmp_path: Path) -> None:
+    """Missing kitty-specs/ returns an empty duplicate-prefix report."""
+    assert find_duplicate_prefixes(tmp_path) == {}
+
+
+def test_find_duplicate_prefixes_skips_non_directory_entries(tmp_path: Path) -> None:
+    """Files directly under kitty-specs/ are ignored by duplicate-prefix scanning."""
+    specs = tmp_path / "kitty-specs"
+    specs.mkdir()
+    (specs / "README.md").write_text("ignore me", encoding="utf-8")
+    _mission_dir(specs, "080-one", _ULID_A, 80)
+    _mission_dir(specs, "080-two", _ULID_B, 80)
+
+    dupes = find_duplicate_prefixes(tmp_path)
+
+    assert "080" in dupes
+    assert len(dupes["080"]) == 2
 
 
 def test_find_duplicate_prefixes_skips_no_prefix(tmp_path: Path) -> None:

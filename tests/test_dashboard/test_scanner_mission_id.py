@@ -15,6 +15,7 @@ from pathlib import Path
 import pytest
 
 from specify_cli.dashboard.scanner import (
+    _read_mission_identity,
     build_mission_registry,
     sort_missions_for_display,
 )
@@ -134,6 +135,32 @@ class TestBuildMissionRegistry:
     def test_assigned_mission_uses_ulid_key(self, mixed_repo: Path) -> None:
         registry = build_mission_registry(mixed_repo)
         assert "01JQABC1234567890ABCALPHA1" in registry
+
+    def test_read_mission_identity_coerces_digit_string(self, tmp_path: Path) -> None:
+        """Digit strings in mission_number are coerced to integers."""
+        feature_dir = tmp_path / "kitty-specs" / "042-string-number"
+        _write_meta(feature_dir, mission_id="01JQABC1234567890ABCALPHA1", mission_number="042")
+
+        mission_id, mission_number = _read_mission_identity(feature_dir)
+
+        assert mission_id == "01JQABC1234567890ABCALPHA1"
+        assert mission_number == 42
+
+    def test_read_mission_identity_returns_none_for_non_object_json(self, tmp_path: Path) -> None:
+        """Non-object meta.json degrades to (None, None)."""
+        feature_dir = tmp_path / "kitty-specs" / "043-list-meta"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text('["not", "an", "object"]', encoding="utf-8")
+
+        assert _read_mission_identity(feature_dir) == (None, None)
+
+    def test_read_mission_identity_returns_none_for_invalid_json(self, tmp_path: Path) -> None:
+        """Malformed meta.json degrades to (None, None)."""
+        feature_dir = tmp_path / "kitty-specs" / "044-invalid-json"
+        feature_dir.mkdir(parents=True)
+        (feature_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+        assert _read_mission_identity(feature_dir) == (None, None)
 
 
 # ---------------------------------------------------------------------------

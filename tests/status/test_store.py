@@ -10,6 +10,7 @@ import pytest
 from specify_cli.status.models import Lane, StatusEvent
 from specify_cli.status.store import (
     EVENTS_FILENAME,
+    _SlugResolver,
     StoreError,
     append_event,
     read_events,
@@ -184,3 +185,30 @@ def test_blank_lines_skipped(tmp_path: Path) -> None:
 
     events = read_events(tmp_path)
     assert len(events) == 2
+
+
+def test_slug_resolver_finds_kitty_specs_two_levels_up(tmp_path: Path) -> None:
+    """Nested feature dirs still resolve via a kitty-specs root two levels up."""
+    mission_dir = tmp_path / "kitty-specs" / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text(
+        json.dumps({"mission_id": "01KNXQS9ATWWFXS3K5ZJ9E5008"}),
+        encoding="utf-8",
+    )
+    nested_feature_dir = mission_dir / "status"
+    nested_feature_dir.mkdir()
+
+    resolver = _SlugResolver(nested_feature_dir)
+
+    assert resolver.resolve("034-feature-name") == "01KNXQS9ATWWFXS3K5ZJ9E5008"
+
+
+def test_slug_resolver_returns_none_for_malformed_meta(tmp_path: Path) -> None:
+    """Malformed legacy meta.json leaves mission_id unresolved instead of crashing."""
+    mission_dir = tmp_path / "kitty-specs" / "034-feature-name"
+    mission_dir.mkdir(parents=True)
+    (mission_dir / "meta.json").write_text("{bad json", encoding="utf-8")
+
+    resolver = _SlugResolver(mission_dir)
+
+    assert resolver.resolve("034-feature-name") is None
