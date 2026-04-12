@@ -262,6 +262,32 @@ def _bake_mission_number_into_mission_branch(
     import subprocess as _subprocess
     import tempfile as _tempfile
 
+    def _is_git_repo(path: Path) -> bool:
+        probe = _subprocess.run(
+            ["git", "rev-parse", "--is-inside-work-tree"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+        )
+        return probe.returncode == 0 and probe.stdout.strip() == "true"
+
+    def _has_branch_ref(path: Path, ref_name: str) -> bool:
+        probe = _subprocess.run(
+            ["git", "rev-parse", "--verify", f"{ref_name}^{{commit}}"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+        )
+        return probe.returncode == 0
+
+    if not _is_git_repo(main_repo):
+        logger.warning(
+            "Skipping mission_number bake for %s: %s is not a git repository",
+            mission_slug,
+            main_repo,
+        )
+        return None
+
     # -- Step 1: Check the TARGET branch's meta.json for this mission.
     # If the target already has an integer mission_number for this mission,
     # it was assigned in a prior successful merge — true no-op.
@@ -321,6 +347,14 @@ def _bake_mission_number_into_mission_branch(
     mission_tmp_dir = _tempfile.mkdtemp(prefix="kitty-numwrite-")
     mission_tmp_path = Path(mission_tmp_dir)
     try:
+        if not _has_branch_ref(main_repo, mission_branch):
+            logger.warning(
+                "Skipping mission_number bake for %s: branch %s does not exist",
+                mission_slug,
+                mission_branch,
+            )
+            return None
+
         result = _subprocess.run(
             ["git", "worktree", "add", "--detach", str(mission_tmp_path), mission_branch],
             cwd=str(main_repo),
@@ -328,10 +362,13 @@ def _bake_mission_number_into_mission_branch(
             text=True,
         )
         if result.returncode != 0:
-            raise RuntimeError(
-                f"Failed to create mission-branch worktree for mission_number write: "
-                f"{result.stderr.strip()}"
+            logger.warning(
+                "Skipping mission_number bake for %s: could not create mission worktree for %s (%s)",
+                mission_slug,
+                mission_branch,
+                result.stderr.strip(),
             )
+            return None
 
         meta_path = mission_tmp_path / "kitty-specs" / mission_slug / "meta.json"
         if not meta_path.exists():

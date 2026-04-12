@@ -279,12 +279,15 @@ git checkout -b kitty/mission-my-feature-01J6XW9K-lane-a  # Create and switch to
 *This document explains git worktrees for understanding. For practical steps in Spec Kitty, see the how-to guides.*
 
 ## Try It
+
 - [Claude Code Workflow](../tutorials/claude-code-workflow.md)
 
 ## How-To Guides
+
 - [Upgrade to 0.11.0](../how-to/install-and-upgrade.md)
 - [Install Spec Kitty](../how-to/install-spec-kitty.md)
 
 ## Reference
+
 - [File Structure](../reference/file-structure.md)
 - [CLI Commands](../reference/cli-commands.md)

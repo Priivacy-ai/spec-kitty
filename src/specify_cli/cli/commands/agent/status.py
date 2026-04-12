@@ -57,14 +57,8 @@ def _find_mission_slug(
     Raises:
         typer.Exit: If the mission slug is not provided.
     """
-    raw_handle = explicit_mission or explicit_feature
-    if raw_handle is not None and repo_root is not None:
-        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
-        return resolved.mission_slug
-
-    # Legacy path: no repo_root available.
     try:
-        resolved = resolve_selector(
+        selector = resolve_selector(
             canonical_value=explicit_mission,
             canonical_flag="--mission",
             alias_value=explicit_feature,
@@ -72,13 +66,19 @@ def _find_mission_slug(
             suppress_env_var="SPEC_KITTY_SUPPRESS_FEATURE_DEPRECATION",
             command_hint="--mission <slug>",
         )
-        return resolved.canonical_value
     except typer.BadParameter as e:
         if json_output:
             print(json.dumps({"error": str(e)}))
         else:
             console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1)
+
+    raw_handle = selector.canonical_value
+    if repo_root is not None:
+        resolved = resolve_mission_handle(raw_handle, repo_root, json_mode=json_output)
+        return resolved.mission_slug
+
+    return raw_handle
 
 
 def _output_result(json_mode: bool, data: dict, success_message: str | None = None):

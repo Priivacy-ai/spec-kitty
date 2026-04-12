@@ -5,6 +5,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
+from ulid import ULID
 
 from specify_cli.core.mission_creation import KEBAB_CASE_PATTERN, MissionCreationError
 
@@ -53,13 +54,13 @@ class TestCreateMissionCoreSlugValidation:
              patch("specify_cli.core.mission_creation.locate_project_root", return_value=tmp_path), \
              patch("specify_cli.core.mission_creation.is_git_repo", return_value=True), \
              patch("specify_cli.core.mission_creation.get_current_branch", return_value="main"), \
-             patch("specify_cli.core.mission_creation.get_next_feature_number", return_value=70), \
+             patch("specify_cli.core.mission_creation.ULID", return_value=ULID.from_str("01KNXQS9ATWWFXS3K5ZJ9E5008")), \
              patch("specify_cli.core.mission_creation._commit_feature_file"):
             # Create the kitty-specs dir so mkdir doesn't fail
             (tmp_path / "kitty-specs").mkdir()
             result = create_mission_core(repo_root=tmp_path, mission_slug="070-new-feature")
             assert result is not None
-            assert "070-new-feature" in result.mission_slug
+            assert result.mission_slug.startswith("new-feature-")
 
     def test_uppercase_slug_still_rejected(self, tmp_path: Path) -> None:
         """FR-018: uppercase slugs are still rejected by slug validation."""

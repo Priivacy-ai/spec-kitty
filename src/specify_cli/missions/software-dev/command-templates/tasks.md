@@ -635,4 +635,3 @@ A rushed job with vague, oversized WPs causes:
 - Implementation taking 2-3x longer
 - Rework and review cycles
 - Feature failure
-

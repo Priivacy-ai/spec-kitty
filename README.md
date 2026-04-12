@@ -514,11 +514,13 @@ spec-kitty next --agent <agent> --mission <slug>
 ## 📋 Quick Reference: Command Order
 
 ### Required Workflow (Once per project)
+
 ```
 1️⃣  /spec-kitty.charter     → In main repo (sets project principles)
 ```
 
 ### Required Workflow (Each feature)
+
 ```
 2️⃣  /spec-kitty.specify          → Create spec (in main repo)
 3️⃣  /spec-kitty.plan             → Define technical approach (in main repo)
@@ -531,6 +533,7 @@ spec-kitty next --agent <agent> --mission <slug>
 ```
 
 ### Optional Enhancement Commands
+
 ```
 /spec-kitty.research   → After /plan: Investigate technical decisions
 /spec-kitty.analyze    → After /tasks: Cross-artifact consistency check
@@ -590,6 +593,7 @@ Spec Kitty differentiates between the **project** that holds your entire codebas
 For glossary-first terminology (including semantic-integrity rules), see [`glossary/README.md`](glossary/README.md).
 
 ### Project
+
 **Definition**: The entire codebase (one Git repository) that contains all missions, features, and `.kittify/` automation.
 
 **Examples**:
@@ -607,6 +611,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ---
 
 ### Feature
+
 **Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more execution worktrees.
 
 > **Mission identity (as of mission 083):** A mission's canonical machine identity is `mission_id` — a ULID minted at creation and immutable for the lifetime of the mission. The three-digit `mission_number` prefix shown in directory names is **display-only metadata** and is assigned at merge time. Selectors use `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`; ambiguous handles return a structured error. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
@@ -638,6 +643,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 ---
 
 ### Mission
+
 **Definition**: A domain adapter that configures Spec Kitty (workflows, templates, validation). Missions are project-wide; all features in a project share the same active mission.
 
 **Examples**:
@@ -1073,6 +1079,7 @@ graph TD
 - Main branch stays clean without manual `git checkout` juggling
 
 ### The Pattern
+
 ```
 my-project/                    # Main repo (main branch)
 ├── .worktrees/
@@ -1085,6 +1092,7 @@ my-project/                    # Main repo (main branch)
 ```
 
 ### The Rules
+
 1. **Planning commands** run in the primary repo root
 2. **Implementation branches** live under `.worktrees/`
 3. **Trust the path printed by Spec Kitty** instead of guessing the worktree name
@@ -1169,7 +1177,6 @@ cat .kittify/metadata.yaml
 | `SPEC_KITTY_TEMPLATE_ROOT` | Optional. Point to a local checkout whose `templates/`, `scripts/`, and `memory/` directories should seed new projects (handy while developing Spec Kitty itself). |
 | `SPECIFY_TEMPLATE_REPO` | Optional. Override the GitHub repository slug (`owner/name`) to fetch templates from when you explicitly want a remote source. |
 | `CODEX_HOME` | Required when using the Codex CLI so it loads project-specific prompts. Point it to your project’s `.codex/` directory—set it manually with `export CODEX_HOME=\"$(pwd)/.codex\"` or automate it via [`direnv`](https://github.com/Priivacy-ai/spec-kitty/blob/main/docs/index.md#codex-cli-automatically-load-project-prompts-linux-macos-wsl) on Linux/macOS/WSL. |
-
 
 ## 🔧 Prerequisites
 

@@ -9,100 +9,60 @@ from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 
+from specify_cli.merge.ordering import assign_next_mission_number
 from specify_cli.core.worktree import (
     _exclude_from_git,
     create_feature_worktree,
-    get_next_feature_number,
     setup_feature_directory,
     validate_feature_structure,
 )
 
 pytestmark = pytest.mark.git_repo
+TEST_MISSION_ID = "01KNXQS9ATWWFXS3K5ZJ9E5008"
+TEST_MID8 = TEST_MISSION_ID[:8]
 
-class TestGetNextFeatureNumber:
-    """Tests for get_next_feature_number function."""
+class TestAssignNextMissionNumber:
+    """Tests for merge-time display-number allocation."""
 
     def test_returns_1_when_no_features_exist(self, tmp_path: Path):
-        """Should return 1 when no features exist."""
-        # Setup: Empty repo
-        result = get_next_feature_number(tmp_path)
+        """Should return 1 when no numbered missions exist."""
+        specs_dir = tmp_path / "kitty-specs"
+        specs_dir.mkdir()
+        result = assign_next_mission_number(tmp_path, specs_dir)
         assert result == 1
 
     def test_scans_kitty_specs_directory(self, tmp_path: Path):
-        """Should scan kitty-specs/ for feature numbers."""
-        # Setup: Create features in kitty-specs/
+        """Should scan kitty-specs/ for integer mission_number values."""
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
-        (specs_dir / "001-feature-one").mkdir()
-        (specs_dir / "002-feature-two").mkdir()
-        (specs_dir / "005-feature-five").mkdir()
+        for name, number in (
+            ("alpha", 1),
+            ("beta", 2),
+            ("gamma", 5),
+        ):
+            mission_dir = specs_dir / f"{name}-{TEST_MID8}"
+            mission_dir.mkdir()
+            (mission_dir / "meta.json").write_text(f'{{"mission_number": {number}}}', encoding="utf-8")
 
-        result = get_next_feature_number(tmp_path)
+        result = assign_next_mission_number(tmp_path, specs_dir)
         assert result == 6
 
-    def test_scans_worktrees_directory(self, tmp_path: Path):
-        """Should scan .worktrees/ for feature numbers."""
-        # Setup: Create features in .worktrees/
-        worktrees_dir = tmp_path / ".worktrees"
-        worktrees_dir.mkdir()
-        (worktrees_dir / "003-worktree-feature").mkdir()
-        (worktrees_dir / "007-another-feature").mkdir()
-
-        result = get_next_feature_number(tmp_path)
-        assert result == 8
-
-    def test_scans_both_directories(self, tmp_path: Path):
-        """Should scan both kitty-specs/ and .worktrees/ and use highest number."""
-        # Setup: Features in both directories
+    def test_ignores_missing_or_non_integer_mission_numbers(self, tmp_path: Path):
+        """Should ignore missions with null, string, or absent mission_number."""
         specs_dir = tmp_path / "kitty-specs"
         specs_dir.mkdir()
-        (specs_dir / "001-feature").mkdir()
-        (specs_dir / "003-feature").mkdir()
+        for name, payload in (
+            ("alpha", '{"mission_number": null}'),
+            ("beta", '{"mission_number": "003"}'),
+            ("gamma", '{"mission_slug": "gamma"}'),
+            ("delta", '{"mission_number": 4}'),
+        ):
+            mission_dir = specs_dir / f"{name}-{TEST_MID8}"
+            mission_dir.mkdir()
+            (mission_dir / "meta.json").write_text(payload, encoding="utf-8")
 
-        worktrees_dir = tmp_path / ".worktrees"
-        worktrees_dir.mkdir()
-        (worktrees_dir / "002-feature").mkdir()
-        (worktrees_dir / "010-feature").mkdir()
-
-        result = get_next_feature_number(tmp_path)
-        assert result == 11
-
-    def test_ignores_non_numeric_directories(self, tmp_path: Path):
-        """Should ignore directories that don't start with ###."""
-        # Setup: Mix of valid and invalid directory names
-        specs_dir = tmp_path / "kitty-specs"
-        specs_dir.mkdir()
-        (specs_dir / "001-valid").mkdir()
-        (specs_dir / "invalid-name").mkdir()
-        (specs_dir / "README.md").touch()
-        (specs_dir / "abc-not-number").mkdir()
-
-        result = get_next_feature_number(tmp_path)
-        assert result == 2
-
-    def test_handles_missing_directories(self, tmp_path: Path):
-        """Should handle missing kitty-specs/ and .worktrees/ gracefully."""
-        # No directories created
-        result = get_next_feature_number(tmp_path)
-        assert result == 1
-
-    def test_handles_malformed_feature_numbers_gracefully(self, tmp_path: Path):
-        """Should skip directories with invalid numbers gracefully."""
-        # Setup: Mix valid and invalid feature directories
-        specs_dir = tmp_path / "kitty-specs"
-        specs_dir.mkdir()
-        (specs_dir / "001-valid").mkdir()
-        (specs_dir / "abc-invalid").mkdir()  # Not a number
-        (specs_dir / "00x-invalid").mkdir()  # Invalid format
-
-        worktrees_dir = tmp_path / ".worktrees"
-        worktrees_dir.mkdir()
-        (worktrees_dir / "002-valid").mkdir()
-        (worktrees_dir / "xyz-invalid").mkdir()
-
-        result = get_next_feature_number(tmp_path)
-        # Should only count 001 and 002, so next is 3
-        assert result == 3
+        result = assign_next_mission_number(tmp_path, specs_dir)
+        assert result == 5
 
 
 class TestCreateFeatureWorktree:
@@ -135,23 +95,17 @@ class TestCreateFeatureWorktree:
         )
 
         # Execute
-        worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
         # Verify
-        assert worktree_path == tmp_path / ".worktrees" / "001-test-feature"
+        assert worktree_path == tmp_path / ".worktrees" / f"test-feature-{TEST_MID8}"
         assert worktree_path.exists()
         assert worktree_path.is_dir()
-        assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
+        assert feature_dir == worktree_path / "kitty-specs" / f"test-feature-{TEST_MID8}"
         assert feature_dir.exists()
 
-    def test_auto_detects_feature_number(self, tmp_path: Path):
-        """Should auto-detect next feature number when not provided."""
-        # Setup: Existing features
-        specs_dir = tmp_path / "kitty-specs"
-        specs_dir.mkdir()
-        (specs_dir / "001-existing").mkdir()
-        (specs_dir / "002-existing").mkdir()
-
+    def test_requires_mission_id(self, tmp_path: Path):
+        """Should require mission_id for worktree creation."""
         # Setup: Git repo
         subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
         subprocess.run(
@@ -175,22 +129,18 @@ class TestCreateFeatureWorktree:
             capture_output=True,
         )
 
-        # Execute
-        worktree_path, feature_dir = create_feature_worktree(tmp_path, "new-feature")
-
-        # Verify
-        assert worktree_path == tmp_path / ".worktrees" / "003-new-feature"
-        assert feature_dir == worktree_path / "kitty-specs" / "003-new-feature"
+        with pytest.raises(RuntimeError, match="requires mission_id"):
+            create_feature_worktree(tmp_path, "new-feature")
 
     def test_raises_error_when_worktree_exists(self, tmp_path: Path):
         """Should raise FileExistsError when worktree path already exists."""
         # Setup: Pre-existing directory (not a valid worktree)
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
+        worktree_path = tmp_path / ".worktrees" / f"test-feature-{TEST_MID8}"
         worktree_path.mkdir(parents=True)
 
         # Execute & Verify
         with pytest.raises(FileExistsError, match="Worktree path already exists"):
-            create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
     def test_reuses_existing_valid_worktree(self, tmp_path: Path):
         """Should reuse existing valid git worktree instead of raising error."""
@@ -218,10 +168,10 @@ class TestCreateFeatureWorktree:
         )
 
         # Create first worktree
-        worktree_path1, feature_dir1 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path1, feature_dir1 = create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
         # Execute: Try to create same worktree again
-        worktree_path2, feature_dir2 = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+        worktree_path2, feature_dir2 = create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
         # Verify: Should return same paths
         assert worktree_path1 == worktree_path2
@@ -232,7 +182,7 @@ class TestCreateFeatureWorktree:
         # Setup: Not a git repo - workspace creation will fail
         # Note: RuntimeError wraps the underlying subprocess or VCS error
         with pytest.raises(RuntimeError, match="Failed to create workspace"):
-            create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
 
 class TestSetupFeatureDirectory:
@@ -574,12 +524,12 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = False
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            worktree_path, feature_dir = create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
             # Verify VCS abstraction was called
             mock_vcs.create_workspace.assert_called_once()
             call_kwargs = mock_vcs.create_workspace.call_args.kwargs
-            assert call_kwargs["workspace_name"] == "001-test-feature"
+            assert call_kwargs["workspace_name"] == f"test-feature-{TEST_MID8}"
             assert call_kwargs["repo_root"] == tmp_path
 
     def test_create_worktree_falls_back_to_git_with_warning(self, tmp_path: Path):
@@ -612,7 +562,7 @@ class TestVCSAbstraction:
             # Capture deprecation warning
             with warnings.catch_warnings(record=True) as w:
                 warnings.simplefilter("always")
-                worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", feature_number=99)
+                worktree_path, feature_dir = create_feature_worktree(tmp_path, "fallback-test", mission_id=TEST_MISSION_ID)
 
                 # Verify deprecation warning was raised
                 assert len(w) == 1
@@ -642,12 +592,12 @@ class TestVCSAbstraction:
             patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs),
             pytest.raises(RuntimeError, match="Failed to create workspace"),
         ):
-            create_feature_worktree(tmp_path, "fail-test", feature_number=88)
+            create_feature_worktree(tmp_path, "fail-test", mission_id=TEST_MISSION_ID)
 
     def test_create_worktree_detects_existing_vcs_workspace(self, tmp_path: Path):
         """Should detect and reuse existing VCS workspace."""
         # Setup: Pre-existing workspace directory with .git
-        worktree_path = tmp_path / ".worktrees" / "001-test-feature"
+        worktree_path = tmp_path / ".worktrees" / f"test-feature-{TEST_MID8}"
         worktree_path.mkdir(parents=True)
         (worktree_path / ".git").touch()  # Minimal marker
 
@@ -656,11 +606,11 @@ class TestVCSAbstraction:
         mock_vcs.is_repo.return_value = True
 
         with patch("specify_cli.core.worktree.get_vcs", return_value=mock_vcs):
-            worktree_result, feature_dir = create_feature_worktree(tmp_path, "test-feature", feature_number=1)
+            worktree_result, feature_dir = create_feature_worktree(tmp_path, "test-feature", mission_id=TEST_MISSION_ID)
 
             # Should return the existing path
             assert worktree_result == worktree_path
-            assert feature_dir == worktree_path / "kitty-specs" / "001-test-feature"
+            assert feature_dir == worktree_path / "kitty-specs" / f"test-feature-{TEST_MID8}"
 
 
 class TestExcludeFromGit:

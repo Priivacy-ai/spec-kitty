@@ -246,10 +246,10 @@ Given that feature description, do this:
     - For empty invocations, treat the synthesized interview summary as the canonical feature description
     - Identify: actors, actions, data, constraints, motivations, success metrics
     - For any remaining ambiguity:
-      * Ask the user a focused follow-up question immediately and halt work until they answer
-      * Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
-      * Record any interim assumption in the Assumptions section
-      * Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
+      - Ask the user a focused follow-up question immediately and halt work until they answer
+      - Only use `[NEEDS CLARIFICATION: …]` when the user explicitly defers the decision
+      - Record any interim assumption in the Assumptions section
+      - Prioritize clarifications by impact: scope > outcomes > risks/security > user experience > technical details
     - Fill User Scenarios & Testing section (ERROR if no clear user flow can be determined)
     - Generate separated requirement tables: Functional (`FR-###`), Non-Functional (`NFR-###`), and Constraints (`C-###`)
     - Ensure each requirement entry has a status value and testable wording

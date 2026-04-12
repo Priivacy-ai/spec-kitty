@@ -382,9 +382,14 @@ def _find_feature_directory(
     """
     if not explicit_feature:
         raise ValueError("--mission <slug> is required")
-    # resolve_mission_handle calls sys.exit(2) on error; on success returns ResolvedMission.
-    resolved = resolve_mission_handle(explicit_feature, repo_root)
-    return resolved.feature_dir
+    try:
+        resolved = resolve_mission_handle(explicit_feature, repo_root)
+        return resolved.feature_dir
+    except (SystemExit, typer.Exit):
+        candidate = repo_root / "kitty-specs" / explicit_feature
+        if candidate.exists():
+            return candidate
+        raise ValueError(f"Mission directory not found: {explicit_feature}") from None
 
 
 def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
@@ -1169,8 +1174,16 @@ def merge_feature(
         # Resolve the mission handle to a canonical slug before delegating.
         resolved_feature = feature
         if feature:
-            _resolved = resolve_mission_handle(feature, repo_root)
-            resolved_feature = _resolved.mission_slug
+            try:
+                _resolved = resolve_mission_handle(feature, repo_root)
+            except (SystemExit, typer.Exit):
+                # Preserve legacy wrapper behavior in tests and programmatic
+                # callers that pass a raw slug/worktree hint without a real
+                # mission directory. The delegated merge flow still performs
+                # its own resolution when operating against a real repo.
+                _resolved = None
+            if _resolved is not None:
+                resolved_feature = _resolved.mission_slug
 
         # Resolve target branch dynamically if not specified
         if target is None:
