@@ -227,7 +227,7 @@ def trigger_feature_dossier_sync_if_enabled(
         from specify_cli.mission import get_mission_type
         from specify_cli.sync.namespace import NamespaceRef, resolve_manifest_version
         from specify_cli.sync.project_identity import ensure_identity
-        from specify_cli.sync.runtime import get_runtime
+        from specify_cli.sync.body_queue import OfflineBodyUploadQueue
 
         # Resolve namespace components
         identity = ensure_identity(repo_root)
@@ -247,16 +247,15 @@ def trigger_feature_dossier_sync_if_enabled(
             manifest_version=manifest_version,
         )
 
-        # Get body queue from runtime
-        runtime = get_runtime()
-        if runtime.body_queue is None:
-            logger.debug("Body queue not initialised; skipping dossier sync")
-            return None
+        # Create body queue directly — writes to the same scoped SQLite DB
+        # the daemon drains.  Avoids starting a full SyncRuntime (threads,
+        # WebSocket, atexit handlers) inside a short-lived CLI process.
+        body_queue = OfflineBodyUploadQueue()
 
         return sync_feature_dossier(
             feature_dir=feature_dir,
             namespace_ref=namespace_ref,
-            body_queue=runtime.body_queue,
+            body_queue=body_queue,
             mission_type=resolved_mission,
             step_id=step_id,
             repo_root=repo_root,

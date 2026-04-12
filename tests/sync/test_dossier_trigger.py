@@ -44,12 +44,12 @@ class TestTriggerEnabled:
     @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_mission_type", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
-    @patch("specify_cli.sync.runtime.get_runtime")
+    @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
     @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
     def test_calls_sync_feature_dossier(
         self,
         mock_sync: MagicMock,
-        mock_runtime: MagicMock,
+        mock_body_queue_cls: MagicMock,
         mock_manifest: MagicMock,
         mock_mission: MagicMock,
         mock_target: MagicMock,
@@ -68,7 +68,7 @@ class TestTriggerEnabled:
         )
 
         mock_body_queue = MagicMock()
-        mock_runtime.return_value = MagicMock(body_queue=mock_body_queue)
+        mock_body_queue_cls.return_value = mock_body_queue
 
         mock_sync.return_value = DossierSyncResult(
             dossier=None, events_emitted=0, body_outcomes=[],
@@ -79,6 +79,7 @@ class TestTriggerEnabled:
         )
 
         mock_sync.assert_called_once()
+        assert mock_sync.call_args.kwargs["body_queue"] is mock_body_queue
         assert result is not None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)
@@ -107,10 +108,12 @@ class TestTriggerEnabled:
     @patch("specify_cli.core.paths.get_feature_target_branch", return_value="main")
     @patch("specify_cli.mission.get_mission_type", return_value="software-dev")
     @patch("specify_cli.sync.namespace.resolve_manifest_version", return_value="1")
-    @patch("specify_cli.sync.runtime.get_runtime")
-    def test_returns_none_when_body_queue_is_none(
+    @patch("specify_cli.sync.body_queue.OfflineBodyUploadQueue")
+    @patch("specify_cli.sync.dossier_pipeline.sync_feature_dossier")
+    def test_returns_none_when_body_queue_creation_fails(
         self,
-        mock_runtime: MagicMock,
+        mock_sync: MagicMock,
+        mock_body_queue_cls: MagicMock,
         mock_manifest: MagicMock,
         mock_mission: MagicMock,
         mock_target: MagicMock,
@@ -129,11 +132,12 @@ class TestTriggerEnabled:
             node_id="abcdef123456",
         )
 
-        mock_runtime.return_value = MagicMock(body_queue=None)
+        mock_body_queue_cls.side_effect = RuntimeError("queue init failed")
 
         result = trigger_feature_dossier_sync_if_enabled(
             tmp_path, "047-feat", tmp_path,
         )
+        mock_sync.assert_not_called()
         assert result is None
 
     @patch("specify_cli.sync.feature_flags.is_saas_sync_enabled", return_value=True)

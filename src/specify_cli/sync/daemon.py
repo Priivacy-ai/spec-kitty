@@ -499,7 +499,24 @@ def ensure_sync_daemon_running(
 
     lock_fd = open(DAEMON_LOCK_FILE, "w")  # noqa: SIM115
     try:
-        fcntl.flock(lock_fd, fcntl.LOCK_EX)
+        # Use a bounded wait instead of blocking indefinitely (#598).
+        # If another process is starting the daemon, we retry for up to
+        # ~10 seconds before giving up — the daemon is likely already
+        # running and will be reachable on the next CLI call.
+        acquired = False
+        for _ in range(100):
+            try:
+                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                acquired = True
+                break
+            except BlockingIOError:
+                time.sleep(0.1)
+        if not acquired:
+            return DaemonStartOutcome(
+                started=False,
+                skipped_reason="start_failed: could not acquire daemon lock within 10s",
+                pid=None,
+            )
         try:
             _url, _port, _started = _ensure_sync_daemon_running_locked()
         except Exception as exc:
@@ -515,7 +532,8 @@ def ensure_sync_daemon_running(
                 pid = None
         return DaemonStartOutcome(started=True, skipped_reason=None, pid=pid)
     finally:
-        fcntl.flock(lock_fd, fcntl.LOCK_UN)
+        if acquired:
+            fcntl.flock(lock_fd, fcntl.LOCK_UN)
         lock_fd.close()
 
 
