@@ -401,9 +401,12 @@ def _list_feature_spec_candidates(repo_root: Path) -> list[dict[str, object]]:
 
     candidates: list[dict[str, object]] = []
     for feature_dir in sorted(kitty_specs_dir.iterdir()):
-        if not feature_dir.is_dir() or not re.match(r"^\d{3}-.+$", feature_dir.name):
+        if not feature_dir.is_dir():
             continue
         spec_file = feature_dir / "spec.md"
+        meta_file = feature_dir / "meta.json"
+        if not spec_file.exists() and not meta_file.exists():
+            continue
         candidates.append(
             {
                 "mission_slug": feature_dir.name,

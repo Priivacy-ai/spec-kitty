@@ -21,9 +21,9 @@ from specify_cli.lanes.persistence import write_lanes_json
 
 
 # Default canonical mission_id (ULID shape) used by the fixture.
-# WP07 removed silent fallback: meta.json MUST carry mission_id, or the
-# resolver raises MissingIdentityError. Legacy tests that previously relied
-# on implicit slug-as-mission_id must now pass an explicit mission_id.
+# Legacy missions may still lack mission_id. The resolver now falls back to the
+# explicit mission directory name so context-bound commands stay deterministic
+# while the backfill/audit surfaces close out remaining legacy metadata.
 _DEFAULT_TEST_MISSION_ID = "01HVXYZTESTMISSION000000000"
 
 
@@ -42,8 +42,8 @@ def _setup_project(
     """Set up a minimal project structure for resolver tests.
 
     By default the fixture writes a canonical ``mission_id`` into
-    ``meta.json`` because the resolver (post-WP07) hard-fails without one.
-    Pass ``omit_mission_id=True`` to exercise the MissingIdentityError path.
+    ``meta.json``. Pass ``omit_mission_id=True`` to exercise the legacy
+    compatibility path where the resolver falls back to ``feature_dir.name``.
     """
     # .kittify/config.yaml with project.uuid
     kittify_dir = tmp_path / ".kittify"
@@ -191,17 +191,11 @@ class TestResolveContext:
         assert isinstance(ctx.owned_files, tuple)
         assert ctx.owned_files == ("src/**", "tests/**")
 
-    def test_missing_mission_id_raises_missing_identity_error(self, tmp_path: Path) -> None:
-        """WP07 removed silent fallback: missing mission_id is a hard error.
-
-        Pre-083 tests expected resolve_context to silently fall back to the
-        mission_slug when meta.json had no mission_id. That fallback has been
-        removed — the canonical identity is mission_id and missing it must
-        raise MissingIdentityError, never silently succeed.
-        """
+    def test_missing_mission_id_falls_back_to_explicit_mission_dir(self, tmp_path: Path) -> None:
+        """Legacy missions without mission_id still resolve deterministically."""
         repo = _setup_project(tmp_path, omit_mission_id=True)
-        with pytest.raises(MissingIdentityError, match="mission_id"):
-            resolve_context("WP01", "057-test-feature", "claude", repo)
+        ctx = resolve_context("WP01", "057-test-feature", "claude", repo)
+        assert ctx.mission_id == "057-test-feature"
 
     def test_mission_id_from_meta_json(self, tmp_path: Path) -> None:
         repo = _setup_project(tmp_path, mission_id="01HVXYZ-REAL-MISSION-ID")

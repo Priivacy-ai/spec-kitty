@@ -44,7 +44,7 @@ from specify_cli.merge.state import (
     release_merge_lock,
     save_state,
 )
-from specify_cli.mission_metadata import resolve_mission_identity
+from specify_cli.mission_metadata import resolve_mission_identity, write_meta
 from specify_cli.merge.workspace import _worktree_removal_delay, cleanup_merge_workspace
 from specify_cli.post_merge.stale_assertions import StaleAssertionReport, run_check
 from specify_cli.status.wp_metadata import read_wp_frontmatter
@@ -389,8 +389,10 @@ def _bake_mission_number_into_mission_branch(
             return None
 
         meta_data["mission_number"] = next_number
-        new_content = _json.dumps(meta_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n"
-        meta_path.write_text(new_content, encoding="utf-8")
+        # Route all meta.json mutations through the canonical writer API.
+        # Use validate=False to preserve merge-time tolerance for legacy/partial
+        # mission metadata while still enforcing atomic writes + standard format.
+        write_meta(meta_path.parent, meta_data, validate=False)
 
         # Stage and commit the change on the mission branch.
         rel_meta = meta_path.relative_to(mission_tmp_path)

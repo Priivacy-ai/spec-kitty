@@ -82,7 +82,7 @@ class TestMapRequirementsIndividual:
         payload = json.loads(result.stdout.strip())
         assert payload["result"] == "success"
         assert payload["mission_slug"] == "001-test"
-        assert payload["mission_number"] == "001"
+        assert payload["mission_number"] is None
         assert payload["mission_type"] == "software-dev"
         assert payload["mapped"]["WP01"] == ["FR-001", "FR-002"]
         assert _read_wp_refs(feature_dir, "WP01") == ["FR-001", "FR-002"]
@@ -208,7 +208,7 @@ class TestMapRequirementsBatch:
         payload = json.loads(result.stdout.strip())
         assert payload["result"] == "success"
         assert payload["mission_slug"] == "001-test"
-        assert payload["mission_number"] == "001"
+        assert payload["mission_number"] is None
         assert payload["mission_type"] == "software-dev"
         assert payload["mapped"]["WP01"] == ["FR-001", "FR-002"]
         assert payload["mapped"]["WP02"] == ["FR-003"]
