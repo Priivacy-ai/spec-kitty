@@ -360,10 +360,15 @@ class TestCLISurface:
         runner = CliRunner()
         result = runner.invoke(migrate_app, ["backfill-identity", "--help"])
         assert result.exit_code == 0
-        assert "mission_id" in result.output
-        assert "--dry-run" in result.output
-        assert "--json" in result.output
-        assert "--mission" in result.output
+        # Strip ANSI escape codes before checking — Rich markup can split
+        # flag names across escape sequences (e.g. \x1b[…]-\x1b[…]-dry…).
+        import re
+
+        plain = re.sub(r"\x1b\[[0-9;]*m", "", result.output)
+        assert "mission_id" in plain
+        assert "--dry-run" in plain
+        assert "--json" in plain
+        assert "--mission" in plain
 
     def test_dry_run_json_output_shape(self, tmp_path: Path) -> None:
         repo = self._make_repo(tmp_path)
