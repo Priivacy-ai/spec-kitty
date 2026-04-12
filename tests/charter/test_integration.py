@@ -72,21 +72,38 @@ Pre-commit hooks required.
         assert len(config.directives) == 2
         assert config.directives[0].id == "DIR-001"
 
-    def test_modify_charter_triggers_staleness_warning(
+    def test_modify_charter_auto_syncs_stale_bundle(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
         charter_dir.mkdir(parents=True)
         charter_path = charter_dir / "charter.md"
 
-        charter_path.write_text("## Testing\n\nCoverage: 80%")
+        charter_path.write_text(
+            """
+## Testing Standards
+
+We require 80% test coverage. TDD required.
+We use pytest as our framework and mypy --strict for type checking.
+""",
+            encoding="utf-8",
+        )
         sync(charter_path)
 
-        charter_path.write_text("## Testing\n\nCoverage: 90%")
+        charter_path.write_text(
+            """
+## Testing Standards
+
+We require 90% test coverage. TDD required.
+We use pytest as our framework and mypy --strict for type checking.
+""",
+            encoding="utf-8",
+        )
 
         caplog.clear()
-        load_governance_config(tmp_path)
-        assert any("Charter changed since last sync" in record.message for record in caplog.records)
+        config = load_governance_config(tmp_path)
+        assert config.testing.min_coverage == 90
+        assert not any("Run 'spec-kitty charter sync'" in record.message for record in caplog.records)
 
 
 class TestPostSaveHook:
@@ -138,7 +155,7 @@ class TestLoaderFunctions:
         assert isinstance(config, GovernanceConfig)
         assert config.testing.min_coverage == 0
         assert config.testing.tdd_required is False
-        assert any("governance.yaml not found" in record.message for record in caplog.records)
+        assert any("governance.yaml not found and charter.md is absent" in record.message for record in caplog.records)
 
     def test_load_directives_config_missing_yaml_returns_empty(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -148,7 +165,42 @@ class TestLoaderFunctions:
 
         assert isinstance(config, DirectivesConfig)
         assert len(config.directives) == 0
-        assert any("directives.yaml not found" in record.message for record in caplog.records)
+        assert any("directives.yaml not found and charter.md is absent" in record.message for record in caplog.records)
+
+    def test_load_governance_config_missing_yaml_auto_syncs_when_charter_present(self, tmp_path: Path) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            """
+## Testing Standards
+
+We require 85% test coverage. TDD required.
+We use pytest as our framework and mypy --strict for type checking.
+""",
+            encoding="utf-8",
+        )
+
+        config = load_governance_config(tmp_path)
+
+        assert config.testing.min_coverage == 85
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
+
+    def test_load_directives_config_missing_yaml_auto_syncs_when_charter_present(self, tmp_path: Path) -> None:
+        charter_dir = tmp_path / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True)
+        (charter_dir / "charter.md").write_text(
+            "## Project Directives\n\n1. Keep tests strict\n2. Keep docs in sync\n",
+            encoding="utf-8",
+        )
+
+        config = load_directives_config(tmp_path)
+
+        assert len(config.directives) == 2
+        assert (charter_dir / "governance.yaml").exists()
+        assert (charter_dir / "directives.yaml").exists()
+        assert (charter_dir / "metadata.yaml").exists()
 
     def test_load_governance_config_with_values(self, tmp_path: Path) -> None:
         charter_dir = tmp_path / ".kittify" / "charter"
