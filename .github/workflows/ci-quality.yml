@@ -117,6 +117,8 @@ jobs:
             core_misc:
               - 'src/kernel/**'
               - 'src/doctrine/**'
+              - 'src/specify_cli/core/**'
+              - 'src/specify_cli/saas/**'
               - 'tests/kernel/**'
               - 'tests/doctrine/**'
               - 'tests/policy/**'
@@ -1759,6 +1761,7 @@ jobs:
       - integration-tests-dashboard
       - integration-tests-upgrade
       - integration-tests-cli
+      - fast-tests-core-misc
     if: always() && github.event_name == 'pull_request'
 
     steps:
