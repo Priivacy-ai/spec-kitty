@@ -75,8 +75,9 @@ class TestDetectFeatureContext:
             detect_feature_context(None)
 
     def test_detect_invalid_format(self) -> None:
-        with pytest.raises(typer.Exit):
-            detect_feature_context("lane-only-runtime")
+        number, slug = detect_feature_context("lane-only-runtime")
+        assert number is None
+        assert slug == "lane-only-runtime"
 
 
 class TestFindWpFile:
