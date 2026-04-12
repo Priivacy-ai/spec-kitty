@@ -344,7 +344,7 @@ def create_mission_core(
     with contextlib.suppress(Exception):
         emit_mission_created(
             mission_slug=mission_slug_formatted,
-            mission_number="",  # no number pre-merge (FR-044)
+            mission_number=None,  # no number pre-merge (FR-044)
             target_branch=planning_branch,
             wp_count=0,
             mission_id=meta.get("mission_id"),
