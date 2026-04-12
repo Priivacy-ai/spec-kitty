@@ -320,6 +320,11 @@ def test_tighten_workflow_passes_large_pr_sample() -> None:
         "diff-coverage must depend on fast-tests-charter; otherwise charter-only "
         "changes can race artifact upload and produce timing-dependent results."
     )
+    assert re.search(r"diff-coverage:\s*\n(?:.*\n)*?\s+needs:\s*\n(?:.*\n)*?\s+- fast-tests-core-misc", workflow_text), (
+        "diff-coverage must depend on fast-tests-core-misc; otherwise uncategorized "
+        "core/specify_cli changes can race coverage upload and fail before their "
+        "artifact exists."
+    )
 
     # ------------------------------------------------------------------
     # 6. quality-gate is the aggregate signal and must fail when

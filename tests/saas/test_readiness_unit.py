@@ -23,6 +23,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+import specify_cli.saas.readiness as readiness
 from specify_cli.saas.readiness import ReadinessState, evaluate_readiness
 
 # ---------------------------------------------------------------------------
@@ -372,3 +373,59 @@ def test_non_exception_result_has_empty_details(
 
     assert result.state is ReadinessState.MISSING_AUTH
     assert result.details == {}
+
+
+def test_probe_host_config_returns_none_on_configuration_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """ConfigurationError from auth config resolves to an absent host URL."""
+
+    class FakeConfigurationError(Exception):
+        pass
+
+    monkeypatch.setattr(
+        "specify_cli.auth.config.get_saas_base_url",
+        lambda: (_ for _ in ()).throw(FakeConfigurationError("missing")),
+    )
+    monkeypatch.setattr("specify_cli.auth.errors.ConfigurationError", FakeConfigurationError)
+
+    assert readiness._probe_host_config() is None
+
+
+def test_probe_host_config_returns_none_on_unexpected_import_failure(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Any unexpected import/runtime failure should keep the helper no-raise."""
+
+    def raise_import_error() -> str:
+        raise RuntimeError("boom")
+
+    monkeypatch.setattr("specify_cli.auth.config.get_saas_base_url", raise_import_error)
+
+    assert readiness._probe_host_config() is None
+
+
+def test_probe_reachability_returns_false_on_network_error(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Network exceptions must collapse to False."""
+
+    def raise_url_error(*_args: object, **_kwargs: object) -> object:
+        raise OSError("offline")
+
+    monkeypatch.setattr("urllib.request.urlopen", raise_url_error)
+
+    assert readiness._probe_reachability("https://example.invalid") is False
+
+
+def test_probe_mission_binding_ignores_loader_errors(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Tracker config loader failures should return False, not raise."""
+
+    def raise_loader_error(_repo_root: Path) -> object:
+        raise RuntimeError("no tracker config")
+
+    monkeypatch.setattr("specify_cli.tracker.config.load_tracker_config", raise_loader_error)
+
+    assert readiness._probe_mission_binding(_REPO) is False

@@ -39,9 +39,9 @@ import re
 # Section splitter
 # ---------------------------------------------------------------------------
 
-_WP_SECTION_HEADER = re.compile(
-    r"(?m)^(?:##\s+|###\s+)(?:(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)|Work Package\s+(?P<wp_number>\d{1,2})(?:\b|\s*[—:-]|$))"
-)
+_WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>.+)$")
+_WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
+_WP_NUMBER_TITLE = re.compile(r"^Work Package\s+(?P<wp_number>\d{1,2})(?:\b|\s*[—:-]|$)")
 
 # Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
 # to find the stop boundary for the final WP section.  Sub-headings (### or
@@ -49,17 +49,13 @@ _WP_SECTION_HEADER = re.compile(
 _ANY_H2_HEADER = re.compile(r"^## ", re.MULTILINE)
 
 
-def _normalize_wp_section_id(match: re.Match[str]) -> str:
-    """Return canonical ``WP##`` for a parsed section header match."""
-    wp_id = match.group("wp_id")
-    if wp_id:
-        return wp_id
-
-    wp_number = match.group("wp_number")
-    if wp_number is None:
-        raise ValueError("WP section header match did not capture a work package identifier")
-
-    return f"WP{int(wp_number):02d}"
+def _match_wp_section_id(title: str) -> str | None:
+    """Return canonical ``WP##`` when ``title`` is a work-package heading."""
+    if explicit_id_match := _WP_ID_TITLE.match(title):
+        return explicit_id_match.group("wp_id")
+    if numeric_match := _WP_NUMBER_TITLE.match(title):
+        return f"WP{int(numeric_match.group('wp_number')):02d}"
+    return None
 
 
 def _split_wp_sections(tasks_content: str) -> dict[str, str]:
@@ -74,14 +70,17 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
         WP section header (or end of file).
     """
     sections: dict[str, str] = {}
-    matches = list(_WP_SECTION_HEADER.finditer(tasks_content))
+    matches: list[tuple[str, re.Match[str]]] = []
+    for match in _WP_SECTION_HEADER.finditer(tasks_content):
+        wp_id = _match_wp_section_id(match.group("title"))
+        if wp_id is not None:
+            matches.append((wp_id, match))
 
-    for idx, match in enumerate(matches):
-        wp_id = _normalize_wp_section_id(match)
+    for idx, (wp_id, match) in enumerate(matches):
         start = match.end()
         if idx + 1 < len(matches):
             # There is a next WP header — use it as the end (existing behaviour).
-            end = matches[idx + 1].start()
+            end = matches[idx + 1][1].start()
         else:
             # Final WP: stop at the first non-WP, non-Dependencies ## heading
             # after this WP header, or at EOF if no such heading exists.  This
@@ -97,12 +96,12 @@ def _split_wp_sections(tasks_content: str) -> dict[str, str]:
             for h2_match in _ANY_H2_HEADER.finditer(tasks_content, match.end()):
                 # Skip WP ID headings — those would start the next WP section
                 # (shouldn't happen in the final-WP branch, but be safe).
-                if _WP_SECTION_HEADER.match(tasks_content, h2_match.start()):
+                line_end = tasks_content.find("\n", h2_match.start())
+                heading_line = tasks_content[h2_match.start():line_end if line_end != -1 else None]
+                if _match_wp_section_id(heading_line[3:].strip()) is not None:
                     continue
                 # Skip "## Dependencies" headings — those are Pattern 3
                 # dependency-declaration headers and belong to this WP.
-                line_end = tasks_content.find("\n", h2_match.start())
-                heading_line = tasks_content[h2_match.start():line_end if line_end != -1 else None]
                 if _DEPS_HEADING.match(heading_line.strip()):
                     continue
                 # Non-WP, non-Dependencies ## heading — this is a stop boundary.

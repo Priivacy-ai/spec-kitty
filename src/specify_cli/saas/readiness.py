@@ -188,8 +188,8 @@ def _probe_reachability(server_url: str, timeout_s: float = 2.0) -> bool:
         return False
 
 
-def _probe_mission_binding(repo_root: Path, feature_slug: str | None) -> bool:
-    """Return True iff a tracker binding exists for ``feature_slug`` in ``repo_root``.
+def _probe_mission_binding(repo_root: Path) -> bool:
+    """Return True iff a tracker binding exists in ``repo_root``.
 
     Delegates to ``specify_cli.tracker.config.load_tracker_config`` — the
     same path used by tracker CLI commands.  Returns ``False`` if no binding
@@ -267,7 +267,7 @@ def evaluate_readiness(
             return _build_result(ReadinessState.HOST_UNREACHABLE, server_url=server_url)
 
         # Step 5: mission binding (optional)
-        if require_mission_binding and not _probe_mission_binding(repo_root, feature_slug):
+        if require_mission_binding and not _probe_mission_binding(repo_root):
             return _build_result(
                 ReadinessState.MISSING_MISSION_BINDING,
                 feature_slug=feature_slug or "",
