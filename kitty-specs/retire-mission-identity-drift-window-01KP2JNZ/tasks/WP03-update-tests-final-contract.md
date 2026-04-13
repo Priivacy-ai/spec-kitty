@@ -210,3 +210,4 @@ def test_...(self) -> None:
 - 2026-04-13T05:33:37Z – claude:opus:implementer:implementer – shell_pid=80350 – Started implementation via action command
 - 2026-04-13T05:39:01Z – claude:opus:implementer:implementer – shell_pid=80350 – Ready for review
 - 2026-04-13T05:39:24Z – claude:opus:reviewer:reviewer – shell_pid=88770 – Started review via action command
+- 2026-04-13T05:40:58Z – claude:opus:reviewer:reviewer – shell_pid=88770 – Review passed: All 8 acceptance criteria verified. T025 flipped to assert legacy_aggregate_id absence. Fixture 2 cleaned. T028 flipped to assert absence on disk. Legacy event read-tolerance (C-002) passes unchanged. Contract matrix identity_locations now (mission_id, mission_slug) only. Drift-window backward-compat test replaced with TypeError-based mandatory mission_id checks across 3 emitter methods. No test references legacy_aggregate_id as expected present. 32 tests pass, 1 skipped. No unrelated changes.
