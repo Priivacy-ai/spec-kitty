@@ -30,11 +30,11 @@
 | T020 | Implement `build_context_v2()` in `src/charter/context.py` | WP03 | | [D] |
 | T021 | Unit tests for query primitives against fixture graphs | WP03 | | [D] |
 | T022 | Verify no per-action filtering logic in `build_context_v2` | WP03 | | [D] |
-| T023 | Create test matrix generator (profile x action x depth) | WP04 | |
-| T024 | Implement artifact-reachability comparison logic (URN set equality) | WP04 | |
-| T025 | Create `accepted_differences.yaml` schema and loader | WP04 | |
-| T026 | Implement invariant test with accepted-differences integration | WP04 | |
-| T027 | Configure CI triggers for doctrine/charter/graph.yaml changes | WP04 | [P] |
+| T023 | Create test matrix generator (profile x action x depth) | WP04 | | [D] |
+| T024 | Implement artifact-reachability comparison logic (URN set equality) | WP04 | | [D] |
+| T025 | Create `accepted_differences.yaml` schema and loader | WP04 | | [D] |
+| T026 | Implement invariant test with accepted-differences integration | WP04 | | [D] |
+| T027 | Configure CI triggers for doctrine/charter/graph.yaml changes | WP04 | [D] |
 | T028 | Implement surface size measurement function | WP05 | | [D] |
 | T029 | Assert calibration inequalities for all shipped actions | WP05 | | [D] |
 | T030 | Verify DRG-only-knob rule: no filtering logic anywhere | WP05 | | [D] |
@@ -161,11 +161,11 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Prove `build_context_v2` resolves the same governance artifacts (by URN) as the canonical `build_charter_context()` for all shipped (profile, action, depth) combinations.
 
 **Included subtasks**:
-- [ ] T023 Create test matrix generator (profile x action x depth) (WP04)
-- [ ] T024 Implement artifact-reachability comparison logic (URN set equality) (WP04)
-- [ ] T025 Create `accepted_differences.yaml` schema and loader (WP04)
-- [ ] T026 Implement invariant test with accepted-differences integration (WP04)
-- [ ] T027 Configure CI triggers for doctrine/charter/graph.yaml changes (WP04)
+- [x] T023 Create test matrix generator (profile x action x depth) (WP04)
+- [x] T024 Implement artifact-reachability comparison logic (URN set equality) (WP04)
+- [x] T025 Create `accepted_differences.yaml` schema and loader (WP04)
+- [x] T026 Implement invariant test with accepted-differences integration (WP04)
+- [x] T027 Configure CI triggers for doctrine/charter/graph.yaml changes (WP04)
 
 **Success criteria**: Artifact-reachability parity for 100% of matrix; accepted-differences < 10% threshold; runs in < 60s; CI triggers on relevant file changes.
 
