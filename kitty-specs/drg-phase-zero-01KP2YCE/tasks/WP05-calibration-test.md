@@ -203,3 +203,4 @@ Current measured surfaces after WP02 calibration should satisfy these. This test
 ## Activity Log
 
 - 2026-04-13T09:26:10Z – claude:opus-4-6:implementer:implementer – shell_pid=74141 – Started implementation via action command
+- 2026-04-13T09:30:29Z – claude:opus-4-6:implementer:implementer – shell_pid=74141 – Calibration test verifies all inequalities against real graph.yaml. Untracked tests/charter/fixtures/ belongs to WP04 (parallel).
