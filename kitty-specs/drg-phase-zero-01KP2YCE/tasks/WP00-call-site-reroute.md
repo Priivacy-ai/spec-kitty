@@ -146,3 +146,4 @@ The legacy implementation (`src/specify_cli/charter/context.py`) has:
 ## Activity Log
 
 - 2026-04-13T08:47:40Z – claude:opus-4-6:architect:implementer – shell_pid=35925 – Started implementation via action command
+- 2026-04-13T08:55:07Z – claude:opus-4-6:architect:implementer – shell_pid=35925 – Call-site delta documented, oracle confirmed
