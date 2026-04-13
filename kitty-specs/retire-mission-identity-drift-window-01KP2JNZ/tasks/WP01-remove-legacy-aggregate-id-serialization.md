@@ -15,7 +15,8 @@ subtasks:
 - T001
 - T002
 - T003
-shell_pid: '61665'
+shell_pid: "61665"
+agent: "claude:opus:implementer:implementer"
 history:
 - at: '2026-04-13T04:59:36Z'
   by: spec-kitty.tasks
@@ -142,3 +143,7 @@ return d
 - Verify that `to_dict()` still conditionally emits `mission_id` (the `if self.mission_id is not None` guard must remain)
 - Verify the dataclass field `mission_id: str | None = None` is untouched
 - Verify no other code in `src/specify_cli/status/` references `legacy_aggregate_id`
+
+## Activity Log
+
+- 2026-04-13T05:18:25Z – claude:opus:implementer:implementer – shell_pid=61665 – Assigned agent via action command
