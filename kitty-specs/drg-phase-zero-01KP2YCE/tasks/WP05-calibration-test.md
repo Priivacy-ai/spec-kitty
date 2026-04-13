@@ -17,6 +17,8 @@ subtasks:
 - T029
 - T030
 - T031
+agent: "claude:opus-4-6:implementer:implementer"
+shell_pid: "74141"
 history:
 - date: '2026-04-13'
   author: claude
@@ -197,3 +199,7 @@ Current measured surfaces after WP02 calibration should satisfy these. This test
 - Verify the structural tests would actually catch filtering logic (not just checking string literals)
 - Verify the 80% threshold is applied correctly (review >= 0.80 * implement, not the other way)
 - Verify the test loads the real `graph.yaml` from WP02, not a hand-crafted fixture
+
+## Activity Log
+
+- 2026-04-13T09:26:10Z – claude:opus-4-6:implementer:implementer – shell_pid=74141 – Started implementation via action command
