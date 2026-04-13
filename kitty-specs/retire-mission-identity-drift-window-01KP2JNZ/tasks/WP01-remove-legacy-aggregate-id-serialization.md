@@ -7,7 +7,7 @@ requirement_refs:
 - FR-008
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: Lane-based worktree allocated by finalize-tasks. Branch from planning_base_branch, merge into merge_target_branch.
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T001
 - T002

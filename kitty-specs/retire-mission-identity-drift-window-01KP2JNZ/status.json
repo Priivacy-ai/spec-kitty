@@ -1,0 +1,49 @@
+{
+  "event_count": 4,
+  "last_event_id": "01KP2KKRHNKGZ1D93XF4YE7H7X",
+  "materialized_at": "2026-04-13T05:04:16.437409+00:00",
+  "mission_number": "",
+  "mission_slug": "retire-mission-identity-drift-window-01KP2JNZ",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 0,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 4
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KP2KKRE3RQHM8J60E9PY6ZFG",
+      "last_transition_at": "2026-04-13T05:04:16.323474+00:00"
+    },
+    "WP02": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KP2KKRHE964GTQ70V6GX8QPT",
+      "last_transition_at": "2026-04-13T05:04:16.430257+00:00"
+    },
+    "WP03": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KP2KKRHJ3F39Q773542TD7X6",
+      "last_transition_at": "2026-04-13T05:04:16.434122+00:00"
+    },
+    "WP04": {
+      "actor": "finalize-tasks",
+      "force_count": 1,
+      "lane": "planned",
+      "last_event_id": "01KP2KKRHNKGZ1D93XF4YE7H7X",
+      "last_transition_at": "2026-04-13T05:04:16.437409+00:00"
+    }
+  }
+}
