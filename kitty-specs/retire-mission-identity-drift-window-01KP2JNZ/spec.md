@@ -124,8 +124,8 @@ After all work packages in this mission are merged:
 - [ ] `legacy_aggregate_id` is absent from `src/specify_cli/`
 - [ ] `effective_aggregate_id` slug fallback is absent from sync emitter
 - [ ] Tests assert the *absence* of the removed shim, not its presence
-- [ ] CLAUDE.md Mission Identity Model section updated (no drift-window references)
-- [ ] Operator docs updated if any reference the drift window
-- [ ] Version bump (patch) reflects the cleanup
+- [ ] Grep audit confirms no remaining drift-window references in source docstrings
 - [ ] PR merged, CI green
 - [ ] Close #557 with a comment linking the merged PR
+
+**Note**: Research confirmed zero drift-window references in CLAUDE.md or `docs/` — no doc updates needed. Version bump is a release concern gated on explicit user instruction, not a mission deliverable.
