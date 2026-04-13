@@ -1,7 +1,7 @@
 {
-  "event_count": 32,
-  "last_event_id": "01KP2P7APN2F3GNKK2C2T4ARR7",
-  "materialized_at": "2026-04-13T05:49:54.773236+00:00",
+  "event_count": 33,
+  "last_event_id": "01KP2P7BSTAHJP3PWZ12Q3QQ69",
+  "materialized_at": "2026-04-13T05:49:55.898143+00:00",
   "mission_number": "",
   "mission_slug": "retire-mission-identity-drift-window-01KP2JNZ",
   "mission_type": "software-dev",
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-13T05:49:54.773236+00:00"
     },
     "WP03": {
-      "actor": "merge",
-      "force_count": 3,
+      "actor": "user",
+      "force_count": 4,
       "lane": "done",
-      "last_event_id": "01KP2P6S20BKH309JVMCY5AA1T",
-      "last_transition_at": "2026-04-13T05:49:36.704932+00:00"
+      "last_event_id": "01KP2P7BSTAHJP3PWZ12Q3QQ69",
+      "last_transition_at": "2026-04-13T05:49:55.898143+00:00"
     },
     "WP04": {
       "actor": "merge",
