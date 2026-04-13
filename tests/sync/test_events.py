@@ -18,6 +18,9 @@ import pytest
 
 pytestmark = pytest.mark.fast
 
+# Test ULID for mission_id (mandatory parameter on emitter methods).
+_TEST_MISSION_ID = "01KNRQK0R1ZDS8Z57M1TRXF001"
+
 
 from specify_cli.sync.emitter import (
     EventEmitter,
@@ -167,7 +170,7 @@ class TestEventEnvelope:
         events = [
             emitter.emit_wp_status_changed("WP01", "planned", "in_progress"),
             emitter.emit_wp_created("WP01", "Test", "033-test"),
-            emitter.emit_mission_created("033-test", 33, "2.x", 1),
+            emitter.emit_mission_created("033-test", _TEST_MISSION_ID, 33, "2.x", 1),
         ]
         for event in events:
             assert event is not None
@@ -312,6 +315,7 @@ class TestMissionCreated:
         """MissionCreated event has correct structure."""
         event = emitter.emit_mission_created(
             mission_slug="028-cli-event-emission-sync",
+            mission_id=_TEST_MISSION_ID,
             mission_number=28,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=7,
@@ -319,13 +323,14 @@ class TestMissionCreated:
         assert event is not None
         assert event["event_type"] == "MissionCreated"
         assert event["aggregate_type"] == "Mission"
-        assert event["aggregate_id"] == "028-cli-event-emission-sync"
+        assert event["aggregate_id"] == _TEST_MISSION_ID
         assert event["payload"]["wp_count"] == 7
 
     def test_created_at_optional(self, emitter: EventEmitter, temp_queue):
         """created_at is optional."""
         event = emitter.emit_mission_created(
             "028-sync",
+            _TEST_MISSION_ID,
             28,  # int, not str (FR-044, WP02)
             "main",
             5,
@@ -342,17 +347,20 @@ class TestMissionClosed:
         """MissionClosed event has correct structure."""
         event = emitter.emit_mission_closed(
             mission_slug="028-sync",
+            mission_id=_TEST_MISSION_ID,
             total_wps=7,
         )
         assert event is not None
         assert event["event_type"] == "MissionClosed"
         assert event["aggregate_type"] == "Mission"
+        assert event["aggregate_id"] == _TEST_MISSION_ID
         assert event["payload"]["total_wps"] == 7
 
     def test_optional_fields(self, emitter: EventEmitter, temp_queue):
         """completed_at and total_duration are optional."""
         event = emitter.emit_mission_closed(
             "028-sync",
+            _TEST_MISSION_ID,
             7,
             completed_at="2026-02-04T18:00:00+00:00",
             total_duration="6h",
@@ -495,7 +503,7 @@ class TestValidation:
 
     def test_invalid_mission_slug_returns_none(self, emitter: EventEmitter, temp_queue):
         """Invalid mission_slug format for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("NoNumbers", 1, "main", 5)
+        event = emitter.emit_mission_created("NoNumbers", _TEST_MISSION_ID, 1, "main", 5)
         assert event is None
 
     def test_invalid_resolution_type_returns_none(self, emitter: EventEmitter, temp_queue):
@@ -510,7 +518,7 @@ class TestValidation:
 
     def test_negative_wp_count_returns_none(self, emitter: EventEmitter, temp_queue):
         """Negative wp_count for MissionCreated causes validation failure."""
-        event = emitter.emit_mission_created("028-sync", 28, "main", -1)
+        event = emitter.emit_mission_created("028-sync", _TEST_MISSION_ID, 28, "main", -1)
         assert event is None
 
 
@@ -564,7 +572,7 @@ class TestConvenienceFunctions:
         """emit_mission_created delegates to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_mission_created("028-sync", "028", "main", 5)
+        emit_mission_created("028-sync", _TEST_MISSION_ID, "028", "main", 5)
         mock_emitter.emit_mission_created.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
@@ -572,7 +580,7 @@ class TestConvenienceFunctions:
         """emit_mission_closed delegates to singleton."""
         mock_emitter = MagicMock()
         mock_get.return_value = mock_emitter
-        emit_mission_closed("028-sync", 5)
+        emit_mission_closed("028-sync", _TEST_MISSION_ID, 5)
         mock_emitter.emit_mission_closed.assert_called_once()
 
     @patch("specify_cli.sync.events.get_emitter")
@@ -775,6 +783,7 @@ class TestInternalValidation:
         """Invalid created_at datetime string fails MissionCreated validation."""
         event = emitter.emit_mission_created(
             "028-sync",
+            _TEST_MISSION_ID,
             28,  # int, not str (FR-044, WP02)
             "main",
             5,
@@ -786,6 +795,7 @@ class TestInternalValidation:
         """Invalid completed_at datetime string fails MissionClosed validation."""
         event = emitter.emit_mission_closed(
             "028-sync",
+            _TEST_MISSION_ID,
             5,
             completed_at="not-a-date",
         )

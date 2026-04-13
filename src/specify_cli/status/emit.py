@@ -382,8 +382,6 @@ def emit_status_transition(
     # Step 4: Create StatusEvent with ULID event_id.
     # mission_id is the canonical machine-facing identity (ULID from meta.json).
     # T023: New events carry mission_id alongside mission_slug.
-    # T025: to_dict() emits legacy_aggregate_id=mission_slug as a drift-window
-    # compatibility shim for downstream SaaS consumers (removable after WP12).
     event = StatusEvent(
         event_id=_generate_ulid(),
         mission_slug=mission_slug,

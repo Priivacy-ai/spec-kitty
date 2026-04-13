@@ -476,6 +476,7 @@ class TestNoDuplicateEmissions:
 
         emitter.emit_mission_created(
             mission_slug="032-identity-aware",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=32,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=3,
@@ -537,6 +538,7 @@ class TestFullWorkflowIntegration:
         # 1. Mission created (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_mission_created(
             mission_slug="001-test-feature",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             mission_number=1,  # int, not str (FR-044, WP02)
             target_branch="main",
             wp_count=1,
@@ -571,6 +573,7 @@ class TestFullWorkflowIntegration:
         # 7. Mission closed (use valid mission_slug pattern: ###-slug-name)
         emitter.emit_mission_closed(
             mission_slug="001-test-feature",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             total_wps=1,
         )
 
