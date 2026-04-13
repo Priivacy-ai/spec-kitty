@@ -62,7 +62,7 @@ An edge represents a typed, directed relationship between two nodes.
 |----------|-----------|-------------------|
 | `requires` | Source requires target to function correctly | Transitive closure (walk until exhausted) |
 | `suggests` | Source benefits from target but does not require it | Depth-limited walk (user-configurable) |
-| `applies` | Source artifact applies to target action or scope | Depth 1 from action nodes |
+| `applies` | Source artifact applies to target action or scope | **Not populated in Phase 0.** Reserved for Phase 2+ when artifacts self-declare applicability. Direction is artifact -> action (inverse of `scope`). |
 | `scope` | Action node scopes in a specific artifact | Depth 1 (defines action surface) |
 | `vocabulary` | Source references glossary scope | Depth 1 (glossary injection) |
 | `instantiates` | Source is a concrete instance of target pattern | Informational (not traversed by default) |

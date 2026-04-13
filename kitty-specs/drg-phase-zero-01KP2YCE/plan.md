@@ -112,10 +112,11 @@ Charter-specific assembly lives in `src/charter/context.py`. `build_context_v2()
 build_context_v2(profile, action, depth)
     │
     ├── drg.loader.load_graph()           # Load and merge graph layers
-    ├── drg.query.walk_edges(             # Walk applies + scope to depth 1
+    ├── drg.query.walk_edges(             # Walk scope edges to depth 1
     │       start="action:{mission}/{action}",
-    │       relations=["applies", "scope"],
+    │       relations=["scope"],
     │       max_depth=1)
+    │                                       # (applies is v1 schema but not populated in Phase 0)
     ├── drg.query.walk_edges(             # Walk requires transitively
     │       start=<resolved nodes>,
     │       relations=["requires"],
@@ -161,6 +162,16 @@ entries: []
 #   accepted_by: "robert"
 #   accepted_at: "2026-04-15"
 ```
+
+### graph.yaml Lifecycle
+
+`graph.yaml` has two distinct lifecycle phases:
+
+1. **Phase 0 (bootstrap)**: The migration extractor generates `graph.yaml` from inline references + calibration adjustments. The migration is idempotent: same inputs produce the same output. During Phase 0, the migration is the source of truth; `graph.yaml` is a derived artifact.
+
+2. **Post-Phase 0 (authoritative)**: Once Phase 1 deletes inline references, `graph.yaml` becomes the authoritative source for governance wiring. Calibration edits and new edges go directly into `graph.yaml`. The migration is no longer re-run (its inputs no longer exist).
+
+This means: during Phase 0, calibration failures are fixed by adjusting the calibrator inputs (action index files) and regenerating. Post-Phase 0, calibration failures are fixed by editing `graph.yaml` directly. The spec's "DRG is the only knob" principle holds in both phases -- only the editing mechanism changes.
 
 ### Migration Extraction Strategy
 
@@ -228,25 +239,26 @@ Required calibration inequalities:
 
 3. **Surface measurement**: Surface size is measured as the count of distinct artifacts reachable from the action node via `scope` edges (depth 1), plus transitive `requires` closure. Token estimates are a secondary metric derived from materializing the artifacts.
 
-### Call-Site Reroute
+### Call-Site Audit (NOT Reroute)
 
-Two files need import path changes:
+Phase 0 does NOT reroute any production call sites. The two implementations have different behavior:
 
-**`src/specify_cli/next/prompt_builder.py:13`**:
-```python
-# Before:
-from specify_cli.charter.context import build_charter_context
-# After:
-from charter.context import build_charter_context
-```
+| Feature | `src/charter/context.py` (canonical) | `src/specify_cli/charter/context.py` (legacy) |
+|---------|--------------------------------------|-----------------------------------------------|
+| `depth` parameter | Yes (1, 2, 3) | No |
+| Action doctrine injection | Yes (directives, tactics, guidelines) | No |
+| Reference filtering by action | Yes | Limited |
+| `CharterContextResult.depth` field | Yes | No |
 
-**`src/specify_cli/cli/commands/agent/workflow.py:20`**:
-```python
-# Before:
-from specify_cli.charter.context import build_charter_context
-# After:
-from charter.context import build_charter_context
-```
+Switching callers would change live prompt behavior. The reroute is Phase 1 work.
+
+**Phase 0 call-site status** (for documentation, not action):
+
+| Caller | Current import | Phase 1 action |
+|--------|---------------|----------------|
+| `src/specify_cli/next/prompt_builder.py:13` | `specify_cli.charter.context` (legacy) | Reroute to `charter.context` |
+| `src/specify_cli/cli/commands/agent/workflow.py:20` | `specify_cli.charter.context` (legacy) | Reroute to `charter.context` |
+| `src/specify_cli/cli/commands/charter.py:13` | `charter.context` (canonical) | No change |
 
 **Verification**: Before/after output comparison for each call site. Both implementations should produce identical output for the same `(action, depth)` inputs. If they don't, that divergence must be resolved before proceeding -- it means the canonical path and the legacy path have drifted, and the invariant test would be comparing against the wrong oracle.
 
@@ -258,7 +270,7 @@ The invariant test runs a matrix of `(profile, action, depth)` combinations:
 - **Actions**: `specify`, `plan`, `implement`, `review` (4 actions with indices). `tasks` is tested only for DRG output (no legacy baseline exists).
 - **Depths**: 1, 2, 3 (matching the depth semantics in `src/charter/context.py`).
 
-**Comparison method**: For each combination, both paths produce a set of artifact URNs. Semantic identity means the sets are equal. If sets differ, the test checks the accepted-differences ledger. Unregistered differences fail the test.
+**Comparison method**: For each combination, both paths resolve a set of artifact URNs. Reachability parity means the URN sets are equal. If sets differ, the test checks the accepted-differences ledger. Unregistered differences fail the test. Note: this tests artifact reachability, not rendered text. The legacy path may render differently (it lacks action-doctrine sections, guidelines, etc.) -- that is expected and irrelevant to Phase 0's scope. Phase 1 will test rendered-text parity when it reroutes callers.
 
 **Matrix size**: Up to 10 profiles x 4 actions x 3 depths = 120 combinations. With profile degeneration, this reduces to 4 x 3 = 12. Either size is well within the 60s CI budget (NFR-003).
 
@@ -271,50 +283,49 @@ The invariant test runs a matrix of `(profile, action, depth)` combinations:
 | `src/doctrine/curation/` | Untouched | Phase 1 excises this (C-003) |
 | `src/doctrine/*/_ proposed/` | Untouched | Phase 1 deletes these (C-003) |
 | `src/specify_cli/glossary/` | Untouched | Vocabulary edges reference scopes but don't alter internals (C-005) |
-| `src/specify_cli/charter/context.py` | Untouched | Legacy compatibility surface; zero callers after WP00 reroute |
+| `src/specify_cli/charter/context.py` | Untouched | Legacy compatibility surface; callers NOT rerouted in Phase 0 |
+| `src/specify_cli/next/prompt_builder.py` | Untouched | Import path NOT changed in Phase 0; reroute is Phase 1 |
+| `src/specify_cli/cli/commands/agent/workflow.py` | Untouched | Import path NOT changed in Phase 0; reroute is Phase 1 |
 | `src/charter/context.py` | Extended | `build_context_v2()` added; existing `build_charter_context()` preserved |
 | All inline reference fields in YAMLs | Preserved | Phase 1 removes them after parity confirmed (C-001) |
 
 ## Work Package Dependency Graph
 
 ```
-WP00 (call-site reroute) ──────────────────────────────┐
-    │                                                    │
-    │  (parallel)                                        │
-    │                                                    │
-WP01 (DRG schema + model) ─┐                            │
-                            │                            │
-                            ├── WP02 (migration +        │
-                            │        calibration)        │
-                            │       │                    │
-                            │       │                    │
-                            └───────┴── WP03 (context_v2)│
-                                        │                │
-                                        ├────────────────┤
-                                        │                │
+WP00 (call-site audit) ────────────────────────────────┐
+                                                        │
+WP01 (DRG schema + model) ─┐                           │
+                            │                           │
+                            ├── WP02 (migration +       │
+                            │        calibration)       │
+                            │       │                   │
+                            └───────┴── WP03 (context_v2)
+                                        │               │
+                                        ├───────────────┤
+                                        │               │
                                         ├── WP04 (invariant test)
                                         │
                                         └── WP05 (calibration test)
 ```
 
 **Critical path**: WP01 -> WP02 -> WP03 -> WP04
-**Parallel opportunity**: WP00 runs in parallel with WP01
+**Parallel opportunity**: WP00 runs in parallel with WP01-WP03 (it produces documentation, not code)
 
-### WP00: Call-Site Reroute (FR-001)
+### WP00: Call-Site Audit and Oracle Confirmation (FR-001)
 
-**Goal**: Reroute all `build_charter_context()` callers to `src/charter/context.py`. After reroute, `src/specify_cli/charter/context.py` has zero internal callers.
+**Goal**: Document the behavioral delta between the two `build_charter_context()` implementations and confirm the canonical path (`src/charter/context.py`) is the correct parity oracle for WP04. No production code is changed.
 
-**Touches**:
-- `src/specify_cli/next/prompt_builder.py` (import path change)
-- `src/specify_cli/cli/commands/agent/workflow.py` (import path change)
+**Produces**:
+- A behavioral delta document listing exactly what each implementation renders for each (action, depth)
+- Confirmation that the canonical path's artifact resolution is the correct oracle
+- Documentation of what the Phase 1 reroute will change in live prompt behavior
 
 **Acceptance**:
-- Both callers import from `charter.context`
-- Before/after output comparison shows identical results for all 4 bootstrap actions
-- `grep -r "specify_cli.charter.context" src/` returns zero matches
-- All existing tests pass (no regressions)
+- Delta document exists and covers all 4 bootstrap actions at depths 1, 2, 3
+- Canonical path confirmed as oracle (no unexpected artifact resolution behavior)
+- Phase 1 reroute scope documented with expected behavior changes
 
-**Risk**: If the two implementations have diverged, this WP surfaces the divergence. Resolution: fix the divergence before proceeding, not paper over it.
+**Risk**: If the canonical path has a bug that resolves wrong artifacts, the invariant test will use a faulty oracle. The audit must verify artifact resolution correctness, not just accept the canonical path uncritically.
 
 ### WP01: DRG Schema and Pydantic Model (FR-002, FR-003) -- #470
 
@@ -381,17 +392,17 @@ WP01 (DRG schema + model) ─┐                            │
 
 ### WP04: Invariant Regression Test (FR-007, FR-010) -- #472
 
-**Goal**: Compare `build_context_v2` output against canonical `build_charter_context()` for all `(profile, action, depth)` combinations.
+**Goal**: Compare the artifact reachability of `build_context_v2` against the canonical `build_charter_context()` for all `(profile, action, depth)` combinations. This tests that the DRG resolves the same governance artifacts, not that it renders identical text.
 
 **New files**:
 - `tests/charter/test_context_parity.py`
 - `tests/charter/fixtures/accepted_differences.yaml`
 
-**Depends on**: WP00 (single oracle), WP03 (build_context_v2 exists)
+**Depends on**: WP00 (oracle confirmed), WP03 (build_context_v2 exists)
 
 **Acceptance**:
 - Test runs in CI on PRs touching `src/doctrine/`, `src/charter/`, or `graph.yaml`
-- Either passes (semantic identity) or produces itemized differences report
+- Either passes (artifact-set identity) or produces itemized reachability differences report
 - Accepted-differences ledger follows the exception rules (Guardrail 2)
 - < 10% of matrix entries in the ledger; otherwise mission pauses
 - Full matrix completes in < 60s (NFR-003)
@@ -416,14 +427,14 @@ WP01 (DRG schema + model) ─┐                            │
 
 | Risk | Mitigation | WP affected |
 |------|-----------|-------------|
-| Call-site reroute reveals divergence between two `build_charter_context()` implementations | WP00 includes before/after output comparison; divergence blocks WP04 until resolved | WP00 |
+| Canonical path resolves wrong artifacts (faulty oracle) | WP00 audit verifies canonical path's artifact resolution is correct, not just accepted uncritically | WP00 |
 | Directive ID normalization misses edge cases | Reuse existing `_normalize_directive_id()` logic; extraction test asserts edge count >= inline field count | WP02 |
 | `tasks` action index doesn't exist; creating it is a calibration judgment call | Start with scope edges borrowed from `plan` + light `implement` subset; calibration test enforces inequality | WP02 |
 | Invariant test matrix is too coarse (profiles don't affect context today) | Document profile dimension as degenerate; Phase 4 profile executor will make it meaningful | WP04 |
-| `graph.yaml` grows into a merge-conflict hotspot | Migration is idempotent; regeneration produces identical output; graph is generated, not hand-edited | WP02 |
+| `graph.yaml` lifecycle confusion (generated vs hand-edited) | Lifecycle is explicit: generated during Phase 0, authoritative post-Phase 0. See graph.yaml Lifecycle section. | WP02 |
 
 ## Rollback Plan
 
-1. **WP00 rollback**: Revert the two import path changes. No other code touched.
-2. **WP01-WP05 rollback**: Delete `src/doctrine/drg/`, `src/doctrine/graph.yaml`, remove `build_context_v2` from `src/charter/context.py`, delete new test files. Inline references remain in place (C-001), so the legacy path continues to work unchanged.
-3. **Trigger**: If invariant test reveals > 10% divergence and root cause is unclear, pause the mission and escalate.
+1. **WP00 rollback**: Delete audit document. No production code was changed.
+2. **WP01-WP05 rollback**: Delete `src/doctrine/drg/`, `src/doctrine/graph.yaml`, remove `build_context_v2` from `src/charter/context.py`, delete new test files. Inline references remain in place (C-001), so the legacy path continues to work unchanged. No production call sites were modified.
+3. **Trigger**: If invariant test reveals > 10% artifact-reachability divergence and root cause is unclear, pause the mission and escalate.
