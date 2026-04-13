@@ -26,10 +26,10 @@
 | T016 | Generate `graph.yaml` from shipped artifacts | WP02 | | [D] |
 | T017 | Validate edge count >= inline field count | WP02 | | [D] |
 | T018 | Unit tests for extractor, calibrator, normalizer | WP02 | | [D] |
-| T019 | Implement DRG query primitives (`walk_edges`, `resolve_context`) | WP03 | |
-| T020 | Implement `build_context_v2()` in `src/charter/context.py` | WP03 | |
-| T021 | Unit tests for query primitives against fixture graphs | WP03 | |
-| T022 | Verify no per-action filtering logic in `build_context_v2` | WP03 | |
+| T019 | Implement DRG query primitives (`walk_edges`, `resolve_context`) | WP03 | | [D] |
+| T020 | Implement `build_context_v2()` in `src/charter/context.py` | WP03 | | [D] |
+| T021 | Unit tests for query primitives against fixture graphs | WP03 | | [D] |
+| T022 | Verify no per-action filtering logic in `build_context_v2` | WP03 | | [D] |
 | T023 | Create test matrix generator (profile x action x depth) | WP04 | |
 | T024 | Implement artifact-reachability comparison logic (URN set equality) | WP04 | |
 | T025 | Create `accepted_differences.yaml` schema and loader | WP04 | |
@@ -141,10 +141,10 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Implement `build_context_v2(profile, action, depth)` by composing DRG query primitives.
 
 **Included subtasks**:
-- [ ] T019 Implement DRG query primitives (`walk_edges`, `resolve_context`) (WP03)
-- [ ] T020 Implement `build_context_v2()` in `src/charter/context.py` (WP03)
-- [ ] T021 Unit tests for query primitives against fixture graphs (WP03)
-- [ ] T022 Verify no per-action filtering logic in `build_context_v2` (WP03)
+- [x] T019 Implement DRG query primitives (`walk_edges`, `resolve_context`) (WP03)
+- [x] T020 Implement `build_context_v2()` in `src/charter/context.py` (WP03)
+- [x] T021 Unit tests for query primitives against fixture graphs (WP03)
+- [x] T022 Verify no per-action filtering logic in `build_context_v2` (WP03)
 
 **Success criteria**: Function returns deterministic results for fixture graphs; no filtering logic in function body; composes DRG primitives only.
 
