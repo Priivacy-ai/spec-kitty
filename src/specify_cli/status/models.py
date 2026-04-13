@@ -175,11 +175,9 @@ class StatusEvent:
     Wire-format evolution (FR-023, ADR 2026-04-09-1):
     - Legacy events: carry only ``mission_slug`` for mission identity.
     - New events (post-WP05): carry both ``mission_slug`` AND ``mission_id``
-      (the ULID from meta.json).  ``mission_id`` becomes the canonical
+      (the ULID from meta.json).  ``mission_id`` is the canonical
       machine-facing identity; ``mission_slug`` is retained for human
       readability and backward compatibility.
-    - ``legacy_aggregate_id``: drift-window compat field, equals ``mission_slug``
-      on new writes, absent on legacy events.  Readers ignore it.
     """
 
     event_id: str  # ULID
@@ -217,10 +215,6 @@ class StatusEvent:
         }
         if self.mission_id is not None:
             d["mission_id"] = self.mission_id
-            # Drift-window shim (T025): legacy_aggregate_id carries mission_slug
-            # so downstream SaaS consumers that index by slug can still find events.
-            # Remove after SaaS side migrates to mission_id (tracked in WP12).
-            d["legacy_aggregate_id"] = self.mission_slug
         return d
 
     # Legacy lane name aliases from older event log formats.

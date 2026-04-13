@@ -247,23 +247,23 @@ def emit_wp_assigned(
 
 def emit_mission_created(
     mission_slug: str,
+    mission_id: str,
     mission_number: int | None,
     target_branch: str,
     wp_count: int,
     created_at: str | None = None,
     causation_id: str | None = None,
-    mission_id: str | None = None,
 ) -> dict[str, Any] | None:
     """Emit MissionCreated event via singleton."""
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
     event = get_emitter().emit_mission_created(
         mission_slug=mission_slug,
+        mission_id=mission_id,
         mission_number=mission_number,
         target_branch=target_branch,
         wp_count=wp_count,
         created_at=created_at,
         causation_id=causation_id,
-        mission_id=mission_id,
     )
     if event is not None:
         _publish_event_via_sync_daemon(event, repo_root)
@@ -274,6 +274,7 @@ def emit_mission_created(
 
 def emit_mission_closed(
     mission_slug: str,
+    mission_id: str,
     total_wps: int,
     completed_at: str | None = None,
     total_duration: str | None = None,
@@ -283,6 +284,7 @@ def emit_mission_closed(
     repo_root = _ensure_dashboard_sync_daemon_for_active_project()
     event = get_emitter().emit_mission_closed(
         mission_slug=mission_slug,
+        mission_id=mission_id,
         total_wps=total_wps,
         completed_at=completed_at,
         total_duration=total_duration,
