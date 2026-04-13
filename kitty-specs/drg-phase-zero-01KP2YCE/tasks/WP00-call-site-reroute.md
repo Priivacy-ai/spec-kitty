@@ -1,6 +1,6 @@
 ---
 work_package_id: WP00
-title: Call-Site Reroute
+title: Call-Site Audit and Oracle Confirmation
 dependencies: []
 requirement_refs:
 - FR-001
@@ -11,38 +11,47 @@ subtasks:
 - T001
 - T002
 - T003
-- T004
 history:
 - date: '2026-04-13'
   author: claude
   action: created
   note: Initial WP generation from /spec-kitty.tasks
-authoritative_surface: src/specify_cli/
-execution_mode: code_change
+- date: '2026-04-13'
+  author: claude
+  action: revised
+  note: Reframed from reroute to audit after review identified behavior-change risk
+authoritative_surface: kitty-specs/drg-phase-zero-01KP2YCE/
+execution_mode: planning_artifact
 owned_files:
-- src/specify_cli/next/prompt_builder.py
-- src/specify_cli/cli/commands/agent/workflow.py
-- tests/specify_cli/next/test_prompt_builder_reroute.py
-- tests/specify_cli/cli/commands/agent/test_workflow_reroute.py
+- kitty-specs/drg-phase-zero-01KP2YCE/research/call-site-delta.md
 tags: []
 ---
 
-# WP00: Call-Site Reroute
+# WP00: Call-Site Audit and Oracle Confirmation
 
 ## Objective
 
-Reroute all `build_charter_context()` callers from the legacy `specify_cli.charter.context` module to the canonical `charter.context` module. After this WP, `src/specify_cli/charter/context.py` has zero internal callers, establishing a single oracle for the invariant test in WP04.
+Document the behavioral delta between the canonical `src/charter/context.py` and the legacy `src/specify_cli/charter/context.py`, confirm the canonical path is the correct parity oracle for WP04, and document what Phase 1's reroute will change in live prompt behavior.
+
+**No production code is changed in this WP.** The two implementations have materially different behavior (canonical has depth semantics, action doctrine injection, and guideline rendering; legacy does not). Rerouting callers would change live prompt output and is Phase 1 scope.
 
 ## Context
 
-Two of three callers still import from the old path:
-- `src/specify_cli/next/prompt_builder.py:13` -- imports `build_charter_context` from `specify_cli.charter.context`
-- `src/specify_cli/cli/commands/agent/workflow.py:20` -- imports `build_charter_context` from `specify_cli.charter.context`
+Three callers exist:
+- `src/specify_cli/next/prompt_builder.py:13` -- imports from `specify_cli.charter.context` (legacy)
+- `src/specify_cli/cli/commands/agent/workflow.py:20` -- imports from `specify_cli.charter.context` (legacy)
+- `src/specify_cli/cli/commands/charter.py:13` -- imports from `charter.context` (canonical)
 
-One caller already uses the canonical path:
-- `src/specify_cli/cli/commands/charter.py:13` -- imports from `charter.context`
+The canonical implementation (`src/charter/context.py`) has:
+- `depth` parameter (1=compact, 2=bootstrap+action doctrine, 3=extended+styleguides)
+- Action doctrine injection via `_append_action_doctrine_lines()` (directives, tactics, guidelines)
+- Action-filtered reference docs via `_filter_references_for_action()`
+- `CharterContextResult.depth` field
 
-The canonical `src/charter/context.py` has a `depth` parameter and action-scoped doctrine loading. The legacy `src/specify_cli/charter/context.py` does not. The reroute may change behavior if the two implementations have diverged. This must be detected and resolved, not papered over.
+The legacy implementation (`src/specify_cli/charter/context.py`) has:
+- No `depth` parameter
+- Simple binary: first_load -> bootstrap (policy summary + references), else -> compact governance
+- No action doctrine injection, no guideline rendering
 
 ## Branch Strategy
 
@@ -52,109 +61,82 @@ The canonical `src/charter/context.py` has a `depth` parameter and action-scoped
 
 ## Detailed Guidance
 
-### T001: Reroute `prompt_builder.py` import
+### T001: Document behavioral delta
 
-**Purpose**: Change the import in `src/specify_cli/next/prompt_builder.py` from the legacy to the canonical module.
-
-**Steps**:
-1. Open `src/specify_cli/next/prompt_builder.py`
-2. Find line 13: `from specify_cli.charter.context import build_charter_context`
-3. Replace with: `from charter.context import build_charter_context`
-4. If any other symbols are imported from `specify_cli.charter.context`, reroute those too
-5. Verify the module resolves correctly by running the existing tests:
-   ```bash
-   pytest tests/specify_cli/next/ -x -q
-   ```
-
-**Files**: `src/specify_cli/next/prompt_builder.py`
-
-**Validation**:
-- [ ] Import path changed to `charter.context`
-- [ ] No `ImportError` when module is loaded
-- [ ] Existing prompt builder tests pass
-
-### T002: Reroute `agent/workflow.py` import
-
-**Purpose**: Change the import in `src/specify_cli/cli/commands/agent/workflow.py` from the legacy to the canonical module.
+**Purpose**: Produce a structured comparison of what each implementation renders for each (action, depth) combination.
 
 **Steps**:
-1. Open `src/specify_cli/cli/commands/agent/workflow.py`
-2. Find line 20: `from specify_cli.charter.context import build_charter_context`
-3. Replace with: `from charter.context import build_charter_context`
-4. Check for any other imports from `specify_cli.charter.context` and reroute them
-5. Run relevant tests:
-   ```bash
-   pytest tests/specify_cli/cli/commands/agent/ -x -q
-   ```
-
-**Files**: `src/specify_cli/cli/commands/agent/workflow.py`
-
-**Validation**:
-- [ ] Import path changed to `charter.context`
-- [ ] No `ImportError` when module is loaded
-- [ ] Existing workflow tests pass
-
-### T003: Before/after output comparison
-
-**Purpose**: Prove the reroute does not change runtime behavior. If the two implementations have diverged, this test will catch it.
-
-**Steps**:
-1. Create a test file `tests/specify_cli/next/test_prompt_builder_reroute.py`
+1. Create `kitty-specs/drg-phase-zero-01KP2YCE/research/call-site-delta.md`
 2. For each bootstrap action (`specify`, `plan`, `implement`, `review`):
-   a. Call the old `specify_cli.charter.context.build_charter_context(repo_root, action=action)` 
-   b. Call the new `charter.context.build_charter_context(repo_root, action=action)`
-   c. Assert the `text` field of both results is identical
-   d. Assert the `mode` field is identical
-   e. Assert the `references_count` is identical
-3. If any assertion fails, this means the implementations have diverged. **Do not proceed to WP04.** Instead:
-   - Document the exact divergence (which action, which fields differ)
-   - File it as a blocking issue
-   - The divergence must be resolved before the invariant test can use a single oracle
+   a. Call the canonical `charter.context.build_charter_context(repo_root, action=action, depth=d)` for depths 1, 2, 3
+   b. Call the legacy `specify_cli.charter.context.build_charter_context(repo_root, action=action)` (no depth parameter)
+   c. Document:
+      - Which artifact IDs (directives, tactics) appear in each output
+      - Which sections are present/absent (action doctrine, guidelines, filtered references)
+      - The `mode` and `references_count` fields
+3. Organize as a table: rows = (action, depth), columns = canonical artifacts, legacy artifacts, delta
 
-**Files**: `tests/specify_cli/next/test_prompt_builder_reroute.py`
+**Files**: `kitty-specs/drg-phase-zero-01KP2YCE/research/call-site-delta.md`
 
 **Validation**:
-- [ ] Output comparison test exists and passes for all 4 bootstrap actions
-- [ ] If divergence found, it is documented and blocks WP04
+- [ ] All 4 actions x 3 depths documented for canonical
+- [ ] All 4 actions documented for legacy (single depth)
+- [ ] Delta clearly shows what canonical adds over legacy
 
-### T004: Assert zero remaining references
+### T002: Verify canonical path as correct oracle
 
-**Purpose**: Confirm no callers in `src/` still reference the old module.
+**Purpose**: Confirm the canonical implementation resolves the correct set of governance artifacts for each (action, depth), so the invariant test (WP04) compares against a trustworthy baseline.
 
 **Steps**:
-1. Add a test (can be in the same file or a new one) that runs:
-   ```python
-   import subprocess
-   result = subprocess.run(
-       ["grep", "-r", "specify_cli.charter.context", "src/"],
-       capture_output=True, text=True
-   )
-   assert result.stdout.strip() == "", f"Stale references found:\n{result.stdout}"
-   ```
-2. Alternatively, use a simpler assertion by scanning Python files with `ast` or `pathlib`
-3. The legacy module itself (`src/specify_cli/charter/context.py`) still exists -- that's fine. We're asserting no other file in `src/` imports from it.
+1. For each action, verify the canonical path's resolved directives match the action index file:
+   - `specify`: should resolve DIRECTIVE_010, DIRECTIVE_003 + tactic `requirements-validation-workflow`
+   - `plan`: should resolve DIRECTIVE_003, DIRECTIVE_010 + tactics `requirements-validation-workflow`, `adr-drafting-workflow`
+   - `implement`: should resolve 6 directives + 6 tactics + 1 toolguide (per index)
+   - `review`: should resolve 2 directives + 3 tactics (per index)
+2. Verify project-directive intersection works correctly (canonical intersects with governance.yaml selections)
+3. Document any discrepancies between action index content and canonical path resolution
+4. If discrepancies exist, file them as issues and document whether they affect oracle suitability
 
-**Files**: Test file from T003 (extend it)
+**Files**: Extend `call-site-delta.md` with oracle verification section
 
 **Validation**:
-- [ ] grep returns zero matches for `specify_cli.charter.context` in `src/` (excluding the module itself)
-- [ ] Test is part of the test suite
+- [ ] Each action's resolved artifacts match its action index
+- [ ] Any discrepancies documented with issue references
+- [ ] Explicit statement: "canonical path is confirmed as correct oracle" or "canonical path has issues that must be resolved first"
+
+### T003: Document Phase 1 reroute scope
+
+**Purpose**: Pre-document what happens when Phase 1 reroutes the two legacy callers, so Phase 1 can make the change with full awareness.
+
+**Steps**:
+1. In `call-site-delta.md`, add a "Phase 1 Reroute Plan" section
+2. For each caller:
+   - What it renders today (legacy path output)
+   - What it will render after reroute (canonical path output at the depth it will use)
+   - Net change in prompt behavior agents experience
+3. Flag any reroute risks: will agents get materially different prompts? Will any existing workflows break?
+
+**Files**: Extend `call-site-delta.md`
+
+**Validation**:
+- [ ] Both callers' reroute impact documented
+- [ ] Net prompt behavior change described
+- [ ] Risks flagged if any
 
 ## Definition of Done
 
-1. Both import paths changed to `charter.context`
-2. Before/after comparison proves identical output for all 4 bootstrap actions
-3. Zero remaining callers of `specify_cli.charter.context` in `src/`
-4. All existing tests pass (no regressions)
-5. mypy --strict passes
+1. `call-site-delta.md` exists with complete behavioral delta
+2. Canonical path confirmed as correct oracle (or issues filed if not)
+3. Phase 1 reroute scope documented with expected behavior changes
+4. No production code modified
 
 ## Risks
 
-- **Divergence discovered**: If the two implementations produce different output, this WP becomes a debugging task. The fix is to align them (typically by fixing the legacy one to match canonical, or vice versa), not to skip the comparison.
-- **Hidden callers**: There may be dynamic imports or string-based references. The grep test catches string-based references; dynamic imports would need manual audit.
+- **Canonical path has a bug**: If the canonical path resolves wrong artifacts, the invariant test will use a faulty oracle. This WP must verify correctness, not just document.
+- **Delta is too large for Phase 1**: If the behavioral delta is so large that Phase 1 reroute is risky, this WP should flag it as a concern for Phase 1 planning.
 
 ## Reviewer Guidance
 
-- Verify the import paths are correct (not typos like `chater.context`)
-- Verify the before/after test covers all 4 actions, not just one
-- If divergence is found, verify it's documented as a blocker, not silently accepted
+- Verify the delta covers all actions and depths, not just a sample
+- Verify the oracle verification actually checks against action index files, not just against itself
+- Verify the Phase 1 reroute documentation is actionable (not just "it will change")

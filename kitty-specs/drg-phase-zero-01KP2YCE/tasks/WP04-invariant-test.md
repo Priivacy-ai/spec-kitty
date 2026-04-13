@@ -36,7 +36,7 @@ tags: []
 
 ## Objective
 
-Prove that `build_context_v2()` matches the canonical `build_charter_context()` from `src/charter/context.py` for all shipped (profile, action, depth) combinations. This test gates Phase 1 -- Phase 1 cannot start until this test passes.
+Prove that `build_context_v2()` resolves the same governance artifacts (by URN) as the canonical `build_charter_context()` from `src/charter/context.py` for all shipped (profile, action, depth) combinations. This tests **artifact reachability parity**, not rendered-text parity. Rendered-text parity (guidelines, reference filtering, section formatting) is a Phase 1 concern when callers are switched to `build_context_v2`. This test gates Phase 1.
 
 ## Context
 
@@ -83,12 +83,12 @@ Prove that `build_context_v2()` matches the canonical `build_charter_context()` 
 
 **Files**: `tests/charter/test_context_parity.py`
 
-### T024: Implement parity comparison logic
+### T024: Implement artifact-reachability comparison logic
 
-**Purpose**: Define how to compare legacy and DRG context outputs.
+**Purpose**: Define how to compare the governance artifacts resolved by each path. This tests reachability (which artifacts are included), not rendering (how they're formatted).
 
 **Steps**:
-1. Implement `compare_context_outputs(legacy: CharterContextResult, v2: CharterContextResult) -> ParityResult`:
+1. Implement `compare_artifact_reachability(legacy: CharterContextResult, v2_resolved: ResolvedContext) -> ParityResult`:
    ```python
    @dataclass
    class ParityResult:
@@ -96,17 +96,18 @@ Prove that `build_context_v2()` matches the canonical `build_charter_context()` 
        action: str
        depth: int
        identical: bool
-       legacy_artifacts: set[str]   # Extracted artifact URNs/IDs from legacy text
-       v2_artifacts: set[str]       # Extracted artifact URNs/IDs from v2 text
-       only_in_legacy: set[str]     # Artifacts in legacy but not v2
-       only_in_v2: set[str]         # Artifacts in v2 but not legacy
+       legacy_artifacts: set[str]   # Artifact URNs extracted from legacy text
+       v2_artifacts: set[str]       # Artifact URNs from DRG resolution
+       only_in_legacy: set[str]     # Artifacts in legacy but not DRG
+       only_in_v2: set[str]         # Artifacts in DRG but not legacy
    ```
-2. **Comparison method**: Extract artifact identifiers from the rendered text. Both paths produce structured text with directive and tactic names. Parse the text to extract:
-   - Directive IDs (e.g., `DIRECTIVE_024`)
-   - Tactic IDs (e.g., `tdd-red-green-refactor`)
-   - Any other artifact references
-3. Compare artifact sets, not raw text. Raw text comparison would be too brittle (whitespace, ordering differences are acceptable).
-4. If artifact sets differ, populate `only_in_legacy` and `only_in_v2` for the differences report.
+2. **Legacy artifact extraction**: Parse the rendered text from `build_charter_context()` to extract artifact identifiers:
+   - Directive IDs (e.g., `DIRECTIVE_024` from lines like `    - DIRECTIVE_024: ...`)
+   - Tactic IDs (e.g., `tdd-red-green-refactor` from tactic lines)
+   - Convert to URN format (`directive:DIRECTIVE_024`, `tactic:tdd-red-green-refactor`)
+3. **DRG artifact set**: Use `ResolvedContext.artifact_urns` directly from `resolve_context()` -- these are already URNs.
+4. Compare URN sets. This deliberately ignores rendering differences (guidelines, section formatting, reference docs) which are Phase 1 concerns.
+5. If URN sets differ, populate `only_in_legacy` and `only_in_v2` for the differences report.
 
 **Files**: `tests/charter/test_context_parity.py`
 
@@ -156,24 +157,24 @@ Prove that `build_context_v2()` matches the canonical `build_charter_context()` 
 
 ### T026: Implement invariant test with accepted-differences integration
 
-**Purpose**: The main test that runs the full matrix and enforces parity.
+**Purpose**: The main test that runs the full matrix and enforces artifact-reachability parity.
 
 **Steps**:
 1. Implement the parametrized test:
    ```python
    @pytest.mark.parametrize("profile,action,depth", generate_test_matrix())
-   def test_context_parity(profile, action, depth, tmp_path_with_charter):
-       """Legacy build_charter_context == build_context_v2 for this case."""
+   def test_artifact_reachability_parity(profile, action, depth, tmp_path_with_charter):
+       """DRG resolves the same artifact set as canonical build_charter_context."""
        repo_root = tmp_path_with_charter
        
-       # Get legacy output
+       # Get legacy output (canonical path)
        legacy = build_charter_context(repo_root, action=action, depth=depth, mark_loaded=False)
        
-       # Get DRG output
-       v2 = build_context_v2(repo_root, profile=profile, action=action, depth=depth)
+       # Get DRG resolution (artifact URN set, not rendered text)
+       v2_resolved = resolve_context(merged_graph, action_urn, depth=depth)
        
-       # Compare
-       result = compare_context_outputs(legacy, v2)
+       # Compare artifact reachability (URN sets), not rendered text
+       result = compare_artifact_reachability(legacy, v2_resolved)
        
        if result.identical:
            return  # Pass
@@ -183,15 +184,14 @@ Prove that `build_context_v2()` matches the canonical `build_charter_context()` 
        key = (profile, action, depth)
        if key in accepted:
            diff = accepted[key]
-           # Verify the accepted difference matches what we actually see
            assert result.only_in_legacy == diff.legacy_artifacts - diff.drg_artifacts
            return  # Accepted difference
        
        # Unregistered difference -> fail with clear message
        pytest.fail(
-           f"Parity violation for ({profile}, {action}, {depth}):\n"
+           f"Artifact reachability violation for ({profile}, {action}, {depth}):\n"
            f"  Only in legacy: {result.only_in_legacy}\n"
-           f"  Only in v2: {result.only_in_v2}\n"
+           f"  Only in DRG: {result.only_in_v2}\n"
            f"  Register in accepted_differences.yaml if intentional."
        )
    ```
@@ -250,13 +250,15 @@ Prove that `build_context_v2()` matches the canonical `build_charter_context()` 
 
 ## Risks
 
-- **Rendering format differences**: `build_context_v2` may render artifacts in a slightly different order or format than `build_charter_context`. The comparison logic (T024) uses artifact set comparison to avoid false positives from ordering differences, but structural text differences (e.g., section headers) might still cause issues.
+- **Legacy text parsing fragility**: Extracting artifact URNs from the canonical path's rendered text requires parsing formatted lines. If the rendering format changes, the extraction regex breaks. Mitigate by keeping the extraction simple and testing it against known output.
 - **Charter bundle dependency**: The test needs a `.kittify/charter/` directory with valid artifacts. The fixture setup must handle this correctly.
-- **Tasks action baseline**: The `tasks` action has no legacy baseline. It should be tested for DRG output validity but excluded from parity comparison.
+- **Tasks action baseline**: The `tasks` action has no legacy baseline (its action index is new in WP02). Test it for DRG output validity but exclude from parity comparison.
+- **Rendered-text gaps not caught**: Phase 0 deliberately does NOT test rendered text (guidelines, reference formatting). A green artifact-reachability test does not guarantee that Phase 1's reroute will produce identical prompts. Phase 1 must add rendered-text assertions.
 
 ## Reviewer Guidance
 
-- Verify the comparison logic compares artifact sets, not raw text
+- Verify the comparison logic compares artifact URN sets, not rendered text
+- Verify legacy artifact extraction correctly parses directive/tactic IDs from rendered output
 - Verify the accepted-differences loader rejects vague reasons
 - Verify the threshold gate is enforced (not just advisory)
 - Verify the `tasks` action is handled correctly (DRG-only, no parity check)

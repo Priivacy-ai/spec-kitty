@@ -9,10 +9,9 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|----------|
-| T001 | Reroute `prompt_builder.py` import to `charter.context` | WP00 | [P] |
-| T002 | Reroute `agent/workflow.py` import to `charter.context` | WP00 | [P] |
-| T003 | Before/after output comparison for rerouted call sites | WP00 | |
-| T004 | Assert zero remaining references to `specify_cli.charter.context` in `src/` | WP00 | |
+| T001 | Document behavioral delta between canonical and legacy `build_charter_context()` | WP00 | |
+| T002 | Verify canonical path resolves correct artifacts for all (action, depth) | WP00 | |
+| T003 | Document Phase 1 reroute scope and expected behavior changes | WP00 | |
 | T005 | Define `NodeKind` and `Relation` enums | WP01 | [P] |
 | T006 | Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models | WP01 | |
 | T007 | Implement `load_graph()` and `merge_layers()` | WP01 | |
@@ -32,7 +31,7 @@
 | T021 | Unit tests for query primitives against fixture graphs | WP03 | |
 | T022 | Verify no per-action filtering logic in `build_context_v2` | WP03 | |
 | T023 | Create test matrix generator (profile x action x depth) | WP04 | |
-| T024 | Implement parity comparison logic (artifact set equality) | WP04 | |
+| T024 | Implement artifact-reachability comparison logic (URN set equality) | WP04 | |
 | T025 | Create `accepted_differences.yaml` schema and loader | WP04 | |
 | T026 | Implement invariant test with accepted-differences integration | WP04 | |
 | T027 | Configure CI triggers for doctrine/charter/graph.yaml changes | WP04 | [P] |
@@ -44,44 +43,44 @@
 ## Dependency Graph
 
 ```
-WP00 (call-site reroute) ─────────────────────┐
-                                               │
-WP01 (DRG schema + model) ─┐                  │
-                            ├── WP02 (migration│+ calibration)
-                            │       │          │
+WP00 (call-site audit) ────────────────────────┐
+                                                │
+WP01 (DRG schema + model) ─┐                   │
+                            ├── WP02 (migration │+ calibration)
+                            │       │           │
                             └───────┴── WP03 (build_context_v2)
-                                        │      │
-                                        ├──────┤
-                                        │      │
+                                        │       │
+                                        ├───────┤
+                                        │       │
                                         ├── WP04 (invariant test)
                                         │
                                         └── WP05 (calibration test)
 ```
 
-- WP00 and WP01 have no dependencies (can start in parallel)
+- WP00 has no dependencies (produces documentation, not code; runs in parallel with WP01-WP03)
+- WP01 has no dependencies
 - WP02 depends on WP01
 - WP03 depends on WP01 and WP02
-- WP04 depends on WP00 and WP03
+- WP04 depends on WP00 (oracle confirmed) and WP03 (build_context_v2 exists)
 - WP05 depends on WP03
 
 ---
 
-## WP00: Call-Site Reroute
+## WP00: Call-Site Audit and Oracle Confirmation
 
-**Priority**: High (prerequisite for invariant test)
+**Priority**: High (prerequisite for invariant test oracle selection)
 **Dependencies**: None
 **Prompt**: [tasks/WP00-call-site-reroute.md](tasks/WP00-call-site-reroute.md)
 **Estimated size**: ~250 lines
 
-**Goal**: Reroute all `build_charter_context()` callers to the canonical `src/charter/context.py` path so the invariant test has a single oracle.
+**Goal**: Document the behavioral delta between the two `build_charter_context()` implementations and confirm the canonical path is the correct parity oracle. No production code is changed.
 
 **Included subtasks**:
-- [ ] T001 Reroute `prompt_builder.py` import to `charter.context` (WP00)
-- [ ] T002 Reroute `agent/workflow.py` import to `charter.context` (WP00)
-- [ ] T003 Before/after output comparison for rerouted call sites (WP00)
-- [ ] T004 Assert zero remaining references to `specify_cli.charter.context` in `src/` (WP00)
+- [ ] T001 Document behavioral delta between canonical and legacy `build_charter_context()` (WP00)
+- [ ] T002 Verify canonical path resolves correct artifacts for all (action, depth) (WP00)
+- [ ] T003 Document Phase 1 reroute scope and expected behavior changes (WP00)
 
-**Success criteria**: Zero callers import from `specify_cli.charter.context`; all existing tests pass.
+**Success criteria**: Delta document exists; canonical path confirmed as correct oracle; Phase 1 reroute scope documented.
 
 ---
 
@@ -159,16 +158,16 @@ WP01 (DRG schema + model) ─┐                  │
 **Estimated size**: ~400 lines
 **Issue**: #472
 
-**Goal**: Prove `build_context_v2` matches the canonical `build_charter_context()` for all shipped (profile, action, depth) combinations.
+**Goal**: Prove `build_context_v2` resolves the same governance artifacts (by URN) as the canonical `build_charter_context()` for all shipped (profile, action, depth) combinations.
 
 **Included subtasks**:
 - [ ] T023 Create test matrix generator (profile x action x depth) (WP04)
-- [ ] T024 Implement parity comparison logic (artifact set equality) (WP04)
+- [ ] T024 Implement artifact-reachability comparison logic (URN set equality) (WP04)
 - [ ] T025 Create `accepted_differences.yaml` schema and loader (WP04)
 - [ ] T026 Implement invariant test with accepted-differences integration (WP04)
 - [ ] T027 Configure CI triggers for doctrine/charter/graph.yaml changes (WP04)
 
-**Success criteria**: Test passes for 100% of matrix; accepted-differences < 10% threshold; runs in < 60s; CI triggers on relevant file changes.
+**Success criteria**: Artifact-reachability parity for 100% of matrix; accepted-differences < 10% threshold; runs in < 60s; CI triggers on relevant file changes.
 
 ---
 

@@ -8,7 +8,6 @@
     {
       "lane_id": "lane-a",
       "wp_ids": [
-        "WP00",
         "WP01",
         "WP02",
         "WP03",
@@ -28,8 +27,6 @@
         "src/doctrine/drg/validator.py",
         "src/doctrine/graph.yaml",
         "src/doctrine/missions/software-dev/actions/tasks/index.yaml",
-        "src/specify_cli/cli/commands/agent/workflow.py",
-        "src/specify_cli/next/prompt_builder.py",
         "tests/charter/fixtures/accepted_differences.yaml",
         "tests/charter/test_context_parity.py",
         "tests/charter/test_context_v2.py",
@@ -44,9 +41,7 @@
         "tests/doctrine/drg/test_loader.py",
         "tests/doctrine/drg/test_models.py",
         "tests/doctrine/drg/test_query.py",
-        "tests/doctrine/drg/test_validator.py",
-        "tests/specify_cli/cli/commands/agent/test_workflow_reroute.py",
-        "tests/specify_cli/next/test_prompt_builder_reroute.py"
+        "tests/doctrine/drg/test_validator.py"
       ],
       "predicted_surfaces": [
         "api",
@@ -56,11 +51,27 @@
       ],
       "depends_on_lanes": [],
       "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP00"
+      ],
+      "write_scope": [
+        "kitty-specs/drg-phase-zero-01KP2YCE/research/call-site-delta.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
     }
   ],
-  "computed_at": "2026-04-13T08:30:25.681282+00:00",
+  "computed_at": "2026-04-13T08:46:32.256769+00:00",
   "computed_from": "dependency_graph+ownership",
-  "planning_artifact_wps": [],
+  "planning_artifact_wps": [
+    "WP00"
+  ],
   "collapse_report": {
     "events": [
       {
@@ -77,12 +88,6 @@
       },
       {
         "wp_a": "WP04",
-        "wp_b": "WP00",
-        "rule": "dependency",
-        "evidence": "WP04 depends on WP00"
-      },
-      {
-        "wp_a": "WP04",
         "wp_b": "WP03",
         "rule": "dependency",
         "evidence": "WP04 depends on WP03"
@@ -94,10 +99,10 @@
         "evidence": "WP05 depends on WP03"
       }
     ],
-    "total_merges": 5,
+    "total_merges": 4,
     "independent_wps_collapsed": 0,
     "by_rule": {
-      "dependency": 5
+      "dependency": 4
     }
   }
 }
