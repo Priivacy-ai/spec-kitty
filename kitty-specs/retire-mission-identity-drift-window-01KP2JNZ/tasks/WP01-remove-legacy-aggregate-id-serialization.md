@@ -8,10 +8,14 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-retire-mission-identity-drift-window-01KP2JNZ
+base_commit: 682071593e2cf9af9c22f8f06f71c7d118e1c8f8
+created_at: '2026-04-13T05:18:24.598129+00:00'
 subtasks:
 - T001
 - T002
 - T003
+shell_pid: '61665'
 history:
 - at: '2026-04-13T04:59:36Z'
   by: spec-kitty.tasks
