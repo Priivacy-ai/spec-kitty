@@ -8,9 +8,9 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|----|----------|
-| T001 | Remove `legacy_aggregate_id` emission from `StatusEvent.to_dict()` | WP01 | |
-| T002 | Update `StatusEvent` docstring — remove drift-window field documentation | WP01 | |
-| T003 | Remove T025 comment in `emit.py` | WP01 | |
+| T001 | Remove `legacy_aggregate_id` emission from `StatusEvent.to_dict()` | WP01 | | [D] |
+| T002 | Update `StatusEvent` docstring — remove drift-window field documentation | WP01 | | [D] |
+| T003 | Remove T025 comment in `emit.py` | WP01 | | [D] |
 | T004 | Make `mission_id` mandatory in `emit_mission_created` emitter method, remove fallback | WP02 | |
 | T005 | Make `mission_id` mandatory in `emit_mission_closed` emitter method, remove fallback | WP02 | |
 | T006 | Make `mission_id` mandatory in `emit_mission_origin_bound` emitter method, remove fallback | WP02 | |
@@ -41,9 +41,9 @@
 **Summary**: Remove the `legacy_aggregate_id` drift-window shim from `StatusEvent.to_dict()` and clean up related docstrings and comments in the status package.
 
 **Included subtasks**:
-- [ ] T001 Remove `legacy_aggregate_id` emission from `StatusEvent.to_dict()` (WP01)
-- [ ] T002 Update `StatusEvent` docstring — remove drift-window field documentation (WP01)
-- [ ] T003 Remove T025 comment in `emit.py` (WP01)
+- [x] T001 Remove `legacy_aggregate_id` emission from `StatusEvent.to_dict()` (WP01)
+- [x] T002 Update `StatusEvent` docstring — remove drift-window field documentation (WP01)
+- [x] T003 Remove T025 comment in `emit.py` (WP01)
 
 **Implementation notes**:
 - Delete lines 220-223 in `models.py` (the `legacy_aggregate_id` assignment inside `to_dict()`)
