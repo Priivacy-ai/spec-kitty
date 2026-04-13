@@ -25,9 +25,9 @@
 | T015 | Verify legacy event read-tolerance test unchanged (C-002) | WP03 | | [D] |
 | T016 | Update contract matrix `identity_locations` — remove `legacy_aggregate_id` | WP03 | | [D] |
 | T017 | Update drift-window backward-compat test to reflect final contract | WP03 | | [D] |
-| T018 | Grep audit — confirm zero `legacy_aggregate_id` / `effective_aggregate_id` fallback in `src/` | WP04 | |
-| T019 | Sweep remaining drift-window comments or docstrings if any found | WP04 | |
-| T020 | Prepare close-out comment for GitHub issue #557 | WP04 | |
+| T018 | Grep audit — confirm zero `legacy_aggregate_id` / `effective_aggregate_id` fallback in `src/` | WP04 | | [D] |
+| T019 | Sweep remaining drift-window comments or docstrings if any found | WP04 | | [D] |
+| T020 | Prepare close-out comment for GitHub issue #557 | WP04 | | [D] |
 
 ## Work Packages
 
@@ -126,9 +126,9 @@
 **Summary**: Final verification sweep — grep audit to confirm complete removal, full test suite run, and preparation of the #557 closure comment.
 
 **Included subtasks**:
-- [ ] T018 Grep audit — confirm zero `legacy_aggregate_id` / `effective_aggregate_id` fallback in `src/` (WP04)
-- [ ] T019 Sweep remaining drift-window comments or docstrings if any found (WP04)
-- [ ] T020 Prepare close-out comment for GitHub issue #557 (WP04)
+- [x] T018 Grep audit — confirm zero `legacy_aggregate_id` / `effective_aggregate_id` fallback in `src/` (WP04)
+- [x] T019 Sweep remaining drift-window comments or docstrings if any found (WP04)
+- [x] T020 Prepare close-out comment for GitHub issue #557 (WP04)
 
 **Implementation notes**:
 - `grep -r legacy_aggregate_id src/` must return zero results
