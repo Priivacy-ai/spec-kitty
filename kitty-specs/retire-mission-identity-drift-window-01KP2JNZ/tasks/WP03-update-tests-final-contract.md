@@ -18,8 +18,8 @@ subtasks:
 - T015
 - T016
 - T017
-agent: "claude:opus:implementer:implementer"
-shell_pid: "80350"
+agent: "claude:opus:reviewer:reviewer"
+shell_pid: "88770"
 history:
 - at: '2026-04-13T04:59:36Z'
   by: spec-kitty.tasks
@@ -209,3 +209,4 @@ def test_...(self) -> None:
 
 - 2026-04-13T05:33:37Z – claude:opus:implementer:implementer – shell_pid=80350 – Started implementation via action command
 - 2026-04-13T05:39:01Z – claude:opus:implementer:implementer – shell_pid=80350 – Ready for review
+- 2026-04-13T05:39:24Z – claude:opus:reviewer:reviewer – shell_pid=88770 – Started review via action command
