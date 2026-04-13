@@ -25,6 +25,7 @@ class TestMissionOriginBoundValidPayload:
         """A complete, valid payload produces a non-None event."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -44,6 +45,7 @@ class TestMissionOriginBoundValidPayload:
         """Provider 'linear' is accepted."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="linear",
             external_issue_id="abc-123",
             external_issue_key="ENG-42",
@@ -121,6 +123,7 @@ class TestMissionOriginBoundInvalidValues:
         r"""mission_slug not matching ^\d{3}-[a-z0-9-]+$ is rejected."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="bad-slug",  # Missing 3-digit prefix
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -134,6 +137,7 @@ class TestMissionOriginBoundInvalidValues:
         """Provider 'github' is not in the allowed set {jira, linear}."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="github",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -147,6 +151,7 @@ class TestMissionOriginBoundInvalidValues:
         """Empty string title fails len(v) >= 1 validator."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -160,6 +165,7 @@ class TestMissionOriginBoundInvalidValues:
         """Empty external_issue_key is rejected."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="",
@@ -180,6 +186,7 @@ class TestMissionOriginBoundEventRouting:
         """With no WebSocket, event is queued in offline queue."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -193,6 +200,7 @@ class TestMissionOriginBoundEventRouting:
         """aggregate_type must be 'Mission'."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -202,11 +210,12 @@ class TestMissionOriginBoundEventRouting:
         assert event is not None
         assert event["aggregate_type"] == "Mission"
 
-    def test_aggregate_id_is_mission_slug(self, emitter: EventEmitter, temp_queue: OfflineQueue):
-        """aggregate_id must be the mission_slug value."""
-        slug = "061-ticket-first-mission-origin-binding"
+    def test_aggregate_id_is_mission_id(self, emitter: EventEmitter, temp_queue: OfflineQueue):
+        """aggregate_id must be the mission_id value (ULID), not slug."""
+        mid = "01KNRQK0R1ZDS8Z57M1TRXF001"
         event = emitter.emit_mission_origin_bound(
-            mission_slug=slug,
+            mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id=mid,
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -214,13 +223,14 @@ class TestMissionOriginBoundEventRouting:
             title="Test",
         )
         assert event is not None
-        assert event["aggregate_id"] == slug
+        assert event["aggregate_id"] == mid
 
     def test_causation_id_passed_through(self, emitter: EventEmitter, temp_queue: OfflineQueue):
         """causation_id provided to the method appears in the event."""
         causation = emitter.generate_causation_id()
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="linear",
             external_issue_id="abc-123",
             external_issue_key="ENG-42",
@@ -235,6 +245,7 @@ class TestMissionOriginBoundEventRouting:
         """Without causation_id, the field is None."""
         event = emitter.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",
@@ -258,6 +269,7 @@ class TestMissionOriginBoundEventRouting:
         em = EventEmitter(clock=clock, config=config, queue=temp_queue, ws_client=None)
         event = em.emit_mission_origin_bound(
             mission_slug="061-ticket-first-mission-origin-binding",
+            mission_id="01KNRQK0R1ZDS8Z57M1TRXF001",
             provider="jira",
             external_issue_id="10042",
             external_issue_key="PROJ-123",

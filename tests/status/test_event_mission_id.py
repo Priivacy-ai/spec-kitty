@@ -6,7 +6,7 @@ FR-053: Reader tolerates legacy event logs that carry only mission_slug.
 Test scenarios:
     T027 — Back-compat read:
         Fixture 1: Legacy event log (aggregate identity = mission_slug only)
-        Fixture 2: New-format event log (mission_id ULID + legacy_aggregate_id)
+        Fixture 2: New-format event log (mission_id ULID)
         Fixture 3: Mixed log (both shapes interleaved)
         All three must reduce to equivalent state via the public reader API.
 
@@ -65,7 +65,6 @@ _NEW_FORMAT_EVENT: dict[str, Any] = {
     "execution_mode": "worktree",
     "force": False,
     "from_lane": "planned",
-    "legacy_aggregate_id": _MISSION_SLUG,
     "mission_id": _MISSION_ID,
     "mission_slug": _MISSION_SLUG,
     "policy_metadata": None,
@@ -163,12 +162,12 @@ class TestLegacyEventRead:
 
 
 # ---------------------------------------------------------------------------
-# T027 — Fixture 2: New-format event log (mission_id ULID + legacy_aggregate_id)
+# T027 — Fixture 2: New-format event log (mission_id ULID)
 # ---------------------------------------------------------------------------
 
 
 class TestNewFormatEventRead:
-    """Fixture 2: events carry mission_id + legacy_aggregate_id (post-WP05 format)."""
+    """Fixture 2: events carry mission_id (post-WP05 format, drift window closed)."""
 
     def test_new_format_event_has_mission_id(self, tmp_path: Path) -> None:
         feature_dir = _make_feature_dir(tmp_path)
@@ -291,7 +290,7 @@ class TestMixedEventLogRead:
 
 
 # ---------------------------------------------------------------------------
-# T027 — New event serialization: to_dict includes mission_id + legacy_aggregate_id
+# T027 — New event serialization: to_dict includes mission_id (no legacy_aggregate_id)
 # ---------------------------------------------------------------------------
 
 
@@ -314,8 +313,8 @@ class TestNewEventSerialization:
         d = event.to_dict()
         assert d["mission_id"] == _MISSION_ID
 
-    def test_to_dict_includes_legacy_aggregate_id_when_mission_id_present(self) -> None:
-        """T025: legacy_aggregate_id must equal mission_slug for new events."""
+    def test_to_dict_omits_legacy_aggregate_id_after_drift_window_closure(self) -> None:
+        """After drift-window closure, legacy_aggregate_id must not appear in new events."""
         event = StatusEvent(
             event_id="01KNXQS9ATWWFXS3K5ZJ9E5001",
             mission_slug=_MISSION_SLUG,
@@ -329,7 +328,8 @@ class TestNewEventSerialization:
             execution_mode="worktree",
         )
         d = event.to_dict()
-        assert d["legacy_aggregate_id"] == _MISSION_SLUG
+        assert "legacy_aggregate_id" not in d
+        assert d["mission_id"] == _MISSION_ID
 
     def test_to_dict_omits_legacy_aggregate_id_for_legacy_events(self) -> None:
         """Events without mission_id must not carry legacy_aggregate_id."""
@@ -411,10 +411,10 @@ class TestRoundTripMissionId:
             f"mission_id {event.mission_id!r} does not match ULID pattern"
         )
 
-    def test_emitted_event_legacy_aggregate_id_equals_mission_slug(
+    def test_emitted_event_omits_legacy_aggregate_id(
         self, feature_dir_with_meta: Path
     ) -> None:
-        """T028: on-disk event must carry legacy_aggregate_id == meta.json.mission_slug."""
+        """On-disk event must not carry legacy_aggregate_id after drift-window closure."""
         import json as _json
 
         feature_dir = feature_dir_with_meta
@@ -440,9 +440,7 @@ class TestRoundTripMissionId:
         assert claimed_raw, "Expected at least one claimed event for WP01 in JSONL"
 
         raw_event = claimed_raw[-1]
-        assert raw_event.get("legacy_aggregate_id") == _MISSION_SLUG, (
-            f"Expected legacy_aggregate_id={_MISSION_SLUG!r}, got {raw_event.get('legacy_aggregate_id')!r}"
-        )
+        assert "legacy_aggregate_id" not in raw_event
 
     def test_emitted_event_mission_id_matches_meta_json(
         self, feature_dir_with_meta: Path
