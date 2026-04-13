@@ -11,8 +11,8 @@ subtasks:
 - T001
 - T002
 - T003
-agent: "claude:opus-4-6:architect:implementer"
-shell_pid: "35925"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "51057"
 history:
 - date: '2026-04-13'
   author: claude
@@ -147,3 +147,4 @@ The legacy implementation (`src/specify_cli/charter/context.py`) has:
 
 - 2026-04-13T08:47:40Z – claude:opus-4-6:architect:implementer – shell_pid=35925 – Started implementation via action command
 - 2026-04-13T08:55:07Z – claude:opus-4-6:architect:implementer – shell_pid=35925 – Call-site delta documented, oracle confirmed
+- 2026-04-13T08:55:38Z – claude:opus-4-6:reviewer:reviewer – shell_pid=51057 – Started review via action command
