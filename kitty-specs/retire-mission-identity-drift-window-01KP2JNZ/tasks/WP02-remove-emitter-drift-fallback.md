@@ -242,3 +242,4 @@ emitter.emit_mission_origin_bound(
 - 2026-04-13T05:31:03Z – claude:opus:implementer:implementer – shell_pid=71359 – Ready for review
 - 2026-04-13T05:31:27Z – claude:opus:reviewer:reviewer – shell_pid=80162 – Started review via action command
 - 2026-04-13T05:33:17Z – claude:opus:reviewer:reviewer – shell_pid=80162 – Review passed: All three emitter methods now require mission_id: str (mandatory). effective_aggregate_id fully removed. Both events.py wrappers accept and forward mission_id. mission_creation.py uses meta[mission_id] (no get fallback). tracker/origin.py extracts mission_id from meta with guard and passes to emit_mission_origin_bound. All docstrings cleaned. No out-of-scope changes. Force: dirty file is gitignored dossier snapshot.
+- 2026-04-13T05:49:54Z – claude:opus:reviewer:reviewer – shell_pid=80162 – Done override: Feature merged to main
