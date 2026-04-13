@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-13T04:48:00.531215+00:00",
-  "friendly_name": "retire mission identity drift window",
+  "friendly_name": "Retire Mission Identity Drift Window",
   "mission_id": "01KP2JNZ7FRXE6PZKJMH790HA5",
   "mission_number": null,
   "mission_slug": "retire-mission-identity-drift-window-01KP2JNZ",
   "mission_type": "software-dev",
   "slug": "retire-mission-identity-drift-window-01KP2JNZ",
-  "target_branch": "main"
+  "source_description": "Post-SaaS CLI cleanup for GitHub issue #557 — remove legacy_aggregate_id shim and drift-window fallbacks once spec-kitty-saas#66 confirms readiness.",
+  "target_branch": "main",
+  "vcs": "git"
 }
