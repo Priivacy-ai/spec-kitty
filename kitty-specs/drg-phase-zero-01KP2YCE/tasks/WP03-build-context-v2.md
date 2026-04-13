@@ -18,6 +18,8 @@ subtasks:
 - T020
 - T021
 - T022
+agent: "claude:opus-4-6:implementer:implementer"
+shell_pid: "62811"
 history:
 - date: '2026-04-13'
   author: claude
@@ -225,3 +227,7 @@ The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specifi
 - Verify no action-name string literals in the function body
 - Verify rendering format matches `build_charter_context` output (same line formatting, same section headers)
 - Verify profile is truly ignored (not silently altering output)
+
+## Activity Log
+
+- 2026-04-13T09:14:48Z – claude:opus-4-6:implementer:implementer – shell_pid=62811 – Started implementation via action command
