@@ -1,0 +1,932 @@
+schema_version: '1.0'
+generated_at: STATIC
+generated_by: drg-migration-v1
+nodes:
+- urn: action:software-dev/implement
+  kind: action
+  label: implement
+- urn: action:software-dev/plan
+  kind: action
+  label: plan
+- urn: action:software-dev/review
+  kind: action
+  label: review
+- urn: action:software-dev/specify
+  kind: action
+  label: specify
+- urn: action:software-dev/tasks
+  kind: action
+  label: tasks
+- urn: directive:DIRECTIVE_001
+  kind: directive
+  label: Architectural Integrity Standard
+- urn: directive:DIRECTIVE_003
+  kind: directive
+  label: Decision Documentation Requirement
+- urn: directive:DIRECTIVE_010
+  kind: directive
+  label: Specification Fidelity Requirement
+- urn: directive:DIRECTIVE_018
+  kind: directive
+  label: Doctrine Versioning Requirement
+- urn: directive:DIRECTIVE_024
+  kind: directive
+  label: Locality of Change
+- urn: directive:DIRECTIVE_025
+  kind: directive
+  label: Boy Scout Rule
+- urn: directive:DIRECTIVE_028
+  kind: directive
+  label: Efficient Local Tooling
+- urn: directive:DIRECTIVE_029
+  kind: directive
+  label: Agent Commit Signing Policy
+- urn: directive:DIRECTIVE_030
+  kind: directive
+  label: Test and Typecheck Quality Gate
+- urn: directive:DIRECTIVE_031
+  kind: directive
+  label: Context-Aware Design
+- urn: directive:DIRECTIVE_032
+  kind: directive
+  label: Conceptual Alignment
+- urn: directive:DIRECTIVE_033
+  kind: directive
+  label: Targeted Staging Policy
+- urn: directive:DIRECTIVE_034
+  kind: directive
+  label: Test-First Development
+- urn: paradigm:anemic-domain-model
+  kind: paradigm
+- urn: paradigm:atomic-design
+  kind: paradigm
+  label: Atomic Design
+- urn: paradigm:big-ball-of-mud
+  kind: paradigm
+- urn: paradigm:big-upfront-design
+  kind: paradigm
+- urn: paradigm:c4-incremental-detail-modeling
+  kind: paradigm
+  label: C4 Incremental Detail Modeling
+- urn: paradigm:code-is-the-documentation
+  kind: paradigm
+- urn: paradigm:domain-driven-design
+  kind: paradigm
+  label: Domain-Driven Design
+- urn: procedure:documentation-gap-prioritization
+  kind: procedure
+  label: Documentation Gap Prioritization
+- urn: procedure:drill-down-documentation
+  kind: procedure
+  label: Drill-Down Documentation
+- urn: procedure:event-storming-discovery
+  kind: procedure
+  label: Event Storming Discovery
+- urn: procedure:migrate-project-guidance-to-spec-kitty-charter
+  kind: procedure
+  label: Migrate Project Guidance to Spec Kitty Charter
+- urn: procedure:refactoring
+  kind: procedure
+  label: Refactoring
+- urn: procedure:situational-assessment
+  kind: procedure
+  label: Situational Assessment
+- urn: procedure:test-first-bug-fixing
+  kind: procedure
+  label: Test-First Bug Fixing
+- urn: styleguide:aggregate-design-rules
+  kind: styleguide
+  label: Aggregate Design Rules
+- urn: styleguide:kitty-glossary-writing
+  kind: styleguide
+  label: Kitty Glossary Writing Styleguide
+- urn: styleguide:python-conventions
+  kind: styleguide
+  label: Python Conventions Styleguide
+- urn: tactic:acceptance-test-first
+  kind: tactic
+  label: Acceptance Test Driven Development (ATDD)
+- urn: tactic:adr-drafting-workflow
+  kind: tactic
+  label: ADR Drafting Workflow
+- urn: tactic:aggregate-boundary-design
+  kind: tactic
+  label: Aggregate Boundary Design
+- urn: tactic:ammerse-impact-analysis
+  kind: tactic
+  label: AMMERSE Impact Analysis
+- urn: tactic:anti-corruption-layer
+  kind: tactic
+  label: Anti-Corruption Layer
+- urn: tactic:architecture-diagram-review-checklist
+  kind: tactic
+  label: Architecture Diagram Review Checklist
+- urn: tactic:atdd-adversarial-acceptance
+  kind: tactic
+  label: Adversarial Acceptance Test Definition
+- urn: tactic:atomic-design-review-checklist
+  kind: tactic
+  label: Atomic Design Review Checklist
+- urn: tactic:atomic-state-ownership
+  kind: tactic
+  label: Atomic State Ownership
+- urn: tactic:autonomous-operation-protocol
+  kind: tactic
+  label: Autonomous Operation Protocol
+- urn: tactic:avoid-gold-plating
+  kind: tactic
+  label: Avoid Gold Plating
+- urn: tactic:bounded-context-canvas-fill
+  kind: tactic
+  label: Bounded Context Canvas Fill
+- urn: tactic:bounded-context-identification
+  kind: tactic
+  label: Bounded Context Identification
+- urn: tactic:c4-zoom-in-architecture-documentation
+  kind: tactic
+  label: C4 Zoom-In Architecture Documentation
+- urn: tactic:change-apply-smallest-viable-diff
+  kind: tactic
+  label: Change Apply Smallest Viable Diff
+- urn: tactic:code-review-incremental
+  kind: tactic
+  label: Incremental Code Review
+- urn: tactic:compositional-stream-boundaries
+  kind: tactic
+  label: Compositional Stream Boundaries
+- urn: tactic:connascence-analysis
+  kind: tactic
+  label: Connascence Analysis
+- urn: tactic:context-mapping-classification
+  kind: tactic
+  label: Context Mapping Classification
+- urn: tactic:cross-cutting-state-via-store
+  kind: tactic
+  label: Cross-Cutting State via Store
+- urn: tactic:database-driven-design
+  kind: tactic
+- urn: tactic:decision-marker-capture
+  kind: tactic
+  label: Decision Marker Capture
+- urn: tactic:documentation-curation-audit
+  kind: tactic
+  label: Documentation Curation Audit
+- urn: tactic:domain-event-capture
+  kind: tactic
+  label: Domain Event Capture
+- urn: tactic:easy-to-change
+  kind: tactic
+  label: Easy-to-Change Design Review
+- urn: tactic:eisenhower-prioritisation
+  kind: tactic
+  label: Eisenhower Prioritisation
+- urn: tactic:entity-value-object-classification
+  kind: tactic
+  label: Entity vs Value Object Classification
+- urn: tactic:glossary-curation-interview
+  kind: tactic
+  label: Glossary Curation Interview
+- urn: tactic:input-validation-fail-fast
+  kind: tactic
+  label: Input Validation with Fail-Fast Feedback
+- urn: tactic:language-driven-design
+  kind: tactic
+  label: Language-Driven Design
+- urn: tactic:no-parallel-duplicate-test-runs
+  kind: tactic
+  label: No Parallel Duplicate Test Runs
+- urn: tactic:premortem-risk-identification
+  kind: tactic
+  label: Premortem Risk Identification
+- urn: tactic:problem-decomposition
+  kind: tactic
+  label: Problem Decomposition
+- urn: tactic:quality-gate-verification
+  kind: tactic
+  label: Quality Gate Verification
+- urn: tactic:refactoring-change-function-declaration
+  kind: tactic
+  label: 'Refactoring: Change Function Declaration'
+- urn: tactic:refactoring-combine-functions-into-transform
+  kind: tactic
+  label: 'Refactoring: Combine Functions into Transform'
+- urn: tactic:refactoring-conditional-to-strategy
+  kind: tactic
+  label: Refactoring Conditional to Strategy
+- urn: tactic:refactoring-consolidate-conditional-expression
+  kind: tactic
+  label: 'Refactoring: Consolidate Conditional Expression'
+- urn: tactic:refactoring-encapsulate-record
+  kind: tactic
+  label: 'Refactoring: Encapsulate Record'
+- urn: tactic:refactoring-encapsulate-variable
+  kind: tactic
+  label: 'Refactoring: Encapsulate Variable'
+- urn: tactic:refactoring-extract-class-by-responsibility-split
+  kind: tactic
+  label: Refactoring Extract Class by Responsibility Split
+- urn: tactic:refactoring-extract-first-order-concept
+  kind: tactic
+  label: Refactoring Extract First-Order Concept
+- urn: tactic:refactoring-guard-clauses-before-polymorphism
+  kind: tactic
+  label: Refactoring Guard Clauses Before Polymorphism
+- urn: tactic:refactoring-inline-temp
+  kind: tactic
+  label: Refactoring Inline Temp
+- urn: tactic:refactoring-introduce-null-object
+  kind: tactic
+  label: Refactoring Introduce Null Object
+- urn: tactic:refactoring-move-field
+  kind: tactic
+  label: Refactoring Move Field
+- urn: tactic:refactoring-move-method
+  kind: tactic
+  label: Refactoring Move Method
+- urn: tactic:refactoring-replace-magic-number-with-symbolic-constant
+  kind: tactic
+  label: Refactoring Replace Magic Number With Symbolic Constant
+- urn: tactic:refactoring-replace-temp-with-query
+  kind: tactic
+  label: Refactoring Replace Temp With Query
+- urn: tactic:refactoring-retry-pattern
+  kind: tactic
+  label: Refactoring Retry Pattern
+- urn: tactic:refactoring-state-pattern-for-behavior
+  kind: tactic
+  label: 'Refactoring: State Pattern for Behavior'
+- urn: tactic:refactoring-strangler-fig
+  kind: tactic
+  label: Refactoring Strangler Fig
+- urn: tactic:requirements-validation-workflow
+  kind: tactic
+  label: Requirements Validation Workflow
+- urn: tactic:reverse-speccing
+  kind: tactic
+  label: Reverse Specification from Tests
+- urn: tactic:review-intent-and-risk-first
+  kind: tactic
+  label: Review Intent and Risk First
+- urn: tactic:safe-to-fail-experiment
+  kind: tactic
+  label: Safe-to-Fail Experiment
+- urn: tactic:single-diagram-architecture
+  kind: tactic
+- urn: tactic:stakeholder-alignment
+  kind: tactic
+  label: Stakeholder Alignment
+- urn: tactic:stopping-conditions
+  kind: tactic
+  label: Define Stopping Conditions
+- urn: tactic:strategic-domain-classification
+  kind: tactic
+  label: Strategic Domain Classification
+- urn: tactic:tdd-red-green-refactor
+  kind: tactic
+  label: Test Driven Development (TDD)
+- urn: tactic:test-boundaries-by-responsibility
+  kind: tactic
+  label: Test Boundaries by Functional Responsibility
+- urn: tactic:test-pyramid-progression
+  kind: tactic
+  label: Test Pyramid Progression
+- urn: tactic:testing-select-appropriate-level
+  kind: tactic
+  label: Select Appropriate Test Level
+- urn: tactic:zombies-tdd
+  kind: tactic
+  label: ZOMBIES TDD
+- urn: toolguide:contextive
+  kind: toolguide
+  label: Contextive
+- urn: toolguide:efficient-local-tooling
+  kind: toolguide
+  label: Efficient Local Tooling
+- urn: toolguide:git-agent-commit-signing
+  kind: toolguide
+  label: Git Agent Commit Signing
+- urn: toolguide:mermaid-diagramming
+  kind: toolguide
+  label: Mermaid Diagramming
+- urn: toolguide:plantuml-diagramming
+  kind: toolguide
+  label: PlantUML Diagramming
+- urn: toolguide:python-review-checks
+  kind: toolguide
+  label: Python Review Checks
+edges:
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_024
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_025
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_028
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_029
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_030
+  relation: scope
+- source: action:software-dev/implement
+  target: directive:DIRECTIVE_034
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:acceptance-test-first
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:autonomous-operation-protocol
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:change-apply-smallest-viable-diff
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:quality-gate-verification
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:software-dev/implement
+  target: tactic:tdd-red-green-refactor
+  relation: scope
+- source: action:software-dev/implement
+  target: toolguide:efficient-local-tooling
+  relation: scope
+- source: action:software-dev/plan
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/plan
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:premortem-risk-identification
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:problem-decomposition
+  relation: scope
+- source: action:software-dev/plan
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_024
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_025
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_028
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_029
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_030
+  relation: scope
+- source: action:software-dev/review
+  target: directive:DIRECTIVE_034
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:acceptance-test-first
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:quality-gate-verification
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:review-intent-and-risk-first
+  relation: scope
+- source: action:software-dev/review
+  target: tactic:stopping-conditions
+  relation: scope
+- source: action:software-dev/specify
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/specify
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/specify
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: action:software-dev/tasks
+  target: directive:DIRECTIVE_003
+  relation: scope
+- source: action:software-dev/tasks
+  target: directive:DIRECTIVE_010
+  relation: scope
+- source: action:software-dev/tasks
+  target: directive:DIRECTIVE_024
+  relation: scope
+- source: action:software-dev/tasks
+  target: tactic:adr-drafting-workflow
+  relation: scope
+- source: action:software-dev/tasks
+  target: tactic:problem-decomposition
+  relation: scope
+- source: action:software-dev/tasks
+  target: tactic:requirements-validation-workflow
+  relation: scope
+- source: directive:DIRECTIVE_001
+  target: tactic:adr-drafting-workflow
+  relation: requires
+- source: directive:DIRECTIVE_001
+  target: tactic:connascence-analysis
+  relation: requires
+- source: directive:DIRECTIVE_001
+  target: tactic:easy-to-change
+  relation: requires
+- source: directive:DIRECTIVE_001
+  target: tactic:language-driven-design
+  relation: requires
+- source: directive:DIRECTIVE_001
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: directive:DIRECTIVE_003
+  target: tactic:adr-drafting-workflow
+  relation: requires
+- source: directive:DIRECTIVE_003
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: directive:DIRECTIVE_018
+  target: tactic:adr-drafting-workflow
+  relation: requires
+- source: directive:DIRECTIVE_024
+  target: directive:DIRECTIVE_025
+  relation: replaces
+  reason: "The Boy Scout Rule endorses opportunistic improvement of touched areas,
+    which can justify expanding a change beyond the strict locality boundary this
+    directive enforces.\n"
+- source: directive:DIRECTIVE_024
+  target: tactic:change-apply-smallest-viable-diff
+  relation: requires
+- source: directive:DIRECTIVE_024
+  target: tactic:code-review-incremental
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: directive:DIRECTIVE_024
+  relation: replaces
+  reason: "Locality of Change constrains edits to the minimum required by the goal.
+    Opportunistic cleanup endorsed by the Boy Scout Rule expands the diff beyond that
+    minimum, increasing review complexity and regression risk.\n"
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-conditional-to-strategy
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-extract-class-by-responsibility-split
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-extract-first-order-concept
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-guard-clauses-before-polymorphism
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-inline-temp
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-introduce-null-object
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-move-field
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-move-method
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-replace-magic-number-with-symbolic-constant
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-replace-temp-with-query
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-retry-pattern
+  relation: requires
+- source: directive:DIRECTIVE_025
+  target: tactic:refactoring-strangler-fig
+  relation: requires
+- source: directive:DIRECTIVE_028
+  target: toolguide:efficient-local-tooling
+  relation: suggests
+- source: directive:DIRECTIVE_029
+  target: toolguide:git-agent-commit-signing
+  relation: suggests
+- source: directive:DIRECTIVE_030
+  target: tactic:quality-gate-verification
+  relation: requires
+- source: directive:DIRECTIVE_030
+  target: tactic:test-pyramid-progression
+  relation: requires
+- source: directive:DIRECTIVE_030
+  target: tactic:testing-select-appropriate-level
+  relation: requires
+- source: directive:DIRECTIVE_031
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: directive:DIRECTIVE_032
+  target: directive:DIRECTIVE_031
+  relation: requires
+- source: directive:DIRECTIVE_032
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+- source: directive:DIRECTIVE_032
+  target: tactic:glossary-curation-interview
+  relation: suggests
+- source: directive:DIRECTIVE_032
+  target: tactic:language-driven-design
+  relation: suggests
+- source: directive:DIRECTIVE_034
+  target: tactic:acceptance-test-first
+  relation: requires
+- source: directive:DIRECTIVE_034
+  target: tactic:tdd-red-green-refactor
+  relation: requires
+- source: directive:DIRECTIVE_034
+  target: tactic:zombies-tdd
+  relation: requires
+- source: paradigm:atomic-design
+  target: tactic:atomic-design-review-checklist
+  relation: requires
+- source: paradigm:atomic-design
+  target: tactic:atomic-state-ownership
+  relation: requires
+- source: paradigm:atomic-design
+  target: tactic:compositional-stream-boundaries
+  relation: requires
+- source: paradigm:atomic-design
+  target: tactic:cross-cutting-state-via-store
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: paradigm:big-upfront-design
+  relation: replaces
+  reason: "Big Upfront Design attempts to specify every architectural detail before
+    implementation begins. C4 incremental detail modeling favours progressive discovery
+    -- start with a context diagram and add lower levels only when they earn their
+    keep.\n"
+- source: paradigm:c4-incremental-detail-modeling
+  target: paradigm:code-is-the-documentation
+  relation: replaces
+  reason: "Relying solely on source code as documentation forces every stakeholder
+    -- including non-technical sponsors -- to read code to understand system boundaries.
+    C4 provides visual abstractions that make architecture accessible without requiring
+    code literacy.\n"
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:adr-drafting-workflow
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:architecture-diagram-review-checklist
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:c4-zoom-in-architecture-documentation
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:connascence-analysis
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: paradigm:c4-incremental-detail-modeling
+  target: tactic:single-diagram-architecture
+  relation: replaces
+  reason: "A single all-in-one architecture diagram conflates audiences and abstraction
+    levels, producing a poster that nobody can review in a reasonable time. C4 explicitly
+    separates concerns into distinct levels.\n"
+- source: paradigm:domain-driven-design
+  target: directive:DIRECTIVE_001
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: directive:DIRECTIVE_031
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: directive:DIRECTIVE_032
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: paradigm:anemic-domain-model
+  relation: replaces
+  reason: "Anemic Domain Models strip behaviour from domain objects, reducing them
+    to data bags with external procedural services. This defeats the purpose of a
+    rich, expressive domain model and scatters invariant enforcement across service
+    layers.\n"
+- source: paradigm:domain-driven-design
+  target: paradigm:big-ball-of-mud
+  relation: replaces
+  reason: "A Big Ball of Mud architecture has no explicit context boundaries or ubiquitous
+    language. Concepts leak across modules, coupling grows unchecked, and model integrity
+    becomes impossible to maintain.\n"
+- source: paradigm:domain-driven-design
+  target: tactic:anti-corruption-layer
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:bounded-context-identification
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:database-driven-design
+  relation: replaces
+  reason: "Starting from a database schema and generating code around it inverts the
+    DDD priority: the domain model should drive persistence, not the other way around.
+    Schema-first thinking produces models shaped by storage constraints rather than
+    business rules.\n"
+- source: paradigm:domain-driven-design
+  target: tactic:domain-event-capture
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:glossary-curation-interview
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:language-driven-design
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:problem-decomposition
+  relation: requires
+- source: paradigm:domain-driven-design
+  target: tactic:refactoring-strangler-fig
+  relation: requires
+- source: tactic:acceptance-test-first
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: After the acceptance test fails for the right reason, drive 
+    implementation detail with Red-Green-Refactor cycles.
+- source: tactic:adr-drafting-workflow
+  target: tactic:premortem-risk-identification
+  relation: suggests
+  when: Decision has high impact or limited reversibility.
+- source: tactic:aggregate-boundary-design
+  target: styleguide:aggregate-design-rules
+  relation: suggests
+  when: Applying ongoing design constraints to aggregate structure (identity 
+    references, size, eventual consistency).
+- source: tactic:aggregate-boundary-design
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Aggregates exist within a bounded context; identify the context first.
+- source: tactic:aggregate-boundary-design
+  target: tactic:domain-event-capture
+  relation: suggests
+  when: Coordinating eventual consistency between aggregates via domain events.
+- source: tactic:aggregate-boundary-design
+  target: tactic:entity-value-object-classification
+  relation: suggests
+  when: Classifying objects inside the aggregate as entities or value objects.
+- source: tactic:anti-corruption-layer
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: The ACL sits at the boundary between bounded contexts — identify the 
+    contexts first.
+- source: tactic:anti-corruption-layer
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Using ACL as part of an incremental migration strategy.
+- source: tactic:architecture-diagram-review-checklist
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Verifying that diagram boundaries align with documented architectural 
+    decisions.
+- source: tactic:architecture-diagram-review-checklist
+  target: tactic:c4-zoom-in-architecture-documentation
+  relation: suggests
+  when: Producing the diagrams that this checklist reviews.
+- source: tactic:architecture-diagram-review-checklist
+  target: toolguide:mermaid-diagramming
+  relation: suggests
+  when: Rendering reviewed diagrams in Mermaid syntax.
+- source: tactic:architecture-diagram-review-checklist
+  target: toolguide:plantuml-diagramming
+  relation: suggests
+  when: Rendering reviewed diagrams in PlantUML syntax.
+- source: tactic:atdd-adversarial-acceptance
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Baseline happy-path acceptance tests are the foundation this tactic 
+    extends
+- source: tactic:atdd-adversarial-acceptance
+  target: tactic:input-validation-fail-fast
+  relation: suggests
+  when: Many adversarial scenarios surface input validation requirements
+- source: tactic:atdd-adversarial-acceptance
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: Adversarial scenarios help clarify which boundaries need testing
+- source: tactic:atomic-design-review-checklist
+  target: tactic:atomic-state-ownership
+  relation: suggests
+  when: Reviewing state ownership per atomic level (steps 1-3).
+- source: tactic:atomic-design-review-checklist
+  target: tactic:compositional-stream-boundaries
+  relation: suggests
+  when: Reviewing subscription cleanup and observable boundary violations (steps
+    6-7).
+- source: tactic:atomic-design-review-checklist
+  target: tactic:cross-cutting-state-via-store
+  relation: suggests
+  when: Verifying organism as subscription floor for store access (step 3).
+- source: tactic:atomic-state-ownership
+  target: tactic:cross-cutting-state-via-store
+  relation: suggests
+  when: Deciding whether state should be centralized (step 5).
+- source: tactic:autonomous-operation-protocol
+  target: tactic:stopping-conditions
+  relation: suggests
+  when: Progress stalls or an unexpected blocker is encountered during 
+    autonomous work.
+- source: tactic:avoid-gold-plating
+  target: tactic:easy-to-change
+  relation: suggests
+  when: "After confirming the design is not gold-plated, use easy-to-change to verify
+    that the simpler design still supports anticipated future change.\n"
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:aggregate-boundary-design
+  relation: suggests
+  when: Filling the Domain Roles section with aggregates, entities, and value 
+    objects.
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Contexts must be identified before their canvases can be filled.
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:context-mapping-classification
+  relation: suggests
+  when: Classifying the integration pattern for each relationship.
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:glossary-curation-interview
+  relation: suggests
+  when: Systematically capturing and curating terms for the context's glossary.
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Verifying that the chosen name and purpose use ubiquitous language 
+    consistently.
+- source: tactic:bounded-context-canvas-fill
+  target: tactic:strategic-domain-classification
+  relation: suggests
+  when: Applying the classification framework to this context.
+- source: tactic:bounded-context-canvas-fill
+  target: toolguide:contextive
+  relation: suggests
+  when: Enforcing the glossary in code via IDE-integrated ubiquitous language 
+    management.
+- source: tactic:bounded-context-identification
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Detecting linguistic conflicts that signal a bounded context boundary.
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: directive:DIRECTIVE_001
+  relation: suggests
+  when: Ensuring C4 diagrams reflect and enforce documented component 
+    boundaries.
+- source: tactic:c4-zoom-in-architecture-documentation
+  target: tactic:adr-drafting-workflow
+  relation: suggests
+  when: Recording architectural decisions that change container or component 
+    boundaries shown in C4 diagrams.
+- source: tactic:code-review-incremental
+  target: tactic:change-apply-smallest-viable-diff
+  relation: suggests
+  when: Verifying the diff is the smallest viable change for the stated goal
+- source: tactic:code-review-incremental
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: Applying the intent-first review philosophy that this tactic adds 
+    incremental discipline to
+- source: tactic:compositional-stream-boundaries
+  target: tactic:atomic-state-ownership
+  relation: suggests
+  when: Determining which atomic level owns state before deciding stream scope.
+- source: tactic:context-mapping-classification
+  target: tactic:anti-corruption-layer
+  relation: suggests
+  when: Implementing the ACL pattern identified during context mapping 
+    classification.
+- source: tactic:context-mapping-classification
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Identify bounded contexts before classifying the relationships between 
+    them.
+- source: tactic:context-mapping-classification
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Verifying that each context's ubiquitous language is internally 
+    consistent.
+- source: tactic:context-mapping-classification
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Remediating Big Ball of Mud boundaries discovered in the context map.
+- source: tactic:entity-value-object-classification
+  target: tactic:language-driven-design
+  relation: suggests
+  when: Domain expert language reveals whether identity matters for a concept.
+- source: tactic:glossary-curation-interview
+  target: styleguide:kitty-glossary-writing
+  relation: suggests
+  when: Consult throughout all definition-writing and rewriting steps to enforce
+    clarity, anti-pattern avoidance, and HiC terminology standards.
+- source: tactic:input-validation-fail-fast
+  target: directive:DIRECTIVE_030
+  relation: suggests
+  when: Ensuring validation passes before handoff at quality gates
+- source: tactic:input-validation-fail-fast
+  target: styleguide:python-conventions
+  relation: suggests
+  when: Implementing guard clause patterns at the code level
+- source: tactic:problem-decomposition
+  target: tactic:eisenhower-prioritisation
+  relation: suggests
+  when: When deciding which sub-problems must be solved now versus deferred.
+- source: tactic:problem-decomposition
+  target: tactic:review-intent-and-risk-first
+  relation: suggests
+  when: "When validating the decomposition — confirm that the stated intent of the
+    initiative is faithfully reflected in the sub-problem set, and that the highest-risk
+    sub-problems are explicitly identified before prioritisation begins.\n"
+- source: tactic:problem-decomposition
+  target: tactic:stakeholder-alignment
+  relation: suggests
+  when: "When enumeration of contributing factors reveals that stakeholder concerns
+    or organisational dynamics are a significant source of the problem. Run stakeholder
+    alignment before clustering so that social and political factors are visible in
+    the decomposition.\n"
+- source: tactic:refactoring-encapsulate-record
+  target: tactic:refactoring-encapsulate-variable
+  relation: suggests
+  when: The record is accessed via a module-level variable — encapsulate the 
+    variable first, then the record.
+- source: tactic:refactoring-extract-first-order-concept
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Use when the extraction cannot be completed safely in a single change 
+    and needs coexistence before cutover.
+- source: tactic:refactoring-guard-clauses-before-polymorphism
+  target: tactic:refactoring-conditional-to-strategy
+  relation: suggests
+  when: Follow when the flattened variation points represent stable algorithm 
+    variants.
+- source: tactic:refactoring-move-field
+  target: tactic:refactoring-move-method
+  relation: suggests
+  when: Use alongside this tactic when behavior and data ownership have drifted 
+    together.
+- source: tactic:refactoring-move-method
+  target: tactic:refactoring-extract-first-order-concept
+  relation: suggests
+  when: Use when the method really points to a missing concept rather than a 
+    better existing host.
+- source: tactic:refactoring-move-method
+  target: tactic:refactoring-strangler-fig
+  relation: suggests
+  when: Use when the move must be staged behind coexistence and gradual caller 
+    rerouting.
+- source: tactic:refactoring-state-pattern-for-behavior
+  target: tactic:refactoring-conditional-to-strategy
+  relation: suggests
+  when: Choosing between State and Strategy — State is for lifecycle-driven 
+    transitions, Strategy for interchangeable algorithms.
+- source: tactic:reverse-speccing
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Validating that ATDD tests effectively document acceptance criteria
+- source: tactic:reverse-speccing
+  target: tactic:code-review-incremental
+  relation: suggests
+  when: Applying lightweight reverse speccing during review to check test 
+    documentation quality
+- source: tactic:reverse-speccing
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: Well-defined test boundaries make reconstruction clearer
+- source: tactic:strategic-domain-classification
+  target: tactic:bounded-context-identification
+  relation: suggests
+  when: Contexts must be identified before they can be classified.
+- source: tactic:strategic-domain-classification
+  target: tactic:context-mapping-classification
+  relation: suggests
+  when: Understanding relationships between contexts informs classification 
+    decisions.
+- source: tactic:test-boundaries-by-responsibility
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Acceptance tests define the outer behavioral boundary that this tactic 
+    refines at the inner unit level
+- source: tactic:test-boundaries-by-responsibility
+  target: tactic:tdd-red-green-refactor
+  relation: suggests
+  when: Driving implementation inside the boundaries defined by this tactic
+- source: tactic:testing-select-appropriate-level
+  target: tactic:acceptance-test-first
+  relation: suggests
+  when: Aligning system-level tests with acceptance criteria defined by ATDD
+- source: tactic:testing-select-appropriate-level
+  target: tactic:test-boundaries-by-responsibility
+  relation: suggests
+  when: Determining what to mock vs test real within the chosen test level
+- source: tactic:testing-select-appropriate-level
+  target: tactic:test-pyramid-progression
+  relation: suggests
+  when: Executing tests in pyramid order after they are written

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+generated_at: "2026-04-13T10:00:00+00:00"
+generated_by: "test-fixture"
+
+nodes:
+  - urn: "directive:DIRECTIVE_001"
+    kind: directive
+    label: "Existing Directive"
+
+edges:
+  - source: "directive:DIRECTIVE_001"
+    target: "tactic:nonexistent-tactic"
+    relation: requires

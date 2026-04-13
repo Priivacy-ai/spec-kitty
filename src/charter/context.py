@@ -473,3 +473,188 @@ def _load_state(path: Path) -> dict[str, object]:
 
 def _write_state(path: Path, state: dict[str, object]) -> None:
     atomic_write(path, json.dumps(state, indent=2, sort_keys=True), mkdir=True)
+
+
+# ---------------------------------------------------------------------------
+# build_context_v2 -- DRG-based context assembly (T020)
+# ---------------------------------------------------------------------------
+
+
+def build_context_v2(
+    repo_root: Path,
+    *,
+    profile: str | None = None,
+    action: str,
+    depth: int = 2,
+) -> CharterContextResult:
+    """Build charter context by querying the Doctrine Reference Graph.
+
+    Composes DRG query primitives from :mod:`doctrine.drg.query` --
+    does NOT embed graph traversal logic.  Renders the same text
+    structure as :func:`build_charter_context`.
+
+    Args:
+        repo_root: Repository root directory.
+        profile: Agent profile name.  **Phase 0 degenerate** -- accepted
+            but ignored.  Phase 4 will add profile-based edge filtering.
+        action: Workflow action name (e.g. ``"specify"``, ``"implement"``).
+        depth: Context depth.  Controls how many hops ``suggests`` edges
+            are followed and whether extended sections are rendered.
+
+    Returns:
+        :class:`CharterContextResult` with rendered governance text.
+    """
+    # Lazy imports to avoid circular dependency on module load.
+    from charter.catalog import resolve_doctrine_root
+    from charter.sync import load_governance_config
+    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.models import NodeKind
+    from doctrine.drg.query import resolve_context
+    from doctrine.service import DoctrineService
+
+    normalized = action.strip().lower()
+
+    # -- 1. Load merged DRG ---------------------------------------------------
+    doctrine_root = resolve_doctrine_root()
+    shipped_graph = load_graph(doctrine_root / "graph.yaml")
+
+    project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+    project_graph = load_graph(project_graph_path) if project_graph_path.exists() else None
+    merged = merge_layers(shipped_graph, project_graph)
+
+    # -- 2. Resolve mission from governance config ----------------------------
+    governance = load_governance_config(repo_root)
+    template_set = governance.doctrine.template_set or "software-dev-default"
+    mission = template_set.removesuffix("-default")
+
+    # -- 3. Query the DRG -----------------------------------------------------
+    action_urn = f"action:{mission}/{normalized}"
+    resolved = resolve_context(merged, action_urn, depth=depth)
+
+    # -- 4. Materialize artifacts via DoctrineService -------------------------
+    project_root_candidates = [
+        repo_root / "src" / "doctrine",
+        repo_root / "doctrine",
+    ]
+    project_root = next(
+        (p for p in project_root_candidates if p.is_dir()), None
+    )
+    svc = DoctrineService(shipped_root=doctrine_root, project_root=project_root)
+
+    # Classify resolved URNs by node kind
+    directive_ids: list[str] = []
+    tactic_ids: list[str] = []
+    styleguide_ids: list[str] = []
+    toolguide_ids: list[str] = []
+
+    for urn in sorted(resolved.artifact_urns):
+        node = merged.get_node(urn)
+        if node is None:
+            continue
+        artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
+        if node.kind == NodeKind.DIRECTIVE:
+            directive_ids.append(artifact_id)
+        elif node.kind == NodeKind.TACTIC:
+            tactic_ids.append(artifact_id)
+        elif node.kind == NodeKind.STYLEGUIDE:
+            styleguide_ids.append(artifact_id)
+        elif node.kind == NodeKind.TOOLGUIDE:
+            toolguide_ids.append(artifact_id)
+
+    # -- 5. Render formatted text ---------------------------------------------
+    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
+
+    lines: list[str] = [
+        "Charter Context (Bootstrap):",
+        f"  - Source: {charter_path}",
+        "  - DRG-resolved governance context.",
+        "",
+        "Policy Summary:",
+    ]
+
+    # Extract policy summary from charter if available
+    if charter_path.exists():
+        charter_content = charter_path.read_text(encoding="utf-8")
+        summary = _extract_policy_summary(charter_content)
+        if summary:
+            for item in summary[:8]:
+                lines.append(f"  - {item}")
+        else:
+            lines.append("  - No explicit policy summary section found in charter.md.")
+    else:
+        lines.append("  - Charter file not found at `.kittify/charter/charter.md`.")
+
+    lines.append("")
+
+    # Action Doctrine section
+    lines.append(f"Action Doctrine ({normalized}):")
+
+    # Directives
+    directive_lines: list[str] = []
+    for d_id in directive_ids:
+        directive = svc.directives.get(d_id)
+        if directive is not None:
+            directive_lines.append(f"    - {d_id}: {directive.title} — {directive.intent}")
+        else:
+            directive_lines.append(f"    - {d_id}")
+    if directive_lines:
+        lines.append("  Directives:")
+        lines.extend(directive_lines)
+
+    # Tactics
+    tactic_lines: list[str] = []
+    for t_id in tactic_ids:
+        tactic = svc.tactics.get(t_id)
+        if tactic is not None:
+            desc = tactic.purpose or ""
+            tactic_lines.append(f"    - {t_id}: {tactic.name} — {desc}".rstrip(" —"))
+        else:
+            tactic_lines.append(f"    - {t_id}")
+    if tactic_lines:
+        lines.append("  Tactics:")
+        lines.extend(tactic_lines)
+
+    # Extended sections (depth >= 3)
+    if depth >= 3:
+        sg_lines: list[str] = []
+        for sg_id in styleguide_ids:
+            sg = svc.styleguides.get(sg_id)
+            sg_lines.append(f"    - {sg_id}: {sg.title}" if sg else f"    - {sg_id}")
+        if sg_lines:
+            lines.append("  Styleguides:")
+            lines.extend(sg_lines)
+
+        tg_lines: list[str] = []
+        for tg_id in toolguide_ids:
+            tg = svc.toolguides.get(tg_id)
+            tg_lines.append(f"    - {tg_id}: {tg.title}" if tg else f"    - {tg_id}")
+        if tg_lines:
+            lines.append("  Toolguides:")
+            lines.extend(tg_lines)
+
+    lines.append("")
+
+    # Reference Docs section
+    lines.append("Reference Docs:")
+    references = _load_references(references_path)
+    filtered_references = _filter_references_for_action(references, normalized)
+    if filtered_references:
+        for reference in filtered_references[:10]:
+            ref_id = reference.get("id", "unknown")
+            title = reference.get("title", "")
+            local_path = reference.get("local_path", "")
+            lines.append(f"  - {ref_id}: {title} ({local_path})")
+    else:
+        lines.append("  - No references manifest found.")
+
+    text = "\n".join(lines)
+
+    return CharterContextResult(
+        action=normalized,
+        mode="bootstrap",
+        first_load=True,
+        text=text,
+        references_count=len(filtered_references),
+        depth=depth,
+    )
