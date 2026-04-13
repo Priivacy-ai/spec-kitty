@@ -18,6 +18,8 @@ subtasks:
 - T015
 - T016
 - T017
+agent: "claude:opus:implementer:implementer"
+shell_pid: "80350"
 history:
 - at: '2026-04-13T04:59:36Z'
   by: spec-kitty.tasks
@@ -202,3 +204,7 @@ def test_...(self) -> None:
 - Verify no test still asserts `legacy_aggregate_id` is *present* in any output
 - Check that test fixtures for new-format events have been cleaned of the removed field
 - Confirm the contract matrix reflects the final wire format: `mission_id` + `mission_slug` only
+
+## Activity Log
+
+- 2026-04-13T05:33:37Z – claude:opus:implementer:implementer – shell_pid=80350 – Started implementation via action command

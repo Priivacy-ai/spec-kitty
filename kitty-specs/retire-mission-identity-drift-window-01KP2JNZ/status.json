@@ -1,7 +1,7 @@
 {
-  "event_count": 14,
-  "last_event_id": "01KP2N8WV4VE2SVD8PJEZS4AJD",
-  "materialized_at": "2026-04-13T05:33:17.540095+00:00",
+  "event_count": 16,
+  "last_event_id": "01KP2N9GRCZAM373A25S4T5K9P",
+  "materialized_at": "2026-04-13T05:33:37.932698+00:00",
   "mission_number": "",
   "mission_slug": "retire-mission-identity-drift-window-01KP2JNZ",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-13T05:33:17.540095+00:00"
     },
     "WP03": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KP2KKRHJ3F39Q773542TD7X6",
-      "last_transition_at": "2026-04-13T05:04:16.434122+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KP2N9GRCZAM373A25S4T5K9P",
+      "last_transition_at": "2026-04-13T05:33:37.932698+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
