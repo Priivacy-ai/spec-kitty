@@ -41,7 +41,7 @@ import re
 
 _WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>.+)$")
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
-_WP_NUMBER_TITLE = re.compile(r"^Work Package\s+(?P<wp_number>\d{1,2})(?:\b|\s*[—:-]|$)")
+_WORK_PACKAGE_PREFIX = "Work Package "
 
 # Matches any top-level ## heading (exactly two #s).  Used by _split_wp_sections
 # to find the stop boundary for the final WP section.  Sub-headings (### or
@@ -53,8 +53,23 @@ def _match_wp_section_id(title: str) -> str | None:
     """Return canonical ``WP##`` when ``title`` is a work-package heading."""
     if explicit_id_match := _WP_ID_TITLE.match(title):
         return explicit_id_match.group("wp_id")
-    if numeric_match := _WP_NUMBER_TITLE.match(title):
-        return f"WP{int(numeric_match.group('wp_number')):02d}"
+    if not title.startswith(_WORK_PACKAGE_PREFIX):
+        return None
+
+    suffix = title[len(_WORK_PACKAGE_PREFIX) :]
+    digit_count = 0
+    while digit_count < len(suffix) and digit_count < 2 and suffix[digit_count].isdigit():
+        digit_count += 1
+
+    if digit_count == 0:
+        return None
+    if digit_count < len(suffix) and suffix[digit_count].isdigit():
+        return None
+
+    remainder = suffix[digit_count:]
+    if remainder and not (remainder[0].isspace() or remainder[0] in "—:-"):
+        return None
+    return f"WP{int(suffix[:digit_count]):02d}"
     return None
 
 
