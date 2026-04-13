@@ -19,12 +19,12 @@
 | T009 | Update caller in `mission_creation.py` — ensure non-None `mission_id` | WP02 | | [D] |
 | T010 | Update caller in `tracker/origin.py` — load and pass `mission_id` | WP02 | | [D] |
 | T011 | Update docstrings in all modified emitter methods | WP02 | | [D] |
-| T012 | Flip T025 assertion — `legacy_aggregate_id` presence → absence | WP03 | |
-| T013 | Remove `legacy_aggregate_id` from Fixture 2 data | WP03 | |
-| T014 | Flip T028 assertion — emitted event `legacy_aggregate_id` → assert absent | WP03 | |
-| T015 | Verify legacy event read-tolerance test unchanged (C-002) | WP03 | |
-| T016 | Update contract matrix `identity_locations` — remove `legacy_aggregate_id` | WP03 | |
-| T017 | Update drift-window backward-compat test to reflect final contract | WP03 | |
+| T012 | Flip T025 assertion — `legacy_aggregate_id` presence → absence | WP03 | | [D] |
+| T013 | Remove `legacy_aggregate_id` from Fixture 2 data | WP03 | | [D] |
+| T014 | Flip T028 assertion — emitted event `legacy_aggregate_id` → assert absent | WP03 | | [D] |
+| T015 | Verify legacy event read-tolerance test unchanged (C-002) | WP03 | | [D] |
+| T016 | Update contract matrix `identity_locations` — remove `legacy_aggregate_id` | WP03 | | [D] |
+| T017 | Update drift-window backward-compat test to reflect final contract | WP03 | | [D] |
 | T018 | Grep audit — confirm zero `legacy_aggregate_id` / `effective_aggregate_id` fallback in `src/` | WP04 | |
 | T019 | Sweep remaining drift-window comments or docstrings if any found | WP04 | |
 | T020 | Prepare close-out comment for GitHub issue #557 | WP04 | |
@@ -97,12 +97,12 @@
 **Summary**: Update test assertions to reflect the removed shim. Flip tests that asserted `legacy_aggregate_id` presence to assert its absence. Update the contract matrix. Verify legacy read tolerance is preserved.
 
 **Included subtasks**:
-- [ ] T012 Flip T025 assertion — `legacy_aggregate_id` presence → absence (WP03)
-- [ ] T013 Remove `legacy_aggregate_id` from Fixture 2 data (WP03)
-- [ ] T014 Flip T028 assertion — emitted event `legacy_aggregate_id` → assert absent (WP03)
-- [ ] T015 Verify legacy event read-tolerance test unchanged (C-002) (WP03)
-- [ ] T016 Update contract matrix `identity_locations` — remove `legacy_aggregate_id` (WP03)
-- [ ] T017 Update drift-window backward-compat test to reflect final contract (WP03)
+- [x] T012 Flip T025 assertion — `legacy_aggregate_id` presence → absence (WP03)
+- [x] T013 Remove `legacy_aggregate_id` from Fixture 2 data (WP03)
+- [x] T014 Flip T028 assertion — emitted event `legacy_aggregate_id` → assert absent (WP03)
+- [x] T015 Verify legacy event read-tolerance test unchanged (C-002) (WP03)
+- [x] T016 Update contract matrix `identity_locations` — remove `legacy_aggregate_id` (WP03)
+- [x] T017 Update drift-window backward-compat test to reflect final contract (WP03)
 
 **Implementation notes**:
 - `test_event_mission_id.py`: Rename/rewrite `test_to_dict_includes_legacy_aggregate_id_when_mission_id_present` → `test_to_dict_omits_legacy_aggregate_id` asserting `"legacy_aggregate_id" not in d`
