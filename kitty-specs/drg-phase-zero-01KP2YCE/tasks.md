@@ -35,10 +35,10 @@
 | T025 | Create `accepted_differences.yaml` schema and loader | WP04 | |
 | T026 | Implement invariant test with accepted-differences integration | WP04 | |
 | T027 | Configure CI triggers for doctrine/charter/graph.yaml changes | WP04 | [P] |
-| T028 | Implement surface size measurement function | WP05 | |
-| T029 | Assert calibration inequalities for all shipped actions | WP05 | |
-| T030 | Verify DRG-only-knob rule: no filtering logic anywhere | WP05 | |
-| T031 | Configure CI triggers (shared with WP04 config) | WP05 | [P] |
+| T028 | Implement surface size measurement function | WP05 | | [D] |
+| T029 | Assert calibration inequalities for all shipped actions | WP05 | | [D] |
+| T030 | Verify DRG-only-knob rule: no filtering logic anywhere | WP05 | | [D] |
+| T031 | Configure CI triggers (shared with WP04 config) | WP05 | [D] |
 
 ## Dependency Graph
 
@@ -182,9 +182,9 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Assert minimum-effective-dose surface inequalities for every shipped action.
 
 **Included subtasks**:
-- [ ] T028 Implement surface size measurement function (WP05)
-- [ ] T029 Assert calibration inequalities for all shipped actions (WP05)
-- [ ] T030 Verify DRG-only-knob rule: no filtering logic anywhere (WP05)
-- [ ] T031 Configure CI triggers (shared with WP04 config) (WP05)
+- [x] T028 Implement surface size measurement function (WP05)
+- [x] T029 Assert calibration inequalities for all shipped actions (WP05)
+- [x] T030 Verify DRG-only-knob rule: no filtering logic anywhere (WP05)
+- [x] T031 Configure CI triggers (shared with WP04 config) (WP05)
 
 **Success criteria**: All inequalities hold; review ≈ implement (within 80% threshold); violations produce clear error messages naming the violating action.
