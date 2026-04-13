@@ -12,12 +12,12 @@
 | T001 | Document behavioral delta between canonical and legacy `build_charter_context()` | WP00 | | [D] |
 | T002 | Verify canonical path resolves correct artifacts for all (action, depth) | WP00 | | [D] |
 | T003 | Document Phase 1 reroute scope and expected behavior changes | WP00 | | [D] |
-| T005 | Define `NodeKind` and `Relation` enums | WP01 | [P] |
-| T006 | Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models | WP01 | |
-| T007 | Implement `load_graph()` and `merge_layers()` | WP01 | |
-| T008 | Implement validator: dangling refs, cycles, malformed URNs, duplicate edges | WP01 | |
-| T009 | Create fixture graphs (valid, dangling, cyclic, malformed) | WP01 | [P] |
-| T010 | Unit tests for models, loader, validator | WP01 | |
+| T005 | Define `NodeKind` and `Relation` enums | WP01 | [D] |
+| T006 | Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models | WP01 | | [D] |
+| T007 | Implement `load_graph()` and `merge_layers()` | WP01 | | [D] |
+| T008 | Implement validator: dangling refs, cycles, malformed URNs, duplicate edges | WP01 | | [D] |
+| T009 | Create fixture graphs (valid, dangling, cyclic, malformed) | WP01 | [D] |
+| T010 | Unit tests for models, loader, validator | WP01 | | [D] |
 | T011 | Implement `id_normalizer.py` (DIRECTIVE_NNN <-> NNN-slug) | WP02 | [P] |
 | T012 | Implement artifact walker: directives, tactics, paradigms | WP02 | |
 | T013 | Implement action index walker | WP02 | |
@@ -95,12 +95,12 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Define the DRG schema as Pydantic models with graph validation.
 
 **Included subtasks**:
-- [ ] T005 Define `NodeKind` and `Relation` enums (WP01)
-- [ ] T006 Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models (WP01)
-- [ ] T007 Implement `load_graph()` and `merge_layers()` (WP01)
-- [ ] T008 Implement validator: dangling refs, cycles, malformed URNs, duplicate edges (WP01)
-- [ ] T009 Create fixture graphs (valid, dangling, cyclic, malformed) (WP01)
-- [ ] T010 Unit tests for models, loader, validator (WP01)
+- [x] T005 Define `NodeKind` and `Relation` enums (WP01)
+- [x] T006 Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models (WP01)
+- [x] T007 Implement `load_graph()` and `merge_layers()` (WP01)
+- [x] T008 Implement validator: dangling refs, cycles, malformed URNs, duplicate edges (WP01)
+- [x] T009 Create fixture graphs (valid, dangling, cyclic, malformed) (WP01)
+- [x] T010 Unit tests for models, loader, validator (WP01)
 
 **Success criteria**: Pydantic model loads fixture graph; validator rejects all malformed variants; mypy --strict clean; 90%+ coverage.
 
