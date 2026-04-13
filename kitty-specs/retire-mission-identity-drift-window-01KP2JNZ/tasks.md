@@ -11,14 +11,14 @@
 | T001 | Remove `legacy_aggregate_id` emission from `StatusEvent.to_dict()` | WP01 | | [D] |
 | T002 | Update `StatusEvent` docstring — remove drift-window field documentation | WP01 | | [D] |
 | T003 | Remove T025 comment in `emit.py` | WP01 | | [D] |
-| T004 | Make `mission_id` mandatory in `emit_mission_created` emitter method, remove fallback | WP02 | |
-| T005 | Make `mission_id` mandatory in `emit_mission_closed` emitter method, remove fallback | WP02 | |
-| T006 | Make `mission_id` mandatory in `emit_mission_origin_bound` emitter method, remove fallback | WP02 | |
-| T007 | Update wrapper `emit_mission_created` in `events.py` — make `mission_id` mandatory | WP02 | |
-| T008 | Add `mission_id: str` to wrapper `emit_mission_closed` in `events.py` and forward | WP02 | |
-| T009 | Update caller in `mission_creation.py` — ensure non-None `mission_id` | WP02 | |
-| T010 | Update caller in `tracker/origin.py` — load and pass `mission_id` | WP02 | |
-| T011 | Update docstrings in all modified emitter methods | WP02 | |
+| T004 | Make `mission_id` mandatory in `emit_mission_created` emitter method, remove fallback | WP02 | | [D] |
+| T005 | Make `mission_id` mandatory in `emit_mission_closed` emitter method, remove fallback | WP02 | | [D] |
+| T006 | Make `mission_id` mandatory in `emit_mission_origin_bound` emitter method, remove fallback | WP02 | | [D] |
+| T007 | Update wrapper `emit_mission_created` in `events.py` — make `mission_id` mandatory | WP02 | | [D] |
+| T008 | Add `mission_id: str` to wrapper `emit_mission_closed` in `events.py` and forward | WP02 | | [D] |
+| T009 | Update caller in `mission_creation.py` — ensure non-None `mission_id` | WP02 | | [D] |
+| T010 | Update caller in `tracker/origin.py` — load and pass `mission_id` | WP02 | | [D] |
+| T011 | Update docstrings in all modified emitter methods | WP02 | | [D] |
 | T012 | Flip T025 assertion — `legacy_aggregate_id` presence → absence | WP03 | |
 | T013 | Remove `legacy_aggregate_id` from Fixture 2 data | WP03 | |
 | T014 | Flip T028 assertion — emitted event `legacy_aggregate_id` → assert absent | WP03 | |
@@ -66,14 +66,14 @@
 **Summary**: Make `mission_id` a mandatory parameter on all three sync emitter methods and their wrappers. Remove the `effective_aggregate_id` slug fallback. Fix the two call sites that don't currently pass `mission_id`.
 
 **Included subtasks**:
-- [ ] T004 Make `mission_id` mandatory in `emit_mission_created` emitter method, remove fallback (WP02)
-- [ ] T005 Make `mission_id` mandatory in `emit_mission_closed` emitter method, remove fallback (WP02)
-- [ ] T006 Make `mission_id` mandatory in `emit_mission_origin_bound` emitter method, remove fallback (WP02)
-- [ ] T007 Update wrapper `emit_mission_created` in `events.py` — make `mission_id` mandatory (WP02)
-- [ ] T008 Add `mission_id: str` to wrapper `emit_mission_closed` in `events.py` and forward (WP02)
-- [ ] T009 Update caller in `mission_creation.py` — ensure non-None `mission_id` (WP02)
-- [ ] T010 Update caller in `tracker/origin.py` — load and pass `mission_id` (WP02)
-- [ ] T011 Update docstrings in all modified emitter methods (WP02)
+- [x] T004 Make `mission_id` mandatory in `emit_mission_created` emitter method, remove fallback (WP02)
+- [x] T005 Make `mission_id` mandatory in `emit_mission_closed` emitter method, remove fallback (WP02)
+- [x] T006 Make `mission_id` mandatory in `emit_mission_origin_bound` emitter method, remove fallback (WP02)
+- [x] T007 Update wrapper `emit_mission_created` in `events.py` — make `mission_id` mandatory (WP02)
+- [x] T008 Add `mission_id: str` to wrapper `emit_mission_closed` in `events.py` and forward (WP02)
+- [x] T009 Update caller in `mission_creation.py` — ensure non-None `mission_id` (WP02)
+- [x] T010 Update caller in `tracker/origin.py` — load and pass `mission_id` (WP02)
+- [x] T011 Update docstrings in all modified emitter methods (WP02)
 
 **Implementation notes**:
 - All three emitter methods follow the same pattern: remove `effective_aggregate_id = mission_slug` fallback, change `mission_id: str | None = None` to `mission_id: str`, always use `mission_id` as `aggregate_id`
