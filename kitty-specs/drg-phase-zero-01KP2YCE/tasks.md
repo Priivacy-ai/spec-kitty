@@ -18,14 +18,14 @@
 | T008 | Implement validator: dangling refs, cycles, malformed URNs, duplicate edges | WP01 | | [D] |
 | T009 | Create fixture graphs (valid, dangling, cyclic, malformed) | WP01 | [D] |
 | T010 | Unit tests for models, loader, validator | WP01 | | [D] |
-| T011 | Implement `id_normalizer.py` (DIRECTIVE_NNN <-> NNN-slug) | WP02 | [P] |
-| T012 | Implement artifact walker: directives, tactics, paradigms | WP02 | |
-| T013 | Implement action index walker | WP02 | |
-| T014 | Create `tasks` action index for software-dev mission | WP02 | |
-| T015 | Implement surface calibrator (adjust review and tasks scope edges) | WP02 | |
-| T016 | Generate `graph.yaml` from shipped artifacts | WP02 | |
-| T017 | Validate edge count >= inline field count | WP02 | |
-| T018 | Unit tests for extractor, calibrator, normalizer | WP02 | |
+| T011 | Implement `id_normalizer.py` (DIRECTIVE_NNN <-> NNN-slug) | WP02 | [D] |
+| T012 | Implement artifact walker: directives, tactics, paradigms | WP02 | | [D] |
+| T013 | Implement action index walker | WP02 | | [D] |
+| T014 | Create `tasks` action index for software-dev mission | WP02 | | [D] |
+| T015 | Implement surface calibrator (adjust review and tasks scope edges) | WP02 | | [D] |
+| T016 | Generate `graph.yaml` from shipped artifacts | WP02 | | [D] |
+| T017 | Validate edge count >= inline field count | WP02 | | [D] |
+| T018 | Unit tests for extractor, calibrator, normalizer | WP02 | | [D] |
 | T019 | Implement DRG query primitives (`walk_edges`, `resolve_context`) | WP03 | |
 | T020 | Implement `build_context_v2()` in `src/charter/context.py` | WP03 | |
 | T021 | Unit tests for query primitives against fixture graphs | WP03 | |
@@ -117,14 +117,14 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Extract all inline references from shipped doctrine artifacts and action indices into `graph.yaml`, applying per-action surface calibration.
 
 **Included subtasks**:
-- [ ] T011 Implement `id_normalizer.py` (DIRECTIVE_NNN <-> NNN-slug) (WP02)
-- [ ] T012 Implement artifact walker: directives, tactics, paradigms (WP02)
-- [ ] T013 Implement action index walker (WP02)
-- [ ] T014 Create `tasks` action index for software-dev mission (WP02)
-- [ ] T015 Implement surface calibrator (adjust review and tasks scope edges) (WP02)
-- [ ] T016 Generate `graph.yaml` from shipped artifacts (WP02)
-- [ ] T017 Validate edge count >= inline field count (WP02)
-- [ ] T018 Unit tests for extractor, calibrator, normalizer (WP02)
+- [x] T011 Implement `id_normalizer.py` (DIRECTIVE_NNN <-> NNN-slug) (WP02)
+- [x] T012 Implement artifact walker: directives, tactics, paradigms (WP02)
+- [x] T013 Implement action index walker (WP02)
+- [x] T014 Create `tasks` action index for software-dev mission (WP02)
+- [x] T015 Implement surface calibrator (adjust review and tasks scope edges) (WP02)
+- [x] T016 Generate `graph.yaml` from shipped artifacts (WP02)
+- [x] T017 Validate edge count >= inline field count (WP02)
+- [x] T018 Unit tests for extractor, calibrator, normalizer (WP02)
 
 **Success criteria**: `graph.yaml` validates with zero errors; edge count >= inline field count; calibration inequalities satisfied; migration is idempotent.
 
