@@ -1,12 +1,12 @@
 {
   "created_at": "2026-04-13T08:12:31.771139+00:00",
-  "friendly_name": "DRG Phase Zero — Graph Model, Context Parity, and Surface Calibration",
+  "friendly_name": "DRG Phase Zero \u2014 Graph Model, Context Parity, and Surface Calibration",
+  "source_description": "Phase 0 of charter epic #461. Scoped to #462, #470, #471, #472, #473, #474.",
+  "vcs": "git",
   "mission_id": "01KP2YCESBSG61KQH5PQZ9662H",
-  "mission_number": 83,
+  "mission_number": null,
   "mission_slug": "drg-phase-zero-01KP2YCE",
   "mission_type": "software-dev",
   "slug": "drg-phase-zero-01KP2YCE",
-  "source_description": "Phase 0 of charter epic #461. Scoped to #462, #470, #471, #472, #473, #474.",
-  "target_branch": "main",
-  "vcs": "git"
+  "target_branch": "main"
 }

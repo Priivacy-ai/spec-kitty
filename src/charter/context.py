@@ -475,6 +475,18 @@ def _write_state(path: Path, state: dict[str, object]) -> None:
     atomic_write(path, json.dumps(state, indent=2, sort_keys=True), mkdir=True)
 
 
+def _mark_action_loaded(
+    state: dict[str, object], state_path: Path, action: str
+) -> None:
+    """Persist first-load timestamp for *action* into context-state.json."""
+    actions_obj = state.setdefault("actions", {})
+    if not isinstance(actions_obj, dict):
+        actions_obj = {}
+        state["actions"] = actions_obj
+    actions_obj[action] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
+    _write_state(state_path, state)
+
+
 # ---------------------------------------------------------------------------
 # build_context_v2 -- DRG-based context assembly (T020)
 # ---------------------------------------------------------------------------
@@ -485,21 +497,25 @@ def build_context_v2(
     *,
     profile: str | None = None,
     action: str,
-    depth: int = 2,
+    mark_loaded: bool = True,
+    depth: int | None = None,
 ) -> CharterContextResult:
     """Build charter context by querying the Doctrine Reference Graph.
 
     Composes DRG query primitives from :mod:`doctrine.drg.query` --
-    does NOT embed graph traversal logic.  Renders the same text
-    structure as :func:`build_charter_context`.
+    does NOT embed graph traversal logic.  Mirrors the state management
+    and rendering contract of :func:`build_charter_context` so it is a
+    safe drop-in replacement.
 
     Args:
         repo_root: Repository root directory.
         profile: Agent profile name.  **Phase 0 degenerate** -- accepted
             but ignored.  Phase 4 will add profile-based edge filtering.
         action: Workflow action name (e.g. ``"specify"``, ``"implement"``).
-        depth: Context depth.  Controls how many hops ``suggests`` edges
-            are followed and whether extended sections are rendered.
+        mark_loaded: Whether to persist first-load state.
+        depth: Context depth override.  ``None`` lets state decide:
+            first_load -> 2 (bootstrap), not first_load -> 1 (compact).
+            Explicit depth wins but does not suppress state update.
 
     Returns:
         :class:`CharterContextResult` with rendered governance text.
@@ -510,26 +526,85 @@ def build_context_v2(
     from doctrine.drg.loader import load_graph, merge_layers
     from doctrine.drg.models import NodeKind
     from doctrine.drg.query import resolve_context
+    from doctrine.drg.validator import assert_valid
+    from doctrine.missions import MissionTemplateRepository
     from doctrine.service import DoctrineService
 
     normalized = action.strip().lower()
+    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
+    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
 
-    # -- 1. Load merged DRG ---------------------------------------------------
+    # -- 0. State management (mirrors build_charter_context) ------------------
+    # Non-bootstrap actions always get compact governance.
+    if normalized not in BOOTSTRAP_ACTIONS:
+        effective_depth = depth if depth is not None else 1
+        return CharterContextResult(
+            action=normalized,
+            mode="compact",
+            first_load=False,
+            text=_render_compact_governance(repo_root),
+            references_count=0,
+            depth=effective_depth,
+        )
+
+    state_path = repo_root / ".kittify" / "charter" / "context-state.json"
+    state = _load_state(state_path)
+    actions_val = state.get("actions", {})
+    first_load = normalized not in actions_val if isinstance(actions_val, dict) else True
+
+    effective_depth = depth if depth is not None else 2 if first_load else 1
+
+    # Charter missing -> early return
+    if not charter_path.exists():
+        text = (
+            "Charter Context:\n"
+            "  - Charter file not found at `.kittify/charter/charter.md`.\n"
+            "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
+        )
+        return CharterContextResult(
+            action=normalized,
+            mode="missing",
+            first_load=first_load,
+            text=text,
+            references_count=0,
+            depth=effective_depth,
+        )
+
+    # Compact mode for subsequent loads
+    if effective_depth < 2:
+        if mark_loaded and first_load:
+            _mark_action_loaded(state, state_path, normalized)
+        return CharterContextResult(
+            action=normalized,
+            mode="compact",
+            first_load=first_load,
+            text=_render_compact_governance(repo_root),
+            references_count=0,
+            depth=effective_depth,
+        )
+
+    # -- 1. Load merged DRG + validate ---------------------------------------
     doctrine_root = resolve_doctrine_root()
     shipped_graph = load_graph(doctrine_root / "graph.yaml")
 
     project_graph_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
     project_graph = load_graph(project_graph_path) if project_graph_path.exists() else None
     merged = merge_layers(shipped_graph, project_graph)
+    assert_valid(merged)  # P1 fix: reject dangling refs, cycles, duplicates
 
-    # -- 2. Resolve mission from governance config ----------------------------
+    # -- 2. Resolve mission + project directive selection ---------------------
     governance = load_governance_config(repo_root)
     template_set = governance.doctrine.template_set or "software-dev-default"
     mission = template_set.removesuffix("-default")
 
+    # Project directive selection filtering (mirrors legacy behavior)
+    project_directives: set[str] = {
+        _normalize_directive_id(d) for d in governance.doctrine.selected_directives
+    }
+
     # -- 3. Query the DRG -----------------------------------------------------
     action_urn = f"action:{mission}/{normalized}"
-    resolved = resolve_context(merged, action_urn, depth=depth)
+    resolved = resolve_context(merged, action_urn, depth=effective_depth)
 
     # -- 4. Materialize artifacts via DoctrineService -------------------------
     project_root_candidates = [
@@ -541,7 +616,7 @@ def build_context_v2(
     )
     svc = DoctrineService(shipped_root=doctrine_root, project_root=project_root)
 
-    # Classify resolved URNs by node kind
+    # Classify resolved URNs by node kind, applying directive selection
     directive_ids: list[str] = []
     tactic_ids: list[str] = []
     styleguide_ids: list[str] = []
@@ -553,6 +628,9 @@ def build_context_v2(
             continue
         artifact_id = urn.split(":", 1)[1] if ":" in urn else urn
         if node.kind == NodeKind.DIRECTIVE:
+            # Apply project directive selection (empty set = no filtering)
+            if project_directives and artifact_id not in project_directives:
+                continue
             directive_ids.append(artifact_id)
         elif node.kind == NodeKind.TACTIC:
             tactic_ids.append(artifact_id)
@@ -562,28 +640,22 @@ def build_context_v2(
             toolguide_ids.append(artifact_id)
 
     # -- 5. Render formatted text ---------------------------------------------
-    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
-    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
+    charter_content = charter_path.read_text(encoding="utf-8")
+    summary = _extract_policy_summary(charter_content)
 
     lines: list[str] = [
         "Charter Context (Bootstrap):",
         f"  - Source: {charter_path}",
-        "  - DRG-resolved governance context.",
+        "  - This is the first load for this action. Use the summary and follow references as needed.",
         "",
         "Policy Summary:",
     ]
 
-    # Extract policy summary from charter if available
-    if charter_path.exists():
-        charter_content = charter_path.read_text(encoding="utf-8")
-        summary = _extract_policy_summary(charter_content)
-        if summary:
-            for item in summary[:8]:
-                lines.append(f"  - {item}")
-        else:
-            lines.append("  - No explicit policy summary section found in charter.md.")
+    if summary:
+        for item in summary[:8]:
+            lines.append(f"  - {item}")
     else:
-        lines.append("  - Charter file not found at `.kittify/charter/charter.md`.")
+        lines.append("  - No explicit policy summary section found in charter.md.")
 
     lines.append("")
 
@@ -616,7 +688,7 @@ def build_context_v2(
         lines.extend(tactic_lines)
 
     # Extended sections (depth >= 3)
-    if depth >= 3:
+    if effective_depth >= 3:
         sg_lines: list[str] = []
         for sg_id in styleguide_ids:
             sg = svc.styleguides.get(sg_id)
@@ -632,6 +704,19 @@ def build_context_v2(
         if tg_lines:
             lines.append("  Toolguides:")
             lines.extend(tg_lines)
+
+    # Action guidelines (mirrors legacy _append_action_doctrine_lines)
+    try:
+        repo = MissionTemplateRepository.default()
+        guidelines_result = repo.get_action_guidelines(mission, normalized)
+        if guidelines_result is not None:
+            guidelines_content = guidelines_result.content.strip()
+            if guidelines_content:
+                lines.append("  Guidelines:")
+                for gl_line in guidelines_content.splitlines():
+                    lines.append(f"    {gl_line}")
+    except Exception:  # noqa: BLE001, S110
+        pass  # Degrade gracefully, matching legacy behavior
 
     lines.append("")
 
@@ -650,11 +735,15 @@ def build_context_v2(
 
     text = "\n".join(lines)
 
+    # Update first-load state
+    if mark_loaded and first_load:
+        _mark_action_loaded(state, state_path, normalized)
+
     return CharterContextResult(
         action=normalized,
         mode="bootstrap",
-        first_load=True,
+        first_load=first_load,
         text=text,
-        references_count=len(filtered_references),
-        depth=depth,
+        references_count=len(references),
+        depth=effective_depth,
     )

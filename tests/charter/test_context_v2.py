@@ -105,6 +105,7 @@ class TestBuildContextV2:
         action: str = "implement",
         depth: int = 2,
         profile: str | None = None,
+        mark_loaded: bool = True,
     ) -> CharterContextResult:
         """Call build_context_v2 with a patched graph loader."""
         _setup_fixture_repo(tmp_path)
@@ -125,12 +126,14 @@ class TestBuildContextV2:
         with (
             patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),  # fixture may not pass full validation
         ):
             return build_context_v2(
                 tmp_path,
                 profile=profile,
                 action=action,
                 depth=depth,
+                mark_loaded=mark_loaded,
             )
 
     def test_returns_charter_context_result(self, tmp_path: Path) -> None:
@@ -143,10 +146,48 @@ class TestBuildContextV2:
         result = self._call(tmp_path, action="  IMPLEMENT  ")
         assert result.action == "implement"
 
-    def test_mode_is_bootstrap(self, tmp_path: Path) -> None:
-        """Mode is always 'bootstrap' in v2."""
+    def test_mode_is_bootstrap_on_first_load(self, tmp_path: Path) -> None:
+        """Mode is 'bootstrap' on first load at depth >= 2."""
         result = self._call(tmp_path)
         assert result.mode == "bootstrap"
+        assert result.first_load is True
+
+    def test_mode_is_compact_on_second_load(self, tmp_path: Path) -> None:
+        """Mode is 'compact' on second load when depth is state-driven."""
+        # First load with depth=None (state decides: first_load -> depth 2)
+        _setup_fixture_repo(tmp_path)
+
+        from io import StringIO
+
+        from doctrine.drg.models import DRGGraph
+        from ruamel.yaml import YAML
+
+        yaml = YAML(typ="safe")
+        graph_data = yaml.load(StringIO(_MINIMAL_GRAPH_YAML))
+        mock_graph = DRGGraph.model_validate(graph_data)
+
+        def patched_load_graph(path: Path) -> DRGGraph:
+            return mock_graph
+
+        with (
+            patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
+            patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
+        ):
+            # First load: depth=None -> state decides -> 2 (bootstrap)
+            first = build_context_v2(tmp_path, action="implement", depth=None, mark_loaded=True)
+            assert first.mode == "bootstrap"
+            assert first.first_load is True
+            # Second load: depth=None -> state decides -> 1 (compact)
+            second = build_context_v2(tmp_path, action="implement", depth=None, mark_loaded=True)
+            assert second.mode == "compact"
+            assert second.first_load is False
+
+    def test_non_bootstrap_action_returns_compact(self, tmp_path: Path) -> None:
+        """Non-bootstrap actions always return compact mode."""
+        result = self._call(tmp_path, action="custom-action")
+        assert result.mode == "compact"
+        assert result.first_load is False
 
     def test_text_contains_charter_context_header(self, tmp_path: Path) -> None:
         """Output text starts with Charter Context header."""
@@ -187,12 +228,11 @@ class TestBuildContextV2:
         result_named = self._call(tmp_path, profile="implementer")
         assert result_none.text == result_named.text
 
-    def test_depth_1_excludes_second_hop_suggests(self, tmp_path: Path) -> None:
-        """depth=1 should not include toolguide (2 hops via suggests)."""
+    def test_depth_1_returns_compact(self, tmp_path: Path) -> None:
+        """depth=1 returns compact governance (matching legacy behavior)."""
         result = self._call(tmp_path, depth=1)
-        # styleguide is 1 hop suggests -- included in artifact_urns but
-        # not rendered at depth < 3 (extended sections)
-        assert "Toolguides:" not in result.text
+        assert result.mode == "compact"
+        assert result.depth == 1
 
     def test_depth_3_includes_extended_sections(self, tmp_path: Path) -> None:
         """depth >= 3 renders styleguide and toolguide extended sections."""
@@ -207,7 +247,7 @@ class TestBuildContextV2:
         assert "Toolguides:" not in result.text
 
     def test_missing_charter_file(self, tmp_path: Path) -> None:
-        """When charter.md is missing, policy summary says so."""
+        """When charter.md is missing, returns mode='missing'."""
         _setup_fixture_repo(tmp_path)
         (tmp_path / ".kittify" / "charter" / "charter.md").unlink()
 
@@ -226,9 +266,11 @@ class TestBuildContextV2:
         with (
             patch("doctrine.drg.loader.load_graph", side_effect=patched_load_graph),
             patch("charter.catalog.resolve_doctrine_root", return_value=tmp_path),
+            patch("doctrine.drg.validator.assert_valid"),
         ):
             result = build_context_v2(tmp_path, action="implement", depth=2)
 
+        assert result.mode == "missing"
         assert "Charter file not found" in result.text
 
     def test_references_count(self, tmp_path: Path) -> None:
