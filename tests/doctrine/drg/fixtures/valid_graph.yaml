@@ -1,0 +1,87 @@
+schema_version: "1.0"
+generated_at: "2026-04-13T10:00:00+00:00"
+generated_by: "drg-migration-v1"
+
+nodes:
+  - urn: "directive:DIRECTIVE_001"
+    kind: directive
+    label: "Architectural Integrity Standard"
+  - urn: "directive:DIRECTIVE_002"
+    kind: directive
+    label: "Code Quality Standard"
+  - urn: "tactic:adr-drafting-workflow"
+    kind: tactic
+    label: "ADR Drafting Workflow"
+  - urn: "tactic:tdd-red-green-refactor"
+    kind: tactic
+    label: "TDD Red-Green-Refactor"
+  - urn: "paradigm:domain-driven-design"
+    kind: paradigm
+    label: "Domain-Driven Design"
+  - urn: "styleguide:kitty-glossary-writing"
+    kind: styleguide
+    label: "Kitty Glossary Writing"
+  - urn: "toolguide:efficient-local-tooling"
+    kind: toolguide
+    label: "Efficient Local Tooling"
+  - urn: "procedure:release-checklist"
+    kind: procedure
+    label: "Release Checklist"
+  - urn: "agent_profile:implementer"
+    kind: agent_profile
+    label: "Implementer Profile"
+  - urn: "action:software-dev/specify"
+    kind: action
+    label: "Specify (software-dev)"
+  - urn: "glossary_scope:project"
+    kind: glossary_scope
+    label: "Project Glossary"
+
+edges:
+  - source: "directive:DIRECTIVE_001"
+    target: "tactic:adr-drafting-workflow"
+    relation: requires
+  - source: "directive:DIRECTIVE_001"
+    target: "tactic:tdd-red-green-refactor"
+    relation: requires
+  - source: "directive:DIRECTIVE_002"
+    target: "tactic:tdd-red-green-refactor"
+    relation: requires
+  - source: "directive:DIRECTIVE_001"
+    target: "styleguide:kitty-glossary-writing"
+    relation: suggests
+  - source: "tactic:adr-drafting-workflow"
+    target: "tactic:tdd-red-green-refactor"
+    relation: suggests
+    when: "Writing architectural decisions"
+  - source: "paradigm:domain-driven-design"
+    target: "directive:DIRECTIVE_001"
+    relation: requires
+  - source: "paradigm:domain-driven-design"
+    target: "paradigm:domain-driven-design"
+    relation: replaces
+    reason: "Self-reference placeholder for testing replaces edge"
+  - source: "action:software-dev/specify"
+    target: "directive:DIRECTIVE_001"
+    relation: scope
+  - source: "action:software-dev/specify"
+    target: "directive:DIRECTIVE_002"
+    relation: scope
+  - source: "action:software-dev/specify"
+    target: "tactic:adr-drafting-workflow"
+    relation: scope
+  - source: "action:software-dev/specify"
+    target: "styleguide:kitty-glossary-writing"
+    relation: scope
+  - source: "action:software-dev/specify"
+    target: "toolguide:efficient-local-tooling"
+    relation: scope
+  - source: "action:software-dev/specify"
+    target: "procedure:release-checklist"
+    relation: scope
+  - source: "directive:DIRECTIVE_001"
+    target: "glossary_scope:project"
+    relation: vocabulary
+  - source: "agent_profile:implementer"
+    target: "action:software-dev/specify"
+    relation: delegates_to

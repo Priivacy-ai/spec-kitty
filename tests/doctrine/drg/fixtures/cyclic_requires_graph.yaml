@@ -1,0 +1,22 @@
+schema_version: "1.0"
+generated_at: "2026-04-13T10:00:00+00:00"
+generated_by: "test-fixture"
+
+nodes:
+  - urn: "directive:A"
+    kind: directive
+  - urn: "directive:B"
+    kind: directive
+  - urn: "directive:C"
+    kind: directive
+
+edges:
+  - source: "directive:A"
+    target: "directive:B"
+    relation: requires
+  - source: "directive:B"
+    target: "directive:C"
+    relation: requires
+  - source: "directive:C"
+    target: "directive:A"
+    relation: requires

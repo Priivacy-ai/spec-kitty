@@ -1,0 +1,9 @@
+schema_version: "1.0"
+generated_at: "2026-04-13T10:00:00+00:00"
+generated_by: "test-fixture"
+
+nodes:
+  - urn: "bad urn!"
+    kind: directive
+
+edges: []
