@@ -1,7 +1,7 @@
 {
-  "event_count": 16,
-  "last_event_id": "01KP311THN6QSYRWZSTETABVFN",
-  "materialized_at": "2026-04-13T08:59:08.725254+00:00",
+  "event_count": 18,
+  "last_event_id": "01KP312AWB247WJT1JV170ZFTC",
+  "materialized_at": "2026-04-13T08:59:25.451418+00:00",
   "mission_number": "",
   "mission_slug": "drg-phase-zero-01KP2YCE",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP00": {
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-13T08:59:08.725254+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4-6:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KP2ZD7V8V22737K1KSQJQ3MV",
-      "last_transition_at": "2026-04-13T08:30:25.640141+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KP312AWB247WJT1JV170ZFTC",
+      "last_transition_at": "2026-04-13T08:59:25.451418+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",

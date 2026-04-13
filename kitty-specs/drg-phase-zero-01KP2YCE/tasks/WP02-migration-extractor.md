@@ -22,6 +22,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "claude:opus-4-6:implementer:implementer"
+shell_pid: "52893"
 history:
 - date: '2026-04-13'
   author: claude
@@ -330,3 +332,7 @@ Current action surface sizes: specify(3), plan(4), implement(13), review(5), tas
 - Verify calibration only adds `scope` edges (no other relation types)
 - Verify `graph.yaml` is deterministic (sorted keys, consistent formatting)
 - Verify no shipped YAML files were modified (only new files created)
+
+## Activity Log
+
+- 2026-04-13T08:59:25Z – claude:opus-4-6:implementer:implementer – shell_pid=52893 – Started implementation via action command
