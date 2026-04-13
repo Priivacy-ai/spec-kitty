@@ -150,3 +150,4 @@ return d
 - 2026-04-13T05:22:15Z – claude:opus:implementer:implementer – shell_pid=61665 – Ready for review
 - 2026-04-13T05:22:37Z – claude:opus:reviewer:reviewer – shell_pid=69231 – Started review via action command
 - 2026-04-13T05:24:02Z – claude:opus:reviewer:reviewer – shell_pid=69231 – Review passed: All 6 acceptance criteria verified. legacy_aggregate_id removed from to_dict() and docstring, T025 comment removed from emit.py, mission_id conditional guard preserved, mission_id dataclass field untouched, grep confirms zero legacy_aggregate_id references in src/specify_cli/status/. Changes scoped exactly to owned_files.
+- 2026-04-13T05:49:53Z – claude:opus:reviewer:reviewer – shell_pid=69231 – Done override: Feature merged to main
