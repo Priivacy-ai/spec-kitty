@@ -9,9 +9,9 @@
 
 | ID | Description | WP | Parallel |
 |----|-------------|-----|----------|
-| T001 | Document behavioral delta between canonical and legacy `build_charter_context()` | WP00 | |
-| T002 | Verify canonical path resolves correct artifacts for all (action, depth) | WP00 | |
-| T003 | Document Phase 1 reroute scope and expected behavior changes | WP00 | |
+| T001 | Document behavioral delta between canonical and legacy `build_charter_context()` | WP00 | | [D] |
+| T002 | Verify canonical path resolves correct artifacts for all (action, depth) | WP00 | | [D] |
+| T003 | Document Phase 1 reroute scope and expected behavior changes | WP00 | | [D] |
 | T005 | Define `NodeKind` and `Relation` enums | WP01 | [P] |
 | T006 | Implement `DRGNode`, `DRGEdge`, `DRGGraph` Pydantic models | WP01 | |
 | T007 | Implement `load_graph()` and `merge_layers()` | WP01 | |
@@ -76,9 +76,9 @@ WP01 (DRG schema + model) ─┐                   │
 **Goal**: Document the behavioral delta between the two `build_charter_context()` implementations and confirm the canonical path is the correct parity oracle. No production code is changed.
 
 **Included subtasks**:
-- [ ] T001 Document behavioral delta between canonical and legacy `build_charter_context()` (WP00)
-- [ ] T002 Verify canonical path resolves correct artifacts for all (action, depth) (WP00)
-- [ ] T003 Document Phase 1 reroute scope and expected behavior changes (WP00)
+- [x] T001 Document behavioral delta between canonical and legacy `build_charter_context()` (WP00)
+- [x] T002 Verify canonical path resolves correct artifacts for all (action, depth) (WP00)
+- [x] T003 Document Phase 1 reroute scope and expected behavior changes (WP00)
 
 **Success criteria**: Delta document exists; canonical path confirmed as correct oracle; Phase 1 reroute scope documented.
 
