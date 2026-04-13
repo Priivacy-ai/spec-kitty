@@ -19,8 +19,8 @@ subtasks:
 - T025
 - T026
 - T027
-agent: "claude:opus-4-6:implementer:implementer"
-shell_pid: "74075"
+agent: "claude:opus-4-6:reviewer:reviewer"
+shell_pid: "90548"
 history:
 - date: '2026-04-13'
   author: claude
@@ -270,3 +270,4 @@ Prove that `build_context_v2()` resolves the same governance artifacts (by URN) 
 
 - 2026-04-13T09:25:35Z – claude:opus-4-6:implementer:implementer – shell_pid=74075 – Started implementation via action command
 - 2026-04-13T09:35:31Z – claude:opus-4-6:implementer:implementer – shell_pid=74075 – Invariant test implemented with artifact reachability comparison, 40 tests passing
+- 2026-04-13T09:36:01Z – claude:opus-4-6:reviewer:reviewer – shell_pid=90548 – Started review via action command
