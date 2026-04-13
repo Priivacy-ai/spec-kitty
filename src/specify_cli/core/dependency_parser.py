@@ -39,7 +39,7 @@ import re
 # Section splitter
 # ---------------------------------------------------------------------------
 
-_WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>.+)$")
+_WP_SECTION_HEADER = re.compile(r"(?m)^#{2,3}[ \t]+(?P<title>[^\n]+)$")
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
 _WP_NUMBER_TITLE = re.compile(r"^Work Package\s+(?P<wp_number>\d{1,2})(?:\b|\s*[—:-]|$)")
 

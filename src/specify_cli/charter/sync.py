@@ -23,6 +23,18 @@ from specify_cli.charter.schemas import (
 
 logger = logging.getLogger(__name__)
 
+KITTIFY_DIR = ".kittify"
+CHARTER_DIR_NAME = "charter"
+CHARTER_FILE_NAME = "charter.md"
+GOVERNANCE_FILE_NAME = "governance.yaml"
+DIRECTIVES_FILE_NAME = "directives.yaml"
+METADATA_FILE_NAME = "metadata.yaml"
+CHARTER_OUTPUT_FILES = [
+    GOVERNANCE_FILE_NAME,
+    DIRECTIVES_FILE_NAME,
+    METADATA_FILE_NAME,
+]
+
 
 @dataclass
 class SyncResult:
@@ -37,15 +49,15 @@ class SyncResult:
 
 def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
     """Auto-refresh extracted charter artifacts when charter.md exists."""
-    charter_dir = repo_root / ".kittify" / "charter"
-    charter_path = charter_dir / "charter.md"
+    charter_dir = repo_root / KITTIFY_DIR / CHARTER_DIR_NAME
+    charter_path = charter_dir / CHARTER_FILE_NAME
     if not charter_path.exists():
         return None
 
-    metadata_path = charter_dir / "metadata.yaml"
+    metadata_path = charter_dir / METADATA_FILE_NAME
     expected_paths = (
-        charter_dir / "governance.yaml",
-        charter_dir / "directives.yaml",
+        charter_dir / GOVERNANCE_FILE_NAME,
+        charter_dir / DIRECTIVES_FILE_NAME,
         metadata_path,
     )
     missing_files = [path.name for path in expected_paths if not path.exists()]
@@ -98,7 +110,7 @@ def sync(
         output_dir = charter_path.parent
 
     # Metadata path
-    metadata_path = output_dir / "metadata.yaml"
+    metadata_path = output_dir / METADATA_FILE_NAME
 
     try:
         # Read charter content once
@@ -125,11 +137,7 @@ def sync(
         write_extraction_result(result, output_dir)
 
         # List files written
-        files_written = [
-            "governance.yaml",
-            "directives.yaml",
-            "metadata.yaml",
-        ]
+        files_written = CHARTER_OUTPUT_FILES.copy()
 
         logger.info(f"Charter synced successfully (mode: {result.metadata.extraction_mode})")
 
@@ -190,9 +198,9 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
     Returns:
         GovernanceConfig instance (empty if file missing)
     """
-    charter_dir = repo_root / ".kittify" / "charter"
-    charter_path = charter_dir / "charter.md"
-    governance_path = charter_dir / "governance.yaml"
+    charter_dir = repo_root / KITTIFY_DIR / CHARTER_DIR_NAME
+    charter_path = charter_dir / CHARTER_FILE_NAME
+    governance_path = charter_dir / GOVERNANCE_FILE_NAME
     refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not governance_path.exists():
@@ -203,7 +211,7 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
         return GovernanceConfig()
 
     # Check staleness
-    metadata_path = charter_dir / "metadata.yaml"
+    metadata_path = charter_dir / METADATA_FILE_NAME
     if charter_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
@@ -230,9 +238,9 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     Returns:
         DirectivesConfig instance (empty if file missing)
     """
-    charter_dir = repo_root / ".kittify" / "charter"
-    charter_path = charter_dir / "charter.md"
-    directives_path = charter_dir / "directives.yaml"
+    charter_dir = repo_root / KITTIFY_DIR / CHARTER_DIR_NAME
+    charter_path = charter_dir / CHARTER_FILE_NAME
+    directives_path = charter_dir / DIRECTIVES_FILE_NAME
     refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not directives_path.exists():
@@ -242,7 +250,7 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
             logger.warning("directives.yaml not found and charter.md is absent. Using empty directives config.")
         return DirectivesConfig()
 
-    metadata_path = charter_dir / "metadata.yaml"
+    metadata_path = charter_dir / METADATA_FILE_NAME
     if charter_path.exists() and metadata_path.exists():
         stale, _, _ = is_stale(charter_path, metadata_path)
         if stale:
