@@ -231,3 +231,4 @@ The DRG package (`src/doctrine/drg/`) provides query primitives. Charter-specifi
 ## Activity Log
 
 - 2026-04-13T09:14:48Z – claude:opus-4-6:implementer:implementer – shell_pid=62811 – Started implementation via action command
+- 2026-04-13T09:23:07Z – claude:opus-4-6:implementer:implementer – shell_pid=62811 – build_context_v2 implemented with DRG query composition
