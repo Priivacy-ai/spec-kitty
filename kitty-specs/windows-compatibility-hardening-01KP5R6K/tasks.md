@@ -52,12 +52,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T037 | Execution test (`windows_ci`): hook executes when interpreter path contains a space | WP06 | [D] |
 | T038 | Regression test (`windows_ci`) for issue #105: PATH stripped of `python`/`python3`/`py` → hook still executes | WP06 | [D] |
 | T039 | POSIX execution smoke test: hook still works on Linux runner (cross-platform parity) | WP06 | [D] |
-| T040 | Create `.github/workflows/ci-windows.yml`: `windows-latest`, Python 3.11, pipx install, `PYTHONUTF8=1`, `pytest -m windows_ci --maxfail=1` | WP07 | |
-| T041 | Add "keyring NOT installed" assertion step to the Windows workflow (packaging enforcement of C-001) | WP07 | [P] |
-| T042 | Update `ci-quality.yml` (Linux) to run `pytest -m "not windows_ci"` | WP07 | [P] |
-| T043 | Set workflow `timeout-minutes: 20` and `--maxfail=1` for fast feedback | WP07 | [P] |
-| T044 | Document branch-protection required-check update in the WP PR description (for maintainer to apply post-merge) | WP07 | [P] |
-| T045 | Smoke-test workflow: verify it executes the curated suite end-to-end on a scratch push | WP07 | |
+| T040 | Create `.github/workflows/ci-windows.yml`: `windows-latest`, Python 3.11, pipx install, `PYTHONUTF8=1`, `pytest -m windows_ci --maxfail=1` | WP07 | | [D] |
+| T041 | Add "keyring NOT installed" assertion step to the Windows workflow (packaging enforcement of C-001) | WP07 | [D] |
+| T042 | Update `ci-quality.yml` (Linux) to run `pytest -m "not windows_ci"` | WP07 | [D] |
+| T043 | Set workflow `timeout-minutes: 20` and `--maxfail=1` for fast feedback | WP07 | [D] |
+| T044 | Document branch-protection required-check update in the WP PR description (for maintainer to apply post-merge) | WP07 | [D] |
+| T045 | Smoke-test workflow: verify it executes the curated suite end-to-end on a scratch push | WP07 | | [D] |
 | T046 | Add UTF-8 enforcement at CLI entrypoint: new `src/specify_cli/encoding.py` + call at startup in `src/specify_cli/cli/__init__.py` | WP08 | |
 | T047 | Windows-native regression test for issue #101: non-UTF-8 codepage; CLI startup + status rendering non-ASCII paths | WP08 | [P] |
 | T048 | Windows-native regression test for issue #71: dashboard path returns non-empty response on Windows | WP08 | [P] |
@@ -283,12 +283,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - `ci-quality.yml` edit must not disable any existing PR-required test; only add the `-m "not windows_ci"` marker selection.
 
 **Included subtasks**:
-- [ ] T040 Create `.github/workflows/ci-windows.yml` with `windows-latest`, Python 3.11, pipx, `PYTHONUTF8=1`, `pytest -m windows_ci --maxfail=1`
-- [ ] T041 Add "keyring NOT installed" assertion step to the Windows workflow
-- [ ] T042 Update `ci-quality.yml` (Linux) to run `pytest -m "not windows_ci"`
-- [ ] T043 Set workflow `timeout-minutes: 20` and `--maxfail=1` for fast feedback
-- [ ] T044 Document branch-protection required-check update in PR description for maintainer
-- [ ] T045 Smoke-test workflow: verify end-to-end execution on a scratch push
+- [x] T040 Create `.github/workflows/ci-windows.yml` with `windows-latest`, Python 3.11, pipx, `PYTHONUTF8=1`, `pytest -m windows_ci --maxfail=1`
+- [x] T041 Add "keyring NOT installed" assertion step to the Windows workflow
+- [x] T042 Update `ci-quality.yml` (Linux) to run `pytest -m "not windows_ci"`
+- [x] T043 Set workflow `timeout-minutes: 20` and `--maxfail=1` for fast feedback
+- [x] T044 Document branch-protection required-check update in PR description for maintainer
+- [x] T045 Smoke-test workflow: verify end-to-end execution on a scratch push
 
 ---
 
