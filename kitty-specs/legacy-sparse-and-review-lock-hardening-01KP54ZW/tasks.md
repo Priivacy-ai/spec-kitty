@@ -32,11 +32,11 @@ Total: 35 subtasks across 9 WPs.
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Add `UnexpectedStagedPath` and `SafeCommitBackstopError` types | WP01 |  |
-| T002 | Implement `assert_staging_area_matches_expected()` helper | WP01 |  |
-| T003 | Wire backstop inside `safe_commit` after stage, before commit | WP01 |  |
-| T004 | Unit tests for backstop diff logic | WP01 | [P] |
-| T005 | Regression test that reproduces the #588 cascade | WP01 | [P] |
+| T001 | Add `UnexpectedStagedPath` and `SafeCommitBackstopError` types | WP01 |  | [D] |
+| T002 | Implement `assert_staging_area_matches_expected()` helper | WP01 |  | [D] |
+| T003 | Wire backstop inside `safe_commit` after stage, before commit | WP01 |  | [D] |
+| T004 | Unit tests for backstop diff logic | WP01 | [D] |
+| T005 | Regression test that reproduces the #588 cascade | WP01 | [D] |
 | T006 | Post-merge working-tree refresh in `_run_lane_based_merge_locked` | WP05 |  |
 | T007 | Post-merge `git status` invariant assertion | WP05 |  |
 | T009 | `SparseCheckoutState` and `SparseCheckoutScanReport` types | WP02 |  |
@@ -82,11 +82,11 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP01-commit-layer-backstop.md](tasks/WP01-commit-layer-backstop.md)
 
 **Included subtasks**:
-- [ ] T001 Add `UnexpectedStagedPath` and `SafeCommitBackstopError` types (WP01)
-- [ ] T002 Implement `assert_staging_area_matches_expected()` helper (WP01)
-- [ ] T003 Wire backstop inside `safe_commit` after stage, before commit (WP01)
-- [ ] T004 Unit tests for backstop diff logic (WP01) [P]
-- [ ] T005 Regression test that reproduces the #588 cascade (WP01) [P]
+- [x] T001 Add `UnexpectedStagedPath` and `SafeCommitBackstopError` types (WP01)
+- [x] T002 Implement `assert_staging_area_matches_expected()` helper (WP01)
+- [x] T003 Wire backstop inside `safe_commit` after stage, before commit (WP01)
+- [x] T004 Unit tests for backstop diff logic (WP01) [P]
+- [x] T005 Regression test that reproduces the #588 cascade (WP01) [P]
 
 **Dependencies**: none.
 **Parallel opportunities**: T004 and T005 can run in parallel once T003 is complete.
