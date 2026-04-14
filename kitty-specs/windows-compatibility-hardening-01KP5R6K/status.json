@@ -1,7 +1,7 @@
 {
-  "event_count": 26,
-  "last_event_id": "01KP5VRDSVB7XEBE82A936GN59",
-  "materialized_at": "2026-04-14T11:24:21.179427+00:00",
+  "event_count": 27,
+  "last_event_id": "01KP5VSN1X22PTF4N5SXN8KW3X",
+  "materialized_at": "2026-04-14T11:25:01.373569+00:00",
   "mission_number": "",
   "mission_slug": "windows-compatibility-hardening-01KP5R6K",
   "mission_type": "software-dev",
@@ -11,8 +11,8 @@
     "canceled": 0,
     "claimed": 0,
     "done": 0,
-    "for_review": 1,
-    "in_progress": 0,
+    "for_review": 0,
+    "in_progress": 1,
     "in_review": 0,
     "planned": 6
   },
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-14T10:56:30.186382+00:00"
     },
     "WP03": {
-      "actor": "user",
-      "force_count": 1,
-      "lane": "for_review",
-      "last_event_id": "01KP5VRDSVB7XEBE82A936GN59",
-      "last_transition_at": "2026-04-14T11:24:21.179427+00:00"
+      "actor": "claude:opus-4.6:reviewer:reviewer",
+      "force_count": 2,
+      "lane": "in_progress",
+      "last_event_id": "01KP5VSN1X22PTF4N5SXN8KW3X",
+      "last_transition_at": "2026-04-14T11:25:01.373569+00:00"
     },
     "WP04": {
       "actor": "finalize-tasks",
