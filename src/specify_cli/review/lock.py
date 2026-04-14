@@ -156,10 +156,30 @@ class ReviewLock:
 
     @staticmethod
     def release(worktree: Path) -> None:
-        """Release the review lock by removing the lock file."""
-        lock_path = worktree / LOCK_DIR / LOCK_FILE
+        """Release the review lock.
+
+        Remove the lock file and, if the parent ``.spec-kitty/`` directory is
+        empty after removal, remove the directory too. This matters for
+        FR-017/FR-018: leftover ``.spec-kitty/`` state in the worktree trips
+        spec-kitty's own uncommitted-changes guard (issue #589), so reviewers
+        that clean up after themselves must also clean up the parent directory
+        when nothing else is storing state there.
+
+        Idempotent: calling release() when no lock exists is a no-op. OSError
+        from rmdir (non-empty, permission issues) is swallowed so that review
+        cleanup never crashes the CLI command driving the transition.
+        """
+        lock_dir = worktree / LOCK_DIR
+        lock_path = lock_dir / LOCK_FILE
         if lock_path.exists():
             lock_path.unlink()
+        if lock_dir.exists() and lock_dir.is_dir():
+            try:
+                if not any(lock_dir.iterdir()):
+                    lock_dir.rmdir()
+            except OSError:
+                # Non-empty directory or permission issue — leave in place.
+                pass
 
 
 # ---------------------------------------------------------------------------

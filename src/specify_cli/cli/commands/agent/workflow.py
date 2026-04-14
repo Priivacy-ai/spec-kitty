@@ -456,6 +456,17 @@ def implement(
     mission: Annotated[Optional[str], typer.Option("--mission", help="Mission slug")] = None,
     feature: Annotated[Optional[str], typer.Option("--feature", hidden=True, help="(deprecated) Use --mission")] = None,
     agent: Annotated[Optional[str], typer.Option("--agent", help="Agent name (required for auto-move to in_progress)")] = None,
+    allow_sparse_checkout: Annotated[
+        bool,
+        typer.Option(
+            "--allow-sparse-checkout",
+            help=(
+                "Proceed even if legacy sparse-checkout state is detected. "
+                "Use of this override is logged. Does not bypass the commit-time "
+                "data-loss backstop."
+            ),
+        ),
+    ] = False,
 ) -> None:
     """Display work package prompt with implementation instructions.
 
@@ -478,6 +489,42 @@ def implement(
             raise typer.Exit(1)
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, repo_root=repo_root)
+
+        # -- WP05/T021 FR-007: Sparse-checkout preflight --
+        # Runs BEFORE any worktree creation or state changes. Same surface as
+        # merge (see _run_lane_based_merge). If --allow-sparse-checkout is set,
+        # require_no_sparse_checkout emits a structured override log and
+        # returns; the WP01 commit-layer backstop still guards commits.
+        from specify_cli.git.sparse_checkout import (
+            SparseCheckoutPreflightError,
+            require_no_sparse_checkout,
+        )
+
+        _main_repo_for_preflight = get_main_repo_root(repo_root)
+        _mission_id_for_preflight: Optional[str] = None
+        try:
+            from specify_cli.mission_metadata import resolve_mission_identity
+
+            _identity = resolve_mission_identity(
+                _main_repo_for_preflight / "kitty-specs" / mission_slug
+            )
+            _mission_id_for_preflight = _identity.mission_id
+        except Exception:  # noqa: BLE001 — meta.json may not exist for legacy missions
+            _mission_id_for_preflight = None
+
+        try:
+            require_no_sparse_checkout(
+                repo_root=_main_repo_for_preflight,
+                command="spec-kitty agent action implement",
+                override_flag=allow_sparse_checkout,
+                actor=agent,
+                mission_slug=mission_slug,
+                mission_id=_mission_id_for_preflight,
+            )
+        except SparseCheckoutPreflightError as exc:
+            # Surface as a user-facing error. No worktree is created.
+            print(f"Error: {exc}")
+            raise typer.Exit(1) from exc
 
         # Ensure planning repo is on the target branch before we start
         # (needed for auto-commits and status tracking inside this command)

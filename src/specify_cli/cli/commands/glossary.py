@@ -521,6 +521,17 @@ def resolve(  # noqa: C901
     """Resolve a conflict asynchronously."""
     repo_root = Path.cwd()
 
+    # FR-010 (WP07): emit the sparse-checkout session warning once per process
+    # at this external state-mutating surface. ``warn_if_sparse_once`` is
+    # self-memoizing (first caller wins) and swallows detection errors, so it
+    # is safe to call unconditionally and never crashes the command.
+    try:
+        from specify_cli.git.sparse_checkout import warn_if_sparse_once
+
+        warn_if_sparse_once(repo_root, command="spec-kitty glossary resolve")
+    except Exception as _exc:  # noqa: BLE001 - defensive; must never break CLI
+        logger.debug("sparse-checkout session warning failed for glossary resolve: %s", _exc)
+
     # Collect events from all mission event logs
     events_dir = repo_root / ".kittify" / "events" / "glossary"
     all_events: list[dict] = []

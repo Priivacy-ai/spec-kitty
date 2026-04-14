@@ -1,0 +1,325 @@
+"""Sparse-checkout detection, session warning, and preflight API.
+
+This module is the single source of truth for sparse-checkout state handling in
+spec-kitty 3.x. v3.0.0 removed sparse-checkout support but did not ship a
+migration for existing user repos; this module surfaces the lingering state so
+doctor and preflights can act on it, and provides the once-per-process warning
+that other CLI surfaces hook into.
+
+See Priivacy-ai/spec-kitty#588 for the data-loss regression that motivated this
+surface and the four-layer hybrid architecture recorded in ADR
+2026-04-14-sparse-checkout-defense-in-depth.
+
+Public API
+----------
+- :class:`SparseCheckoutState` — immutable per-path probe result.
+- :class:`SparseCheckoutScanReport` — aggregate over a repo and its worktrees.
+- :class:`SparseCheckoutPreflightError` — raised by ``require_no_sparse_checkout``.
+- :func:`scan_path` — pure detection for a single repo or worktree.
+- :func:`scan_repo` — pure detection for a primary repo plus ``.worktrees/*``.
+- :func:`warn_if_sparse_once` — emits a WARNING log line exactly once per
+  process when sparse-checkout state is active.
+- :func:`require_no_sparse_checkout` — hard-block preflight used by merge and
+  implement call sites.
+
+The module is intentionally side-effect-free except for spawning ``git config``
+subprocesses and reading on-disk files. No function in this module mutates
+git configuration or sparse-checkout state; remediation lives in WP03.
+"""
+
+from __future__ import annotations
+
+import logging
+import subprocess
+from dataclasses import dataclass
+from pathlib import Path
+
+logger = logging.getLogger(__name__)
+
+__all__ = [
+    "SparseCheckoutState",
+    "SparseCheckoutScanReport",
+    "SparseCheckoutPreflightError",
+    "scan_path",
+    "scan_repo",
+    "warn_if_sparse_once",
+    "require_no_sparse_checkout",
+    "_reset_session_warning_state",
+]
+
+
+@dataclass(frozen=True)
+class SparseCheckoutState:
+    """Result of probing a repository or worktree for sparse-checkout state."""
+
+    path: Path
+    config_enabled: bool
+    pattern_file_path: Path | None
+    pattern_file_present: bool
+    pattern_line_count: int
+    is_worktree: bool
+
+    @property
+    def is_active(self) -> bool:
+        """Canonical signal used by preflights and doctor.
+
+        Per research.md R6, ``core.sparseCheckout=true`` is the definitive
+        indicator that git will apply sparse-checkout filtering. A lingering
+        pattern file without that config is harmless and does not flip
+        ``is_active`` to True.
+        """
+        return self.config_enabled
+
+
+@dataclass(frozen=True)
+class SparseCheckoutScanReport:
+    """Aggregate scan of a primary repo and its lane worktrees."""
+
+    primary: SparseCheckoutState
+    worktrees: tuple[SparseCheckoutState, ...]
+
+    @property
+    def any_active(self) -> bool:
+        """True iff the primary repo or any worktree has sparse-checkout active."""
+        return self.primary.is_active or any(w.is_active for w in self.worktrees)
+
+    @property
+    def affected_paths(self) -> tuple[Path, ...]:
+        """Paths (primary + worktrees) where sparse-checkout is active."""
+        hits: list[Path] = []
+        if self.primary.is_active:
+            hits.append(self.primary.path)
+        hits.extend(w.path for w in self.worktrees if w.is_active)
+        return tuple(hits)
+
+
+# ---------------------------------------------------------------------------
+# Pure detection
+# ---------------------------------------------------------------------------
+
+
+def _read_sparse_config_flag(path: Path) -> bool:
+    """Return True iff ``git config --get core.sparseCheckout`` is ``true`` at ``path``.
+
+    Runs git inside ``path`` so worktree-local config layering is honoured
+    (see WP02 Risks in the WP spec). Any failure — non-git directory, git
+    exit != 0 with no value, unreadable config — is treated as "not enabled".
+    """
+    try:
+        result = subprocess.run(
+            ["git", "config", "--get", "core.sparseCheckout"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return False
+    if result.returncode != 0:
+        return False
+    return result.stdout.strip().lower() == "true"
+
+
+def _resolve_sparse_pattern_file(path: Path, *, is_worktree: bool) -> Path | None:
+    """Resolve the on-disk sparse-checkout pattern file for ``path``.
+
+    For the primary repo, this is ``<path>/.git/info/sparse-checkout``. For a
+    worktree, git stores per-worktree state under
+    ``<git-common-dir>/worktrees/<name>/info/sparse-checkout``; we resolve that
+    by running ``git rev-parse --git-dir`` *inside* the worktree path.
+    """
+    if not is_worktree:
+        return path / ".git" / "info" / "sparse-checkout"
+
+    try:
+        result = subprocess.run(
+            ["git", "rev-parse", "--git-dir"],
+            cwd=str(path),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    git_dir_raw = result.stdout.strip()
+    if not git_dir_raw:
+        return None
+    git_dir = Path(git_dir_raw)
+    if not git_dir.is_absolute():
+        git_dir = (path / git_dir).resolve()
+    return git_dir / "info" / "sparse-checkout"
+
+
+def _count_nonempty_noncomment_lines(p: Path) -> int:
+    """Count pattern lines in a sparse-checkout file (non-empty, non-comment)."""
+    try:
+        text = p.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return 0
+    count = 0
+    for raw in text.splitlines():
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        count += 1
+    return count
+
+
+def scan_path(path: Path, *, is_worktree: bool) -> SparseCheckoutState:
+    """Probe a single repo or worktree for sparse-checkout state.
+
+    Reads ``git config --get core.sparseCheckout`` at the path and inspects the
+    sparse-checkout pattern file. Never mutates anything on disk or in git
+    configuration. A non-existent or non-git ``path`` returns an all-negative
+    state (``config_enabled=False``, ``pattern_file_present=False``,
+    ``pattern_line_count=0``).
+    """
+    config_enabled = _read_sparse_config_flag(path)
+    pattern_file_path = _resolve_sparse_pattern_file(path, is_worktree=is_worktree)
+    pattern_file_present = (
+        pattern_file_path is not None and pattern_file_path.exists()
+    )
+    pattern_line_count = (
+        _count_nonempty_noncomment_lines(pattern_file_path)
+        if pattern_file_present and pattern_file_path is not None
+        else 0
+    )
+    return SparseCheckoutState(
+        path=path,
+        config_enabled=config_enabled,
+        pattern_file_path=pattern_file_path,
+        pattern_file_present=pattern_file_present,
+        pattern_line_count=pattern_line_count,
+        is_worktree=is_worktree,
+    )
+
+
+def scan_repo(repo_root: Path) -> SparseCheckoutScanReport:
+    """Probe the primary repo and every lane worktree beneath ``.worktrees/``.
+
+    Worktree candidates are immediate children of ``<repo_root>/.worktrees`` that
+    are directories and contain a ``.git`` entry (file or dir — git worktrees
+    use a file pointer). Non-worktree directories are skipped silently.
+    """
+    primary = scan_path(repo_root, is_worktree=False)
+    worktrees_dir = repo_root / ".worktrees"
+    worktree_states: list[SparseCheckoutState] = []
+    if worktrees_dir.exists() and worktrees_dir.is_dir():
+        for child in sorted(worktrees_dir.iterdir()):
+            if not child.is_dir():
+                continue
+            if not (child / ".git").exists():
+                continue
+            worktree_states.append(scan_path(child, is_worktree=True))
+    return SparseCheckoutScanReport(primary=primary, worktrees=tuple(worktree_states))
+
+
+# ---------------------------------------------------------------------------
+# Session warning (once-per-process)
+# ---------------------------------------------------------------------------
+
+# Module-level flag per R5 — simplest possible once-per-process mechanism.
+_SPARSE_WARNING_EMITTED: bool = False
+
+
+def warn_if_sparse_once(repo_root: Path, *, command: str) -> None:
+    """Emit a WARNING log line once per process if sparse-checkout state is active.
+
+    Subsequent calls in the same process are no-ops even if the sparse state
+    changes. The stable structured-log marker ``spec_kitty.sparse_checkout.detected``
+    is searchable in log aggregators.
+
+    Detection failures are swallowed: a broken probe must never break the CLI
+    command that invoked this hook. Remediation is handled by WP03; advisory
+    surfacing is the job of this function.
+    """
+    global _SPARSE_WARNING_EMITTED
+    if _SPARSE_WARNING_EMITTED:
+        return
+    try:
+        report = scan_repo(repo_root)
+    except Exception:  # noqa: BLE001 — never let detection block the command
+        return
+    if not report.any_active:
+        return
+    affected = ", ".join(str(p) for p in report.affected_paths)
+    logger.warning(
+        "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s "
+        "fix='spec-kitty doctor --fix sparse-checkout'",
+        command,
+        repo_root,
+        affected,
+    )
+    _SPARSE_WARNING_EMITTED = True
+
+
+def _reset_session_warning_state() -> None:
+    """Test helper — resets the session-warning flag. Not for production use."""
+    global _SPARSE_WARNING_EMITTED
+    _SPARSE_WARNING_EMITTED = False
+
+
+# ---------------------------------------------------------------------------
+# Preflight API
+# ---------------------------------------------------------------------------
+
+
+class SparseCheckoutPreflightError(RuntimeError):
+    """Raised when a hard-block preflight detects active sparse-checkout state."""
+
+    def __init__(self, command: str, report: SparseCheckoutScanReport) -> None:
+        self.command = command
+        self.report = report
+        affected = "\n".join(f"  {p}" for p in report.affected_paths)
+        super().__init__(
+            f"{command} aborted: legacy sparse-checkout state detected.\n"
+            f"\nAffected paths:\n{affected}\n"
+            "\nThis repository has core.sparseCheckout=true configured, which\n"
+            "v3.x spec-kitty does not handle correctly and which has caused\n"
+            "silent data loss in prior mission merges (see\n"
+            "Priivacy-ai/spec-kitty#588).\n"
+            "\nFix:\n"
+            "  spec-kitty doctor --fix sparse-checkout\n"
+            "\nIf you have an intentional sparse configuration and understand\n"
+            "the risk, you may pass --allow-sparse-checkout to proceed. Use of\n"
+            "this override is logged at WARNING level."
+        )
+
+
+def require_no_sparse_checkout(
+    repo_root: Path,
+    *,
+    command: str,
+    override_flag: bool,
+    actor: str | None,
+    mission_slug: str | None,
+    mission_id: str | None,
+) -> None:
+    """Preflight for commands that must not operate under sparse-checkout.
+
+    If ``override_flag`` is True and sparse-checkout is active, emits the
+    structured override log record (FR-008) and returns. Otherwise raises
+    :class:`SparseCheckoutPreflightError` when sparse-checkout is active.
+
+    ``--force`` is intentionally **not** a parameter here: callers that want
+    to bypass must plumb their own ``--allow-sparse-checkout`` flag through to
+    ``override_flag``.
+    """
+    report = scan_repo(repo_root)
+    if not report.any_active:
+        return
+    if override_flag:
+        logger.warning(
+            "spec_kitty.override.sparse_checkout command=%s "
+            "mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
+            command,
+            mission_slug or "<none>",
+            mission_id or "<none>",
+            actor or "<unknown>",
+            repo_root,
+            ",".join(str(p) for p in report.affected_paths),
+        )
+        return
+    raise SparseCheckoutPreflightError(command=command, report=report)

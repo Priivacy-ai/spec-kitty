@@ -31,6 +31,10 @@ from specify_cli.core.git_ops import has_remote, run_command
 from specify_cli.core.git_preflight import build_git_preflight_failure_payload, run_git_preflight
 from specify_cli.core.paths import get_feature_target_branch, get_main_repo_root
 from specify_cli.git import safe_commit
+from specify_cli.git.sparse_checkout import (
+    SparseCheckoutPreflightError,
+    require_no_sparse_checkout,
+)
 from specify_cli.lanes.persistence import CorruptLanesError, MissingLanesError, require_lanes_json
 from specify_cli.merge.config import MergeStrategy, load_merge_config
 from specify_cli.merge.ordering import assign_next_mission_number
@@ -564,6 +568,7 @@ def _run_lane_based_merge(
     remove_worktree: bool,
     target_override: str | None = None,
     strategy: MergeStrategy = MergeStrategy.SQUASH,
+    allow_sparse_checkout: bool = False,
 ) -> None:
     """Execute the lane-only merge flow with MergeState lifecycle for recovery.
 
@@ -576,9 +581,39 @@ def _run_lane_based_merge(
         target_override: Override target branch.
         strategy: Merge strategy for the mission→target step (FR-005, FR-006).
             Lane→mission step always uses merge commits regardless of this value.
+        allow_sparse_checkout: When True, bypass the sparse-checkout preflight
+            (FR-008). The commit-layer backstop (WP01) still fires under this
+            override — it is NOT disabled by this flag. Use of this override is
+            logged via ``require_no_sparse_checkout``.
     """
     main_repo = get_main_repo_root(repo_root)
     feature_dir = main_repo / "kitty-specs" / mission_slug
+
+    # -- WP05/T020/FR-006: Sparse-checkout preflight --
+    # Must run BEFORE any state change (before merge-state writes, before the
+    # global merge lock is acquired, before any git mutation). Legacy
+    # sparse-checkout has caused silent data loss in prior merges
+    # (Priivacy-ai/spec-kitty#588). If the override flag is set,
+    # require_no_sparse_checkout logs a structured override event and
+    # returns; the WP01 commit-layer backstop still guards subsequent commits.
+    # Run this even before lanes.json/meta.json reads so a sparse repo
+    # cannot flow through the command under any condition.
+    _preflight_mission_id: str | None = None
+    try:
+        _preflight_identity = resolve_mission_identity(feature_dir)
+        _preflight_mission_id = _preflight_identity.mission_id
+    except Exception:  # noqa: BLE001 — meta.json may be missing for legacy missions
+        _preflight_mission_id = None
+
+    require_no_sparse_checkout(
+        repo_root=main_repo,
+        command="spec-kitty merge",
+        override_flag=allow_sparse_checkout,
+        actor=None,
+        mission_slug=mission_slug,
+        mission_id=_preflight_mission_id or mission_slug,
+    )
+
     lanes_manifest = require_lanes_json(feature_dir)
     if target_override:
         lanes_manifest.target_branch = target_override
@@ -744,6 +779,77 @@ def _run_lane_based_merge_locked(
 
     _assert_merged_wps_reached_done(main_repo, mission_slug, all_wp_ids)
 
+    # -- WP05/T006 FR-013: Post-merge working-tree refresh --
+    # Re-sync the primary checkout against HEAD so any paths that git left out
+    # (the observed legacy sparse-checkout case — Priivacy-ai/spec-kitty#588)
+    # are restored before the housekeeping commit runs. This is a no-op on a
+    # clean full checkout. Do not abort on failure: the WP01 commit-layer
+    # backstop is the final safety net.
+    _ret_checkout, _out_checkout, _err_checkout = run_command(
+        ["git", "checkout", "HEAD", "--", "."],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if _ret_checkout != 0:
+        console.print(
+            f"[yellow]Warning:[/yellow] post-merge working-tree refresh failed: "
+            f"{(_err_checkout or '').strip()}"
+        )
+
+    # -- WP05/T007 FR-014: Post-merge working-tree invariant --
+    # After the refresh, `git status --porcelain` MUST report at most the two
+    # status files that the immediately-following safe_commit is going to
+    # persist. Any other path diverging from HEAD indicates that something
+    # (sparse-checkout, a stale lock, a filter driver) silently dropped paths
+    # during the merge and must stop the flow before the housekeeping commit
+    # papers over it.
+    _ret_status, _out_status, _err_status = run_command(
+        ["git", "status", "--porcelain"],
+        capture=True,
+        check_return=False,
+        cwd=main_repo,
+    )
+    if _ret_status == 0:
+        expected_paths = {
+            f"kitty-specs/{mission_slug}/status.events.jsonl",
+            f"kitty-specs/{mission_slug}/status.json",
+        }
+        offending_lines: list[str] = []
+        for line in (_out_status or "").splitlines():
+            if not line.strip():
+                continue
+            # Porcelain v1 format: two status chars + space + path. Only lines
+            # that match this shape represent real status entries; anything
+            # else came from a mocked or foreign source and we skip it to
+            # avoid false positives (tests with heavy mocking of run_command
+            # may return arbitrary strings here — see the WP05 risks section
+            # about false positives on the invariant assertion).
+            if len(line) < 4 or line[2] != " ":
+                continue
+            path_part = line[3:].strip()
+            if path_part in expected_paths:
+                continue
+            offending_lines.append(line)
+        if offending_lines:
+            console.print(
+                "[red]Error:[/red] Post-merge working-tree invariant violated. "
+                "The following paths diverge from HEAD unexpectedly:"
+            )
+            for line in offending_lines:
+                console.print(f"  {line}")
+            console.print(
+                "\nThis usually indicates sparse-checkout or a stale lock file. Run\n"
+                "  spec-kitty doctor --fix sparse-checkout\n"
+                "before retrying the merge."
+            )
+            raise typer.Exit(1)
+    else:
+        console.print(
+            f"[yellow]Warning:[/yellow] post-merge invariant check skipped: "
+            f"git status failed ({(_err_status or '').strip()})"
+        )
+
     # -- T012: FR-019 — Persist done events to git BEFORE any worktree removal --
     safe_commit(
         repo_path=main_repo,
@@ -877,6 +983,15 @@ def merge(
     abort: bool = typer.Option(False, "--abort", help="Abort an in-progress merge, cleaning up state and worktrees"),
     context_token: str = typer.Option(None, "--context", help="Unused compatibility flag"),
     keep_workspace: bool = typer.Option(False, "--keep-workspace", help="Unused compatibility flag"),
+    allow_sparse_checkout: bool = typer.Option(
+        False,
+        "--allow-sparse-checkout",
+        help=(
+            "Proceed even if legacy sparse-checkout state is detected. "
+            "Use of this override is logged. Does not bypass the commit-time "
+            "data-loss backstop."
+        ),
+    ),
 ) -> None:
     """Merge a lane-based feature into its target branch."""
     del context_token, keep_workspace
@@ -1029,7 +1144,13 @@ def merge(
             remove_worktree=remove_worktree,
             target_override=resolved_target_branch,
             strategy=resolved_strategy,
+            allow_sparse_checkout=allow_sparse_checkout,
         )
+    except SparseCheckoutPreflightError as exc:
+        # WP05/T020: surface sparse-checkout preflight as user-facing error
+        # and exit non-zero WITHOUT writing any merge state.
+        console.print(f"[red]Error:[/red] {exc}")
+        raise typer.Exit(1) from exc
     except (MissingLanesError, CorruptLanesError) as exc:
         console.print(f"[red]Error:[/red] {exc}")
         raise typer.Exit(1) from exc
