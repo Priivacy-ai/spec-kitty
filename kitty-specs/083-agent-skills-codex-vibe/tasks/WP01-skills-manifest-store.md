@@ -1,7 +1,7 @@
 ---
 work_package_id: WP01
 title: Skills Manifest Store and Schema Plumbing
-lane: "for_review"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: 18378e6761899dffe69c92e849d6b4140d19b2a3
@@ -12,8 +12,10 @@ subtasks:
 - T003
 - T004
 - T005
+agent: "opus"
 shell_pid: '3815'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -178,3 +180,4 @@ spec-kitty agent action implement WP01 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:04:21Z – claude – shell_pid=3815 – lane=for_review – Implementation complete; ready for review
+- 2026-04-14T10:06:05Z – opus – shell_pid=3815 – lane=done – Review passed: schema byte-identical to contract, 37 tests pass including atomic-save failure and forward-compat warnings, ruff clean on owned files, ManifestEntry is frozen with with_* helpers, atomic save uses os.replace with fsync + tmp cleanup, entries sorted by path on save, fingerprint/fingerprint_file share hashlib.sha256.
