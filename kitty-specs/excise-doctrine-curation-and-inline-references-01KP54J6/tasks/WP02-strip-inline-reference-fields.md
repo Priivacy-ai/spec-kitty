@@ -19,6 +19,8 @@ subtasks:
 - T010
 - T011
 - T012
+agent: "claude:opus-4.6:python-implementer:implementer"
+shell_pid: "50403"
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
@@ -489,3 +491,7 @@ Stop and comment on [#477](https://github.com/Priivacy-ai/spec-kitty/issues/477)
 - A schema change breaks an OtheR_KIND artifact in a way not covered by the known inventory
 - `assert_valid()` on the merged graph fails after T008's graph patch (cycle introduced?)
 - A model-test-deletion cascades into a broader test failure not caught in the specify-phase inventory
+
+## Activity Log
+
+- 2026-04-14T06:29:32Z – claude:opus-4.6:python-implementer:implementer – shell_pid=50403 – Started implementation via action command

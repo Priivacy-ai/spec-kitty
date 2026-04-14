@@ -1,7 +1,7 @@
 {
-  "event_count": 10,
-  "last_event_id": "01KP5AV8J5R8C1XJCVWM1F91GP",
-  "materialized_at": "2026-04-14T06:28:48.325795+00:00",
+  "event_count": 12,
+  "last_event_id": "01KP5AWKQ0B5GRAG1G1MSAB88K",
+  "materialized_at": "2026-04-14T06:29:32.512707+00:00",
   "mission_number": "",
   "mission_slug": "excise-doctrine-curation-and-inline-references-01KP54J6",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 2
+    "planned": 1
   },
   "work_packages": {
     "WP01": {
@@ -25,11 +25,11 @@
       "last_transition_at": "2026-04-14T06:28:48.325795+00:00"
     },
     "WP02": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4.6:python-implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KP56HW9YS5P7QCPP875VQ69A",
-      "last_transition_at": "2026-04-14T05:13:46.558608+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KP5AWKQ0B5GRAG1G1MSAB88K",
+      "last_transition_at": "2026-04-14T06:29:32.512707+00:00"
     },
     "WP03": {
       "actor": "finalize-tasks",
