@@ -1,35 +1,40 @@
 ---
-work_package_id: "WP05"
-title: "Vibe CLI Surface (init, verify, gitignore)"
-subtasks:
-  - T023
-  - T024
-  - T025
-  - T026
-  - T027
+work_package_id: WP05
+title: Vibe CLI Surface (init, verify, gitignore)
 dependencies:
-  - WP04
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/cli/commands/init.py"
-  - "src/specify_cli/cli/commands/verify.py"
-  - "src/specify_cli/gitignore_manager.py"
-  - "tests/specify_cli/cli/commands/test_init_vibe.py"
-  - "tests/specify_cli/cli/commands/test_verify_vibe.py"
-  - "tests/specify_cli/cli/commands/test_agent_config_vibe.py"
-authoritative_surface: "src/specify_cli/cli/commands/"
-requirement_refs:
-  - FR-001
-  - FR-003
-  - FR-009
-  - FR-010
+- WP04
+base_branch: main
+base_commit: 66b86fa2a5f8384997a36f8281b930ff53a0567b
+created_at: '2026-04-14T10:27:35.273627+00:00'
+subtasks:
+- T023
+- T024
+- T025
+- T026
+- T027
+lane: "doing"
+shell_pid: "16249"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/cli/commands/
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/cli/commands/init.py
+- src/specify_cli/cli/commands/verify.py
+- src/specify_cli/gitignore_manager.py
+- tests/specify_cli/cli/commands/test_init_vibe.py
+- tests/specify_cli/cli/commands/test_verify_vibe.py
+- tests/specify_cli/cli/commands/test_agent_config_vibe.py
+planning_base_branch: main
+requirement_refs:
+- FR-001
+- FR-003
+- FR-009
+- FR-010
 ---
 
 # WP05 — Vibe CLI Surface
