@@ -18,6 +18,8 @@ subtasks:
 - T035
 - T036
 phase: Phase 2 — Documentation and handoff
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "83553"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -176,3 +178,7 @@ The comment is non-blocking for mission acceptance. If posting fails, retry or e
 - Verify the ADR matches the Decision Log entries in `spec.md` (same alternatives, same rationale).
 - Verify the CHANGELOG recovery recipe is copy-paste runnable.
 - Verify the posted comment is locatable via `gh issue view 588 --repo Priivacy-ai/spec-kitty --comments`.
+
+## Activity Log
+
+- 2026-04-14T07:51:46Z – claude:opus-4.6:implementer:implementer – shell_pid=83553 – Started implementation via action command
