@@ -15,6 +15,8 @@ subtasks:
 - T017
 - T018
 phase: Phase 1 — Doctor surface
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "96308"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -170,3 +172,7 @@ Run with `pytest tests/integration/sparse_checkout/ -v`.
 - Verify no remediation happens in non-interactive mode.
 - Verify existing doctor findings are not reordered.
 - Verify `--fix sparse-checkout` is the ONLY way remediation runs; no other CLI path calls `remediate()`.
+
+## Activity Log
+
+- 2026-04-14T06:55:03Z – claude:opus-4.6:implementer:implementer – shell_pid=96308 – Started implementation via action command
