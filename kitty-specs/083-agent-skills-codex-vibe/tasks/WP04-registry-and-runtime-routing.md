@@ -1,6 +1,7 @@
 ---
 work_package_id: WP04
 title: Registry Wiring and Runtime Routing
+lane: "for_review"
 dependencies:
 - WP03
 base_branch: main
@@ -12,8 +13,8 @@ subtasks:
 - T020
 - T021
 - T022
-lane: "doing"
-shell_pid: "13190"
+shell_pid: '13190'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -172,3 +173,7 @@ Where the runtime needs a `repo_root`, feed it a tmpdir fixture. Where it needs 
 ```bash
 spec-kitty agent action implement WP04 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:22:08Z – claude – shell_pid=13190 – lane=for_review – Registry wired; routing via skills installer
