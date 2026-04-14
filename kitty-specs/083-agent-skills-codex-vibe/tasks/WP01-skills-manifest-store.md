@@ -1,6 +1,7 @@
 ---
 work_package_id: WP01
 title: Skills Manifest Store and Schema Plumbing
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: 18378e6761899dffe69c92e849d6b4140d19b2a3
@@ -11,8 +12,8 @@ subtasks:
 - T003
 - T004
 - T005
-lane: "doing"
-shell_pid: "3815"
+shell_pid: '3815'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -173,3 +174,7 @@ All tests must run without network, without `jsonschema` installed if we chose t
 ```bash
 spec-kitty agent action implement WP01 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:04:21Z – claude – shell_pid=3815 – lane=for_review – Implementation complete; ready for review
