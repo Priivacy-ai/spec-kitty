@@ -58,12 +58,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T043 | Set workflow `timeout-minutes: 20` and `--maxfail=1` for fast feedback | WP07 | [D] |
 | T044 | Document branch-protection required-check update in the WP PR description (for maintainer to apply post-merge) | WP07 | [D] |
 | T045 | Smoke-test workflow: verify it executes the curated suite end-to-end on a scratch push | WP07 | | [D] |
-| T046 | Add UTF-8 enforcement at CLI entrypoint: new `src/specify_cli/encoding.py` + call at startup in `src/specify_cli/cli/__init__.py` | WP08 | |
-| T047 | Windows-native regression test for issue #101: non-UTF-8 codepage; CLI startup + status rendering non-ASCII paths | WP08 | [P] |
-| T048 | Windows-native regression test for issue #71: dashboard path returns non-empty response on Windows | WP08 | [P] |
-| T049 | Upgrade `tests/sync/test_issue_586_windows_import.py` from simulated to native (add `windows_ci` marker) | WP08 | [P] |
-| T050 | Windows-native test: worktree symlink-vs-copy fallback — `.kittify/memory` + `AGENTS.md` readable; path-with-spaces covered | WP08 | [P] |
-| T051 | Windows-native test: active-mission handle round-trip without symlink support | WP08 | [P] |
+| T046 | Add UTF-8 enforcement at CLI entrypoint: new `src/specify_cli/encoding.py` + call at startup in `src/specify_cli/cli/__init__.py` | WP08 | | [D] |
+| T047 | Windows-native regression test for issue #101: non-UTF-8 codepage; CLI startup + status rendering non-ASCII paths | WP08 | [D] |
+| T048 | Windows-native regression test for issue #71: dashboard path returns non-empty response on Windows | WP08 | [D] |
+| T049 | Upgrade `tests/sync/test_issue_586_windows_import.py` from simulated to native (add `windows_ci` marker) | WP08 | [D] |
+| T050 | Windows-native test: worktree symlink-vs-copy fallback — `.kittify/memory` + `AGENTS.md` readable; path-with-spaces covered | WP08 | [D] |
+| T051 | Windows-native test: active-mission handle round-trip without symlink support | WP08 | [D] |
 | T052 | Run repo-wide grep audit per FR-018 pattern list; capture all findings | WP09 | |
 | T053 | Classify each finding: fixed / covered-by-CI / follow-up-issue | WP09 | |
 | T054 | Write `architecture/2026-04-14-windows-compatibility-hardening.md` audit report with full classification table | WP09 | |
@@ -312,12 +312,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - Active-mission handle fallback semantics must match `mission.py`'s current Windows branch — do not add a new branch.
 
 **Included subtasks**:
-- [ ] T046 Add UTF-8 enforcement at CLI entrypoint: new `src/specify_cli/encoding.py` + call in `src/specify_cli/cli/__init__.py`
-- [ ] T047 Windows-native regression test for #101: non-UTF-8 codepage; CLI startup + status rendering non-ASCII paths
-- [ ] T048 Windows-native regression test for #71: dashboard path returns non-empty response
-- [ ] T049 Upgrade `tests/sync/test_issue_586_windows_import.py` from simulated to native (add `windows_ci` marker)
-- [ ] T050 Windows-native test: worktree symlink-vs-copy fallback — `.kittify/memory` + `AGENTS.md` readable
-- [ ] T051 Windows-native test: active-mission handle round-trip without symlink support
+- [x] T046 Add UTF-8 enforcement at CLI entrypoint: new `src/specify_cli/encoding.py` + call in `src/specify_cli/cli/__init__.py`
+- [x] T047 Windows-native regression test for #101: non-UTF-8 codepage; CLI startup + status rendering non-ASCII paths
+- [x] T048 Windows-native regression test for #71: dashboard path returns non-empty response
+- [x] T049 Upgrade `tests/sync/test_issue_586_windows_import.py` from simulated to native (add `windows_ci` marker)
+- [x] T050 Windows-native test: worktree symlink-vs-copy fallback — `.kittify/memory` + `AGENTS.md` readable
+- [x] T051 Windows-native test: active-mission handle round-trip without symlink support
 
 ---
 
