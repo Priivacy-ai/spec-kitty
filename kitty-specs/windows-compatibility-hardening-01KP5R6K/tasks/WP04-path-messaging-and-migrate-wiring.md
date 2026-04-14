@@ -19,6 +19,8 @@ subtasks:
 - T022
 - T023
 - T024
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "69955"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -262,3 +264,7 @@ Do NOT ask about:
 - Migration internals — that's WP02.
 - Path helper internals — that's WP01.
 - CI configuration — that's WP07.
+
+## Activity Log
+
+- 2026-04-14T11:48:15Z – claude:opus-4.6:implementer:implementer – shell_pid=69955 – Started implementation via action command
