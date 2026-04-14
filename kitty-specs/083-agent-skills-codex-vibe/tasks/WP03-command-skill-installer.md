@@ -1,6 +1,7 @@
 ---
 work_package_id: WP03
 title: Command-Skill Installer (additive, reference-counted)
+lane: "for_review"
 dependencies:
 - WP01
 - WP02
@@ -14,8 +15,8 @@ subtasks:
 - T015
 - T016
 - T017
-lane: "doing"
-shell_pid: "9377"
+shell_pid: '9377'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -292,3 +293,7 @@ Add to the same test file or a sibling `test_command_installer_verify.py`:
 ```bash
 spec-kitty agent action implement WP03 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:14:23Z – claude – shell_pid=9377 – lane=for_review – Installer complete; coexistence test green
