@@ -103,7 +103,7 @@ All 19 Functional Requirements from `spec.md` are mapped to owning WP and test f
 
 **Type**: CROSS-WP-INTEGRATION (post-merge artifact, not a coded regression)
 **Severity**: CRITICAL (for any commit made from the current working tree)
-**Location**: Git staging area at the time of review; `/Users/robert/spec-kitty-dev/windows/spec-kitty/` (working directory)
+**Location**: Git staging area at the time of review; `<reviewer-working-directory>` (working directory)
 **Trigger condition**: Any developer who commits from the current staged state will land a revert of nearly every mission deliverable on `main`.
 
 **Evidence**:

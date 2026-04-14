@@ -45,8 +45,18 @@ class TestGetKittifyHomeUnix:
 
 
 class TestGetKittifyHomeWindows:
-    """Windows default path resolution via platformdirs."""
+    """Windows default path resolution.
 
+    As of DRIFT-3 in the Windows Compatibility Hardening mission,
+    ``get_kittify_home()`` on Windows delegates to
+    ``specify_cli.paths.get_runtime_root().base`` rather than hitting
+    ``platformdirs.user_data_dir`` directly. The monkeypatch-based simulation
+    that worked when the implementation was a thin platformdirs wrapper no
+    longer drives the code path reliably on non-Windows runners, so this test
+    must run on the real ``windows-latest`` CI job.
+    """
+
+    @pytest.mark.windows_ci
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """On Windows, default uses platformdirs user_data_dir (1A-08)."""
         import platformdirs
