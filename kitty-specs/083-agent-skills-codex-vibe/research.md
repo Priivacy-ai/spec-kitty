@@ -204,8 +204,8 @@ Each of these has a working command-file rendering path in Spec Kitty today with
 | Agent | Command layer | Args in commands | Skills layer | Args in skills | Autocomplete (cmds) | Autocomplete (skills) | Spec Kitty action |
 |-------|--------------|------------------|--------------|----------------|---------------------|------------------------|-------------------|
 | Claude Code | `.claude/commands/` | `$ARGUMENTS` + `$1`, `$2` | `.claude/skills/` (merged with commands as of v2.1.3) | `$ARGUMENTS` yes; positional ambiguous per Anthropic issue #19355 | Yes | Yes | Keep commands |
-| Codex | `.codex/prompts/` (**deprecated**) | `$ARGUMENTS` (legacy) | `.agents/skills/` + `~/.codex/skills/` | No documented substitution; invocation text flows as turn content | (deprecated) | Yes (`$skill-name`, `/skills`) | **Move to skills** |
-| Vibe | none | n/a | `.agents/skills/`, `.vibe/skills/`, `~/.vibe/skills/` | Mistral docs silent; DeepWiki hedged | n/a | Yes | **New: skills** |
+| Codex | `.codex/prompts/` (**legacy**) | `$ARGUMENTS` (legacy) | `.agents/skills/` + `~/.codex/skills/` | No documented substitution; invocation text flows as turn content | (legacy) | Yes (`$skill-name`, `/skills`) | **Move to skills** |
+| Vibe | none | n/a | `.vibe/skills/`, `~/.vibe/skills/`, plus custom `skill_paths` from `config.toml` | Mistral docs silent; DeepWiki hedged | n/a | Yes | **New: skills via shared `.agents/skills/` registered in `.vibe/config.toml`** |
 | Gemini | `.gemini/commands/` (TOML) | `{{args}}` | Not a primary surface | n/a | Yes | n/a | Keep commands |
 | opencode | `.opencode/command/` | `$ARGUMENTS`, `$1/$2`, `!cmd`, `@file` | `.opencode/skills/`, `.claude/skills/`, `.agents/skills/` — model-loaded via skill tool | Open upstream bug when invoked as slash commands | Yes | No (model-discovered) | Keep commands |
 | Cursor | `.cursor/commands/` | Limited; argument support still requested | Not a primary surface | n/a | Yes | n/a | Keep commands |

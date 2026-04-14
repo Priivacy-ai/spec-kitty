@@ -8,9 +8,9 @@
 
 ## Overview
 
-Spec Kitty will announce Mistral Vibe as a fully supported coding agent in its next release. During discovery we validated that Vibe is not a drop-in clone of the existing prompt-file integration model; it is a skills-first agent that discovers Agent Skills from `.agents/skills/`, `.vibe/skills/`, and `~/.vibe/skills/`.
+Spec Kitty will announce Mistral Vibe as a fully supported coding agent in its next release. During discovery we validated that Vibe is not a drop-in clone of the existing prompt-file integration model; it is a skills-first agent that discovers Agent Skills from `.vibe/skills/`, `~/.vibe/skills/`, and custom paths declared in `.vibe/config.toml`. This implementation uses that documented custom-path mechanism to register Spec Kitty's shared `.agents/skills/` tree.
 
-P0 research into OpenAI's public Codex documentation (April 2026) confirmed that **Codex has also moved to the Agent Skills model**, that its `/skills` surface reads from the same `.agents/skills/` discovery tree, and that **custom prompts — the current Spec Kitty integration point for Codex — are deprecated**. Spec Kitty's `codex` wiring today generates flat prompt files into `.codex/prompts/` while also shipping skills to `.agents/skills/`; the prompt-file side is obsolete.
+P0 research into OpenAI's public Codex documentation (April 2026) confirmed that **Codex has also moved to the Agent Skills model**, and current OpenAI guidance emphasizes AGENTS/skills-style repo context over the legacy prompt-file path. Spec Kitty's `codex` wiring today generates flat prompt files into `.codex/prompts/` while also shipping skills to `.agents/skills/`; the prompt-file side is obsolete.
 
 This mission therefore does two things at once:
 

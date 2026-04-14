@@ -7,6 +7,7 @@ config.yaml, gitignore, printed next-steps, and idempotency.
 from __future__ import annotations
 
 import io
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -138,6 +139,12 @@ def test_init_vibe_installs_command_skills(
     assert len(manifest["entries"]) == len(CANONICAL_COMMANDS)
     for entry in manifest["entries"]:
         assert entry["agents"] == ["vibe"], entry
+
+    vibe_config = project_path / ".vibe" / "config.toml"
+    assert vibe_config.is_file(), ".vibe/config.toml was not created"
+    with vibe_config.open("rb") as fh:
+        vibe_data = tomllib.load(fh)
+    assert vibe_data["skill_paths"] == [".agents/skills"]
 
 
 # ---------------------------------------------------------------------------

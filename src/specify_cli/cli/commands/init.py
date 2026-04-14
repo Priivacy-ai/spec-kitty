@@ -545,7 +545,11 @@ def init(  # noqa: C901
                         # Codex and Vibe receive Spec Kitty's slash commands as
                         # Agent Skills packages rendered into .agents/skills/.
                         from specify_cli.skills import command_installer  # noqa: PLC0415
+                        from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
+
                         report = command_installer.install(project_path, agent_key)
+                        if agent_key == "vibe":
+                            ensure_project_skill_path(project_path)
                         installed = len(report.added) + len(report.reused_shared)
                         tracker.complete(
                             f"{agent_key}-skills",

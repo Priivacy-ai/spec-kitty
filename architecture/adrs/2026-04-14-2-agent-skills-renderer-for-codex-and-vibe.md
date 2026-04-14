@@ -57,7 +57,7 @@ telling the model to read turn content as user input, and emits per-command
 `SKILL.md` packages under `.agents/skills/spec-kitty.<command>/`. The
 installer writes those packages **additively** into the shared
 `.agents/skills/` root and tracks ownership via
-`.kittify/skills-manifest.json`.
+`.kittify/command-skills-manifest.json`.
 
 The twelve remaining command-layer agents (claude, gemini, copilot,
 cursor, qwen, opencode, windsurf, kilocode, auggie, roo, q, antigravity)
@@ -70,11 +70,12 @@ Concretely:
 - **Canonical command key** for Mistral Vibe: `vibe` (following the
   `claude`/`codex`/`gemini` product-name convention, not the vendor
   name).
-- **Primary discovery root** for both Codex and Vibe in this release:
-  project-local `.agents/skills/` only. Global (`~/`) and vendor-specific
-  roots (`.vibe/skills/`, `~/.codex/skills/`) are explicitly out of
+- **Primary discovery root** for Codex in this release:
+  project-local `.agents/skills/`. Vibe is pointed at that shared tree via
+  project-local `.vibe/config.toml` `skill_paths`, which matches Mistral's
+  documented custom-path mechanism. Vendor-specific skill copies remain out of
   scope.
-- **Ownership manifest** at `.kittify/skills-manifest.json` records every
+- **Ownership manifest** at `.kittify/command-skills-manifest.json` records every
   Spec-Kitty-owned file with its SHA-256 hash and a reference-counted
   list of agents that installed it. Removing an agent drops its entry
   from the list; files are physically deleted only when the list

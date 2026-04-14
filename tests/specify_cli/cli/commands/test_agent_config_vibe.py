@@ -8,6 +8,7 @@ Tests:
 
 from __future__ import annotations
 
+import tomllib
 from pathlib import Path
 from unittest.mock import patch
 
@@ -67,6 +68,12 @@ def test_add_vibe_updates_config(tmp_path: Path) -> None:
 
     config = load_agent_config(tmp_path)
     assert "vibe" in config.available
+
+    vibe_config = tmp_path / ".vibe" / "config.toml"
+    assert vibe_config.is_file(), ".vibe/config.toml was not created"
+    with vibe_config.open("rb") as fh:
+        vibe_data = tomllib.load(fh)
+    assert vibe_data["skill_paths"] == [".agents/skills"]
 
 
 def test_add_vibe_prints_registered(tmp_path: Path) -> None:

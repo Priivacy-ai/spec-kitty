@@ -16,6 +16,7 @@ Expected output:
 
 - `.kittify/config.yaml` is written with `agents.available: [vibe]`.
 - `.agents/skills/spec-kitty.<command>/SKILL.md` is generated for every canonical command (`specify`, `plan`, `tasks`, `implement`, `review`, `merge`, etc.).
+- `.vibe/config.toml` is created (or updated) with `skill_paths = [".agents/skills"]` so Vibe discovers the shared Agent Skills tree.
 - `.kittify/command-skills-manifest.json` records each file with its hash and the agent (`vibe`) that installed it.
 - `.gitignore` gains a stanza protecting project-local `.vibe/` runtime state.
 - Printed next steps tell you to launch Vibe in the project and invoke `/spec-kitty.specify`.

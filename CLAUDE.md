@@ -58,14 +58,14 @@ Spec Kitty supports **14 AI agents** total: 12 use the slash-command pipeline (f
 | Agent | Skills Root | Command Surface | Key |
 |-------|-------------|-----------------|-----|
 | Codex CLI | `.agents/skills/` | `$spec-kitty.<command>` | `codex` |
-| Mistral Vibe | `.agents/skills/` | `/spec-kitty.<command>` | `vibe` |
+| Mistral Vibe | `.agents/skills/` via `.vibe/config.toml` `skill_paths` | `/spec-kitty.<command>` | `vibe` |
 
-Codex and Vibe share a single installation under `.agents/skills/spec-kitty.<command>/SKILL.md`. The manifest at `.kittify/skills-manifest.json` tracks which agents reference each skill package.
+Codex and Vibe share a single installation under `.agents/skills/spec-kitty.<command>/SKILL.md`. Codex reads that tree directly; Vibe is configured to read it via `.vibe/config.toml`. The manifest at `.kittify/command-skills-manifest.json` tracks which agents reference each skill package.
 
 **New modules (mission 083):**
 - `src/specify_cli/skills/command_renderer.py` — renders source templates into Agent Skills format
 - `src/specify_cli/skills/command_installer.py` — installs/removes skill packages and updates the manifest
-- `src/specify_cli/skills/manifest_store.py` — reads and writes `.kittify/skills-manifest.json`
+- `src/specify_cli/skills/manifest_store.py` — reads and writes `.kittify/command-skills-manifest.json`
 
 **Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
 

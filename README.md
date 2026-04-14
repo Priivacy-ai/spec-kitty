@@ -721,7 +721,7 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
-Spec Kitty integrates with 14 AI tools.  Twelve tools receive **slash commands** written to an agent-specific directory (e.g. `.claude/commands/`).  Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: spec-kitty command files are installed once under `.agents/skills/spec-kitty.<command>/` and shared by both agents via reference-counted installation.
+Spec Kitty integrates with 14 AI tools. Twelve tools receive **slash commands** written to an agent-specific directory (e.g. `.claude/commands/`). Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: Spec Kitty installs command skills once under `.agents/skills/spec-kitty.<command>/`, Codex reads that shared tree directly, and Vibe is wired to it through project-local `.vibe/config.toml` `skill_paths`.
 
 | Tool                                                      | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
@@ -735,8 +735,8 @@ Spec Kitty integrates with 14 AI tools.  Twelve tools receive **slash commands**
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
-| [Codex CLI](https://github.com/openai/codex)              | ✅ | Agent Skills (`.agents/skills/`); shared with Vibe when both are configured. |
-| [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | ✅ | Agent Skills (`.agents/skills/`); shared with Codex when both are configured. |
+| [Codex CLI](https://github.com/openai/codex)              | ✅ | Agent Skills under `.agents/skills/`. |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | ✅ | Agent Skills under `.agents/skills/`, registered through `.vibe/config.toml` `skill_paths`. |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 
 <details>

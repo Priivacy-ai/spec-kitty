@@ -135,9 +135,12 @@ def add_agents(
             # Skill-only agents (codex, vibe) receive Spec Kitty's slash commands
             # as Agent Skills packages rendered into .agents/skills/.
             from specify_cli.skills import command_installer  # noqa: PLC0415
+            from specify_cli.skills.vibe_config import ensure_project_skill_path  # noqa: PLC0415
 
             try:
                 report = command_installer.install(repo_root, agent_key)
+                if agent_key == "vibe":
+                    ensure_project_skill_path(repo_root)
                 installed = len(report.added) + len(report.reused_shared)
                 added.append(agent_key)
                 config.available.append(agent_key)
