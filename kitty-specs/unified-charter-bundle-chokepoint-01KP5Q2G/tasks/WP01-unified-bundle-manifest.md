@@ -566,3 +566,4 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 ## Activity Log
 
 - 2026-04-14T11:34:21Z – claude:sonnet:implementer:implementer – shell_pid=52639 – Assigned agent via action command
+- 2026-04-14T11:44:29Z – claude:sonnet:implementer:implementer – shell_pid=52639 – WP01 implementation complete — manifest, CLI sub-app, architecture doc, tests, occurrence artifact all in place. TODO(WP02) marker preserved for downstream replacement.
