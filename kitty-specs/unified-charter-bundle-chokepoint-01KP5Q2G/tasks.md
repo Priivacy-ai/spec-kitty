@@ -20,14 +20,14 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 | T005 | Write `tests/charter/test_bundle_manifest_model.py` | WP01 | [D] |
 | T006 | Write `tests/charter/test_bundle_validate_cli.py` (Typer runner integration) | WP01 | [D] |
 | T007 | Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` | WP01 | — | [D] |
-| T008 | Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache | WP02 | — |
-| T009 | Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix | WP02 | [P] |
-| T010 | Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` | WP02 | — |
-| T011 | Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest | WP02 | — |
-| T012 | Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` | WP02 | — |
-| T013 | Write `tests/charter/test_chokepoint_overhead.py` (NFR-002 benchmarks) | WP02 | [P] |
-| T014 | Write `tests/charter/test_resolution_overhead.py` (NFR-003 benchmarks) | WP02 | [P] |
-| T015 | Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` | WP02 | — |
+| T008 | Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache | WP02 | — | [D] |
+| T009 | Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix | WP02 | [D] |
+| T010 | Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` | WP02 | — | [D] |
+| T011 | Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest | WP02 | — | [D] |
+| T012 | Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` | WP02 | — | [D] |
+| T013 | Write `tests/charter/test_chokepoint_overhead.py` (NFR-002 benchmarks) | WP02 | [D] |
+| T014 | Write `tests/charter/test_resolution_overhead.py` (NFR-003 benchmarks) | WP02 | [D] |
+| T015 | Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` | WP02 | — | [D] |
 | T016 | **STEP A**: capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` | WP03 | — |
 | T017 | Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint (does NOT touch lines 385-398) | WP03 | — |
 | T018 | Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` | WP03 | — |
@@ -103,14 +103,14 @@ See **Included subtasks** above (checkbox format is the tracking surface).
 
 ### Included subtasks
 
-- [ ] T008 Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache (WP02)
-- [ ] T009 Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix (WP02) [P]
-- [ ] T010 Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` (WP02)
-- [ ] T011 Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest (WP02)
-- [ ] T012 Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` (WP02)
-- [ ] T013 Write `tests/charter/test_chokepoint_overhead.py` — NFR-002 benchmarks (WP02) [P]
-- [ ] T014 Write `tests/charter/test_resolution_overhead.py` — NFR-003 benchmarks (WP02) [P]
-- [ ] T015 Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` (WP02)
+- [x] T008 Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache (WP02)
+- [x] T009 Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix (WP02) [P]
+- [x] T010 Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` (WP02)
+- [x] T011 Refactor `ensure_charter_bundle_fresh()` to call the resolver and consult the manifest (WP02)
+- [x] T012 Update `post_save_hook()` + any existing `SyncResult` inspections inside `src/charter/sync.py` and its tests for `canonical_root` (WP02)
+- [x] T013 Write `tests/charter/test_chokepoint_overhead.py` — NFR-002 benchmarks (WP02) [P]
+- [x] T014 Write `tests/charter/test_resolution_overhead.py` — NFR-003 benchmarks (WP02) [P]
+- [x] T015 Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` (WP02)
 
 ### Implementation sketch
 
