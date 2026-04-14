@@ -11,6 +11,8 @@ subtasks:
 - T032
 - T033
 phase: Phase 0 — Parallel investigation
+agent: "claude:sonnet-4.6:implementer:implementer"
+shell_pid: "57529"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -129,3 +131,7 @@ Regardless of outcome, the investigation doc must end with a clear "Verdict" sec
 - Verify the investigation document is thorough: code anchors are accurate, reproduction steps are complete, verdict is unambiguous.
 - Verify NO code was edited outside `kitty-specs/.../research/`.
 - Verify that if a follow-up issue was filed, it links back to this document and has a clear scope.
+
+## Activity Log
+
+- 2026-04-14T05:51:00Z – claude:sonnet-4.6:implementer:implementer – shell_pid=57529 – Started implementation via action command
