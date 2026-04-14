@@ -86,7 +86,7 @@ that other CLI surfaces hook into.
 
 See Priivacy-ai/spec-kitty#588 for the data-loss regression that motivated this
 surface and the four-layer hybrid architecture recorded in ADR
-2026-04-14-sparse-checkout-defense-in-depth.
+2026-04-14-1-sparse-checkout-defense-in-depth.
 """
 
 from __future__ import annotations

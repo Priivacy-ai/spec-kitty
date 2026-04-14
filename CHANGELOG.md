@@ -22,7 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Commit-time backstop inside `safe_commit`** — fail-closed check that aborts commits whose staging area contains paths outside the intended scope, independent of the preflight. This is the universal defence that catches sparse-stash-pop phantom-deletion cascades regardless of which command initiated them.
 - **Per-worktree `.spec-kitty/` exclude entry** — every lane worktree now receives a local git exclude entry for `.spec-kitty/` at worktree creation, so lane scratch content stays invisible to the working-tree guard even in worktrees initialised before the fix.
 - **Session-scoped sparse-checkout warning** at review-lock and task-command entry points — surfaces detected legacy sparse-checkout state once per process before an operator wastes a commit cycle, without blocking.
-- **ADR `2026-04-14-sparse-checkout-defense-in-depth`** — documents the four-layer hybrid defence (merge/implement preflight, `safe_commit` backstop, session warning, `doctor --fix`) and the alternatives considered.
+- **ADR `2026-04-14-1-sparse-checkout-defense-in-depth`** — documents the four-layer hybrid defence (merge/implement preflight, `safe_commit` backstop, session warning, `doctor --fix`) and the alternatives considered.
 
 ### Recovery for users already affected
 

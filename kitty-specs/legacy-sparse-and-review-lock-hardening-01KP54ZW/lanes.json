@@ -19,7 +19,7 @@
       ],
       "write_scope": [
         "CHANGELOG.md",
-        "architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md",
+        "architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md",
         "src/specify_cli/cli/commands/agent/tasks.py",
         "src/specify_cli/cli/commands/agent/workflow.py",
         "src/specify_cli/cli/commands/glossary.py",

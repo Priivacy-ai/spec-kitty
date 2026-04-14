@@ -63,7 +63,7 @@ Total: 35 subtasks across 9 WPs.
 | T031 | Integration tests: approve/reject without `--force`, filter rules, release cleanup | WP06 | [P] |
 | T032 | Investigate FR-020 approve-output source-lane anomaly | WP08 |  | [D] |
 | T033 | Publish FR-020 investigation report; escalate fix if needed | WP08 |  | [D] |
-| T034 | Draft ADR `2026-04-14-sparse-checkout-defense-in-depth.md` | WP09 |  | [D] |
+| T034 | Draft ADR `2026-04-14-1-sparse-checkout-defense-in-depth.md` | WP09 |  | [D] |
 | T035 | CHANGELOG entry + recovery recipe for affected users | WP09 | [D] |
 | T036 | Post diagnostic comment on Priivacy-ai/spec-kitty#588 | WP09 | [D] |
 | T037 | Session-warning call sites at charter sync and other external CLI surfaces | WP07 |  | [D] |
@@ -259,7 +259,7 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP09-adr-changelog-and-diagnostic-comment.md](tasks/WP09-adr-changelog-and-diagnostic-comment.md)
 
 **Included subtasks**:
-- [x] T034 Draft ADR `2026-04-14-sparse-checkout-defense-in-depth.md` (WP09)
+- [x] T034 Draft ADR `2026-04-14-1-sparse-checkout-defense-in-depth.md` (WP09)
 - [x] T035 CHANGELOG entry + recovery recipe for affected users (WP09) [P]
 - [x] T036 Post diagnostic comment on Priivacy-ai/spec-kitty#588 (WP09) [P]
 

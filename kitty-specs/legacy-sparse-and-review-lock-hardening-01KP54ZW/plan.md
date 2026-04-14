@@ -49,7 +49,7 @@ Action doctrine (plan): DIRECTIVE_003 (decision documentation), DIRECTIVE_010 (s
 | Policy: typer / rich / ruamel.yaml / pytest / mypy --strict stack | **Pass** | No new dependencies introduced. |
 | Policy: 90%+ coverage on new code | **Pass (committed)** | Integration and unit tests accompany every new module. |
 | Policy: integration tests for CLI commands | **Pass (committed)** | Five integration test files planned (see quickstart.md test map). |
-| DIRECTIVE_003 (decision documentation) | **Pass** | Decision Log in spec.md + ADR `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` planned in the implementation. |
+| DIRECTIVE_003 (decision documentation) | **Pass** | Decision Log in spec.md + ADR `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` planned in the implementation. |
 | DIRECTIVE_010 (specification fidelity) | **Pass** | Plan and design artifacts trace back 1:1 to FRs / NFRs / Cs in spec.md. |
 | `requirements-validation-workflow` | **Pass** | Requirements checklist at `checklists/requirements.md` — all items pass. |
 | `adr-drafting-workflow` | **Pass (planned)** | Implementation WPs include ADR draft; see Phase 2 preview below. |
@@ -97,7 +97,7 @@ src/specify_cli/
 └── (entry-point modules)                      # MODIFY — invoke warn_if_sparse_once (FR-010) at common CLI surfaces
 
 architecture/1.x/adr/
-└── 2026-04-14-sparse-checkout-defense-in-depth.md  # NEW — records the four-layer architecture (DIRECTIVE_003, adr-drafting-workflow)
+└── 2026-04-14-1-sparse-checkout-defense-in-depth.md  # NEW — records the four-layer architecture (DIRECTIVE_003, adr-drafting-workflow)
 
 CHANGELOG.md                                    # MODIFY — FR-021 entry + recovery recipe
 
@@ -141,7 +141,7 @@ See [research.md](research.md). Nine investigations (R1–R9) resolved every pla
 - R6: `core.sparseCheckout=true` ⇒ active, irrespective of pattern contents.
 - R7: `isatty` AND no common CI env var for non-interactive detection.
 - R8: five-step per-worktree remediation, aggregated report.
-- R9: ADR draft in `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md`.
+- R9: ADR draft in `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md`.
 
 Post-research Charter Check re-evaluated: still passing (no new violations surfaced).
 

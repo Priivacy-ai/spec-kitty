@@ -151,7 +151,7 @@ The backstop runs inside `safe_commit` after staging but before the commit invoc
 | Review-lock release on approve/reject | `src/specify_cli/cli/commands/agent/tasks.py` (modified) | New call into `ReviewLock.release()` with empty-dir cleanup |
 | `ReviewLock.release()` empty-dir cleanup | `src/specify_cli/review/lock.py` (modified) | Enhance existing `release` staticmethod |
 | Per-worktree exclude writer | `src/specify_cli/core/worktree.py` or the VCS create path (modified) | New post-creation step |
-| ADR | `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` | New |
+| ADR | `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` | New |
 | CHANGELOG entry | `CHANGELOG.md` (modified) | Describes all fixes + recovery recipe |
 
 ---

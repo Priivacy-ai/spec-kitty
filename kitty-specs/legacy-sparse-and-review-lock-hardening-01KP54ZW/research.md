@@ -157,7 +157,7 @@ Step 1 (`git sparse-checkout disable`) is documented to handle both config unset
 
 **Finding**: The layered-hybrid preflight architecture is a material decision with rejected alternatives (pure-merge-only and pure-blanket-gate). The Decision Log in the spec captures this under DIRECTIVE_003, but an ADR in `architecture/1.x/adr/` would formalize it for future contributors.
 
-**Decision**: Draft an ADR in `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` as part of the implementation. The ADR describes the four-layer architecture, records the rejected alternatives, and notes the commit-time backstop as the universal defense that applies regardless of the entry point.
+**Decision**: Draft an ADR in `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` as part of the implementation. The ADR describes the four-layer architecture, records the rejected alternatives, and notes the commit-time backstop as the universal defense that applies regardless of the entry point.
 
 **Alternatives rejected**:
 - Skip the ADR and rely on the spec's Decision Log — rejected; the architecture is load-bearing across four files and future contributors should find the reasoning in the canonical ADR location.
@@ -176,4 +176,4 @@ Step 1 (`git sparse-checkout disable`) is documented to handle both config unset
 | Detection rule | `core.sparseCheckout=true` ⇒ active, irrespective of pattern contents |
 | Non-interactive detection | `isatty` AND no common CI env var |
 | Worktree remediation | Iterate `.worktrees/*`, apply 5-step repair per worktree |
-| ADR | Draft `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` |
+| ADR | Draft `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` |

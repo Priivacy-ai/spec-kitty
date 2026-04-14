@@ -29,7 +29,7 @@ authoritative_surface: architecture/1.x/adr/
 execution_mode: code_change
 mission_id: 01KP54ZWEEPCC2VC3YKRX1HT8W
 owned_files:
-- architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md
+- architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md
 - CHANGELOG.md
 tags: []
 wp_code: WP09
@@ -73,7 +73,7 @@ Document the mission's architectural decision in an ADR, update the user-facing 
 
 ### T034 — Draft the ADR
 
-**Files**: `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` (new)
+**Files**: `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` (new)
 
 **What**: Follow the existing ADR template in `architecture/1.x/adr/`. Title: **"Sparse-Checkout Defence in Depth: Four-Layer Hybrid Preflight + Commit-Layer Backstop"**.
 
@@ -163,7 +163,7 @@ The comment is non-blocking for mission acceptance. If posting fails, retry or e
 
 ## Definition of Done
 
-- [ ] `architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md` exists with all required sections.
+- [ ] `architecture/1.x/adr/2026-04-14-1-sparse-checkout-defense-in-depth.md` exists with all required sections.
 - [ ] `CHANGELOG.md` contains the entries listed in T035 (Fixed, Added, Recovery recipe).
 - [ ] Diagnostic comment posted on Priivacy-ai/spec-kitty#588; link to the comment recorded in the CHANGELOG or research doc.
 - [ ] No other code changes in this WP beyond the files listed in `owned_files`.
