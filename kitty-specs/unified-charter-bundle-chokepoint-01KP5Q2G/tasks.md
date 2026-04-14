@@ -28,15 +28,15 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 | T013 | Write `tests/charter/test_chokepoint_overhead.py` (NFR-002 benchmarks) | WP02 | [D] |
 | T014 | Write `tests/charter/test_resolution_overhead.py` (NFR-003 benchmarks) | WP02 | [D] |
 | T015 | Author `kitty-specs/.../occurrences/WP02.yaml` and extend `index.yaml` | WP02 | — | [D] |
-| T016 | **STEP A**: capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` | WP03 | — |
-| T017 | Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint (does NOT touch lines 385-398) | WP03 | — |
-| T018 | Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` | WP03 | — |
-| T019 | Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py` — preserve `#361` typed contracts | WP03 | — |
-| T020 | Lockstep update to `src/specify_cli/charter/` duplicate package (any live reader) | WP03 | — |
-| T021 | Write `tests/charter/test_chokepoint_coverage.py` (AST walk) and `tests/charter/test_bundle_contract.py` | WP03 | [P] |
-| T022 | Write `tests/init/test_fresh_clone_no_sync.py` and `tests/charter/test_worktree_charter_via_canonical_root.py` | WP03 | [P] |
-| T023 | Write `tests/test_dashboard/test_charter_chokepoint_regression.py` (byte-identical with redactions) | WP03 | [P] |
-| T024 | Author `kitty-specs/.../occurrences/WP03.yaml` (includes C-011 / C-012 carve-outs) and extend `index.yaml` | WP03 | — |
+| T016 | **STEP A**: capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` | WP03 | — | [D] |
+| T017 | Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint (does NOT touch lines 385-398) | WP03 | — | [D] |
+| T018 | Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` | WP03 | — | [D] |
+| T019 | Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py` — preserve `#361` typed contracts | WP03 | — | [D] |
+| T020 | Lockstep update to `src/specify_cli/charter/` duplicate package (any live reader) | WP03 | — | [D] |
+| T021 | Write `tests/charter/test_chokepoint_coverage.py` (AST walk) and `tests/charter/test_bundle_contract.py` | WP03 | [D] |
+| T022 | Write `tests/init/test_fresh_clone_no_sync.py` and `tests/charter/test_worktree_charter_via_canonical_root.py` | WP03 | [D] |
+| T023 | Write `tests/test_dashboard/test_charter_chokepoint_regression.py` (byte-identical with redactions) | WP03 | [D] |
+| T024 | Author `kitty-specs/.../occurrences/WP03.yaml` (includes C-011 / C-012 carve-outs) and extend `index.yaml` | WP03 | — | [D] |
 | T025 | Create `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py` | WP04 | — |
 | T026 | Write `tests/upgrade/test_unified_bundle_migration.py` against FR-013 fixture matrix (five fixtures) | WP04 | [P] |
 | T027 | Register migration in `src/specify_cli/upgrade/migrations/__init__.py` (if explicit registration is required; auto-discovery may suffice) | WP04 | — |
@@ -149,15 +149,15 @@ See **Included subtasks** above (checkbox format is the tracking surface).
 
 ### Included subtasks
 
-- [ ] T016 Capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` — **Step A, MUST run first** (WP03)
-- [ ] T017 Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint; does NOT touch lines 385-398 (C-012) (WP03)
-- [ ] T018 Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app via `charter_app.add_typer(charter_bundle.app, name="bundle")`; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` (WP03)
-- [ ] T019 Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py`; preserve `#361` typed contracts (WP03)
-- [ ] T020 Lockstep update to `src/specify_cli/charter/` duplicate package where live readers remain (WP03)
-- [ ] T021 Write `tests/charter/test_chokepoint_coverage.py` (AST walk) and `tests/charter/test_bundle_contract.py` (WP03) [P]
-- [ ] T022 Write `tests/init/test_fresh_clone_no_sync.py` and `tests/charter/test_worktree_charter_via_canonical_root.py` (WP03) [P]
-- [ ] T023 Write `tests/test_dashboard/test_charter_chokepoint_regression.py` — byte-identical with R-4 redactions (WP03) [P]
-- [ ] T024 Author `kitty-specs/.../occurrences/WP03.yaml` (includes C-011 / C-012 carve-outs) and extend `index.yaml` (WP03)
+- [x] T016 Capture pre-WP03 dashboard typed-contracts baseline via committed `baseline/capture.py` — **Step A, MUST run first** (WP03)
+- [x] T017 Flip `src/charter/context.py :: build_charter_context()` to route through the chokepoint; does NOT touch lines 385-398 (C-012) (WP03)
+- [x] T018 Flip CLI + prompt-builder readers: `charter.py` handlers + register `charter_bundle` sub-app via `charter_app.add_typer(charter_bundle.app, name="bundle")`; `next/prompt_builder.py`; `cli/commands/agent/workflow.py` (WP03)
+- [x] T019 Flip dashboard readers: `charter_path.py`, `scanner.py`, `server.py`; preserve `#361` typed contracts (WP03)
+- [x] T020 Lockstep update to `src/specify_cli/charter/` duplicate package where live readers remain (WP03)
+- [x] T021 Write `tests/charter/test_chokepoint_coverage.py` (AST walk) and `tests/charter/test_bundle_contract.py` (WP03) [P]
+- [x] T022 Write `tests/init/test_fresh_clone_no_sync.py` and `tests/charter/test_worktree_charter_via_canonical_root.py` (WP03) [P]
+- [x] T023 Write `tests/test_dashboard/test_charter_chokepoint_regression.py` — byte-identical with R-4 redactions (WP03) [P]
+- [x] T024 Author `kitty-specs/.../occurrences/WP03.yaml` (includes C-011 / C-012 carve-outs) and extend `index.yaml` (WP03)
 
 ### Implementation sketch
 
