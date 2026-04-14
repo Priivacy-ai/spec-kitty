@@ -15,6 +15,8 @@ subtasks:
 - T012
 - T019
 phase: Phase 0 — Sparse-checkout foundation
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "50309"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -365,3 +367,7 @@ def require_no_sparse_checkout(
 - Verify that `warn_if_sparse_once` is truly once-per-process (run the test against a single-process invocation of N calls).
 - Verify no code path mutates git state. Grep for `git config --set`, `git sparse-checkout`, `subprocess.run(..., "add", ...)` — none should appear in this module. Mutation is WP03's job.
 - Verify the structured-log stable markers match the names used in WP05's override wiring and in quickstart Flow 2 / Flow 3.
+
+## Activity Log
+
+- 2026-04-14T06:28:59Z – claude:opus-4.6:implementer:implementer – shell_pid=50309 – Started implementation via action command
