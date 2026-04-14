@@ -18,11 +18,11 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T003 | Implement `render_runtime_path(path, *, for_user=True)` helper | WP01 | [D] |
 | T004 | Unit tests for `RuntimeRoot` + `get_runtime_root` (platform-mocked) | WP01 | [D] |
 | T005 | Unit tests for `render_runtime_path` (platform-mocked) | WP01 | [D] |
-| T006 | Implement `MigrationOutcome` + `LegacyWindowsRoot` dataclasses in `windows_migrate.py` | WP02 | |
-| T007 | Implement `migrate_windows_state(dry_run=False)` with destination-wins + timestamped quarantine | WP02 | |
-| T008 | Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op) | WP02 | |
-| T009 | Tests: absent noop, move to empty, quarantine on conflict, idempotent second run, dry-run | WP02 | [P] |
-| T010 | Concurrency stress test: two subprocesses racing the migration lock | WP02 | [P] |
+| T006 | Implement `MigrationOutcome` + `LegacyWindowsRoot` dataclasses in `windows_migrate.py` | WP02 | | [D] |
+| T007 | Implement `migrate_windows_state(dry_run=False)` with destination-wins + timestamped quarantine | WP02 | | [D] |
+| T008 | Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op) | WP02 | | [D] |
+| T009 | Tests: absent noop, move to empty, quarantine on conflict, idempotent second run, dry-run | WP02 | [D] |
+| T010 | Concurrency stress test: two subprocesses racing the migration lock | WP02 | [D] |
 | T011 | Refactor `SecureStorage.from_environment()` to hard-dispatch on `sys.platform` | WP03 | | [D] |
 | T012 | Create `WindowsFileStorage` in new `windows_storage.py` pointed at `get_runtime_root().auth_dir` | WP03 | | [D] |
 | T013 | Replace `_DEFAULT_DIR` module constant with `default_store_dir()` function in `file_fallback.py` | WP03 | | [D] |
@@ -136,11 +136,11 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - Quarantine name collisions within a single second — resolve via `_N` suffix.
 
 **Included subtasks**:
-- [ ] T006 Implement `MigrationOutcome` + `LegacyWindowsRoot` dataclasses in `windows_migrate.py`
-- [ ] T007 Implement `migrate_windows_state(dry_run=False)` with destination-wins + timestamped quarantine
-- [ ] T008 Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op)
-- [ ] T009 Tests: absent noop, move to empty, quarantine on conflict, idempotent second run, dry-run
-- [ ] T010 Concurrency stress test: two subprocesses racing the migration lock
+- [x] T006 Implement `MigrationOutcome` + `LegacyWindowsRoot` dataclasses in `windows_migrate.py`
+- [x] T007 Implement `migrate_windows_state(dry_run=False)` with destination-wins + timestamped quarantine
+- [x] T008 Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op)
+- [x] T009 Tests: absent noop, move to empty, quarantine on conflict, idempotent second run, dry-run
+- [x] T010 Concurrency stress test: two subprocesses racing the migration lock
 
 ---
 
