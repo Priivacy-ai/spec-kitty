@@ -1,6 +1,7 @@
 ---
 work_package_id: WP02
 title: Command-Skill Renderer
+lane: "for_review"
 dependencies: []
 base_branch: main
 base_commit: 05e6c3ed6d49dda2dc83fa525d8958632daa2c09
@@ -12,8 +13,8 @@ subtasks:
 - T009
 - T010
 - T011
-lane: "doing"
-shell_pid: "3994"
+shell_pid: '3994'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -193,3 +194,7 @@ Snapshot update workflow: document in the test file's module docstring how to re
 ```bash
 spec-kitty agent action implement WP02 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:04:14Z – claude – shell_pid=3994 – lane=for_review – Implementation complete; ready for review
