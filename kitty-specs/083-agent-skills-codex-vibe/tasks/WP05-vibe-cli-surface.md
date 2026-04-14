@@ -1,6 +1,7 @@
 ---
 work_package_id: WP05
 title: Vibe CLI Surface (init, verify, gitignore)
+lane: "for_review"
 dependencies:
 - WP04
 base_branch: main
@@ -12,8 +13,8 @@ subtasks:
 - T025
 - T026
 - T027
-lane: "doing"
-shell_pid: "16249"
+shell_pid: '16249'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -155,3 +156,7 @@ Create `tests/specify_cli/cli/commands/test_agent_config_vibe.py`:
 ```bash
 spec-kitty agent action implement WP05 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:35:14Z – claude – shell_pid=16249 – lane=for_review – Vibe CLI surface complete; 16/16 tests pass
