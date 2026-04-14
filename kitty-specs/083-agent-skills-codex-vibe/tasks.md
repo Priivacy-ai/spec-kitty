@@ -150,11 +150,11 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T018 Edit `core/config.py` — add `vibe`; drop `codex` from command config (WP04)
-- [ ] T019 Edit `agent_utils/directories.py` — adjust registries (WP04)
-- [ ] T020 Edit `runtime/agent_commands.py` — route codex + vibe to installer (WP04)
-- [ ] T021 Edit `cli/commands/agent/config.py` — `remove` uses `command_installer.remove()` (WP04)
-- [ ] T022 Unit tests — registry shape and routing (WP04)
+- [x] T018 Edit `core/config.py` — add `vibe`; drop `codex` from command config (WP04)
+- [x] T019 Edit `agent_utils/directories.py` — adjust registries (WP04)
+- [x] T020 Edit `runtime/agent_commands.py` — route codex + vibe to installer (WP04)
+- [x] T021 Edit `cli/commands/agent/config.py` — `remove` uses `command_installer.remove()` (WP04)
+- [x] T022 Unit tests — registry shape and routing (WP04)
 
 **Dependencies**: WP03.
 
@@ -249,4 +249,5 @@ Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vi
 ## Canonical Status (Generated)
 - WP01: done
 - WP02: done
+- WP03: done
 <!-- status-model:end -->
