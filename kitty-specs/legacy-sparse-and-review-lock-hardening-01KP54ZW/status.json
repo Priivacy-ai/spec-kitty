@@ -2,7 +2,7 @@
   "event_count": 54,
   "last_event_id": "01KP5G4NEXSAGHYVK412AY8SVF",
   "materialized_at": "2026-04-14T08:01:19.325830+00:00",
-  "mission_number": "",
+  "mission_number": "83",
   "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
   "mission_type": "software-dev",
   "summary": {

@@ -2,7 +2,7 @@
   "event_count": 31,
   "last_event_id": "01KNPSSZ26VMS5F70SN2DNGCTA",
   "materialized_at": "2026-04-08T15:01:37.990415+00:00",
-  "mission_number": "077",
+  "mission_number": "77",
   "mission_slug": "077-mission-terminology-cleanup",
   "mission_type": "software-dev",
   "summary": {

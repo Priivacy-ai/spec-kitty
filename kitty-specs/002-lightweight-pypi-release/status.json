@@ -2,7 +2,7 @@
   "event_count": 4,
   "last_event_id": "01KJ5V38JDYQW3ESGM3ER1JJV3",
   "materialized_at": "2025-11-02T16:58:36Z",
-  "mission_number": "002",
+  "mission_number": "2",
   "mission_slug": "002-lightweight-pypi-release",
   "mission_type": "research",
   "summary": {

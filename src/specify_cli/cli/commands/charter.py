@@ -21,7 +21,8 @@ from charter.interview import (
     read_interview_answers,
     write_interview_answers,
 )
-from charter.sync import sync as sync_charter
+from charter.sync import ensure_charter_bundle_fresh, sync as sync_charter
+from specify_cli.cli.commands.charter_bundle import app as charter_bundle_app
 from specify_cli.cli.selector_resolution import resolve_selector
 from specify_cli.tasks_support import TaskCliError, find_repo_root
 
@@ -30,6 +31,12 @@ app = typer.Typer(
     help="Charter management commands",
     no_args_is_help=True,
 )
+
+# WP01 introduced ``charter_bundle_app`` as a self-contained Typer sub-app.
+# WP03 registers it under ``bundle`` so users can invoke
+# ``spec-kitty charter bundle validate`` from the unified CLI surface
+# (FR-013).
+app.add_typer(charter_bundle_app, name="bundle")
 
 console = Console()
 
@@ -397,7 +404,13 @@ def status(
     """Display charter sync status."""
     try:
         repo_root = find_repo_root()
-        charter_path = _resolve_charter_path(repo_root)
+        # FR-004 chokepoint: route the status handler through
+        # ``ensure_charter_bundle_fresh`` so the displayed metadata reflects
+        # a freshly synced bundle, and so the displayed paths are anchored at
+        # the canonical (main-checkout) root even when invoked from a worktree.
+        sync_result = ensure_charter_bundle_fresh(repo_root)
+        canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
+        charter_path = _resolve_charter_path(canonical_root)
         output_dir = charter_path.parent
         metadata_path = output_dir / "metadata.yaml"
 
@@ -426,7 +439,7 @@ def status(
 
         if json_output:
             data = {
-                "charter_path": str(charter_path.relative_to(repo_root)),
+                "charter_path": str(charter_path.relative_to(canonical_root)),
                 "status": "stale" if stale else "synced",
                 "current_hash": current_hash,
                 "stored_hash": stored_hash,
@@ -437,7 +450,7 @@ def status(
             print(json.dumps(data, indent=2))
             return
 
-        console.print(f"Charter: {charter_path.relative_to(repo_root)}")
+        console.print(f"Charter: {charter_path.relative_to(canonical_root)}")
 
         if stale:
             console.print("Status: [yellow]STALE[/yellow] (modified since last sync)")

@@ -33,6 +33,10 @@ class UpgradeResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
+    # Per-migration ``MigrationResult`` keyed by migration_id. Used by the
+    # CLI --json path to surface schema-shaped reports emitted by individual
+    # migrations (e.g. m_3_2_3_unified_bundle's contract-shaped payload).
+    migration_results: dict[str, MigrationResult] = field(default_factory=dict)
 
 
 def validate_upgrade_target(from_version: str, target_version: str) -> str | None:
@@ -130,6 +134,12 @@ class MigrationRunner:
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
             result.warnings.extend(migration_result.warnings)
+            # Preserve each migration's structured payload so the CLI --json
+            # layer can surface schema-shaped reports (Finding 2 / review
+            # cycle 1). We record applied and skipped results alike so
+            # operators can see both no-op and refresh payloads.
+            if status in ("applied", "skipped"):
+                result.migration_results[migration.migration_id] = migration_result
 
             if status == "applied":
                 result.migrations_applied.append(migration.migration_id)
@@ -138,6 +148,8 @@ class MigrationRunner:
             else:
                 result.success = False
                 result.errors.extend(migration_result.errors)
+                # Still record the failed payload for observability.
+                result.migration_results[migration.migration_id] = migration_result
                 # Stop on first failure
                 break
 
@@ -249,6 +261,10 @@ class MigrationRunner:
             Dict with warnings and errors lists
         """
         result: dict[str, Any] = {"warnings": [], "errors": []}
+        worktree_migrations = [migration for migration in migrations if migration.runs_on_worktrees]
+
+        if not worktree_migrations:
+            return result
 
         worktrees_dir = self.project_path / WORKTREES_DIR
         if not worktrees_dir.exists():
@@ -272,7 +288,7 @@ class MigrationRunner:
                 wt_metadata = self._create_initial_metadata(wt_version)
 
             # Apply migrations to worktree
-            for migration in migrations:
+            for migration in worktree_migrations:
                 if wt_metadata.has_migration(migration.migration_id):
                     continue
 
@@ -317,7 +333,8 @@ class MigrationRunner:
                         )
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
-            # Save worktree metadata
+            # Save worktree metadata only when at least one migration in this
+            # upgrade target is allowed to touch worktrees.
             if not dry_run:
                 wt_metadata.version = target_version
                 wt_metadata.last_upgraded_at = datetime.now()

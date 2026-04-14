@@ -1,7 +1,9 @@
 """Conftest for charter tests."""
 
-import pytest
+import subprocess
 from pathlib import Path
+
+import pytest
 
 _THIS_DIR = Path(__file__).parent
 
@@ -11,3 +13,39 @@ def pytest_collection_modifyitems(items: list[pytest.Item]) -> None:
     for item in items:
         if _THIS_DIR in Path(item.fspath).parents:
             item.add_marker(pytest.mark.fast)
+
+
+@pytest.fixture(autouse=True)
+def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
+    """Initialize a git repo in ``tmp_path`` whenever a charter test uses it.
+
+    WP02 introduced ``resolve_canonical_repo_root`` in
+    ``ensure_charter_bundle_fresh``, which raises
+    ``NotInsideRepositoryError`` for paths outside any git repository. The
+    pre-WP02 charter tests pass raw ``tmp_path`` directories that are not
+    git-tracked. Initializing an empty repo is the minimal-touch fix and
+    matches how real users invoke the chokepoint.
+
+    The resolver also caches its results, so we reset its LRU after each
+    test to keep tests independent on shared fixtures.
+    """
+    if "tmp_path" in request.fixturenames:
+        tmp_path: Path = request.getfixturevalue("tmp_path")
+        # Run git init quietly; ignore failure (some tests may not need git
+        # but the fixture activates whenever tmp_path is requested).
+        try:
+            subprocess.run(
+                ["git", "init", "--quiet", str(tmp_path)],
+                check=False,
+                capture_output=True,
+            )
+        except (FileNotFoundError, OSError):
+            pass
+    yield
+    # Drop the cache so paths from previous tests don't shadow this one.
+    try:
+        from charter.resolution import resolve_canonical_repo_root
+
+        resolve_canonical_repo_root.cache_clear()
+    except Exception:
+        pass

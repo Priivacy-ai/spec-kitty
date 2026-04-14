@@ -12,6 +12,11 @@ Provides:
 - post_save_hook(): Auto-trigger sync after CLI writes
 """
 
+from .bundle import (
+    CANONICAL_MANIFEST,
+    CharterBundleManifest,
+    SCHEMA_VERSION,
+)
 from .catalog import DoctrineCatalog, load_doctrine_catalog
 from .compiler import (
     CompiledCharter,
@@ -64,6 +69,9 @@ from .resolver import (
 from .template_resolver import CharterTemplateResolver
 
 __all__ = [
+    "CANONICAL_MANIFEST",
+    "CharterBundleManifest",
+    "SCHEMA_VERSION",
     "DoctrineCatalog",
     "load_doctrine_catalog",
     "CompiledCharter",

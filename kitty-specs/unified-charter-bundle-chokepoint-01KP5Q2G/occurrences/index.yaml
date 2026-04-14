@@ -1,0 +1,112 @@
+# Mission-level occurrence index for unified-charter-bundle-chokepoint-01KP5Q2G.
+#
+# After every WP merges, the literals listed in must_be_zero must have
+# zero hits in src/ and tests/ (modulo permitted_exceptions). This
+# enforces the "verification by completeness" gate from the
+# excise-doctrine pattern adopted across spec-kitty bulk-edits.
+#
+# WP02-specific assertions:
+#   - the WP01 ``TODO(WP02)`` marker has been resolved,
+#   - the temporary ``_resolve_canonical_root_TEMP`` symbol is gone,
+#   - no consumer reaches for ``--show-toplevel`` (which is wrong
+#     under worktrees — that's exactly why the resolver exists).
+
+mission_slug: unified-charter-bundle-chokepoint-01KP5Q2G
+wps:
+  - WP01
+  - WP02
+  - WP03
+  - WP04
+
+must_be_zero:
+  - literal: "_resolve_canonical_root_TEMP"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "TODO(WP02)"
+    scopes:
+      - "src/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "git rev-parse --show-toplevel"
+    scopes:
+      - "src/charter/**/*.py"
+      - "src/specify_cli/cli/commands/charter*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  # WP04: scope-narrowing assertions. The migration module and its tests
+  # MUST NOT mention any of the dropped fields from the pre-design-review
+  # schema. If any of these literals appear under
+  # src/specify_cli/upgrade/migrations/ or tests/upgrade/, WP04's narrow
+  # scope has been violated.
+  - literal: "worktrees_scanned"
+    scopes:
+      - "src/specify_cli/upgrade/migrations/**/*.py"
+      - "tests/upgrade/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "symlinks_removed"
+    scopes:
+      - "src/specify_cli/upgrade/migrations/**/*.py"
+      - "tests/upgrade/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "gitignore_reconciled"
+    scopes:
+      - "src/specify_cli/upgrade/migrations/**/*.py"
+      - "tests/upgrade/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "git_exclude_entries_removed"
+    scopes:
+      - "src/specify_cli/upgrade/migrations/**/*.py"
+      - "tests/upgrade/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+  - literal: "copies_removed"
+    scopes:
+      - "src/specify_cli/upgrade/migrations/**/*.py"
+      - "tests/upgrade/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+    final_count: 0
+
+permitted_exceptions:
+  - pattern: "scripts/verify_occurrences.py"
+    rationale: "The verifier itself is allowed to mention these literals."
+  - pattern: "kitty-specs/"
+    rationale: "Mission planning artifacts may reference forbidden literals as historical context."
+
+verifier_command: "python scripts/verify_occurrences.py kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/occurrences/index.yaml"

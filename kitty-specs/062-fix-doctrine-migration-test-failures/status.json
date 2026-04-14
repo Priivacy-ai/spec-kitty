@@ -2,7 +2,7 @@
   "event_count": 15,
   "last_event_id": "01KN8039A5785Z8MWAQFA6WZKX",
   "materialized_at": "2026-04-02T21:02:58.373981+00:00",
-  "mission_number": "062",
+  "mission_number": "62",
   "mission_slug": "062-fix-doctrine-migration-test-failures",
   "mission_type": "software-dev",
   "summary": {

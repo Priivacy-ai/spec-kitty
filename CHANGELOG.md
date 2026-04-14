@@ -9,6 +9,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Unified charter bundle manifest v1.0.0** at `src/charter/bundle.py` declaring the three `sync()`-produced derivatives (`governance.yaml`, `directives.yaml`, `metadata.yaml`) as the authoritative bundle contract. `references.yaml` and `context-state.json` are explicitly out of v1.0.0 scope; they are produced by other pipelines.
+- **Canonical-root resolver** at `src/charter/resolution.py` (`resolve_canonical_repo_root()`). Readers running inside a git worktree now transparently observe the main-checkout charter bundle without per-worktree materialisation. Closes Priivacy-ai/spec-kitty#339.
+- **`spec-kitty charter bundle validate [--json]`** CLI surface for operator and CI bundle-health checks.
+- **Migration `m_3_2_3_unified_bundle`** advances 3.x projects to the unified bundle layout. On a populated project it validates the bundle against the v1.0.0 manifest, invokes `ensure_charter_bundle_fresh()` to regenerate any missing derivatives, and emits a structured JSON report (see `kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/migration-report.schema.json`). Idempotent — the second apply against an already-upgraded project is a clean no-op. Refs Priivacy-ai/spec-kitty#464, #479.
+
+### Changed
+
+- **`SyncResult` extended with `canonical_root: Path`** — `files_written` remains a list of file names relative to `canonical_root / .kittify/charter/`. Existing readers were rewired in lockstep; no compatibility shim.
+- **`ensure_charter_bundle_fresh()` is now the sole chokepoint** for readers of `governance.yaml`, `directives.yaml`, and `metadata.yaml`. Direct reads of those files are forbidden and are enforced by an AST-walk coverage test (`tests/charter/test_chokepoint_coverage.py`). Refs Priivacy-ai/spec-kitty#461, #464.
+
+### Unchanged (explicitly)
+
+- **`.kittify/memory/` and `.kittify/AGENTS.md` symlinks in worktrees** remain as-is — they provide project-memory and agent-instructions sharing, documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179`. They are NOT part of the charter bundle; the canonical-root resolver fixes the worktree charter-visibility story without touching `src/specify_cli/core/worktree.py` (C-011).
+- **Files under `.kittify/charter/` that are not v1.0.0 manifest files** (`references.yaml`, `context-state.json`, `interview/answers.yaml`, `library/*.md`) are unchanged. The migration lists them under `bundle_validation.unexpected` for operator visibility but does not delete, move, or rewrite them (C-012).
+- **Project `.gitignore` is not reconciled** by the migration. The v1.0.0 manifest's required entries already match the repository `.gitignore` verbatim; the migration performs no read or write against `.gitignore` (D-12).
+
+### Refs
+
+- EPIC: Priivacy-ai/spec-kitty#461 (Charter as Synthesis & Doctrine Reference Graph).
+- Phase 2 tracking: Priivacy-ai/spec-kitty#464.
+- Closes on merge: Priivacy-ai/spec-kitty#339, #451.
+
 ### Fixed
 
 - **`mission merge` no longer silently loses content when the repository carries legacy sparse-checkout state** — the stash/merge/stash-pop cascade used by the merge driver previously recorded phantom deletions for paths filtered out by a sparse-checkout pattern, and the subsequent housekeeping commit silently reverted content the preceding merge had introduced. Merge and `agent action implement` now run a sparse-checkout preflight and fail closed unless the operator passes `--allow-sparse-checkout`, `safe_commit` now aborts commits whose staging area contains paths outside the intended scope, and `mission merge` performs a post-merge refresh and invariant check before leaving the integration branch. Closes Priivacy-ai/spec-kitty#588.

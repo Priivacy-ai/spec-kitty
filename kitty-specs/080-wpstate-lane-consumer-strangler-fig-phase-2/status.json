@@ -2,7 +2,7 @@
   "event_count": 67,
   "last_event_id": "01KNSMZXAJKT1P4DYTNYZG3DY7",
   "materialized_at": "2026-04-09T17:35:13.234551+00:00",
-  "mission_number": "080",
+  "mission_number": "80",
   "mission_slug": "080-wpstate-lane-consumer-strangler-fig-phase-2",
   "mission_type": "software-dev",
   "summary": {

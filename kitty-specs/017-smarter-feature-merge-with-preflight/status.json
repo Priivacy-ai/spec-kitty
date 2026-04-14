@@ -2,7 +2,7 @@
   "event_count": 6,
   "last_event_id": "01KJ5V38R75S4G4N00HZS6EFAC",
   "materialized_at": "2026-01-18T10:37:13Z",
-  "mission_number": "017",
+  "mission_number": "17",
   "mission_slug": "017-smarter-feature-merge-with-preflight",
   "mission_type": "software-dev",
   "summary": {

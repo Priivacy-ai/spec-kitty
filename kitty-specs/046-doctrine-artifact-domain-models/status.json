@@ -2,7 +2,7 @@
   "event_count": 27,
   "last_event_id": "01KK688B0M51D617W2XDAQG1CP",
   "materialized_at": "2026-03-08T08:15:40.052140+00:00",
-  "mission_number": "046",
+  "mission_number": "46",
   "mission_slug": "046-doctrine-artifact-domain-models",
   "mission_type": "software-dev",
   "summary": {

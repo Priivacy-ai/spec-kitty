@@ -2,7 +2,7 @@
   "event_count": 46,
   "last_event_id": "01KNXZPH9TZAYDQ2Y10EKN9A0S",
   "materialized_at": "2026-04-11T09:59:18.074809+00:00",
-  "mission_number": "082",
+  "mission_number": "82",
   "mission_slug": "082-stealth-gated-saas-sync-hardening",
   "mission_type": "software-dev",
   "summary": {

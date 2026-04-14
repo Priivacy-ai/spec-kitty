@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-14T10:02:28.494388+00:00",
+  "friendly_name": "Unified Charter Bundle and Read Chokepoint",
+  "mission_id": "01KP5Q2G4Z39ZVRX2FY3NWXZQW",
+  "mission_number": 84,
+  "mission_slug": "unified-charter-bundle-chokepoint-01KP5Q2G",
+  "mission_type": "software-dev",
+  "slug": "unified-charter-bundle-chokepoint-01KP5Q2G",
+  "source_description": "Phase 2 of EPIC #461 (Charter as Synthesis & Doctrine Reference Graph) per issue #464: reorganize .kittify/charter/ into the architecture-§6 unified governance bundle, make ensure_charter_bundle_fresh() the sole read chokepoint (canonical-root resolution, no symlink, no copy, no per-worktree derived state), wire every charter-derivative reader through it, and land migration m_3_2_3_unified_bundle.py to cleanly upgrade populated 3.x projects.",
+  "target_branch": "main",
+  "vcs": "git"
+}

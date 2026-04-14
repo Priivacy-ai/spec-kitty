@@ -2,7 +2,7 @@
   "event_count": 50,
   "last_event_id": "01KH1F88JFQ0B6XV1NSM2ZQZP1",
   "materialized_at": "2026-02-09T15:10:21.775515+00:00",
-  "mission_number": "036",
+  "mission_number": "36",
   "mission_slug": "036-kittify-runtime-centralization",
   "mission_type": "software-dev",
   "summary": {

@@ -2,7 +2,7 @@
   "event_count": 16,
   "last_event_id": "01KNW6ZVC1EB3BZB31GSTYZCAY",
   "materialized_at": "2026-04-10T17:28:14.465875+00:00",
-  "mission_number": "081",
+  "mission_number": "81",
   "mission_slug": "081-canonical-baseline-and-repository-boundary",
   "mission_type": "software-dev",
   "summary": {

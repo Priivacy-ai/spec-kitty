@@ -2,7 +2,7 @@
   "event_count": 1,
   "last_event_id": "01KJ5V38PMZ7PWAXMW3C7M1E51",
   "materialized_at": "2026-01-16T13:44:43Z",
-  "mission_number": "013",
+  "mission_number": "13",
   "mission_slug": "013-fix-and-test-dashboard",
   "mission_type": "software-dev",
   "summary": {

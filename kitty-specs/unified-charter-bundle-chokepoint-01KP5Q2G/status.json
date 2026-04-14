@@ -1,0 +1,49 @@
+{
+  "event_count": 38,
+  "last_event_id": "01KP6A0EM9X19S1MH56YW6H8SZ",
+  "materialized_at": "2026-04-14T15:33:24.233107+00:00",
+  "mission_number": "",
+  "mission_slug": "unified-charter-bundle-chokepoint-01KP5Q2G",
+  "mission_type": "software-dev",
+  "summary": {
+    "approved": 0,
+    "blocked": 0,
+    "canceled": 0,
+    "claimed": 0,
+    "done": 4,
+    "for_review": 0,
+    "in_progress": 0,
+    "in_review": 0,
+    "planned": 0
+  },
+  "work_packages": {
+    "WP01": {
+      "actor": "merge",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KP6A0E654BNQ6NVV1NMJC3D9",
+      "last_transition_at": "2026-04-14T15:33:23.781272+00:00"
+    },
+    "WP02": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP6A0EEJ63S02S0HQWQK1ANW",
+      "last_transition_at": "2026-04-14T15:33:24.050032+00:00"
+    },
+    "WP03": {
+      "actor": "merge",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP6A0EHDHAXYCH9WJJT1YHEY",
+      "last_transition_at": "2026-04-14T15:33:24.141677+00:00"
+    },
+    "WP04": {
+      "actor": "merge",
+      "force_count": 5,
+      "lane": "done",
+      "last_event_id": "01KP6A0EM9X19S1MH56YW6H8SZ",
+      "last_transition_at": "2026-04-14T15:33:24.233107+00:00"
+    }
+  }
+}

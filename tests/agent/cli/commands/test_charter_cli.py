@@ -211,8 +211,12 @@ def test_context_bootstrap_then_compact(tmp_path: Path) -> None:
 
 
 def test_context_compact_mode_auto_syncs_missing_extracted_artifacts(tmp_path: Path) -> None:
+    import subprocess as _subprocess
+
     repo_root = tmp_path / "repo"
     repo_root.mkdir()
+    # WP03: chokepoint requires a git-tracked project root (FR-003).
+    _subprocess.run(["git", "init", "--quiet", str(repo_root)], check=True)
     charter_dir = repo_root / ".kittify" / "charter"
     charter_dir.mkdir(parents=True)
 

@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://spec-kitty.dev/schemas/migration-report/m_3_2_3_unified_bundle.json",
+  "title": "MigrationReport (m_3_2_3_unified_bundle)",
+  "description": "Structured JSON output emitted by the m_3_2_3_unified_bundle migration when run via `spec-kitty upgrade --json`. Tested by tests/upgrade/test_unified_bundle_migration.py against the FR-013 fixture matrix. v1.0.0 scope: the migration does NOT scan worktrees, does NOT remove charter-related symlinks (no such symlinks exist for the charter bundle), and does NOT reconcile .gitignore (v1.0.0 manifest matches current .gitignore verbatim). The migration exists to (a) seal the project version at 3.2.3, (b) ensure derivatives are present via the chokepoint, and (c) validate the bundle against the manifest.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "migration_id",
+    "target_version",
+    "applied",
+    "charter_present",
+    "bundle_validation",
+    "chokepoint_refreshed",
+    "errors",
+    "duration_ms"
+  ],
+  "properties": {
+    "migration_id": {
+      "type": "string",
+      "const": "m_3_2_3_unified_bundle",
+      "description": "Literal identifier of this migration."
+    },
+    "target_version": {
+      "type": "string",
+      "const": "3.2.3",
+      "description": "Literal target version the migration advances the project to."
+    },
+    "applied": {
+      "type": "boolean",
+      "description": "Whether the migration changed anything on disk. False means it was a no-op (e.g., second apply against an already-upgraded project, or a project whose bundle was already complete when the migration ran)."
+    },
+    "charter_present": {
+      "type": "boolean",
+      "description": "True if `.kittify/charter/charter.md` exists at the canonical project root at migration time. When false, every subsequent bundle-related field is empty or default; the migration is a no-op for projects without a charter."
+    },
+    "bundle_validation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "missing_tracked", "missing_derived", "unexpected"],
+      "properties": {
+        "passed": {
+          "type": "boolean",
+          "description": "True if the main-checkout bundle at `.kittify/charter/` satisfies the CharterBundleManifest v1.0.0 contract after any chokepoint-driven refresh."
+        },
+        "missing_tracked": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Tracked files (relative to project root) that the manifest declares but are missing from disk. Must be empty for passed=true."
+        },
+        "missing_derived": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Derived files (relative to project root) that the manifest declares but are missing. May be non-empty on the pre-refresh snapshot, expected to be empty post-refresh."
+        },
+        "unexpected": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Files present under `.kittify/charter/` that the v1.0.0 manifest does not declare (typically `references.yaml`, `context-state.json`, `interview/answers.yaml`, `library/*.md`). Listed for operator visibility; the migration does NOT delete these. v1.0.0 manifest scope is intentionally narrow — these files are produced by other pipelines and are not bugs."
+        }
+      },
+      "description": "Result of validating the main-checkout bundle against CharterBundleManifest v1.0.0."
+    },
+    "chokepoint_refreshed": {
+      "type": "boolean",
+      "description": "True if the migration invoked `ensure_charter_bundle_fresh()` and it actually triggered a sync (i.e., derivatives were missing or stale). False if the bundle was already complete and fresh."
+    },
+    "errors": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Non-fatal errors encountered during the migration. Fatal errors raise and do not produce a report at all."
+    },
+    "duration_ms": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Wall time of the migration in milliseconds. Must be ≤ 2000 on the FR-013 reference fixture (NFR-006)."
+    }
+  }
+}
