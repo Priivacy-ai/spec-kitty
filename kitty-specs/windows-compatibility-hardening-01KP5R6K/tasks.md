@@ -64,15 +64,15 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T049 | Upgrade `tests/sync/test_issue_586_windows_import.py` from simulated to native (add `windows_ci` marker) | WP08 | [D] |
 | T050 | Windows-native test: worktree symlink-vs-copy fallback — `.kittify/memory` + `AGENTS.md` readable; path-with-spaces covered | WP08 | [D] |
 | T051 | Windows-native test: active-mission handle round-trip without symlink support | WP08 | [D] |
-| T052 | Run repo-wide grep audit per FR-018 pattern list; capture all findings | WP09 | |
-| T053 | Classify each finding: fixed / covered-by-CI / follow-up-issue | WP09 | |
-| T054 | Write `architecture/2026-04-14-windows-compatibility-hardening.md` audit report with full classification table | WP09 | |
-| T055 | Write ADR `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md` | WP09 | [P] |
-| T056 | Write ADR `architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md` | WP09 | [P] |
-| T057 | Write `docs/explanation/windows-state.md` — canonical Windows layout + migration documentation | WP09 | [P] |
-| T058 | Update `CLAUDE.md` with Windows state-layout section (FR-019) | WP09 | [P] |
-| T059 | File GitHub follow-up issues for residuals with `windows` label; link from audit report | WP09 | [P] |
-| T060 | Verify #603 closeable; verify #260 either closeable or has scoped follow-up issue | WP09 | [P] |
+| T052 | Run repo-wide grep audit per FR-018 pattern list; capture all findings | WP09 | | [D] |
+| T053 | Classify each finding: fixed / covered-by-CI / follow-up-issue | WP09 | | [D] |
+| T054 | Write `architecture/2026-04-14-windows-compatibility-hardening.md` audit report with full classification table | WP09 | | [D] |
+| T055 | Write ADR `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md` | WP09 | [D] |
+| T056 | Write ADR `architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md` | WP09 | [D] |
+| T057 | Write `docs/explanation/windows-state.md` — canonical Windows layout + migration documentation | WP09 | [D] |
+| T058 | Update `CLAUDE.md` with Windows state-layout section (FR-019) | WP09 | [D] |
+| T059 | File GitHub follow-up issues for residuals with `windows` label; link from audit report | WP09 | [D] |
+| T060 | Verify #603 closeable; verify #260 either closeable or has scoped follow-up issue | WP09 | [D] |
 
 ---
 
@@ -341,15 +341,15 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - Issue close-out for #603 / #260 requires GitHub permissions — if unavailable, document the closeable-posture in the audit report and open a comment requesting closure.
 
 **Included subtasks**:
-- [ ] T052 Run repo-wide grep audit per FR-018 pattern list; capture all findings
-- [ ] T053 Classify each finding: fixed / covered-by-CI / follow-up-issue
-- [ ] T054 Write `architecture/2026-04-14-windows-compatibility-hardening.md` audit report
-- [ ] T055 Write ADR `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md`
-- [ ] T056 Write ADR `architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md`
-- [ ] T057 Write `docs/explanation/windows-state.md` — canonical Windows layout + migration doc
-- [ ] T058 Update `CLAUDE.md` with Windows state-layout section
-- [ ] T059 File GitHub follow-up issues for residuals with `windows` label; link from audit report
-- [ ] T060 Verify #603 closeable; verify #260 either closeable or has scoped follow-up
+- [x] T052 Run repo-wide grep audit per FR-018 pattern list; capture all findings
+- [x] T053 Classify each finding: fixed / covered-by-CI / follow-up-issue
+- [x] T054 Write `architecture/2026-04-14-windows-compatibility-hardening.md` audit report
+- [x] T055 Write ADR `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md`
+- [x] T056 Write ADR `architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md`
+- [x] T057 Write `docs/explanation/windows-state.md` — canonical Windows layout + migration doc
+- [x] T058 Update `CLAUDE.md` with Windows state-layout section
+- [x] T059 File GitHub follow-up issues for residuals with `windows` label; link from audit report
+- [x] T060 Verify #603 closeable; verify #260 either closeable or has scoped follow-up
 
 ---
 
