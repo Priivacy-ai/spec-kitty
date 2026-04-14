@@ -1,0 +1,159 @@
+{
+  "version": 1,
+  "mission_slug": "windows-compatibility-hardening-01KP5R6K",
+  "mission_id": "01KP5R6KRZDXV1BKM3Q1FZMY77",
+  "mission_branch": "kitty/mission-windows-compatibility-hardening-01KP5R6K",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP07",
+        "WP08"
+      ],
+      "write_scope": [
+        ".github/workflows/ci-quality.yml",
+        ".github/workflows/ci-windows.yml",
+        "pyproject.toml",
+        "src/kernel/paths.py",
+        "src/specify_cli/auth/secure_storage/__init__.py",
+        "src/specify_cli/auth/secure_storage/abstract.py",
+        "src/specify_cli/auth/secure_storage/file_fallback.py",
+        "src/specify_cli/auth/secure_storage/windows_storage.py",
+        "src/specify_cli/cli/__init__.py",
+        "src/specify_cli/cli/commands/agent/status.py",
+        "src/specify_cli/cli/commands/migrate_cmd.py",
+        "src/specify_cli/encoding.py",
+        "src/specify_cli/paths/__init__.py",
+        "src/specify_cli/paths/windows_migrate.py",
+        "src/specify_cli/paths/windows_paths.py",
+        "src/specify_cli/sync/daemon.py",
+        "src/specify_cli/tracker/credentials.py",
+        "tests/audit/__init__.py",
+        "tests/audit/test_no_legacy_path_literals.py",
+        "tests/auth/secure_storage/test_file_fallback_windows_root.py",
+        "tests/auth/secure_storage/test_from_environment_platform_split.py",
+        "tests/cli/test_agent_status_messaging.py",
+        "tests/cli/test_migrate_cmd_messaging.py",
+        "tests/core/test_worktree_symlink_fallback.py",
+        "tests/kernel/test_paths_unified_windows_root.py",
+        "tests/mission/__init__.py",
+        "tests/mission/test_active_mission_handle_windows.py",
+        "tests/packaging/__init__.py",
+        "tests/packaging/test_windows_no_keyring.py",
+        "tests/paths/__init__.py",
+        "tests/paths/test_render_runtime_path.py",
+        "tests/paths/test_windows_migrate.py",
+        "tests/paths/test_windows_paths.py",
+        "tests/regressions/test_issue_101_utf8_startup.py",
+        "tests/regressions/test_issue_71_dashboard_empty.py",
+        "tests/sync/test_daemon_windows_paths.py",
+        "tests/sync/test_issue_586_windows_import.py",
+        "tests/tracker/test_credentials_windows_paths.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "dashboard",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-b",
+      "wp_ids": [
+        "WP06"
+      ],
+      "write_scope": [
+        "src/specify_cli/policy/hook_installer.py",
+        "tests/policy/test_hook_installer_execution.py",
+        "tests/policy/test_hook_installer_rendering.py",
+        "tests/regressions/__init__.py",
+        "tests/regressions/test_issue_105_hook_python_lookup.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP09"
+      ],
+      "write_scope": [
+        "CLAUDE.md",
+        "architecture/2026-04-14-windows-compatibility-hardening.md",
+        "architecture/adrs/2026-04-14-1-windows-auth-platform-split.md",
+        "architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md",
+        "docs/explanation/windows-state.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-14T10:56:30.237246+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP09"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP02",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP02 depends on WP01"
+      },
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP03"
+      },
+      {
+        "wp_a": "WP08",
+        "wp_b": "WP07",
+        "rule": "dependency",
+        "evidence": "WP08 depends on WP07"
+      }
+    ],
+    "total_merges": 6,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 6
+    }
+  }
+}
