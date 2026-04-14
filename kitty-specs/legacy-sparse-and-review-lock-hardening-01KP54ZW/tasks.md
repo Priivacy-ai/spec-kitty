@@ -61,8 +61,8 @@ Total: 35 subtasks across 9 WPs.
 | T029 | Invoke `ReviewLock.release()` at approve and reject transition exits | WP06 |  |
 | T030 | Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation | WP07 |  |
 | T031 | Integration tests: approve/reject without `--force`, filter rules, release cleanup | WP06 | [P] |
-| T032 | Investigate FR-020 approve-output source-lane anomaly | WP08 |  |
-| T033 | Publish FR-020 investigation report; escalate fix if needed | WP08 |  |
+| T032 | Investigate FR-020 approve-output source-lane anomaly | WP08 |  | [D] |
+| T033 | Publish FR-020 investigation report; escalate fix if needed | WP08 |  | [D] |
 | T034 | Draft ADR `2026-04-14-sparse-checkout-defense-in-depth.md` | WP09 |  |
 | T035 | CHANGELOG entry + recovery recipe for affected users | WP09 | [P] |
 | T036 | Post diagnostic comment on Priivacy-ai/spec-kitty#588 | WP09 | [P] |
@@ -239,8 +239,8 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP08-fr020-anomaly-investigation.md](tasks/WP08-fr020-anomaly-investigation.md)
 
 **Included subtasks**:
-- [ ] T032 Investigate FR-020 approve-output source-lane anomaly (WP08)
-- [ ] T033 Publish FR-020 investigation report; escalate fix if needed (WP08)
+- [x] T032 Investigate FR-020 approve-output source-lane anomaly (WP08)
+- [x] T033 Publish FR-020 investigation report; escalate fix if needed (WP08)
 
 **Dependencies**: none.
 **Parallel opportunities**: none within WP08 (T033 depends on T032).
