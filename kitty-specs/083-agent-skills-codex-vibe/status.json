@@ -1,13 +1,13 @@
 {
-  "event_count": 6,
+  "event_count": 17,
   "feature_slug": "083-agent-skills-codex-vibe",
-  "last_event_id": "01KP5Q9SCBC7Q432YKH77DS3BM",
-  "materialized_at": "2026-04-14T10:06:27.212001+00:00",
+  "last_event_id": "01KP5S0YSJ23FGGM07W821VQK6",
+  "materialized_at": "2026-04-14T10:36:34.994453+00:00",
   "summary": {
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 2,
+    "done": 5,
     "for_review": 0,
     "in_progress": 0,
     "planned": 0
@@ -26,6 +26,27 @@
       "lane": "done",
       "last_event_id": "01KP5Q9SCBC7Q432YKH77DS3BM",
       "last_transition_at": "2026-04-14T10:06:27.211409+00:00"
+    },
+    "WP03": {
+      "actor": "opus",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KP5QV8YBAFN1MBJHXDP1AYW2",
+      "last_transition_at": "2026-04-14T10:16:00.203311+00:00"
+    },
+    "WP04": {
+      "actor": "opus",
+      "force_count": 4,
+      "lane": "done",
+      "last_event_id": "01KP5RFVH89S5F87416TV5JWQV",
+      "last_transition_at": "2026-04-14T10:27:14.600435+00:00"
+    },
+    "WP05": {
+      "actor": "opus",
+      "force_count": 2,
+      "lane": "done",
+      "last_event_id": "01KP5S0YSJ23FGGM07W821VQK6",
+      "last_transition_at": "2026-04-14T10:36:34.994093+00:00"
     }
   }
 }

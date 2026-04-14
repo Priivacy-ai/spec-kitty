@@ -251,4 +251,5 @@ Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vi
 - WP02: done
 - WP03: done
 - WP04: done
+- WP05: done
 <!-- status-model:end -->
