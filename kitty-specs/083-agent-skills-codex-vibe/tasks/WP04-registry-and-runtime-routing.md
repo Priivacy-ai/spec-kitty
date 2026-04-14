@@ -1,35 +1,40 @@
 ---
-work_package_id: "WP04"
-title: "Registry Wiring and Runtime Routing"
-subtasks:
-  - T018
-  - T019
-  - T020
-  - T021
-  - T022
+work_package_id: WP04
+title: Registry Wiring and Runtime Routing
 dependencies:
-  - WP03
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/core/config.py"
-  - "src/specify_cli/agent_utils/directories.py"
-  - "src/specify_cli/runtime/agent_commands.py"
-  - "src/specify_cli/cli/commands/agent/config.py"
-  - "tests/specify_cli/core/test_config_registry.py"
-  - "tests/specify_cli/runtime/test_agent_commands_routing.py"
-authoritative_surface: "src/specify_cli/"
-requirement_refs:
-  - FR-001
-  - FR-002
-  - FR-011
-  - FR-013
+- WP03
+base_branch: main
+base_commit: f77b338496a13dd0685eedcba899765e965e0d90
+created_at: '2026-04-14T10:16:24.526697+00:00'
+subtasks:
+- T018
+- T019
+- T020
+- T021
+- T022
+lane: "doing"
+shell_pid: "13190"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/core/config.py
+- src/specify_cli/agent_utils/directories.py
+- src/specify_cli/runtime/agent_commands.py
+- src/specify_cli/cli/commands/agent/config.py
+- tests/specify_cli/core/test_config_registry.py
+- tests/specify_cli/runtime/test_agent_commands_routing.py
+planning_base_branch: main
+requirement_refs:
+- FR-001
+- FR-002
+- FR-011
+- FR-013
 ---
 
 # WP04 — Registry Wiring and Runtime Routing
