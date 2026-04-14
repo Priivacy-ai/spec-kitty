@@ -3,7 +3,7 @@
 **Mission**: `unified-charter-bundle-chokepoint-01KP5Q2G`
 **Companion**: [plan.md](plan.md) §"Plan-Phase Decisions" D-10
 
-Four narrow investigations producing the concrete inputs that WP2.1–WP2.4 need.
+Four narrow investigations producing the concrete inputs that WP2.1–WP2.4 need. Revised 2026-04-14 after design review corrected three P1/P2 findings (worktree scope, manifest scope, resolver algorithm).
 
 ---
 
@@ -11,16 +11,18 @@ Four narrow investigations producing the concrete inputs that WP2.1–WP2.4 need
 
 ### Question
 
-Which code paths read any artifact under `.kittify/charter/` (directly or indirectly), and which of those currently bypass `ensure_charter_bundle_fresh()`? The answer becomes the WP2.3 occurrence artifact's reader registry and the source of truth for `tests/charter/test_chokepoint_coverage.py` (FR-011).
+Which code paths read any of the three `sync()`-produced derivatives (`governance.yaml`, `directives.yaml`, `metadata.yaml`) directly or through `charter.md`, and which of those currently bypass `ensure_charter_bundle_fresh()`? The answer becomes the WP2.3 occurrence artifact's reader registry and the source of truth for `tests/charter/test_chokepoint_coverage.py` (FR-011).
+
+**Scope**: v1.0.0 manifest files only. Readers of `references.yaml` (compiler pipeline) and `context-state.json` (runtime state) are NOT in scope and are NOT required to route through the chokepoint in this tranche.
 
 ### Method
 
 1. **Static grep** across `src/`:
    ```
-   rg -n 'charter\.md|governance\.yaml|directives\.yaml|metadata\.yaml|references\.yaml|interview/answers\.yaml|context-state\.json|\.kittify/charter|charter_bundle|build_charter_context|load_governance_config|load_directives_config|resolve_project_charter_path' src/
+   rg -n 'charter\.md|governance\.yaml|directives\.yaml|metadata\.yaml|\.kittify/charter|build_charter_context|load_governance_config|load_directives_config|resolve_project_charter_path' src/
    ```
 2. **Python AST walk** — for every `from charter... import` or `from specify_cli.charter... import`, resolve the symbol and mark the importing module as a candidate reader.
-3. **String-literal sweep** — search for any hard-coded relative path fragment that routes into the charter tree: `../../../.kittify`, `../../.kittify`, `.kittify/memory`, `.kittify/AGENTS.md`.
+3. **String-literal sweep** — search for any hard-coded relative path fragment that routes into the `.kittify/charter/` tree.
 4. **Dynamic-dispatch audit** — importlib / getattr against any `charter*` module.
 
 ### Decision
@@ -31,7 +33,7 @@ Seed the WP2.3 occurrence artifact with the following registry. WP2.3 verifies a
 
 | Site (file:approx line) | Bypass mechanism | Fix |
 | --- | --- | --- |
-| `src/charter/context.py:406-661` (`build_charter_context`) | Direct `charter_path.read_text()` (~line 555) and `_load_references(references_path)` (~line 637) | Call `ensure_charter_bundle_fresh()` at the top of the function; use `SyncResult.canonical_root` to anchor subsequent reads. |
+| `src/charter/context.py:406-661` (`build_charter_context`) | Direct `charter_path.read_text()` (~line 555) — note this reads the tracked `charter.md` but is still covered by the chokepoint contract because staleness vs. derivatives is the concern. | Call `ensure_charter_bundle_fresh()` at the top of the function; use `SyncResult.canonical_root` to anchor subsequent reads. This ensures the reader observes fresh derivatives for downstream `load_governance_config` / `load_directives_config` calls. |
 | `src/specify_cli/dashboard/charter_path.py:8-17` (`resolve_project_charter_path`) | Existence-only check without freshness guarantee | Call the chokepoint before the existence check; surface a freshness-aware result. |
 | `src/specify_cli/dashboard/scanner.py` charter probes | TBD by implementation grep; suspected direct existence checks in the scanner's per-frame loop | Route through the chokepoint; use NFR-002's warm-overhead budget as the perf bar. |
 | `src/specify_cli/dashboard/server.py` charter endpoints | TBD by implementation grep | Same. |
@@ -39,7 +41,7 @@ Seed the WP2.3 occurrence artifact with the following registry. WP2.3 verifies a
 | `src/specify_cli/next/prompt_builder.py` charter injection | TBD — need targeted grep | Route through the chokepoint. |
 | `src/specify_cli/cli/commands/agent/workflow.py` workflow charter injection | TBD — need targeted grep | Route through the chokepoint. |
 
-**Confirmed chokepoint-routed readers** — no change needed except D-3 `canonical_root` field propagation:
+**Confirmed chokepoint-routed readers** — no code change needed except D-3 `canonical_root` field propagation:
 
 | Site | Already uses chokepoint |
 | --- | --- |
@@ -47,10 +49,21 @@ Seed the WP2.3 occurrence artifact with the following registry. WP2.3 verifies a
 | `src/charter/sync.py:229-264` (`load_directives_config`) | Yes, at line 244 |
 | `src/charter/resolver.py:43-135` (`resolve_governance`) | Yes, transitively via the two loaders above |
 
+**Out of R-1 scope** — not required to route through the chokepoint in this tranche:
+
+| Pipeline | File(s) | Rationale |
+| --- | --- | --- |
+| Compiler (`references.yaml` producer) | `src/charter/compiler.py:169-196` (`write_compiled_charter`) | Produces `references.yaml`, which is out of v1.0.0 manifest scope. |
+| Context-state writes | `src/charter/context.py:385-398` | Writes `context-state.json` runtime state; out of v1.0.0 manifest scope. |
+
 **Duplicate-package twins (C-003 lockstep)** — WP2.3 updates only if still live:
 
 - `src/specify_cli/charter/context.py`, `src/specify_cli/charter/sync.py`, etc.
 - Files that are pure re-exports are untouched; files carrying a direct-read live path are flipped in lockstep.
+
+**Explicitly OUT of R-1 scope** (not reader sites, not touched by this mission):
+
+- `src/specify_cli/core/worktree.py:478-532` — creates `.kittify/memory/` and `.kittify/AGENTS.md` symlinks. These are **project memory and agent-instructions sharing**, NOT charter bundle materialization. They are documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179` ("a single source of truth for project principles"). The v2.3 worktree-visibility gate is solved by canonical-root resolution in `ensure_charter_bundle_fresh()`, not by touching this file.
 
 ### Rationale
 
@@ -58,44 +71,61 @@ The three "TBD" entries in the table are deliberate — the plan phase commits t
 
 ### Alternatives considered
 
-- **"Only flip `build_charter_context`"** — rejected. FR-011's AST walk would fail against the dashboard and next-prompt readers. Acceptance Gate 3 ("every charter-derivative reader goes through `ensure_charter_bundle_fresh()`") is universal.
+- **"Only flip `build_charter_context`"** — rejected. FR-011's AST walk would fail against the dashboard and next-prompt readers. Acceptance Gate 3 ("every charter-derivative reader goes through `ensure_charter_bundle_fresh()`") is universal within v1.0.0 scope.
 - **"Flip everything via a module-level monkey-patch or decorator"** — rejected. Too clever; defeats static analysis; makes the AST-walk test non-trivial.
 - **"Cut over duplicate-package readers as part of WP2.3 by deleting `src/specify_cli/charter/` entirely"** — rejected per spec C-003 / Q3=B.
+- **"Extend Phase 2 to also route references.yaml / context-state.json readers through the chokepoint"** — rejected. Those are separate pipelines with different invariants; conflating them into v1.0.0 manifest scope was the original P1 finding. Deferred to a later tranche with its own manifest schema version.
 
 ---
 
-## R-2 — `git rev-parse --git-common-dir` behavior matrix
+## R-2 — `git rev-parse --git-common-dir` behavior matrix (corrected)
 
 ### Question
 
-Under what conditions does `git rev-parse --git-common-dir` return an unexpected value or fail? The answer becomes the fixture matrix for `tests/charter/test_canonical_root_resolution.py` and the basis for the `GitCommonDirUnavailableError` surface.
+Under what conditions does `git rev-parse --git-common-dir` return an unexpected value or fail? What is the **actual** stdout format across invocation conditions? The answer becomes the fixture matrix for `tests/charter/test_canonical_root_resolution.py` and the basis for the `GitCommonDirUnavailableError` surface.
 
 ### Method
 
-Prototype `resolve_canonical_repo_root()` against the following fixture conditions and record exit-code + stdout behavior. Each condition exercised locally before the plan is considered complete. Findings become the test matrix.
+Prototype `resolve_canonical_repo_root()` against each fixture condition and record exit-code + **actual** stdout behavior. **Corrected 2026-04-14** after local verification revealed the original R-2 table's paths were paraphrased rather than observed.
 
 ### Decision
 
-| Condition | Observed behavior | Resolver response |
-| --- | --- | --- |
-| Plain repo (main checkout) | exit 0; stdout = `.git` (or absolute) | Return parent of `.git` (the repo working directory). |
-| Worktree attached via `git worktree add` | exit 0; stdout = absolute path to the main repo's `.git` dir (not `.git/worktrees/<name>`) | Return parent of that path — the main checkout. ✅ This is the designed behavior per Q1=A. |
-| Linked worktree (bare main repo + multiple worktrees) | exit 0; stdout = absolute path to the common git dir | Return the parent of the common git dir. Same resolution. |
-| Submodule-attached checkout | exit 0; stdout = path inside `<parent>/.git/modules/<name>` | Return the submodule's working directory (the parent of `.git`-as-file). Distinct from the superproject. Acceptable — spec-kitty operates on the submodule as its own project. |
-| Sparse checkout | exit 0; stdout = `.git` — unaffected by sparse status | Same as plain repo. |
-| Detached HEAD | exit 0; stdout = `.git` — unaffected by HEAD state | Same as plain repo. |
-| Inside `.git` dir itself | exit 0; stdout = `.` | Treated as an error case — resolver raises `NotInsideRepositoryError`. Tests in `tests/charter/test_canonical_root_resolution.py` exercise this. |
-| Non-repo path (e.g., `/tmp`) | exit 128; stderr = `fatal: not a git repository` | Resolver raises `NotInsideRepositoryError`. |
-| `git` binary missing from PATH | `FileNotFoundError` from `subprocess.run` | Resolver re-raises as `GitCommonDirUnavailableError` with a structured message identifying the missing binary. No fallback per C-001 / C-009. |
+The resolver's algorithm accounts for the observed stdout shape. The algorithm, documented in full at [`contracts/canonical-root-resolver.contract.md`](contracts/canonical-root-resolver.contract.md), is:
+
+```
+1. Normalize file inputs to parent directory.
+2. subprocess.run(["git", "rev-parse", "--git-common-dir"], cwd=<dir>, ...)
+3. Classify exit code; raise on "not a repo" or other failure.
+4. Resolve stdout: stdout may be relative to cwd or absolute; resolve via
+   Path(stdout) if absolute else (cwd / stdout).resolve().
+5. Detect "inside .git/" edge case: if resolved input is the common_dir or
+   a descendant, raise NotInsideRepositoryError.
+6. canonical_root = common_dir.parent.
+```
+
+Observed stdout (verified locally 2026-04-14):
+
+| cwd | stdout | absolute? | resolves to | canonical_root |
+| --- | --- | --- | --- | --- |
+| `<repo>` | `.git` | No | `<repo>/.git` | `<repo>` ✓ |
+| `<repo>/src/charter` | `../../.git` | No | `<repo>/.git` | `<repo>` ✓ |
+| `<repo>/.git` (inside git dir) | `.` | No | `<repo>/.git` | step 5 detects → raise `NotInsideRepositoryError` |
+| `<repo>/.worktrees/foo` (linked worktree) | absolute path to `<main>/.git` | Yes | `<main>/.git` | `<main>` ✓ |
+| Non-repo path | empty; exit 128; stderr contains `not a git repository` | — | — | raise `NotInsideRepositoryError` |
+| Submodule | `.git/modules/sub` (relative to `<repo>`) | No | `<repo>/.git/modules/sub` | `<repo>/.git/modules` — submodule-specific; documented edge case |
+| Sparse checkout | same as plain repo | — | — | same |
+| Detached HEAD | same as plain repo | — | — | same |
+| `git` binary missing | raises `FileNotFoundError` in `subprocess.run` | — | — | raise `GitCommonDirUnavailableError` |
 
 ### Rationale
 
-Git's `--git-common-dir` is the canonical plumbing for this exact question; no filesystem-path heuristic is required. The LRU cache keys on absolute path of the invocation directory so repeated calls from the same directory hit cache.
+Git's `--git-common-dir` is the canonical plumbing for this exact question. The original R-2 table incorrectly claimed "Returns the working directory" — in reality, `--git-common-dir` returns the **git common directory** (either relative to cwd or absolute), and `canonical_root` is its `.parent`. The algorithm accounts for both relative and absolute stdout and for the `.` edge case when invoked from inside `.git/` itself.
 
 ### Alternatives considered
 
 - **`gitpython` library** — rejected. Adds a runtime dependency for a one-line `subprocess` call. Charter §Technical Standards pins dependencies tightly.
 - **Hand-rolled `.git/` walk** — rejected per C-009. Fragile under submodules and worktrees.
+- **Second `git` call to `--absolute-git-dir`** — rejected. Doubles the subprocess count per cold call, breaking NFR-003's ≤1-invocation-per-call budget. Resolving stdout against `cwd` in one step achieves the same result.
 
 ---
 
@@ -111,6 +141,8 @@ Grep across `src/` and `tests/`:
 ```
 rg -n 'SyncResult|files_written|sync_result|ensure_charter_bundle_fresh|post_save_hook' src/ tests/
 ```
+
+Narrow scope: only the three v1.0.0 manifest files (`governance.yaml`, `directives.yaml`, `metadata.yaml`) are in the chokepoint's ownership. Callers that read other charter artifacts are not rewired by this mission.
 
 ### Decision
 
@@ -133,8 +165,8 @@ Spec Q2=C user decision. Adding a field avoids silent behavior change for caller
 
 ### Alternatives considered
 
-- **Absolute paths in `files_written`** (Q2=A) — rejected by user. Causes noise in logs and breaks snapshot tests that compared paths against expected relative strings.
-- **Keep `files_written` relative to caller-supplied `repo_root`** (Q2=B) — rejected by user. Ambiguous: worktree callers would see different paths depending on where they were when they called, and any refactor that changes the invocation directory would silently change the path strings.
+- **Absolute paths in `files_written`** (Q2=A) — rejected by user. Causes noise in logs and breaks snapshot tests.
+- **Keep `files_written` relative to caller-supplied `repo_root`** (Q2=B) — rejected by user. Ambiguous.
 
 ---
 
@@ -160,7 +192,7 @@ Golden baseline captured at `kitty-specs/unified-charter-bundle-chokepoint-01KP5
    - Sort all mapping keys (Python `json.dumps(..., sort_keys=True)`).
    - Replace any `"*_at"` timestamp field with the literal string `"<ts>"`.
    - Replace any ULID field value whose key is not an identity field (identity fields like `mission_id`, `wp_id` stay verbatim) with a stable placeholder.
-   - Sort all array fields whose order is semantically irrelevant (mission list, WP list within a mission).
+   - Sort all array fields whose order is semantically irrelevant.
 
 The regression test `tests/test_dashboard/test_charter_chokepoint_regression.py` applies the same redactions to the post-WP2.3 output before comparing.
 
@@ -184,5 +216,11 @@ All four investigations resolved. Every open `[NEEDS CLARIFICATION]` from the sp
 - Q2 (SyncResult path semantics) → new `canonical_root` field; `files_written` relative to it (D-3 / R-3).
 - Q3 (manifest schema version) → `"1.0.0"` independent of package version (D-1).
 - Q4 (bundle CLI surface) → `spec-kitty charter bundle validate [--json]` only; no `doctor` integration in this tranche (D-4).
+
+Design-review corrections (2026-04-14) also resolved:
+
+- Scope correction (worktree code untouched; gate 2 reframed to reader behavior).
+- Manifest v1.0.0 narrowing (`sync()`-produced files only; `references.yaml` / `context-state.json` deferred).
+- Resolver algorithm correction (stdout is relative-to-cwd or absolute; algorithm resolves accordingly; file inputs normalized to parent dir; `.git/`-interior detected explicitly).
 
 WP2.1–WP2.4 may proceed to implementation once `/spec-kitty.tasks` materializes the task files.

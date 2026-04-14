@@ -5,6 +5,8 @@
 
 This feature introduces two new typed entities (`CharterBundleManifest`, `MigrationReport`), extends one existing entity (`SyncResult`), and adds two new exception types. No existing schema is retyped or renamed. All models are Pydantic (the project's existing typed-config standard).
 
+**v1.0.0 scope**: the manifest and chokepoint cover the three files `src/charter/sync.py` materializes — `governance.yaml`, `directives.yaml`, `metadata.yaml`. `references.yaml` (compiler pipeline) and `context-state.json` (runtime state) are explicitly out of v1.0.0 scope and belong to different pipelines. Expanding scope requires a new manifest schema version and its own migration.
+
 ---
 
 ## Entity: `CharterBundleManifest`
@@ -16,10 +18,10 @@ This feature introduces two new typed entities (`CharterBundleManifest`, `Migrat
 
 ### Purpose
 
-Declares, in typed form, the complete list of files that constitute the unified governance bundle under `.kittify/charter/`. Consumed by:
+Declares the files that `src/charter/sync.py` materializes as the project's governance bundle. Consumed by:
 
 - `ensure_charter_bundle_fresh()` (the chokepoint) — for the "what files must exist" completeness check.
-- `m_3_2_3_unified_bundle.py` (the migration) — for `.gitignore` reconciliation and bundle validation.
+- `m_3_2_3_unified_bundle.py` (the migration) — for bundle validation on upgrade.
 - `tests/charter/test_bundle_contract.py` — for the end-to-end manifest-vs-disk assertion.
 - `spec-kitty charter bundle validate` — for the operator-facing validation CLI.
 
@@ -27,11 +29,11 @@ Declares, in typed form, the complete list of files that constitute the unified 
 
 | Field | Type | Required | Description |
 | --- | --- | --- | --- |
-| `schema_version` | `str` | Yes | Semver string describing the manifest schema version. Starts at `"1.0.0"`. Bumped only when the manifest shape changes in a way that requires a new migration. |
+| `schema_version` | `str` | Yes | Semver string describing the manifest schema version. Starts at `"1.0.0"`. Bumped only when manifest shape or scope changes. |
 | `tracked_files` | `list[Path]` | Yes | Every path (relative to the project root) that must be tracked in git. For v1.0.0: `[Path(".kittify/charter/charter.md")]`. |
-| `derived_files` | `list[Path]` | Yes | Every path (relative to the project root) that is produced by `sync()` and must be gitignored. For v1.0.0: `governance.yaml`, `directives.yaml`, `metadata.yaml`, `references.yaml`, `interview/answers.yaml` (conditional), `context-state.json`, plus `library/*.md` (conditional). |
+| `derived_files` | `list[Path]` | Yes | Every path (relative to the project root) that is produced by `src/charter/sync.py` and must be gitignored. For v1.0.0: exactly the three files in `_SYNC_OUTPUT_FILES` at `src/charter/sync.py:32-36` — `governance.yaml`, `directives.yaml`, `metadata.yaml`. |
 | `derivation_sources` | `dict[Path, Path]` | Yes | Maps each derived file to the source file it is derived from. For v1.0.0 every mapping is `<derived> → Path(".kittify/charter/charter.md")`. |
-| `gitignore_required_entries` | `list[str]` | Yes | The exact strings that must appear in `.gitignore` for the derived files to be correctly ignored. For v1.0.0: the five entries currently on `main` at `.gitignore:18-22`. |
+| `gitignore_required_entries` | `list[str]` | Yes | The exact strings that must appear in `.gitignore` for the derived files to be correctly ignored. For v1.0.0 the three entries matching `derived_files`. The project `.gitignore` MAY contain additional entries (e.g., for `context-state.json`, `references.yaml`) — the manifest's set is a "must include" floor, not an "only these" ceiling. |
 
 ### Validation rules
 
@@ -58,25 +60,28 @@ CANONICAL_MANIFEST = CharterBundleManifest(
         Path(".kittify/charter/governance.yaml"),
         Path(".kittify/charter/directives.yaml"),
         Path(".kittify/charter/metadata.yaml"),
-        Path(".kittify/charter/references.yaml"),
-        Path(".kittify/charter/context-state.json"),
     ],
     derivation_sources={
         Path(".kittify/charter/governance.yaml"): Path(".kittify/charter/charter.md"),
         Path(".kittify/charter/directives.yaml"): Path(".kittify/charter/charter.md"),
-        Path(".kittify/charter/metadata.yaml"): Path(".kittify/charter/charter.md"),
-        Path(".kittify/charter/references.yaml"): Path(".kittify/charter/charter.md"),
-        Path(".kittify/charter/context-state.json"): Path(".kittify/charter/charter.md"),
+        Path(".kittify/charter/metadata.yaml"):   Path(".kittify/charter/charter.md"),
     },
     gitignore_required_entries=[
-        ".kittify/charter/context-state.json",
         ".kittify/charter/directives.yaml",
         ".kittify/charter/governance.yaml",
         ".kittify/charter/metadata.yaml",
-        ".kittify/charter/references.yaml",
     ],
 )
 ```
+
+### Explicitly out of v1.0.0 scope
+
+- `.kittify/charter/references.yaml` — produced by `src/charter/compiler.py :: write_compiled_charter` (lines 169-196), a different pipeline invoked by `spec-kitty charter generate`.
+- `.kittify/charter/context-state.json` — written lazily by `src/charter/context.py :: build_charter_context` (lines 385-398) as runtime first-load state.
+- `.kittify/charter/interview/answers.yaml` — interview answer cache.
+- `.kittify/charter/library/*.md` — user-authored local support docs when the charter was generated interactively.
+
+The project `.gitignore` continues to ignore these files as it does today; the manifest simply does not take ownership of them.
 
 ---
 
@@ -97,8 +102,8 @@ Return value from `ensure_charter_bundle_fresh()` and `sync()`. Tells the caller
 | --- | --- | --- | --- |
 | `synced` | `bool` | Existing | Whether a sync was triggered on this call. |
 | `stale_before` | `bool` | Existing | Whether the bundle was stale (hash mismatch or missing derivatives) before this call. |
-| `files_written` | `list[Path]` | Existing | Paths of files written during the sync, **relative to `canonical_root`**. |
-| `extraction_mode` | `str` | Existing | Extraction mode used by the extractor (pre-existing semantic). |
+| `files_written` | `list[Path]` | Existing | Paths of files written during the sync, **relative to `canonical_root`**. For v1.0.0 manifest: a subset of `[governance.yaml, directives.yaml, metadata.yaml]`. |
+| `extraction_mode` | `str` | Existing | Extraction mode used by the extractor. |
 | `error` | `str \| None` | Existing | Error message if sync failed; `None` on success. |
 | `canonical_root` | `Path` | **New (WP2.2)** | Absolute path to the canonical (main-checkout) project root. Anchor for every path in `files_written`. Callers reconstruct absolute paths as `canonical_root / p`. |
 
@@ -130,7 +135,7 @@ No shim is shipped; callers are directly updated per C-001.
 
 ### Purpose
 
-Structured output of `m_3_2_3_unified_bundle.py` so operators can audit exactly what the migration changed without diffing the filesystem by hand. Consumed by:
+Structured output of `m_3_2_3_unified_bundle.py` so operators can audit exactly what the migration did. Consumed by:
 
 - `spec-kitty upgrade` when run with `--json` (the standard `spec-kitty` CLI convention).
 - `tests/upgrade/test_unified_bundle_migration.py` for fixture-matrix assertions (FR-013).
@@ -141,22 +146,22 @@ Structured output of `m_3_2_3_unified_bundle.py` so operators can audit exactly 
 | --- | --- | --- |
 | `migration_id` | `str` | Literal `"m_3_2_3_unified_bundle"`. |
 | `target_version` | `str` | Literal `"3.2.3"`. |
-| `applied` | `bool` | Whether the migration changed anything on disk. `False` means it was a no-op (e.g., second apply). |
-| `worktrees_scanned` | `list[Path]` | Absolute paths of every worktree the migration inspected. |
-| `symlinks_removed` | `list[Path]` | Absolute paths of every charter-related symlink removed (across worktrees). |
-| `copies_removed` | `list[Path]` | Absolute paths of every charter-related copied file removed (for Windows fallback case). |
-| `git_exclude_entries_removed` | `list[dict[str, str]]` | Entries removed from per-worktree `.git/info/exclude`. Shape: `{"worktree": <absolute>, "entry": <string>}`. |
-| `bundle_validation` | `dict[str, Any]` | Result of validating the main-checkout bundle against `CharterBundleManifest`. Keys: `passed: bool`, `missing_tracked: list[Path]`, `missing_derived: list[Path]`, `unexpected: list[Path]`. |
-| `chokepoint_refreshed` | `bool` | Whether the chokepoint was invoked to regenerate missing derivatives during the migration. |
-| `gitignore_reconciled` | `dict[str, list[str]]` | Keys: `added: list[str]`, `removed: list[str]`, `unchanged: list[str]`. Lists the gitignore entries the migration changed. For v1.0.0 manifest this is expected to be `{"added": [], "removed": [], "unchanged": [<5 entries>]}`. |
+| `applied` | `bool` | Whether the migration changed anything on disk. `False` means the bundle was already complete and fresh (expected outcome for most upgrades, because the chokepoint's on-read auto-refresh usually keeps the bundle current). |
+| `charter_present` | `bool` | Whether `.kittify/charter/charter.md` exists at migration time. When `false`, the migration is a no-op and every subsequent field is empty/default. |
+| `bundle_validation` | `dict[str, Any]` | Result of validating the main-checkout bundle against `CharterBundleManifest` v1.0.0. Keys: `passed: bool`, `missing_tracked: list[Path]`, `missing_derived: list[Path]`, `unexpected: list[Path]`. `unexpected` lists files under `.kittify/charter/` that are not v1.0.0 manifest files (e.g., `references.yaml`, `context-state.json`) — informational, not a failure. |
+| `chokepoint_refreshed` | `bool` | Whether invoking `ensure_charter_bundle_fresh()` during the migration actually triggered a sync. `False` if the bundle was already complete and fresh. |
 | `errors` | `list[str]` | Any non-fatal errors encountered. Fatal errors raise and do not produce a report. |
 | `duration_ms` | `int` | Wall time of the migration in milliseconds. Must be ≤2000 on the FR-013 reference fixture (NFR-006). |
 
 ### Validation rules
 
-- `migration_id` and `target_version` are literal strings; validated against the exact expected values by the registry.
-- `symlinks_removed` and `copies_removed` are mutually exclusive in the common case (a symlink either succeeded or fell back to a copy; both should not exist). Not enforced by the schema — observed behavior.
-- On idempotent re-apply: `applied` is `False`, every list is empty, `bundle_validation.passed` is `True`, `chokepoint_refreshed` is `False`.
+- `migration_id` and `target_version` are literal strings; validated by the registry.
+- On idempotent re-apply: `applied` is `False`, `bundle_validation.passed` is `True`, `chokepoint_refreshed` is `False`, `errors` is `[]`.
+- When `charter_present == false`: `applied == false`; `bundle_validation.passed == true` (trivially); `chokepoint_refreshed == false`.
+
+### Explicitly not in v1.0.0 migration scope
+
+The migration does NOT scan worktrees, does NOT remove any symlinks, does NOT touch `.kittify/memory/` or `.kittify/AGENTS.md` (those are documented-intentional sharing per `src/specify_cli/templates/AGENTS.md:168-179` and are not part of the charter bundle), and does NOT reconcile `.gitignore` (v1.0.0 manifest's required entries match the current project `.gitignore` verbatim). Operator-visible upgrade work on v1.0.0 is minimal by design — the real behavior change is at the reader/chokepoint layer and is inherent to the code upgrade, not to the filesystem migration.
 
 ### State transitions
 
@@ -170,7 +175,7 @@ Not stateful. One report per migration invocation.
 
 **Module**: `src/charter/resolution.py` (new — introduced in WP2.2).
 **Parent**: `RuntimeError`.
-**Raised by**: `resolve_canonical_repo_root(path)` when `path` is not inside any git repository (i.e., `git rev-parse --git-common-dir` exits non-zero with a "not a git repository" signal, **or** when invoked from inside a `.git/` directory per R-2 edge case).
+**Raised by**: `resolve_canonical_repo_root(path)` when `path` is not inside any git repository (i.e., `git rev-parse --git-common-dir` exits non-zero with a "not a git repository" signal, **or** when the resolved input path is inside a `.git/` directory per R-2 edge case).
 
 **Fields**:
 
@@ -200,7 +205,8 @@ Per C-001, neither exception has a fallback handler in the chokepoint; both prop
 ```
                                 ┌─────────────────────────┐
                                 │  CharterBundleManifest  │
-                                │  (src/charter/bundle.py)│
+                                │  (v1.0.0 — 3 derived)   │
+                                │  src/charter/bundle.py  │
                                 └─────────────┬───────────┘
                                               │ consulted by
                    ┌──────────────────────────┼───────────────────────────────┐
@@ -220,14 +226,14 @@ Per C-001, neither exception has a fallback handler in the chokepoint; both prop
                    │
                    │ returned to every reader in FR-004
                    ▼
-    every charter-derivative reader
+    every sync-output reader
     (build_charter_context, dashboard,
      CLI handlers, prompt builders, ...)
 ```
 
-- Manifest is the **static contract** for the bundle.
+- Manifest is the **static contract** for which files `sync()` owns.
 - Resolver is the **dynamic contract** for "where is the bundle anchored".
-- Chokepoint is the **execution contract** that composes manifest + resolver and produces a freshness-guaranteed bundle view.
+- Chokepoint is the **execution contract** that composes manifest + resolver and produces a freshness-guaranteed view of the `sync()`-produced files.
 - `SyncResult` is the **data contract** returned to every caller.
 - `MigrationReport` is the **upgrade contract** for operator-visible audit trail.
 
@@ -239,3 +245,6 @@ Per C-001, neither exception has a fallback handler in the chokepoint; both prop
 - DRG types (`DRGGraph`, `Node`, `Relation`, etc. in `src/doctrine/drg/`): **unchanged**. Phase 0 baseline per C-005.
 - Dashboard typed contracts (`WPState`, `Lane` in `#361`): **unchanged shape** — only routed differently. C-010 preserves byte-identity.
 - Mission / WP identity model (`mission_id`, `mid8`, `mission_slug`): **unchanged**. Orthogonal to Phase 2.
+- **Worktree `.kittify/memory/` and `.kittify/AGENTS.md` symlinks (`src/specify_cli/core/worktree.py:478-532`)**: **unchanged**. Documented-intentional per `src/specify_cli/templates/AGENTS.md:168-179`. Not part of the charter bundle.
+- Compiler pipeline output (`references.yaml` via `compiler.py:169-196`): **unchanged**. Out of v1.0.0 manifest scope.
+- Context-state file (`context-state.json` via `context.py:385-398`): **unchanged**. Out of v1.0.0 manifest scope.
