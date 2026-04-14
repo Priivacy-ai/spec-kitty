@@ -1,6 +1,6 @@
 {
   "mission_slug": "windows-compatibility-hardening-01KP5R6K",
-  "snapshot_id": "3a7c0da6-9a65-49a1-a0d5-49d6f42518f6",
+  "snapshot_id": "c355f311-0a77-4753-b614-cfdde596ec80",
   "total_artifacts": 26,
   "required_artifacts": 3,
   "required_present": 3,
@@ -8,34 +8,34 @@
   "optional_artifacts": 23,
   "optional_present": 23,
   "completeness_status": "complete",
-  "parity_hash_sha256": "b1aaef80023613381a4376b437a274e4ae1336372d8f6355f2b35ea6efc55767",
+  "parity_hash_sha256": "8f6e7015d7ea1eace74b41271e5fdf79c2f24e72d46b06a7ae7d78dbe0ad230a",
   "parity_hash_components": [
-    "074b0e893bed50a3c22092ed649759c11d0f071aa8e4c4b7b427b94471bc7cf1",
     "1df0e1da192eefde1698f02eaedcd53ba2d9eefd809ff7235f1f069f81049cfd",
     "2563beac90c770a05faa83102895bd9234ada2da98721b73fcf20f8563fc0bcf",
-    "3181cff826daeceaca3ca9e1aa6240af56d61fe03c8f9c6fdb03968854b3c10a",
+    "37612a59607384d76a68f3563064d84b2bc82fc8a769fc55ca4ed41393ff26ef",
     "3aaab4e731da2f0a8a8e7a3202133335496dc17cd0f10b6b161e9b7d2cdba4ad",
+    "3c1b4ab32e04f6cf4e49110ff9eaead3c2155e017fbdf482e09c04d38c8d6781",
     "3f58b9e565baf92acdc1578f3aa5f4ee85e803b78b54a019207f6a809906a45e",
-    "474fc41d841effd0f183e0535d6dc1acfade676e39b463dd6a592b5ade9b9e2b",
     "4e269e8743cffbd1b26d7beb801378c75003dbe3f2eb2f3efb8e9323e969f83f",
-    "5186a415a035c3e5e2699fc673e916a0b5545bea4e34aa176910e99d76dd97c6",
-    "53209360ba72488442277e3e10336a8520129830a387cfa4f7a7d8473b0e9dbb",
-    "63dbdeebf2131fd1f71d4549b2658e67cccb65929425994adadf734182070df5",
+    "535ef1c1b89c3313299e588c1a97ee53f40dcd90b311a1b369f8cc47da0b0c3f",
+    "54dcecb95a1e5ebdf0c94c1aac95e53ce570cd5b1436a3cb228ce56ed1732c6b",
+    "5b641223ae7d140ff88da7ba4c614a80376b12339023f312f13e47104974e845",
     "846dd9ddee4b2a635772e0258d041a1082506423611cbdafb2ca33eae6a96fe5",
-    "87eb687e1d8e34b644113906f30fcdc0767b2a55c9768c62746076c8c8cb4aff",
     "89409bcbb6e90014b2cd66d004037645d6799f838d40837568f2f8245a52ecff",
+    "92da3e33306b47b02aebd968686a106441b7159bd59cb2494b529aa0445c601c",
     "9ac909374dc20fceb795a89de3ff8c4d84670396a962d6073c54ad3e57080b1a",
     "9c2153dce07caabd4b6246ac6981567daf5194f41d803e67057175627a8e2748",
+    "9c834d45822beea846b0cc29b0846cc8bf0093600ea14d2c6676c0c171d6b6fb",
     "a14ccb61926bd84d7309a3c1184fd852e698806080a8e561945aaf4854aaddc9",
     "b3e80bee81761bd541cce819c5f0b3a79c08afc139c15bc11673be4357da1786",
-    "b4fd973a0900034d21136eccb06061cebc748c58a2991239f183c3d2ab505544",
+    "b7a48e8aade26d3f15efb5cc2356273201d40ac0d3007738814b643a201a1729",
     "c9128c07ecb0262cbb4bf37ea9982f01cb7bc431ee29f5dcfedc29e0442d6dc4",
     "ca0f1d7590f0e5d8526b6c2236b103303cd40c227a470d09e4f8df3b39a200c9",
     "cfa9361f0a0a186577d8631ab690a3883c13e3e9e52c66cc508ceb004b86212b",
     "d3ab34a1ad7ac67950a7976339747d3fc07c1624776d1899cab50d48684b0708",
     "f78e1da3f95ed749405ee790ec8e22e00a14a27c2205f334b95a669f93429e9c",
-    "fc79f8ffe9f08e8f4e482fc8c7f9b945964e42e7c9304fa7cef9d7bf75c5bc2c",
-    "fd678c0de8caba89778da8391daabf319932f01f5ab68a617a6c590f465d7e73"
+    "fd678c0de8caba89778da8391daabf319932f01f5ab68a617a6c590f465d7e73",
+    "ffe59cc2a49b9358c2bd8d9d23b19ed6d817fc850da29702e006eed001efd0b6"
   ],
   "artifact_summaries": [
     {
@@ -49,7 +49,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.293934+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428577+00:00",
       "provenance": null
     },
     {
@@ -63,7 +63,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.294860+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428849+00:00",
       "provenance": null
     },
     {
@@ -77,7 +77,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.295214+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428946+00:00",
       "provenance": null
     },
     {
@@ -91,7 +91,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.294233+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428668+00:00",
       "provenance": null
     },
     {
@@ -105,7 +105,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.290346+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426635+00:00",
       "provenance": null
     },
     {
@@ -119,7 +119,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291775+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427082+00:00",
       "provenance": null
     },
     {
@@ -133,7 +133,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292852+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428012+00:00",
       "provenance": null
     },
     {
@@ -147,35 +147,35 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.293600+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428456+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status",
       "artifact_class": "output",
       "relative_path": "status.json",
-      "content_hash_sha256": "63dbdeebf2131fd1f71d4549b2658e67cccb65929425994adadf734182070df5",
-      "size_bytes": 2434,
+      "content_hash_sha256": "92da3e33306b47b02aebd968686a106441b7159bd59cb2494b529aa0445c601c",
+      "size_bytes": 2442,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291690+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427006+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.status.events",
       "artifact_class": "output",
       "relative_path": "status.events.jsonl",
-      "content_hash_sha256": "3181cff826daeceaca3ca9e1aa6240af56d61fe03c8f9c6fdb03968854b3c10a",
-      "size_bytes": 4383,
+      "content_hash_sha256": "b7a48e8aade26d3f15efb5cc2356273201d40ac0d3007738814b643a201a1729",
+      "size_bytes": 5335,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.289798+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426315+00:00",
       "provenance": null
     },
     {
@@ -189,91 +189,91 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.294588+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428757+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp01-windows-paths-subpackage",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP01-windows-paths-subpackage.md",
-      "content_hash_sha256": "074b0e893bed50a3c22092ed649759c11d0f071aa8e4c4b7b427b94471bc7cf1",
-      "size_bytes": 11878,
+      "content_hash_sha256": "5b641223ae7d140ff88da7ba4c614a80376b12339023f312f13e47104974e845",
+      "size_bytes": 12266,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292986+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428121+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp02-windows-state-migration",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP02-windows-state-migration.md",
-      "content_hash_sha256": "5186a415a035c3e5e2699fc673e916a0b5545bea4e34aa176910e99d76dd97c6",
-      "size_bytes": 13253,
+      "content_hash_sha256": "9c834d45822beea846b0cc29b0846cc8bf0093600ea14d2c6676c0c171d6b6fb",
+      "size_bytes": 13271,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291993+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427263+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp03-auth-hard-platform-split",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP03-auth-hard-platform-split.md",
-      "content_hash_sha256": "87eb687e1d8e34b644113906f30fcdc0767b2a55c9768c62746076c8c8cb4aff",
-      "size_bytes": 14476,
+      "content_hash_sha256": "535ef1c1b89c3313299e588c1a97ee53f40dcd90b311a1b369f8cc47da0b0c3f",
+      "size_bytes": 14484,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292103+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427367+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp04-path-messaging-and-migrate-wiring",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP04-path-messaging-and-migrate-wiring.md",
-      "content_hash_sha256": "b4fd973a0900034d21136eccb06061cebc748c58a2991239f183c3d2ab505544",
-      "size_bytes": 11941,
+      "content_hash_sha256": "54dcecb95a1e5ebdf0c94c1aac95e53ce570cd5b1436a3cb228ce56ed1732c6b",
+      "size_bytes": 11951,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292212+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427472+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp05-runtime-consumers-re-rooting",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP05-runtime-consumers-re-rooting.md",
-      "content_hash_sha256": "474fc41d841effd0f183e0535d6dc1acfade676e39b463dd6a592b5ade9b9e2b",
-      "size_bytes": 10309,
+      "content_hash_sha256": "37612a59607384d76a68f3563064d84b2bc82fc8a769fc55ca4ed41393ff26ef",
+      "size_bytes": 10317,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.293205+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428323+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp06-hook-installer-hardening",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP06-hook-installer-hardening.md",
-      "content_hash_sha256": "53209360ba72488442277e3e10336a8520129830a387cfa4f7a7d8473b0e9dbb",
-      "size_bytes": 16323,
+      "content_hash_sha256": "ffe59cc2a49b9358c2bd8d9d23b19ed6d817fc850da29702e006eed001efd0b6",
+      "size_bytes": 16331,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.293098+00:00",
+      "indexed_at": "2026-04-14T10:58:38.428224+00:00",
       "provenance": null
     },
     {
@@ -287,21 +287,21 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292422+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427679+00:00",
       "provenance": null
     },
     {
       "artifact_key": "artifact.wp08-encoding-worktree-mission-tests",
       "artifact_class": "workflow",
       "relative_path": "tasks/WP08-encoding-worktree-mission-tests.md",
-      "content_hash_sha256": "fc79f8ffe9f08e8f4e482fc8c7f9b945964e42e7c9304fa7cef9d7bf75c5bc2c",
-      "size_bytes": 14222,
+      "content_hash_sha256": "3c1b4ab32e04f6cf4e49110ff9eaead3c2155e017fbdf482e09c04d38c8d6781",
+      "size_bytes": 14230,
       "wp_id": null,
       "step_id": null,
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292539+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427894+00:00",
       "provenance": null
     },
     {
@@ -315,7 +315,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.292320+00:00",
+      "indexed_at": "2026-04-14T10:58:38.427578+00:00",
       "provenance": null
     },
     {
@@ -329,7 +329,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291016+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426794+00:00",
       "provenance": null
     },
     {
@@ -343,7 +343,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.290162+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426463+00:00",
       "provenance": null
     },
     {
@@ -357,7 +357,7 @@
       "required_status": "optional",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.290659+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426711+00:00",
       "provenance": null
     },
     {
@@ -371,7 +371,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291583+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426920+00:00",
       "provenance": null
     },
     {
@@ -385,7 +385,7 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.291489+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426859+00:00",
       "provenance": null
     },
     {
@@ -399,9 +399,9 @@
       "required_status": "required",
       "is_present": true,
       "error_reason": null,
-      "indexed_at": "2026-04-14T10:56:30.290253+00:00",
+      "indexed_at": "2026-04-14T10:58:38.426545+00:00",
       "provenance": null
     }
   ],
-  "computed_at": "2026-04-14 10:56:30.336975+00:00"
+  "computed_at": "2026-04-14 10:58:38.448375+00:00"
 }
