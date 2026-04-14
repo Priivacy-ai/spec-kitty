@@ -177,3 +177,4 @@ Run with `pytest tests/integration/sparse_checkout/ -v`.
 
 - 2026-04-14T06:55:03Z – claude:opus-4.6:implementer:implementer – shell_pid=96308 – Started implementation via action command
 - 2026-04-14T07:04:45Z – claude:opus-4.6:implementer:implementer – shell_pid=96308 – Ready for review
+- 2026-04-14T07:06:27Z – claude:opus-4.6:implementer:implementer – shell_pid=96308 – Review passed: check_sparse_checkout wired into run_doctor (status/doctor.py:398); sparse-checkout Typer cmd registered on doctor app alongside command-files/state-roots/identity; FR-023 non-interactive guard exits non-zero without mutation; interactive y/N prompt, dirty-tree refusal surfaces commit/stash pointer; 71/71 pytest pass (24 integration + 47 existing doctor); ruff clean; scope limited to owned files plus cli/commands/doctor.py (justified by spec body calling for Typer subcommand).
