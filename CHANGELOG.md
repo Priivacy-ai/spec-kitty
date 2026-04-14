@@ -51,6 +51,17 @@ spec-kitty doctor sparse-checkout --fix
 
 Root-cause diagnostic trail: [Priivacy-ai/spec-kitty#588 (comment)](https://github.com/Priivacy-ai/spec-kitty/issues/588#issuecomment-4242179946).
 
+## [3.1.2a4] - 2026-04-14
+
+### Added
+
+- **Kiro CLI as first-class agent** — `spec-kitty init --ai kiro` registers the Kiro CLI (Amazon Q Developer CLI's rebrand) with its own `.kiro/prompts/` directory and `kiro-cli` binary check. Legacy `--ai q` (→ `.amazonq/prompts/`) remains supported for backwards compatibility. README and `docs/reference/supported-agents.md` now document the shell-quoting requirement for `$ARGUMENTS` pass-through (see kirodotdev/Kiro#4141). Closes #246.
+
+### Fixed
+
+- **`diff-coverage` CI job no longer fails with "no merge base"** — the base-branch fetch was passing `--depth=1` after `actions/checkout@v6` had already fetched full history, which truncated `origin/<base>` back to a single commit and broke `diff-cover`'s merge-base computation. Dropped `--depth=1`.
+- **`test_mission_v1_guards_unit.py::test_registry_keys` now matches the guard registry** — synchronised the `EXPECTED_GUARDS` set with the `occurrence_map_complete` guard added in #616.
+
 ## [3.1.2a3] - 2026-04-12
 
 ### Fixed

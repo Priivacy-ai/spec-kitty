@@ -76,8 +76,8 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 agents (fallback)
-        assert len(agent_dirs) == 13
+        # Should return all 14 agents (fallback)
+        assert len(agent_dirs) == 14
         assert (".claude", "commands") in agent_dirs
         assert (".opencode", "command") in agent_dirs
 
@@ -91,8 +91,8 @@ class TestGetAgentDirsForProject:
 
         agent_dirs = get_agent_dirs_for_project(tmp_path)
 
-        # Should return all 13 agents (fallback for empty)
-        assert len(agent_dirs) == 13
+        # Should return all 14 agents (fallback for empty)
+        assert len(agent_dirs) == 14
 
 
 class TestMigrationRespectsConfig:
@@ -225,12 +225,13 @@ class TestAgentDirMapping:
     def test_agent_dir_to_key_complete(self):
         """Verify all agents have key mappings."""
         # All 13 agents should be mapped
-        assert len(AGENT_DIR_TO_KEY) == 13
+        assert len(AGENT_DIR_TO_KEY) == 14
 
         # Verify special mappings
         assert AGENT_DIR_TO_KEY[".github"] == "copilot"
         assert AGENT_DIR_TO_KEY[".augment"] == "auggie"
         assert AGENT_DIR_TO_KEY[".amazonq"] == "q"
+        assert AGENT_DIR_TO_KEY[".kiro"] == "kiro"
         assert AGENT_DIR_TO_KEY[".claude"] == "claude"
         assert AGENT_DIR_TO_KEY[".opencode"] == "opencode"
 

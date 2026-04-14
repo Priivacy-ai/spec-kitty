@@ -734,7 +734,8 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
 | [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
-| [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
+| [Kiro CLI](https://kiro.dev/docs/cli/) (formerly Amazon Q Developer CLI) | ✅ | Saved-prompt arguments work via `$ARGUMENTS`, but the full invocation must be shell-quoted (e.g. `kiro '@speckit.specify my description'`). See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141). |
+| [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) (legacy) | ⚠️ | Rebranded to Kiro CLI. Existing `--ai q` projects continue to work; new projects should select `kiro`. |
 
 <details>
 <summary><h2>🔧 Spec Kitty CLI Reference</h2></summary>
@@ -1181,7 +1182,7 @@ cat .kittify/metadata.yaml
 ## 🔧 Prerequisites
 
 - **Linux/macOS** (or WSL2 on Windows)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen CLI](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai/), [Codex CLI](https://github.com/openai/codex), [Windsurf](https://windsurf.com/), or [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/)
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen CLI](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai/), [Codex CLI](https://github.com/openai/codex), [Windsurf](https://windsurf.com/), or [Kiro CLI](https://kiro.dev/docs/cli/) (formerly Amazon Q Developer CLI)
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)

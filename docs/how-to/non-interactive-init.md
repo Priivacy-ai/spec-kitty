@@ -52,7 +52,8 @@ spec-kitty init .
 | `auggie` | Auggie CLI (Augment Code) |
 | `roo` | Roo Code |
 | `copilot` | GitHub Copilot |
-| `q` | Amazon Q Developer CLI |
+| `q` | Amazon Q Developer CLI (legacy; rebranded to Kiro) |
+| `kiro` | Kiro CLI (formerly Amazon Q Developer CLI) |
 
 **Case-sensitive**: Use lowercase exactly as shown
 

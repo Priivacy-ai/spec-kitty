@@ -14,7 +14,8 @@ AI_CHOICES = {
     "kilocode": "Kilo Code",
     "auggie": "Auggie CLI",
     "roo": "Roo Code",
-    "q": "Amazon Q Developer CLI",
+    "q": "Amazon Q Developer CLI (legacy; use 'kiro')",
+    "kiro": "Kiro CLI (formerly Amazon Q Developer CLI)",
     "antigravity": "Google Antigravity",
 }
 
@@ -33,6 +34,7 @@ AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "codex": ("codex", "https://github.com/openai/codex"),
     "auggie": ("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"),
     "q": ("q", "https://aws.amazon.com/developer/learning/q-developer-cli/"),
+    "kiro": ("kiro-cli", "https://kiro.dev/docs/cli/"),
 }
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -55,6 +57,7 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "q": {"dir": ".amazonq/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
+    "kiro": {"dir": ".kiro/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "antigravity": {"dir": ".agent/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
 }
 
@@ -76,6 +79,7 @@ AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
     "auggie":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".augment/skills/"]},
     "roo":          {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".roo/skills/"]},
     "q":            {"class": SKILL_CLASS_WRAPPER, "skill_roots": None},
+    "kiro":         {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".kiro/skills/"]},
     "antigravity":  {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".agent/skills/"]},
 }
 
