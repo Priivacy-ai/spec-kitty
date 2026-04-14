@@ -21,6 +21,8 @@ subtasks:
 - T008
 - T009
 - T010
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "46585"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -289,3 +291,7 @@ Focus on:
 Do NOT ask about:
 - CLI output formatting or where migration is invoked — that's WP04.
 - Whether `migrate_cmd.py` should call this — that's WP04.
+
+## Activity Log
+
+- 2026-04-14T11:25:54Z – claude:opus-4.6:implementer:implementer – shell_pid=46585 – Started implementation via action command
