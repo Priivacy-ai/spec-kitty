@@ -1,0 +1,10 @@
+{
+  "name": "spec-kitty-maintenance",
+  "private": true,
+  "scripts": {
+    "contributors:sync": "python3 scripts/sync_all_contributors.py"
+  },
+  "devDependencies": {
+    "all-contributors-cli": "6.26.1"
+  }
+}

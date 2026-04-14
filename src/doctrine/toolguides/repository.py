@@ -13,6 +13,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Toolguide
+from .validation import reject_toolguide_inline_refs
 
 
 class ToolguideRepository:
@@ -48,6 +49,7 @@ class ToolguideRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_toolguide_inline_refs(data, file_path=str(yaml_file))
                     toolguide = Toolguide.model_validate(data)
                     shipped[toolguide.id] = toolguide
                 except (YAMLError, ValidationError, OSError) as e:
@@ -65,6 +67,7 @@ class ToolguideRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_toolguide_inline_refs(data, file_path=str(yaml_file))
                     tg_id = data.get("id")
                     if not tg_id:
                         warnings.warn(

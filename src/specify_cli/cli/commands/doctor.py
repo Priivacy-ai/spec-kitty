@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING, Annotated
@@ -12,6 +13,35 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.core.paths import locate_project_root
+
+
+# CI env-vars that should force non-interactive behaviour even when stdin
+# happens to be a TTY. Conservative list per WP04 Risks: a false positive
+# here would block an operator from remediating in a real local shell, so
+# only well-known names are included.
+_CI_ENV_VARS = (
+    "CI",
+    "GITHUB_ACTIONS",
+    "GITLAB_CI",
+    "BUILDKITE",
+    "JENKINS_URL",
+    "CIRCLECI",
+)
+
+
+def _is_interactive_environment() -> bool:
+    """Return True iff stdin is a TTY AND no common CI env var is set.
+
+    Matches the FR-023 contract: in CI / non-interactive environments,
+    ``doctor sparse-checkout --fix`` must print a remediation pointer and
+    exit non-zero rather than prompting.
+    """
+    if not sys.stdin.isatty():
+        return False
+    return all(
+        os.environ.get(var, "").lower() not in ("true", "1", "yes")
+        for var in _CI_ENV_VARS
+    )
 
 if TYPE_CHECKING:
     from specify_cli.status.identity_audit import IdentityState
@@ -402,3 +432,192 @@ def identity(
         fail_on,
     )
     raise typer.Exit(1 if fail_on_triggered else 0)
+
+
+def _render_sparse_finding(report: object) -> None:
+    """Render Quickstart Flow 1 finding output to the console.
+
+    Kept separate from the command callback so tests can exercise the
+    reporting surface directly. Uses ``soft_wrap=True`` to keep file
+    paths on a single line regardless of terminal width — the doctor
+    output contract is that affected paths are grep-able verbatim.
+    """
+    # Local import avoids circular-import edge cases during module load.
+    from specify_cli.git.sparse_checkout import SparseCheckoutScanReport
+
+    assert isinstance(report, SparseCheckoutScanReport)
+
+    console.print(
+        "[yellow]⚠ Legacy sparse-checkout state detected[/yellow]",
+        soft_wrap=True,
+    )
+    if report.primary.is_active:
+        console.print(f"  Primary: {report.primary.path}", soft_wrap=True)
+        console.print("    core.sparseCheckout = true", soft_wrap=True)
+        if report.primary.pattern_file_present and report.primary.pattern_file_path is not None:
+            pf_rel = report.primary.pattern_file_path
+            console.print(
+                f"    pattern file: {pf_rel} ({report.primary.pattern_line_count} lines)",
+                soft_wrap=True,
+            )
+    active_wts = [w for w in report.worktrees if w.is_active]
+    if active_wts:
+        console.print(
+            f"  Lane worktrees: {len(active_wts)} affected", soft_wrap=True
+        )
+        for wt in active_wts:
+            console.print(f"    {wt.path}", soft_wrap=True)
+    console.print()
+    console.print("  Why this matters:", soft_wrap=True)
+    console.print(
+        "    spec-kitty v3.0+ removed sparse-checkout support but does not ship a",
+        soft_wrap=True,
+    )
+    console.print(
+        "    migration. This state can cause silent data loss during mission merge",
+        soft_wrap=True,
+    )
+    console.print(
+        "    and broken lane worktrees on agent action implement.", soft_wrap=True
+    )
+    console.print("    See Priivacy-ai/spec-kitty#588.", soft_wrap=True)
+    console.print()
+    console.print("  Fix:", soft_wrap=True)
+    console.print("    spec-kitty doctor sparse-checkout --fix", soft_wrap=True)
+
+
+def _render_remediation_plan(report: object) -> None:
+    """Print the numbered step-by-step plan operators see before consenting."""
+    from specify_cli.git.sparse_checkout import SparseCheckoutScanReport
+
+    assert isinstance(report, SparseCheckoutScanReport)
+
+    console.print("Proceed? This will:")
+    step = 1
+    console.print(f"  {step}. git sparse-checkout disable (primary)")
+    step += 1
+    console.print(f"  {step}. git config --unset core.sparseCheckout (primary)")
+    step += 1
+    console.print(f"  {step}. rm {report.primary.path}/.git/info/sparse-checkout (primary)")
+    step += 1
+    console.print(f"  {step}. git checkout HEAD -- . (primary)")
+    for wt in report.worktrees:
+        if not wt.is_active:
+            continue
+        step += 1
+        console.print(f"  {step}. repeat steps 1–4 in {wt.path}")
+
+
+@app.command(name="sparse-checkout")
+def sparse_checkout(
+    fix: Annotated[
+        bool,
+        typer.Option(
+            "--fix",
+            help="Apply remediation (disable sparse-checkout on primary + worktrees).",
+        ),
+    ] = False,
+) -> None:
+    """Detect and optionally remediate legacy sparse-checkout state.
+
+    Without ``--fix``: scans the repo and prints a warning finding
+    describing any active sparse-checkout state (primary + lane
+    worktrees). Exits 0 when clean, 1 when state is present.
+
+    With ``--fix``: in an interactive TTY, prints a step-by-step plan,
+    prompts once for consent, and calls WP03's ``remediate()``. In
+    non-interactive / CI environments, prints a remediation pointer and
+    exits non-zero without mutating state (FR-023).
+
+    Examples:
+        spec-kitty doctor sparse-checkout
+        spec-kitty doctor sparse-checkout --fix
+    """
+    # Local imports keep module import cheap for unrelated doctor subcommands.
+    from specify_cli.git.sparse_checkout import scan_repo
+    from specify_cli.git.sparse_checkout_remediation import remediate
+
+    try:
+        repo_root = locate_project_root()
+    except Exception as exc:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1) from exc
+
+    if repo_root is None:
+        console.print("[red]Error:[/red] Not in a spec-kitty project")
+        raise typer.Exit(1)
+
+    report = scan_repo(repo_root)
+
+    # No state detected — emit the "nothing to do" message in both modes
+    # and exit cleanly.
+    if not report.any_active:
+        if fix:
+            console.print("No sparse-checkout state to remediate.")
+        else:
+            console.print(
+                "[green]✓ No legacy sparse-checkout state detected.[/green]"
+            )
+        raise typer.Exit(0)
+
+    # Detection-only surface: print the finding and exit non-zero so CI
+    # scripts that invoke `doctor sparse-checkout` can gate on the result.
+    if not fix:
+        _render_sparse_finding(report)
+        raise typer.Exit(1)
+
+    # --fix path: route by interactivity.
+    if not _is_interactive_environment():
+        # FR-023: CI/non-TTY surface is a single deterministic pointer line so
+        # scripts can grep it reliably. No state mutation; non-zero exit.
+        # Bypass Rich's auto-wrapping (which splits on terminal width and
+        # breaks grep) by using the stdlib print.
+        print(
+            "sparse-checkout --fix requires an interactive terminal; "
+            "run 'spec-kitty doctor sparse-checkout --fix' from a local TTY to remediate."
+        )
+        raise typer.Exit(1)
+
+    # Interactive mode: show the plan, prompt once, then remediate.
+    _render_remediation_plan(report)
+    try:
+        response = input("[y/N] ").strip().lower()
+    except EOFError:
+        response = ""
+    if response != "y":
+        console.print("Aborted — no changes made.")
+        raise typer.Exit(0)
+
+    # We already obtained operator consent for the whole plan; pass
+    # ``interactive=False`` so WP03 does not re-prompt per path.
+    rep = remediate(report, interactive=False, confirm=None)
+
+    # Render per-path results matching Quickstart Flow 1.
+    results = [rep.primary_result, *rep.worktree_results]
+
+    # Dirty-tree refusal: surface the specific "commit or stash" message.
+    if any(r.dirty_before_remediation for r in results):
+        console.print(
+            "[red]✗ Cannot remediate: uncommitted changes detected.[/red]"
+        )
+        for r in results:
+            if r.dirty_before_remediation:
+                console.print(f"  {r.path}")
+        console.print()
+        console.print("  Commit or stash your changes and retry:")
+        console.print("    git stash push -u")
+        console.print("    spec-kitty doctor sparse-checkout --fix")
+        raise typer.Exit(1)
+
+    any_failure = False
+    for r in results:
+        if r.success:
+            steps = len(r.steps_completed)
+            console.print(f"[green]✓[/green] {r.path}: remediated ({steps} steps, clean verify)")
+        else:
+            any_failure = True
+            detail = r.error_detail or "unknown error"
+            step = r.error_step or "unknown step"
+            console.print(f"[red]✗[/red] {r.path}: failed at {step} — {detail}")
+
+    raise typer.Exit(0 if rep.overall_success and not any_failure else 1)

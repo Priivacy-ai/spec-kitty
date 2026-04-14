@@ -18,9 +18,7 @@ context-sources:
     - paradigms
     - directives
   directives:
-    - "017"
     - "018"
-    - "019"
   additional:
     - glossary-index
     - doctrine-catalog
@@ -117,12 +115,6 @@ specialization-context:
     - medium
 
 directive-references:
-  - code: "017"
-    name: Glossary Integrity Standard
-    rationale: All domain terms must have a single canonical definition to prevent semantic drift
   - code: "018"
     name: Doctrine Versioning Requirement
     rationale: Changes to doctrine layers must be versioned with change rationale documented
-  - code: "019"
-    name: Documentation Gap Prioritization
-    rationale: Identified documentation gaps must be triaged by user impact and filled in priority order

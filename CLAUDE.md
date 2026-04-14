@@ -34,9 +34,9 @@ src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
 
 ## Supported AI Agents
 
-Spec Kitty supports **14 AI agents** total: 12 use the slash-command pipeline (files written to agent-specific directories) and 2 use the Agent Skills pipeline (files installed under `.agents/skills/`). When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:
+Spec Kitty supports **15 AI agents** total: 13 use the slash-command pipeline (Amazon Q/`q` retained as legacy alongside its rebrand Kiro) and 2 use the Agent Skills pipeline. When adding features that affect slash commands, migrations, or templates, ensure all command-layer agents are updated.
 
-### Slash-Command Agents (12)
+### Slash-Command Agents (13)
 
 | Agent | Directory | Subdirectory | Slash Commands |
 |-------|-----------|--------------|----------------|
@@ -51,6 +51,7 @@ Spec Kitty supports **14 AI agents** total: 12 use the slash-command pipeline (f
 | Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
 | Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
 | Amazon Q | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
 | Google Antigravity | `.agent/` | `workflows/` | `/spec-kitty.*` |
 
 ### Agent Skills Agents (2)

@@ -12,6 +12,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Procedure
+from .validation import reject_procedure_inline_refs
 
 
 class ProcedureRepository:
@@ -49,6 +50,7 @@ class ProcedureRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_procedure_inline_refs(data, file_path=str(yaml_file))
                     procedure = Procedure.model_validate(data)
                     shipped[procedure.id] = procedure
                 except (YAMLError, ValidationError, OSError) as e:
@@ -66,6 +68,7 @@ class ProcedureRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_procedure_inline_refs(data, file_path=str(yaml_file))
                     procedure_id = data.get("id")
                     if not procedure_id:
                         warnings.warn(

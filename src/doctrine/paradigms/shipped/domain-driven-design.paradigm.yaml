@@ -12,15 +12,6 @@ summary: >
   code is a direct expression of that model, not a translation layer above a
   database schema or UI framework.
 
-tactic_refs:
-  - bounded-context-identification
-  - anti-corruption-layer
-  - language-driven-design
-  - glossary-curation-interview
-  - problem-decomposition
-  - domain-event-capture
-  - refactoring-strangler-fig
-
 directive_refs:
   - DIRECTIVE_001
   - DIRECTIVE_031

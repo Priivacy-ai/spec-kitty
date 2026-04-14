@@ -83,8 +83,16 @@ def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> 
         write_compiled_charter(tmp_path, compiled, force=False)
 
 
-def test_compile_with_doctrine_service_none_emits_diagnostic() -> None:
-    """Calling compile_charter without DoctrineService appends the fallback diagnostic."""
+def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
+    """Calling compile_charter without DoctrineService must NOT emit a YAML
+    fallback diagnostic.
+
+    Per C-001 of the excise-doctrine-curation-and-inline-references-01KP54J6
+    mission there is no YAML-scanning fallback: the compiler constructs a
+    default :class:`DoctrineService` internally and always takes the
+    DRG-backed path. The compiled result includes tactics / procedures /
+    toolguides resolved via the graph, not just paradigms + directives.
+    """
     interview = default_interview(mission="software-dev", profile="minimal")
 
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
@@ -93,8 +101,84 @@ def test_compile_with_doctrine_service_none_emits_diagnostic() -> None:
         "DoctrineService unavailable; using YAML scanning fallback. "
         "Profile-aware compilation requires DoctrineService."
     )
-    assert any(fallback_msg in d for d in compiled.diagnostics), (
-        f"Expected fallback diagnostic in {compiled.diagnostics}"
+    assert not any(fallback_msg in d for d in compiled.diagnostics), (
+        f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
+    )
+    # The DRG-backed path resolves transitive artifacts. For the default
+    # interview the shipped graph should yield at least one tactic.
+    kinds = {reference.kind for reference in compiled.references}
+    assert "tactic" in kinds, (
+        "DRG-backed path should have resolved transitive tactics; "
+        f"got kinds {sorted(kinds)}"
+    )
+
+
+def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None:
+    """When repo_root is passed, the project DRG overlay at
+    <repo_root>/.kittify/doctrine/graph.yaml participates in transitive
+    resolution (exercises the repo_root branch of _build_references and
+    _default_doctrine_service).
+
+    Post-merge fix per P2 of the excise-doctrine-curation-and-inline-references-01KP54J6
+    mission review.
+    """
+    interview = default_interview(mission="software-dev", profile="minimal")
+
+    # An empty project overlay at .kittify/doctrine/graph.yaml is enough
+    # to prove the repo_root branch executes load_validated_graph. We use
+    # an empty edges/nodes overlay so shipped edges dominate and the
+    # compilation still succeeds end-to-end.
+    overlay_dir = tmp_path / ".kittify" / "doctrine"
+    overlay_dir.mkdir(parents=True)
+    (overlay_dir / "graph.yaml").write_text(
+        "schema_version: '1.0'\n"
+        "generated_at: '2026-04-14T00:00:00+00:00'\n"
+        "generated_by: test-compile-with-repo-root\n"
+        "nodes: []\n"
+        "edges: []\n"
+    )
+
+    # Also create a project doctrine overlay dir so _default_doctrine_service
+    # exercises the project-root branch (compiler.py lines 267-269).
+    (tmp_path / "src" / "doctrine").mkdir(parents=True)
+
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=interview,
+        doctrine_service=None,
+        repo_root=tmp_path,
+    )
+    kinds = {reference.kind for reference in compiled.references}
+    # Shipped graph still supplies tactics even with empty project overlay.
+    assert "tactic" in kinds, (
+        f"repo_root branch should still resolve shipped tactics; got {sorted(kinds)}"
+    )
+
+
+def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When repo_root is passed but the shipped graph cannot be loaded,
+    _build_references falls back to legacy minimal behavior (directives only,
+    no transitive resolution). Exercises compiler.py FileNotFoundError branch.
+    """
+    from charter import _drg_helpers as drg_helpers_module
+
+    interview = default_interview(mission="software-dev", profile="minimal")
+
+    def _raise_fnf(_repo_root: Path) -> object:
+        raise FileNotFoundError("synthetic: shipped graph missing")
+
+    monkeypatch.setattr(drg_helpers_module, "load_validated_graph", _raise_fnf)
+
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=interview,
+        doctrine_service=None,
+        repo_root=tmp_path,
+    )
+    # Fallback path: no transitive artifacts beyond directives/paradigms themselves.
+    kinds = {reference.kind for reference in compiled.references}
+    assert "tactic" not in kinds, (
+        f"FileNotFoundError branch should NOT resolve tactics; got {sorted(kinds)}"
     )
 
 
@@ -104,7 +188,7 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
 
     # Build a minimal mock DoctrineService whose repositories return nothing
     # (empty lists / None gets), so the code paths that call .get() and
-    # resolve_references_transitively() are exercised.
+    # the DRG-backed transitive resolution path is exercised.
     mock_service = MagicMock()
     mock_service.directives.list_all.return_value = []
     mock_service.directives.get.return_value = None
@@ -129,10 +213,16 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
     assert "## Governance Activation" in compiled.markdown
 
 
-def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
-    """Unresolvable references are recorded as diagnostics when DoctrineService is used."""
-    # Mock service whose directives.get() always returns None → every directive
-    # that the interview selects will be unresolved by the walker.
+def test_compile_with_doctrine_service_unknown_directive_in_diagnostics() -> None:
+    """Unknown directives surface as a user-visible diagnostic.
+
+    Post-WP03 the DRG is the sole authority for transitive references; any
+    directive not in the catalog is dropped by
+    ``_sanitize_catalog_selection`` before transitive resolution fires, so
+    the diagnostic is emitted by the sanitizer rather than the walker.
+    The user-visible signal (a non-silent diagnostic about the bad
+    selection) is preserved.
+    """
     mock_service = MagicMock()
     mock_service.directives.get.return_value = None
     mock_service.tactics.get.return_value = None
@@ -140,9 +230,10 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
     mock_service.toolguides.get.return_value = None
     mock_service.procedures.get.return_value = None
 
-    # Force a known directive into the interview so we can assert on it
     interview_with_directive = default_interview(mission="software-dev", profile="minimal")
-    object.__setattr__(interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"])
+    object.__setattr__(
+        interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"]
+    )
 
     compiled = compile_charter(
         mission="software-dev",
@@ -150,10 +241,9 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
         doctrine_service=mock_service,
     )
 
-    # At least one "Unresolved reference" diagnostic must appear
-    assert any("Unresolved reference" in d for d in compiled.diagnostics), (
-        f"Expected unresolved-reference diagnostic; got: {compiled.diagnostics}"
-    )
+    assert any(
+        "DIRECTIVE_MISSING" in d for d in compiled.diagnostics
+    ), f"Expected a diagnostic about DIRECTIVE_MISSING; got: {compiled.diagnostics}"
 
 
 # ---------------------------------------------------------------------------

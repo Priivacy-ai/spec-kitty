@@ -11,7 +11,7 @@ Drop raw sources here when you identify something worth extracting into a doctri
 required at intake time.
 
 Once a reference has been fully converted into one or more doctrine artifacts under
-`src/doctrine/<type>/_proposed/`, the raw reference file **should be removed** from this
+`src/doctrine/<type>/shipped/`, the raw reference file **should be removed** from this
 directory. The traceability between source and artifact is captured in the resulting
 `.import.yaml` candidate file, not in this landing zone.
 
@@ -19,9 +19,7 @@ directory. The traceability between source and artifact is captured in the resul
 
 ```
 _reference/<source>/   ← drop raw material here (unformatted, any format)
-        ↓  (extract and formalise)
-<type>/_proposed/      ← structured doctrine artifact awaiting curation
-        ↓  (spec-kitty doctrine curate → accept)
+        ↓  (extract and formalise as a shipped YAML + graph.yaml edges)
 <type>/shipped/        ← canonised, live doctrine
 ```
 
@@ -35,5 +33,5 @@ _reference/<source>/   ← drop raw material here (unformatted, any format)
 ## What does NOT belong here
 
 - Structured doctrine artifacts (`.directive.yaml`, `.tactic.yaml`, etc.) — those go
-  directly into `<type>/_proposed/`
-- Converted references whose artifacts already exist in `_proposed/` or `shipped/`
+  directly into `<type>/shipped/`
+- Converted references whose artifacts already exist under `<type>/shipped/`

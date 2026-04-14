@@ -37,7 +37,9 @@ class TestDirective:
         assert directive.id == "DIRECTIVE_999"
         assert directive.title == "Test Directive"
         assert directive.enforcement == Enforcement.REQUIRED
-        assert directive.tactic_refs == []
+        # Post-WP02: inline `tactic_refs` has been excised from the Directive
+        # model; cross-artifact relationships live in src/doctrine/graph.yaml.
+        assert not hasattr(directive, "tactic_refs")
         assert directive.scope is None
         assert directive.procedures == []
         assert directive.references == []
@@ -55,7 +57,8 @@ class TestDirective:
         assert len(directive.integrity_rules) == 1
         assert len(directive.validation_criteria) == 1
         assert len(directive.explicit_allowances) == 1
-        assert "zombies-tdd" in directive.tactic_refs
+        # Post-WP02: inline `tactic_refs` is no longer a Directive attribute.
+        assert not hasattr(directive, "tactic_refs")
 
     def test_frozen_model(self, sample_directive_data: dict) -> None:
         directive = Directive.model_validate(sample_directive_data)

@@ -30,6 +30,7 @@ import httpx
 from .. import get_token_manager
 from ..config import get_saas_base_url
 from ..errors import AuthenticationError, NetworkError, NotAuthenticatedError
+from ..http import PublicHttpClient
 
 log = logging.getLogger(__name__)
 
@@ -105,17 +106,16 @@ class WebSocketTokenProvisioner:
             )
             await tm.refresh_if_needed()
 
-        access_token = await tm.get_access_token()
-
         saas_url = get_saas_base_url()
         url = f"{saas_url}/api/v1/ws-token"
+        access_token = await tm.get_access_token()
         headers = {"Authorization": f"Bearer {access_token}"}
         payload = {"team_id": team_id}
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
+        async with PublicHttpClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
             try:
                 response = await client.post(url, json=payload, headers=headers)
-            except httpx.RequestError as exc:
+            except NetworkError as exc:
                 raise NetworkError(
                     f"WebSocket provisioning network error: {exc}"
                 ) from exc

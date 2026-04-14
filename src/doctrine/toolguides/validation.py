@@ -4,7 +4,14 @@ from typing import Any
 
 import jsonschema
 
+from doctrine.shared.errors import reject_inline_refs
 from doctrine.shared.schema_utils import SchemaUtilities
+
+
+def reject_toolguide_inline_refs(data: dict[str, Any], *, file_path: str) -> None:
+    """Raise ``InlineReferenceRejectedError`` if the toolguide YAML carries a
+    forbidden inline reference field."""
+    reject_inline_refs(data, file_path=file_path, artifact_kind="toolguide")
 
 
 def validate_toolguide(data: dict[str, Any]) -> list[str]:

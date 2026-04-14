@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from unittest.mock import MagicMock, patch
+from uuid import UUID
 
 import pytest
 
@@ -163,6 +164,57 @@ class TestSyncRuntime:
 
         assert runtime.emitter is mock_emitter
         # ws_client not set since it was None
+
+    def test_attach_emitter_sets_project_identity_on_existing_ws_client(self):
+        """attach_emitter injects the emitter identity into the websocket client."""
+        runtime = SyncRuntime()
+        mock_ws = MagicMock()
+        runtime.ws_client = mock_ws
+
+        identity = MagicMock()
+        identity.is_complete = True
+        identity.build_id = "build-123"
+        identity.project_uuid = UUID("12345678-1234-5678-1234-567812345678")
+        identity.project_slug = "test-project"
+        identity.node_id = "node-123"
+
+        git_meta = MagicMock()
+        git_meta.repo_slug = "test-org/test-repo"
+
+        mock_emitter = MagicMock()
+        mock_emitter._get_identity.return_value = identity
+        mock_emitter._get_git_metadata.return_value = git_meta
+        mock_emitter.emit_build_registered.return_value = {"event_id": "evt-1"}
+
+        runtime.attach_emitter(mock_emitter)
+
+        assert mock_ws._project_identity is identity
+
+    def test_attach_emitter_emits_build_registered_once_and_wakes_background(self):
+        """attach_emitter emits one BuildRegistered and wakes background sync."""
+        runtime = SyncRuntime()
+        runtime.background_service = MagicMock()
+
+        identity = MagicMock()
+        identity.is_complete = True
+        identity.build_id = "build-123"
+        identity.project_uuid = UUID("12345678-1234-5678-1234-567812345678")
+        identity.project_slug = "test-project"
+        identity.node_id = "node-123"
+
+        git_meta = MagicMock()
+        git_meta.repo_slug = "test-org/test-repo"
+
+        mock_emitter = MagicMock()
+        mock_emitter._get_identity.return_value = identity
+        mock_emitter._get_git_metadata.return_value = git_meta
+        mock_emitter.emit_build_registered.return_value = {"event_id": "evt-1"}
+
+        runtime.attach_emitter(mock_emitter)
+        runtime.attach_emitter(mock_emitter)
+
+        mock_emitter.emit_build_registered.assert_called_once_with()
+        runtime.background_service.wake.assert_called_once_with()
 
     def test_stop_is_safe_when_not_started(self):
         """stop() is safe to call when not started."""

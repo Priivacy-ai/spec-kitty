@@ -55,8 +55,14 @@ def compile_charter(
     interview: CharterInterview,
     template_set: str | None = None,
     doctrine_catalog: DoctrineCatalog | None = None,
+    repo_root: Path | None = None,
 ) -> CompiledCharter:
-    """Compile charter markdown, references manifest, and library docs."""
+    """Compile charter markdown, references manifest, and library docs.
+
+    Per D-3 of the ``excise-doctrine-curation-and-inline-references-01KP54J6``
+    mission this function is the twin of :func:`charter.compiler.compile_charter`
+    and now also accepts *repo_root* for project-overlay DRG discovery.
+    """
     catalog = doctrine_catalog or load_doctrine_catalog()
     diagnostics: list[str] = []
 
@@ -89,6 +95,7 @@ def compile_charter(
         interview=interview,
         paradigms=selected_paradigms,
         directives=selected_directives,
+        repo_root=repo_root,
     )
     markdown = _render_charter_markdown(
         mission=mission,
@@ -217,15 +224,29 @@ def _build_references(
     interview: CharterInterview,
     paradigms: list[str],
     directives: list[str],
+    repo_root: Path | None = None,
 ) -> list[CharterReference]:
+    """Load references via the DRG (shipped + optional project overlay).
+
+    Per C-001 of the
+    ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission this
+    path has no YAML-scanning fallback: transitive reference resolution is
+    always graph-driven.
+    """
+    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.models import Relation
+    from doctrine.drg.query import ResolveTransitiveRefsResult, resolve_transitive_refs
+    from doctrine.drg.validator import assert_valid
+    from doctrine.service import DoctrineService
+    from specify_cli.charter._drg_helpers import load_validated_graph
+
     doctrine_root = resolve_doctrine_root()
 
     references: list[CharterReference] = []
     references.append(_user_profile_reference(interview))
 
+    # Paradigms: loaded via the typed catalog (no typed paradigm DRG edges).
     paradigm_sources = _index_yaml_assets(doctrine_root / "paradigms", "*.paradigm.yaml")
-    directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
-
     for paradigm in paradigms:
         references.append(
             _doctrine_yaml_reference(
@@ -235,28 +256,102 @@ def _build_references(
             )
         )
 
-    for directive in directives:
+    # Build a DoctrineService so typed repository lookups for directive /
+    # tactic / styleguide / toolguide / procedure titles are possible.
+    project_root: Path | None = None
+    if repo_root is not None:
+        candidates = [repo_root / "src" / "doctrine", repo_root / "doctrine"]
+        project_root = next((path for path in candidates if path.is_dir()), None)
+    service = DoctrineService(shipped_root=doctrine_root, project_root=project_root)
+
+    if directives:
+        if repo_root is not None:
+            try:
+                merged = load_validated_graph(repo_root)
+            except FileNotFoundError:
+                merged = None
+        else:
+            graph_path = doctrine_root / "graph.yaml"
+            if graph_path.exists():
+                shipped = load_graph(graph_path)
+                merged = merge_layers(shipped, None)
+                assert_valid(merged)
+            else:
+                merged = None
+
+        if merged is not None:
+            start_urns = {f"directive:{d}" for d in directives}
+            graph = resolve_transitive_refs(
+                merged,
+                start_urns=start_urns,
+                relations={Relation.REQUIRES, Relation.SUGGESTS},
+            )
+        else:
+            graph = ResolveTransitiveRefsResult(directives=sorted(directives))
+    else:
+        graph = ResolveTransitiveRefsResult()
+
+    directive_sources = _index_yaml_assets(doctrine_root / "directives", "*.directive.yaml")
+    for directive_id in graph.directives:
+        directive = service.directives.get(directive_id)
+        if directive is not None:
+            references.append(
+                _doctrine_yaml_reference(
+                    kind="directive",
+                    raw_id=directive.id,
+                    source=directive_sources.get(directive.id.casefold()),
+                )
+            )
+        else:
+            references.append(
+                _doctrine_yaml_reference(
+                    kind="directive",
+                    raw_id=directive_id,
+                    source=directive_sources.get(directive_id.casefold()),
+                )
+            )
+
+    tactic_sources = _index_yaml_assets(doctrine_root / "tactics", "*.tactic.yaml")
+    for tactic_id in graph.tactics:
         references.append(
             _doctrine_yaml_reference(
-                kind="directive",
-                raw_id=directive,
-                source=directive_sources.get(directive.casefold()),
+                kind="tactic",
+                raw_id=tactic_id,
+                source=tactic_sources.get(tactic_id.casefold()),
+            )
+        )
+
+    styleguide_sources = _index_yaml_assets(doctrine_root / "styleguides", "*.styleguide.yaml")
+    for sg_id in graph.styleguides:
+        references.append(
+            _doctrine_yaml_reference(
+                kind="styleguide",
+                raw_id=sg_id,
+                source=styleguide_sources.get(sg_id.casefold()),
+            )
+        )
+
+    toolguide_sources = _index_yaml_assets(doctrine_root / "toolguides", "*.toolguide.yaml")
+    for tg_id in graph.toolguides:
+        references.append(
+            _doctrine_yaml_reference(
+                kind="toolguide",
+                raw_id=tg_id,
+                source=toolguide_sources.get(tg_id.casefold()),
+            )
+        )
+
+    procedure_sources = _index_yaml_assets(doctrine_root / "procedures", "*.procedure.yaml")
+    for proc_id in graph.procedures:
+        references.append(
+            _doctrine_yaml_reference(
+                kind="procedure",
+                raw_id=proc_id,
+                source=procedure_sources.get(proc_id.casefold()),
             )
         )
 
     references.append(_template_reference(doctrine_root=doctrine_root, mission=mission, template_set=template_set))
-
-    language_hints = interview.answers.get("languages_frameworks", "").lower()
-    if "python" in language_hints:
-        styleguide_path = doctrine_root / "styleguides" / "python-implementation.styleguide.yaml"
-        if styleguide_path.exists():
-            references.append(
-                _doctrine_yaml_reference(
-                    kind="styleguide",
-                    raw_id="python-implementation",
-                    source=_load_yaml_asset(styleguide_path),
-                )
-            )
 
     return references
 
@@ -266,7 +361,12 @@ def _index_yaml_assets(directory: Path, pattern: str) -> dict[str, dict[str, obj
     if not directory.is_dir():
         return index
 
-    for path in sorted(directory.glob(pattern)):
+    # Doctrine artifacts live under a ``shipped/`` subdirectory; fall back to
+    # the directory itself for tests or flat layouts.
+    shipped = directory / "shipped"
+    scan_root = shipped if shipped.is_dir() else directory
+
+    for path in sorted(scan_root.rglob(pattern)):
         loaded = _load_yaml_asset(path)
         raw_id = str(loaded.get("id", "")).strip() if isinstance(loaded, dict) else ""
         if not raw_id:

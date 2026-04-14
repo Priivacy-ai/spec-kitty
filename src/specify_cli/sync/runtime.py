@@ -100,6 +100,7 @@ class SyncRuntime:
     body_queue: OfflineBodyUploadQueue | None = field(default=None, repr=False)
     _async_loop: asyncio.AbstractEventLoop | None = field(default=None, repr=False)
     _async_loop_thread: threading.Thread | None = field(default=None, repr=False)
+    _build_registered: bool = False
     started: bool = False
 
     def start(self) -> None:
@@ -151,9 +152,11 @@ class SyncRuntime:
         if tm.is_authenticated:
             try:
                 from .client import WebSocketClient
+
+                project_identity = self._attached_project_identity()
                 # Server URL comes from SPEC_KITTY_SAAS_URL via WebSocketClient internals;
                 # runtime does not hardcode host/scheme (see decision D-5).
-                self.ws_client = WebSocketClient()
+                self.ws_client = WebSocketClient(project_identity=project_identity)
                 self._ensure_async_loop()
                 if self._async_loop is None:
                     logger.info("Async loop unavailable; events will be queued for batch sync")
@@ -164,6 +167,8 @@ class SyncRuntime:
                 # Wire WebSocket to emitter if already attached
                 if self.emitter is not None:
                     self.emitter.ws_client = self.ws_client
+                    if project_identity is not None:
+                        self.ws_client._project_identity = project_identity
                 logger.debug("WebSocket connect scheduled")
             except Exception as e:
                 logger.warning(f"WebSocket connection failed: {e}")
@@ -171,6 +176,34 @@ class SyncRuntime:
         else:
             logger.info("Not authenticated; events queued locally")
             logger.info("Run 'spec-kitty auth login' to enable real-time sync")
+
+    def _attached_project_identity(self) -> object | None:
+        """Return the attached emitter's project identity when it is usable."""
+        if self.emitter is None:
+            return None
+
+        try:
+            identity = self.emitter._get_identity()
+        except Exception as exc:
+            logger.debug("Could not resolve project identity from emitter: %s", exc)
+            return None
+
+        build_id = getattr(identity, "build_id", None)
+        if not isinstance(build_id, str) or not build_id:
+            return None
+        return identity
+
+    def _attached_repo_slug(self) -> str | None:
+        """Return the repo slug from the attached emitter, if available."""
+        if self.emitter is None:
+            return None
+        try:
+            git_meta = self.emitter._get_git_metadata()
+        except Exception as exc:
+            logger.debug("Could not resolve git metadata from emitter: %s", exc)
+            return None
+        repo_slug = getattr(git_meta, "repo_slug", None)
+        return repo_slug if isinstance(repo_slug, str) and repo_slug else None
 
     def _ensure_async_loop(self) -> None:
         """Create a dedicated asyncio loop for daemon-owned WebSocket transport."""
@@ -233,8 +266,23 @@ class SyncRuntime:
         If WebSocket is already connected, wires it to the emitter.
         """
         self.emitter = emitter
+        identity = self._attached_project_identity()
         if self.ws_client is not None:
             self.emitter.ws_client = self.ws_client
+            if identity is not None:
+                self.ws_client._project_identity = identity
+
+        if (
+            not self._build_registered
+            and identity is not None
+            and getattr(identity, "is_complete", False) is True
+            and self._attached_repo_slug() is not None
+        ):
+            event = emitter.emit_build_registered()
+            if event is not None:
+                self._build_registered = True
+                if self.background_service is not None:
+                    self.background_service.wake()
 
     def stop(self) -> None:
         """Stop background services gracefully.
@@ -273,6 +321,7 @@ class SyncRuntime:
         self._async_loop = None
         self._async_loop_thread = None
         self.body_queue = None
+        self._build_registered = False
         self.started = False
         logger.debug("SyncRuntime stopped")
 

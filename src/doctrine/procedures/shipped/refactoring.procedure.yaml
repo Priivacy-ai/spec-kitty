@@ -30,25 +30,6 @@ steps:
       addresses the problem. Resist combining multiple refactorings
       in a single pass — chain them sequentially instead.
     actor: agent
-    tactic_refs:
-      - refactoring-encapsulate-variable
-      - refactoring-encapsulate-record
-      - refactoring-change-function-declaration
-      - refactoring-consolidate-conditional-expression
-      - refactoring-combine-functions-into-transform
-      - refactoring-state-pattern-for-behavior
-      - refactoring-conditional-to-strategy
-      - refactoring-extract-class-by-responsibility-split
-      - refactoring-extract-first-order-concept
-      - refactoring-guard-clauses-before-polymorphism
-      - refactoring-inline-temp
-      - refactoring-introduce-null-object
-      - refactoring-move-field
-      - refactoring-move-method
-      - refactoring-replace-magic-number-with-symbolic-constant
-      - refactoring-replace-temp-with-query
-      - refactoring-retry-pattern
-      - refactoring-strangler-fig
   - title: Apply in smallest viable steps
     description: >
       Execute the selected tactic one step at a time. After each
@@ -56,8 +37,6 @@ steps:
       revert the last change and investigate. Never batch multiple
       structural changes between test runs.
     actor: agent
-    tactic_refs:
-      - change-apply-smallest-viable-diff
     on_failure: Revert the last change and re-examine the approach.
   - title: Verify behavior preservation
     description: >

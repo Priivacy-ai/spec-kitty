@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-14T04:39:00.757996+00:00",
+  "friendly_name": "Excise Doctrine Curation and Inline References",
+  "mission_id": "01KP54J6W03W8B05F3P2RDPS8S",
+  "mission_number": 83,
+  "mission_slug": "excise-doctrine-curation-and-inline-references-01KP54J6",
+  "mission_type": "software-dev",
+  "slug": "excise-doctrine-curation-and-inline-references-01KP54J6",
+  "source_description": "Phase 1 tranche of EPIC #461 (Charter as Synthesis & Doctrine Reference Graph). Tracked by issue #463. Excise the legacy doctrine curation pipeline and inline reference fields (no fallback, no backwards compatibility) and make build_context_v2() the sole context builder. Uses the #393 bulk-edit guardrail (explicit occurrence classification, category-aware include/exclude rules, mission-level occurrence map, verification-by-completeness).",
+  "target_branch": "main",
+  "vcs": "git"
+}

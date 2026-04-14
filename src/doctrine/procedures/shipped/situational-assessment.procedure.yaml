@@ -28,8 +28,6 @@ steps:
       This is the primary input to all subsequent steps. Do not begin design
       work until the canvas is at least in draft form.
     actor: agent
-    tactic_refs:
-      - stakeholder-alignment
     on_failure: >
       If critical context is unavailable (e.g., stakeholders unreachable,
       system boundaries unclear), record the gap as a named uncertainty in
@@ -53,9 +51,6 @@ steps:
       feeds directly into the prestudy's "approaches considered" section
       and into subsequent work-package planning.
     actor: agent
-    tactic_refs:
-      - problem-decomposition
-      - eisenhower-prioritisation
   - title: Identify and run pre-design experiments
     description: >
       For each high-risk assumption flagged in the canvas, determine whether
@@ -63,9 +58,6 @@ steps:
       choices are locked in. Timebox experiments to avoid blocking the
       overall assessment. Record outcomes in the canvas uncertainty table.
     actor: agent
-    tactic_refs:
-      - safe-to-fail-experiment
-      - premortem-risk-identification
   - title: Draft the Lightweight Prestudy
     description: >
       Using the validated canvas and problem decomposition as inputs, draft
@@ -74,9 +66,6 @@ steps:
       trade-offs for the recommended approach. Use the quality attribute
       assessment and AMMERSE analysis templates for high-stakes decisions.
     actor: agent
-    tactic_refs:
-      - ammerse-impact-analysis
-      - premortem-risk-identification
     on_failure: >
       If the prestudy reveals that the problem is significantly larger or more
       ambiguous than the canvas suggested, return to step 1 rather than

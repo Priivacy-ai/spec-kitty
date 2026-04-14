@@ -44,14 +44,23 @@ class ProcedureReference(BaseModel):
 
 
 class ProcedureStep(BaseModel):
-    """A single step within a procedure."""
+    """A single step within a procedure.
+
+    Per-step tactic relationships are expressed as typed edges in
+    ``src/doctrine/graph.yaml`` (Phase 1 excision — mission
+    ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02). The
+    former inline ``tactic_refs`` field has been removed; with
+    ``extra="forbid"`` a procedure YAML that still declares step-level
+    ``tactic_refs`` will now fail Pydantic validation with ``extra_forbidden``.
+    WP03 adds a pre-Pydantic scan that raises the structured
+    ``InlineReferenceRejectedError`` with a migration hint.
+    """
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     title: str
     description: str | None = None
     actor: ActorRole = ActorRole.AGENT
-    tactic_refs: list[str] = Field(default_factory=list)
     on_success: str | None = None
     on_failure: str | None = None
 

@@ -7,7 +7,7 @@
     "required_fields": ["schema_version", "build_id", "aggregate_type", "event_type"],
     "forbidden_fields": ["feature_slug", "feature_number"],
     "aggregate_type": {
-      "allowed": ["Mission", "WorkPackage", "MissionDossier"],
+      "allowed": ["Build", "Mission", "WorkPackage", "MissionDossier"],
       "forbidden": ["Feature"]
     },
     "schema_version": {

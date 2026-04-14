@@ -52,7 +52,8 @@ TOOL_LABELS = [
     ("codex", "Codex CLI"),
     ("vibe", "Mistral Vibe"),
     ("auggie", "Auggie CLI"),
-    ("q", "Amazon Q Developer CLI"),
+    ("q", "Amazon Q Developer CLI (legacy)"),
+    ("kiro-cli", "Kiro CLI"),
 ]
 
 

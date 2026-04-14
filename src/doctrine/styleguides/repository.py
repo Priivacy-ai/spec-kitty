@@ -20,6 +20,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Styleguide
+from .validation import reject_styleguide_inline_refs
 
 
 class StyleguideRepository:
@@ -57,6 +58,7 @@ class StyleguideRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_styleguide_inline_refs(data, file_path=str(yaml_file))
                     styleguide = Styleguide.model_validate(data)
                     shipped[styleguide.id] = styleguide
                 except (YAMLError, ValidationError, OSError) as e:
@@ -74,6 +76,7 @@ class StyleguideRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_styleguide_inline_refs(data, file_path=str(yaml_file))
                     styleguide_id = data.get("id")
                     if not styleguide_id:
                         warnings.warn(

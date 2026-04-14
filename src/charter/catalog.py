@@ -41,12 +41,14 @@ class DoctrineCatalog:
     domains_present: frozenset[str] = frozenset()
 
 
-def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
+def load_doctrine_catalog() -> DoctrineCatalog:
     """Load doctrine catalogs from package assets with development fallbacks.
 
-    By default, only canonised ``shipped/`` artifacts participate in the catalog.
-    Callers may opt into ``_proposed/`` artifacts explicitly to support curation
-    flows that need visibility into pre-canonisation content.
+    Only canonised ``shipped/`` artifacts participate in the catalog. The
+    pre-WP01 opt-in flag for unpromoted artifacts was removed as part of
+    the ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission
+    (EPIC #461, Phase 1); the curation surface that consumed those
+    artifacts has been deleted.
 
     ``DoctrineCatalog.domains_present`` records which artifact domains have a
     ``shipped/`` directory on disk.  The resolver uses this to distinguish between
@@ -57,12 +59,14 @@ def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
 
     domains_present: set[str] = set()
 
-    paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(doctrine_root / "paradigms", "**/*.paradigm.yaml", include_proposed=include_proposed)
+    paradigms, paradigms_present = _load_yaml_id_catalog_with_presence(
+        doctrine_root / "paradigms", "**/*.paradigm.yaml"
+    )
     if paradigms_present:
         domains_present.add("paradigms")
 
     directives, directives_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "directives", "**/*.directive.yaml", include_proposed=include_proposed
+        doctrine_root / "directives", "**/*.directive.yaml"
     )
     if directives_present:
         domains_present.add("directives")
@@ -71,24 +75,26 @@ def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
     if template_sets_present:
         domains_present.add("template_sets")
 
-    tactics, tactics_present = _load_yaml_id_catalog_with_presence(doctrine_root / "tactics", "**/*.tactic.yaml", include_proposed=include_proposed)
+    tactics, tactics_present = _load_yaml_id_catalog_with_presence(
+        doctrine_root / "tactics", "**/*.tactic.yaml"
+    )
     if tactics_present:
         domains_present.add("tactics")
 
     styleguides, styleguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "styleguides", "**/*.styleguide.yaml", include_proposed=include_proposed
+        doctrine_root / "styleguides", "**/*.styleguide.yaml"
     )
     if styleguides_present:
         domains_present.add("styleguides")
 
     toolguides, toolguides_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "toolguides", "**/*.toolguide.yaml", include_proposed=include_proposed
+        doctrine_root / "toolguides", "**/*.toolguide.yaml"
     )
     if toolguides_present:
         domains_present.add("toolguides")
 
     procedures, procedures_present = _load_yaml_id_catalog_with_presence(
-        doctrine_root / "procedures", "**/*.procedure.yaml", include_proposed=include_proposed
+        doctrine_root / "procedures", "**/*.procedure.yaml"
     )
     if procedures_present:
         domains_present.add("procedures")
@@ -97,7 +103,6 @@ def load_doctrine_catalog(*, include_proposed: bool = False) -> DoctrineCatalog:
         doctrine_root / "agent_profiles",
         "**/*.agent.yaml",
         id_field="profile-id",
-        include_proposed=include_proposed,
     )
     if profiles_present:
         domains_present.add("agent_profiles")
@@ -154,7 +159,6 @@ def _load_yaml_id_catalog(
     pattern: str,
     *,
     id_field: str = "id",
-    include_proposed: bool = False,
 ) -> set[str]:
     """Load ID values from doctrine YAML files in a directory.
 
@@ -163,10 +167,8 @@ def _load_yaml_id_catalog(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
-        include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to `shipped/` artifacts. Defaults to shipped-only.
     """
-    ids, _ = _load_yaml_id_catalog_with_presence(directory, pattern, id_field=id_field, include_proposed=include_proposed)
+    ids, _ = _load_yaml_id_catalog_with_presence(directory, pattern, id_field=id_field)
     return ids
 
 
@@ -175,7 +177,6 @@ def _load_yaml_id_catalog_with_presence(
     pattern: str,
     *,
     id_field: str = "id",
-    include_proposed: bool = False,
 ) -> tuple[set[str], bool]:
     """Load ID values from doctrine YAML files, also reporting domain presence.
 
@@ -192,20 +193,15 @@ def _load_yaml_id_catalog_with_presence(
         pattern: Glob pattern (supports ``**`` for recursive search).
         id_field: YAML key containing the artifact ID. Defaults to ``"id"``.
                   Use ``"profile-id"`` for agent profile files.
-        include_proposed: Whether `_proposed/` artifacts should be included in
-                  addition to ``shipped/`` artifacts. Defaults to shipped-only.
     """
     if not directory.is_dir():
         return set(), False
 
     shipped_dir = directory / "shipped"
-    proposed_dir = directory / "_proposed"
-    if shipped_dir.is_dir() or proposed_dir.is_dir():
-        # Structured layout: domain is present regardless of content.
+    if shipped_dir.is_dir():
+        # Structured layout: shipped/ is the sole canonical source.
         present = True
-        scan_roots = [shipped_dir] if shipped_dir.is_dir() else []
-        if include_proposed and proposed_dir.is_dir():
-            scan_roots.append(proposed_dir)
+        scan_roots = [shipped_dir]
     else:
         # Preserve generic helper behavior for tests or flat directories.
         present = True

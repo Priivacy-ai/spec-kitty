@@ -1,12 +1,17 @@
-"""OAuth HTTP transport layer.
-
-Provides `OAuthHttpClient`, an httpx-based async HTTP client that injects bearer
-tokens from the process-wide `TokenManager` and automatically retries once on
-401 responses after refreshing the access token.
-"""
+"""Shared auth HTTP transport layer."""
 
 from __future__ import annotations
 
-from .transport import OAuthHttpClient
+from .transport import (
+    OAuthHttpClient,
+    PublicHttpClient,
+    request_with_fallback_sync,
+    request_with_stdlib_fallback_sync,
+)
 
-__all__ = ["OAuthHttpClient"]
+__all__ = [
+    "OAuthHttpClient",
+    "PublicHttpClient",
+    "request_with_fallback_sync",
+    "request_with_stdlib_fallback_sync",
+]

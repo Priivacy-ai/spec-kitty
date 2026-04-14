@@ -34,14 +34,13 @@ from datetime import datetime, timedelta, UTC
 from typing import Any, cast
 from urllib.parse import urlencode
 
-import httpx
-
 from ..config import get_saas_base_url
 from ..errors import (
     AuthenticationError,
     BrowserLaunchError,
     NetworkError,
 )
+from ..http import PublicHttpClient
 from ..loopback.browser_launcher import BrowserLauncher
 from ..loopback.callback_handler import CallbackHandler
 from ..loopback.callback_server import CallbackServer
@@ -182,10 +181,10 @@ class AuthorizationCodeFlow:
             "client_id": self._client_id,
             "code_verifier": code_verifier,
         }
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
+        async with PublicHttpClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
             try:
                 response = await client.post(url, data=data)
-            except httpx.RequestError as exc:
+            except NetworkError as exc:
                 raise NetworkError(f"Network error during code exchange: {exc}") from exc
 
         if response.status_code != 200:
@@ -245,10 +244,10 @@ class AuthorizationCodeFlow:
         url = f"{self._saas_base_url}/api/v1/me"
         headers = {"Authorization": f"Bearer {tokens['access_token']}"}
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
+        async with PublicHttpClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
             try:
                 response = await client.get(url, headers=headers)
-            except httpx.RequestError as exc:
+            except NetworkError as exc:
                 raise NetworkError(f"Network error fetching user info: {exc}") from exc
 
         if response.status_code != 200:

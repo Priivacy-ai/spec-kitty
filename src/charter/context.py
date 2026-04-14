@@ -30,95 +30,6 @@ class CharterContextResult:
     depth: int
 
 
-def build_charter_context(
-    repo_root: Path,
-    *,
-    action: str,
-    mark_loaded: bool = True,
-    depth: int | None = None,
-) -> CharterContextResult:
-    """Build charter context text for a command action.
-
-    For first load of bootstrap actions, include summary + references.
-    For later loads (or non-bootstrap actions), include compact governance context.
-
-    Args:
-        repo_root: Repository root directory.
-        action: Workflow action name (e.g. "specify", "implement").
-        mark_loaded: Whether to persist first-load state.
-        depth: Context depth override. None lets state decide:
-               first_load -> 2 (bootstrap), not first_load -> 1 (compact).
-               Explicit depth wins over state-based default but does not
-               suppress the state update on first load.
-    """
-    normalized = action.strip().lower()
-    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
-    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
-
-    if normalized not in BOOTSTRAP_ACTIONS:
-        effective_depth = depth if depth is not None else 1
-        return CharterContextResult(
-            action=normalized,
-            mode="compact",
-            first_load=False,
-            text=_render_compact_governance(repo_root),
-            references_count=0,
-            depth=effective_depth,
-        )
-
-    state_path = repo_root / ".kittify" / "charter" / "context-state.json"
-    state = _load_state(state_path)
-    actions_val = state.get("actions", {})
-    first_load = normalized not in actions_val if isinstance(actions_val, dict) else True
-
-    # Resolve effective depth: explicit wins, else state decides.
-    effective_depth = depth if depth is not None else 2 if first_load else 1
-
-    references = _load_references(references_path)
-
-    if not charter_path.exists():
-        text = (
-            "Charter Context:\n"
-            "  - Charter file not found at `.kittify/charter/charter.md`.\n"
-            "  - Run `spec-kitty charter interview` then `spec-kitty charter generate`."
-        )
-        mode = "missing"
-    elif effective_depth >= 2:
-        charter_content = charter_path.read_text(encoding="utf-8")
-        summary = _extract_policy_summary(charter_content)
-        text = _render_action_scoped(
-            repo_root,
-            normalized,
-            charter_path,
-            summary,
-            references,
-            include_extended=(effective_depth >= 3),
-        )
-        mode = "bootstrap"
-    else:
-        text = _render_compact_governance(repo_root)
-        mode = "compact"
-
-    # Always update state on first load (state decides default only - explicit
-    # depth does not suppress the state update).
-    if mark_loaded and first_load and mode != "missing":
-        actions_obj = state.setdefault("actions", {})
-        if not isinstance(actions_obj, dict):
-            actions_obj = {}
-            state["actions"] = actions_obj
-        actions_obj[normalized] = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
-        _write_state(state_path, state)
-
-    return CharterContextResult(
-        action=normalized,
-        mode=mode,
-        first_load=first_load,
-        text=text,
-        references_count=len(references),
-        depth=effective_depth,
-    )
-
-
 def _build_doctrine_service(repo_root: Path) -> object:
     """Build a DoctrineService for the given repo root."""
     from doctrine.service import DoctrineService
@@ -488,11 +399,11 @@ def _mark_action_loaded(
 
 
 # ---------------------------------------------------------------------------
-# build_context_v2 -- DRG-based context assembly (T020)
+# build_charter_context -- DRG-based context assembly
 # ---------------------------------------------------------------------------
 
 
-def build_context_v2(
+def build_charter_context(
     repo_root: Path,
     *,
     profile: str | None = None,
@@ -502,18 +413,19 @@ def build_context_v2(
 ) -> CharterContextResult:
     """Build charter context by querying the Doctrine Reference Graph.
 
-    Composes DRG query primitives from :mod:`doctrine.drg.query` --
-    does NOT embed graph traversal logic.  Mirrors the state management
-    and rendering contract of :func:`build_charter_context` so it is a
-    safe drop-in replacement.
+    Composes DRG query primitives from :mod:`doctrine.drg.query` -- does
+    NOT embed graph traversal logic. The pre-WP03 legacy implementation
+    has been deleted as part of the
+    ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.
 
     Args:
         repo_root: Repository root directory.
-        profile: Agent profile name.  **Phase 0 degenerate** -- accepted
-            but ignored.  Phase 4 will add profile-based edge filtering.
+        profile: Agent profile name. Accepted for forward compatibility
+            (Phase 4 will add profile-based edge filtering) but currently
+            unused.
         action: Workflow action name (e.g. ``"specify"``, ``"implement"``).
         mark_loaded: Whether to persist first-load state.
-        depth: Context depth override.  ``None`` lets state decide:
+        depth: Context depth override. ``None`` lets state decide:
             first_load -> 2 (bootstrap), not first_load -> 1 (compact).
             Explicit depth wins but does not suppress state update.
 

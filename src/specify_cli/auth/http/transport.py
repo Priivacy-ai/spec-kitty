@@ -1,32 +1,39 @@
-"""OAuth-aware async HTTP client.
+"""HTTP clients and fallback helpers shared by the auth subsystem.
 
-`OAuthHttpClient` wraps `httpx.AsyncClient` and:
-  1. Injects `Authorization: Bearer <access_token>` on every request using the
-     process-wide `TokenManager` (fetched via `get_token_manager()`).
-  2. On a 401 response, forces a refresh via `TokenManager.refresh_if_needed()`
-     (single-flight) and retries the request exactly once. The server's 401 is
-     authoritative even when the local expiry timer says the token is still
-     valid, so we mark the current session's access token as expired before
-     calling refresh.
-  3. On the retry, if the response is still 401, raises
-     `NotAuthenticatedError` so callers can surface a clean login prompt.
-  4. Translates `httpx.TransportError` (DNS, connection, timeout) into
-     `NetworkError` to match the auth error hierarchy.
+Two client flavors live here:
 
-The client never reads or writes tokens directly — all token access goes
-through `TokenManager.get_access_token()`. This keeps the refresh/retry policy
-centralized and ensures other code paths (WebSocket pre-connect, sync batch,
-tracker) share the same single-flight refresh behavior.
+* ``PublicHttpClient`` for unauthenticated SaaS calls such as
+  ``POST /oauth/token`` and ``GET /api/v1/me`` during browser login.
+* ``OAuthHttpClient`` for authenticated SaaS calls that inject a bearer token
+  and retry once on ``401`` after forcing a refresh.
+
+Both clients share one transport hardening layer:
+
+1. Use ``httpx.AsyncClient`` as the primary async transport.
+2. If the request targets the configured SaaS host and ``httpx`` raises a
+   transport error, retry the request once through a stdlib HTTPS path that
+   explicitly prefers IPv6 before IPv4.
+3. Translate any remaining transport failures into :class:`NetworkError`.
+
+This keeps auth, refresh, WebSocket pre-connect, and sync-adjacent probes on
+one hardened transport surface rather than each flow re-creating its own client
+semantics.
 """
 
 from __future__ import annotations
 
+import asyncio
+import http.client
+import socket
+import ssl
 from datetime import datetime, timedelta, UTC
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
 from specify_cli.auth import get_token_manager
+from specify_cli.auth.config import get_saas_base_url
 from specify_cli.auth.errors import (
     NetworkError,
     NotAuthenticatedError,
@@ -37,7 +44,130 @@ from specify_cli.auth.errors import (
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
-class OAuthHttpClient:
+class _ResolvedHTTPSConnection(http.client.HTTPSConnection):
+    """HTTPSConnection pinned to a single resolved socket address."""
+
+    def __init__(
+        self,
+        host: str,
+        *,
+        port: int,
+        timeout: float,
+        family: socket.AddressFamily,
+        sockaddr: tuple[Any, ...],
+    ) -> None:
+        super().__init__(
+            host,
+            port=port,
+            timeout=timeout,
+            context=ssl.create_default_context(),
+        )
+        self._family = family
+        self._sockaddr = sockaddr
+
+    def connect(self) -> None:
+        raw = socket.socket(self._family, socket.SOCK_STREAM)
+        raw.settimeout(self.timeout)
+        raw.connect(self._sockaddr)
+        self.sock = self._context.wrap_socket(raw, server_hostname=self.host)
+
+
+class _BaseHttpClient:
+    """Shared transport behavior for auth-related async HTTP clients."""
+
+    def __init__(
+        self,
+        *,
+        timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        client: httpx.AsyncClient | None = None,
+    ) -> None:
+        self._timeout = timeout
+        self._client = client
+
+    async def __aenter__(self) -> _BaseHttpClient:
+        return self
+
+    async def __aexit__(self, exc_type, exc, tb) -> None:
+        return None
+
+    async def aclose(self) -> None:
+        return None
+
+    async def _send_with_fallback(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        try:
+            return await self._request_with_httpx(method, url, **kwargs)
+        except httpx.RequestError as exc:
+            response = await self._try_stdlib_fallback(method, url, kwargs)
+            if response is not None:
+                return response
+            raise NetworkError(f"HTTP transport error: {exc}") from exc
+
+    async def _request_with_httpx(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        request_method = method.lower()
+        if self._client is not None:
+            return await getattr(self._client, request_method)(url, **kwargs)
+        async with httpx.AsyncClient(timeout=self._timeout) as client:
+            return await getattr(client, request_method)(url, **kwargs)
+
+    async def _try_stdlib_fallback(
+        self,
+        method: str,
+        url: str,
+        kwargs: dict[str, Any],
+    ) -> httpx.Response | None:
+        """Retry SaaS-bound requests via stdlib HTTPS when httpx transport fails."""
+        if not _targets_configured_saas(url):
+            return None
+        try:
+            return await asyncio.to_thread(
+                _request_with_stdlib,
+                method,
+                url,
+                kwargs,
+                self._timeout,
+            )
+        except Exception as exc:
+            raise NetworkError(f"HTTP transport error: {exc}") from exc
+
+    async def get(self, url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("GET", url, **kwargs)
+
+    async def post(self, url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("POST", url, **kwargs)
+
+    async def put(self, url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("PUT", url, **kwargs)
+
+    async def patch(self, url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("PATCH", url, **kwargs)
+
+    async def delete(self, url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("DELETE", url, **kwargs)
+
+
+class PublicHttpClient(_BaseHttpClient):
+    """Async HTTP client for unauthenticated SaaS calls."""
+
+    async def request(
+        self,
+        method: str,
+        url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
+        return await self._send_with_fallback(method, url, **kwargs)
+
+
+class OAuthHttpClient(_BaseHttpClient):
     """Async HTTP client that injects OAuth bearer tokens and retries once on 401.
 
     Usage:
@@ -58,35 +188,9 @@ class OAuthHttpClient:
         timeout: float = DEFAULT_TIMEOUT_SECONDS,
         client: httpx.AsyncClient | None = None,
     ) -> None:
-        """Initialize the client.
+        super().__init__(timeout=timeout, client=client)
 
-        Args:
-            timeout: Per-request timeout in seconds (default 30s).
-            client: Optional pre-constructed `httpx.AsyncClient`. When provided,
-                the caller owns its lifecycle (we will not close it). When not
-                provided, we create and own an internal client.
-        """
-        self._timeout = timeout
-        self._external_client = client is not None
-        self._client: httpx.AsyncClient = client or httpx.AsyncClient(timeout=timeout)
-
-    async def __aenter__(self) -> OAuthHttpClient:
-        return self
-
-    async def __aexit__(self, exc_type, exc, tb) -> None:
-        await self.aclose()
-
-    async def aclose(self) -> None:
-        """Close the underlying httpx client (only if we own it)."""
-        if not self._external_client:
-            await self._client.aclose()
-
-    async def request(
-        self,
-        method: str,
-        url: str,
-        **kwargs: Any,
-    ) -> httpx.Response:
+    async def request(self, method: str, url: str, **kwargs: Any) -> httpx.Response:
         """Perform an HTTP request with bearer injection + 401 retry-once.
 
         Raises:
@@ -168,25 +272,133 @@ class OAuthHttpClient:
         headers["Authorization"] = f"Bearer {access_token}"
         send_kwargs = dict(kwargs)
         send_kwargs["headers"] = headers
+        return await self._send_with_fallback(method, url, **send_kwargs)
 
+
+def _targets_configured_saas(url: str) -> bool:
+    target = urlsplit(url)
+    saas = urlsplit(get_saas_base_url())
+    return (
+        bool(target.hostname)
+        and target.scheme == saas.scheme
+        and target.hostname == saas.hostname
+        and (target.port or 443) == (saas.port or 443)
+    )
+
+
+def _request_with_stdlib(
+    method: str,
+    url: str,
+    kwargs: dict[str, Any],
+    timeout: float,
+) -> httpx.Response:
+    """Execute a request via stdlib HTTPS, preferring IPv6 before IPv4."""
+    request = httpx.Request(method, url, **kwargs)
+    url_obj = request.url
+    host = str(url_obj.host)
+    port = int(url_obj.port or 443)
+    raw_path = url_obj.raw_path
+    path = raw_path.decode("ascii") if isinstance(raw_path, bytes) else str(raw_path)
+    body = request.read()
+    headers = dict(request.headers)
+    headers.setdefault("Connection", "close")
+
+    last_exc: Exception | None = None
+    for family, sockaddr in _resolve_candidate_addresses(host, port):
+        conn: _ResolvedHTTPSConnection | None = None
         try:
-            return await self._client.request(method, url, **send_kwargs)
-        except httpx.TransportError as exc:
-            raise NetworkError(f"HTTP transport error: {exc}") from exc
+            conn = _ResolvedHTTPSConnection(
+                host,
+                port=port,
+                timeout=timeout,
+                family=family,
+                sockaddr=sockaddr,
+            )
+            conn.putrequest(method, path, skip_host=True, skip_accept_encoding=True)
+            for key, value in headers.items():
+                conn.putheader(key, value)
+            conn.endheaders(body if body else None)
+            response = conn.getresponse()
+            content = response.read()
+            return httpx.Response(
+                response.status,
+                headers=dict(response.getheaders()),
+                content=content,
+                request=request,
+            )
+        except Exception as exc:  # pragma: no cover - exercised via async wrapper
+            last_exc = exc
+        finally:
+            if conn is not None:
+                conn.close()
 
-    # --- Convenience methods (match httpx.AsyncClient surface) ---
+    if last_exc is not None:
+        raise last_exc
+    raise OSError(f"Could not resolve any socket addresses for {host}:{port}")
 
-    async def get(self, url: str, **kwargs: Any) -> httpx.Response:
-        return await self.request("GET", url, **kwargs)
 
-    async def post(self, url: str, **kwargs: Any) -> httpx.Response:
-        return await self.request("POST", url, **kwargs)
+def request_with_stdlib_fallback_sync(
+    method: str,
+    url: str,
+    *,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    **kwargs: Any,
+) -> httpx.Response | None:
+    """Attempt the stdlib HTTPS fallback for SaaS-bound synchronous requests."""
+    if not _targets_configured_saas(url):
+        return None
+    last_exc: Exception | None = None
+    for _ in range(3):
+        try:
+            return _request_with_stdlib(method, url, kwargs, timeout)
+        except Exception as exc:
+            last_exc = exc
+    assert last_exc is not None
+    raise NetworkError(f"HTTP transport error: {last_exc}") from last_exc
 
-    async def put(self, url: str, **kwargs: Any) -> httpx.Response:
-        return await self.request("PUT", url, **kwargs)
 
-    async def patch(self, url: str, **kwargs: Any) -> httpx.Response:
-        return await self.request("PATCH", url, **kwargs)
+def request_with_fallback_sync(
+    method: str,
+    url: str,
+    *,
+    timeout: float = DEFAULT_TIMEOUT_SECONDS,
+    client: httpx.Client | None = None,
+    **kwargs: Any,
+) -> httpx.Response:
+    """Perform a synchronous request with the shared SaaS fallback policy."""
+    last_exc: Exception | None = None
+    for _ in range(3):
+        try:
+            if client is not None:
+                return client.request(method, url, **kwargs)
+            with httpx.Client(timeout=timeout) as sync_client:
+                return sync_client.request(method, url, **kwargs)
+        except httpx.RequestError as exc:
+            last_exc = exc
+            response = request_with_stdlib_fallback_sync(
+                method, url, timeout=timeout, **kwargs
+            )
+            if response is not None:
+                return response
+    assert last_exc is not None
+    raise NetworkError(f"HTTP transport error: {last_exc}") from last_exc
 
-    async def delete(self, url: str, **kwargs: Any) -> httpx.Response:
-        return await self.request("DELETE", url, **kwargs)
+
+def _resolve_candidate_addresses(
+    host: str,
+    port: int,
+) -> list[tuple[socket.AddressFamily, tuple[Any, ...]]]:
+    infos = socket.getaddrinfo(host, port, socket.AF_UNSPEC, socket.SOCK_STREAM)
+    ordered = sorted(
+        infos,
+        key=lambda item: 0 if item[0] == socket.AF_INET6 else 1,
+    )
+    candidates: list[tuple[socket.AddressFamily, tuple[Any, ...]]] = []
+    seen: set[tuple[socket.AddressFamily, tuple[Any, ...]]] = set()
+    for family, _socktype, _proto, _canonname, sockaddr in ordered:
+        candidate = (family, sockaddr)
+        if candidate in seen:
+            continue
+        seen.add(candidate)
+        candidates.append(candidate)
+    return candidates

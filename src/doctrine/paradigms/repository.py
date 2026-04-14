@@ -12,6 +12,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Paradigm
+from .validation import reject_paradigm_inline_refs
 
 
 class ParadigmRepository:
@@ -49,6 +50,7 @@ class ParadigmRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_paradigm_inline_refs(data, file_path=str(yaml_file))
                     paradigm = Paradigm.model_validate(data)
                     shipped[paradigm.id] = paradigm
                 except (YAMLError, ValidationError, OSError) as e:
@@ -66,6 +68,7 @@ class ParadigmRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_paradigm_inline_refs(data, file_path=str(yaml_file))
                     paradigm_id = data.get("id")
                     if not paradigm_id:
                         warnings.warn(

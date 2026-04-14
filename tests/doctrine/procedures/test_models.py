@@ -30,10 +30,20 @@ class TestProcedureModel:
         p = Procedure.model_validate(enriched_procedure_data)
         assert p.id == "mission-merge-ceremony"
         assert p.steps[0].on_failure is not None
-        assert p.steps[0].tactic_refs == ["adr-drafting-workflow"]
+        # Post-WP02: step-level `tactic_refs` has been excised from
+        # ProcedureStep; relationships live in src/doctrine/graph.yaml.
+        assert not hasattr(p.steps[0], "tactic_refs")
         assert len(p.references) == 2
         assert p.references[0].type == ProcedureReferenceType.DIRECTIVE
         assert p.references[1].type == ProcedureReferenceType.TEMPLATE
+
+    def test_step_rejects_tactic_refs(self) -> None:
+        """Regression test: step-level `tactic_refs` must be rejected by
+        extra="forbid" after WP02 inline-ref excision."""
+        with pytest.raises(ValidationError):
+            ProcedureStep.model_validate(
+                {"title": "test step", "tactic_refs": ["some-tactic"]}
+            )
 
     def test_step_actor_defaults_to_agent(self) -> None:
         step = ProcedureStep(title="test step")

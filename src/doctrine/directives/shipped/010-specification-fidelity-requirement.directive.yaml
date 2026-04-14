@@ -5,7 +5,6 @@ intent: >
   Implemented behavior and produced artifacts must remain faithful to approved
   specifications, with any necessary deviations explicitly documented and
   reviewed before acceptance.
-tactic_refs: []
 enforcement: required
 scope: >
   Applies to planning outputs, work-package implementation, and review checks

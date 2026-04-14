@@ -628,6 +628,7 @@ def init(  # noqa: C901
         "antigravity": ".agent/",
         "roo": ".roo/",
         "q": ".amazonq/",
+        "kiro": ".kiro/",
     }
 
     notice_entries = []

@@ -6,6 +6,26 @@ Spec Kitty is inspired by GitHub's [Spec Kit](https://github.com/github/spec-kit
 
 Please note that this project is released with a [Contributor Code of Conduct](CODE_OF_CONDUCT.md). By participating in this project you agree to abide by its terms.
 
+## Contributor Recognition
+
+This repository uses [All Contributors](https://allcontributors.org/) to recognize project contributions beyond code.
+
+Code contributions are synced automatically by the scheduled GitHub workflow in
+`.github/workflows/all-contributors-sync.yml`, which updates `.all-contributorsrc`
+and `README.md` from repository activity without requiring PR comments.
+
+Non-code recognition remains maintainer-driven. That includes both new
+contributions and retroactive backfill for earlier docs, design, bug reports,
+feature requests, mentoring, or other project help that deserves recognition.
+
+For non-code contributions or manual corrections, maintainers can still add recognition from an issue or PR comment:
+
+```text
+@all-contributors please add @github-username for doc,design,ideas,bug
+```
+
+Supported contribution types are listed in the [emoji key](https://allcontributors.org/en/emoji-key/).
+
 ## Supported AI Agents
 
 Spec Kitty supports **12 AI coding agents**. When contributing features that affect slash commands, migrations, or templates, ensure changes apply to ALL agents:

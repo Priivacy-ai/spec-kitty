@@ -1794,7 +1794,10 @@ jobs:
       # Coverage effort is proportional to risk — flat 80% incentivizes meaningless tests.
       - name: "diff-coverage (critical-path, enforced)"
         run: |
-          git fetch origin "${{ github.base_ref }}" --depth=1
+          # Full fetch (no --depth) so diff-cover can compute the merge-base
+          # between HEAD and origin/<base>. A shallow fetch breaks
+          # `origin/<base>...HEAD` with "no merge base".
+          git fetch origin "${{ github.base_ref }}"
 
           coverage_reports=()
           while IFS= read -r -d '' f; do

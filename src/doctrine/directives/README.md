@@ -12,8 +12,12 @@ All directive files conform to `directive.schema.yaml` with fields:
 - `id` — Unique identifier (e.g., `TEST_FIRST`)
 - `title` — Human-readable name
 - `intent` — What the directive enforces
-- `tactic_refs` — List of tactic IDs that implement this directive
 - `enforcement` — `required` or `advisory`
+
+Cross-artifact relationships (directive → tactic, directive → paradigm, etc.)
+are expressed as typed edges in `src/doctrine/graph.yaml`. Inline `tactic_refs`
+and `applies_to` fields were removed in Phase 1 excision (mission
+`excise-doctrine-curation-and-inline-references-01KP54J6` WP02).
 
 ## Naming Convention
 

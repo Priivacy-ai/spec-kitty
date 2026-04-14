@@ -44,11 +44,6 @@ properties:
   summary:
     type: string
     minLength: 1
-  tactic_refs:
-    type: array
-    items:
-      type: string
-      pattern: ^[a-z][a-z0-9-]*$
   directive_refs:
     type: array
     items:

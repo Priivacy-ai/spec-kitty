@@ -53,7 +53,8 @@ class TestSingleton:
     @patch("specify_cli.sync.emitter.LamportClock.load")
     @patch("specify_cli.sync.emitter.OfflineQueue")
     @patch("specify_cli.sync.emitter.SyncConfig")
-    def test_get_emitter_returns_same_instance(self, _cfg, _queue, _clock):
+    @patch("specify_cli.sync.runtime.get_runtime")
+    def test_get_emitter_returns_same_instance(self, _runtime, _cfg, _queue, _clock):
         """get_emitter() returns same instance on repeated calls."""
         e1 = get_emitter()
         e2 = get_emitter()
@@ -62,12 +63,26 @@ class TestSingleton:
     @patch("specify_cli.sync.emitter.LamportClock.load")
     @patch("specify_cli.sync.emitter.OfflineQueue")
     @patch("specify_cli.sync.emitter.SyncConfig")
-    def test_reset_emitter_clears_singleton(self, _cfg, _queue, _clock):
+    @patch("specify_cli.sync.runtime.get_runtime")
+    def test_reset_emitter_clears_singleton(self, _runtime, _cfg, _queue, _clock):
         """reset_emitter() allows new instance creation."""
         e1 = get_emitter()
         reset_emitter()
         e2 = get_emitter()
         assert e1 is not e2
+
+    @patch("specify_cli.sync.emitter.LamportClock.load")
+    @patch("specify_cli.sync.emitter.OfflineQueue")
+    @patch("specify_cli.sync.emitter.SyncConfig")
+    @patch("specify_cli.sync.runtime.get_runtime")
+    def test_get_emitter_attaches_runtime(self, mock_get_runtime, _cfg, _queue, _clock):
+        """get_emitter() attaches the singleton emitter to the sync runtime."""
+        runtime = MagicMock()
+        mock_get_runtime.return_value = runtime
+
+        emitter = get_emitter()
+
+        runtime.attach_emitter.assert_called_once_with(emitter)
 
 
 class TestEventEnvelope:
@@ -168,6 +183,7 @@ class TestEventEnvelope:
     def test_git_metadata_present_across_event_types(self, emitter: EventEmitter, temp_queue):
         """All event types include git metadata fields."""
         events = [
+            emitter.emit_build_registered(),
             emitter.emit_wp_status_changed("WP01", "planned", "in_progress"),
             emitter.emit_wp_created("WP01", "Test", "033-test"),
             emitter.emit_mission_created("033-test", _TEST_MISSION_ID, 33, "2.x", 1),
@@ -177,6 +193,41 @@ class TestEventEnvelope:
             assert "git_branch" in event
             assert "head_commit_sha" in event
             assert "repo_slug" in event
+
+
+class TestBuildLifecycle:
+    """Test build registration and heartbeat event emission."""
+
+    def test_build_registered_emission(self, emitter: EventEmitter, temp_queue):
+        """BuildRegistered includes build/project/git identity in payload."""
+        event = emitter.emit_build_registered()
+        assert event is not None
+        assert event["event_type"] == "BuildRegistered"
+        assert event["aggregate_type"] == "Build"
+        assert event["aggregate_id"] == "test-build-id-0000-0000-000000000001"
+        assert event["payload"]["build_id"] == "test-build-id-0000-0000-000000000001"
+        assert event["payload"]["project_slug"] == "test-project"
+        assert event["payload"]["project_name"] == "test-project"
+        assert event["payload"]["repo_slug"] == "test-org/test-repo"
+        assert event["payload"]["branch"] == "test-branch"
+        assert event["payload"]["head_commit"] == "a" * 40
+        assert event["payload"]["developer_name"] == "Test User"
+
+    def test_build_heartbeat_emission(self, emitter: EventEmitter, temp_queue):
+        """BuildHeartbeat carries remote-state deltas when provided."""
+        event = emitter.emit_build_heartbeat(
+            remote_head="b" * 40,
+            ahead_of_remote=2,
+            behind_remote=0,
+            recent_commits=["c" * 40],
+        )
+        assert event is not None
+        assert event["event_type"] == "BuildHeartbeat"
+        assert event["aggregate_type"] == "Build"
+        assert event["payload"]["remote_head"] == "b" * 40
+        assert event["payload"]["ahead_of_remote"] == 2
+        assert event["payload"]["behind_remote"] == 0
+        assert event["payload"]["recent_commits"] == ["c" * 40]
 
 
 class TestWPStatusChanged:
@@ -193,6 +244,9 @@ class TestWPStatusChanged:
         assert event["event_type"] == "WPStatusChanged"
         assert event["aggregate_id"] == "WP01"
         assert event["aggregate_type"] == "WorkPackage"
+        assert event["from_lane"] == "planned"
+        assert event["to_lane"] == "in_progress"
+        assert event["actor"] == "user"
         assert event["payload"]["wp_id"] == "WP01"
         assert event["payload"]["from_lane"] == "planned"
         assert event["payload"]["to_lane"] == "in_progress"
