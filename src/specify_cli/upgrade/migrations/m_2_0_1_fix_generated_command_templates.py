@@ -118,12 +118,26 @@ class FixGeneratedCommandTemplatesMigration(BaseMigration):
         )
 
     def _iter_generated_prompt_files(self, project_path: Path) -> list[Path]:
-        """Enumerate generated command prompt files for configured agents."""
+        """Enumerate generated command prompt files for configured agents.
+
+        Includes legacy ``.codex/prompts`` when present so upgrades can still
+        repair projects created before Codex moved to Agent Skills.
+        """
         files: list[Path] = []
-        for agent_dir, subdir in get_agent_dirs_for_project(project_path):
-            command_dir = project_path / agent_dir / subdir
-            if not command_dir.exists():
+        command_dirs: list[Path] = [
+            project_path / agent_dir / subdir
+            for agent_dir, subdir in get_agent_dirs_for_project(project_path)
+        ]
+
+        legacy_codex_dir = project_path / ".codex" / "prompts"
+        if legacy_codex_dir.exists():
+            command_dirs.append(legacy_codex_dir)
+
+        seen: set[Path] = set()
+        for command_dir in command_dirs:
+            if not command_dir.exists() or command_dir in seen:
                 continue
+            seen.add(command_dir)
             for pattern in self.FILE_GLOBS:
                 files.extend(sorted(command_dir.glob(pattern)))
         return files
