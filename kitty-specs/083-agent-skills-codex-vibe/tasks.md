@@ -79,11 +79,11 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T001 Create `src/specify_cli/skills/manifest_store.py` with dataclasses and `ManifestError` (WP01)
-- [ ] T002 Implement schema validation on `load()` against the contract schema (WP01)
-- [ ] T003 Implement atomic save with deterministic formatting (WP01)
-- [ ] T004 Implement `fingerprint()` SHA-256 helper (WP01)
-- [ ] T005 Unit tests — round-trip, schema rejection, atomic-save durability, fingerprint stability (WP01)
+- [x] T001 Create `src/specify_cli/skills/manifest_store.py` with dataclasses and `ManifestError` (WP01)
+- [x] T002 Implement schema validation on `load()` against the contract schema (WP01)
+- [x] T003 Implement atomic save with deterministic formatting (WP01)
+- [x] T004 Implement `fingerprint()` SHA-256 helper (WP01)
+- [x] T005 Unit tests — round-trip, schema rejection, atomic-save durability, fingerprint stability (WP01)
 
 **Dependencies**: none.
 
@@ -244,3 +244,8 @@ The minimum shippable slice is **WP01 → WP02 → WP03 → WP04 → WP05**. Tha
 ## Next Command
 
 Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vibe --json` to parse dependencies, validate ownership, and commit.
+
+<!-- status-model:start -->
+## Canonical Status (Generated)
+- WP02: for_review
+<!-- status-model:end -->
