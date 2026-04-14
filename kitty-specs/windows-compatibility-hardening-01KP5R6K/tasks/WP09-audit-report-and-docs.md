@@ -26,6 +26,8 @@ subtasks:
 - T058
 - T059
 - T060
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "5787"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -355,3 +357,7 @@ Focus on:
 Do NOT ask about:
 - Individual WP internals — those are reviewed in their own PRs.
 - Whether to add more CI — that's WP07 scope.
+
+## Activity Log
+
+- 2026-04-14T13:39:42Z – claude:opus-4.6:implementer:implementer – shell_pid=5787 – Started implementation via action command
