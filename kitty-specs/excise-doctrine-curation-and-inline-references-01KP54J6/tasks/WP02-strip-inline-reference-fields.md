@@ -19,8 +19,8 @@ subtasks:
 - T010
 - T011
 - T012
-agent: "claude:opus-4.6:python-implementer:implementer"
-shell_pid: "50403"
+agent: "opencode:gpt-5:python-reviewer:reviewer"
+shell_pid: "96242"
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
@@ -496,3 +496,4 @@ Stop and comment on [#477](https://github.com/Priivacy-ai/spec-kitty/issues/477)
 
 - 2026-04-14T06:29:32Z – claude:opus-4.6:python-implementer:implementer – shell_pid=50403 – Started implementation via action command
 - 2026-04-14T06:53:09Z – claude:opus-4.6:python-implementer:implementer – shell_pid=50403 – WP02 complete: 14 shipped/legacy YAMLs stripped (12 top-level tactic_refs + 6 procedure step-level); 3 schemas + 3 models (Directive/Paradigm/ProcedureStep) + charter/schemas.py::Directive.applies_to stripped; graph.yaml patched additive-only with 25 new procedure-step requires edges (TEST_FIRST legacy directive not a graph node — inline refs stripped from its YAML without promotion); affected WP02-scoped tests rewritten to assert fields are absent; WP02 + index verifiers GREEN; graph assert_valid() passes; WP02-scoped pytest 396 passed. Expected inter-WP failures in WP03 scope: tests/doctrine/drg/migration/test_extractor.py, tests/doctrine/test_shipped_doctrine_cycle_free.py (3 cases), tests/merge/test_profile_charter_e2e.py — WP03 rewrites reference_resolver.
+- 2026-04-14T06:54:33Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=96242 – Started review via action command
