@@ -1,0 +1,193 @@
+---
+description: Materialize work package files
+---
+<!-- spec-kitty-command-version: 3.1.2a3 -->
+
+# /spec-kitty.tasks-packages - Generate Work Package Files
+
+**Version**: 3.2.0
+
+## Purpose
+
+Generate individual `tasks/WP*.md` prompt files from the manifest in `wps.yaml`.
+This step reads `wps.yaml` (written in tasks-outline), updates it with per-WP
+details, then generates the WP prompt files.
+
+This step assumes `wps.yaml` already exists with complete WP definitions.
+
+---
+
+## 📍 WORKING DIRECTORY: Stay in the project root checkout
+
+**IMPORTANT**: This step works in the project root checkout. NO worktrees created.
+
+**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
+
+## User Input
+
+```text
+$ARGUMENTS
+```
+
+## Steps
+
+### 1. Setup
+
+Run:
+
+```bash
+spec-kitty agent context resolve --action tasks_packages --mission <mission-slug> --json
+```
+
+Then execute the returned `check_prerequisites` command and capture
+`feature_dir`. All paths must be absolute.
+
+### 2. Load `wps.yaml`
+
+Read `feature_dir/wps.yaml`. This is the manifest written in the previous step.
+Each entry defines a WP with its `id`, `title`, `dependencies`, and partial metadata.
+
+Parse all work package entries. The YAML structure is:
+
+```yaml
+work_packages:
+  - id: WP01
+    title: "..."
+    dependencies: [...]   # may be present (authoritative) or absent
+    owned_files: [...]    # may be absent — fill in this step
+    requirement_refs: [...] # may be absent — fill in this step
+    subtasks: [...]
+    prompt_file: null     # fill in this step
+```
+
+### 3. Generate Prompt Files
+
+For each work package defined in `wps.yaml`:
+
+**CRITICAL PATH RULE**: All WP files MUST be created in a FLAT `feature_dir/tasks/` directory, NOT in subdirectories!
+
+- Correct: `feature_dir/tasks/WPxx-slug.md` (flat, no subdirectories)
+- WRONG: `feature_dir/tasks/planned/`, `feature_dir/tasks/doing/`, or ANY status subdirectories
+
+**For each WP**:
+1. Derive a kebab-case slug from the title
+2. Filename: `WPxx-slug.md` (e.g., `WP01-create-html-page.md`)
+3. Full path: `feature_dir/tasks/WP01-create-html-page.md`
+4. Follow the WP prompt template structure below (**do NOT write instructions to read a template file from `.kittify/`**)
+5. Include frontmatter with:
+   - `work_package_id`, `subtasks` array, `dependencies`, history entry
+   - `requirement_refs` array from the WP's `requirement_refs` in `wps.yaml`
+   - `owned_files`, `authoritative_surface`, `execution_mode` (required ownership fields)
+6. Include in body:
+   - Objective, context, detailed guidance per subtask
+   - Test strategy (only if requested)
+   - Definition of Done, risks, reviewer guidance
+
+**TARGET PROMPT SIZE**: 200-500 lines per WP (3-7 subtasks)
+**MAXIMUM PROMPT SIZE**: 700 lines per WP (10 subtasks max)
+**If prompts are >700 lines**: Split the WP — it's too large
+
+**IMPORTANT**: All WP files live in flat `tasks/` directory. Status is managed via `status.events.jsonl`, not by directory location or frontmatter fields.
+
+### 4. Update `wps.yaml` With Per-WP Details
+
+After generating each WP prompt file, update the corresponding entry in `wps.yaml`
+to fill in `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file`.
+Write the updated `wps.yaml` back to disk after each WP is generated (or
+accumulate changes and write once at the end).
+
+**Critical rule**: Do NOT modify a `dependencies` field that is already present in
+`wps.yaml` — even if it is empty (`[]`). It is authoritative. Only populate
+`dependencies` for entries where the key is **absent** from `wps.yaml`.
+
+Example of a fully-populated entry after this step:
+
+```yaml
+- id: WP02
+  title: "Build API"
+  dependencies:
+    - WP01
+  owned_files:
+    - "src/api/**"
+  requirement_refs:
+    - FR-001
+    - NFR-001
+  subtasks:
+    - T001
+    - T002
+  prompt_file: "tasks/WP02-build-api.md"
+```
+
+The frontmatter in each WP prompt file MUST include a `dependencies` field:
+
+```yaml
+---
+work_package_id: "WP02"
+title: "Build API"
+dependencies: ["WP01"]  # From wps.yaml
+requirement_refs: ["FR-001", "NFR-001"]  # From wps.yaml requirement_refs
+subtasks: ["T001", "T002"]
+owned_files: ["src/api/**"]
+authoritative_surface: "src/api/"
+execution_mode: "code_change"
+---
+```
+
+Include the correct implementation command:
+- `spec-kitty agent action implement WP01 --agent <name>`
+- `spec-kitty agent action implement WP02 --agent <name>`
+
+`finalize_tasks` computes execution lanes from dependencies and write ownership. Agents never choose a base branch manually.
+
+**Ownership rules**:
+- `owned_files`: List of glob patterns for files this WP touches — no two WPs may overlap.
+- `authoritative_surface`: Path prefix that must be a prefix of at least one `owned_files` entry.
+- `execution_mode`: `"code_change"` for source code changes, `"planning_artifact"` for kitty-specs docs.
+- Agents working on a WP must not modify files outside their `owned_files` list.
+
+### 5. Self-Check
+
+After generating each prompt:
+- Subtask count: 3-7? ✓ | 8-10? ⚠️ | 11+? ❌ SPLIT
+- Estimated lines: 200-500? ✓ | 500-700? ⚠️ | 700+? ❌ SPLIT
+- Can implement in one session? ✓ | Multiple sessions needed? ❌ SPLIT
+
+## Output
+
+After completing this step:
+- `feature_dir/tasks/WP*.md` prompt files exist for all work packages
+- Each has proper frontmatter with `work_package_id`, `dependencies`, `owned_files`, `authoritative_surface`, `execution_mode`
+- `feature_dir/wps.yaml` is fully populated: all `owned_files`, `requirement_refs`, `subtasks`, and `prompt_file` fields are set
+
+**Next step**: `spec-kitty next --agent <name>` will advance to finalization.
+
+## Prompt Quality Guidelines
+
+**Good prompt** (~60 lines per subtask):
+```markdown
+### Subtask T001: Implement User Login Endpoint
+
+**Purpose**: Create POST /api/auth/login endpoint that validates credentials and returns JWT token.
+
+**Steps**:
+1. Create endpoint handler in `src/api/auth.py`:
+   - Route: POST /api/auth/login
+   - Request body: `{email: string, password: string}`
+   - Response: `{token: string, user: UserProfile}` on success
+   - Error codes: 400, 401, 429
+
+2. Implement credential validation:
+   - Hash password with bcrypt
+   - Use constant-time comparison
+
+**Files**: `src/api/auth.py` (new, ~80 lines)
+**Validation**: Valid credentials return 200 with token
+```
+
+**Bad prompt** (~20 lines per subtask):
+```markdown
+### T001: Add auth
+Steps: Create endpoint. Add validation. Test it.
+```
+
+Context for work-package planning: (refer to the User Input section above)

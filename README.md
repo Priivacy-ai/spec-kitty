@@ -51,13 +51,13 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 | **Live project visibility** | Local dashboard for kanban and mission progress (`spec-kitty dashboard`) |
 | **Review resilience** | Persisted versioned review artifacts, focused fix prompts, dirty-state classification, and arbiter checklists |
 | **Execution resilience** | Interrupted merge recovery (`merge --resume`), crash recovery (`implement --recover`), stale-claim diagnostics (`doctor`) |
-| **Multi-agent support** | Template and command generation for 12 AI agent integrations |
+| **Multi-agent support** | Template and command generation for 14 AI agent integrations |
 
 <p align="center">
     <a href="#-getting-started-complete-workflow">Quick Start</a> •
     <a href="docs/tutorials/claude-code-integration.md"><strong>Claude Code Guide</strong></a> •
     <a href="#-real-time-dashboard">Live Dashboard</a> •
-    <a href="#-supported-ai-agents">12 AI Agents</a> •
+    <a href="#-supported-ai-tools">14 AI Tools</a> •
     <a href="https://github.com/Priivacy-ai/spec-kitty/blob/main/spec-driven.md">Full Docs</a>
 </p>
 
@@ -721,6 +721,8 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 
 ## 🤖 Supported AI Tools
 
+Spec Kitty integrates with 14 AI tools.  Twelve tools receive **slash commands** written to an agent-specific directory (e.g. `.claude/commands/`).  Two tools — Codex CLI and Mistral Vibe — use the **Agent Skills** pipeline: spec-kitty command files are installed once under `.agents/skills/spec-kitty.<command>/` and shared by both agents via reference-counted installation.
+
 | Tool                                                      | Support | Notes                                             |
 |-----------------------------------------------------------|---------|---------------------------------------------------|
 | [Claude Code](https://www.anthropic.com/claude-code)      | ✅ |                                                   |
@@ -733,7 +735,8 @@ Browse our [examples directory](https://github.com/Priivacy-ai/spec-kitty/tree/m
 | [Kilo Code](https://github.com/Kilo-Org/kilocode)         | ✅ |                                                   |
 | [Auggie CLI](https://docs.augmentcode.com/cli/overview)   | ✅ |                                                   |
 | [Roo Code](https://roocode.com/)                          | ✅ |                                                   |
-| [Codex CLI](https://github.com/openai/codex)              | ✅ |                                                   |
+| [Codex CLI](https://github.com/openai/codex)              | ✅ | Agent Skills (`.agents/skills/`); shared with Vibe when both are configured. |
+| [Mistral Vibe](https://github.com/mistralai/mistral-vibe) | ✅ | Agent Skills (`.agents/skills/`); shared with Codex when both are configured. |
 | [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/) | ⚠️ | Amazon Q Developer CLI [does not support](https://github.com/aws/amazon-q-developer-cli/issues/3064) custom arguments for slash commands. |
 
 <details>
@@ -762,7 +765,7 @@ The `spec-kitty` command supports the following options. Every run begins with a
 | Argument/Option        | Type     | Description                                                                  |
 |------------------------|----------|------------------------------------------------------------------------------|
 | `<project-name>`       | Argument | Name for your new project directory (omit to initialize in the current directory, same as `--here`) |
-| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, or `q` |
+| `--ai`                 | Option   | AI assistant to use: `claude`, `gemini`, `copilot`, `cursor`, `qwen`, `opencode`, `codex`, `windsurf`, `kilocode`, `auggie`, `roo`, `q`, or `vibe` |
 | `--script`             | Option   | (Deprecated in v0.10.0) Script variant - all commands now use Python CLI     |
 | `--mission`            | Option   | Mission type key to seed templates (`software-dev`, `research`, ...)        |
 | `--template-root`      | Option   | Override template location (useful for development mode or custom sources)   |
@@ -1181,7 +1184,7 @@ cat .kittify/metadata.yaml
 ## 🔧 Prerequisites
 
 - **Linux/macOS** (or WSL2 on Windows)
-- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen CLI](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai/), [Codex CLI](https://github.com/openai/codex), [Windsurf](https://windsurf.com/), or [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/)
+- AI coding agent: [Claude Code](https://www.anthropic.com/claude-code), [GitHub Copilot](https://code.visualstudio.com/), [Gemini CLI](https://github.com/google-gemini/gemini-cli), [Cursor](https://cursor.sh/), [Qwen CLI](https://github.com/QwenLM/qwen-code), [opencode](https://opencode.ai/), [Codex CLI](https://github.com/openai/codex), [Mistral Vibe](https://github.com/mistralai/mistral-vibe), [Windsurf](https://windsurf.com/), or [Amazon Q Developer CLI](https://aws.amazon.com/developer/learning/q-developer-cli/)
 - [uv](https://docs.astral.sh/uv/) for package management
 - [Python 3.11+](https://www.python.org/downloads/)
 - [Git](https://git-scm.com/downloads)
