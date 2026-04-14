@@ -13,11 +13,11 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 
 | ID | Description | WP | Parallel |
 |---|---|---|---|
-| T001 | Create `src/specify_cli/paths/__init__.py` package skeleton with public exports | WP01 | |
-| T002 | Implement `RuntimeRoot` dataclass and `get_runtime_root()` in `windows_paths.py` | WP01 | |
-| T003 | Implement `render_runtime_path(path, *, for_user=True)` helper | WP01 | [P] |
-| T004 | Unit tests for `RuntimeRoot` + `get_runtime_root` (platform-mocked) | WP01 | [P] |
-| T005 | Unit tests for `render_runtime_path` (platform-mocked) | WP01 | [P] |
+| T001 | Create `src/specify_cli/paths/__init__.py` package skeleton with public exports | WP01 | | [D] |
+| T002 | Implement `RuntimeRoot` dataclass and `get_runtime_root()` in `windows_paths.py` | WP01 | | [D] |
+| T003 | Implement `render_runtime_path(path, *, for_user=True)` helper | WP01 | [D] |
+| T004 | Unit tests for `RuntimeRoot` + `get_runtime_root` (platform-mocked) | WP01 | [D] |
+| T005 | Unit tests for `render_runtime_path` (platform-mocked) | WP01 | [D] |
 | T006 | Implement `MigrationOutcome` + `LegacyWindowsRoot` dataclasses in `windows_migrate.py` | WP02 | |
 | T007 | Implement `migrate_windows_state(dry_run=False)` with destination-wins + timestamped quarantine | WP02 | |
 | T008 | Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op) | WP02 | |
@@ -108,11 +108,11 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - Imports from this package must not cycle with the auth subsystem (keep `windows_paths` standalone).
 
 **Included subtasks**:
-- [ ] T001 Create `src/specify_cli/paths/__init__.py` package skeleton with public exports
-- [ ] T002 Implement `RuntimeRoot` dataclass and `get_runtime_root()` in `windows_paths.py`
-- [ ] T003 Implement `render_runtime_path(path, *, for_user=True)` helper
-- [ ] T004 Unit tests for `RuntimeRoot` + `get_runtime_root` (platform-mocked)
-- [ ] T005 Unit tests for `render_runtime_path` (platform-mocked)
+- [x] T001 Create `src/specify_cli/paths/__init__.py` package skeleton with public exports
+- [x] T002 Implement `RuntimeRoot` dataclass and `get_runtime_root()` in `windows_paths.py`
+- [x] T003 Implement `render_runtime_path(path, *, for_user=True)` helper
+- [x] T004 Unit tests for `RuntimeRoot` + `get_runtime_root` (platform-mocked)
+- [x] T005 Unit tests for `render_runtime_path` (platform-mocked)
 
 ---
 
