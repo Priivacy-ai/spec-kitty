@@ -1,7 +1,7 @@
 ---
 work_package_id: WP02
 title: Command-Skill Renderer
-lane: "for_review"
+lane: "done"
 dependencies: []
 base_branch: main
 base_commit: 05e6c3ed6d49dda2dc83fa525d8958632daa2c09
@@ -13,8 +13,10 @@ subtasks:
 - T009
 - T010
 - T011
+agent: "opus"
 shell_pid: '3994'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -198,3 +200,4 @@ spec-kitty agent action implement WP02 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:04:14Z – claude – shell_pid=3994 – lane=for_review – Implementation complete; ready for review
+- 2026-04-14T10:06:27Z – opus – shell_pid=3994 – lane=done – Review passed: renderer is deterministic, REPLACEMENT_BLOCK wording is clear, stray-$ARGUMENTS guard uses substring match, 22 snapshots committed, 66 tests pass, ruff clean on WP02 files, 7 template edits are semantically neutral.
