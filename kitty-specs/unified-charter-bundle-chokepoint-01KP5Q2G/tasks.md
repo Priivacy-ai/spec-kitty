@@ -13,13 +13,13 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 
 | ID | Description | WP | Parallel |
 | --- | --- | --- | --- |
-| T001 | Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` | WP01 | — |
-| T002 | Write `architecture/2.x/06_unified_charter_bundle.md` documenting v1.0.0 contract | WP01 | [P] |
-| T003 | Create `src/specify_cli/cli/commands/charter_bundle.py` with Typer sub-app for `bundle validate` | WP01 | — |
-| T004 | Re-export `CharterBundleManifest` from `src/charter/__init__.py` | WP01 | [P] |
-| T005 | Write `tests/charter/test_bundle_manifest_model.py` | WP01 | [P] |
-| T006 | Write `tests/charter/test_bundle_validate_cli.py` (Typer runner integration) | WP01 | [P] |
-| T007 | Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` | WP01 | — |
+| T001 | Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` | WP01 | — | [D] |
+| T002 | Write `architecture/2.x/06_unified_charter_bundle.md` documenting v1.0.0 contract | WP01 | [D] |
+| T003 | Create `src/specify_cli/cli/commands/charter_bundle.py` with Typer sub-app for `bundle validate` | WP01 | — | [D] |
+| T004 | Re-export `CharterBundleManifest` from `src/charter/__init__.py` | WP01 | [D] |
+| T005 | Write `tests/charter/test_bundle_manifest_model.py` | WP01 | [D] |
+| T006 | Write `tests/charter/test_bundle_validate_cli.py` (Typer runner integration) | WP01 | [D] |
+| T007 | Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` | WP01 | — | [D] |
 | T008 | Create `src/charter/resolution.py` with `resolve_canonical_repo_root` + exceptions + LRU cache | WP02 | — |
 | T009 | Write `tests/charter/test_canonical_root_resolution.py` covering R-2 matrix | WP02 | [P] |
 | T010 | Extend `SyncResult` in `src/charter/sync.py` with `canonical_root: Path` | WP02 | — |
@@ -58,13 +58,13 @@ Total: 29 subtasks across 4 work packages. Average 7.25 subtasks/WP. Expected pr
 
 ### Included subtasks
 
-- [ ] T001 Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` (WP01)
-- [ ] T002 Write `architecture/2.x/06_unified_charter_bundle.md` documenting v1.0.0 contract (WP01) [P]
-- [ ] T003 Create `src/specify_cli/cli/commands/charter_bundle.py` with Typer sub-app for `bundle validate` (WP01)
-- [ ] T004 Re-export `CharterBundleManifest` from `src/charter/__init__.py` (WP01) [P]
-- [ ] T005 Write `tests/charter/test_bundle_manifest_model.py` (WP01) [P]
-- [ ] T006 Write `tests/charter/test_bundle_validate_cli.py` — Typer runner integration (WP01) [P]
-- [ ] T007 Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` (WP01)
+- [x] T001 Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` (WP01)
+- [x] T002 Write `architecture/2.x/06_unified_charter_bundle.md` documenting v1.0.0 contract (WP01) [P]
+- [x] T003 Create `src/specify_cli/cli/commands/charter_bundle.py` with Typer sub-app for `bundle validate` (WP01)
+- [x] T004 Re-export `CharterBundleManifest` from `src/charter/__init__.py` (WP01) [P]
+- [x] T005 Write `tests/charter/test_bundle_manifest_model.py` (WP01) [P]
+- [x] T006 Write `tests/charter/test_bundle_validate_cli.py` — Typer runner integration (WP01) [P]
+- [x] T007 Author `kitty-specs/.../occurrences/WP01.yaml` and seed `index.yaml` (WP01)
 
 ### Implementation sketch
 
