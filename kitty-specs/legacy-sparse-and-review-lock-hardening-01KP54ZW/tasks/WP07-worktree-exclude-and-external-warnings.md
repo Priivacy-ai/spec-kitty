@@ -15,6 +15,8 @@ subtasks:
 - T030
 - T037
 phase: Phase 2 — Polish
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "61123"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -204,3 +206,7 @@ Adjust commands to match actual CLI surfaces available in the test harness.
 - Verify the per-worktree exclude file is `<git-common-dir>/worktrees/<name>/info/exclude`, NOT `<worktree>/.git/info/exclude` (common misunderstanding; the latter would not exist for a worktree because worktree's `.git` is a file, not a directory).
 - Verify the once-per-process test is genuinely single-process. `CliRunner` invokes the Typer app in the same process.
 - Verify no session-warning call was accidentally placed in a read-only command handler.
+
+## Activity Log
+
+- 2026-04-14T07:40:59Z – claude:opus-4.6:implementer:implementer – shell_pid=61123 – Started implementation via action command
