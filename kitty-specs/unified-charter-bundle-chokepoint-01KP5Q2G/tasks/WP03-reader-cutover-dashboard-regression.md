@@ -453,3 +453,4 @@ Flip every reader of the three v1.0.0 manifest derivatives through the chokepoin
 ## Activity Log
 
 - 2026-04-14T12:44:14Z – claude:sonnet:implementer:implementer – shell_pid=30738 – Started implementation via action command
+- 2026-04-14T13:41:40Z – claude:sonnet:implementer:implementer – shell_pid=30738 – WP03 complete: baseline committed pre-cutover (capture.py + pre-wp23 JSON), 7+ readers flipped, 5 new test modules green (16 tests), C-011/C-012 carve-outs intact, #361 dashboard typed contracts preserved byte-identically. --force: WP03-owned baseline/ + occurrences/WP03.yaml are required test inputs shipping with the rewire (per tasks/WP03-*.md owned_files).
