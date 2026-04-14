@@ -1,7 +1,7 @@
 ---
 work_package_id: WP06
 title: Codex Legacy Migration
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP04
 - WP05
@@ -14,8 +14,10 @@ subtasks:
 - T030
 - T031
 - T032
+agent: "opus"
 shell_pid: '19351'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -232,3 +234,4 @@ spec-kitty agent action implement WP06 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:44:59Z – claude – shell_pid=19351 – lane=for_review – Codex legacy migration complete; 27/27 tests
+- 2026-04-14T10:46:33Z – opus – shell_pid=19351 – lane=done – Review passed: migration correctly classifies, installs, and cleans up; non-spec-kitty files preserved; idempotent; 27/27 tests
