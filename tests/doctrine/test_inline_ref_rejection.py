@@ -7,8 +7,13 @@ Covers the contract in
 The migration hint emitted by :class:`InlineReferenceRejectedError` must
 match the schema's regex pattern::
 
-    ^Remove .+ from YAML; add edge \\{from: .+, to: .+, kind: uses\\}
+    ^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\}
      to src/doctrine/graph.yaml$
+
+The hint uses the actual ``DRGEdge`` schema (``source``/``target``/``relation``)
+and the ``requires`` relation -- the ``Relation`` enum does not contain
+``uses``, so the earlier ``kind: uses`` text pointed operators at an
+impossible edit.
 
 Eight cases total: 7 per-kind top-level fixtures + 1 procedures step-level
 fixture.
@@ -17,6 +22,7 @@ fixture.
 from __future__ import annotations
 
 import re
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -32,7 +38,8 @@ from doctrine.toolguides.validation import reject_toolguide_inline_refs
 
 #: Matches ``migration_hint`` per the JSON schema.
 HINT_PATTERN = re.compile(
-    r"^Remove .+ from YAML; add edge \{from: .+, to: .+, kind: uses\} "
+    r"^Remove .+ from YAML; add edge "
+    r"\{source: .+, target: .+, relation: requires\} "
     r"to src/doctrine/graph\.yaml$"
 )
 
@@ -147,3 +154,162 @@ def test_all_three_forbidden_fields_are_flagged() -> None:
         except InlineReferenceRejectedError as err:
             flagged.add(err.forbidden_field)
     assert flagged == {"tactic_refs", "paradigm_refs", "applies_to"}
+
+
+# ---------------------------------------------------------------------------
+# Integration tests: the live repository ``_load`` paths must raise
+# :class:`InlineReferenceRejectedError`, not silently warn with a generic
+# Pydantic ``extra_forbidden``. Closes FR-008 Scenario 4 ("The loader does
+# not silently ignore the field.").
+# ---------------------------------------------------------------------------
+
+
+def _write_yaml(path: Path, body: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(body, encoding="utf-8")
+
+
+def test_directive_repository_rejects_project_inline_refs(tmp_path: Path) -> None:
+    """Loading a project directive that carries ``applies_to:`` must raise
+    :class:`InlineReferenceRejectedError` at _load time, not warn.
+    """
+    from doctrine.directives.repository import DirectiveRepository
+
+    project_dir = tmp_path / "directives"
+    _write_yaml(
+        project_dir / "my-directive.directive.yaml",
+        "id: MY-DIRECTIVE\ntitle: demo\nintent: demo intent\napplies_to: [software-dev]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        DirectiveRepository(
+            shipped_dir=tmp_path / "nonexistent_shipped",
+            project_dir=project_dir,
+        )
+    err = excinfo.value
+    assert err.artifact_kind == "directive"
+    assert err.forbidden_field == "applies_to"
+    assert HINT_PATTERN.match(err.migration_hint)
+
+
+def test_tactic_repository_rejects_shipped_inline_refs(tmp_path: Path) -> None:
+    """Shipped tactics with forbidden inline refs must raise at load time."""
+    from doctrine.tactics.repository import TacticRepository
+
+    shipped_dir = tmp_path / "tactics_shipped"
+    _write_yaml(
+        shipped_dir / "bad.tactic.yaml",
+        "id: bad-tactic\nname: bad\npurpose: test\nparadigm_refs: [p1]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        TacticRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "tactic"
+    assert excinfo.value.forbidden_field == "paradigm_refs"
+
+
+def test_paradigm_repository_rejects_inline_refs(tmp_path: Path) -> None:
+    from doctrine.paradigms.repository import ParadigmRepository
+
+    shipped_dir = tmp_path / "paradigms_shipped"
+    _write_yaml(
+        shipped_dir / "bad.paradigm.yaml",
+        "id: bad-paradigm\nname: bad\nsummary: test\ntactic_refs: [t1]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        ParadigmRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "paradigm"
+    assert excinfo.value.forbidden_field == "tactic_refs"
+
+
+def test_styleguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
+    from doctrine.styleguides.repository import StyleguideRepository
+
+    shipped_dir = tmp_path / "styleguides_shipped"
+    _write_yaml(
+        shipped_dir / "bad.styleguide.yaml",
+        "id: bad-style\ntitle: bad\nprinciples: [x]\napplies_to: [y]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        StyleguideRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "styleguide"
+    assert excinfo.value.forbidden_field == "applies_to"
+
+
+def test_toolguide_repository_rejects_inline_refs(tmp_path: Path) -> None:
+    from doctrine.toolguides.repository import ToolguideRepository
+
+    shipped_dir = tmp_path / "toolguides_shipped"
+    _write_yaml(
+        shipped_dir / "bad.toolguide.yaml",
+        "id: bad-tool\ntitle: bad\nsummary: x\ntactic_refs: [t1]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        ToolguideRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "toolguide"
+    assert excinfo.value.forbidden_field == "tactic_refs"
+
+
+def test_procedure_repository_rejects_top_level_inline_refs(tmp_path: Path) -> None:
+    from doctrine.procedures.repository import ProcedureRepository
+
+    shipped_dir = tmp_path / "procedures_shipped"
+    _write_yaml(
+        shipped_dir / "bad.procedure.yaml",
+        "id: bad-proc\nname: bad\npurpose: x\nsteps: []\napplies_to: [y]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        ProcedureRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "procedure"
+    assert excinfo.value.forbidden_field == "applies_to"
+
+
+def test_procedure_repository_rejects_step_level_inline_refs(tmp_path: Path) -> None:
+    """FR-008 step-level scan: ``steps[*].tactic_refs`` rejected with the
+    structured :class:`InlineReferenceRejectedError`, not Pydantic's generic
+    ``extra_forbidden`` warning.
+    """
+    from doctrine.procedures.repository import ProcedureRepository
+
+    shipped_dir = tmp_path / "procedures_shipped"
+    _write_yaml(
+        shipped_dir / "bad-step.procedure.yaml",
+        "id: bad-step-proc\n"
+        "name: bad-step\n"
+        "purpose: x\n"
+        "steps:\n"
+        "  - title: step-0\n"
+        "    body: ok\n"
+        "  - title: step-1\n"
+        "    tactic_refs: [t1]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        ProcedureRepository(shipped_dir=shipped_dir, project_dir=None)
+    err = excinfo.value
+    assert err.artifact_kind == "procedure"
+    assert err.forbidden_field == "tactic_refs"
+    assert HINT_PATTERN.match(err.migration_hint)
+
+
+def test_agent_profile_repository_rejects_inline_refs(tmp_path: Path) -> None:
+    from doctrine.agent_profiles.repository import AgentProfileRepository
+
+    shipped_dir = tmp_path / "agent_profiles_shipped"
+    # agent profile YAMLs use kebab-case keys; the rejection scan is for
+    # extra top-level fields, so ``applies_to`` is unambiguous.
+    _write_yaml(
+        shipped_dir / "bad.agent.yaml",
+        "profile-id: bad-profile\n"
+        "role: implementer\n"
+        "applies_to: [software-dev]\n",
+    )
+
+    with pytest.raises(InlineReferenceRejectedError) as excinfo:
+        AgentProfileRepository(shipped_dir=shipped_dir, project_dir=None)
+    assert excinfo.value.artifact_kind == "agent_profile"
+    assert excinfo.value.forbidden_field == "applies_to"

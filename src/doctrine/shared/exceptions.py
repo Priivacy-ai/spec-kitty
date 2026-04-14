@@ -21,8 +21,11 @@ class InlineReferenceRejectedError(ValueError):
         artifact_kind: One of ``"directive"``, ``"tactic"``, ``"procedure"``,
             ``"paradigm"``, ``"styleguide"``, ``"toolguide"``, ``"agent_profile"``.
         migration_hint: Operator-facing text matching the schema pattern
-            ``"Remove <field> from YAML; add edge {from: <kind>:<id>, to:
-            <target-kind>:<target-id>, kind: uses} to src/doctrine/graph.yaml"``.
+            ``"Remove <field> from YAML; add edge {source: <kind>:<id>,
+            target: <target-kind>:<target-id>, relation: requires} to
+            src/doctrine/graph.yaml"``. Uses the actual ``DRGEdge`` schema
+            (``source``/``target``/``relation``) and the ``requires`` relation
+            (the ``Relation`` enum does not include ``uses``).
     """
 
     def __init__(

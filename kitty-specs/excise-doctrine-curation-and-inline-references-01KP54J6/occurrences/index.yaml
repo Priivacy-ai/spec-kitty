@@ -32,7 +32,11 @@ must_be_zero:
       - "src/charter/schemas.py"
       - "src/charter/_drg_helpers.py"
       - "src/specify_cli/charter/_drg_helpers.py"
+      - "src/specify_cli/charter/compiler.py"
       - "src/specify_cli/charter/context.py"
+      # Post-merge follow-up: compiler tests reference the mission slug in
+      # docstrings that explain the C-001 "no fallback" contract.
+      - "tests/charter/test_compiler.py"
       - "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py"
       - "src/doctrine/agent_profiles/capabilities.py"
       - "src/doctrine/directives/models.py"

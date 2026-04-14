@@ -235,6 +235,7 @@ def generate(
             mission=resolved_mission,
             interview=interview_data,
             template_set=template_set,
+            repo_root=repo_root,
         )
         bundle_result = write_compiled_charter(charter_dir, compiled, force=force)
         if interview_source == "defaults":

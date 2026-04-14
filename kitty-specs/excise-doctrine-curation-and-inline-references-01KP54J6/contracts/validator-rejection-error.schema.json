@@ -30,7 +30,7 @@
     "migration_hint": {
       "type": "string",
       "description": "Fixed text pointing at the graph-edge migration pattern.",
-      "pattern": "^Remove .+ from YAML; add edge \\{from: .+, to: .+, kind: uses\\} to src/doctrine/graph.yaml$"
+      "pattern": "^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\} to src/doctrine/graph.yaml$"
     }
   },
   "examples": [
@@ -38,7 +38,7 @@
       "file_path": "/path/to/project/.kittify/doctrine/directives/my-directive.directive.yaml",
       "forbidden_field": "tactic_refs",
       "artifact_kind": "directive",
-      "migration_hint": "Remove tactic_refs from YAML; add edge {from: directive:my-directive, to: tactic:my-tactic, kind: uses} to src/doctrine/graph.yaml"
+      "migration_hint": "Remove tactic_refs from YAML; add edge {source: directive:my-directive, target: tactic:my-tactic, relation: requires} to src/doctrine/graph.yaml"
     }
   ]
 }

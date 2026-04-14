@@ -8,8 +8,15 @@ for the error-shape contract and the required ``migration_hint`` pattern.
 
 The canonical ``migration_hint`` string must match::
 
-    ^Remove .+ from YAML; add edge \\{from: .+, to: .+, kind: uses\\}
+    ^Remove .+ from YAML; add edge \\{source: .+, target: .+, relation: requires\\}
      to src/doctrine/graph.yaml$
+
+The hint uses the actual ``DRGEdge`` schema: ``source``/``target``/``relation``
+keys (not ``from``/``to``/``kind``), and ``requires`` as the relation value (the
+``Relation`` enum does not contain ``uses``). Callers in the charter resolver
+use ``{Relation.REQUIRES, Relation.SUGGESTS}`` for legacy parity, so
+``requires`` is the canonical relation for "this artifact needs that one"
+patterns.
 
 Any code that raises :class:`InlineReferenceRejectedError` should build the
 hint via :func:`build_migration_hint` to keep the textual shape consistent.
@@ -50,8 +57,9 @@ def build_migration_hint(
     """
     return (
         f"Remove {forbidden_field} from YAML; "
-        f"add edge {{from: {source_kind}:{source_id}, "
-        f"to: {target_kind}:{target_id}, kind: uses}} to src/doctrine/graph.yaml"
+        f"add edge {{source: {source_kind}:{source_id}, "
+        f"target: {target_kind}:{target_id}, relation: requires}} "
+        f"to src/doctrine/graph.yaml"
     )
 
 

@@ -20,6 +20,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Directive
+from .validation import reject_directive_inline_refs
 
 
 class DirectiveRepository:
@@ -57,6 +58,7 @@ class DirectiveRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_directive_inline_refs(data, file_path=str(yaml_file))
                     directive = Directive.model_validate(data)
                     shipped[directive.id] = directive
                 except (YAMLError, ValidationError, OSError) as e:
@@ -74,6 +76,7 @@ class DirectiveRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_directive_inline_refs(data, file_path=str(yaml_file))
                     directive_id = data.get("id")
                     if not directive_id:
                         warnings.warn(

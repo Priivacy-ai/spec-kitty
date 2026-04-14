@@ -83,8 +83,16 @@ def test_write_compiled_charter_requires_force_when_existing(tmp_path: Path) -> 
         write_compiled_charter(tmp_path, compiled, force=False)
 
 
-def test_compile_with_doctrine_service_none_emits_diagnostic() -> None:
-    """Calling compile_charter without DoctrineService appends the fallback diagnostic."""
+def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
+    """Calling compile_charter without DoctrineService must NOT emit a YAML
+    fallback diagnostic.
+
+    Per C-001 of the excise-doctrine-curation-and-inline-references-01KP54J6
+    mission there is no YAML-scanning fallback: the compiler constructs a
+    default :class:`DoctrineService` internally and always takes the
+    DRG-backed path. The compiled result includes tactics / procedures /
+    toolguides resolved via the graph, not just paradigms + directives.
+    """
     interview = default_interview(mission="software-dev", profile="minimal")
 
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
@@ -93,8 +101,15 @@ def test_compile_with_doctrine_service_none_emits_diagnostic() -> None:
         "DoctrineService unavailable; using YAML scanning fallback. "
         "Profile-aware compilation requires DoctrineService."
     )
-    assert any(fallback_msg in d for d in compiled.diagnostics), (
-        f"Expected fallback diagnostic in {compiled.diagnostics}"
+    assert not any(fallback_msg in d for d in compiled.diagnostics), (
+        f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
+    )
+    # The DRG-backed path resolves transitive artifacts. For the default
+    # interview the shipped graph should yield at least one tactic.
+    kinds = {reference.kind for reference in compiled.references}
+    assert "tactic" in kinds, (
+        "DRG-backed path should have resolved transitive tactics; "
+        f"got kinds {sorted(kinds)}"
     )
 
 
