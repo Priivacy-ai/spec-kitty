@@ -1,0 +1,55 @@
+# Mission-Level Occurrence Index — Phase 1 Excision
+#
+# Seeded by WP01 and extended by WP02 and WP03. The final version must hold
+# the full NFR-004 canonical must-be-zero set:
+#   curation, _proposed, tactic_refs, paradigm_refs, applies_to,
+#   reference_resolver, include_proposed, build_context_v2
+#
+# Each must_be_zero assertion is a global grep: the literal appears
+# zero times under `scopes` (after excluding both `excluding` globs and
+# the `permitted_exceptions` list at the bottom). See data-model.md E-2.
+mission_slug: excise-doctrine-curation-and-inline-references-01KP54J6
+wps:
+  - WP01
+
+must_be_zero:
+  - literal: "curation"
+    scopes:
+      - "src/doctrine/curation/**"
+      - "src/specify_cli/cli/commands/doctrine.py"
+      - "src/specify_cli/validators/doctrine_curation.py"
+      - "tests/doctrine/curation/**"
+      - "tests/cross_cutting/test_doctrine_curation_unit.py"
+    excluding:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    final_count: 0
+  - literal: "_proposed"
+    scopes:
+      - "src/doctrine/curation/**"
+      - "src/doctrine/directives/_proposed/**"
+      - "src/doctrine/tactics/_proposed/**"
+      - "src/doctrine/procedures/_proposed/**"
+      - "src/doctrine/styleguides/_proposed/**"
+      - "src/doctrine/toolguides/_proposed/**"
+      - "src/doctrine/paradigms/_proposed/**"
+    excluding:
+      - "kitty-specs/**"
+      - "scripts/verify_occurrences.py"
+      - "**/__pycache__/**"
+    final_count: 0
+
+permitted_exceptions:
+  - pattern: "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    reason: "Spec C-006 carve-out — legacy `constitution` migration is allowed to keep historical strings."
+    owner_wp: WP01
+  - pattern: "src/doctrine/_reference/"
+    reason: "Raw-reference landing zone: WP01 only rewrites README prose; candidate `.import.yaml` manifests retain historical `_proposed/` paths as provenance."
+    owner_wp: WP01
+  - pattern: "src/charter/catalog.py"
+    reason: "`include_proposed` parameter is removed in WP03, not WP01."
+    owner_wp: WP01
+  - pattern: "src/doctrine/agent_profiles/repository.py"
+    reason: "Error-message string references `_proposed/` as a historical hint; not tied to the deleted curation workflow."
+    owner_wp: WP01
