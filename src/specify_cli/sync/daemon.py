@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import fcntl
 import json
 import logging
 import secrets
@@ -20,6 +19,11 @@ from enum import Enum
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Optional, Tuple
+
+if sys.platform == "win32":
+    import msvcrt
+else:  # pragma: no cover - platform-specific
+    import fcntl
 
 if TYPE_CHECKING:
     from specify_cli.sync.config import SyncConfig
@@ -506,10 +510,15 @@ def ensure_sync_daemon_running(
         acquired = False
         for _ in range(100):
             try:
-                fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                if sys.platform == "win32":
+                    msvcrt.locking(lock_fd.fileno(), msvcrt.LK_NBLCK, 1)
+                else:
+                    fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 acquired = True
                 break
-            except BlockingIOError:
+            except (BlockingIOError, OSError):
+                # Unix raises BlockingIOError; Windows msvcrt raises OSError
+                # (errno EDEADLK / EACCES) when the lock is held elsewhere.
                 time.sleep(0.1)
         if not acquired:
             return DaemonStartOutcome(
@@ -533,7 +542,10 @@ def ensure_sync_daemon_running(
         return DaemonStartOutcome(started=True, skipped_reason=None, pid=pid)
     finally:
         if acquired:
-            fcntl.flock(lock_fd, fcntl.LOCK_UN)
+            if sys.platform == "win32":
+                msvcrt.locking(lock_fd.fileno(), msvcrt.LK_UNLCK, 1)
+            else:
+                fcntl.flock(lock_fd, fcntl.LOCK_UN)
         lock_fd.close()
 
 
