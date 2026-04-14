@@ -54,19 +54,19 @@ Total: 35 subtasks across 9 WPs.
 | T021 | Implement preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T023 | Integration tests for merge + implement preflights, override, refresh, invariant | WP05 | [P] |
 | T024 | Session-warning call sites inside `agent/tasks.py` commands | WP06 |  | [D] |
-| T025 | Once-per-process integration test (NFR-005) | WP07 | [P] |
+| T025 | Once-per-process integration test (NFR-005) | WP07 | [D] |
 | T026 | Add `.spec-kitty/` + `.kittify/` deny-list filter to `_validate_ready_for_review` | WP06 |  | [D] |
 | T027 | Parameterize retry guidance on actual `target_lane` | WP06 |  | [D] |
 | T028 | Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory | WP06 |  | [D] |
 | T029 | Invoke `ReviewLock.release()` at approve and reject transition exits | WP06 |  | [D] |
-| T030 | Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation | WP07 |  |
+| T030 | Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation | WP07 |  | [D] |
 | T031 | Integration tests: approve/reject without `--force`, filter rules, release cleanup | WP06 | [P] |
 | T032 | Investigate FR-020 approve-output source-lane anomaly | WP08 |  | [D] |
 | T033 | Publish FR-020 investigation report; escalate fix if needed | WP08 |  | [D] |
 | T034 | Draft ADR `2026-04-14-sparse-checkout-defense-in-depth.md` | WP09 |  |
 | T035 | CHANGELOG entry + recovery recipe for affected users | WP09 | [P] |
 | T036 | Post diagnostic comment on Priivacy-ai/spec-kitty#588 | WP09 | [P] |
-| T037 | Session-warning call sites at charter sync and other external CLI surfaces | WP07 |  |
+| T037 | Session-warning call sites at charter sync and other external CLI surfaces | WP07 |  | [D] |
 | T038 | Verify `--force` does not bypass the sparse-checkout preflight | WP05 | [P] |
 
 ## Work Packages
@@ -218,9 +218,9 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP07-worktree-exclude-and-external-warnings.md](tasks/WP07-worktree-exclude-and-external-warnings.md)
 
 **Included subtasks**:
-- [ ] T025 Once-per-process integration test (NFR-005) (WP07) [P]
-- [ ] T030 Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation (WP07)
-- [ ] T037 Session-warning call sites at charter sync and other external CLI surfaces (WP07)
+- [x] T025 Once-per-process integration test (NFR-005) (WP07) [P]
+- [x] T030 Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation (WP07)
+- [x] T037 Session-warning call sites at charter sync and other external CLI surfaces (WP07)
 
 **Dependencies**: WP02 (uses detection + warn function), WP06 (session-warning call sites in tasks.py must already exist for the combined once-per-process test to assert correctly).
 **Parallel opportunities**: T025 after T030 and T037 complete.
