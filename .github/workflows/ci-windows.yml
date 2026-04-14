@@ -1,0 +1,48 @@
+name: ci-windows
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+
+jobs:
+  windows-critical:
+    name: Windows critical (pipx, pytest -m windows_ci)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      PYTHONUTF8: "1"
+      SPEC_KITTY_ENABLE_SAAS_SYNC: "0"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install pipx
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip pipx
+          python -m pipx ensurepath
+
+      - name: Install spec-kitty-cli (editable) + test deps
+        shell: bash
+        run: |
+          pipx install --editable . --force
+          pipx inject spec-kitty-cli pytest pytest-cov
+
+      - name: Assert keyring is NOT installed on Windows
+        shell: bash
+        run: |
+          if pipx runpip spec-kitty-cli show keyring >/dev/null 2>&1; then
+            echo "::error::keyring IS installed on Windows; WP03 conditional marker is not effective."
+            exit 1
+          fi
+          echo "keyring absent (expected)"
+
+      - name: Run Windows-critical suite
+        shell: bash
+        run: |
+          python -m pytest -m windows_ci --maxfail=1 -v

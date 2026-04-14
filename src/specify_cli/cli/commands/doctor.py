@@ -13,6 +13,8 @@ from rich.console import Console
 from rich.table import Table
 
 from specify_cli.core.paths import locate_project_root
+from specify_cli.paths import get_runtime_root, render_runtime_path
+from specify_cli.runtime.home import get_kittify_home
 
 
 # CI env-vars that should force non-interactive behaviour even when stdin
@@ -178,8 +180,8 @@ def state_roots(
     root_labels = {
         StateRoot.PROJECT: "Project Surfaces (.kittify/)",
         StateRoot.FEATURE: "Feature Surfaces (kitty-specs/)",
-        StateRoot.GLOBAL_RUNTIME: "Global Runtime (~/.kittify/)",
-        StateRoot.GLOBAL_SYNC: "Global Sync (~/.spec-kitty/)",
+        StateRoot.GLOBAL_RUNTIME: f"Global Runtime ({render_runtime_path(get_kittify_home())})",
+        StateRoot.GLOBAL_SYNC: f"Global Sync ({render_runtime_path(get_runtime_root().base)})",
         StateRoot.GIT_INTERNAL: "Git-Internal (.git/spec-kitty/)",
     }
 

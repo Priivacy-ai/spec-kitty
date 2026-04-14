@@ -47,27 +47,36 @@ class SecureStorage(ABC):
         """Return the backend identifier (matches ``StoredSession.storage_backend``)."""
 
     @classmethod
-    def from_environment(cls) -> SecureStorage:
-        """Return the best available backend for the current platform.
+    def from_environment(cls) -> "SecureStorage":
+        """Return the platform-appropriate secure storage backend.
 
-        Preference order:
+        Dispatch is by ``sys.platform``.  This is a HARD split:
 
-        1. OS keychain via ``keyring`` (macOS / Windows / Linux Secret Service).
-        2. Encrypted file fallback (AES-256-GCM with scrypt KDF).
-
-        The file fallback is always available as the last resort.
+        - **Windows** (``sys.platform == "win32"``): returns a
+          :class:`~specify_cli.auth.secure_storage.windows_storage.WindowsFileStorage`
+          rooted at ``%LOCALAPPDATA%\\spec-kitty\\auth\\``.  The
+          ``keychain`` module is **never** imported.
+        - **Non-Windows**: retains the existing keychain-first-with-fallback
+          behaviour (macOS Keychain / Linux Secret Service → encrypted file).
         """
-        # Try keychain first. Any exception during import or availability
-        # probing falls through to the encrypted file backend.
+        import sys  # noqa: PLC0415 — deferred so callers can monkeypatch sys.platform
+
+        if sys.platform == "win32":
+            from .windows_storage import WindowsFileStorage  # noqa: PLC0415
+
+            return WindowsFileStorage()
+
+        # Non-Windows: prefer OS keychain, fall back to encrypted file.
+        # Any exception during import or availability probing falls through.
         try:
-            from .keychain import KeychainStorage
+            from .keychain import KeychainStorage  # noqa: PLC0415
 
             kc = KeychainStorage()
             if kc.is_available():
                 return kc
-        except Exception as exc:  # noqa: BLE001 — we intentionally downgrade every failure
+        except Exception as exc:  # noqa: BLE001 — intentionally downgrade every failure
             log.debug("Keychain backend unavailable, falling back to file: %s", exc)
 
-        from .file_fallback import FileFallbackStorage
+        from .file_fallback import FileFallbackStorage  # noqa: PLC0415
 
         return FileFallbackStorage()

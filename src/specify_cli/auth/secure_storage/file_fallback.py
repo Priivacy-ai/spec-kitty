@@ -36,7 +36,15 @@ from .abstract import SecureStorage
 
 log = logging.getLogger(__name__)
 
-_DEFAULT_DIR = Path.home() / ".config" / "spec-kitty"
+def default_store_dir() -> Path:
+    """Default on-disk location for the encrypted file store."""
+    import sys  # noqa: PLC0415 — deferred to avoid module-level platform eval
+
+    if sys.platform == "win32":
+        from specify_cli.paths import get_runtime_root  # noqa: PLC0415
+
+        return get_runtime_root().auth_dir
+    return Path.home() / ".config" / "spec-kitty"
 _CRED_NAME = "credentials.json"
 _SALT_NAME = "credentials.salt"
 _LOCK_NAME = "credentials.lock"
@@ -70,8 +78,15 @@ class FileFallbackStorage(SecureStorage):
     _scrypt_r: int = _SCRYPT_R
     _scrypt_p: int = _SCRYPT_P
 
-    def __init__(self, base_dir: Path | None = None) -> None:
-        self._dir = Path(base_dir) if base_dir is not None else _DEFAULT_DIR
+    def __init__(
+        self,
+        base_dir: Path | None = None,
+        *,
+        store_path: Path | None = None,
+    ) -> None:
+        # ``store_path`` is an alias for ``base_dir`` used by ``WindowsFileStorage``.
+        resolved = store_path if store_path is not None else base_dir
+        self._dir = Path(resolved) if resolved is not None else default_store_dir()
         self._cred_file = self._dir / _CRED_NAME
         self._salt_file = self._dir / _SALT_NAME
         self._lock_file = self._dir / _LOCK_NAME
@@ -229,3 +244,7 @@ class FileFallbackStorage(SecureStorage):
                     self._salt_file.unlink()
                 except OSError as exc:
                     log.debug("Could not delete salt file %s: %s", self._salt_file, exc)
+
+
+#: Public alias used by WindowsFileStorage and the auth-secure-storage contract.
+EncryptedFileStorage = FileFallbackStorage

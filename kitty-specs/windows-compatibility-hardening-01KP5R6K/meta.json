@@ -1,12 +1,12 @@
 {
   "created_at": "2026-04-14T10:22:12.211620+00:00",
   "friendly_name": "Windows Compatibility Hardening Pass",
-  "source_description": "Reproduce, verify, and fix the concrete Windows-related issues from the prior scan (commit 51c7cd0b); normalize Windows auth storage away from Credential Manager (closes #603); unify Windows runtime state under %LOCALAPPDATA%\\spec-kitty\\; harden the git pre-commit hook generator; correct user-facing path messaging on Windows; revalidate worktree + symlink behavior; and add a native windows-latest CI job running a curated Windows-critical suite. Then run a second-pass repo-wide audit for residual Unix-only assumptions.",
-  "vcs": "git",
   "mission_id": "01KP5R6KRZDXV1BKM3Q1FZMY77",
-  "mission_number": null,
+  "mission_number": 84,
   "mission_slug": "windows-compatibility-hardening-01KP5R6K",
   "mission_type": "software-dev",
   "slug": "windows-compatibility-hardening-01KP5R6K",
-  "target_branch": "main"
+  "source_description": "Reproduce, verify, and fix the concrete Windows-related issues from the prior scan (commit 51c7cd0b); normalize Windows auth storage away from Credential Manager (closes #603); unify Windows runtime state under %LOCALAPPDATA%\\spec-kitty\\; harden the git pre-commit hook generator; correct user-facing path messaging on Windows; revalidate worktree + symlink behavior; and add a native windows-latest CI job running a curated Windows-critical suite. Then run a second-pass repo-wide audit for residual Unix-only assumptions.",
+  "target_branch": "main",
+  "vcs": "git"
 }

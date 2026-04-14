@@ -55,10 +55,11 @@ _EVENT_LOG_GITATTRIBUTES_ENTRY = "kitty-specs/**/status.events.jsonl merge=spec-
 
 
 def _has_global_runtime() -> bool:
-    """Check whether the global runtime (~/.kittify/) has populated missions.
+    """Check whether the global runtime has populated missions.
 
-    Returns True when ``~/.kittify/missions/`` exists and contains at
-    least one subdirectory (indicating ``ensure_runtime()`` has run).
+    Returns True when the global kittify home ``missions/`` directory exists
+    and contains at least one subdirectory (indicating ``ensure_runtime()``
+    has run).
     """
     try:
         global_home = get_kittify_home()
@@ -76,8 +77,8 @@ def _prepare_project_minimal(project_path: Path) -> None:
 
     When the global runtime exists, init only needs to create the
     project-local directory structure.  Shared assets (missions,
-    templates, scripts, AGENTS.md) are resolved from ~/.kittify/
-    at runtime via the 4-tier resolver.
+    templates, scripts, AGENTS.md) are resolved from the global kittify
+    home at runtime via the 4-tier resolver.
 
     Creates:
         - .kittify/                (project root)
