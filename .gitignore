@@ -84,7 +84,9 @@ sdd-*/
 .qwen/
 .kilocode/
 .augment/
-.github/
+.github/*
+!.github/workflows/
+!.github/workflows/*.yml
 .roo/
 .amazonq/
 .pytest_cache/
