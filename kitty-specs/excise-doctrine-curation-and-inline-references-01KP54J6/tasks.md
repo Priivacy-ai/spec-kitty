@@ -61,7 +61,7 @@ The `[P]` markers indicate subtasks that can run in parallel within the same WP 
 
 **Tracks**: [#476](https://github.com/Priivacy-ai/spec-kitty/issues/476)
 **Prompt**: [tasks/WP01-excise-curation-surface.md](tasks/WP01-excise-curation-surface.md)
-**Depends on**: — (first WP)
+**Dependencies**: none (first WP in the Phase 1 tranche)
 
 ### Summary
 
@@ -107,7 +107,7 @@ FR-001, FR-002, FR-003, FR-004, FR-012 (partial — templates scope), FR-013 (cu
 
 **Tracks**: [#477](https://github.com/Priivacy-ai/spec-kitty/issues/477)
 **Prompt**: [tasks/WP02-strip-inline-reference-fields.md](tasks/WP02-strip-inline-reference-fields.md)
-**Depends on**: WP01 merged
+**Dependencies**: WP01
 
 ### Summary
 
@@ -154,7 +154,7 @@ FR-005, FR-006, FR-007, FR-013 (model/consistency test scope), FR-015 (WP02 arti
 
 **Tracks**: [#475](https://github.com/Priivacy-ai/spec-kitty/issues/475)
 **Prompt**: [tasks/WP03-single-context-builder-and-legacy-excision.md](tasks/WP03-single-context-builder-and-legacy-excision.md)
-**Depends on**: WP02 merged
+**Dependencies**: WP02
 
 ### Summary
 
