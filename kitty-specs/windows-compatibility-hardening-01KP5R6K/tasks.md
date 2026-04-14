@@ -23,14 +23,14 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T008 | Add `msvcrt.locking`-based contention lock (Windows-only; POSIX is no-op) | WP02 | |
 | T009 | Tests: absent noop, move to empty, quarantine on conflict, idempotent second run, dry-run | WP02 | [P] |
 | T010 | Concurrency stress test: two subprocesses racing the migration lock | WP02 | [P] |
-| T011 | Refactor `SecureStorage.from_environment()` to hard-dispatch on `sys.platform` | WP03 | |
-| T012 | Create `WindowsFileStorage` in new `windows_storage.py` pointed at `get_runtime_root().auth_dir` | WP03 | |
-| T013 | Replace `_DEFAULT_DIR` module constant with `default_store_dir()` function in `file_fallback.py` | WP03 | |
-| T014 | Gate `keychain` import with `TYPE_CHECKING` + `sys.platform` so Windows never imports it at runtime | WP03 | |
-| T015 | Update `pyproject.toml`: `keyring>=25; sys_platform != "win32"` + register `windows_ci` pytest marker | WP03 | |
-| T016 | Unit test: `from_environment()` under `sys.platform="win32"` → `WindowsFileStorage`; keychain not in `sys.modules` | WP03 | [P] |
-| T017 | Windows-native test (`windows_ci`): encrypted file-store round-trip under `%LOCALAPPDATA%\spec-kitty\auth\` | WP03 | [P] |
-| T018 | Packaging test (`windows_ci`): `importlib.util.find_spec('keyring')` returns `None` | WP03 | [P] |
+| T011 | Refactor `SecureStorage.from_environment()` to hard-dispatch on `sys.platform` | WP03 | | [D] |
+| T012 | Create `WindowsFileStorage` in new `windows_storage.py` pointed at `get_runtime_root().auth_dir` | WP03 | | [D] |
+| T013 | Replace `_DEFAULT_DIR` module constant with `default_store_dir()` function in `file_fallback.py` | WP03 | | [D] |
+| T014 | Gate `keychain` import with `TYPE_CHECKING` + `sys.platform` so Windows never imports it at runtime | WP03 | | [D] |
+| T015 | Update `pyproject.toml`: `keyring>=25; sys_platform != "win32"` + register `windows_ci` pytest marker | WP03 | | [D] |
+| T016 | Unit test: `from_environment()` under `sys.platform="win32"` → `WindowsFileStorage`; keychain not in `sys.modules` | WP03 | [D] |
+| T017 | Windows-native test (`windows_ci`): encrypted file-store round-trip under `%LOCALAPPDATA%\spec-kitty\auth\` | WP03 | [D] |
+| T018 | Packaging test (`windows_ci`): `importlib.util.find_spec('keyring')` returns `None` | WP03 | [D] |
 | T019 | Replace `~/.kittify` / `~/.spec-kitty` literals in `migrate_cmd.py` with `render_runtime_path(...)` | WP04 | |
 | T020 | Replace legacy path literals in `agent/status.py` with `render_runtime_path(...)` | WP04 | [P] |
 | T021 | Wire `migrate_cmd.py` to invoke `migrate_windows_state()` on Windows; emit single-summary message | WP04 | |
@@ -164,14 +164,14 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - `pyproject.toml` edits must preserve the existing dep table shape; use PEP 508 markers.
 
 **Included subtasks**:
-- [ ] T011 Refactor `SecureStorage.from_environment()` to hard-dispatch on `sys.platform`
-- [ ] T012 Create `WindowsFileStorage` in new `windows_storage.py` pointed at `get_runtime_root().auth_dir`
-- [ ] T013 Replace `_DEFAULT_DIR` module constant with `default_store_dir()` function in `file_fallback.py`
-- [ ] T014 Gate `keychain` import with `TYPE_CHECKING` + `sys.platform` so Windows never imports it at runtime
-- [ ] T015 Update `pyproject.toml`: `keyring` conditional + register `windows_ci` pytest marker
-- [ ] T016 Unit test: `from_environment()` under `sys.platform="win32"` → `WindowsFileStorage`; keychain not in `sys.modules`
-- [ ] T017 Windows-native test (`windows_ci`): encrypted file-store round-trip under `%LOCALAPPDATA%\spec-kitty\auth\`
-- [ ] T018 Packaging test (`windows_ci`): `importlib.util.find_spec('keyring')` returns `None`
+- [x] T011 Refactor `SecureStorage.from_environment()` to hard-dispatch on `sys.platform`
+- [x] T012 Create `WindowsFileStorage` in new `windows_storage.py` pointed at `get_runtime_root().auth_dir`
+- [x] T013 Replace `_DEFAULT_DIR` module constant with `default_store_dir()` function in `file_fallback.py`
+- [x] T014 Gate `keychain` import with `TYPE_CHECKING` + `sys.platform` so Windows never imports it at runtime
+- [x] T015 Update `pyproject.toml`: `keyring` conditional + register `windows_ci` pytest marker
+- [x] T016 Unit test: `from_environment()` under `sys.platform="win32"` → `WindowsFileStorage`; keychain not in `sys.modules`
+- [x] T017 Windows-native test (`windows_ci`): encrypted file-store round-trip under `%LOCALAPPDATA%\spec-kitty\auth\`
+- [x] T018 Packaging test (`windows_ci`): `importlib.util.find_spec('keyring')` returns `None`
 
 ---
 
