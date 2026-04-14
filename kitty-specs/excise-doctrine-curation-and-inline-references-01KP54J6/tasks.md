@@ -40,12 +40,12 @@ No WP can start until its predecessor is merged to `main`.
 | T004 | Delete curation test files | WP01 | [P] with T002/T003 | [D] |
 | T005 | Update SOURCE templates + doctrine READMEs referencing removed surfaces | WP01 | [D] |
 | T006 | Run gates + seed `occurrences/index.yaml` | WP01 | | [D] |
-| T007 | Author `occurrences/WP02.yaml`; run R-1 inline-vs-graph audit | WP02 | |
-| T008 | Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) | WP02 | |
-| T009 | Strip `tactic_refs:` from 13 shipped artifact YAMLs | WP02 | |
-| T010 | Remove inline ref fields from schemas + Pydantic models + `src/charter/schemas.py` | WP02 | [P] with T009 |
-| T011 | Update model and consistency tests to assert fields are absent | WP02 | |
-| T012 | Delete R-1 script, run gates, update `occurrences/index.yaml` | WP02 | |
+| T007 | Author `occurrences/WP02.yaml`; run R-1 inline-vs-graph audit | WP02 | | [D] |
+| T008 | Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) | WP02 | | [D] |
+| T009 | Strip `tactic_refs:` from 13 shipped artifact YAMLs | WP02 | | [D] |
+| T010 | Remove inline ref fields from schemas + Pydantic models + `src/charter/schemas.py` | WP02 | [P] with T009 | [D] |
+| T011 | Update model and consistency tests to assert fields are absent | WP02 | | [D] |
+| T012 | Delete R-1 script, run gates, update `occurrences/index.yaml` | WP02 | | [D] |
 | T013 | Capture NFR-002b baseline; add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` using live `DRGGraph`/`Relation`/`walk_edges` API; equivalence test suite vs legacy resolver | WP03 | |
 | T014 | Add `InlineReferenceRejectedError` (incl. procedures step-level scan) to 7 per-kind validators + negative-fixture test suite covering top-level AND step-level rejection | WP03 | [P] with T013 |
 | T015 | Add `_load_validated_graph` helper (twin packages); flip `resolver.py`/`compiler.py` (twins) to `resolve_transitive_refs` with `{REQUIRES, SUGGESTS}`; add live-path regression test | WP03 | |
@@ -119,12 +119,12 @@ FR-001, FR-002, FR-003, FR-004, FR-012 (partial — templates scope), FR-013 (cu
 
 ### Included subtasks
 
-- [ ] T007 Author `occurrences/WP02.yaml`; add + run `scripts/r1_inline_vs_graph_audit.py`; generate missing-edges list (WP02)
-- [ ] T008 Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) (WP02)
-- [ ] T009 Strip `tactic_refs:` from 13 shipped artifact YAMLs (8 directives, 3 paradigms, 2 procedures) (WP02)
-- [ ] T010 Remove inline ref fields from 3 schemas + 7 Pydantic model files + strip `applies_to` from `src/charter/schemas.py :: Directive` (WP02)
-- [ ] T011 Update model and consistency tests to assert fields are absent (WP02)
-- [ ] T012 Delete R-1 script, run gates, update `occurrences/index.yaml` (WP02)
+- [x] T007 Author `occurrences/WP02.yaml`; add + run `scripts/r1_inline_vs_graph_audit.py`; generate missing-edges list (WP02)
+- [x] T008 Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) (WP02)
+- [x] T009 Strip `tactic_refs:` from 13 shipped artifact YAMLs (8 directives, 3 paradigms, 2 procedures) (WP02)
+- [x] T010 Remove inline ref fields from 3 schemas + 7 Pydantic model files + strip `applies_to` from `src/charter/schemas.py :: Directive` (WP02)
+- [x] T011 Update model and consistency tests to assert fields are absent (WP02)
+- [x] T012 Delete R-1 script, run gates, update `occurrences/index.yaml` (WP02)
 
 ### Implementation sketch
 
