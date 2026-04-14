@@ -321,3 +321,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T10:58:38Z – claude:opus-4.6:implementer:implementer – shell_pid=29321 – Assigned agent via action command
+- 2026-04-14T11:11:35Z – claude:opus-4.6:implementer:implementer – shell_pid=29321 – WP01 implementation complete: paths subpackage + render helper landed with tests. Ready for review.
