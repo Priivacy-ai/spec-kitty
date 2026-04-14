@@ -21,7 +21,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: '52639'
+shell_pid: "52639"
+agent: "claude:sonnet:implementer:implementer"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -561,3 +562,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - Run `diff <(python -c "from charter.bundle import CANONICAL_MANIFEST; print('\n'.join(sorted(str(p) for p in CANONICAL_MANIFEST.derived_files)))") <(python -c "from charter.sync import _SYNC_OUTPUT_FILES; print('\n'.join(sorted('.kittify/charter/' + f for f in _SYNC_OUTPUT_FILES)))")` — expect empty diff.
 - Verify the TODO marker is present and occurrence artifact records it.
 - Verify no edits to carve-out files.
+
+## Activity Log
+
+- 2026-04-14T11:34:21Z – claude:sonnet:implementer:implementer – shell_pid=52639 – Assigned agent via action command
