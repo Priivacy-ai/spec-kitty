@@ -8,21 +8,18 @@ must run on a real windows-latest CI job.
 """
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 import textwrap
+from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
 
 import pytest
 
 import specify_cli.paths.windows_migrate as _mod
-from specify_cli.paths.windows_migrate import (
-    MigrationOutcome,
-    LegacyWindowsRoot,
-    migrate_windows_state,
-)
+from specify_cli.paths.windows_migrate import migrate_windows_state
 
 
 # ---------------------------------------------------------------------------
@@ -66,10 +63,6 @@ def _setup_win32_env(
     )
 
     return home, localappdata
-
-
-from contextlib import contextmanager
-
 
 @contextmanager
 def _noop_ctx() -> object:  # type: ignore[return]
@@ -280,7 +273,29 @@ def test_concurrent_lock_contention(tmp_path: Path) -> None:
         "USERPROFILE": str(tmp_path / "User"),
         "HOME": str(tmp_path / "User"),
     }
-    user_home = tmp_path / "User"
+    probe = textwrap.dedent(
+        """
+        import json
+        from pathlib import Path
+        from specify_cli.paths import get_runtime_root
+        print(json.dumps({
+            "home": str(Path.home()),
+            "runtime_root": str(get_runtime_root().base),
+        }))
+        """
+    )
+    resolved = subprocess.run(
+        [sys.executable, "-c", probe],
+        env=env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    resolved_paths = json.loads(resolved.stdout)
+
+    user_home = Path(resolved_paths["home"])
+    dest = Path(resolved_paths["runtime_root"])
+
     user_home.mkdir(parents=True, exist_ok=True)
     (user_home / ".spec-kitty").mkdir(parents=True, exist_ok=True)
     (user_home / ".spec-kitty" / "file.txt").write_text("legacy")
@@ -317,8 +332,6 @@ def test_concurrent_lock_contention(tmp_path: Path) -> None:
     assert rc1 == 0, f"P1 failed (rc={rc1}): {p1.stderr.read().decode()}"
     assert rc2 == 0, f"P2 failed (rc={rc2}): {p2.stderr.read().decode()}"
 
-    import json
-
     out1 = json.loads(p1.stdout.read().decode().strip())
     out2 = json.loads(p2.stdout.read().decode().strip())
 
@@ -334,8 +347,7 @@ def test_concurrent_lock_contention(tmp_path: Path) -> None:
     # Acceptable outcomes: one moved, one absent; or one moved, one error
     # (lock contention).  What is NOT acceptable: both moved (data race) or
     # both absent without a move having happened.
-    dest = tmp_path / "LocalAppData" / "spec-kitty"
-    legacy = tmp_path / "User" / ".spec-kitty"
+    legacy = user_home / ".spec-kitty"
 
     # The canonical destination must be populated (one process completed).
     assert dest.exists() and any(dest.rglob("*")), (
