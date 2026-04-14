@@ -692,3 +692,55 @@ def test_detect_returns_false_inside_linked_worktree(tmp_path: Path) -> None:
         "detect(linked_worktree) must be False so the runner's worktree loop "
         "skips the migration (no worktree scanning / mutation per §C-011/§C-012)"
     )
+
+
+def test_runner_include_worktrees_does_not_mutate_worktree_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The live runner must skip this migration entirely for `.worktrees/*`.
+
+    `detect(False)` alone is insufficient if the runner still records a
+    "skipped / Not applicable" migration or bumps the worktree metadata
+    version. Phase 2's contract is stricter: no worktree scanning and no
+    worktree mutation for `m_3_2_3_unified_bundle` on the default upgrade
+    path.
+    """
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    _make_322_project(project)
+
+    worktree = project / ".worktrees" / "001-demo-lane-a"
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project),
+            "worktree",
+            "add",
+            "-b",
+            "feature/001-demo-lane-a",
+            str(worktree),
+        ],
+        check=True,
+    )
+
+    wt_kittify = worktree / ".kittify"
+    wt_kittify.mkdir(parents=True, exist_ok=True)
+    wt_metadata = wt_kittify / "metadata.yaml"
+    wt_metadata.write_text(_METADATA_YAML_3_2_2, encoding="utf-8")
+    before = wt_metadata.read_text("utf-8")
+
+    monkeypatch.chdir(project)
+    _clear_resolver_cache()
+
+    runner = MigrationRunner(project)
+    result = runner.upgrade("3.2.3", include_worktrees=True, force=True)
+
+    assert result.success is True, result.errors
+    assert wt_metadata.read_text("utf-8") == before, (
+        "worktree metadata changed even though "
+        "m_3_2_3_unified_bundle is out of scope for worktree upgrades"
+    )

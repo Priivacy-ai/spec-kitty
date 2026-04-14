@@ -95,6 +95,7 @@ class UnifiedBundleMigration(BaseMigration):  # type: ignore[misc]  # BaseMigrat
         ".gitignore."
     )
     target_version = TARGET_VERSION
+    runs_on_worktrees = False
 
     # ------------------------------------------------------------------
     # Detection / gating
@@ -104,24 +105,21 @@ class UnifiedBundleMigration(BaseMigration):  # type: ignore[misc]  # BaseMigrat
         """Return True for the main checkout; False for linked worktrees.
 
         The migration's contract (see module docstring and §C-011/§C-012)
-        says worktree scanning and mutation are out of scope. The runner's
-        worktree-upgrade loop, however, iterates ``.worktrees/*`` and calls
-        ``detect()`` on each one. Returning True there would record this
-        migration against the worktree's ``.kittify/metadata.yaml`` even
-        though the chokepoint correctly materializes derivatives only at the
-        canonical main-checkout root. The net effect was "applied" metadata
-        on disk inside worktrees that never actually had the migration's
-        work done locally.
+        says worktree scanning and mutation are out of scope. The upgrade
+        runner now honors ``runs_on_worktrees = False`` and skips this
+        migration entirely for `.worktrees/*` checkouts; this method keeps
+        the same policy as a direct-call guardrail. Returning True on a
+        linked worktree would wrongly treat that worktree as an upgrade
+        target even though the chokepoint materializes derivatives only at
+        the canonical main-checkout root.
 
         A linked worktree has ``.git`` as a regular file that points at the
         shared common dir (``gitdir: /path/to/main/.git/worktrees/<name>``);
         the main checkout has ``.git`` as a directory. We detect that
-        distinction here and short-circuit to False for worktrees so the
-        runner records a clean "skipped / Not applicable" (per
-        ``MigrationRunner._upgrade_worktrees``). The main-checkout pass is
-        unchanged: always True, ``apply()`` handles all four fixture cases
-        (no charter, charter+fresh, charter+stale, charter+missing-derivs)
-        and sets ``applied`` accordingly.
+        distinction here and short-circuit to False for worktrees. The main-
+        checkout pass is unchanged: always True, ``apply()`` handles all
+        four fixture cases (no charter, charter+fresh, charter+stale,
+        charter+missing-derivs) and sets ``applied`` accordingly.
 
         Args:
             project_path: Root of the project (.kittify parent).

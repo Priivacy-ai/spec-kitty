@@ -261,6 +261,10 @@ class MigrationRunner:
             Dict with warnings and errors lists
         """
         result: dict[str, Any] = {"warnings": [], "errors": []}
+        worktree_migrations = [migration for migration in migrations if migration.runs_on_worktrees]
+
+        if not worktree_migrations:
+            return result
 
         worktrees_dir = self.project_path / WORKTREES_DIR
         if not worktrees_dir.exists():
@@ -284,7 +288,7 @@ class MigrationRunner:
                 wt_metadata = self._create_initial_metadata(wt_version)
 
             # Apply migrations to worktree
-            for migration in migrations:
+            for migration in worktree_migrations:
                 if wt_metadata.has_migration(migration.migration_id):
                     continue
 
@@ -329,7 +333,8 @@ class MigrationRunner:
                         )
                     result["errors"].extend([f"Worktree {worktree.name}: {e}" for e in migration_result.errors])
 
-            # Save worktree metadata
+            # Save worktree metadata only when at least one migration in this
+            # upgrade target is allowed to touch worktrees.
             if not dry_run:
                 wt_metadata.version = target_version
                 wt_metadata.last_upgraded_at = datetime.now()
