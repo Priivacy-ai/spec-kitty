@@ -21,8 +21,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: "52639"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "67765"
+agent: "codex:gpt-5:python-reviewer:reviewer"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -567,3 +567,4 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 
 - 2026-04-14T11:34:21Z – claude:sonnet:implementer:implementer – shell_pid=52639 – Assigned agent via action command
 - 2026-04-14T11:44:29Z – claude:sonnet:implementer:implementer – shell_pid=52639 – WP01 implementation complete — manifest, CLI sub-app, architecture doc, tests, occurrence artifact all in place. TODO(WP02) marker preserved for downstream replacement.
+- 2026-04-14T11:45:12Z – codex:gpt-5:python-reviewer:reviewer – shell_pid=67765 – Started review via action command
