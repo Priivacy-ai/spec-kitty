@@ -21,8 +21,8 @@ subtasks:
 - T005
 - T006
 - T007
-shell_pid: "79777"
-agent: "claude:sonnet:implementer:implementer"
+shell_pid: "81819"
+agent: "codex:gpt-5:python-reviewer:reviewer"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -575,3 +575,4 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 3 REBUTTAL (out of WP01 scope, tooling gap): `occurrences/WP01.yaml` uses the v1.0.0 schema defined at `kitty-specs/unified-charter-bundle-chokepoint-01KP5Q2G/contracts/occurrence-artifact.schema.yaml` (mapping-shaped `categories:` keyed by category name). The Phase 1 verifier `scripts/verify_occurrences.py` predates this schema and expects the old list-shaped payload, so it cannot read the new artifact. The artifact itself is correct per the mission contract; the verifier needs to be updated to read the new schema as a follow-up maintenance task, either in a dedicated WP or a separate PR. Not a WP01 regression.
 - 2026-04-14T12:15:00Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2 — Finding 4 REBUTTAL (out of WP01 scope, pre-existing on main): `mypy --strict src/charter/bundle.py src/specify_cli/cli/commands/charter_bundle.py` surfaces 7 errors, but none originate in WP01's new files. Running `mypy --strict src/charter/sync.py` against pre-WP01 main reproduces the same failures (missing `types-jsonschema` stubs transitively through `src/doctrine/*/validation.py` + a pre-existing `src/charter/compiler.py:631` dict-type issue). Installing `types-jsonschema` and fixing `compiler.py:631` is a repo-level maintenance concern (candidate for an explicit cleanup WP or a separate PR); the WP01 DoD check for strict typing is not a gate under the cycle-2 scope discipline.
 - 2026-04-14T12:13:25Z – claude:sonnet:implementer:implementer – shell_pid=79777 – Cycle 2: findings 1 & 2 fixed with regression tests. Findings 3 & 4 documented as out-of-scope (tooling gap / pre-existing main issue) in Activity Log and commit message for reviewer context.
+- 2026-04-14T12:13:52Z – codex:gpt-5:python-reviewer:reviewer – shell_pid=81819 – Started review via action command
