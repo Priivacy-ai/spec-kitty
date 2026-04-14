@@ -196,11 +196,11 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T028 Create `m_3_2_0_codex_to_skills.py` with `LegacyCodexPrompt` classifier (WP06)
-- [ ] T029 Embed known prior-release hashes in `_legacy_codex_hashes.py` (WP06)
-- [ ] T030 Implement `apply()` — classify, install, delete unedited, preserve edited (WP06)
-- [ ] T031 Migration integration tests against 4 fixture variants (WP06)
-- [ ] T032 Register migration; no-op guard when codex not in agents.available (WP06)
+- [x] T028 Create `m_3_2_0_codex_to_skills.py` with `LegacyCodexPrompt` classifier (WP06)
+- [x] T029 Embed known prior-release hashes in `_legacy_codex_hashes.py` (WP06)
+- [x] T030 Implement `apply()` — classify, install, delete unedited, preserve edited (WP06)
+- [x] T031 Migration integration tests against 4 fixture variants (WP06)
+- [x] T032 Register migration; no-op guard when codex not in agents.available (WP06)
 
 **Dependencies**: WP04, WP05 (the installer and registry must be live for the migration to install skills and route correctly).
 
