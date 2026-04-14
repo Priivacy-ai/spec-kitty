@@ -264,3 +264,4 @@ Each test uses a lane-worktree fixture. Mock or genuinely stand up a review lock
 
 - 2026-04-14T07:24:17Z – claude:opus-4.6:implementer:implementer – shell_pid=35748 – Started implementation via action command
 - 2026-04-14T07:37:10Z – claude:opus-4.6:implementer:implementer – shell_pid=35748 – Ready for review
+- 2026-04-14T07:39:55Z – claude:opus-4.6:implementer:implementer – shell_pid=35748 – Approved: FR-015 deny-list filter (fixed tuple, C-003/C-004 guards intact), FR-017/018 ReviewLock.release() removes lock + empty parent dir idempotently, release invoked after lane-transition commit on approve/reject, FR-019 session warning wired at 5 mutating handlers (move-task/mark-status/add-history/finalize-tasks/map-requirements) and NOT at read-only handlers (list-tasks/status/validate-workflow/list-dependents), retry guidance parameterised on target_lane everywhere, 216+200 tests pass, new ruff issues = 0 (all 14 ruff findings pre-existing on untouched lines).
