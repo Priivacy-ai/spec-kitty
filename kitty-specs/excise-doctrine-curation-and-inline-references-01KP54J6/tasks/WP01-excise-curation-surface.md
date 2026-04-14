@@ -398,3 +398,4 @@ Stop and comment on [#476](https://github.com/Priivacy-ai/spec-kitty/issues/476)
 ## Activity Log
 
 - 2026-04-14T05:42:22Z – claude:opus-4.6:python-implementer:implementer – shell_pid=43987 – Assigned agent via action command
+- 2026-04-14T06:22:20Z – claude:opus-4.6:python-implementer:implementer – shell_pid=43987 – WP01 complete: curation package, _proposed/ trees, doctrine CLI, and curation tests deleted. Verifier green. Regression test added. Pytest and mypy clean.
