@@ -1,6 +1,7 @@
 ---
 work_package_id: WP07
 title: Regression Snapshots and Documentation
+lane: "for_review"
 dependencies:
 - WP01
 - WP02
@@ -17,8 +18,8 @@ subtasks:
 - T035
 - T036
 - T037
-lane: "doing"
-shell_pid: "22219"
+shell_pid: '22219'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -182,3 +183,7 @@ Commit the adjusted `quickstart.md` — but note that `quickstart.md` is in `kit
 ```bash
 spec-kitty agent action implement WP07 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:54:07Z – claude – shell_pid=22219 – lane=for_review – Regression baseline + docs; 171/171 tests
