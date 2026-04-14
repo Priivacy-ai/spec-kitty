@@ -1,7 +1,7 @@
 ---
 work_package_id: WP04
 title: Registry Wiring and Runtime Routing
-lane: "planned"
+lane: "for_review"
 dependencies:
 - WP03
 base_branch: main
@@ -13,7 +13,7 @@ subtasks:
 - T020
 - T021
 - T022
-agent: "opus"
+agent: "claude"
 shell_pid: '13190'
 history:
 - at: '2026-04-14T00:00:00+00:00'
@@ -178,3 +178,4 @@ spec-kitty agent action implement WP04 --agent <name>
 
 - 2026-04-14T10:22:08Z – claude – shell_pid=13190 – lane=for_review – Registry wired; routing via skills installer
 - 2026-04-14T10:24:44Z – opus – shell_pid=13190 – lane=planned – Moved to planned
+- 2026-04-14T10:26:27Z – claude – shell_pid=13190 – lane=for_review – Ruff fixes applied per cycle 1 feedback
