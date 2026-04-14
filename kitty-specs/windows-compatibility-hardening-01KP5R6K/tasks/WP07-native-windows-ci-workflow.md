@@ -19,6 +19,8 @@ subtasks:
 - T043
 - T044
 - T045
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "55778"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -240,3 +242,7 @@ Focus on:
 Do NOT ask about:
 - Test internals — covered by the WPs that add them.
 - Marker registration — that's WP03.
+
+## Activity Log
+
+- 2026-04-14T11:36:49Z – claude:opus-4.6:implementer:implementer – shell_pid=55778 – Started implementation via action command
