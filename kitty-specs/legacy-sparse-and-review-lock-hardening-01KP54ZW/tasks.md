@@ -37,8 +37,8 @@ Total: 35 subtasks across 9 WPs.
 | T003 | Wire backstop inside `safe_commit` after stage, before commit | WP01 |  | [D] |
 | T004 | Unit tests for backstop diff logic | WP01 | [D] |
 | T005 | Regression test that reproduces the #588 cascade | WP01 | [D] |
-| T006 | Post-merge working-tree refresh in `_run_lane_based_merge_locked` | WP05 |  |
-| T007 | Post-merge `git status` invariant assertion | WP05 |  |
+| T006 | Post-merge working-tree refresh in `_run_lane_based_merge_locked` | WP05 |  | [D] |
+| T007 | Post-merge `git status` invariant assertion | WP05 |  | [D] |
 | T009 | `SparseCheckoutState` and `SparseCheckoutScanReport` types | WP02 |  | [D] |
 | T010 | `scan_path()` and `scan_repo()` pure detection functions | WP02 |  | [D] |
 | T011 | `warn_if_sparse_once()` session-warning emitter + module flag | WP02 |  | [D] |
@@ -50,7 +50,7 @@ Total: 35 subtasks across 9 WPs.
 | T017 | `doctor --fix sparse-checkout` action with CI/non-TTY handling | WP04 |  | [D] |
 | T018 | Integration tests for doctor finding and remediation flow | WP04 | [D] |
 | T019 | `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API | WP02 |  | [D] |
-| T020 | Merge preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
+| T020 | Merge preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  | [D] |
 | T021 | Implement preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T023 | Integration tests for merge + implement preflights, override, refresh, invariant | WP05 | [P] |
 | T024 | Session-warning call sites inside `agent/tasks.py` commands | WP06 |  |
@@ -170,9 +170,9 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP05-merge-and-implement-preflights.md](tasks/WP05-merge-and-implement-preflights.md)
 
 **Included subtasks**:
-- [ ] T006 Post-merge working-tree refresh in `_run_lane_based_merge_locked` (WP05)
-- [ ] T007 Post-merge `git status` invariant assertion (WP05)
-- [ ] T020 Merge preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
+- [x] T006 Post-merge working-tree refresh in `_run_lane_based_merge_locked` (WP05)
+- [x] T007 Post-merge `git status` invariant assertion (WP05)
+- [x] T020 Merge preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
 - [ ] T021 Implement preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
 - [ ] T023 Integration tests for merge + implement preflights, override, refresh, invariant (WP05) [P]
 - [ ] T038 Verify `--force` does not bypass the sparse-checkout preflight (WP05) [P]
