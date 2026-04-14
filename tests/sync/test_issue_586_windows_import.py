@@ -25,6 +25,8 @@ pytestmark = pytest.mark.fast
 
 def test_daemon_module_imports_on_windows(monkeypatch: pytest.MonkeyPatch) -> None:
     """On Windows (no ``fcntl``), ``specify_cli.sync.daemon`` must still import."""
+    import specify_cli.sync.daemon as daemon_module
+
     # Simulate a Windows interpreter.
     monkeypatch.setattr(sys, "platform", "win32")
 
@@ -39,13 +41,8 @@ def test_daemon_module_imports_on_windows(monkeypatch: pytest.MonkeyPatch) -> No
     )
     monkeypatch.setitem(sys.modules, "msvcrt", fake_msvcrt)
 
-    # Remove any cached daemon module so the top-level platform branch
-    # re-executes.  We restore the native (Unix) version in ``finally`` below
-    # so sibling tests that patch ``daemon.fcntl`` aren't broken by our fake
-    # Windows import lingering in ``sys.modules``.
-    sys.modules.pop("specify_cli.sync.daemon", None)
     try:
-        module = importlib.import_module("specify_cli.sync.daemon")
+        module = importlib.reload(daemon_module)
         # Sanity: the module loaded and exposes its public API.
         assert hasattr(module, "ensure_sync_daemon_running")
         assert hasattr(module, "get_sync_daemon_status")
@@ -54,5 +51,4 @@ def test_daemon_module_imports_on_windows(monkeypatch: pytest.MonkeyPatch) -> No
         # real platform.  ``monkeypatch`` teardown would do this too, but only
         # *after* this finally block runs.
         monkeypatch.undo()
-        sys.modules.pop("specify_cli.sync.daemon", None)
-        importlib.import_module("specify_cli.sync.daemon")
+        importlib.reload(daemon_module)

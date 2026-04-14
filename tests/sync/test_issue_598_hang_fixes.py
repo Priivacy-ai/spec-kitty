@@ -19,6 +19,7 @@ code paths fire without inserting 100 k rows.
 
 from __future__ import annotations
 
+import errno
 import fcntl
 import sqlite3
 import threading
@@ -709,6 +710,54 @@ class TestDaemonBoundedFlock:
 
         assert outcome.started is False
         assert "could not acquire daemon lock" in outcome.skipped_reason
+
+    def test_lock_contention_oserror_retries(self, monkeypatch, tmp_path):
+        """A plain OSError(EAGAIN) is normal LOCK_NB contention, not a hard failure."""
+        daemon, state_file, lock_file, cfg = self._daemon_env(monkeypatch, tmp_path)
+        monkeypatch.setattr(daemon.time, "sleep", lambda _: None)
+        daemon._write_daemon_file(state_file, "http://127.0.0.1:9400", 9400, "tok", 1234)
+        monkeypatch.setattr(daemon, "_check_sync_daemon_health", lambda *a, **kw: True)
+        monkeypatch.setattr(daemon, "_daemon_version_matches", lambda *a, **kw: True)
+
+        attempt = {"n": 0}
+        real_flock = fcntl.flock
+
+        def flaky_flock(fd, op):
+            if op == (fcntl.LOCK_EX | fcntl.LOCK_NB):
+                attempt["n"] += 1
+                if attempt["n"] < 3:
+                    raise OSError(errno.EAGAIN, "locked")
+            return real_flock(fd, op)
+
+        monkeypatch.setattr(daemon.fcntl, "flock", flaky_flock)
+
+        outcome = daemon.ensure_sync_daemon_running(
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+        )
+
+        assert outcome.started is True
+        assert attempt["n"] == 3
+
+    def test_unexpected_lock_oserror_returns_start_failed_without_retry(self, monkeypatch, tmp_path):
+        """Non-contention OSErrors should fail fast instead of sleeping for 10 seconds."""
+        daemon, state_file, lock_file, cfg = self._daemon_env(monkeypatch, tmp_path)
+
+        sleep_calls = []
+        monkeypatch.setattr(daemon.time, "sleep", lambda seconds: sleep_calls.append(seconds))
+
+        def broken_flock(fd, op):
+            if op == (fcntl.LOCK_EX | fcntl.LOCK_NB):
+                raise OSError(errno.EBADF, "bad file descriptor")
+
+        monkeypatch.setattr(daemon.fcntl, "flock", broken_flock)
+
+        outcome = daemon.ensure_sync_daemon_running(
+            intent=daemon.DaemonIntent.REMOTE_REQUIRED, config=cfg,
+        )
+
+        assert outcome.started is False
+        assert outcome.skipped_reason == "start_failed: [Errno 9] bad file descriptor"
+        assert sleep_calls == []
 
     def test_lock_not_unlocked_when_never_acquired(self, monkeypatch, tmp_path):
         """The finally block must NOT call flock(LOCK_UN) when lock was never acquired."""

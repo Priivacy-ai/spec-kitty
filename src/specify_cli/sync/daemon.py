@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import errno
 import json
 import logging
 import secrets
@@ -64,6 +65,22 @@ DAEMON_PORT_MAX_ATTEMPTS = 50
 # behaviour changes in a backwards-incompatible way.  ensure_sync_daemon_running
 # compares this against the running daemon and restarts it on mismatch.
 DAEMON_PROTOCOL_VERSION = 1
+
+
+def _is_daemon_lock_contention(exc: OSError) -> bool:
+    """Return True when a non-blocking lock failed due to normal contention."""
+    if isinstance(exc, BlockingIOError):
+        return True
+
+    if exc.errno is None:
+        return False
+
+    if sys.platform == "win32":
+        return exc.errno in {errno.EACCES, errno.EDEADLK}
+
+    # Python documents flock(LOCK_NB) contention as EACCES or EAGAIN,
+    # depending on the platform's backend.
+    return exc.errno in {errno.EACCES, errno.EAGAIN}
 
 
 def _get_package_version() -> str:
@@ -516,9 +533,13 @@ def ensure_sync_daemon_running(
                     fcntl.flock(lock_fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
                 acquired = True
                 break
-            except (BlockingIOError, OSError):
-                # Unix raises BlockingIOError; Windows msvcrt raises OSError
-                # (errno EDEADLK / EACCES) when the lock is held elsewhere.
+            except OSError as exc:
+                if not _is_daemon_lock_contention(exc):
+                    return DaemonStartOutcome(
+                        started=False,
+                        skipped_reason=f"start_failed: {exc}",
+                        pid=None,
+                    )
                 time.sleep(0.1)
         if not acquired:
             return DaemonStartOutcome(
