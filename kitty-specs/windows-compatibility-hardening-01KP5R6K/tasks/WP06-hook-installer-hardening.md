@@ -437,3 +437,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T11:04:20Z – claude:opus-4.6:implementer:implementer – shell_pid=35562 – Assigned agent via action command
+- 2026-04-14T11:12:30Z – claude:opus-4.6:implementer:implementer – shell_pid=35562 – WP06 complete: hook installer pins sys.executable, rendering tests + windows_ci execution tests + issue-105 regression test in place. Ready for review.
