@@ -41,6 +41,10 @@ class BaseMigration(ABC):
     # If None, detection is used
     min_version: str | None = None
 
+    # Whether the migration should also run inside `.worktrees/*` checkouts
+    # when the upgrade runner is invoked with include_worktrees=True.
+    runs_on_worktrees: bool = True
+
     @abstractmethod
     def detect(self, project_path: Path) -> bool:
         """Detect if this migration is needed based on project state.

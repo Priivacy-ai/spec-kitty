@@ -1,0 +1,203 @@
+{
+  "charter_path_resolved": true,
+  "feature_artifacts": {
+    "charter": {
+      "exists": true,
+      "mtime": "<ts>",
+      "size": 58
+    },
+    "checklists": {
+      "exists": false,
+      "mtime": null,
+      "size": null
+    },
+    "contracts": {
+      "exists": false,
+      "mtime": null,
+      "size": null
+    },
+    "data_model": {
+      "exists": false,
+      "mtime": null,
+      "size": null
+    },
+    "kanban": {
+      "exists": true,
+      "mtime": "<ts>",
+      "size": null
+    },
+    "plan": {
+      "exists": true,
+      "mtime": "<ts>",
+      "size": 7
+    },
+    "quickstart": {
+      "exists": false,
+      "mtime": null,
+      "size": null
+    },
+    "research": {
+      "exists": false,
+      "mtime": null,
+      "size": null
+    },
+    "spec": {
+      "exists": true,
+      "mtime": "<ts>",
+      "size": 7
+    },
+    "tasks": {
+      "exists": true,
+      "mtime": "<ts>",
+      "size": 8
+    }
+  },
+  "features": [
+    {
+      "artifacts": {
+        "charter": {
+          "exists": true,
+          "mtime": "<ts>",
+          "size": 58
+        },
+        "checklists": {
+          "exists": false,
+          "mtime": null,
+          "size": null
+        },
+        "contracts": {
+          "exists": false,
+          "mtime": null,
+          "size": null
+        },
+        "data_model": {
+          "exists": false,
+          "mtime": null,
+          "size": null
+        },
+        "kanban": {
+          "exists": true,
+          "mtime": "<ts>",
+          "size": null
+        },
+        "plan": {
+          "exists": true,
+          "mtime": "<ts>",
+          "size": 7
+        },
+        "quickstart": {
+          "exists": false,
+          "mtime": null,
+          "size": null
+        },
+        "research": {
+          "exists": false,
+          "mtime": null,
+          "size": null
+        },
+        "spec": {
+          "exists": true,
+          "mtime": "<ts>",
+          "size": 7
+        },
+        "tasks": {
+          "exists": true,
+          "mtime": "<ts>",
+          "size": 8
+        }
+      },
+      "display_name": "001 - Demo Feature",
+      "id": "001-demo-feature",
+      "kanban_stats": {
+        "approved": 0,
+        "doing": 1,
+        "done": 0,
+        "for_review": 1,
+        "planned": 1,
+        "total": 3,
+        "weighted_percentage": "<ts>"
+      },
+      "meta": {
+        "friendly_name": "Demo Feature",
+        "mission_id": "01HXBASELINEDEMO000000000Z",
+        "mission_number": 1
+      },
+      "name": "Demo Feature",
+      "path": "kitty-specs/001-demo-feature",
+      "workflow": {
+        "implement": "in_progress",
+        "plan": "complete",
+        "specify": "complete",
+        "tasks": "complete"
+      },
+      "worktree": {
+        "exists": false,
+        "path": "<fixture_root>/.worktrees/001-demo-feature"
+      }
+    }
+  ],
+  "kanban": {
+    "approved": [],
+    "doing": [
+      {
+        "agent": "codex",
+        "agent_profile": "",
+        "assignee": "",
+        "id": "WP02",
+        "lane": "in_progress",
+        "model": "",
+        "phase": "",
+        "prompt_markdown": "# Work Package Prompt: WP02\n\nBody for WP02.",
+        "prompt_path": "kitty-specs/001-demo-feature/tasks/WP02-demo.md",
+        "role": "",
+        "subtasks": [
+          "T1"
+        ],
+        "title": "WP02"
+      }
+    ],
+    "done": [],
+    "for_review": [
+      {
+        "agent": "codex",
+        "agent_profile": "",
+        "assignee": "",
+        "id": "WP03",
+        "lane": "for_review",
+        "model": "",
+        "phase": "",
+        "prompt_markdown": "# Work Package Prompt: WP03\n\nBody for WP03.",
+        "prompt_path": "kitty-specs/001-demo-feature/tasks/WP03-demo.md",
+        "role": "",
+        "subtasks": [
+          "T1"
+        ],
+        "title": "WP03"
+      }
+    ],
+    "planned": [
+      {
+        "agent": "codex",
+        "agent_profile": "",
+        "assignee": "",
+        "id": "WP01",
+        "lane": "planned",
+        "model": "",
+        "phase": "",
+        "prompt_markdown": "# Work Package Prompt: WP01\n\nBody for WP01.",
+        "prompt_path": "kitty-specs/001-demo-feature/tasks/WP01-demo.md",
+        "role": "",
+        "subtasks": [
+          "T1"
+        ],
+        "title": "WP01"
+      }
+    ]
+  },
+  "workflow_status": {
+    "implement": "in_progress",
+    "plan": "complete",
+    "specify": "complete",
+    "tasks": "complete"
+  }
+}

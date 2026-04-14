@@ -617,3 +617,130 @@ def test_upgrade_runner_invokes_migration_on_stale_metadata(
     assert report["charter_present"] is True
     assert report["chokepoint_refreshed"] is True
     assert report["applied"] is True
+
+
+# ---------------------------------------------------------------------------
+# Post-merge reviewer regression: worktree-skip semantics (P2)
+# ---------------------------------------------------------------------------
+
+
+def test_detect_returns_false_inside_linked_worktree(tmp_path: Path) -> None:
+    """``detect()`` must return False for a linked worktree so the runner
+    records a clean ``skipped`` there instead of marking the migration as
+    applied in the worktree's own ``.kittify/metadata.yaml``.
+
+    Regression guard for a post-merge reviewer finding: the runner's
+    ``_upgrade_worktrees`` loop iterates ``.worktrees/*`` on the default
+    upgrade path. Before this fix ``detect()`` returned True
+    unconditionally, so the runner recorded ``m_3_2_3_unified_bundle`` as
+    applied inside every worktree even though the chokepoint correctly
+    materializes derivatives only at the canonical main-checkout root.
+    That violates the migration's "NO worktree scanning, NO worktree
+    mutation" contract (§C-011 / §C-012).
+    """
+    from specify_cli.upgrade.migrations.m_3_2_3_unified_bundle import (
+        UnifiedBundleMigration,
+    )
+
+    main_root = tmp_path / "main"
+    main_root.mkdir()
+    subprocess.run(
+        ["git", "init", "--quiet", "--initial-branch=main", str(main_root)],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(main_root), "config", "user.email", "t@example.com"],
+        check=True,
+    )
+    subprocess.run(
+        ["git", "-C", str(main_root), "config", "user.name", "T"],
+        check=True,
+    )
+    (main_root / "seed.txt").write_text("seed\n", encoding="utf-8")
+    subprocess.run(["git", "-C", str(main_root), "add", "seed.txt"], check=True)
+    subprocess.run(
+        ["git", "-C", str(main_root), "commit", "-q", "-m", "seed"],
+        check=True,
+    )
+
+    worktree = tmp_path / "worktree-skip"
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(main_root),
+            "worktree",
+            "add",
+            "-b",
+            "feature/worktree-skip",
+            str(worktree),
+        ],
+        check=True,
+    )
+
+    # In a linked worktree, ``.git`` is a FILE pointing at the shared
+    # common dir. In the main checkout, ``.git`` is a directory. The
+    # migration's detect() uses that distinction.
+    assert (worktree / ".git").is_file()
+    assert (main_root / ".git").is_dir()
+
+    migration = UnifiedBundleMigration()
+    assert migration.detect(main_root) is True, (
+        "detect(main_checkout) must be True so the migration runs on 3.2.3 upgrades"
+    )
+    assert migration.detect(worktree) is False, (
+        "detect(linked_worktree) must be False so the runner's worktree loop "
+        "skips the migration (no worktree scanning / mutation per §C-011/§C-012)"
+    )
+
+
+def test_runner_include_worktrees_does_not_mutate_worktree_metadata(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The live runner must skip this migration entirely for `.worktrees/*`.
+
+    `detect(False)` alone is insufficient if the runner still records a
+    "skipped / Not applicable" migration or bumps the worktree metadata
+    version. Phase 2's contract is stricter: no worktree scanning and no
+    worktree mutation for `m_3_2_3_unified_bundle` on the default upgrade
+    path.
+    """
+    from specify_cli.upgrade.runner import MigrationRunner
+
+    project = tmp_path / "proj"
+    project.mkdir()
+    _make_322_project(project)
+
+    worktree = project / ".worktrees" / "001-demo-lane-a"
+    worktree.parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(project),
+            "worktree",
+            "add",
+            "-b",
+            "feature/001-demo-lane-a",
+            str(worktree),
+        ],
+        check=True,
+    )
+
+    wt_kittify = worktree / ".kittify"
+    wt_kittify.mkdir(parents=True, exist_ok=True)
+    wt_metadata = wt_kittify / "metadata.yaml"
+    wt_metadata.write_text(_METADATA_YAML_3_2_2, encoding="utf-8")
+    before = wt_metadata.read_text("utf-8")
+
+    monkeypatch.chdir(project)
+    _clear_resolver_cache()
+
+    runner = MigrationRunner(project)
+    result = runner.upgrade("3.2.3", include_worktrees=True, force=True)
+
+    assert result.success is True, result.errors
+    assert wt_metadata.read_text("utf-8") == before, (
+        "worktree metadata changed even though "
+        "m_3_2_3_unified_bundle is out of scope for worktree upgrades"
+    )

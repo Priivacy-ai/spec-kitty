@@ -224,6 +224,21 @@ def post_save_hook(charter_path: Path) -> None:
         )
 
 
+def _resolve_bundle_root(repo_root: Path, refresh_result: SyncResult | None) -> Path:
+    """Return the canonical charter-bundle root for loader path construction.
+
+    The chokepoint materializes the bundle under the main-checkout canonical
+    root; loaders called from a worktree must anchor path construction on
+    that same root so the just-materialized derivatives are visible (FR-010).
+    Fall back to ``repo_root`` only when the chokepoint returned ``None``
+    (no ``charter.md`` under the canonical root) — in that case there is
+    nothing to read regardless of which root we use.
+    """
+    if refresh_result is not None and refresh_result.canonical_root is not None:
+        return refresh_result.canonical_root
+    return repo_root
+
+
 def load_governance_config(repo_root: Path) -> GovernanceConfig:
     """Load governance config from .kittify/charter/governance.yaml.
 
@@ -232,16 +247,23 @@ def load_governance_config(repo_root: Path) -> GovernanceConfig:
 
     Performance: YAML loading only, no AI invocation (FR-4.5).
 
+    The loader routes through ``ensure_charter_bundle_fresh`` and anchors
+    every subsequent path on the returned ``canonical_root``, so worktree
+    callers read the main-checkout bundle that the chokepoint materialized
+    (FR-010). Callers therefore do not need to pre-resolve the canonical
+    root themselves.
+
     Args:
-        repo_root: Repository root directory
+        repo_root: Repository root directory (may be a worktree path).
 
     Returns:
         GovernanceConfig instance (empty if file missing)
     """
-    charter_dir = repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
+    refresh_result = ensure_charter_bundle_fresh(repo_root)
+    bundle_root = _resolve_bundle_root(repo_root, refresh_result)
+    charter_dir = bundle_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
     charter_path = charter_dir / _CHARTER_FILENAME
     governance_path = charter_dir / _GOVERNANCE_FILENAME
-    refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not governance_path.exists():
         if charter_path.exists():
@@ -272,16 +294,22 @@ def load_directives_config(repo_root: Path) -> DirectivesConfig:
     Falls back to empty DirectivesConfig if file missing.
     Checks staleness and logs warning if stale.
 
+    The loader routes through ``ensure_charter_bundle_fresh`` and anchors
+    every subsequent path on the returned ``canonical_root``, so worktree
+    callers read the main-checkout bundle that the chokepoint materialized
+    (FR-010).
+
     Args:
-        repo_root: Repository root directory
+        repo_root: Repository root directory (may be a worktree path).
 
     Returns:
         DirectivesConfig instance (empty if file missing)
     """
-    charter_dir = repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
+    refresh_result = ensure_charter_bundle_fresh(repo_root)
+    bundle_root = _resolve_bundle_root(repo_root, refresh_result)
+    charter_dir = bundle_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
     charter_path = charter_dir / _CHARTER_FILENAME
     directives_path = charter_dir / _DIRECTIVES_FILENAME
-    refresh_result = ensure_charter_bundle_fresh(repo_root)
 
     if not directives_path.exists():
         if charter_path.exists():
