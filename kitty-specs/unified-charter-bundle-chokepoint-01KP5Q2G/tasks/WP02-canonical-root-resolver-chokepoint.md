@@ -579,3 +579,4 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 ## Activity Log
 
 - 2026-04-14T12:32:00Z – claude:sonnet:implementer:implementer – shell_pid=94246 – Started implementation via action command
+- 2026-04-14T12:40:16Z – claude:sonnet:implementer:implementer – shell_pid=94246 – WP02 implementation complete: resolver + SyncResult.canonical_root + chokepoint re-plumbed + two perf benches + WP01 TODO(WP02) marker resolved. Carve-outs respected.
