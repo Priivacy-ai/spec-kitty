@@ -23,6 +23,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "40116"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -338,3 +340,7 @@ Focus on:
 Do NOT ask about:
 - CI workflow shape (that's WP07).
 - Path messaging (that's WP04).
+
+## Activity Log
+
+- 2026-04-14T11:14:15Z – claude:opus-4.6:implementer:implementer – shell_pid=40116 – Started implementation via action command
