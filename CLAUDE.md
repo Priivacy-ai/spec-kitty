@@ -34,7 +34,7 @@ src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
 
 ## Supported AI Agents
 
-Spec Kitty supports **12 AI agents** with slash commands. When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:
+Spec Kitty supports **13 AI agents** with slash commands (Amazon Q/`q` retained as legacy alongside its rebrand Kiro). When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:
 
 | Agent | Directory | Subdirectory | Slash Commands |
 |-------|-----------|--------------|----------------|
@@ -49,7 +49,8 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 | Kilocode | `.kilocode/` | `workflows/` | `/spec-kitty.*` |
 | Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
 | Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
-| Amazon Q | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Amazon Q (legacy) | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
 
 **Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
 

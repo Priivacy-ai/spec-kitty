@@ -1,6 +1,6 @@
 # Supported AI Agents Reference
 
-Spec Kitty supports **12 AI coding agents** with slash commands. This document lists all supported agents and their configuration details.
+Spec Kitty supports **13 AI coding agents** with slash commands. This document lists all supported agents and their configuration details.
 
 ---
 
@@ -19,13 +19,14 @@ Spec Kitty supports **12 AI coding agents** with slash commands. This document l
 | Kilocode | `.kilocode/` | `workflows/` | `/spec-kitty.*` |
 | Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
 | Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
-| Amazon Q | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Amazon Q (legacy) | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Kiro | `.kiro/` | `prompts/` | `/spec-kitty.*` |
 
 ---
 
 ## Managing Active Agents
 
-Spec-kitty supports 12 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
+Spec-kitty supports 13 AI agents (listed above). You can activate or deactivate agents at any time using the `spec-kitty agent config` command family.
 
 To manage which agents are active in your project:
 - **View configured agents**: `spec-kitty agent config list`
@@ -236,20 +237,47 @@ spec-kitty init my-project --ai roo
 
 ---
 
-### Amazon Q
+### Amazon Q (legacy)
 
 | Property | Value |
 |----------|-------|
 | Directory | `.amazonq/` |
 | Commands subdirectory | `prompts/` |
 | CLI flag | `--ai q` |
-| Status | Supported (limited) |
+| Status | Legacy — rebranded to Kiro |
 
-**Limitation**: Amazon Q does not support custom slash command arguments. Commands like `/spec-kitty.specify <description>` may not pass the description to the command.
+Amazon Q Developer CLI has been [rebranded to Kiro CLI](https://kiro.dev/docs/cli/migrating-from-q/). Existing projects using `--ai q` continue to work; new projects should select `--ai kiro`. The Kiro installer automatically copies `~/.aws/amazonq/` to `~/.kiro/` at the user level.
 
 **Usage**:
 ```bash
-spec-kitty init my-project --ai q
+spec-kitty init my-project --ai q  # legacy
+```
+
+---
+
+### Kiro
+
+| Property | Value |
+|----------|-------|
+| Directory | `.kiro/` |
+| Commands subdirectory | `prompts/` |
+| CLI flag | `--ai kiro` |
+| Binary | `kiro-cli` |
+| Status | Supported |
+
+Kiro CLI (formerly Amazon Q Developer CLI) supports slash-command arguments via `$ARGUMENTS`, but the full invocation must be shell-quoted for arguments to pass through. See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141).
+
+```bash
+# Correct — arguments reach $ARGUMENTS
+kiro '@speckit.specify my feature description'
+
+# Incorrect — arguments are swallowed
+kiro @speckit.specify my feature description
+```
+
+**Usage**:
+```bash
+spec-kitty init my-project --ai kiro
 ```
 
 ---
@@ -320,7 +348,7 @@ See [Slash Commands](slash-commands.md) for complete documentation.
 | Best overall experience | Claude Code |
 | VS Code integration | Cursor, GitHub Copilot |
 | JetBrains IDEs | Cursor |
-| AWS environment | Amazon Q |
+| AWS environment | Kiro (formerly Amazon Q) |
 | Open source preference | OpenCode, Qwen |
 | Enterprise/air-gapped | Any (local templates available) |
 
@@ -344,7 +372,7 @@ See [Slash Commands](slash-commands.md) for complete documentation.
 
 ### Agent-specific issues
 
-**Amazon Q**: Commands may not receive arguments. Enter the description when prompted instead of passing it to the command.
+**Kiro / Amazon Q**: Slash-command arguments only pass through when the full invocation is shell-quoted (e.g. `kiro '@speckit.specify <description>'`). Without quoting, the trailing text is not forwarded to `$ARGUMENTS`. See [kirodotdev/Kiro#4141](https://github.com/kirodotdev/Kiro/issues/4141).
 
 **Codex**: Ensure `CODEX_HOME` is set:
 ```bash

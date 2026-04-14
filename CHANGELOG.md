@@ -9,6 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **Kiro CLI as first-class agent** — `spec-kitty init --ai kiro` registers the Kiro CLI (Amazon Q Developer CLI's rebrand) with its own `.kiro/prompts/` directory and `kiro-cli` binary check. Legacy `--ai q` (→ `.amazonq/prompts/`) remains supported for backwards compatibility. README and `docs/reference/supported-agents.md` now document the shell-quoting requirement for `$ARGUMENTS` pass-through (see kirodotdev/Kiro#4141). Closes #246.
+
 ### Fixed
 
 - **`mission merge` no longer silently loses content when the repository carries legacy sparse-checkout state** — the stash/merge/stash-pop cascade used by the merge driver previously recorded phantom deletions for paths filtered out by a sparse-checkout pattern, and the subsequent housekeeping commit silently reverted content the preceding merge had introduced. Merge and `agent action implement` now run a sparse-checkout preflight and fail closed unless the operator passes `--allow-sparse-checkout`, `safe_commit` now aborts commits whose staging area contains paths outside the intended scope, and `mission merge` performs a post-merge refresh and invariant check before leaving the integration branch. Closes Priivacy-ai/spec-kitty#588.

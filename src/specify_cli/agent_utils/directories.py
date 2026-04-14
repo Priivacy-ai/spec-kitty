@@ -26,6 +26,7 @@ AGENT_DIRS: List[Tuple[str, str]] = [
     (".augment", "commands"),
     (".roo", "commands"),
     (".amazonq", "prompts"),
+    (".kiro", "prompts"),
     (".agent", "workflows"),
 ]
 
@@ -43,7 +44,8 @@ AGENT_DIR_TO_KEY = {
     ".kilocode": "kilocode",
     ".augment": "auggie",  # auggie, not augment
     ".roo": "roo",
-    ".amazonq": "q",  # q, not amazonq
+    ".amazonq": "q",  # q, not amazonq (legacy — Kiro rebrand migrates to .kiro)
+    ".kiro": "kiro",
     ".agent": "antigravity",
 }
 

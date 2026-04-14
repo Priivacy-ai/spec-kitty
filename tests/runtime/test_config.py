@@ -76,6 +76,29 @@ def test_script_type_choices_are_human_readable():
     assert "POSIX" in SCRIPT_TYPE_CHOICES["sh"]
 
 
+def test_kiro_registered_as_first_class_agent():
+    """Kiro CLI (the Amazon Q rebrand) is registered with its own directory and binary.
+
+    Issue #246: Amazon Q Developer CLI rebranded to Kiro CLI. Kiro must be a
+    first-class agent while `q` remains for backwards compatibility with existing
+    projects. See https://kiro.dev/docs/cli/migrating-from-q/.
+    """
+    assert "kiro" in AI_CHOICES
+    assert "q" in AI_CHOICES, "legacy `q` alias must remain for backwards compatibility"
+
+    kiro_cfg = AGENT_COMMAND_CONFIG["kiro"]
+    assert kiro_cfg["dir"] == ".kiro/prompts"
+    assert kiro_cfg["arg_format"] == "$ARGUMENTS"
+
+    # Legacy `q` still points at .amazonq (Kiro's installer migrates this
+    # directory at the user level, but project-level prompts stay where they are).
+    assert AGENT_COMMAND_CONFIG["q"]["dir"] == ".amazonq/prompts"
+
+    kiro_tool = AGENT_TOOL_REQUIREMENTS["kiro"]
+    assert kiro_tool[0] == "kiro-cli"
+    assert "kiro.dev" in kiro_tool[1]
+
+
 def test_agent_tool_requirements_urls():
     """AGENT_TOOL_REQUIREMENTS entry for claude provides CLI name and install URL."""
     # Arrange
