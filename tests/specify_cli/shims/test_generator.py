@@ -264,16 +264,37 @@ class TestGenerateAllShims:
         assert "agent shim" not in content
 
     def test_correct_placeholder_per_agent(self, tmp_path: Path) -> None:
+        """Each agent receives its native argument handling.
+
+        Claude (slash-command pipeline): shim generator writes $ARGUMENTS to
+        .claude/commands/spec-kitty.*.md.
+
+        Codex (Agent Skills pipeline, post-083): skills installer renders
+        .agents/skills/spec-kitty.*/SKILL.md with NO $ARGUMENTS token — the
+        renderer's contract (see command_renderer.render docstring) guarantees
+        no stray $ARGUMENTS survives; user input is delivered via the canonical
+        "User Input" section of the SKILL.md body instead.
+        """
+        from specify_cli.skills.command_installer import install
+
         _setup_kittify_config(tmp_path, ["claude", "codex"])
         (tmp_path / ".claude" / "commands").mkdir(parents=True)
-        (tmp_path / ".codex" / "prompts").mkdir(parents=True)
         generate_all_shims(tmp_path)
+        install(tmp_path, "codex")
 
         claude_file = tmp_path / ".claude" / "commands" / "spec-kitty.implement.md"
-        codex_file = tmp_path / ".codex" / "prompts" / "spec-kitty.implement.md"
+        codex_file = (
+            tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        )
 
         assert "$ARGUMENTS" in claude_file.read_text()
-        assert "$PROMPT" in codex_file.read_text()
+        codex_text = codex_file.read_text()
+        assert "$ARGUMENTS" not in codex_text, (
+            "command_renderer contract violated: SKILL.md must not contain "
+            "stray $ARGUMENTS tokens."
+        )
+        # The canonical user-input section must still be present.
+        assert "User Input" in codex_text
 
     def test_result_is_sorted(self, tmp_path: Path) -> None:
         _setup_kittify_config(tmp_path, ["claude"])

@@ -204,16 +204,23 @@ class TestAgentSurfaces:
         assert "spec-kitty agent action implement" in content
         assert "agent shim" not in content
 
-    def test_codex_prompts_have_direct_calls(self, tmp_path: Path) -> None:
-        _setup_project(tmp_path, ["codex"])
-        generate_all_shims(tmp_path)
+    def test_codex_skills_have_direct_calls(self, tmp_path: Path) -> None:
+        """Post-083: Codex uses the Agent Skills pipeline, not the slash-command shim
+        pipeline. The shim generator therefore writes nothing for codex. The
+        equivalent invariant — every installed SKILL.md references the direct
+        `spec-kitty agent action` CLI call — is enforced via the skills installer.
+        """
+        from specify_cli.skills.command_installer import install
 
-        cmd_dir = tmp_path / ".codex" / "prompts"
-        impl = cmd_dir / "spec-kitty.implement.md"
-        assert impl.exists()
-        content = impl.read_text()
+        _setup_project(tmp_path, ["codex"])
+        install(tmp_path, "codex")
+
+        skill_md = tmp_path / ".agents" / "skills" / "spec-kitty.implement" / "SKILL.md"
+        assert skill_md.exists(), (
+            f"Expected Agent Skills package at {skill_md} (post-083 codex layout)"
+        )
+        content = skill_md.read_text()
         assert "spec-kitty agent action implement" in content
-        assert "$PROMPT" in content
         assert "agent shim" not in content
 
     def test_opencode_commands_have_direct_calls(self, tmp_path: Path) -> None:
