@@ -34,12 +34,12 @@ No WP can start until its predecessor is merged to `main`.
 
 | ID | Description | WP | Parallel |
 | --- | --- | --- | --- |
-| T001 | Add verifier script + author `occurrences/WP01.yaml` | WP01 | |
-| T002 | Delete `src/doctrine/curation/` package, `_proposed/` trees, and curation validator | WP01 | |
-| T003 | Delete doctrine CLI command + Typer registration + add regression test | WP01 | |
-| T004 | Delete curation test files | WP01 | [P] with T002/T003 |
-| T005 | Update SOURCE templates + doctrine READMEs referencing removed surfaces | WP01 | [P] |
-| T006 | Run gates + seed `occurrences/index.yaml` | WP01 | |
+| T001 | Add verifier script + author `occurrences/WP01.yaml` | WP01 | | [D] |
+| T002 | Delete `src/doctrine/curation/` package, `_proposed/` trees, and curation validator | WP01 | | [D] |
+| T003 | Delete doctrine CLI command + Typer registration + add regression test | WP01 | | [D] |
+| T004 | Delete curation test files | WP01 | [P] with T002/T003 | [D] |
+| T005 | Update SOURCE templates + doctrine READMEs referencing removed surfaces | WP01 | [D] |
+| T006 | Run gates + seed `occurrences/index.yaml` | WP01 | | [D] |
 | T007 | Author `occurrences/WP02.yaml`; run R-1 inline-vs-graph audit | WP02 | |
 | T008 | Patch `src/doctrine/graph.yaml` with any missing edges (additive-only) | WP02 | |
 | T009 | Strip `tactic_refs:` from 13 shipped artifact YAMLs | WP02 | |
@@ -73,12 +73,12 @@ The `[P]` markers indicate subtasks that can run in parallel within the same WP 
 
 ### Included subtasks
 
-- [ ] T001 Add verifier script + author `occurrences/WP01.yaml` (WP01)
-- [ ] T002 Delete `src/doctrine/curation/` package, `_proposed/` trees, and `src/specify_cli/validators/doctrine_curation.py` (WP01)
-- [ ] T003 Delete `src/specify_cli/cli/commands/doctrine.py` + Typer registration + add regression test (WP01)
-- [ ] T004 Delete curation test files (`tests/doctrine/curation/**`, `tests/cross_cutting/test_doctrine_curation_unit.py`) (WP01)
-- [ ] T005 Update SOURCE templates + doctrine READMEs referencing removed surfaces (WP01)
-- [ ] T006 Run gates (pytest, mypy --strict, verifier) and seed `occurrences/index.yaml` with WP01 segment (WP01)
+- [x] T001 Add verifier script + author `occurrences/WP01.yaml` (WP01)
+- [x] T002 Delete `src/doctrine/curation/` package, `_proposed/` trees, and `src/specify_cli/validators/doctrine_curation.py` (WP01)
+- [x] T003 Delete `src/specify_cli/cli/commands/doctrine.py` + Typer registration + add regression test (WP01)
+- [x] T004 Delete curation test files (`tests/doctrine/curation/**`, `tests/cross_cutting/test_doctrine_curation_unit.py`) (WP01)
+- [x] T005 Update SOURCE templates + doctrine READMEs referencing removed surfaces (WP01)
+- [x] T006 Run gates (pytest, mypy --strict, verifier) and seed `occurrences/index.yaml` with WP01 segment (WP01)
 
 ### Implementation sketch
 
