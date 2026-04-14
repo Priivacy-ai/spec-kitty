@@ -110,7 +110,16 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     * CLI-driven commands (7): thin shims via ``generate_shim_content()``.
     * Stale ``spec-kitty.*`` files no longer in the canonical set are removed.
     * All written files are set read-only (``chmod mode & ~0o222``).
+
+    For ``codex`` and ``vibe``, command installation is delegated to the
+    skills installer (:mod:`specify_cli.skills.command_installer`).  The
+    ``templates_dir`` and ``script_type`` arguments are ignored for these
+    agents.
     """
+    if agent_key in ("codex", "vibe"):
+        from specify_cli.skills import command_installer
+        return command_installer.install(Path.home(), agent_key)
+
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.generator import (
         AGENT_ARG_PLACEHOLDERS,

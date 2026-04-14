@@ -21,7 +21,6 @@ AGENT_DIRS: List[Tuple[str, str]] = [
     (".qwen", "commands"),
     (".opencode", "command"),
     (".windsurf", "workflows"),
-    (".codex", "prompts"),
     (".kilocode", "workflows"),
     (".augment", "commands"),
     (".roo", "commands"),
@@ -39,7 +38,6 @@ AGENT_DIR_TO_KEY = {
     ".qwen": "qwen",
     ".opencode": "opencode",
     ".windsurf": "windsurf",
-    ".codex": "codex",
     ".kilocode": "kilocode",
     ".augment": "auggie",  # auggie, not augment
     ".roo": "roo",
@@ -62,15 +60,15 @@ def get_agent_dirs_for_project(project_path: Path) -> List[Tuple[str, str]]:
         List of (agent_root, subdir) tuples for configured agents
 
     Examples:
-        >>> # Project with only Claude and Codex configured
+        >>> # Project with only Claude configured
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/project"))
         >>> dirs
-        [('.claude', 'commands'), ('.codex', 'prompts')]
+        [('.claude', 'commands')]
 
         >>> # Legacy project without config.yaml
         >>> dirs = get_agent_dirs_for_project(Path("/path/to/legacy"))
         >>> len(dirs)
-        12  # All agents
+        12  # All command-layer agents (codex and vibe use AGENT_SKILL_CONFIG)
     """
     try:
         from specify_cli.core.agent_config import (
