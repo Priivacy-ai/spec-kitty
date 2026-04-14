@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
+  "mission_id": "01KP54ZWEEPCC2VC3YKRX1HT8W",
+  "mission_branch": "kitty/mission-legacy-sparse-and-review-lock-hardening-01KP54ZW",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06",
+        "WP07",
+        "WP09"
+      ],
+      "write_scope": [
+        "CHANGELOG.md",
+        "architecture/1.x/adr/2026-04-14-sparse-checkout-defense-in-depth.md",
+        "src/specify_cli/cli/commands/agent/tasks.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/glossary.py",
+        "src/specify_cli/cli/commands/merge.py",
+        "src/specify_cli/core/worktree.py",
+        "src/specify_cli/git/commit_helpers.py",
+        "src/specify_cli/git/sparse_checkout.py",
+        "src/specify_cli/git/sparse_checkout_remediation.py",
+        "src/specify_cli/review/lock.py",
+        "src/specify_cli/status/doctor.py",
+        "tests/integration/core/test_worktree_exclude_spec_kitty.py",
+        "tests/integration/git/test_safe_commit_backstop.py",
+        "tests/integration/review/test_approve_without_force.py",
+        "tests/integration/review/test_reject_without_force.py",
+        "tests/integration/sparse_checkout/test_detection.py",
+        "tests/integration/sparse_checkout/test_doctor_finding.py",
+        "tests/integration/sparse_checkout/test_doctor_non_interactive.py",
+        "tests/integration/sparse_checkout/test_implement_preflight_blocks.py",
+        "tests/integration/sparse_checkout/test_merge_preflight_blocks.py",
+        "tests/integration/sparse_checkout/test_merge_refresh_and_invariant.py",
+        "tests/integration/sparse_checkout/test_merge_with_allow_override.py",
+        "tests/integration/sparse_checkout/test_remediation_primary.py",
+        "tests/integration/sparse_checkout/test_remediation_primary_and_worktrees.py",
+        "tests/integration/sparse_checkout/test_remediation_refuses_on_dirty.py",
+        "tests/integration/sparse_checkout/test_session_warning_once.py",
+        "tests/unit/git/test_commit_helpers_backstop.py",
+        "tests/unit/git/test_sparse_checkout_detection.py",
+        "tests/unit/git/test_sparse_checkout_remediation.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "app-shell",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    },
+    {
+      "lane_id": "lane-planning",
+      "wp_ids": [
+        "WP08"
+      ],
+      "write_scope": [
+        "kitty-specs/legacy-sparse-and-review-lock-hardening-01KP54ZW/research/fr020-investigation.md"
+      ],
+      "predicted_surfaces": [
+        "planning"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-14T05:42:45.520071+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [
+    "WP08"
+  ],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP03",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP03 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP01"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP02"
+      },
+      {
+        "wp_a": "WP07",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP07 depends on WP02"
+      },
+      {
+        "wp_a": "WP09",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP09 depends on WP01"
+      }
+    ],
+    "total_merges": 7,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 7
+    }
+  }
+}

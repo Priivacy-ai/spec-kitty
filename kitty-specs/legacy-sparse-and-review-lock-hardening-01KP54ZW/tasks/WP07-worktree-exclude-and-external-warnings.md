@@ -9,7 +9,7 @@ requirement_refs:
 - FR-016
 planning_base_branch: main
 merge_target_branch: main
-branch_strategy: main-to-main
+branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
 subtasks:
 - T025
 - T030
@@ -26,7 +26,6 @@ mission_id: 01KP54ZWEEPCC2VC3YKRX1HT8W
 owned_files:
 - src/specify_cli/core/worktree.py
 - src/specify_cli/cli/commands/glossary.py
-- src/specify_cli/cli/commands/merge.py
 - tests/integration/sparse_checkout/test_session_warning_once.py
 - tests/integration/core/test_worktree_exclude_spec_kitty.py
 tags: []
@@ -43,7 +42,7 @@ spec-kitty agent action implement WP07 --agent <your-agent-name> --mission 01KP5
 
 Depends on WP02 (warn function) and WP06 (in-tasks.py session-warning call sites — required for the combined NFR-005 test to be meaningful). Rebase onto the combined lane where WP06 lands.
 
-**Ownership note**: WP07 also adds a session-warning call to `merge.py` (outside the preflight code-path that WP05 owns). To avoid ownership collision, coordinate with WP05's author: WP07's only edit to merge.py is a single `warn_if_sparse_once(...)` call at the entry of the `merge` Typer handler, outside any function WP05 modified. If WP05 landed a preflight that already includes such a call as part of the implementation, this subtask collapses to "verify the call exists and the assertion path is correct".
+**Ownership note**: `merge.py` is owned by WP05. WP07 does NOT edit `merge.py`. The merge path's session-warning surface is WP05's preflight: the preflight already emits a WARNING (either the block message or the override log record) whenever sparse-checkout state is detected, so a separate `warn_if_sparse_once()` call on merge would be redundant.
 
 ---
 
@@ -68,10 +67,9 @@ Three small but distinct pieces of polish:
 
 - FR-016: belt-and-braces defense for FR-015 — even without the deny-list filter, git would not surface `.spec-kitty/` as untracked if the per-worktree exclude is in place. Eliminates another class of false positives.
 - The per-worktree exclude file lives at `<git-common-dir>/worktrees/<name>/info/exclude`. It is NOT committed; it is per-worktree local.
-- External CLI surfaces needing the session warning:
+- External CLI surfaces needing the session warning (excluding merge and agent/tasks.py, which are covered by WP05 and WP06 respectively):
   - `spec-kitty charter sync` (in `src/specify_cli/cli/commands/glossary.py` — verify; it may live elsewhere)
-  - `spec-kitty agent mission merge` (in `src/specify_cli/cli/commands/merge.py` — call at the top of the Typer handler, outside WP05's preflight)
-  - Any other state-mutating top-level command that does NOT route through `agent/tasks.py` (which WP06 already covers)
+  - Any other state-mutating top-level command that does NOT route through `agent/tasks.py` and is not the merge command
 
 ---
 
@@ -126,7 +124,7 @@ Invoke `_ensure_spec_kitty_exclude(new_worktree_path)` right after the `git work
 
 ### T037 — External session-warning call sites
 
-**Files**: `src/specify_cli/cli/commands/merge.py`, `src/specify_cli/cli/commands/glossary.py` (and any other state-mutating surface identified during implementation).
+**Files**: `src/specify_cli/cli/commands/glossary.py` (and any other state-mutating surface identified during implementation that is NOT `merge.py` or `agent/tasks.py`).
 
 **What**: At the entry of each external state-mutating Typer handler, call:
 
@@ -137,7 +135,7 @@ warn_if_sparse_once(repo_root, command="spec-kitty agent mission merge")
 
 with the appropriate `command` string. The call is non-blocking and swallows errors; it is safe to place above any other code.
 
-For `merge.py`: the call must be at the TOP-level Typer handler, not inside `_run_lane_based_merge_locked`. The WP05 preflight is different — it is the hard-block for merge specifically. This warning hook is for logging continuity (so if a user somehow passes the preflight on merge, or uses commands adjacent to merge, they still see the warning once).
+For `merge.py`: no action — covered by WP05's preflight, which already emits WARNING records on active sparse-checkout state.
 
 For charter sync: locate the handler (likely `src/specify_cli/cli/commands/glossary.py` or `charter.py`) and add the call at its top.
 
