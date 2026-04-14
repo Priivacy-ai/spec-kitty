@@ -43,9 +43,24 @@ class SafeGlobalizeCommandsMigration(BaseMigration):
     description = "Safely remove per-project spec-kitty command files (with global checks)"
     target_version = "3.2.2"
 
+    @staticmethod
+    def _iter_agent_command_dirs(project_path: Path) -> list[tuple[str, str]]:
+        """Return candidate agent command dirs, including legacy Codex prompts.
+
+        ``get_agent_dirs_for_project()`` reflects the modern command-layer
+        registry and intentionally omits skill-only agents like Codex. Upgrade
+        migrations still need to inspect legacy ``.codex/prompts`` if it is
+        present in an older project.
+        """
+        agent_dirs = list(get_agent_dirs_for_project(project_path))
+        legacy_codex_dir = project_path / ".codex" / "prompts"
+        if legacy_codex_dir.is_dir():
+            agent_dirs.append((".codex", "prompts"))
+        return agent_dirs
+
     def detect(self, project_path: Path) -> bool:
         """Return True if any spec-kitty.* command file exists in any agent command dir."""
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
+        for agent_root, subdir in self._iter_agent_command_dirs(project_path):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.is_dir():
                 continue
@@ -116,7 +131,7 @@ class SafeGlobalizeCommandsMigration(BaseMigration):
             )
             return MigrationResult(success=True, changes_made=changes)
 
-        for agent_root, subdir in get_agent_dirs_for_project(project_path):
+        for agent_root, subdir in self._iter_agent_command_dirs(project_path):
             agent_dir = project_path / agent_root / subdir
             if not agent_dir.is_dir():
                 continue

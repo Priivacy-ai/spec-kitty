@@ -1,0 +1,156 @@
+work_packages:
+  - id: WP01
+    title: Skills Manifest Store and Schema Plumbing
+    dependencies: []
+    owned_files:
+      - src/specify_cli/skills/manifest_store.py
+      - src/specify_cli/skills/manifest_errors.py
+      - src/specify_cli/skills/data/skills-manifest.schema.json
+      - tests/specify_cli/skills/test_manifest_store.py
+    requirement_refs:
+      - FR-007
+    subtasks:
+      - T001
+      - T002
+      - T003
+      - T004
+      - T005
+    prompt_file: tasks/WP01-skills-manifest-store.md
+
+  - id: WP02
+    title: Command-Skill Renderer
+    dependencies: []
+    owned_files:
+      - src/specify_cli/skills/command_renderer.py
+      - src/specify_cli/skills/_user_input_block.py
+      - tests/specify_cli/skills/test_command_renderer.py
+      - "tests/specify_cli/skills/__snapshots__/**"
+    requirement_refs:
+      - FR-004
+      - FR-005
+      - NFR-004
+    subtasks:
+      - T006
+      - T007
+      - T008
+      - T009
+      - T010
+      - T011
+    prompt_file: tasks/WP02-command-skill-renderer.md
+
+  - id: WP03
+    title: Command-Skill Installer
+    dependencies:
+      - WP01
+      - WP02
+    owned_files:
+      - src/specify_cli/skills/command_installer.py
+      - tests/specify_cli/skills/test_command_installer.py
+    requirement_refs:
+      - FR-006
+      - FR-008
+      - NFR-002
+    subtasks:
+      - T012
+      - T013
+      - T014
+      - T015
+      - T016
+      - T017
+    prompt_file: tasks/WP03-command-skill-installer.md
+
+  - id: WP04
+    title: Registry Wiring and Runtime Routing
+    dependencies:
+      - WP03
+    owned_files:
+      - src/specify_cli/core/config.py
+      - src/specify_cli/agent_utils/directories.py
+      - src/specify_cli/runtime/agent_commands.py
+      - src/specify_cli/cli/commands/agent/config.py
+      - tests/specify_cli/core/test_config_registry.py
+      - tests/specify_cli/runtime/test_agent_commands_routing.py
+    requirement_refs:
+      - FR-001
+      - FR-002
+      - FR-011
+      - FR-013
+    subtasks:
+      - T018
+      - T019
+      - T020
+      - T021
+      - T022
+    prompt_file: tasks/WP04-registry-and-runtime-routing.md
+
+  - id: WP05
+    title: Vibe CLI Surface (init, verify, gitignore)
+    dependencies:
+      - WP04
+    owned_files:
+      - src/specify_cli/cli/commands/init.py
+      - src/specify_cli/cli/commands/verify.py
+      - src/specify_cli/gitignore_manager.py
+      - tests/specify_cli/cli/commands/test_init_vibe.py
+      - tests/specify_cli/cli/commands/test_verify_vibe.py
+      - tests/specify_cli/cli/commands/test_agent_config_vibe.py
+    requirement_refs:
+      - FR-001
+      - FR-003
+      - FR-009
+      - FR-010
+    subtasks:
+      - T023
+      - T024
+      - T025
+      - T026
+      - T027
+    prompt_file: tasks/WP05-vibe-cli-surface.md
+
+  - id: WP06
+    title: Codex Legacy Migration
+    dependencies:
+      - WP04
+      - WP05
+    owned_files:
+      - src/specify_cli/upgrade/migrations/m_3_2_0_codex_to_skills.py
+      - src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py
+      - tests/specify_cli/upgrade/test_m_3_2_0_codex_to_skills.py
+      - "tests/specify_cli/upgrade/fixtures/codex_legacy/**"
+    requirement_refs:
+      - FR-012
+      - NFR-003
+    subtasks:
+      - T028
+      - T029
+      - T030
+      - T031
+      - T032
+    prompt_file: tasks/WP06-codex-legacy-migration.md
+
+  - id: WP07
+    title: Regression Snapshots and Documentation
+    dependencies:
+      - WP01
+      - WP02
+      - WP03
+      - WP04
+      - WP05
+      - WP06
+    owned_files:
+      - tests/specify_cli/regression/test_twelve_agent_parity.py
+      - "tests/specify_cli/regression/_twelve_agent_baseline/**"
+      - README.md
+      - CLAUDE.md
+    requirement_refs:
+      - FR-014
+      - FR-015
+      - FR-016
+      - NFR-005
+    subtasks:
+      - T033
+      - T034
+      - T035
+      - T036
+      - T037
+    prompt_file: tasks/WP07-regression-and-docs.md

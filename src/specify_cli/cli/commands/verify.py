@@ -50,6 +50,7 @@ TOOL_LABELS = [
     ("kilocode", "Kilo Code IDE"),
     ("opencode", "opencode"),
     ("codex", "Codex CLI"),
+    ("vibe", "Mistral Vibe"),
     ("auggie", "Auggie CLI"),
     ("q", "Amazon Q Developer CLI (legacy)"),
     ("kiro-cli", "Kiro CLI"),

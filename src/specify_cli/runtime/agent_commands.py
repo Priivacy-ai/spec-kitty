@@ -110,6 +110,11 @@ def _sync_agent_commands(agent_key: str, templates_dir: Path, script_type: str) 
     * CLI-driven commands (7): thin shims via ``generate_shim_content()``.
     * Stale ``spec-kitty.*`` files no longer in the canonical set are removed.
     * All written files are set read-only (``chmod mode & ~0o222``).
+
+    ``codex`` and ``vibe`` are not handled here. Their command installation
+    is driven by ``init`` and ``spec-kitty agent config add`` through
+    :mod:`specify_cli.skills.command_installer`, which writes project-local
+    skill packages under ``.agents/skills/``.
     """
     from specify_cli.core.config import AGENT_COMMAND_CONFIG
     from specify_cli.shims.generator import (

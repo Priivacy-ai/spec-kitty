@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-14T12:44:38.262365+00:00",
+  "friendly_name": "123 test feature",
+  "mission_id": "01KP60BDVT8EX1FW08QG5AKZ9K",
+  "mission_number": null,
+  "mission_slug": "test-feature-01KP60BD",
+  "mission_type": "software-dev",
+  "slug": "test-feature-01KP60BD",
+  "target_branch": "review/pr628-reroll"
+}

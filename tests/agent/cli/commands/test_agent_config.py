@@ -102,11 +102,12 @@ class TestAddCommand:
 
             assert result.exit_code == 0
             assert "Added .claude/commands/" in result.stdout
-            assert "Added .codex/prompts/" in result.stdout
+            assert "Registered codex" in result.stdout
+            assert ".agents/skills/" in result.stdout
 
             # Verify both directories were created
             assert (mock_project / ".claude" / "commands").exists()
-            assert (mock_project / ".codex" / "prompts").exists()
+            assert (mock_project / ".agents" / "skills").exists()
 
     def test_add_already_configured_agent(self, mock_project):
         """Test adding an agent that's already configured."""

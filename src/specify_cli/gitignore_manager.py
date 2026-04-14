@@ -57,6 +57,7 @@ class ProtectionResult:
 AGENT_DIRECTORIES = [
     AgentDirectory("claude", ".claude/", False, "Claude Code CLI"),
     AgentDirectory("codex", ".codex/", False, "Codex (contains auth.json)"),
+    AgentDirectory("vibe", ".vibe/", False, "Mistral Vibe (runtime state, config, session logs)"),
     AgentDirectory("opencode", ".opencode/", False, "opencode CLI"),
     AgentDirectory("windsurf", ".windsurf/", False, "Windsurf"),
     AgentDirectory("gemini", ".gemini/", False, "Google Gemini"),
