@@ -3,10 +3,11 @@ work_package_id: WP06
 title: Pre-commit hook installer hardening
 dependencies: []
 requirement_refs:
+- C-003
+- C-007
 - FR-009
 - FR-010
 - FR-011
-- C-003
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.

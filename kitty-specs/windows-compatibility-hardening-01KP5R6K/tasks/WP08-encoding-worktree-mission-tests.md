@@ -4,6 +4,7 @@ title: Encoding + worktree + mission revalidation
 dependencies:
 - WP07
 requirement_refs:
+- C-007
 - FR-014
 - FR-016
 - FR-017

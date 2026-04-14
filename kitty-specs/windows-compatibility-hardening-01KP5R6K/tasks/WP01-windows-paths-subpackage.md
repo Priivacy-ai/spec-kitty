@@ -3,6 +3,7 @@ work_package_id: WP01
 title: Windows paths subpackage + render helper
 dependencies: []
 requirement_refs:
+- C-005
 - FR-005
 - FR-012
 planning_base_branch: main
