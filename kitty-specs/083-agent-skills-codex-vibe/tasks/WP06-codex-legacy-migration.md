@@ -1,6 +1,7 @@
 ---
 work_package_id: WP06
 title: Codex Legacy Migration
+lane: "for_review"
 dependencies:
 - WP04
 - WP05
@@ -13,8 +14,8 @@ subtasks:
 - T030
 - T031
 - T032
-lane: "doing"
-shell_pid: "19351"
+shell_pid: '19351'
+agent: "claude"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -227,3 +228,7 @@ The `.kittify/config.yaml` file is the canonical source; read it via `load_agent
 ```bash
 spec-kitty agent action implement WP06 --agent <name>
 ```
+
+## Activity Log
+
+- 2026-04-14T10:44:59Z – claude – shell_pid=19351 – lane=for_review – Codex legacy migration complete; 27/27 tests
