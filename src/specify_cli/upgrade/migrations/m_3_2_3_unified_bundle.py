@@ -101,29 +101,39 @@ class UnifiedBundleMigration(BaseMigration):  # type: ignore[misc]  # BaseMigrat
     # ------------------------------------------------------------------
 
     def detect(self, project_path: Path) -> bool:
-        """Return True whenever this migration should run on a 3.2.2 -> 3.2.3 upgrade.
+        """Return True for the main checkout; False for linked worktrees.
 
-        Rationale (review-cycle-1, Finding 1): ``MigrationRunner._apply_migration``
-        hard-skips any migration whose ``detect()`` returns False. The v1.0.0
-        contract says every 3.2.3 upgrade should emit a JSON report — including
-        no-charter, stale-metadata, and already-fresh cases. A narrow
-        "derivatives missing" check silently suppressed three of the four
-        fixture cases. Returning True unconditionally hands control to
-        ``apply()``, which then decides between the four cases (no charter,
-        charter+fresh, charter+stale, charter+missing-derivatives) and sets the
-        report's ``applied`` flag to distinguish refresh from no-op.
+        The migration's contract (see module docstring and §C-011/§C-012)
+        says worktree scanning and mutation are out of scope. The runner's
+        worktree-upgrade loop, however, iterates ``.worktrees/*`` and calls
+        ``detect()`` on each one. Returning True there would record this
+        migration against the worktree's ``.kittify/metadata.yaml`` even
+        though the chokepoint correctly materializes derivatives only at the
+        canonical main-checkout root. The net effect was "applied" metadata
+        on disk inside worktrees that never actually had the migration's
+        work done locally.
 
-        The migration is always safe to invoke (``can_apply`` always True and
-        ``apply`` is idempotent), so always-True here is the canonical semantic
-        for a "terminal-version sealer" migration.
+        A linked worktree has ``.git`` as a regular file that points at the
+        shared common dir (``gitdir: /path/to/main/.git/worktrees/<name>``);
+        the main checkout has ``.git`` as a directory. We detect that
+        distinction here and short-circuit to False for worktrees so the
+        runner records a clean "skipped / Not applicable" (per
+        ``MigrationRunner._upgrade_worktrees``). The main-checkout pass is
+        unchanged: always True, ``apply()`` handles all four fixture cases
+        (no charter, charter+fresh, charter+stale, charter+missing-derivs)
+        and sets ``applied`` accordingly.
 
         Args:
             project_path: Root of the project (.kittify parent).
 
         Returns:
-            Always True — the runner will call ``apply()`` which handles the
-            four cases internally.
+            True iff ``project_path`` is the main checkout (``.git`` is a
+            directory or absent). False for linked worktrees (``.git`` is
+            a file).
         """
+        git_marker = project_path / ".git"
+        if git_marker.is_file():
+            return False
         return True
 
     def can_apply(self, project_path: Path) -> tuple[bool, str]:

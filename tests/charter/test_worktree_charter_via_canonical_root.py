@@ -208,3 +208,53 @@ def test_worktree_bundle_never_materializes_locally(tmp_path: Path) -> None:
             assert not local.exists(), (
                 f"Worktree leak: {local} should not exist — canonical root writes only"
             )
+
+
+def test_loaders_from_worktree_return_canonical_content(tmp_path: Path) -> None:
+    """FR-010 content transparency: ``load_governance_config`` and
+    ``load_directives_config`` invoked from a worktree return the SAME
+    content as when invoked from the main checkout.
+
+    Regression guard for a post-merge reviewer finding where the loaders
+    called the chokepoint but then rebuilt paths from the caller's
+    ``repo_root`` rather than from the ``SyncResult.canonical_root``.
+    The chokepoint materialized the bundle in the main checkout, but the
+    loader then checked ``worktree/.kittify/charter/governance.yaml``,
+    found nothing, logged ``governance.yaml unavailable after charter
+    auto-sync``, and returned an empty ``GovernanceConfig()``. Worktree
+    readers therefore saw an empty charter even though the chokepoint
+    itself was correct.
+    """
+    from charter.sync import load_directives_config, load_governance_config
+
+    main_root = _init_main_checkout(tmp_path / "main").resolve()
+    worktree_root = _add_linked_worktree(
+        main_root,
+        (tmp_path / "worktree-loaders").resolve(),
+        "feature/worktree-loaders",
+    ).resolve()
+    _clear_resolver_cache()
+
+    # Populate the bundle from the main checkout first so we have a
+    # known-good reference to compare against.
+    gov_main = load_governance_config(main_root)
+    dir_main = load_directives_config(main_root)
+
+    _clear_resolver_cache()
+
+    # Invoke the loaders from the WORKTREE path. The chokepoint maps back
+    # to main and the loaders must anchor subsequent path construction on
+    # the canonical root, not on ``worktree_root``.
+    gov_worktree = load_governance_config(worktree_root)
+    dir_worktree = load_directives_config(worktree_root)
+
+    # Both configs must round-trip identically. An empty config would
+    # indicate the loader read the wrong tree.
+    assert gov_worktree.model_dump() == gov_main.model_dump(), (
+        "load_governance_config(worktree) does not match load_governance_config(main); "
+        "the loader is not consuming SyncResult.canonical_root."
+    )
+    assert dir_worktree.model_dump() == dir_main.model_dump(), (
+        "load_directives_config(worktree) does not match load_directives_config(main); "
+        "the loader is not consuming SyncResult.canonical_root."
+    )
