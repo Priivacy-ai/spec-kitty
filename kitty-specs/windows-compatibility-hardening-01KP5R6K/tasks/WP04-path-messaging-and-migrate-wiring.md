@@ -19,8 +19,8 @@ subtasks:
 - T022
 - T023
 - T024
-agent: "claude:opus-4.6:implementer:implementer"
-shell_pid: "79543"
+agent: "claude:opus-4.6:reviewer:reviewer"
+shell_pid: "81634"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -275,3 +275,4 @@ Do NOT ask about:
 - 2026-04-14T12:04:49Z – claude:opus-4.6:reviewer:reviewer – shell_pid=78164 – Moved to planned
 - 2026-04-14T12:05:27Z – claude:opus-4.6:implementer:implementer – shell_pid=79543 – Started implementation via action command
 - 2026-04-14T12:12:17Z – claude:opus-4.6:implementer:implementer – shell_pid=79543 – Cycle 2: CliRunner(mix_stderr=False) removed (3 tests), audit regex widened + pure-comment skip, doctor.py labels fixed via render_runtime_path, init.py docstrings cleaned. Ready for review. (dossier file is gitignored, used --force to bypass)
+- 2026-04-14T12:12:50Z – claude:opus-4.6:reviewer:reviewer – shell_pid=81634 – Started review via action command
