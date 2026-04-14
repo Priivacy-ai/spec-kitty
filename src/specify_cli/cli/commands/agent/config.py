@@ -111,11 +111,14 @@ def add_agents(
     # Load current config
     config = _load_config_or_exit(repo_root)
 
-    # Validate agent keys
-    invalid = [a for a in agents if a not in AGENT_DIR_TO_KEY.values()]
+    # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
+    # skill-only agents (codex, vibe) have their own installer path.
+    _SKILL_ONLY_AGENTS = {"codex", "vibe"}
+    _valid_agents = set(AGENT_DIR_TO_KEY.values()) | _SKILL_ONLY_AGENTS
+    invalid = [a for a in agents if a not in _valid_agents]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
-        console.print(f"\nValid agents: {', '.join(sorted(AGENT_DIR_TO_KEY.values()))}")
+        console.print(f"\nValid agents: {', '.join(sorted(_valid_agents))}")
         raise typer.Exit(1)
 
     added = []
@@ -126,6 +129,14 @@ def add_agents(
         # Check if already configured
         if agent_key in config.available:
             already_configured.append(agent_key)
+            continue
+
+        if agent_key in _SKILL_ONLY_AGENTS:
+            # Skill-only agents (codex, vibe) are registered in config only;
+            # their skill files are installed at runtime via the skills installer.
+            added.append(agent_key)
+            config.available.append(agent_key)
+            console.print(f"[green]✓[/green] Registered {agent_key} (skill-only agent)")
             continue
 
         # Get directory for this agent
@@ -197,17 +208,33 @@ def remove_agents(
     # Load current config
     config = _load_config_or_exit(repo_root)
 
-    # Validate agent keys
-    invalid = [a for a in agents if a not in AGENT_DIR_TO_KEY.values()]
+    # Validate agent keys — command-layer agents come from AGENT_DIR_TO_KEY;
+    # skill-only agents (codex, vibe) have their own installer path.
+    _SKILL_ONLY_AGENTS = {"codex", "vibe"}
+    _valid_agents = set(AGENT_DIR_TO_KEY.values()) | _SKILL_ONLY_AGENTS
+    invalid = [a for a in agents if a not in _valid_agents]
     if invalid:
         console.print(f"[red]Error:[/red] Invalid agent keys: {', '.join(invalid)}")
-        console.print(f"\nValid agents: {', '.join(sorted(AGENT_DIR_TO_KEY.values()))}")
+        console.print(f"\nValid agents: {', '.join(sorted(_valid_agents))}")
         raise typer.Exit(1)
 
     removed = []
     errors = []
 
     for agent_key in agents:
+        if agent_key in ("codex", "vibe"):
+            from specify_cli.skills import command_installer
+            try:
+                report = command_installer.remove(repo_root, agent_key)
+                removed.append(agent_key)
+                console.print(f"[green]✓[/green] Removed skills for {agent_key} ({len(report.deleted)} files deleted)")
+            except Exception as e:
+                errors.append(f"Failed to remove skills for {agent_key}: {e}")
+            # Update config (unless --keep-config)
+            if not keep_config and agent_key in config.available:
+                config.available.remove(agent_key)
+            continue
+
         # Get directory for this agent
         agent_dir_info = KEY_TO_AGENT_DIR.get(agent_key)
         if not agent_dir_info:

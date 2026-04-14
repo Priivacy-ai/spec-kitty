@@ -188,4 +188,4 @@ After completing this step:
 Steps: Create endpoint. Add validation. Test it.
 ```
 
-Context for work-package planning: $ARGUMENTS
+Context for work-package planning: (refer to the User Input section above)
