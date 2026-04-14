@@ -52,6 +52,15 @@ required_by_step:
     # Done state requires all previous steps' artifacts implicitly
     []
 
+# NOTE on occurrence_map.yaml (bulk-edit guardrail):
+# When meta.json has `change_mode: bulk_edit`, missions MUST produce an
+# `occurrence_map.yaml` artifact before `implement` or `review` will proceed.
+# Enforcement is runtime-only — the gate function
+# `specify_cli.bulk_edit.gate.ensure_occurrence_classification_ready`
+# is invoked directly from the implement and review CLI paths. The manifest
+# model only understands `required_always`, `required_by_step`, and
+# `optional_always`, so there is no static manifest entry for this artifact.
+
 # Artifacts optional throughout the mission
 optional_always:
   - artifact_key: "evidence.research"

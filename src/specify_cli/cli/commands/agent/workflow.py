@@ -1295,6 +1295,49 @@ def review(
             print(f"Move it first: spec-kitty agent tasks move-task {normalized_wp_id} --to for_review --mission {mission_slug}")
             raise typer.Exit(1)
 
+        # Bulk edit occurrence classification gate — artifact admissibility (FR-006)
+        from specify_cli.bulk_edit.gate import (
+            check_review_diff_compliance,
+            ensure_occurrence_classification_ready,
+            render_diff_check_failure,
+            render_gate_failure,
+        )
+        from rich.console import Console as _RichConsole
+        _rich_console = _RichConsole()
+        _gate_result = ensure_occurrence_classification_ready(feature_dir)
+        if not _gate_result.passed:
+            render_gate_failure(_gate_result, _rich_console)
+            raise typer.Exit(1)
+
+        # Bulk edit diff compliance — per-file category enforcement (FR-007, FR-008).
+        # When this is a bulk_edit mission, inspect the WP's diff against its lane
+        # base branch and reject modifications to forbidden or unclassified surfaces.
+        if _gate_result.change_mode == "bulk_edit":
+            # The mission branch is the canonical base for a WP lane diff. If the
+            # review is running from the main repo (not a lane worktree), this
+            # still resolves because the mission branch exists until merge
+            # cleanup. If the branch cannot be resolved, fall back to the
+            # target_branch captured earlier in this function.
+            _base_ref = f"kitty/mission-{mission_slug}"
+            _diff_result = check_review_diff_compliance(
+                feature_dir=feature_dir,
+                repo_root=main_repo_root,
+                base_ref=_base_ref,
+                head_ref="HEAD",
+            )
+            if _diff_result is None:
+                # Non-bulk-edit mission — skip silently. check_review_diff_compliance
+                # returns None when change_mode is not bulk_edit, which shouldn't
+                # happen here given the outer guard, but belt-and-braces.
+                pass
+            elif not _diff_result.passed:
+                render_diff_check_failure(_diff_result, _rich_console)
+                raise typer.Exit(1)
+            elif _diff_result.warnings:
+                # Surface manual_review notes but don't block.
+                for _w in _diff_result.warnings:
+                    _rich_console.print(f"[yellow]manual_review:[/] {_w}")
+
         if current_lane != Lane.IN_PROGRESS:
             # Require --agent parameter to track who is reviewing
             if not agent:

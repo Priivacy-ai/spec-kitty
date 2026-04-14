@@ -68,6 +68,7 @@ class MissionMetaOptional(TypedDict, total=False):
     origin_ticket: dict[str, Any]
     source_description: str
     mission_branch: str
+    change_mode: str
 
 
 # ---------------------------------------------------------------------------
@@ -76,6 +77,7 @@ class MissionMetaOptional(TypedDict, total=False):
 
 REQUIRED_FIELDS: frozenset[str] = frozenset(MissionMetaRequired.__annotations__)
 HISTORY_CAP: int = 20
+VALID_CHANGE_MODES: frozenset[str] = frozenset({"bulk_edit"})
 _MISSION_NUMBER_PATTERN = re.compile(r"^(?P<number>\d+)-")
 
 
@@ -262,6 +264,11 @@ def validate_meta(meta: dict[str, Any]) -> list[str]:
     for field in sorted(REQUIRED_FIELDS):
         if field not in meta or not meta[field]:
             errors.append(f"Missing or empty required field: {field}")
+    if "change_mode" in meta and meta["change_mode"] not in VALID_CHANGE_MODES:
+        errors.append(
+            f"Invalid change_mode {meta['change_mode']!r}; "
+            f"valid values: {sorted(VALID_CHANGE_MODES)}"
+        )
     return errors
 
 
@@ -489,3 +496,39 @@ def set_target_branch(
 
     write_meta(feature_dir, meta)
     return meta
+
+
+def set_change_mode(
+    feature_dir: Path,
+    mode: str,
+) -> dict[str, Any]:
+    """Set ``change_mode`` field.
+
+    Validates *mode* is in :data:`VALID_CHANGE_MODES` before writing.
+
+    Raises:
+        ValueError: If *mode* is not a recognized change mode.
+        FileNotFoundError: If meta.json does not exist in *feature_dir*.
+    """
+    if mode not in VALID_CHANGE_MODES:
+        raise ValueError(
+            f"Invalid change_mode {mode!r}; valid values: {sorted(VALID_CHANGE_MODES)}"
+        )
+    meta = load_meta(feature_dir)
+    if meta is None:
+        raise FileNotFoundError(f"No meta.json in {feature_dir}")
+
+    meta["change_mode"] = mode
+    write_meta(feature_dir, meta)
+    return meta
+
+
+def get_change_mode(feature_dir: Path) -> str | None:
+    """Read ``change_mode`` from meta.json.
+
+    Returns ``None`` if meta.json is missing or the field is absent.
+    """
+    meta = load_meta(feature_dir)
+    if meta is None:
+        return None
+    return meta.get("change_mode")

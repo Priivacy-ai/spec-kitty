@@ -52,6 +52,7 @@ Skills should teach agents to load doctrine **iteratively**:
 | `spec-kitty-git-workflow` | Git operations, worktree lifecycle, safe-commit pattern |
 | `spec-kitty-glossary-context` | Terminology curation and semantic integrity |
 | `spec-kitty-orchestrator-api-operator` | External automation via orchestrator-api |
+| `spec-kitty-bulk-edit-classification` | Detect bulk-edit intent and drive occurrence-map guardrail (DIRECTIVE_035) |
 
 ## Source Location
 

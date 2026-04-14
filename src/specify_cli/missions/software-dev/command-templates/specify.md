@@ -103,6 +103,29 @@ Discovery requirements (scale to feature complexity):
 3. When you have sufficient context for the feature's scope, paraphrase into an **Intent Summary** and confirm. For trivial features, this can be very brief.
 4. If user explicitly asks to skip questions or says "just testing", acknowledge and proceed with minimal discovery.
 
+## Bulk-Edit Detection (mandatory check)
+
+Before finalizing the Intent Summary, ask yourself one question:
+
+> Does fulfilling this request require changing the **same existing string**
+> (identifier, path, key, label, or term) in more than one file?
+
+Typical shapes: "rename X to Y", "the Blue feature is now the Red feature",
+"change the terminology from X to Y", "move package A to package B", "replace
+ACME with GlobalCorp everywhere in docs and UI".
+
+**If yes or uncertain**: load the `spec-kitty-bulk-edit-classification` skill
+and follow it. You will set `change_mode: bulk_edit` in `meta.json` after
+`mission create` and produce an `occurrence_map.yaml` during plan. The user
+does not need to know these field names — the skill teaches you the workflow.
+
+**If clearly no** (a new feature with new identifiers, a bug fix that doesn't
+rename anything, a refactor inside one file): proceed normally.
+
+When in doubt, treat as bulk edit. The false-positive cost is drafting one map
+the user approves in a pass; the false-negative cost is the silent cross-file
+breakage that DIRECTIVE_035 exists to prevent.
+
 ## Mission Selection
 
 After completing discovery and confirming the Intent Summary, determine the appropriate mission type for this mission run.

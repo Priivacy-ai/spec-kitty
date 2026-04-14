@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "mission_slug": "bulk-edit-occurrence-classification-guardrail-01KP423X",
+  "mission_id": "01KP423XQXK1QNXANK93VZAR48",
+  "mission_branch": "kitty/mission-bulk-edit-occurrence-classification-guardrail-01KP423X",
+  "target_branch": "main",
+  "lanes": [
+    {
+      "lane_id": "lane-a",
+      "wp_ids": [
+        "WP01",
+        "WP02",
+        "WP03",
+        "WP04",
+        "WP05",
+        "WP06"
+      ],
+      "write_scope": [
+        "src/doctrine/directives/shipped/035-bulk-edit-occurrence-classification.directive.yaml",
+        "src/doctrine/tactics/shipped/occurrence-classification-workflow.tactic.yaml",
+        "src/specify_cli/bulk_edit/__init__.py",
+        "src/specify_cli/bulk_edit/gate.py",
+        "src/specify_cli/bulk_edit/inference.py",
+        "src/specify_cli/bulk_edit/occurrence_map.py",
+        "src/specify_cli/cli/commands/agent/workflow.py",
+        "src/specify_cli/cli/commands/implement.py",
+        "src/specify_cli/mission_metadata.py",
+        "src/specify_cli/mission_v1/guards.py",
+        "src/specify_cli/missions/software-dev/command-templates/implement.md",
+        "src/specify_cli/missions/software-dev/command-templates/review.md",
+        "src/specify_cli/missions/software-dev/expected-artifacts.yaml",
+        "tests/specify_cli/bulk_edit/__init__.py",
+        "tests/specify_cli/bulk_edit/test_gate.py",
+        "tests/specify_cli/bulk_edit/test_inference.py",
+        "tests/specify_cli/bulk_edit/test_occurrence_map.py",
+        "tests/specify_cli/cli/commands/test_implement_bulk_edit.py",
+        "tests/specify_cli/cli/commands/test_review_bulk_edit.py",
+        "tests/specify_cli/mission_v1/test_guards_bulk_edit.py",
+        "tests/specify_cli/test_mission_metadata_change_mode.py"
+      ],
+      "predicted_surfaces": [
+        "api",
+        "artifact-rendering",
+        "legacy-cleanup",
+        "tests",
+        "tracker-integration",
+        "workspace"
+      ],
+      "depends_on_lanes": [],
+      "parallel_group": 0
+    }
+  ],
+  "computed_at": "2026-04-13T18:55:41.622599+00:00",
+  "computed_from": "dependency_graph+ownership",
+  "planning_artifact_wps": [],
+  "collapse_report": {
+    "events": [
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP01",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP01"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP02"
+      },
+      {
+        "wp_a": "WP04",
+        "wp_b": "WP03",
+        "rule": "dependency",
+        "evidence": "WP04 depends on WP03"
+      },
+      {
+        "wp_a": "WP05",
+        "wp_b": "WP02",
+        "rule": "dependency",
+        "evidence": "WP05 depends on WP02"
+      },
+      {
+        "wp_a": "WP06",
+        "wp_b": "WP04",
+        "rule": "dependency",
+        "evidence": "WP06 depends on WP04"
+      }
+    ],
+    "total_merges": 5,
+    "independent_wps_collapsed": 0,
+    "by_rule": {
+      "dependency": 5
+    }
+  }
+}

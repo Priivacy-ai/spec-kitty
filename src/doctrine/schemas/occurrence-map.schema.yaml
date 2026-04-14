@@ -1,0 +1,93 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+$id: https://spec-kitty.dev/schemas/doctrine/occurrence-map.schema.yaml
+title: OccurrenceMap
+description: >-
+  Schema for `occurrence_map.yaml` — the per-mission classification artifact
+  that governs bulk-edit missions (DIRECTIVE_035). The map declares a target
+  term and assigns a per-category action to each of the 8 standard occurrence
+  categories so the runtime can enforce path-heuristic diff compliance at
+  review time.
+type: object
+additionalProperties: false
+required:
+- target
+- categories
+definitions:
+  action:
+    type: string
+    enum:
+    - rename
+    - manual_review
+    - do_not_change
+    - rename_if_user_visible
+  operation:
+    type: string
+    enum:
+    - rename
+    - remove
+    - deprecate
+  standard_category:
+    type: string
+    enum:
+    - code_symbols
+    - import_paths
+    - filesystem_paths
+    - serialized_keys
+    - cli_commands
+    - user_facing_strings
+    - tests_fixtures
+    - logs_telemetry
+  category_entry:
+    type: object
+    additionalProperties: true
+    required:
+    - action
+    properties:
+      action:
+        $ref: '#/definitions/action'
+  exception_entry:
+    type: object
+    additionalProperties: false
+    required:
+    - path
+    - action
+    properties:
+      path:
+        type: string
+        minLength: 1
+      action:
+        $ref: '#/definitions/action'
+      reason:
+        type: string
+properties:
+  target:
+    type: object
+    additionalProperties: false
+    required:
+    - term
+    properties:
+      term:
+        type: string
+        minLength: 1
+      replacement:
+        type:
+        - string
+        - 'null'
+      operation:
+        $ref: '#/definitions/operation'
+  categories:
+    type: object
+    minProperties: 1
+    additionalProperties:
+      $ref: '#/definitions/category_entry'
+  exceptions:
+    type:
+    - array
+    - 'null'
+    items:
+      $ref: '#/definitions/exception_entry'
+  status:
+    type:
+    - object
+    - 'null'
+    additionalProperties: true

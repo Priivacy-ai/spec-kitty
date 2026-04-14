@@ -1,0 +1,38 @@
+# Occurrence map template for bulk-edit missions (DIRECTIVE_035).
+#
+# Copy this file into kitty-specs/<mission>/occurrence_map.yaml and fill in
+# the target term plus a per-category action. All 8 standard categories must
+# be present — omitting one silently whitelists that risk surface and the
+# runtime gate will reject the mission.
+#
+# Valid actions:
+#   rename                  — safe to mechanically replace old → new
+#   manual_review           — each occurrence needs case-by-case judgment
+#   do_not_change           — must not be modified (breaks external consumers)
+#   rename_if_user_visible  — rename in UI/docs, preserve internal labels
+#
+# Valid operations: rename | remove | deprecate
+#
+# Schema: src/doctrine/schemas/occurrence-map.schema.yaml
+
+target:
+  term: <the exact string being changed>
+  replacement: <the new string, or omit if this is a removal>
+  operation: rename
+
+categories:
+  code_symbols:         { action: rename }                 # Classes, functions, variables, types
+  import_paths:         { action: rename }                 # `from X import Y`, module paths
+  filesystem_paths:     { action: manual_review }          # Path literals in code, config path refs
+  serialized_keys:      { action: do_not_change }          # JSON/YAML/TOML keys, API field names, i18n keys
+  cli_commands:         { action: do_not_change }          # Subcommand names, flags, npm script names
+  user_facing_strings:  { action: rename_if_user_visible } # UI labels, docs, error messages
+  tests_fixtures:       { action: rename }                 # Test assertions, snapshot files, fixture data
+  logs_telemetry:       { action: do_not_change }          # Metric names, log keys, analytics events
+
+exceptions:
+  # Optional. Path globs that override the category-level rule. Use when a
+  # blanket rule is too broad. Include a `reason:` to document intent.
+  # - path: "**/migrations/*.py"
+  #   action: do_not_change
+  #   reason: "Historical migrations must not be edited"
