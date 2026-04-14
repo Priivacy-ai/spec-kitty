@@ -1,16 +1,16 @@
 {
-  "event_count": 45,
-  "last_event_id": "01KP5G1V8TK7ANS5Q9FH0XQB7S",
-  "materialized_at": "2026-04-14T07:59:46.970491+00:00",
+  "event_count": 54,
+  "last_event_id": "01KP5G4NEXSAGHYVK412AY8SVF",
+  "materialized_at": "2026-04-14T08:01:19.325830+00:00",
   "mission_number": "",
   "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 9,
+    "approved": 0,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
-    "done": 0,
+    "done": 9,
     "for_review": 0,
     "in_progress": 0,
     "in_review": 0,
@@ -18,67 +18,67 @@
   },
   "work_packages": {
     "WP01": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5ASQDZJ6HW7AE8BT7WYQQ9",
-      "last_transition_at": "2026-04-14T06:27:58.015908+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4MRESPTV7TZ1VAEWHVMY",
+      "last_transition_at": "2026-04-14T08:01:18.606056+00:00"
     },
     "WP02": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5BK249K035CNYY41SD8T2R",
-      "last_transition_at": "2026-04-14T06:41:48.169448+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4N07QPHS67Q6N7RHFTEX",
+      "last_transition_at": "2026-04-14T08:01:18.855485+00:00"
     },
     "WP03": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5C9MAEP98H3N97VD4DYR87",
-      "last_transition_at": "2026-04-14T06:54:07.694664+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4N2CHDZCCNPT4KWYNZW1",
+      "last_transition_at": "2026-04-14T08:01:18.924499+00:00"
     },
     "WP04": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5D064ZNC490VV0MBVA23NG",
-      "last_transition_at": "2026-04-14T07:06:26.847462+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4N4NZZ1B9X14PWPZ8JPE",
+      "last_transition_at": "2026-04-14T08:01:18.997153+00:00"
     },
     "WP05": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5DZ629QGWREBS2VS4B4CG7",
-      "last_transition_at": "2026-04-14T07:23:22.569516+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4N6S8KPBTDSXH07GS15B",
+      "last_transition_at": "2026-04-14T08:01:19.065762+00:00"
     },
     "WP06": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5EXFCE0QYS96M6HX8VGQ0V",
-      "last_transition_at": "2026-04-14T07:39:55.150393+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4N8RZ31RM0RJFMAGV5T4",
+      "last_transition_at": "2026-04-14T08:01:19.128906+00:00"
     },
     "WP07": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5FHKR0KNH6TE8YY5E3WYWH",
-      "last_transition_at": "2026-04-14T07:50:54.976911+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4NASMETYV2P853JVAXPJ",
+      "last_transition_at": "2026-04-14T08:01:19.193920+00:00"
     },
     "WP08": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 2,
-      "lane": "approved",
-      "last_event_id": "01KP5A9RTS7WCN8NH1DYBJG2G3",
-      "last_transition_at": "2026-04-14T06:19:15.161548+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4NEXSAGHYVK412AY8SVF",
+      "last_transition_at": "2026-04-14T08:01:19.325830+00:00"
     },
     "WP09": {
-      "actor": "user",
+      "actor": "merge",
       "force_count": 3,
-      "lane": "approved",
-      "last_event_id": "01KP5G1V8TK7ANS5Q9FH0XQB7S",
-      "last_transition_at": "2026-04-14T07:59:46.970491+00:00"
+      "lane": "done",
+      "last_event_id": "01KP5G4NCW1MD0KB1TBJFTT66F",
+      "last_transition_at": "2026-04-14T08:01:19.260648+00:00"
     }
   }
 }
