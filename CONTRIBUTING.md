@@ -14,10 +14,14 @@ Code contributions are synced automatically by the scheduled GitHub workflow in
 `.github/workflows/all-contributors-sync.yml`, which updates `.all-contributorsrc`
 and `README.md` from repository activity without requiring PR comments.
 
+Non-code recognition remains maintainer-driven. That includes both new
+contributions and retroactive backfill for earlier docs, design, bug reports,
+feature requests, mentoring, or other project help that deserves recognition.
+
 For non-code contributions or manual corrections, maintainers can still add recognition from an issue or PR comment:
 
 ```text
-@all-contributors please add @github-username for code,doc
+@all-contributors please add @github-username for doc,design,ideas,bug
 ```
 
 Supported contribution types are listed in the [emoji key](https://allcontributors.org/en/emoji-key/).
