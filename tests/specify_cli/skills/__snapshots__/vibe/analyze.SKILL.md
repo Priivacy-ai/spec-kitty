@@ -1,16 +1,13 @@
 ---
+name: spec-kitty.analyze
 description: Cross-artifact consistency and quality analysis
+user-invocable: true
 ---
 ## User Input
 
-```text
-$ARGUMENTS
-```
+The content of the user's message that invoked this skill (everything after the skill invocation token, e.g. after `/spec-kitty.<command>` or `$spec-kitty.<command>`) is the User Input referenced elsewhere in these instructions.
 
-You **MUST** consider the user input before proceeding (if not empty).
-
-**In repos with multiple missions, always pass `--mission <handle>` to every spec-kitty command.** The `<handle>` can be the mission's `mission_id` (ULID), `mid8` (first 8 chars of the ULID), or `mission_slug`. The resolver disambiguates by `mission_id` and returns a structured `MISSION_AMBIGUOUS_SELECTOR` error on ambiguity — there is no silent fallback.
-
+You **MUST** consider this user input before proceeding (if not empty).
 ## Goal
 
 Identify inconsistencies, duplications, ambiguities, and underspecified items across the three core artifacts (`spec.md`, `plan.md`, `tasks.md`) before implementation. This command MUST run only after `/tasks` has successfully produced a complete `tasks.md`.
