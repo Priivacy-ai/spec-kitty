@@ -7,25 +7,36 @@ delete cycle using a real filesystem path under %LOCALAPPDATA%.
 
 from __future__ import annotations
 
+from datetime import UTC, datetime, timedelta
+
 import pytest
 
 from specify_cli.auth.secure_storage import WindowsFileStorage
+from specify_cli.auth.session import StoredSession, Team
 
 
 @pytest.mark.windows_ci
 def test_windows_file_store_round_trip(tmp_path):
     """Round-trip: store → load → delete using a temp directory."""
     store = WindowsFileStorage(store_path=tmp_path / "auth")
-    store.write.__func__  # verify the method exists via the base class
 
-    # Use the inherited read/write/delete interface from FileFallbackStorage.
-    from specify_cli.auth.session import StoredSession
-
+    now = datetime.now(UTC)
     session = StoredSession(
+        user_id="user-1",
+        email="user@example.com",
+        name="Spec Kitty User",
+        teams=[Team(id="team-1", name="Team One", role="owner")],
+        default_team_id="team-1",
         access_token="test-token",
         refresh_token="test-refresh",
-        token_type="Bearer",
+        session_id="session-1",
+        issued_at=now,
+        access_token_expires_at=now + timedelta(hours=1),
+        refresh_token_expires_at=None,
+        scope="openid profile email",
         storage_backend="file",
+        last_used_at=now,
+        auth_method="authorization_code",
     )
 
     store.write(session)
