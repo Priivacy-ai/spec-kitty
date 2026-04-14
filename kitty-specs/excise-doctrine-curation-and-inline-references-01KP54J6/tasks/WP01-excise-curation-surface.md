@@ -13,6 +13,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-excise-doctrine-curation-and-inline-references-01KP54J6
+base_commit: e34db6c821f8cdc59e27e6dc0a6f0739fc98b2dc
+created_at: '2026-04-14T05:42:21.868672+00:00'
 subtasks:
 - T001
 - T002
@@ -20,6 +23,7 @@ subtasks:
 - T004
 - T005
 - T006
+shell_pid: '43987'
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
