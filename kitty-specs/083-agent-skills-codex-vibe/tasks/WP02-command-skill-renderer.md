@@ -1,32 +1,37 @@
 ---
-work_package_id: "WP02"
-title: "Command-Skill Renderer"
-subtasks:
-  - T006
-  - T007
-  - T008
-  - T009
-  - T010
-  - T011
+work_package_id: WP02
+title: Command-Skill Renderer
 dependencies: []
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/skills/command_renderer.py"
-  - "src/specify_cli/skills/_user_input_block.py"
-  - "tests/specify_cli/skills/test_command_renderer.py"
-  - "tests/specify_cli/skills/__snapshots__/**"
-authoritative_surface: "src/specify_cli/skills/command_renderer.py"
-requirement_refs:
-  - FR-004
-  - FR-005
-  - NFR-004
+base_branch: main
+base_commit: 05e6c3ed6d49dda2dc83fa525d8958632daa2c09
+created_at: '2026-04-14T09:48:57.342632+00:00'
+subtasks:
+- T006
+- T007
+- T008
+- T009
+- T010
+- T011
+lane: "doing"
+shell_pid: "3994"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/skills/command_renderer.py
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/skills/command_renderer.py
+- src/specify_cli/skills/_user_input_block.py
+- tests/specify_cli/skills/test_command_renderer.py
+- tests/specify_cli/skills/__snapshots__/**
+planning_base_branch: main
+requirement_refs:
+- FR-004
+- FR-005
+- NFR-004
 ---
 
 # WP02 — Command-Skill Renderer
