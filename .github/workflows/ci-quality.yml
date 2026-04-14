@@ -335,7 +335,7 @@ jobs:
           fi
 
           echo "Detected markdown changes in docs/architecture. Running consistency checks..."
-          python -m pytest -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
+          python -m pytest -m "not windows_ci" -q tests/docs/test_architecture_docs_consistency.py tests/docs/test_versioned_docs_integrity.py
 
       - name: "[ENFORCED] Check Contextive glossary files are up-to-date"
         if: always()
@@ -574,7 +574,7 @@ jobs:
           python -m pytest \
             -v \
             tests/kernel/ \
-            -m fast \
+            -m "fast and not windows_ci" \
             --cov=src/kernel \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-kernel.xml \
@@ -635,7 +635,7 @@ jobs:
           python -m pytest \
             -v \
             tests/doctrine/ \
-            -m fast \
+            -m "fast and not windows_ci" \
             --cov=src/doctrine \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-doctrine.xml \
@@ -667,7 +667,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — sync"
         run: |
-          python -m pytest tests/sync/ -m fast -q --tb=short \
+          python -m pytest tests/sync/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-fast-sync.xml
       - name: "Upload fast-sync coverage"
@@ -693,7 +693,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — merge"
         run: |
-          python -m pytest tests/merge/ -m fast -q --tb=short \
+          python -m pytest tests/merge/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-merge.xml
       - name: "Upload fast-merge coverage"
@@ -719,7 +719,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — missions"
         run: |
-          python -m pytest tests/missions/ -m fast -q --tb=short \
+          python -m pytest tests/missions/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
             --cov=src/doctrine/missions \
@@ -747,7 +747,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — post_merge"
         run: |
-          python -m pytest tests/post_merge/ -m fast -q --tb=short \
+          python -m pytest tests/post_merge/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/post_merge \
             --cov-report=xml:out/reports/coverage/coverage-fast-post-merge.xml \
             || test $? -eq 5
@@ -775,7 +775,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — release"
         run: |
-          python -m pytest tests/release/ -m fast -q --tb=short \
+          python -m pytest tests/release/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/release \
             --cov-report=xml:out/reports/coverage/coverage-fast-release.xml \
             || test $? -eq 5
@@ -823,7 +823,7 @@ jobs:
           python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
-            -m fast \
+            -m "fast and not windows_ci" \
             --cov=src/specify_cli/status \
             --cov-report=term-missing \
             --cov-report=xml:out/reports/coverage/coverage-fast-status.xml \
@@ -858,7 +858,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — review"
         run: |
-          python -m pytest tests/review/ -m fast -q --tb=short \
+          python -m pytest tests/review/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/review \
             --cov-report=xml:out/reports/coverage/coverage-fast-review.xml
       - name: "Upload fast-review coverage"
@@ -887,7 +887,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — next"
         run: |
-          python -m pytest tests/next/ -m fast -q --tb=short \
+          python -m pytest tests/next/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/next \
             --cov-report=xml:out/reports/coverage/coverage-fast-next.xml
       - name: "Upload fast-next coverage"
@@ -917,7 +917,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — lanes"
         run: |
-          python -m pytest tests/lanes/ -m fast -q --tb=short \
+          python -m pytest tests/lanes/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-fast-lanes.xml
       - name: "Upload fast-lanes coverage"
@@ -946,7 +946,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — dashboard"
         run: |
-          python -m pytest tests/test_dashboard/ -m fast -q --tb=short \
+          python -m pytest tests/test_dashboard/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/dashboard \
             --cov-report=xml:out/reports/coverage/coverage-fast-dashboard.xml \
             || test $? -eq 5
@@ -977,7 +977,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — upgrade"
         run: |
-          python -m pytest tests/upgrade/ -m fast -q --tb=short \
+          python -m pytest tests/upgrade/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/upgrade \
             --cov-report=xml:out/reports/coverage/coverage-fast-upgrade.xml
       - name: "Upload fast-upgrade coverage"
@@ -1008,7 +1008,7 @@ jobs:
       - run: mkdir -p out/reports/coverage
       - name: "Run fast tests — cli"
         run: |
-          python -m pytest tests/cli/ -m fast -q --tb=short \
+          python -m pytest tests/cli/ -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-cli.xml \
             || test $? -eq 5
@@ -1062,7 +1062,7 @@ jobs:
             --ignore=tests/runtime \
             --ignore=tests/charter \
             --ignore=tests/agent \
-            -m fast -q --tb=short \
+            -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli \
             --cov-report=xml:out/reports/coverage/coverage-fast-core-misc.xml
       - name: "Upload fast-core-misc coverage"
@@ -1096,7 +1096,7 @@ jobs:
       - name: "Run fast tests — charter"
         run: |
           python -m pytest tests/charter \
-            -m fast -q --tb=short \
+            -m "fast and not windows_ci" -q --tb=short \
             --cov=src/charter \
             --cov-fail-under=55 \
             --cov-report=xml:out/reports/coverage/coverage-fast-charter.xml
@@ -1130,7 +1130,7 @@ jobs:
       - name: "Run fast tests — agent"
         run: |
           python -m pytest tests/agent \
-            -m fast -q --tb=short \
+            -m "fast and not windows_ci" -q --tb=short \
             --cov=src/specify_cli/agent_utils \
             --cov-fail-under=10 \
             --cov-report=xml:out/reports/coverage/coverage-fast-agent.xml
@@ -1164,7 +1164,7 @@ jobs:
       - name: "Run integration tests — agent"
         run: |
           python -m pytest tests/agent \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/agent_utils \
             --cov-report=xml:out/reports/coverage/coverage-integration-agent.xml
@@ -1208,7 +1208,7 @@ jobs:
           python -m pytest \
             -v \
             tests/doctrine/ \
-            -m integration \
+            -m "integration and not windows_ci" \
             --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-integration-doctrine.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-doctrine-${{ github.run_id }}.xml
@@ -1240,7 +1240,7 @@ jobs:
       - name: "Run integration tests — sync"
         run: |
           python -m pytest tests/sync/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/sync \
             --cov-report=xml:out/reports/coverage/coverage-integration-sync.xml
@@ -1271,7 +1271,7 @@ jobs:
       - name: "Run integration tests — merge"
         run: |
           python -m pytest tests/merge/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/merge \
             --cov-report=xml:out/reports/coverage/coverage-integration-merge.xml
@@ -1302,7 +1302,7 @@ jobs:
       - name: "Run integration tests — missions"
         run: |
           python -m pytest tests/missions/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/mission \
             --cov=src/specify_cli/mission_metadata \
@@ -1335,7 +1335,7 @@ jobs:
       - name: "Run integration tests — post_merge"
         run: |
           python -m pytest tests/post_merge/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/post_merge \
             --cov-report=xml:out/reports/coverage/coverage-integration-post-merge.xml \
@@ -1367,7 +1367,7 @@ jobs:
       - name: "Run integration tests — release"
         run: |
           python -m pytest tests/release/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/release \
             --cov-report=xml:out/reports/coverage/coverage-integration-release.xml
@@ -1411,7 +1411,7 @@ jobs:
           python -m pytest \
             -v \
             tests/status/ tests/specify_cli/status/ \
-            -m "git_repo or integration" \
+            -m "not windows_ci and (git_repo or integration)" \
             --cov=src/specify_cli/status \
             --cov-report=xml:out/reports/coverage/coverage-integration-status.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-integration-status-${{ github.run_id }}.xml
@@ -1443,7 +1443,7 @@ jobs:
       - name: "Run integration tests — review"
         run: |
           python -m pytest tests/review/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/review \
             --cov-report=xml:out/reports/coverage/coverage-integration-review.xml
@@ -1474,7 +1474,7 @@ jobs:
       - name: "Run integration tests — next"
         run: |
           python -m pytest tests/next/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/next \
             --cov-report=xml:out/reports/coverage/coverage-integration-next.xml
@@ -1505,7 +1505,7 @@ jobs:
       - name: "Run integration tests — lanes"
         run: |
           python -m pytest tests/lanes/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/lanes \
             --cov-report=xml:out/reports/coverage/coverage-integration-lanes.xml
@@ -1536,7 +1536,7 @@ jobs:
       - name: "Run integration tests — dashboard"
         run: |
           python -m pytest tests/test_dashboard/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/dashboard \
             --cov-report=xml:out/reports/coverage/coverage-integration-dashboard.xml \
@@ -1568,7 +1568,7 @@ jobs:
       - name: "Run integration tests — upgrade"
         run: |
           python -m pytest tests/upgrade/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/upgrade \
             --cov-report=xml:out/reports/coverage/coverage-integration-upgrade.xml
@@ -1599,7 +1599,7 @@ jobs:
       - name: "Run integration tests — cli"
         run: |
           python -m pytest tests/cli/ \
-            -m 'git_repo or integration' \
+            -m 'not windows_ci and (git_repo or integration)' \
             -q --tb=short \
             --cov=src/specify_cli/cli \
             --cov-report=xml:out/reports/coverage/coverage-integration-cli.xml
@@ -1660,7 +1660,7 @@ jobs:
         run: |
           python -m pytest \
             -v \
-            -m slow \
+            -m "slow and not windows_ci" \
             --ignore=tests/e2e \
             --ignore=tests/cross_cutting \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
@@ -1727,7 +1727,7 @@ jobs:
           python -m pytest \
             -v \
             tests/e2e/ tests/cross_cutting/ \
-            -m "not distribution" \
+            -m "not distribution and not windows_ci" \
             --cov=src/specify_cli --cov=src/charter --cov=src/doctrine \
             --cov-report=xml:out/reports/coverage/coverage-e2e.xml \
             --junitxml=out/reports/xunit-reports/xunit-result-e2e-${{ github.run_id }}.xml

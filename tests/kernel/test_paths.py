@@ -51,10 +51,14 @@ class TestGetKittifyHomeUnix:
 
 
 class TestGetKittifyHomeWindows:
-    """Windows default path resolution via platformdirs."""
+    """Windows default path resolution via platformdirs (app name: spec-kitty)."""
 
     def test_windows_default_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        """On Windows, default uses platformdirs user_data_dir."""
+        """On Windows, default uses platformdirs user_data_dir('spec-kitty').
+
+        The app name 'spec-kitty' (not 'kittify') ensures kernel.paths resolves
+        to the same root as specify_cli.paths.get_runtime_root().base (FR-005 / C-002).
+        """
         import platformdirs
 
         monkeypatch.delenv("SPEC_KITTY_HOME", raising=False)
@@ -62,10 +66,10 @@ class TestGetKittifyHomeWindows:
         monkeypatch.setattr(
             platformdirs,
             "user_data_dir",
-            lambda *_a, **_kw: r"C:\Users\test\AppData\Local\kittify",
+            lambda *_a, **_kw: r"C:\Users\test\AppData\Local\spec-kitty",
         )
         result = get_kittify_home()
-        assert result == Path(r"C:\Users\test\AppData\Local\kittify")
+        assert result == Path(r"C:\Users\test\AppData\Local\spec-kitty")
 
 
 # ---------------------------------------------------------------------------
