@@ -1,18 +1,18 @@
 {
-  "event_count": 21,
-  "last_event_id": "01KP5FPGP8J9KVG6X10KF7GJYX",
-  "materialized_at": "2026-04-14T07:53:35.688173+00:00",
+  "event_count": 22,
+  "last_event_id": "01KP5HAG85YZDQ0X0V034J74FV",
+  "materialized_at": "2026-04-14T08:21:59.173083+00:00",
   "mission_number": "",
   "mission_slug": "excise-doctrine-curation-and-inline-references-01KP54J6",
   "mission_type": "software-dev",
   "summary": {
-    "approved": 2,
+    "approved": 3,
     "blocked": 0,
     "canceled": 0,
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 1,
+    "in_progress": 0,
     "in_review": 0,
     "planned": 0
   },
@@ -32,11 +32,11 @@
       "last_transition_at": "2026-04-14T07:03:25.737263+00:00"
     },
     "WP03": {
-      "actor": "opencode:gpt-5:python-reviewer:reviewer",
-      "force_count": 2,
-      "lane": "in_progress",
-      "last_event_id": "01KP5FPGP8J9KVG6X10KF7GJYX",
-      "last_transition_at": "2026-04-14T07:53:35.688173+00:00"
+      "actor": "user",
+      "force_count": 3,
+      "lane": "approved",
+      "last_event_id": "01KP5HAG85YZDQ0X0V034J74FV",
+      "last_transition_at": "2026-04-14T08:21:59.173083+00:00"
     }
   }
 }
