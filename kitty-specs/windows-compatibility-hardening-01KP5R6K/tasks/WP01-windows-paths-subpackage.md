@@ -18,7 +18,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: '29321'
+shell_pid: "29321"
+agent: "claude:opus-4.6:implementer:implementer"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -316,3 +317,7 @@ Do NOT ask about:
 - Migration behavior (that's WP02).
 - Auth storage (that's WP03).
 - CLI messaging changes (that's WP04).
+
+## Activity Log
+
+- 2026-04-14T10:58:38Z – claude:opus-4.6:implementer:implementer – shell_pid=29321 – Assigned agent via action command
