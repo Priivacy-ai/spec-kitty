@@ -53,12 +53,12 @@ Total: 35 subtasks across 9 WPs.
 | T020 | Merge preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  | [D] |
 | T021 | Implement preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T023 | Integration tests for merge + implement preflights, override, refresh, invariant | WP05 | [P] |
-| T024 | Session-warning call sites inside `agent/tasks.py` commands | WP06 |  |
+| T024 | Session-warning call sites inside `agent/tasks.py` commands | WP06 |  | [D] |
 | T025 | Once-per-process integration test (NFR-005) | WP07 | [P] |
-| T026 | Add `.spec-kitty/` + `.kittify/` deny-list filter to `_validate_ready_for_review` | WP06 |  |
-| T027 | Parameterize retry guidance on actual `target_lane` | WP06 |  |
-| T028 | Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory | WP06 |  |
-| T029 | Invoke `ReviewLock.release()` at approve and reject transition exits | WP06 |  |
+| T026 | Add `.spec-kitty/` + `.kittify/` deny-list filter to `_validate_ready_for_review` | WP06 |  | [D] |
+| T027 | Parameterize retry guidance on actual `target_lane` | WP06 |  | [D] |
+| T028 | Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory | WP06 |  | [D] |
+| T029 | Invoke `ReviewLock.release()` at approve and reject transition exits | WP06 |  | [D] |
 | T030 | Write `.spec-kitty/` to per-worktree `info/exclude` at lane worktree creation | WP07 |  |
 | T031 | Integration tests: approve/reject without `--force`, filter rules, release cleanup | WP06 | [P] |
 | T032 | Investigate FR-020 approve-output source-lane anomaly | WP08 |  | [D] |
@@ -194,11 +194,11 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP06-review-lock-and-task-session-warning.md](tasks/WP06-review-lock-and-task-session-warning.md)
 
 **Included subtasks**:
-- [ ] T024 Session-warning call sites inside `agent/tasks.py` commands (WP06)
-- [ ] T026 Add `.spec-kitty/` + `.kittify/` deny-list filter to `_validate_ready_for_review` (WP06)
-- [ ] T027 Parameterize retry guidance on actual `target_lane` (WP06)
-- [ ] T028 Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory (WP06)
-- [ ] T029 Invoke `ReviewLock.release()` at approve and reject transition exits (WP06)
+- [x] T024 Session-warning call sites inside `agent/tasks.py` commands (WP06)
+- [x] T026 Add `.spec-kitty/` + `.kittify/` deny-list filter to `_validate_ready_for_review` (WP06)
+- [x] T027 Parameterize retry guidance on actual `target_lane` (WP06)
+- [x] T028 Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory (WP06)
+- [x] T029 Invoke `ReviewLock.release()` at approve and reject transition exits (WP06)
 - [ ] T031 Integration tests: approve/reject without `--force`, filter rules, release cleanup (WP06) [P]
 
 **Dependencies**: WP02 (uses `warn_if_sparse_once()`).
