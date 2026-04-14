@@ -8,6 +8,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-legacy-sparse-and-review-lock-hardening-01KP54ZW
+base_commit: b8d27a7b0990cc0451446b2c1f21ce6ffb322913
+created_at: '2026-04-14T05:47:57.288577+00:00'
 subtasks:
 - T001
 - T002
@@ -15,6 +18,7 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 — Data-loss foundation
+shell_pid: '52930'
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
