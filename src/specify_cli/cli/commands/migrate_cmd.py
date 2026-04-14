@@ -74,14 +74,16 @@ def migrate(  # noqa: C901
 
     # Windows-only: run legacy state migration BEFORE any tracker/sync/daemon reads.
     # This ensures post-upgrade invocations pick up state from the correct root.
+    # --dry-run is plumbed through: in preview mode the function computes outcomes
+    # without performing any filesystem moves (FR-006, contracts/cli-migrate.md).
     if sys.platform == "win32":
         from specify_cli.paths.windows_migrate import migrate_windows_state  # noqa: PLC0415
         try:
-            outcomes = migrate_windows_state()
+            outcomes = migrate_windows_state(dry_run=dry_run)
         except TimeoutError as exc:
             console.print(f"[red]{exc}[/red]")
             raise typer.Exit(69)
-        _render_windows_migration_summary(console, outcomes)
+        _render_windows_migration_summary(console, outcomes, dry_run=dry_run)
 
     project_dir = locate_project_root()
     if project_dir is None:
@@ -304,12 +306,17 @@ def _error(message: str) -> None:
 def _render_windows_migration_summary(
     con: Console,
     outcomes: list[MigrationOutcome],
+    *,
+    dry_run: bool = False,
 ) -> None:
     """Render the Windows runtime state migration summary per contracts/cli-migrate.md.
 
     Uses ``render_runtime_path`` for every path shown to the user.
     Exits with code 78 if ``%LOCALAPPDATA%`` is unresolvable.
     (Lock-contention exit-69 is handled at the call site before this function.)
+
+    When ``dry_run`` is True, the header labels each reported move as a preview
+    so users understand that no filesystem changes have occurred.
     """
     if not outcomes:
         return
@@ -339,22 +346,34 @@ def _render_windows_migration_summary(
             canonical_dest = render_runtime_path(Path(o.dest_path))
             break
 
-    con.print("\nMigrated Spec Kitty runtime state on Windows.")
+    header = (
+        "\n[DRY-RUN] Would migrate Spec Kitty runtime state on Windows."
+        if dry_run
+        else "\nMigrated Spec Kitty runtime state on Windows."
+    )
+    con.print(header)
     if canonical_dest:
         con.print(f"  Canonical location: {canonical_dest}")
 
+    move_verb = "Would move" if dry_run else "Moved"
     for o in moved:
         legacy_display = render_runtime_path(Path(o.legacy_path))
         dest_display = render_runtime_path(Path(o.dest_path)) if o.dest_path else canonical_dest or ""
-        con.print(f"  Moved: {legacy_display} -> {dest_display}")
+        con.print(f"  {move_verb}: {legacy_display} -> {dest_display}")
 
     if quarantined:
-        con.print("  Destination already contained state; legacy trees preserved as backups:")
+        quarantine_header = (
+            "  Destination already contains state; legacy trees would be preserved as backups:"
+            if dry_run
+            else "  Destination already contained state; legacy trees preserved as backups:"
+        )
+        con.print(quarantine_header)
         for o in quarantined:
             legacy_display = render_runtime_path(Path(o.legacy_path))
             bak_display = render_runtime_path(Path(o.quarantine_path)) if o.quarantine_path else "?"
             con.print(f"    {legacy_display} -> {bak_display}")
-        con.print("  Review the canonical location and delete the backup directories when safe.")
+        if not dry_run:
+            con.print("  Review the canonical location and delete the backup directories when safe.")
 
     for o in errors:
         legacy_display = render_runtime_path(Path(o.legacy_path))

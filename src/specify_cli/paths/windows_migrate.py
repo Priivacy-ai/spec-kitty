@@ -133,6 +133,12 @@ def _known_legacy_roots(root_base: Path, auth_dir: Path) -> list[LegacyWindowsRo
     before calling migrate_windows_state().
     """
     home = Path.home()
+    # On Windows, runtime/home.py historically used platformdirs.user_data_dir("kittify"),
+    # which resolves to %LOCALAPPDATA%\kittify\ — the real legacy root that upgraded
+    # Windows users have on disk.  Include it as a migration source so upgrade moves
+    # that tree to the unified %LOCALAPPDATA%\spec-kitty\ root per Q3=C.
+    from platformdirs import user_data_dir  # noqa: PLC0415
+    kittify_localappdata = Path(user_data_dir("kittify"))
     return [
         LegacyWindowsRoot(
             id="spec_kitty_home",
@@ -140,9 +146,14 @@ def _known_legacy_roots(root_base: Path, auth_dir: Path) -> list[LegacyWindowsRo
             dest=root_base,
         ),
         LegacyWindowsRoot(
+            id="kittify_localappdata",
+            path=kittify_localappdata,
+            dest=root_base,
+        ),
+        LegacyWindowsRoot(
             id="kittify_home",
             path=home / ".kittify",
-            dest=None,  # messaging-only; no state to move
+            dest=root_base,
         ),
         LegacyWindowsRoot(
             id="auth_xdg_home",
@@ -234,7 +245,26 @@ def _migrate_one(
             timestamp_utc=ts,
         )
 
-    # Messaging-only root (kittify_home): exists but no state to move
+    # Self-migration guard: if legacy path is (or resolves to) the destination,
+    # there is nothing to move.  Can happen when platformdirs returns the same
+    # path for both app names (unlikely in production; defensive for tests that
+    # mock user_data_dir to a single tmp_path).
+    if root.dest is not None:
+        try:
+            if root.path.resolve() == root.dest.resolve():
+                return MigrationOutcome(
+                    legacy_id=root.id,
+                    status="absent",
+                    legacy_path=legacy_path_str,
+                    dest_path=str(root.dest),
+                    quarantine_path=None,
+                    timestamp_utc=ts,
+                )
+        except OSError:
+            pass  # resolve() can fail on weird paths; fall through to normal migration
+
+    # Messaging-only root: exists but no state to move (retained as a safety
+    # hatch; no entry currently uses dest=None after the DRIFT-3 fix)
     if root.dest is None:
         return MigrationOutcome(
             legacy_id=root.id,
@@ -387,25 +417,14 @@ def migrate_windows_state(dry_run: bool = False) -> list[MigrationOutcome]:
     ts = _utc_timestamp()
     outcomes: list[MigrationOutcome] = []
 
-    try:
-        with _migration_lock(root.base):
-            for legacy in legacy_roots:
-                outcome = _migrate_one(legacy, ts, dry_run=dry_run)
-                outcomes.append(outcome)
-    except TimeoutError as exc:
-        # Lock contention: emit error outcomes for all three roots
-        error_msg = str(exc)
+    # TimeoutError from _migration_lock is intentionally NOT caught here; it
+    # propagates to the CLI caller so `spec-kitty migrate` can exit with code
+    # 69 (EX_UNAVAILABLE) under lock contention, per FR-007/FR-008 and
+    # contracts/cli-migrate.md.  Per-root OSError / EXDEV etc. are still
+    # captured as status="error" outcomes inside _migrate_one().
+    with _migration_lock(root.base):
         for legacy in legacy_roots:
-            outcomes.append(
-                MigrationOutcome(
-                    legacy_id=legacy.id,
-                    status="error",
-                    legacy_path=str(legacy.path),
-                    dest_path=str(legacy.dest) if legacy.dest is not None else None,
-                    quarantine_path=None,
-                    timestamp_utc=ts,
-                    error=error_msg,
-                )
-            )
+            outcome = _migrate_one(legacy, ts, dry_run=dry_run)
+            outcomes.append(outcome)
 
     return outcomes

@@ -33,6 +33,27 @@ jobs:
           pipx install --editable . --force
           pipx inject spec-kitty-cli pytest pytest-cov
 
+      - name: Resolve pipx venv Python
+        id: pipx-venv
+        shell: bash
+        run: |
+          # Locate the Python interpreter inside the pipx-managed venv for
+          # spec-kitty-cli so the test suite runs against the actual install
+          # topology users have, not the setup-python host interpreter.
+          PIPX_VENVS=$(pipx environment --value PIPX_LOCAL_VENVS)
+          VENV_PYTHON="$PIPX_VENVS/spec-kitty-cli/Scripts/python.exe"
+          if [ ! -x "$VENV_PYTHON" ]; then
+            # Fall back to POSIX layout in case pipx uses bin/ on this runner
+            VENV_PYTHON="$PIPX_VENVS/spec-kitty-cli/bin/python"
+          fi
+          if [ ! -x "$VENV_PYTHON" ]; then
+            echo "::error::Could not locate pipx venv Python under $PIPX_VENVS/spec-kitty-cli/{Scripts,bin}/"
+            ls -R "$PIPX_VENVS/spec-kitty-cli" || true
+            exit 1
+          fi
+          echo "Using pipx venv Python: $VENV_PYTHON"
+          echo "venv_python=$VENV_PYTHON" >> "$GITHUB_OUTPUT"
+
       - name: Assert keyring is NOT installed on Windows
         shell: bash
         run: |
@@ -42,7 +63,13 @@ jobs:
           fi
           echo "keyring absent (expected)"
 
-      - name: Run Windows-critical suite
+      - name: Run Windows-critical suite (via pipx venv interpreter)
         shell: bash
+        env:
+          VENV_PYTHON: ${{ steps.pipx-venv.outputs.venv_python }}
         run: |
-          python -m pytest -m windows_ci --maxfail=1 -v
+          # Invoke pytest from the pipx-installed venv so this step exercises
+          # the real install topology users have (editable install via pipx +
+          # injected pytest). Running `python -m pytest` from the host
+          # setup-python interpreter would bypass the pipx venv entirely.
+          "$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v
