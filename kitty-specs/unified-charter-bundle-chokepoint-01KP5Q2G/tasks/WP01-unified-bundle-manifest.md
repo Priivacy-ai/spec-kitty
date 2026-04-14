@@ -543,7 +543,7 @@ Establish the v1.0.0 typed bundle manifest as the authoritative declaration of w
 - [ ] No edits to `src/specify_cli/core/worktree.py:478-532` (C-011).
 - [ ] No edits to `src/charter/compiler.py` or `src/charter/context.py:385-398` (C-012).
 - [ ] No edits to existing reader sites (reserved for WP03).
-- [ ] WP02 dependency (replacing the TODO wrapper) is documented but NOT acted on.
+- [ ] The temporary resolver wrapper remains in place with its TODO marker; no attempt is made to use the real canonical-root resolver (that is a downstream WP concern).
 
 ## Risks
 
