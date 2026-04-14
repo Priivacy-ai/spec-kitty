@@ -46,9 +46,9 @@ Total: 35 subtasks across 9 WPs.
 | T013 | Remediation types: per-path result + aggregate report | WP03 |  | [D] |
 | T014 | 5-step per-path remediation composed across primary + worktrees | WP03 |  | [D] |
 | T015 | Unit tests for remediation outcomes | WP03 | [D] |
-| T016 | Doctor finding surfacing sparse-checkout scan | WP04 |  |
-| T017 | `doctor --fix sparse-checkout` action with CI/non-TTY handling | WP04 |  |
-| T018 | Integration tests for doctor finding and remediation flow | WP04 | [P] |
+| T016 | Doctor finding surfacing sparse-checkout scan | WP04 |  | [D] |
+| T017 | `doctor --fix sparse-checkout` action with CI/non-TTY handling | WP04 |  | [D] |
+| T018 | Integration tests for doctor finding and remediation flow | WP04 | [D] |
 | T019 | `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API | WP02 |  | [D] |
 | T020 | Merge preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T021 | Implement preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
@@ -149,9 +149,9 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP04-doctor-finding-and-fix-action.md](tasks/WP04-doctor-finding-and-fix-action.md)
 
 **Included subtasks**:
-- [ ] T016 Doctor finding surfacing sparse-checkout scan (WP04)
-- [ ] T017 `doctor --fix sparse-checkout` action with CI/non-TTY handling (WP04)
-- [ ] T018 Integration tests for doctor finding and remediation flow (WP04) [P]
+- [x] T016 Doctor finding surfacing sparse-checkout scan (WP04)
+- [x] T017 `doctor --fix sparse-checkout` action with CI/non-TTY handling (WP04)
+- [x] T018 Integration tests for doctor finding and remediation flow (WP04) [P]
 
 **Dependencies**: WP02, WP03.
 **Parallel opportunities**: T018 after T017 complete.
