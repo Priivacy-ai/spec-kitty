@@ -1,7 +1,7 @@
 ---
 work_package_id: WP07
 title: Regression Snapshots and Documentation
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP01
 - WP02
@@ -18,8 +18,10 @@ subtasks:
 - T035
 - T036
 - T037
+agent: "opus"
 shell_pid: '22219'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -187,3 +189,4 @@ spec-kitty agent action implement WP07 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:54:07Z – claude – shell_pid=22219 – lane=for_review – Regression baseline + docs; 171/171 tests
+- 2026-04-14T10:55:39Z – opus – shell_pid=22219 – lane=done – Review passed: 132-case regression baseline locks in post-mission behavior; docs updated for Vibe + Codex Agent Skills; 171/171 tests
