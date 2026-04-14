@@ -39,7 +39,7 @@ import re
 # Section splitter
 # ---------------------------------------------------------------------------
 
-_WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>.+)$")
+_WP_SECTION_HEADER = re.compile(r"(?m)^(?:##|###)\s+(?P<title>[^\n]+)$")
 _WP_ID_TITLE = re.compile(r"^(?:Work Package\s+)?(?P<wp_id>WP\d{2})(?:\b|:)")
 _WORK_PACKAGE_PREFIX = "Work Package "
 
@@ -70,7 +70,6 @@ def _match_wp_section_id(title: str) -> str | None:
     if remainder and not (remainder[0].isspace() or remainder[0] in "—:-"):
         return None
     return f"WP{int(suffix[:digit_count]):02d}"
-    return None
 
 
 def _split_wp_sections(tasks_content: str) -> dict[str, str]:

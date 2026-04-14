@@ -6,8 +6,6 @@ WP01 acceptance criteria.
 
 from __future__ import annotations
 
-import pytest
-
 import specify_cli.core.dependency_parser as dependency_parser
 from specify_cli.core.dependency_parser import parse_dependencies_from_tasks_md
 
@@ -238,6 +236,20 @@ class TestSectionHeaderVariants:
 
     def test_numeric_heading_without_suffix_normalizes(self) -> None:
         assert dependency_parser._match_wp_section_id("Work Package 7") == "WP07"
+
+    def test_three_digit_numeric_heading_is_rejected(self) -> None:
+        assert dependency_parser._match_wp_section_id("Work Package 123") is None
+
+    def test_malformed_numeric_heading_does_not_create_section(self) -> None:
+        content = (
+            "## Work Package 123\n\n"
+            "Depends on WP01.\n\n"
+            "## WP02\n\n"
+            "Depends on WP01.\n"
+        )
+        result = parse_dependencies_from_tasks_md(content)
+        assert "WP123" not in result
+        assert result["WP02"] == ["WP01"]
 
 
 # ---------------------------------------------------------------------------
