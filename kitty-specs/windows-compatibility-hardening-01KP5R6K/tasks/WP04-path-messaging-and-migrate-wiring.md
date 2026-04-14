@@ -30,6 +30,8 @@ execution_mode: code_change
 owned_files:
 - src/specify_cli/cli/commands/migrate_cmd.py
 - src/specify_cli/cli/commands/agent/status.py
+- src/specify_cli/cli/commands/doctor.py
+- src/specify_cli/cli/commands/init.py
 - tests/cli/test_migrate_cmd_messaging.py
 - tests/cli/test_agent_status_messaging.py
 - tests/audit/__init__.py
