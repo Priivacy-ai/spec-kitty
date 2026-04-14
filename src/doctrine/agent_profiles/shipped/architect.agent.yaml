@@ -19,10 +19,8 @@ context-sources:
   directives:
     - "001"
     - "003"
-    - "007"
     - "031"
     - "032"
-    - "033"
   additional:
     - architecture-decision-records
     - design-pattern-catalog
@@ -122,15 +120,9 @@ directive-references:
   - code: "003"
     name: Decision Documentation Requirement
     rationale: All architectural decisions must be documented with context, options, and rationale
-  - code: "007"
-    name: Trade-off Assessment Protocol
-    rationale: Every architectural decision must identify relevant quality attributes and document accepted trade-offs before the design is finalised
   - code: "031"
     name: Context-Aware Design
     rationale: Design decisions must respect bounded context boundaries; cross-context interactions require explicit translation layers
   - code: "032"
     name: Conceptual Alignment
     rationale: Domain terminology in any design task must be confirmed with the requester before proceeding to avoid misaligned implementations
-  - code: "033"
-    name: Prestudy Requirement
-    rationale: Significant architectural decisions must be preceded by a System Context Canvas and Lightweight Prestudy before solution design begins

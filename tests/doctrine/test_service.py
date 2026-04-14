@@ -128,37 +128,10 @@ def test_service_honors_custom_shipped_and_project_roots(tmp_path: Path) -> None
     assert directive.enforcement.value == "advisory"
 
 
-def test_service_resolves_directive_tactic_refs_across_repositories(
-    tmp_path: Path,
-) -> None:
-    shipped_root = tmp_path / "shipped-root"
-
-    _write_yaml(
-        shipped_root / "directives" / "shipped" / "001-test.directive.yaml",
-        {
-            "schema_version": "1.0",
-            "id": "DIRECTIVE_TEST",
-            "title": "Test Directive",
-            "intent": "Test intent.",
-            "enforcement": "required",
-            "tactic_refs": ["test-tactic"],
-        },
-    )
-    _write_yaml(
-        shipped_root / "tactics" / "shipped" / "test-tactic.tactic.yaml",
-        {
-            "schema_version": "1.0",
-            "id": "test-tactic",
-            "name": "Test Tactic",
-            "steps": [{"title": "Step 1"}],
-        },
-    )
-
-    service = DoctrineService(shipped_root=shipped_root)
-    directive = service.directives.get("DIRECTIVE_TEST")
-    assert directive is not None
-    assert directive.tactic_refs
-
-    for ref in directive.tactic_refs:
-        assert service.tactics.get(ref) is not None
+# NOTE: `test_service_resolves_directive_tactic_refs_across_repositories`
+# has been removed as part of WP02 of the
+# ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission.
+# The Directive model no longer carries inline ``tactic_refs``; cross-artifact
+# relationships are expressed exclusively via edges in
+# ``src/doctrine/graph.yaml`` and are validated by the DRG cycle/shape tests.
 

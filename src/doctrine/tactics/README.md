@@ -22,9 +22,11 @@ Files use the pattern `kebab-id.tactic.yaml` (e.g., `zombies-tdd.tactic.yaml`).
 | `zombies-tdd` | 7 | Z/O/M/B/I/E/S progressive test complexity |
 | `glossary-curation-interview` | 11 | Systematic glossary expansion with HiC curation rounds |
 
-Tactics are referenced by directives via the `tactic_refs` field (e.g., the
-`test-first` directive references `acceptance-test-first`, `tdd-red-green-refactor`,
-and `zombies-tdd`).
+Tactics are referenced by directives and procedures via typed edges in
+`src/doctrine/graph.yaml` (relation `requires`). Inline `tactic_refs` fields
+were removed in Phase 1 excision (mission
+`excise-doctrine-curation-and-inline-references-01KP54J6` WP02); the graph is
+now the sole authority for cross-artifact relationships.
 
 ## Glossary Reference
 

@@ -26,7 +26,9 @@ def enriched_directive_data() -> dict:
         "title": "Enriched Test Directive",
         "intent": "A fully enriched directive for testing all fields.",
         "enforcement": "advisory",
-        "tactic_refs": ["zombies-tdd", "tdd-red-green-refactor"],
+        # Post-WP02: inline `tactic_refs` has been excised; cross-artifact
+        # relationships live in src/doctrine/graph.yaml and `extra="forbid"`
+        # now rejects the field on the Directive model.
         "scope": "Applies to all test scenarios.",
         "procedures": [
             "Write acceptance test first",

@@ -1,6 +1,53 @@
 """Shared exceptions for the doctrine package."""
 
 
+class InlineReferenceRejectedError(ValueError):
+    """Raised when a doctrine artifact YAML carries a forbidden inline reference field.
+
+    The legacy governance model allowed artifacts to carry inline reference
+    arrays such as ``tactic_refs``, ``paradigm_refs``, or ``applies_to``.
+    Post-WP02 of the ``excise-doctrine-curation-and-inline-references-01KP54J6``
+    mission (EPIC #461, Phase 1), the only legal reference channel is the
+    DRG edge set in ``src/doctrine/graph.yaml``. Per-kind validators reject
+    any remaining inline reference with this error.
+
+    See ``contracts/validator-rejection-error.schema.json`` for the
+    structured shape.
+
+    Attributes:
+        file_path: Absolute path of the offending YAML file (string form).
+        forbidden_field: One of ``"tactic_refs"``, ``"paradigm_refs"``,
+            ``"applies_to"``.
+        artifact_kind: One of ``"directive"``, ``"tactic"``, ``"procedure"``,
+            ``"paradigm"``, ``"styleguide"``, ``"toolguide"``, ``"agent_profile"``.
+        migration_hint: Operator-facing text matching the schema pattern
+            ``"Remove <field> from YAML; add edge {source: <kind>:<id>,
+            target: <target-kind>:<target-id>, relation: requires} to
+            src/doctrine/graph.yaml"``. Uses the actual ``DRGEdge`` schema
+            (``source``/``target``/``relation``) and the ``requires`` relation
+            (the ``Relation`` enum does not include ``uses``).
+    """
+
+    def __init__(
+        self,
+        *,
+        file_path: str,
+        forbidden_field: str,
+        artifact_kind: str,
+        migration_hint: str,
+    ) -> None:
+        self.file_path = file_path
+        self.forbidden_field = forbidden_field
+        self.artifact_kind = artifact_kind
+        self.migration_hint = migration_hint
+        super().__init__(
+            f"Inline reference rejected in {file_path}:\n"
+            f"  artifact_kind: {artifact_kind}\n"
+            f"  forbidden_field: {forbidden_field}\n"
+            f"  migration: {migration_hint}"
+        )
+
+
 class DoctrineArtifactLoadError(Exception):
     """Raised when a doctrine artifact file cannot be loaded or parsed.
 

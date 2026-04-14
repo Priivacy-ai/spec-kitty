@@ -70,10 +70,6 @@ definitions:
         - agent
         - system
         default: agent
-      tactic_refs:
-        type: array
-        items:
-          type: string
       on_success:
         type: string
       on_failure:

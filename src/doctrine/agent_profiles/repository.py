@@ -22,6 +22,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .profile import AgentProfile, Role, TaskContext
+from .validation import reject_agent_profile_inline_refs
 
 
 def _filter_candidates_by_role(candidates: list[AgentProfile], required_role: str | None) -> list[AgentProfile]:
@@ -215,6 +216,9 @@ class AgentProfileRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_agent_profile_inline_refs(
+                        data, file_path=str(yaml_file)
+                    )
                     profile = AgentProfile.model_validate(data)
                     shipped_profiles[profile.profile_id] = profile
                 except (YAMLError, ValidationError, OSError) as e:
@@ -234,6 +238,9 @@ class AgentProfileRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_agent_profile_inline_refs(
+                        data, file_path=str(yaml_file)
+                    )
 
                     profile_id = data.get("profile-id") or data.get("profile_id")
                     if not profile_id:

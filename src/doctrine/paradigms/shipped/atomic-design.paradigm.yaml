@@ -6,8 +6,3 @@ summary: >
   templates, pages) where each level owns its appropriate concern. State
   ownership, reactive stream scope, and centralized store usage are bounded
   by the same compositional levels that govern visual structure.
-tactic_refs:
-  - atomic-state-ownership
-  - compositional-stream-boundaries
-  - cross-cutting-state-via-store
-  - atomic-design-review-checklist

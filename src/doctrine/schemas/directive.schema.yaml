@@ -75,10 +75,6 @@ properties:
     - required
     - lenient-adherence
     - advisory
-  tactic_refs:
-    type: array
-    items:
-      type: string
   scope:
     type: string
   procedures:

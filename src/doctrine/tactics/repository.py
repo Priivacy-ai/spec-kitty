@@ -18,6 +18,7 @@ from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
 from .models import Tactic
+from .validation import reject_tactic_inline_refs
 
 
 class TacticRepository:
@@ -55,6 +56,7 @@ class TacticRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_tactic_inline_refs(data, file_path=str(yaml_file))
                     tactic = Tactic.model_validate(data)
                     shipped[tactic.id] = tactic
                 except (YAMLError, ValidationError, OSError) as e:
@@ -72,6 +74,7 @@ class TacticRepository:
                     data = yaml.load(yaml_file)
                     if data is None:
                         continue
+                    reject_tactic_inline_refs(data, file_path=str(yaml_file))
                     tactic_id = data.get("id")
                     if not tactic_id:
                         warnings.warn(

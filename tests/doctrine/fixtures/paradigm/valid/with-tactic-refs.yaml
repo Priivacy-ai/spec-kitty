@@ -2,8 +2,7 @@ schema_version: "1.0"
 id: delivery-first
 name: Delivery-First Doctrine
 summary: Bias toward small, frequent, verifiable delivery increments.
-tactic_refs:
-  - change-apply-smallest-viable-diff
+# Post-WP02: inline `tactic_refs` removed — relationships live in graph.yaml.
 opposed_by:
   - type: paradigm
     id: test-first

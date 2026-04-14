@@ -113,22 +113,27 @@ def test_procedure_references_resolve_to_shipped_artifacts() -> None:
     assert not unresolved, "Unresolved procedure references:\n" + "\n".join(unresolved)
 
 
-def test_procedure_step_tactic_refs_resolve_to_shipped_tactics() -> None:
-    """All step tactic_refs in shipped procedures must resolve to shipped tactics.
+def test_no_procedure_step_carries_inline_tactic_refs() -> None:
+    """Post-WP02: shipped procedure steps must not carry inline ``tactic_refs``.
 
-    _proposed procedures are excluded — their tactic_refs may target unshipped tactics.
+    Step → tactic relationships live as edges in ``src/doctrine/graph.yaml``
+    after Phase 1 excision. This test guards against regressions that
+    reintroduce step-level inline references.
     """
-    tactic_ids = _shipped_ids("tactics", "**/*.tactic.yaml")
-    unresolved: list[str] = []
-
+    offenders: list[str] = []
     for path in _multi_glob(_SHIPPED_PROCEDURE_DIRS, "*.procedure.yaml"):
         payload = _load_yaml(path)
         procedure_id = str(payload.get("id", "")).strip() or path.name
         for step in payload.get("steps", []) or []:
             step_title = str(step.get("title", "?")).strip()
-            for tactic_ref in step.get("tactic_refs", []) or []:
-                ref_id = str(tactic_ref).strip()
-                if ref_id and ref_id not in tactic_ids:
-                    unresolved.append(f"{procedure_id} step '{step_title}': unresolved tactic_ref '{ref_id}'")
+            if "tactic_refs" in step:
+                offenders.append(
+                    f"{procedure_id} step '{step_title}': still declares inline `tactic_refs`"
+                )
 
-    assert not unresolved, "Unresolved procedure step tactic_refs:\n" + "\n".join(unresolved)
+    assert not offenders, (
+        "Inline step-level `tactic_refs` reintroduced on shipped procedures — "
+        "all relationships must live in src/doctrine/graph.yaml (see WP02 of "
+        "excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
+    )

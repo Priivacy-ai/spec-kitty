@@ -97,15 +97,18 @@ def tactic_ids() -> set[str]:
     ),
     ids=lambda p: str(p.relative_to(REPO_ROOT)),
 )
-def test_directive_tactic_refs_resolve(directive_path: Path, tactic_ids: set[str]) -> None:
+def test_directive_has_no_inline_tactic_refs(directive_path: Path) -> None:
+    """Post-WP02: directives must not carry inline ``tactic_refs``.
+
+    Cross-artifact relationships live exclusively in
+    ``src/doctrine/graph.yaml`` (Phase 1 excision). This test guards
+    against regressions that reintroduce inline references.
+    """
     directive = _load_yaml(directive_path)
-    unresolved = []
-    for tactic_ref in directive.get("tactic_refs", []):
-        if tactic_ref not in tactic_ids:
-            unresolved.append(tactic_ref)
-    assert not unresolved, (
-        f"{directive_path.relative_to(REPO_ROOT)} unresolved tactic_refs: "
-        f"{unresolved} (known tactic ids: {sorted(tactic_ids)})"
+    assert "tactic_refs" not in directive, (
+        f"{directive_path.relative_to(REPO_ROOT)} still carries inline "
+        f"tactic_refs; relationships must live in graph.yaml instead "
+        f"(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6)."
     )
 
 

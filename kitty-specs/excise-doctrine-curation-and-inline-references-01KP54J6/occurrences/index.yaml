@@ -1,0 +1,242 @@
+# Mission-level occurrence index for excise-doctrine-curation-and-inline-references-01KP54J6.
+# After all three WPs land on main, every literal in must_be_zero must have
+# zero hits in src/ and tests/ (modulo permitted_exceptions).
+
+mission_slug: excise-doctrine-curation-and-inline-references-01KP54J6
+wps:
+  - WP01
+  - WP02
+  - WP03
+
+must_be_zero:
+  # Curation surface excised by WP01: no live "curation" CLI command,
+  # module name, or class name should remain. Docstring / comment / mission
+  # slug substring mentions are excluded.
+  - literal: "curation"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+      # Docstring / comment / mission-slug substring references. The
+      # mission slug ("excise-doctrine-curation-and-inline-references-...")
+      # itself contains the substring "curation" -- every WP01-touching file
+      # that mentions the mission in a docstring lights up the verifier.
+      - "src/charter/catalog.py"
+      - "src/charter/compiler.py"
+      - "src/charter/context.py"
+      - "src/charter/schemas.py"
+      - "src/charter/_drg_helpers.py"
+      - "src/specify_cli/charter/_drg_helpers.py"
+      - "src/specify_cli/charter/compiler.py"
+      - "src/specify_cli/charter/context.py"
+      # Post-merge follow-up: compiler tests reference the mission slug in
+      # docstrings that explain the C-001 "no fallback" contract.
+      - "tests/charter/test_compiler.py"
+      - "src/specify_cli/upgrade/migrations/m_2_1_2_fix_glossary_context_skill.py"
+      - "src/doctrine/agent_profiles/capabilities.py"
+      - "src/doctrine/directives/models.py"
+      - "src/doctrine/paradigms/models.py"
+      - "src/doctrine/procedures/models.py"
+      - "src/doctrine/drg/query.py"
+      - "src/doctrine/shared/exceptions.py"
+      - "tests/doctrine/drg/migration/test_extractor.py"
+      - "tests/doctrine/drg/test_resolve_transitive_refs.py"
+      # Curation-interview procedure remains a legitimate doctrine
+      # procedure (the WP01 excision targeted CLI/curation surfaces, not
+      # all uses of the word "curation" in shipped artifacts):
+      - "tests/doctrine/procedures/conftest.py"
+      - "tests/doctrine/procedures/test_models.py"
+      - "tests/doctrine/procedures/test_repository.py"
+      - "tests/doctrine/test_artifact_compliance.py"
+      - "tests/doctrine/test_artifact_kinds.py"
+      - "tests/doctrine/test_directive_consistency.py"
+      - "tests/doctrine/test_procedure_consistency.py"
+      - "tests/doctrine/test_service.py"
+      - "tests/specify_cli/cli/test_doctrine_cli_removed.py"
+    final_count: 0
+
+  # _proposed/ trees were removed from shipped doctrine in WP01; remaining
+  # mentions are test fixtures or repository-error messages, not live code.
+  - literal: "_proposed"
+    scopes:
+      - "src/**/*.py"
+      - "src/**/*.yaml"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "src/doctrine/agent_profiles/repository.py"
+      - "src/doctrine/styleguides/shipped/python-conventions.styleguide.yaml"
+      # Doctrine consistency / compliance tests intentionally exercise
+      # both shipped and _proposed/ subdirs as part of their scope:
+      - "tests/doctrine/procedures/conftest.py"
+      - "tests/doctrine/test_artifact_compliance.py"
+      - "tests/doctrine/test_directive_consistency.py"
+      - "tests/doctrine/test_enriched_directives.py"
+      - "tests/doctrine/test_procedure_consistency.py"
+      - "tests/doctrine/test_tactic_compliance.py"
+      # Release-payload tests use "_proposed" inside symbol names like
+      # `proposed_changelog_block` -- a substring match, not a doctrine
+      # _proposed/ tree reference:
+      - "tests/release/test_release_payload_draft.py"
+    final_count: 0
+
+  - literal: "tactic_refs"
+    scopes:
+      - "src/**/*.py"
+      - "src/**/*.yaml"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "tests/doctrine/test_inline_ref_rejection.py"
+      - "src/doctrine/shared/errors.py"
+      - "src/doctrine/procedures/validation.py"
+      # Docstring / comment references that document the removal:
+      - "src/doctrine/directives/models.py"
+      - "src/doctrine/directives/validation.py"
+      - "src/doctrine/paradigms/models.py"
+      - "src/doctrine/procedures/models.py"
+      - "src/doctrine/shared/exceptions.py"
+      # Migration extractor reads pre-WP02 YAMLs (migration-only utility):
+      - "src/doctrine/drg/migration/extractor.py"
+      # Shipped graph.yaml has provenance comment about the WP02 promotion:
+      - "src/doctrine/graph.yaml"
+    final_count: 0
+
+  - literal: "paradigm_refs"
+    scopes:
+      - "src/**/*.py"
+      - "src/**/*.yaml"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "tests/doctrine/test_inline_ref_rejection.py"
+      - "src/doctrine/shared/errors.py"
+      - "src/doctrine/procedures/validation.py"
+      # Docstring / comment references that document the removal:
+      - "src/doctrine/directives/validation.py"
+      - "src/doctrine/paradigms/models.py"
+      - "src/doctrine/shared/exceptions.py"
+    final_count: 0
+
+  - literal: "applies_to"
+    scopes:
+      - "src/**/*.py"
+      - "src/**/*.yaml"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "tests/doctrine/test_inline_ref_rejection.py"
+      - "src/doctrine/shared/errors.py"
+      # Docstring / comment / schema references that document the removal:
+      - "src/doctrine/directives/models.py"
+      - "src/doctrine/directives/validation.py"
+      - "src/doctrine/shared/exceptions.py"
+      - "src/charter/schemas.py"
+      - "src/specify_cli/charter/schemas.py"
+    final_count: 0
+
+  - literal: "reference_resolver"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+      - "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    final_count: 0
+
+  - literal: "resolve_references_transitively"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+  - literal: "ResolvedReferenceGraph"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+  - literal: "_REF_TYPE_MAP"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+  - literal: "_Walker"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+  - literal: "include_proposed"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+  - literal: "build_context_v2"
+    scopes:
+      - "src/**/*.py"
+      - "tests/**/*.py"
+    excluding:
+      - "kitty-specs/**"
+      - "**/__pycache__/**"
+      - "scripts/verify_occurrences.py"
+      - "src/doctrine/_reference/**"
+    final_count: 0
+
+permitted_exceptions:
+  - pattern: "src/specify_cli/upgrade/migrations/m_3_1_1_charter_rename.py"
+    rationale: "Pre-WP01 historical migration that renamed charter (C-006). Allowed to retain pre-rename literals."
+  - pattern: "tests/doctrine/test_inline_ref_rejection.py"
+    rationale: "Negative-fixture test introduced in WP03 must reference the forbidden field names to assert rejection."
+  - pattern: "src/doctrine/shared/errors.py"
+    rationale: "Shared validator helper introduced in WP03 enumerates the forbidden field names."
+  - pattern: "src/doctrine/procedures/validation.py"
+    rationale: "Procedures validator introduced in WP03 references step-level forbidden fields."
+  - pattern: "scripts/verify_occurrences.py"
+    rationale: "The verifier itself is allowed to mention these literals."
+
+verifier_command: "python scripts/verify_occurrences.py kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/occurrences/index.yaml"

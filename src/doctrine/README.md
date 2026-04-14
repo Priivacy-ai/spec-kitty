@@ -29,12 +29,15 @@ consumer.
 **Dependency direction:** nothing in this package imports from `charter` or
 `specify_cli`.
 
-## Curation pipeline
+## Authoring pipeline
 
-New artifacts follow a three-stage flow: raw reference material lands in
-`_reference/`, gets extracted into structured YAML in `<type>/_proposed/`, and
-is promoted to `<type>/shipped/` via `spec-kitty doctrine curate`. See the
-curation engine in `curation/` for implementation details.
+New artifacts are authored directly in each kind's `shipped/` tree (for
+example `directives/shipped/NNN-name.directive.yaml`). Cross-artifact
+relationships are expressed as edges in `graph.yaml`, not as inline
+reference fields inside each YAML. Raw reference material may still be
+captured under `_reference/` as an intake landing zone; converting it to
+doctrine is a manual editorial step that writes the shipped YAML plus the
+matching `graph.yaml` edges.
 
 ## Architecture references
 

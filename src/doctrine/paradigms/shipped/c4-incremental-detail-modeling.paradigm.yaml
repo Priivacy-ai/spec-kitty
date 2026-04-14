@@ -20,13 +20,6 @@ summary: >
   relationships. The guiding heuristic: produce only the levels that add
   value and keep each diagram reviewable in under five minutes.
 
-tactic_refs:
-  - c4-zoom-in-architecture-documentation
-  - architecture-diagram-review-checklist
-  - adr-drafting-workflow
-  - premortem-risk-identification
-  - connascence-analysis
-
 directive_refs:
   - DIRECTIVE_001
 

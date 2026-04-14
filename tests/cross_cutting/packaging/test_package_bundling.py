@@ -113,18 +113,3 @@ def test_wheel_bundles_templates_correctly(installed_wheel_venv: dict[str, Path]
 
     assert result.returncode == 0, f"Failed to check bundled doctrine skills: {result.stderr}"
     assert result.stdout.strip() == "True", "Bundled canonical skill missing from wheel"
-
-    result = subprocess.run(
-        [
-            str(python),
-            "-c",
-            "from importlib.resources import files; "
-            "fixture = files('doctrine').joinpath('curation', 'imports', 'example-zombies', 'manifest.yaml'); "
-            "print(fixture.is_file())",
-        ],
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, f"Failed to check bundled doctrine import fixtures: {result.stderr}"
-    assert result.stdout.strip() == "True", "Bundled doctrine import fixture missing from wheel"

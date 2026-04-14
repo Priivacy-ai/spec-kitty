@@ -282,16 +282,31 @@ def test_resolve_governance_for_profile_populates_graph_artifacts_and_normalizes
     doctrine_service = MagicMock()
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
 
+    # Post-WP03: monkeypatch charter.resolver.resolve_transitive_refs; its
+    # result is a :class:`doctrine.drg.query.ResolveTransitiveRefsResult`
+    # look-alike (SimpleNamespace is structurally compatible here).
     monkeypatch_graph = SimpleNamespace(
         tactics=["TACTIC_001"],
         styleguides=["STYLE_001"],
         toolguides=["TOOL_001"],
         procedures=["PROC_001"],
-        unresolved=[("directives", "MISSING_DIRECTIVE")],
+        unresolved=[("directive:MISSING_DIRECTIVE", "directive:MISSING_DIRECTIVE")],
     )
 
-    with patch("charter.resolver.resolve_references_transitively", return_value=monkeypatch_graph):
-        resolution = resolve_governance_for_profile(" reviewer ", "   ", doctrine_service, interview)
+    # Provide a stand-in graph so the resolver invokes resolve_transitive_refs.
+    stub_graph = SimpleNamespace()
+
+    with patch(
+        "charter.resolver.resolve_transitive_refs",
+        return_value=monkeypatch_graph,
+    ):
+        resolution = resolve_governance_for_profile(
+            " reviewer ",
+            "   ",
+            doctrine_service,
+            interview,
+            graph=stub_graph,
+        )
 
     assert resolution.directives == ["PROFILE_DIRECTIVE", "PROFILE_SECOND", "INTERVIEW_DIRECTIVE"]
     assert resolution.tactics == ["TACTIC_001"]
@@ -323,6 +338,11 @@ def test_resolve_governance_for_profile_rejects_blank_profile_id() -> None:
 
 
 def test_resolve_governance_for_profile_records_unresolved_references_in_diagnostics() -> None:
+    """Post-WP03, unresolved references surface via the DRG walker.
+
+    The ``unresolved`` entries in the :class:`ResolveTransitiveRefsResult`
+    are formatted into ``diagnostics`` by ``resolve_governance_for_profile``.
+    """
     interview = default_interview(mission="software-dev", profile="minimal")
     object.__setattr__(interview, "selected_directives", [])
 
@@ -332,13 +352,32 @@ def test_resolve_governance_for_profile_records_unresolved_references_in_diagnos
     )
     doctrine_service = MagicMock()
     doctrine_service.agent_profiles.resolve_profile.return_value = profile
-    doctrine_service.directives.get.return_value = None
-    doctrine_service.tactics.get.return_value = None
-    doctrine_service.styleguides.get.return_value = None
-    doctrine_service.toolguides.get.return_value = None
-    doctrine_service.procedures.get.return_value = None
 
-    resolution = resolve_governance_for_profile("reviewer", None, doctrine_service, interview)
+    monkeypatch_graph = SimpleNamespace(
+        tactics=[],
+        styleguides=[],
+        toolguides=[],
+        procedures=[],
+        unresolved=[
+            (
+                "directive:MISSING_DIRECTIVE",
+                "directive:MISSING_DIRECTIVE",
+            )
+        ],
+    )
+    stub_graph = SimpleNamespace()
+
+    with patch(
+        "charter.resolver.resolve_transitive_refs",
+        return_value=monkeypatch_graph,
+    ):
+        resolution = resolve_governance_for_profile(
+            "reviewer",
+            None,
+            doctrine_service,
+            interview,
+            graph=stub_graph,
+        )
 
     assert resolution.directives == ["MISSING_DIRECTIVE"]
     assert any("MISSING_DIRECTIVE" in line for line in resolution.diagnostics)
