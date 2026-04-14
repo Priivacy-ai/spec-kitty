@@ -1,32 +1,37 @@
 ---
-work_package_id: "WP06"
-title: "Codex Legacy Migration"
-subtasks:
-  - T028
-  - T029
-  - T030
-  - T031
-  - T032
+work_package_id: WP06
+title: Codex Legacy Migration
 dependencies:
-  - WP04
-  - WP05
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/upgrade/migrations/m_3_2_0_codex_to_skills.py"
-  - "src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py"
-  - "tests/specify_cli/upgrade/test_m_3_2_0_codex_to_skills.py"
-  - "tests/specify_cli/upgrade/fixtures/codex_legacy/**"
-authoritative_surface: "src/specify_cli/upgrade/migrations/"
-requirement_refs:
-  - FR-012
-  - NFR-003
+- WP04
+- WP05
+base_branch: main
+base_commit: 37363c1836716f8fc89699749b96594fbf6fe35a
+created_at: '2026-04-14T10:36:49.263031+00:00'
+subtasks:
+- T028
+- T029
+- T030
+- T031
+- T032
+lane: "doing"
+shell_pid: "19351"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/upgrade/migrations/
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/upgrade/migrations/m_3_2_0_codex_to_skills.py
+- src/specify_cli/upgrade/migrations/_legacy_codex_hashes.py
+- tests/specify_cli/upgrade/test_m_3_2_0_codex_to_skills.py
+- tests/specify_cli/upgrade/fixtures/codex_legacy/**
+planning_base_branch: main
+requirement_refs:
+- FR-012
+- NFR-003
 ---
 
 # WP06 — Codex Legacy Migration
