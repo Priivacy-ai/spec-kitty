@@ -13,6 +13,7 @@ from pathlib import Path
 
 import requests
 
+from specify_cli.auth.http import request_with_stdlib_fallback_sync
 from .feature_flags import is_saas_sync_enabled, saas_sync_disabled_message
 from .queue import OfflineQueue
 from specify_cli.core.contract_gate import validate_outbound_payload
@@ -370,9 +371,11 @@ def batch_sync(  # noqa: C901
         "Content-Type": "application/json",
     }
 
+    batch_url = f"{server_url.rstrip('/')}/api/v1/events/batch/"
+
     try:
         response = requests.post(
-            f"{server_url.rstrip('/')}/api/v1/events/batch/",
+            batch_url,
             data=compressed,
             headers=headers,
             timeout=60,
@@ -432,6 +435,62 @@ def batch_sync(  # noqa: C901
             queue.process_batch_results(result.event_results)
 
     except requests.exceptions.Timeout:
+        response = request_with_stdlib_fallback_sync(
+            "POST",
+            batch_url,
+            timeout=60,
+            content=compressed,
+            headers=headers,
+        )
+        if response is not None:
+            if response.status_code == 200:
+                response_data = response.json()
+                raw_results = response_data.get("results", [])
+                _parse_event_results(raw_results, result)
+                queue.process_batch_results(result.event_results)
+                if show_progress:
+                    print(format_sync_summary(result))
+                return result
+            if response.status_code == 401:
+                if show_progress:
+                    print("Batch sync failed: Authentication failed (401)")
+                result.error_messages.append("Authentication failed")
+                result.error_count = len(events)
+                result.failed_ids = [e.get("event_id") for e in events]
+                for evt in events:
+                    result.event_results.append(
+                        BatchEventResult(
+                            event_id=evt.get("event_id", "unknown"),
+                            status="rejected",
+                            error="Authentication failed",
+                            error_category="auth_expired",
+                        )
+                    )
+                queue.process_batch_results(result.event_results)
+                return result
+            if response.status_code == 400:
+                response_body = response.json()
+                _parse_error_response(response_body, events, result)
+                queue.process_batch_results(result.event_results)
+                if show_progress:
+                    print(f"Batch sync failed (400):\n{format_sync_summary(result)}")
+                return result
+            if show_progress:
+                print(f"Batch sync failed: HTTP {response.status_code}")
+            result.error_messages.append(f"HTTP {response.status_code}")
+            result.error_count = len(events)
+            result.failed_ids = [e.get("event_id") for e in events]
+            for evt in events:
+                result.event_results.append(
+                    BatchEventResult(
+                        event_id=evt.get("event_id", "unknown"),
+                        status="rejected",
+                        error=f"HTTP {response.status_code}",
+                        error_category="server_error",
+                    )
+                )
+            queue.process_batch_results(result.event_results)
+            return result
         if show_progress:
             print("Batch sync failed: Request timeout")
         result.error_messages.append("Request timeout")
@@ -449,6 +508,62 @@ def batch_sync(  # noqa: C901
         queue.process_batch_results(result.event_results)
 
     except requests.exceptions.ConnectionError as e:
+        response = request_with_stdlib_fallback_sync(
+            "POST",
+            batch_url,
+            timeout=60,
+            content=compressed,
+            headers=headers,
+        )
+        if response is not None:
+            if response.status_code == 200:
+                response_data = response.json()
+                raw_results = response_data.get("results", [])
+                _parse_event_results(raw_results, result)
+                queue.process_batch_results(result.event_results)
+                if show_progress:
+                    print(format_sync_summary(result))
+                return result
+            if response.status_code == 401:
+                if show_progress:
+                    print("Batch sync failed: Authentication failed (401)")
+                result.error_messages.append("Authentication failed")
+                result.error_count = len(events)
+                result.failed_ids = [e.get("event_id") for e in events]
+                for evt in events:
+                    result.event_results.append(
+                        BatchEventResult(
+                            event_id=evt.get("event_id", "unknown"),
+                            status="rejected",
+                            error="Authentication failed",
+                            error_category="auth_expired",
+                        )
+                    )
+                queue.process_batch_results(result.event_results)
+                return result
+            if response.status_code == 400:
+                response_body = response.json()
+                _parse_error_response(response_body, events, result)
+                queue.process_batch_results(result.event_results)
+                if show_progress:
+                    print(f"Batch sync failed (400):\n{format_sync_summary(result)}")
+                return result
+            if show_progress:
+                print(f"Batch sync failed: HTTP {response.status_code}")
+            result.error_messages.append(f"HTTP {response.status_code}")
+            result.error_count = len(events)
+            result.failed_ids = [e.get("event_id") for e in events]
+            for evt in events:
+                result.event_results.append(
+                    BatchEventResult(
+                        event_id=evt.get("event_id", "unknown"),
+                        status="rejected",
+                        error=f"HTTP {response.status_code}",
+                        error_category="server_error",
+                    )
+                )
+            queue.process_batch_results(result.event_results)
+            return result
         if show_progress:
             print(f"Batch sync failed: Connection error - {e}")
         result.error_messages.append(f"Connection error: {e}")

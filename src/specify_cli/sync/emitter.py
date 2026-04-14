@@ -143,6 +143,38 @@ def _is_nullable_string(value: Any) -> bool:
 
 
 _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
+    "BuildRegistered": {
+        "required": {"build_id", "repo_slug"},
+        "validators": {
+            "build_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "node_id": _is_nullable_string,
+            "project_uuid": _is_nullable_string,
+            "project_slug": _is_nullable_string,
+            "project_name": _is_nullable_string,
+            "repo_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "branch": _is_nullable_string,
+            "head_commit": _is_nullable_string,
+            "developer_name": _is_nullable_string,
+        },
+    },
+    "BuildHeartbeat": {
+        "required": {"build_id", "repo_slug"},
+        "validators": {
+            "build_id": lambda v: isinstance(v, str) and len(v) >= 1,
+            "node_id": _is_nullable_string,
+            "project_uuid": _is_nullable_string,
+            "project_slug": _is_nullable_string,
+            "project_name": _is_nullable_string,
+            "repo_slug": lambda v: isinstance(v, str) and len(v) >= 1,
+            "branch": _is_nullable_string,
+            "head_commit": _is_nullable_string,
+            "developer_name": _is_nullable_string,
+            "remote_head": _is_nullable_string,
+            "ahead_of_remote": lambda v: isinstance(v, int) and v >= 0,
+            "behind_remote": lambda v: isinstance(v, int) and v >= 0,
+            "recent_commits": lambda v: isinstance(v, list),
+        },
+    },
     "WPStatusChanged": {
         "required": {"wp_id", "from_lane", "to_lane"},
         "validators": {
@@ -286,7 +318,7 @@ _PAYLOAD_RULES: dict[str, dict[str, Any]] = {
 }
 
 VALID_EVENT_TYPES = frozenset(_PAYLOAD_RULES.keys())
-VALID_AGGREGATE_TYPES = frozenset({"WorkPackage", "Mission", "MissionDossier"})
+VALID_AGGREGATE_TYPES = frozenset({"Build", "WorkPackage", "Mission", "MissionDossier"})
 
 
 class ConnectionStatus:
@@ -380,6 +412,23 @@ class EventEmitter:
         except Exception:
             return None
 
+    @staticmethod
+    def _get_developer_name() -> str | None:
+        """Return the current user display name for build lifecycle events."""
+        try:
+            from specify_cli.auth import get_token_manager
+
+            session = get_token_manager().get_current_session()
+            if session is None:
+                return None
+            if isinstance(session.name, str) and session.name:
+                return session.name
+            if isinstance(session.email, str) and session.email:
+                return session.email
+        except Exception:
+            return None
+        return None
+
     def get_connection_status(self) -> str:
         """Return current connection status."""
         if self.ws_client is not None:
@@ -390,7 +439,69 @@ class EventEmitter:
         """Generate a ULID for correlating batch events."""
         return _generate_ulid()
 
+    def _build_lifecycle_payload(self) -> dict[str, Any]:
+        """Build the common payload used by build lifecycle events."""
+        identity = self._get_identity()
+        git_meta = self._get_git_metadata()
+
+        return {
+            "build_id": identity.build_id,
+            "node_id": identity.node_id or self.clock.node_id,
+            "project_uuid": str(identity.project_uuid) if identity.project_uuid else None,
+            "project_slug": identity.project_slug,
+            "project_name": identity.project_slug,
+            "repo_slug": git_meta.repo_slug,
+            "branch": git_meta.git_branch,
+            "head_commit": git_meta.head_commit_sha,
+            "developer_name": self._get_developer_name(),
+        }
+
     # ── Event Builders ────────────────────────────────────────────
+
+    def emit_build_registered(
+        self,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit BuildRegistered for the current project/build identity."""
+        identity = self._get_identity()
+        payload = self._build_lifecycle_payload()
+        aggregate_id = identity.build_id or identity.node_id or "build"
+        return self._emit(
+            event_type="BuildRegistered",
+            aggregate_id=aggregate_id,
+            aggregate_type="Build",
+            payload=payload,
+            causation_id=causation_id,
+        )
+
+    def emit_build_heartbeat(
+        self,
+        remote_head: str | None = None,
+        ahead_of_remote: int | None = None,
+        behind_remote: int | None = None,
+        recent_commits: list[str] | None = None,
+        causation_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Emit BuildHeartbeat for the current project/build identity."""
+        identity = self._get_identity()
+        payload = self._build_lifecycle_payload()
+        if remote_head is not None:
+            payload["remote_head"] = remote_head
+        if ahead_of_remote is not None:
+            payload["ahead_of_remote"] = ahead_of_remote
+        if behind_remote is not None:
+            payload["behind_remote"] = behind_remote
+        if recent_commits is not None:
+            payload["recent_commits"] = recent_commits
+
+        aggregate_id = identity.build_id or identity.node_id or "build"
+        return self._emit(
+            event_type="BuildHeartbeat",
+            aggregate_id=aggregate_id,
+            aggregate_type="Build",
+            payload=payload,
+            causation_id=causation_id,
+        )
 
     def emit_wp_status_changed(
         self,
@@ -417,6 +528,11 @@ class EventEmitter:
             aggregate_type="WorkPackage",
             payload=payload,
             causation_id=causation_id,
+            envelope_fields={
+                "from_lane": from_lane,
+                "to_lane": to_lane,
+                "actor": actor,
+            },
         )
 
     def emit_wp_created(
@@ -658,6 +774,7 @@ class EventEmitter:
         aggregate_type: str,
         payload: dict[str, Any],
         causation_id: str | None = None,
+        envelope_fields: dict[str, Any] | None = None,
     ) -> dict[str, Any] | None:
         """Build, validate, and route an event. Non-blocking: never raises."""
         try:
@@ -696,6 +813,8 @@ class EventEmitter:
                 "head_commit_sha": git_meta.head_commit_sha,
                 "repo_slug": git_meta.repo_slug,
             }
+            if envelope_fields:
+                event.update(envelope_fields)
 
             # Validate event structure and payload
             if not self._validate_event(event):

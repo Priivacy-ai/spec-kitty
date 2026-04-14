@@ -16,6 +16,7 @@ from typing import TYPE_CHECKING, Any
 
 import requests
 
+from specify_cli.auth.http import request_with_stdlib_fallback_sync
 from .namespace import UploadOutcome, UploadStatus
 
 if TYPE_CHECKING:
@@ -59,6 +60,15 @@ def push_content(
             url, json=payload, headers=headers, timeout=timeout,
         )
     except requests.ConnectionError as e:
+        fallback = request_with_stdlib_fallback_sync(
+            "POST",
+            url,
+            timeout=timeout,
+            json=payload,
+            headers=headers,
+        )
+        if fallback is not None:
+            return _classify_response(task, fallback)
         return UploadOutcome(
             artifact_path=task.artifact_path,
             status=UploadStatus.FAILED,
@@ -67,6 +77,15 @@ def push_content(
             retryable=True,
         )
     except requests.Timeout as e:
+        fallback = request_with_stdlib_fallback_sync(
+            "POST",
+            url,
+            timeout=timeout,
+            json=payload,
+            headers=headers,
+        )
+        if fallback is not None:
+            return _classify_response(task, fallback)
         return UploadOutcome(
             artifact_path=task.artifact_path,
             status=UploadStatus.FAILED,
@@ -96,16 +115,16 @@ def _build_request_body(task: BodyUploadTask) -> dict[str, Any]:
     }
 
 
-def _safe_json(response: requests.Response) -> dict[str, Any]:
+def _safe_json(response: Any) -> dict[str, Any]:
     """Parse response JSON safely, returning empty dict on failure."""
     try:
         return response.json()  # type: ignore[no-any-return]
-    except (ValueError, requests.JSONDecodeError):
+    except ValueError:
         return {}
 
 
 def _classify_response(
-    task: BodyUploadTask, response: requests.Response,
+    task: BodyUploadTask, response: Any,
 ) -> UploadOutcome:
     """Map HTTP response to UploadOutcome with retryable semantics."""
     status = response.status_code

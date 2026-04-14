@@ -162,6 +162,12 @@ def get_emitter() -> EventEmitter:
                 from .emitter import EventEmitter
 
                 _emitter = EventEmitter()
+                try:
+                    from .runtime import get_runtime
+
+                    get_runtime().attach_emitter(_emitter)
+                except Exception as exc:
+                    logger.warning("Could not attach emitter to sync runtime: %s", exc)
     return _emitter
 
 

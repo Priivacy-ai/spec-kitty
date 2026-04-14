@@ -443,10 +443,10 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
 
     import asyncio
 
-    import httpx
-
     from specify_cli.auth import get_token_manager
     from specify_cli.auth.errors import AuthenticationError
+    from specify_cli.auth.http import request_with_fallback_sync
+    from specify_cli.auth.errors import NetworkError
 
     # Step 1: Check if an authenticated session exists.
     tm = get_token_manager()
@@ -498,16 +498,26 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
     payload = b'{"events": []}'
 
     try:
-        with httpx.Client(timeout=5.0) as client:
-            response = client.get(health_url, headers=headers)
+        response = request_with_fallback_sync(
+            "GET",
+            health_url,
+            timeout=5.0,
+            headers=headers,
+        )
 
-            if response.status_code in {404, 405}:
-                response = client.post(batch_url, content=payload, headers=headers)
-                if response.status_code == 400 and "No events provided" in response.text:
-                    return (
-                        "[green]Connected[/green]",
-                        "Server reachable, authentication valid (legacy batch probe).",
-                    )
+        if response.status_code in {404, 405}:
+            response = request_with_fallback_sync(
+                "POST",
+                batch_url,
+                timeout=5.0,
+                headers=headers,
+                content=payload,
+            )
+            if response.status_code == 400 and "No events provided" in response.text:
+                return (
+                    "[green]Connected[/green]",
+                    "Server reachable, authentication valid (legacy batch probe).",
+                )
 
         if response.status_code == 200:
             return (
@@ -529,15 +539,10 @@ def _check_server_connection(server_url: str) -> tuple[str, str]:
                 "[yellow]Unexpected[/yellow]",
                 f"Server returned HTTP {response.status_code}.",
             )
-    except httpx.TimeoutException:
+    except NetworkError as exc:
         return (
             "[red]Unreachable[/red]",
-            "Connection timeout (server may be down). Events will be queued for later sync.",
-        )
-    except httpx.ConnectError:
-        return (
-            "[red]Unreachable[/red]",
-            "Connection refused. Events will be queued for later sync.",
+            f"{str(exc)[:80]}. Events will be queued for later sync.",
         )
     except Exception as e:
         return (

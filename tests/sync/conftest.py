@@ -42,6 +42,7 @@ def mock_auth(monkeypatch) -> MagicMock:
     session.default_team_id = "test-team"
     session.teams = [team]
     session.email = "tester@example.com"
+    session.name = "Test User"
 
     tm = MagicMock()
     tm.is_authenticated = True

@@ -29,8 +29,6 @@ import logging
 from datetime import datetime, timedelta, UTC
 from typing import Any
 
-import httpx
-
 from ..config import get_saas_base_url
 from ..errors import (
     NetworkError,
@@ -38,6 +36,7 @@ from ..errors import (
     SessionInvalidError,
     TokenRefreshError,
 )
+from ..http import PublicHttpClient
 from ..session import StoredSession
 
 log = logging.getLogger(__name__)
@@ -79,10 +78,10 @@ class TokenRefreshFlow:
             "client_id": self._client_id,
         }
 
-        async with httpx.AsyncClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
+        async with PublicHttpClient(timeout=_HTTP_TIMEOUT_SECONDS) as client:
             try:
                 response = await client.post(url, data=data)
-            except httpx.RequestError as exc:
+            except NetworkError as exc:
                 raise NetworkError(f"Network error during refresh: {exc}") from exc
 
         if response.status_code == 200:
