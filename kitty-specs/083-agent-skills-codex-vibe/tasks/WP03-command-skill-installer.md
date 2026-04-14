@@ -1,32 +1,37 @@
 ---
-work_package_id: "WP03"
-title: "Command-Skill Installer (additive, reference-counted)"
-subtasks:
-  - T012
-  - T013
-  - T014
-  - T015
-  - T016
-  - T017
+work_package_id: WP03
+title: Command-Skill Installer (additive, reference-counted)
 dependencies:
-  - WP01
-  - WP02
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/skills/command_installer.py"
-  - "tests/specify_cli/skills/test_command_installer.py"
-authoritative_surface: "src/specify_cli/skills/command_installer.py"
-requirement_refs:
-  - FR-006
-  - FR-008
-  - NFR-002
+- WP01
+- WP02
+base_branch: main
+base_commit: d1d0857f1ac74e6f1715fb7139ed7a4b5a5a8e5b
+created_at: '2026-04-14T10:07:03.376981+00:00'
+subtasks:
+- T012
+- T013
+- T014
+- T015
+- T016
+- T017
+lane: "doing"
+shell_pid: "9377"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/skills/command_installer.py
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/skills/command_installer.py
+- tests/specify_cli/skills/test_command_installer.py
+planning_base_branch: main
+requirement_refs:
+- FR-006
+- FR-008
+- NFR-002
 ---
 
 # WP03 — Command-Skill Installer
