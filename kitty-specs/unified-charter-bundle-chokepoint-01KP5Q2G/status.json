@@ -1,7 +1,7 @@
 {
-  "event_count": 4,
-  "last_event_id": "01KP5W68B3XBTTH8ZD285G9AQF",
-  "materialized_at": "2026-04-14T11:31:54.339402+00:00",
+  "event_count": 6,
+  "last_event_id": "01KP5WAQZTH9WBCG19W5G78H3F",
+  "materialized_at": "2026-04-14T11:34:21.434048+00:00",
   "mission_number": "",
   "mission_slug": "unified-charter-bundle-chokepoint-01KP5Q2G",
   "mission_type": "software-dev",
@@ -12,17 +12,17 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
-      "actor": "finalize-tasks",
+      "actor": "implement-command",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KP5W686221SYXP7ADQ0WFAX7",
-      "last_transition_at": "2026-04-14T11:31:54.178630+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KP5WAQZTH9WBCG19W5G78H3F",
+      "last_transition_at": "2026-04-14T11:34:21.434048+00:00"
     },
     "WP02": {
       "actor": "finalize-tasks",
