@@ -2,7 +2,7 @@
   "event_count": 9,
   "last_event_id": "01KJ5V38S983D0JVMFFG6ZF9PZ",
   "materialized_at": "2026-01-18T16:21:51Z",
-  "mission_number": "020",
+  "mission_number": "20",
   "mission_slug": "020-autonomous-multi-agent-orchestrator",
   "mission_type": "software-dev",
   "summary": {

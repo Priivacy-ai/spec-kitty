@@ -2,7 +2,7 @@
   "event_count": 7,
   "last_event_id": "01KJ5V38V68YESCE5WNNWX2PR4",
   "materialized_at": "2026-02-03T18:58:09Z",
-  "mission_number": "028",
+  "mission_number": "28",
   "mission_slug": "028-cli-event-emission-sync",
   "mission_type": "software-dev",
   "summary": {

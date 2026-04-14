@@ -2,7 +2,7 @@
   "event_count": 111,
   "last_event_id": "01KNT3PMJG94FEHQ5DC7YCMMYA",
   "materialized_at": "2026-04-09T21:52:18.000410+00:00",
-  "mission_number": "080",
+  "mission_number": "80",
   "mission_slug": "080-browser-mediated-oauth-cli-auth",
   "mission_type": "software-dev",
   "summary": {

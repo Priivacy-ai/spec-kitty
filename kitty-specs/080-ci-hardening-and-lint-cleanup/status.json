@@ -2,7 +2,7 @@
   "event_count": 29,
   "last_event_id": "01KNSCA8MGHZE5BBP6GW3BK2QZ",
   "materialized_at": "2026-04-09T15:03:35.312539+00:00",
-  "mission_number": "080",
+  "mission_number": "80",
   "mission_slug": "080-ci-hardening-and-lint-cleanup",
   "mission_type": "software-dev",
   "summary": {

@@ -2,7 +2,7 @@
   "event_count": 13,
   "last_event_id": "01KJPC54KR5XJMKVGAF70XSK2G",
   "materialized_at": "2026-03-02T04:15:58.584520+00:00",
-  "mission_number": "047",
+  "mission_number": "47",
   "mission_slug": "047-mutmut-mutation-testing-ci",
   "mission_type": "software-dev",
   "summary": {

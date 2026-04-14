@@ -2,7 +2,7 @@
   "event_count": 9,
   "last_event_id": "01KJ5V38KVHBQ3C6GNT143FFZ9",
   "materialized_at": "2025-01-16T00:00:00Z",
-  "mission_number": "005",
+  "mission_number": "5",
   "mission_slug": "005-refactor-mission-system",
   "mission_type": "research",
   "summary": {

@@ -2,7 +2,7 @@
   "event_count": 10,
   "last_event_id": "01KJ5V38NKT8XX7DG03MYRJTQG",
   "materialized_at": "2026-01-07T00:00:00Z",
-  "mission_number": "010",
+  "mission_number": "10",
   "mission_slug": "010-workspace-per-work-package-for-parallel-development",
   "mission_type": "software-dev",
   "summary": {
