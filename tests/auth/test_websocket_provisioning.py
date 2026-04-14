@@ -124,7 +124,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(200, ws_response)
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             result = await provision_ws_token("tm_acme")
@@ -152,7 +152,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(200, ws_response)
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             await provision_ws_token("tm_acme")
@@ -176,7 +176,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(200, ws_response)
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             await provision_ws_token("tm_acme")
@@ -188,7 +188,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(403, {"error": "not_a_team_member"})
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(WebSocketProvisioningError, match="not a member"):
@@ -199,7 +199,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(404, {})
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(WebSocketProvisioningError, match="not found"):
@@ -210,7 +210,7 @@ class TestWebSocketTokenProvisioner:
             return _MockResponse(500, {})
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(WebSocketProvisioningError, match="server error"):
@@ -218,10 +218,12 @@ class TestWebSocketTokenProvisioner:
 
     async def test_network_error(self, mock_tm):
         async def mock_post(url, json=None, headers=None):
-            raise httpx.RequestError("connection refused")
+            # PublicHttpClient wraps httpx.RequestError as NetworkError internally;
+            # the provisioner now catches NetworkError from the client directly.
+            raise NetworkError("connection refused")
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(NetworkError):
@@ -236,7 +238,7 @@ class TestProvisionerErrorTranslation:
             return _MockResponse(401, {})
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(
@@ -252,7 +254,7 @@ class TestProvisionerErrorTranslation:
             )
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(WebSocketProvisioningError, match="quota exceeded"):
@@ -263,7 +265,7 @@ class TestProvisionerErrorTranslation:
             return _MockResponse(418, {})
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(WebSocketProvisioningError, match="418"):
@@ -282,7 +284,7 @@ class TestProvisionerErrorTranslation:
             )
 
         with patch(
-            "specify_cli.auth.websocket.token_provisioning.httpx.AsyncClient"
+            "specify_cli.auth.websocket.token_provisioning.PublicHttpClient"
         ) as mock_client:
             _install_mock_post(mock_client, mock_post)
             with pytest.raises(

@@ -242,6 +242,10 @@ class TestEventTypeCoverage:
             "MissionDossierParityDriftDetected",
             "MissionDossierSnapshotComputed",
             "MissionOriginBound",
+            # Build sync events added by "Harden SaaS auth and restore build sync emission"
+            # (commit 533e47d2) — emitted during build lifecycle telemetry.
+            "BuildRegistered",
+            "BuildHeartbeat",
         }
         assert expected == VALID_EVENT_TYPES
 

@@ -191,7 +191,7 @@ class TestBrowserLoginE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -335,7 +335,7 @@ class TestBrowserLoginE2E:
                 "specify_cli.auth.secure_storage.SecureStorage.from_environment",
                 return_value=fake_storage,
             ),
-            patch("httpx.AsyncClient") as mock_client_cls,
+            patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_cls,
         ):
             fake_client = AsyncMock()
             fake_client.post = AsyncMock(side_effect=_post)
@@ -377,7 +377,7 @@ def test_login_uses_token_manager_factory(
             "specify_cli.auth.secure_storage.SecureStorage.from_environment",
             return_value=fake_storage,
         ),
-        patch("httpx.AsyncClient") as mock_client_cls,
+        patch("specify_cli.auth.flows.authorization_code.PublicHttpClient") as mock_client_cls,
     ):
         fake_client = AsyncMock()
         fake_client.post = AsyncMock(side_effect=_post)
