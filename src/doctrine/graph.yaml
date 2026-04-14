@@ -56,6 +56,12 @@ nodes:
 - urn: directive:DIRECTIVE_034
   kind: directive
   label: Test-First Development
+- urn: directive:DIRECTIVE_035
+  kind: directive
+  label: Bulk-Edit Occurrence Classification
+- urn: directive:DIRECTIVE_036
+  kind: directive
+  label: Black-Box Integration Testing
 - urn: paradigm:anemic-domain-model
   kind: paradigm
 - urn: paradigm:atomic-design
@@ -136,6 +142,9 @@ nodes:
 - urn: tactic:avoid-gold-plating
   kind: tactic
   label: Avoid Gold Plating
+- urn: tactic:black-box-integration-testing
+  kind: tactic
+  label: Black-Box Integration Testing
 - urn: tactic:bounded-context-canvas-fill
   kind: tactic
   label: Bounded Context Canvas Fill
@@ -195,6 +204,9 @@ nodes:
 - urn: tactic:no-parallel-duplicate-test-runs
   kind: tactic
   label: No Parallel Duplicate Test Runs
+- urn: tactic:occurrence-classification-workflow
+  kind: tactic
+  label: Occurrence Classification Workflow
 - urn: tactic:premortem-risk-identification
   kind: tactic
   label: Premortem Risk Identification
@@ -1011,4 +1023,13 @@ edges:
   relation: requires
 - source: procedure:situational-assessment
   target: tactic:stakeholder-alignment
+  relation: requires
+- source: directive:DIRECTIVE_035
+  target: tactic:occurrence-classification-workflow
+  relation: requires
+- source: directive:DIRECTIVE_036
+  target: tactic:black-box-integration-testing
+  relation: requires
+- source: directive:DIRECTIVE_036
+  target: tactic:test-boundaries-by-responsibility
   relation: requires
