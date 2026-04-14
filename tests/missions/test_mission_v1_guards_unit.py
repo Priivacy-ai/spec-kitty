@@ -627,7 +627,7 @@ class TestUnknownGuardRejection:
 
 
 class TestGuardRegistry:
-    """Verify the registry has exactly the 6 expected primitives."""
+    """Verify the registry has exactly the 7 expected primitives."""
 
     EXPECTED_GUARDS = {
         "artifact_exists",
@@ -636,6 +636,7 @@ class TestGuardRegistry:
         "any_wp_status",
         "input_provided",
         "event_count",
+        "occurrence_map_complete",
     }
 
     def test_registry_keys(self) -> None:
