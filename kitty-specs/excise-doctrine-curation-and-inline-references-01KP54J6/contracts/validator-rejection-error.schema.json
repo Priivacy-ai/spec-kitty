@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "spec-kitty://phase1-excision/validator-rejection-error/v1",
+  "title": "InlineReferenceRejectedError",
+  "description": "Structured error raised by per-kind doctrine validators when a shipped or project-local artifact YAML contains a forbidden inline reference field. Introduced in WP1.3.",
+  "type": "object",
+  "required": ["file_path", "forbidden_field", "artifact_kind", "migration_hint"],
+  "additionalProperties": false,
+  "properties": {
+    "file_path": {
+      "type": "string",
+      "description": "Absolute path of the offending YAML file."
+    },
+    "forbidden_field": {
+      "type": "string",
+      "enum": ["tactic_refs", "paradigm_refs", "applies_to"]
+    },
+    "artifact_kind": {
+      "type": "string",
+      "enum": [
+        "directive",
+        "tactic",
+        "procedure",
+        "paradigm",
+        "styleguide",
+        "toolguide",
+        "agent_profile"
+      ]
+    },
+    "migration_hint": {
+      "type": "string",
+      "description": "Fixed text pointing at the graph-edge migration pattern.",
+      "pattern": "^Remove .+ from YAML; add edge \\{from: .+, to: .+, kind: uses\\} to src/doctrine/graph.yaml$"
+    }
+  },
+  "examples": [
+    {
+      "file_path": "/path/to/project/.kittify/doctrine/directives/my-directive.directive.yaml",
+      "forbidden_field": "tactic_refs",
+      "artifact_kind": "directive",
+      "migration_hint": "Remove tactic_refs from YAML; add edge {from: directive:my-directive, to: tactic:my-tactic, kind: uses} to src/doctrine/graph.yaml"
+    }
+  ]
+}
