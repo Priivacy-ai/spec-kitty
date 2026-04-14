@@ -39,17 +39,17 @@ Total: 35 subtasks across 9 WPs.
 | T005 | Regression test that reproduces the #588 cascade | WP01 | [D] |
 | T006 | Post-merge working-tree refresh in `_run_lane_based_merge_locked` | WP05 |  |
 | T007 | Post-merge `git status` invariant assertion | WP05 |  |
-| T009 | `SparseCheckoutState` and `SparseCheckoutScanReport` types | WP02 |  |
-| T010 | `scan_path()` and `scan_repo()` pure detection functions | WP02 |  |
-| T011 | `warn_if_sparse_once()` session-warning emitter + module flag | WP02 |  |
-| T012 | Unit tests for detection primitive covering R6 | WP02 | [P] |
+| T009 | `SparseCheckoutState` and `SparseCheckoutScanReport` types | WP02 |  | [D] |
+| T010 | `scan_path()` and `scan_repo()` pure detection functions | WP02 |  | [D] |
+| T011 | `warn_if_sparse_once()` session-warning emitter + module flag | WP02 |  | [D] |
+| T012 | Unit tests for detection primitive covering R6 | WP02 | [D] |
 | T013 | Remediation types: per-path result + aggregate report | WP03 |  |
 | T014 | 5-step per-path remediation composed across primary + worktrees | WP03 |  |
 | T015 | Unit tests for remediation outcomes | WP03 | [P] |
 | T016 | Doctor finding surfacing sparse-checkout scan | WP04 |  |
 | T017 | `doctor --fix sparse-checkout` action with CI/non-TTY handling | WP04 |  |
 | T018 | Integration tests for doctor finding and remediation flow | WP04 | [P] |
-| T019 | `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API | WP02 |  |
+| T019 | `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API | WP02 |  | [D] |
 | T020 | Merge preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T021 | Implement preflight wiring + `--allow-sparse-checkout` flag + log record | WP05 |  |
 | T023 | Integration tests for merge + implement preflights, override, refresh, invariant | WP05 | [P] |
@@ -105,11 +105,11 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP02-sparse-checkout-detection-and-api.md](tasks/WP02-sparse-checkout-detection-and-api.md)
 
 **Included subtasks**:
-- [ ] T009 `SparseCheckoutState` and `SparseCheckoutScanReport` types (WP02)
-- [ ] T010 `scan_path()` and `scan_repo()` pure detection functions (WP02)
-- [ ] T011 `warn_if_sparse_once()` session-warning emitter + module flag (WP02)
-- [ ] T012 Unit tests for detection primitive covering R6 (WP02) [P]
-- [ ] T019 `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API (WP02)
+- [x] T009 `SparseCheckoutState` and `SparseCheckoutScanReport` types (WP02)
+- [x] T010 `scan_path()` and `scan_repo()` pure detection functions (WP02)
+- [x] T011 `warn_if_sparse_once()` session-warning emitter + module flag (WP02)
+- [x] T012 Unit tests for detection primitive covering R6 (WP02) [P]
+- [x] T019 `SparseCheckoutPreflightError` + `require_no_sparse_checkout()` API (WP02)
 
 **Dependencies**: none.
 **Parallel opportunities**: T012 can run in parallel once T010 is complete.
