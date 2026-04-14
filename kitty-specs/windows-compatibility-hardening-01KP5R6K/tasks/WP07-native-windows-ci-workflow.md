@@ -246,3 +246,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T11:36:49Z – claude:opus-4.6:implementer:implementer – shell_pid=55778 – Started implementation via action command
+- 2026-04-14T11:44:56Z – claude:opus-4.6:implementer:implementer – shell_pid=55778 – WP07 complete: blocking windows-latest workflow added; Linux workflow excludes windows_ci; keyring-absent assertion included. Post-merge: add ci-windows/windows-critical to required checks.
