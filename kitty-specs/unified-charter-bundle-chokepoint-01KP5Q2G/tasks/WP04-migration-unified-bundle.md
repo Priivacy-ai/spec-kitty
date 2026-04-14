@@ -17,6 +17,8 @@ subtasks:
 - T027
 - T028
 - T029
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "17894"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -395,3 +397,7 @@ Reference migrations to study before writing:
 - Run `pytest tests/upgrade/test_unified_bundle_migration.py::test_fixture_c_second_apply_is_no_op` specifically and verify it passes twice in a row.
 - Confirm the CHANGELOG entry includes the "Unchanged (explicitly)" block — this is the visible documentation of the C-011 carve-out for operators reading release notes.
 - Verify the `#464` tracking comment is posted with the three bullets (filename, scope, worktree-framing correction).
+
+## Activity Log
+
+- 2026-04-14T15:05:05Z – claude:sonnet:implementer:implementer – shell_pid=17894 – Started implementation via action command
