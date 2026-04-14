@@ -8,10 +8,10 @@ Verifies that:
 
 from __future__ import annotations
 
+import contextlib
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
-import pytest
 
 from specify_cli.runtime.agent_commands import _sync_agent_commands
 from specify_cli.skills.command_installer import InstallReport
@@ -62,12 +62,9 @@ def test_claude_still_routes_to_command_files(tmp_path: Path) -> None:
     """_sync_agent_commands('claude', ...) must NOT call command_installer.install."""
     with patch(
         "specify_cli.skills.command_installer.install"
-    ) as mock_install:
+    ) as mock_install, contextlib.suppress(Exception):
         # The legacy path will fail (no templates_dir content) but that's fine;
         # we only care that the installer was never invoked.
-        try:
-            _sync_agent_commands("claude", tmp_path, "sh")
-        except Exception:
-            pass  # Expected: templates_dir is empty, no commands to install
+        _sync_agent_commands("claude", tmp_path, "sh")
 
     mock_install.assert_not_called()

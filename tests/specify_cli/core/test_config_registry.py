@@ -10,7 +10,6 @@ Asserts that after the WP04 edits:
 
 from __future__ import annotations
 
-import pytest
 
 from specify_cli.core.config import (
     AI_CHOICES,
