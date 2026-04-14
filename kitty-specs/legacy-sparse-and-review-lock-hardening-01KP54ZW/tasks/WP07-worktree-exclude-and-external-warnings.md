@@ -211,3 +211,4 @@ Adjust commands to match actual CLI surfaces available in the test harness.
 
 - 2026-04-14T07:40:59Z – claude:opus-4.6:implementer:implementer – shell_pid=61123 – Started implementation via action command
 - 2026-04-14T07:48:47Z – claude:opus-4.6:implementer:implementer – shell_pid=61123 – Ready for review
+- 2026-04-14T07:50:55Z – claude:opus-4.6:implementer:implementer – shell_pid=61123 – WP07 approved: per-worktree exclude writer is idempotent and invoked on both worktree-creation paths (create_wp_workspace + create_feature_worktree direct-git fallback); warn_if_sparse_once wired at live glossary resolve() surface (state-mutating); NFR-005 cross-surface test exercises 7 labels and asserts exactly one emission. 49/49 tests pass. Ruff clean on WP07 changes (one pre-existing SIM108 from WP10 in glossary.py line 205 is unrelated).
