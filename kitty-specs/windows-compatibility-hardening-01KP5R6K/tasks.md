@@ -31,12 +31,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T016 | Unit test: `from_environment()` under `sys.platform="win32"` → `WindowsFileStorage`; keychain not in `sys.modules` | WP03 | [D] |
 | T017 | Windows-native test (`windows_ci`): encrypted file-store round-trip under `%LOCALAPPDATA%\spec-kitty\auth\` | WP03 | [D] |
 | T018 | Packaging test (`windows_ci`): `importlib.util.find_spec('keyring')` returns `None` | WP03 | [D] |
-| T019 | Replace `~/.kittify` / `~/.spec-kitty` literals in `migrate_cmd.py` with `render_runtime_path(...)` | WP04 | |
-| T020 | Replace legacy path literals in `agent/status.py` with `render_runtime_path(...)` | WP04 | [P] |
-| T021 | Wire `migrate_cmd.py` to invoke `migrate_windows_state()` on Windows; emit single-summary message | WP04 | |
-| T022 | Windows-native test: `spec-kitty agent status` output contains no `~/.kittify` / `~/.spec-kitty` substring | WP04 | [P] |
-| T023 | Windows-native tests: `migrate_cmd` happy-path + conflict-path emit contracted messages with real `C:\` paths | WP04 | [P] |
-| T024 | Static audit test: grep over `src/specify_cli/cli/` for legacy path literals returns zero hits (whitelist in audit report) | WP04 | [P] |
+| T019 | Replace `~/.kittify` / `~/.spec-kitty` literals in `migrate_cmd.py` with `render_runtime_path(...)` | WP04 | | [D] |
+| T020 | Replace legacy path literals in `agent/status.py` with `render_runtime_path(...)` | WP04 | [D] |
+| T021 | Wire `migrate_cmd.py` to invoke `migrate_windows_state()` on Windows; emit single-summary message | WP04 | | [D] |
+| T022 | Windows-native test: `spec-kitty agent status` output contains no `~/.kittify` / `~/.spec-kitty` substring | WP04 | [D] |
+| T023 | Windows-native tests: `migrate_cmd` happy-path + conflict-path emit contracted messages with real `C:\` paths | WP04 | [D] |
+| T024 | Static audit test: grep over `src/specify_cli/cli/` for legacy path literals returns zero hits (whitelist in audit report) | WP04 | [D] |
 | T025 | Refactor `tracker/credentials.py` to consume `get_runtime_root().tracker_dir` on Windows; POSIX path unchanged | WP05 | [P] |
 | T026 | Refactor `sync/daemon.py` to consume `get_runtime_root().sync_dir` / `daemon_dir` on Windows; POSIX unchanged | WP05 | [P] |
 | T027 | Refactor `src/kernel/paths.py` so Windows callers resolve via `get_runtime_root().base` | WP05 | [P] |
@@ -194,12 +194,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - `migrate_cmd.py` may already have complex logic — do not regress non-Windows migration paths.
 
 **Included subtasks**:
-- [ ] T019 Replace `~/.kittify` / `~/.spec-kitty` literals in `migrate_cmd.py` with `render_runtime_path(...)`
-- [ ] T020 Replace legacy path literals in `agent/status.py` with `render_runtime_path(...)`
-- [ ] T021 Wire `migrate_cmd.py` to invoke `migrate_windows_state()` on Windows; emit single-summary message
-- [ ] T022 Windows-native test: `spec-kitty agent status` output contains no `~/.kittify` / `~/.spec-kitty` substring
-- [ ] T023 Windows-native tests: `migrate_cmd` happy-path + conflict-path emit contracted messages with real `C:\` paths
-- [ ] T024 Static audit test: grep over `src/specify_cli/cli/` for legacy path literals returns zero hits
+- [x] T019 Replace `~/.kittify` / `~/.spec-kitty` literals in `migrate_cmd.py` with `render_runtime_path(...)`
+- [x] T020 Replace legacy path literals in `agent/status.py` with `render_runtime_path(...)`
+- [x] T021 Wire `migrate_cmd.py` to invoke `migrate_windows_state()` on Windows; emit single-summary message
+- [x] T022 Windows-native test: `spec-kitty agent status` output contains no `~/.kittify` / `~/.spec-kitty` substring
+- [x] T023 Windows-native tests: `migrate_cmd` happy-path + conflict-path emit contracted messages with real `C:\` paths
+- [x] T024 Static audit test: grep over `src/specify_cli/cli/` for legacy path literals returns zero hits
 
 ---
 
