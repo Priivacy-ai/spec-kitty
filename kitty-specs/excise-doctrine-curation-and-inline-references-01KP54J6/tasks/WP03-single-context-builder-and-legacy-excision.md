@@ -797,3 +797,4 @@ Stop and comment on [#475](https://github.com/Priivacy-ai/spec-kitty/issues/475)
 ## Activity Log
 
 - 2026-04-14T07:03:53Z – claude:opus-4.6:python-implementer:implementer – shell_pid=8091 – Started implementation via action command
+- 2026-04-14T07:51:37Z – claude:opus-4.6:python-implementer:implementer – shell_pid=8091 – WP03 complete: resolve_transitive_refs added in doctrine/drg/query.py using live DRGGraph+walk_edges API, InlineReferenceRejectedError rejecting 7 kinds including procedures step-level (FR-008), resolver+compiler twins flipped to DRG helper, build_charter_context renamed from v2 + legacy deleted, reference_resolver.py deleted, include_proposed removed, all 5 expected inter-WP failures now green (4 passing, 1 deleted as obsolete), NFR-002b byte-parity diff empty for all 4 actions, parity/legacy tests deleted after replacement green, occurrences/{WP03.yaml,index.yaml} both VERIFIER GREEN, full pytest 11202 passing.
