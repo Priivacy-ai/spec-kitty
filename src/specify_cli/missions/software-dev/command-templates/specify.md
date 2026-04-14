@@ -265,7 +265,7 @@ Given that feature description, do this:
    **Do not regenerate timestamps or directory paths via shell commands.**
 
 6. Generate the specification content by following this flow:
-    - Use the discovery answers as your authoritative source of truth (do **not** rely on raw `$ARGUMENTS`)
+    - Use the discovery answers as your authoritative source of truth (do **not** rely on the raw invocation text)
     - For empty invocations, treat the synthesized interview summary as the canonical feature description
     - Identify: actors, actions, data, constraints, motivations, success metrics
     - For any remaining ambiguity:

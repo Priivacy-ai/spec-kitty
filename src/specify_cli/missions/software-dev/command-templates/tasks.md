@@ -242,7 +242,7 @@ Prompts do not rediscover feature context. Commands do.
    - Next suggested command (e.g., `/spec-kitty.analyze` or `/spec-kitty.implement`)
    - **Implementation handoff offer** (see Step 10 below)
 
-Context for work-package planning: $ARGUMENTS
+Context for work-package planning: (refer to the User Input section above)
 
 The combination of `tasks.md` and the bundled prompt files must enable a new engineer to pick up any work package and deliver it end-to-end without further specification spelunking.
 

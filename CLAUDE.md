@@ -34,7 +34,9 @@ src/specify_cli/missions/*/command-templates/*.md  (SOURCE - edit here!)
 
 ## Supported AI Agents
 
-Spec Kitty supports **12 AI agents** with slash commands. When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:
+Spec Kitty supports **14 AI agents** total: 12 use the slash-command pipeline (files written to agent-specific directories) and 2 use the Agent Skills pipeline (files installed under `.agents/skills/`). When adding features that affect slash commands, migrations, or templates, ensure ALL agents are updated:
+
+### Slash-Command Agents (12)
 
 | Agent | Directory | Subdirectory | Slash Commands |
 |-------|-----------|--------------|----------------|
@@ -45,11 +47,25 @@ Spec Kitty supports **12 AI agents** with slash commands. When adding features t
 | Qwen Code | `.qwen/` | `commands/` | `/spec-kitty.*` |
 | OpenCode | `.opencode/` | `command/` | `/spec-kitty.*` |
 | Windsurf | `.windsurf/` | `workflows/` | `/spec-kitty.*` |
-| GitHub Codex | `.codex/` | `prompts/` | `/spec-kitty.*` |
 | Kilocode | `.kilocode/` | `workflows/` | `/spec-kitty.*` |
 | Augment Code | `.augment/` | `commands/` | `/spec-kitty.*` |
 | Roo Cline | `.roo/` | `commands/` | `/spec-kitty.*` |
 | Amazon Q | `.amazonq/` | `prompts/` | `/spec-kitty.*` |
+| Google Antigravity | `.agent/` | `workflows/` | `/spec-kitty.*` |
+
+### Agent Skills Agents (2)
+
+| Agent | Skills Root | Command Surface | Key |
+|-------|-------------|-----------------|-----|
+| Codex CLI | `.agents/skills/` | `$spec-kitty.<command>` | `codex` |
+| Mistral Vibe | `.agents/skills/` | `/spec-kitty.<command>` | `vibe` |
+
+Codex and Vibe share a single installation under `.agents/skills/spec-kitty.<command>/SKILL.md`. The manifest at `.kittify/skills-manifest.json` tracks which agents reference each skill package.
+
+**New modules (mission 083):**
+- `src/specify_cli/skills/command_renderer.py` — renders source templates into Agent Skills format
+- `src/specify_cli/skills/command_installer.py` — installs/removes skill packages and updates the manifest
+- `src/specify_cli/skills/manifest_store.py` — reads and writes `.kittify/skills-manifest.json`
 
 **Canonical source**: `src/specify_cli/upgrade/migrations/m_0_9_1_complete_lane_migration.py` → `AGENT_DIRS`
 

@@ -602,6 +602,7 @@ def init(  # noqa: C901
         "qwen": ".qwen/",
         "opencode": ".opencode/",
         "codex": ".codex/",
+        "vibe": ".vibe/",
         "windsurf": ".windsurf/",
         "kilocode": ".kilocode/",
         "auggie": ".augment/",
@@ -673,6 +674,27 @@ def init(  # noqa: C901
     steps_panel = Panel("\n".join(steps_lines), title="Next Steps", border_style="cyan", padding=(1, 2))
     _console.print()
     _console.print(steps_panel)
+
+    # Vibe-specific next steps (shown when vibe is among selected agents)
+    if "vibe" in selected_agents:
+        vibe_steps_lines = [
+            "1. Install Vibe if you haven't already:",
+            "     [cyan]curl -LsSf https://mistral.ai/vibe/install.sh | bash[/cyan]",
+            "   or",
+            "     [cyan]uv tool install mistral-vibe[/cyan]",
+            "2. Launch Vibe in this project:",
+            "     [cyan]vibe[/cyan]",
+            "3. Inside Vibe, invoke your first workflow:",
+            "     [cyan]/spec-kitty.specify <describe what you want to build>[/cyan]",
+        ]
+        vibe_panel = Panel(
+            "\n".join(vibe_steps_lines),
+            title="Next Steps for Mistral Vibe",
+            border_style="cyan",
+            padding=(1, 2),
+        )
+        _console.print()
+        _console.print(vibe_panel)
 
     enhancement_lines = [
         "Optional commands that you can use for your specs [bright_black](improve quality & confidence)[/bright_black]",
