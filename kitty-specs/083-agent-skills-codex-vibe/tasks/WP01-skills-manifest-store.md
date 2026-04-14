@@ -1,29 +1,34 @@
 ---
-work_package_id: "WP01"
-title: "Skills Manifest Store and Schema Plumbing"
-subtasks:
-  - T001
-  - T002
-  - T003
-  - T004
-  - T005
+work_package_id: WP01
+title: Skills Manifest Store and Schema Plumbing
 dependencies: []
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "src/specify_cli/skills/manifest_store.py"
-  - "src/specify_cli/skills/manifest_errors.py"
-  - "src/specify_cli/skills/data/skills-manifest.schema.json"
-  - "tests/specify_cli/skills/test_manifest_store.py"
-authoritative_surface: "src/specify_cli/skills/"
-requirement_refs:
-  - FR-007
+base_branch: main
+base_commit: 18378e6761899dffe69c92e849d6b4140d19b2a3
+created_at: '2026-04-14T09:48:35.942061+00:00'
+subtasks:
+- T001
+- T002
+- T003
+- T004
+- T005
+lane: "doing"
+shell_pid: "3815"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: src/specify_cli/skills/
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- src/specify_cli/skills/manifest_store.py
+- src/specify_cli/skills/manifest_errors.py
+- src/specify_cli/skills/data/skills-manifest.schema.json
+- tests/specify_cli/skills/test_manifest_store.py
+planning_base_branch: main
+requirement_refs:
+- FR-007
 ---
 
 # WP01 — Skills Manifest Store and Schema Plumbing
