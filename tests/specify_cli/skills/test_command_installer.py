@@ -74,16 +74,15 @@ def _skill_path(repo_root: Path, command: str) -> Path:
 
 @pytest.fixture()
 def repo(tmp_path: Path) -> Path:
-    """A minimal project root with .kittify/ ready."""
+    """A minimal project root with .kittify/ ready.
+
+    Templates are located inside the installed ``specify_cli`` package via
+    ``_package_templates_dir()``; a real user project never contains
+    ``src/specify_cli/missions/`` under its own root, so we deliberately
+    do **not** seed that path here. If a test fails because templates cannot
+    be located, the production code — not the fixture — is the suspect.
+    """
     _write_config(tmp_path)
-    # Symlink (or copy) the missions directory so templates resolve correctly.
-    missions_src = _TEMPLATE_REPO_ROOT / "src" / "specify_cli" / "missions"
-    missions_dst = tmp_path / "src" / "specify_cli"
-    missions_dst.mkdir(parents=True, exist_ok=True)
-    # Create a symlink to avoid duplicating ~150 KB of templates.
-    missions_link = missions_dst / "missions"
-    if not missions_link.exists():
-        missions_link.symlink_to(missions_src)
     return tmp_path
 
 

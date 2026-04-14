@@ -58,10 +58,22 @@ CANONICAL_COMMANDS: tuple[str, ...] = (
     "tasks-packages",
 )
 
-#: Relative path from repo root to the only mission that has command templates.
-_COMMAND_TEMPLATES_REL = Path(
-    "src/specify_cli/missions/software-dev/command-templates"
-)
+def _package_templates_dir() -> Path:
+    """Return the directory containing canonical command templates inside the
+    installed ``specify_cli`` package.
+
+    Templates ship as regular files inside the package directory (not inside a
+    zipapp), so deriving their path from ``specify_cli.__file__`` yields a real
+    :class:`pathlib.Path` that works identically in editable and wheel installs.
+    """
+    import specify_cli  # noqa: PLC0415 — deferred to avoid import-time side effects
+
+    return (
+        Path(specify_cli.__file__).parent
+        / "missions"
+        / "software-dev"
+        / "command-templates"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -179,11 +191,13 @@ class VerifyReport:
 def _resolve_template(repo_root: Path, command: str) -> Path:
     """Return the absolute path to the command template for *command*.
 
-    Only ``src/specify_cli/missions/software-dev/command-templates/`` is
-    consulted — it is the only mission with command templates in the current
-    codebase.
+    Templates live inside the installed ``specify_cli`` package (not under the
+    user's project root). ``repo_root`` is retained in the signature for call-site
+    symmetry but is intentionally unused — the template location is package
+    state, not project state.
     """
-    return repo_root / _COMMAND_TEMPLATES_REL / f"{command}.md"
+    del repo_root  # not used; kept for call-site consistency
+    return _package_templates_dir() / f"{command}.md"
 
 
 def _atomic_write(path: Path, content: bytes) -> None:

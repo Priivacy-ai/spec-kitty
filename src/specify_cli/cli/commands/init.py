@@ -538,9 +538,23 @@ def init(  # noqa: C901
                     from specify_cli.core.config import AGENT_SKILL_CONFIG, SKILL_CLASS_SHARED, SKILL_CLASS_WRAPPER
 
                     agent_skill_class = (AGENT_SKILL_CONFIG.get(agent_key) or {}).get("class", "")
-                    if agent_skill_class in (SKILL_CLASS_SHARED, SKILL_CLASS_WRAPPER):
-                        # SHARED installs to .agents/skills/ — skip to avoid creating that dir.
+                    if agent_skill_class == SKILL_CLASS_WRAPPER:
                         # WRAPPER agents have no installable root.
+                        tracker.complete(f"{agent_key}-skills", "skipped (wrapper)")
+                    elif agent_key in ("codex", "vibe"):
+                        # Codex and Vibe receive Spec Kitty's slash commands as
+                        # Agent Skills packages rendered into .agents/skills/.
+                        from specify_cli.skills import command_installer  # noqa: PLC0415
+                        report = command_installer.install(project_path, agent_key)
+                        installed = len(report.added) + len(report.reused_shared)
+                        tracker.complete(
+                            f"{agent_key}-skills",
+                            f"{installed} command skills installed",
+                        )
+                    elif agent_skill_class == SKILL_CLASS_SHARED:
+                        # Other SHARED-class agents install their canonical skills
+                        # via the legacy installer path below (doctrine/tactic
+                        # skills), not command-skills.
                         tracker.complete(f"{agent_key}-skills", "skipped (global runtime)")
                     else:
                         if skill_registry_per_agent is None:

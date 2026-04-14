@@ -42,16 +42,15 @@ _REPO_ROOT = Path(__file__).parent.parent.parent.parent  # repo root
 
 
 def _copy_fixture(fixture_name: str, tmp_path: Path) -> Path:
-    """Copy a named fixture tree into a fresh tmp_path subdirectory."""
+    """Copy a named fixture tree into a fresh tmp_path subdirectory.
+
+    Templates come from the installed ``specify_cli`` package, not from the
+    fixture, so we do not seed any ``src/specify_cli/`` tree into the fixture.
+    A real user project never contains the spec-kitty source tree.
+    """
     src = _FIXTURES_ROOT / fixture_name
     dest = tmp_path / fixture_name
     shutil.copytree(src, dest)
-    # Symlink the missions directory so command_installer can resolve templates.
-    missions_src = _REPO_ROOT / "src" / "specify_cli" / "missions"
-    missions_link = dest / "src" / "specify_cli" / "missions"
-    missions_link.parent.mkdir(parents=True, exist_ok=True)
-    if missions_src.is_dir() and not missions_link.exists():
-        missions_link.symlink_to(missions_src)
     return dest
 
 

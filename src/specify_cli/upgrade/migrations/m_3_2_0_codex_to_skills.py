@@ -151,6 +151,29 @@ def _print_preservation_notice(preserved: list[LegacyCodexPrompt]) -> None:
     print("\n".join(lines), file=sys.stderr)
 
 
+def _print_superseded_notice(superseded: list[Path]) -> None:
+    """Tell the user where their former ``.codex/prompts/spec-kitty.*.md`` files live.
+
+    The migration deliberately does not delete these files because the spec's
+    Edge Cases clause forbids silently discarding user edits. Instead it moves
+    them out of Codex's active discovery path to ``.codex/prompts.superseded/``
+    so the user can review and port any customizations.
+    """
+    lines = [
+        "spec-kitty upgrade notice: Codex now reads slash commands from "
+        ".agents/skills/ (Agent Skills).",
+        "Your former Codex prompt files have been moved to ",
+        ".codex/prompts.superseded/ — they are preserved so you can review and ",
+        "port any hand edits into the new .agents/skills/spec-kitty.<command>/ ",
+        "packages. Delete .codex/prompts.superseded/ when you are done.",
+        "",
+        "Preserved files:",
+    ]
+    for target in superseded:
+        lines.append(f"  • {target}")
+    print("\n".join(lines), file=sys.stderr)
+
+
 # ---------------------------------------------------------------------------
 # Migration
 # ---------------------------------------------------------------------------
@@ -250,18 +273,60 @@ class CodexToSkillsMigration(BaseMigration):
                 success=False, changes_made=changes, warnings=warnings, errors=errors
             )
 
-        # --- Delete owned files -----------------------------------------------
-        deleted = 0
-        for p in owned:
-            try:
-                p.path.unlink()
-                deleted += 1
-            except OSError as exc:
-                warnings.append(f"Could not remove {p.path.name}: {exc}")
+        # --- Preserve owned files (do NOT silently delete) --------------------
+        # Spec §Edge Cases: "Upgrade must not silently discard [user] edits
+        # without either migrating them into the new skill or surfacing them
+        # to the user; at minimum the old files must be preserved ... so a
+        # user who edited them can recover."
+        #
+        # We move every spec-kitty-named file from .codex/prompts/ to
+        # .codex/prompts.superseded/ so that:
+        #   1. The file is removed from Codex's active discovery path
+        #      (Codex no longer reads from there after this release).
+        #   2. The original content is intact on disk for the user to review
+        #      or port any customizations into .agents/skills/.
+        #   3. A single notice lists every preserved file so the user knows
+        #      where to look.
+        superseded_dir = prompts_dir.parent / "prompts.superseded"
+        moved: list[Path] = []
+        move_errors: list[str] = []
 
-        if deleted:
+        if owned:
+            try:
+                superseded_dir.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                errors.append(f"Could not create .codex/prompts.superseded/: {exc}")
+                return MigrationResult(
+                    success=False, changes_made=changes, warnings=warnings, errors=errors
+                )
+
+            for p in owned:
+                target = superseded_dir / p.path.name
+                # If a previous run already moved this file (idempotency), leave
+                # both in place rather than overwriting. The active .codex/prompts/
+                # copy is the stale one; remove it.
+                if target.exists():
+                    try:
+                        p.path.unlink()
+                    except OSError as exc:
+                        move_errors.append(f"{p.path.name}: {exc}")
+                    continue
+                try:
+                    p.path.rename(target)
+                    moved.append(target)
+                except OSError as exc:
+                    move_errors.append(f"{p.path.name}: {exc}")
+
+        if moved:
             changes.append(
-                f"Migrated {deleted} Codex prompts from .codex/prompts/ to .agents/skills/"
+                f"Moved {len(moved)} superseded Codex prompt(s) from .codex/prompts/ "
+                f"to .codex/prompts.superseded/ (new skill packages live in .agents/skills/)"
+            )
+            _print_superseded_notice(moved)
+
+        if move_errors:
+            warnings.append(
+                "Could not move some .codex/prompts/ files: " + "; ".join(move_errors)
             )
 
         # --- Notify about third-party files -----------------------------------

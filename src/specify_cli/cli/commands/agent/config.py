@@ -132,11 +132,21 @@ def add_agents(
             continue
 
         if agent_key in _SKILL_ONLY_AGENTS:
-            # Skill-only agents (codex, vibe) are registered in config only;
-            # their skill files are installed at runtime via the skills installer.
-            added.append(agent_key)
-            config.available.append(agent_key)
-            console.print(f"[green]✓[/green] Registered {agent_key} (skill-only agent)")
+            # Skill-only agents (codex, vibe) receive Spec Kitty's slash commands
+            # as Agent Skills packages rendered into .agents/skills/.
+            from specify_cli.skills import command_installer  # noqa: PLC0415
+
+            try:
+                report = command_installer.install(repo_root, agent_key)
+                installed = len(report.added) + len(report.reused_shared)
+                added.append(agent_key)
+                config.available.append(agent_key)
+                console.print(
+                    f"[green]✓[/green] Registered {agent_key} "
+                    f"({installed} command skills in .agents/skills/)"
+                )
+            except Exception as exc:
+                errors.append(f"Failed to install {agent_key} skills: {exc}")
             continue
 
         # Get directory for this agent

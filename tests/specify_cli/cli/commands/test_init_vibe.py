@@ -97,6 +97,50 @@ def test_init_vibe_config_yaml(
 
 
 # ---------------------------------------------------------------------------
+# Integration: init --ai vibe actually installs the command-skill packages
+# (post-mission-review regression guard: the mission's headline promise is
+# that Vibe users can invoke /spec-kitty.specify in their TUI, which requires
+# SKILL.md files to exist under .agents/skills/ after init.)
+# ---------------------------------------------------------------------------
+
+
+def test_init_vibe_installs_command_skills(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    """init --ai vibe must write SKILL.md for every canonical command."""
+    from specify_cli.skills.command_installer import CANONICAL_COMMANDS
+
+    app, console = _make_app()
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(init_module, "get_local_repo_root", lambda override_path=None: None)
+    monkeypatch.setattr(init_module, "copy_specify_base_from_package", _fake_copy_package)
+
+    result = _run(app, ["init", "skill-proj", "--ai", "vibe", "--non-interactive"])
+    assert result.exit_code == 0, result.output
+
+    project_path = tmp_path / "skill-proj"
+    skills_root = project_path / ".agents" / "skills"
+    assert skills_root.is_dir(), ".agents/skills/ was not created"
+
+    # Every canonical command must produce a SKILL.md.
+    for command in CANONICAL_COMMANDS:
+        skill_md = skills_root / f"spec-kitty.{command}" / "SKILL.md"
+        assert skill_md.is_file(), f"Missing {skill_md.relative_to(project_path)}"
+
+    # Ownership manifest must record each install with agents=["vibe"].
+    manifest_file = project_path / ".kittify" / "skills-manifest.json"
+    assert manifest_file.is_file(), ".kittify/skills-manifest.json was not created"
+    import json
+
+    manifest = json.loads(manifest_file.read_text(encoding="utf-8"))
+    assert manifest["schema_version"] == 1
+    assert len(manifest["entries"]) == len(CANONICAL_COMMANDS)
+    for entry in manifest["entries"]:
+        assert entry["agents"] == ["vibe"], entry
+
+
+# ---------------------------------------------------------------------------
 # T026-C: .gitignore contains .vibe/
 # ---------------------------------------------------------------------------
 
