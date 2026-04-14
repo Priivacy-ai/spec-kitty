@@ -241,6 +241,27 @@ def _make_event_count_guard(args: list[Any]) -> Callable[..., bool]:
     return guard
 
 
+def _make_occurrence_map_complete_guard(args: list[Any]) -> Callable[..., bool]:  # noqa: ARG001
+    """Guard: bulk_edit missions must have a valid, admissible occurrence map.
+
+    For non-bulk-edit missions the guard passes unconditionally.
+    When ``feature_dir`` is not available on the model, the guard also passes
+    (don't block transitions when context is missing).
+    """
+
+    def guard(event_data: Any) -> bool:
+        model = event_data.model
+        feature_dir = getattr(model, "feature_dir", None)
+        if feature_dir is None:
+            return True  # Can't check — don't block
+        from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready
+
+        result = ensure_occurrence_classification_ready(Path(feature_dir))
+        return result.passed
+
+    return guard
+
+
 # ---------------------------------------------------------------------------
 # Guard registry
 # ---------------------------------------------------------------------------
@@ -252,6 +273,7 @@ GUARD_REGISTRY: dict[str, Callable[..., Callable[..., bool]]] = {
     "any_wp_status": _make_any_wp_status_guard,
     "input_provided": _make_input_provided_guard,
     "event_count": _make_event_count_guard,
+    "occurrence_map_complete": _make_occurrence_map_complete_guard,
 }
 
 

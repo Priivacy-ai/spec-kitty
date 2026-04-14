@@ -1,0 +1,12 @@
+{
+  "created_at": "2026-04-13T18:37:00.871469+00:00",
+  "friendly_name": "Bulk Edit Occurrence Classification Guardrail",
+  "mission_id": "01KP423XQXK1QNXANK93VZAR48",
+  "mission_number": null,
+  "mission_slug": "bulk-edit-occurrence-classification-guardrail-01KP423X",
+  "mission_type": "software-dev",
+  "slug": "bulk-edit-occurrence-classification-guardrail-01KP423X",
+  "source_description": "https://github.com/Priivacy-ai/spec-kitty/issues/393",
+  "target_branch": "main",
+  "vcs": "git"
+}

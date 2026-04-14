@@ -74,6 +74,35 @@ After all subtasks are complete:
 
 ---
 
+## Bulk Edit Occurrence Classification
+
+If this mission has `change_mode: bulk_edit` in its `meta.json`, an occurrence
+classification artifact is required before implementation can begin.
+
+**What to check**:
+1. Read `meta.json` in the feature directory — look for `"change_mode": "bulk_edit"`
+2. If present, verify `occurrence_map.yaml` exists in the same directory
+3. The occurrence map classifies the target term by semantic category with
+   per-category actions: `rename`, `manual_review`, `do_not_change`, `rename_if_user_visible`
+
+**During implementation**:
+- Consult the occurrence map before modifying any file
+- Respect category actions: do NOT modify occurrences in categories marked `do_not_change`
+- For `manual_review` categories, document your decision in the WP review notes
+- For `rename_if_user_visible`, only change user-facing text (docs, UI, error messages)
+- Check the `exceptions` section for files/patterns with overriding rules
+
+**If the gate blocks you**:
+The system will refuse to start implementation if the occurrence map is missing or
+incomplete. Create `occurrence_map.yaml` following the schema with `target`, `categories`
+(3+ with actions), and optionally `exceptions`. Re-run the implement command.
+
+**If an inference warning fires**:
+The system may warn that spec content looks like a bulk edit even without `change_mode` set.
+Either set `change_mode: "bulk_edit"` in meta.json, or re-run with `--acknowledge-not-bulk-edit`.
+
+---
+
 ## Bulk Edit Safety
 
 **WHEN THIS APPLIES**: Any work package that performs bulk renaming, terminology

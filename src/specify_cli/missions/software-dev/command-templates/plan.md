@@ -93,6 +93,20 @@ Planning requirements (scale to complexity):
 3. When you have sufficient context for the scope, summarize into an **Engineering Alignment** note and confirm.
 4. If user explicitly asks to skip questions or use defaults, acknowledge and proceed with best practices for that feature type.
 
+## Bulk-Edit Check (if applicable)
+
+If this mission is marked `change_mode: bulk_edit` in `meta.json` — or if the
+spec describes renaming the same string (identifier, path, key, label, term)
+across many files — load the `spec-kitty-bulk-edit-classification` skill and
+follow it. You will produce `kitty-specs/<mission>/occurrence_map.yaml`
+alongside the other planning artifacts. Every one of the 8 standard categories
+(code_symbols, import_paths, filesystem_paths, serialized_keys, cli_commands,
+user_facing_strings, tests_fixtures, logs_telemetry) must have an explicit
+action. Without that artifact, the `implement` command will refuse to start
+the first WP.
+
+If the mission is not a bulk edit, skip this step.
+
 ## Outline
 
 1. **Check planning discovery status**:

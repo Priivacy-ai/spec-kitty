@@ -14,7 +14,10 @@ from typing import Annotated
 import typer
 from pydantic import ValidationError
 from rich.console import Console
+from rich.panel import Panel
 
+from specify_cli.bulk_edit.gate import ensure_occurrence_classification_ready, render_gate_failure
+from specify_cli.bulk_edit.inference import scan_spec_file
 from specify_cli.cli import StepTracker
 from specify_cli.cli.selector_resolution import resolve_mission_handle
 from specify_cli.core.context_validation import require_main_repo
@@ -407,6 +410,13 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             ),
         ),
     ] = None,
+    acknowledge_not_bulk_edit: Annotated[
+        bool,
+        typer.Option(
+            "--acknowledge-not-bulk-edit",
+            help="Suppress the bulk-edit inference warning when spec language resembles a bulk edit but the mission is not one.",
+        ),
+    ] = False,
 ) -> None:
     """Internal — allocate or reuse the lane worktree for a work package.
 
@@ -462,6 +472,29 @@ def implement(  # noqa: C901 — orchestration function, complexity inherent
             planning_branch=planning_branch,
             auto_commit=bool(auto_commit),
         )
+
+        # Bulk edit occurrence classification gate (FR-006)
+        gate_result = ensure_occurrence_classification_ready(feature_dir)
+        if not gate_result.passed:
+            render_gate_failure(gate_result, console)
+            raise typer.Exit(1)
+
+        # Inference warning for potentially unmarked bulk edits (FR-009)
+        if gate_result.change_mode is None:
+            inference = scan_spec_file(feature_dir)
+            if inference.triggered and not acknowledge_not_bulk_edit:
+                matched = ", ".join(f"'{p}' ({w}pt)" for p, w in inference.matched_phrases)
+                console.print(Panel(
+                    f"This mission's spec contains language suggesting a bulk edit "
+                    f"(score: {inference.score}/{inference.threshold}):\n"
+                    f"  Matched: {matched}\n\n"
+                    f"If this IS a bulk edit, set change_mode to 'bulk_edit' in meta.json.\n"
+                    f"If it is NOT, re-run with --acknowledge-not-bulk-edit to suppress.",
+                    title="[bold yellow]Bulk Edit Inference Warning[/]",
+                    border_style="yellow",
+                ))
+                raise typer.Exit(1)
+
         resolved_workspace = resolve_workspace_for_wp(repo_root, mission_slug, wp_id)
 
         lanes_manifest = None
