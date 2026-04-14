@@ -18,7 +18,8 @@ subtasks:
 - T004
 - T005
 phase: Phase 0 — Data-loss foundation
-shell_pid: '52930'
+shell_pid: "52930"
+agent: "claude:sonnet-4.6:implementer:implementer"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -299,3 +300,7 @@ Extra assertion: `--force` semantics — call a caller that exposes a `force` pa
 - Verify that the error message matches the quickstart.md Flow 4 example structurally (the quickstart text is the acceptance spec for the error shape).
 - Verify that every test case in T004 has an explicit `assert` and cannot pass vacuously.
 - Verify that the regression test in T005 is reproducible at least 10 times (tag it `@pytest.mark.flaky` only if there is a documented reason).
+
+## Activity Log
+
+- 2026-04-14T05:47:57Z – claude:sonnet-4.6:implementer:implementer – shell_pid=52930 – Assigned agent via action command
