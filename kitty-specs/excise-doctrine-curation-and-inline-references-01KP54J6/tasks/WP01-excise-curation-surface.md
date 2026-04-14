@@ -23,8 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: "43987"
-agent: "claude:opus-4.6:python-implementer:implementer"
+shell_pid: "42797"
+agent: "opencode:gpt-5:python-reviewer:reviewer"
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
@@ -399,3 +399,4 @@ Stop and comment on [#476](https://github.com/Priivacy-ai/spec-kitty/issues/476)
 
 - 2026-04-14T05:42:22Z – claude:opus-4.6:python-implementer:implementer – shell_pid=43987 – Assigned agent via action command
 - 2026-04-14T06:22:20Z – claude:opus-4.6:python-implementer:implementer – shell_pid=43987 – WP01 complete: curation package, _proposed/ trees, doctrine CLI, and curation tests deleted. Verifier green. Regression test added. Pytest and mypy clean.
+- 2026-04-14T06:23:02Z – opencode:gpt-5:python-reviewer:reviewer – shell_pid=42797 – Started review via action command
