@@ -219,11 +219,11 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T033 Capture pre-mission baseline snapshot for 12 non-migrated agents (WP07)
-- [ ] T034 Regression test — zero-diff assertion across all 12 agents × 16 commands (WP07)
-- [ ] T035 Update README supported-tools table (WP07)
-- [ ] T036 Update CLAUDE.md — Vibe + new module references (WP07)
-- [ ] T037 Validate quickstart.md end-to-end (WP07)
+- [x] T033 Capture pre-mission baseline snapshot for 12 non-migrated agents (WP07)
+- [x] T034 Regression test — zero-diff assertion across all 12 agents × 16 commands (WP07)
+- [x] T035 Update README supported-tools table (WP07)
+- [x] T036 Update CLAUDE.md — Vibe + new module references (WP07)
+- [x] T037 Validate quickstart.md end-to-end (WP07)
 
 **Dependencies**: WP01, WP02, WP03, WP04, WP05, WP06.
 
