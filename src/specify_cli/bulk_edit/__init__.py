@@ -15,6 +15,10 @@ from specify_cli.bulk_edit.occurrence_map import (
     ValidationResult,
     check_admissibility,
     load_occurrence_map,
+    load_schema,
+    load_template_text,
+    template_path,
+    validate_against_schema,
     validate_occurrence_map,
 )
 
@@ -22,6 +26,10 @@ __all__ = [
     "OccurrenceMap",
     "ValidationResult",
     "load_occurrence_map",
+    "load_schema",
+    "load_template_text",
+    "template_path",
+    "validate_against_schema",
     "validate_occurrence_map",
     "check_admissibility",
     "VALID_ACTIONS",

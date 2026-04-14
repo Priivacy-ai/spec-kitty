@@ -129,28 +129,33 @@ every standard risk surface must have an explicit action assignment.
 
 ### The template to fill
 
-```yaml
-target:
-  term: <the exact string being changed>
-  replacement: <the new string, or omit if this is a removal>
-  operation: rename  # or: remove | deprecate
+The starter template lives in `src/doctrine/templates/occurrence-map-template.yaml`
+and the machine-enforced schema lives in `src/doctrine/schemas/occurrence-map.schema.yaml`.
+Do not copy the shape from prose — load the actual file so you never drift from
+the contract that the runtime gate enforces:
 
-categories:
-  code_symbols:         { action: <?> }  # Classes, functions, variables, types
-  import_paths:         { action: <?> }  # `from X import Y`, `import X`, module paths
-  filesystem_paths:     { action: <?> }  # Path literals in code, config path refs
-  serialized_keys:      { action: <?> }  # JSON/YAML/TOML keys, API field names, i18n keys
-  cli_commands:         { action: <?> }  # Subcommand names, flags, npm script names
-  user_facing_strings:  { action: <?> }  # UI labels, docs, error messages shown to users
-  tests_fixtures:       { action: <?> }  # Test assertions, snapshot files, fixture data
-  logs_telemetry:       { action: <?> }  # Metric names, log message keys, analytics events
+```python
+from specify_cli.bulk_edit.occurrence_map import (
+    load_template_text,     # starter YAML text to seed occurrence_map.yaml
+    load_schema,             # JSON Schema dict (Draft 2020-12)
+    validate_against_schema, # raw dict -> ValidationResult
+)
 
-exceptions:
-  # Optional. Path globs that override the category-level rule.
-  # Use this when a blanket rule is too broad.
-  - path: "**/migrations/*.py"
-    action: do_not_change
-    reason: "Historical migrations must not be edited"
+# Seed the file:
+(feature_dir / "occurrence_map.yaml").write_text(load_template_text())
+```
+
+The template is a complete, syntactically valid occurrence map with sane
+category defaults and placeholders only for `target.term`/`target.replacement`.
+Adjust per-category actions to fit the mission, then validate:
+
+```python
+import yaml
+from specify_cli.bulk_edit.occurrence_map import validate_against_schema
+
+raw = yaml.safe_load((feature_dir / "occurrence_map.yaml").read_text())
+result = validate_against_schema(raw)
+assert result.valid, result.errors
 ```
 
 ### Valid actions (exact strings — the gate rejects typos)

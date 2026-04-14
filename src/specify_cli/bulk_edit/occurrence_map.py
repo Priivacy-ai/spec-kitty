@@ -3,51 +3,108 @@
 An occurrence map is a YAML file that describes how a bulk rename/remove/deprecate
 operation should be classified across different occurrence categories. Each category
 carries an ``action`` that tells the executor how to handle occurrences of that kind.
+
+The canonical schema lives in ``src/doctrine/schemas/occurrence-map.schema.yaml``
+and the user-facing starter template lives in
+``src/doctrine/templates/occurrence-map-template.yaml``. Both are loaded at import
+time via :mod:`doctrine.shared.schema_utils` so the constants below stay in lock
+step with the published schema — there is no second source of truth to drift.
 """
 
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from functools import cache
+from importlib.resources import files
 from pathlib import Path
 from typing import Any
 
+import jsonschema
 from ruamel.yaml import YAML
+
+from doctrine.shared.schema_utils import SchemaUtilities
 
 logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
-# Constants
+# Schema + template accessors
 # ---------------------------------------------------------------------------
 
-VALID_ACTIONS: frozenset[str] = frozenset(
-    {"rename", "manual_review", "do_not_change", "rename_if_user_visible"}
-)
+SCHEMA_NAME: str = "occurrence-map"
+TEMPLATE_FILENAME: str = "occurrence-map-template.yaml"
 
-VALID_OPERATIONS: frozenset[str] = frozenset({"rename", "remove", "deprecate"})
+
+def load_schema() -> dict[str, Any]:
+    """Return the JSON Schema dict for ``occurrence_map.yaml``.
+
+    The schema lives in ``src/doctrine/schemas/occurrence-map.schema.yaml`` and is
+    loaded (and cached) by :class:`doctrine.shared.schema_utils.SchemaUtilities`.
+    """
+    return SchemaUtilities.load_schema(SCHEMA_NAME)
+
+
+def template_path() -> Path:
+    """Return the filesystem path to the starter template YAML."""
+    try:
+        resource = files("doctrine") / "templates" / TEMPLATE_FILENAME
+        return Path(str(resource))
+    except (ModuleNotFoundError, TypeError):
+        # Development fallback for non-resource contexts.
+        return (
+            Path(__file__).resolve().parents[2]
+            / "doctrine"
+            / "templates"
+            / TEMPLATE_FILENAME
+        )
+
+
+def load_template_text() -> str:
+    """Return the starter template YAML as a string."""
+    return template_path().read_text(encoding="utf-8")
+
+
+# ---------------------------------------------------------------------------
+# Schema-derived constants
+# ---------------------------------------------------------------------------
+
+
+@cache
+def _schema_definitions() -> dict[str, Any]:
+    defs: dict[str, Any] = load_schema().get("definitions", {})
+    return defs
+
+
+@cache
+def _valid_actions() -> frozenset[str]:
+    return frozenset(_schema_definitions().get("action", {}).get("enum", []))
+
+
+@cache
+def _valid_operations() -> frozenset[str]:
+    return frozenset(_schema_definitions().get("operation", {}).get("enum", []))
+
+
+@cache
+def _standard_categories() -> frozenset[str]:
+    return frozenset(
+        _schema_definitions().get("standard_category", {}).get("enum", [])
+    )
+
+
+# The 8 standard occurrence categories required by FR-004 — sourced from the
+# schema so adding/removing a category in one place is a single edit. An
+# admissible occurrence map must classify every one of these, even when the
+# action is ``do_not_change`` (omitting a category silently whitelists it).
+VALID_ACTIONS: frozenset[str] = _valid_actions()
+VALID_OPERATIONS: frozenset[str] = _valid_operations()
+STANDARD_CATEGORIES: frozenset[str] = _standard_categories()
 
 PLACEHOLDER_TERMS: frozenset[str] = frozenset(
     {"TODO", "TBD", "FIXME", "XXX", "PLACEHOLDER", ""}
 )
 
 MIN_ADMISSIBLE_CATEGORIES: int = 3
-
-# The 8 standard occurrence categories required by FR-004.
-# An admissible occurrence map must classify every one of these, even when
-# the action is ``do_not_change`` — omitting a category from the map
-# silently whitelists it, which defeats the guardrail's purpose.
-STANDARD_CATEGORIES: frozenset[str] = frozenset(
-    {
-        "code_symbols",
-        "import_paths",
-        "filesystem_paths",
-        "serialized_keys",
-        "cli_commands",
-        "user_facing_strings",
-        "tests_fixtures",
-        "logs_telemetry",
-    }
-)
 
 _KNOWN_TOP_LEVEL_KEYS: frozenset[str] = frozenset(
     {"target", "categories", "exceptions", "status"}
@@ -192,6 +249,27 @@ def validate_occurrence_map(omap: OccurrenceMap) -> ValidationResult:
         errors=errors,
         warnings=warnings,
     )
+
+
+# ---------------------------------------------------------------------------
+# JSON Schema validation
+# ---------------------------------------------------------------------------
+
+
+def validate_against_schema(raw: dict[str, Any]) -> ValidationResult:
+    """Validate the raw map dict against the JSON Schema.
+
+    This is a machine-enforced contract check — if the schema file changes, the
+    bounds of what this function accepts change with it. Use this alongside
+    :func:`validate_occurrence_map` (which produces human-readable errors tuned
+    for the runtime gate's output panels).
+    """
+    errors: list[str] = []
+    validator = jsonschema.Draft202012Validator(load_schema())
+    for err in sorted(validator.iter_errors(raw), key=lambda e: list(e.absolute_path)):
+        path = ".".join(str(p) for p in err.absolute_path) or "<root>"
+        errors.append(f"{path}: {err.message}")
+    return ValidationResult(valid=len(errors) == 0, errors=errors, warnings=[])
 
 
 # ---------------------------------------------------------------------------
