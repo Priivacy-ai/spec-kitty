@@ -345,7 +345,7 @@ class TestWarnOnce:
         msg = marker_hits[0].getMessage()
         assert "command=merge" in msg
         assert str(tmp_path) in msg
-        assert "spec-kitty doctor --fix sparse-checkout" in msg
+        assert "spec-kitty doctor sparse-checkout --fix" in msg
 
     def test_no_emit_on_clean_repo(
         self, tmp_path: Path, caplog: pytest.LogCaptureFixture

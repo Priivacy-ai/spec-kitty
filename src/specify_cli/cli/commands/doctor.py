@@ -568,16 +568,13 @@ def sparse_checkout(
 
     # --fix path: route by interactivity.
     if not _is_interactive_environment():
-        console.print("[yellow]⚠ Legacy sparse-checkout state detected[/yellow]")
-        affected = ", ".join(str(p) for p in report.affected_paths)
-        console.print(f"  Affected: {affected}")
-        console.print(
-            "  This command is running in a non-interactive environment; "
-            "remediation requires operator consent."
-        )
-        console.print(
-            "  Run 'spec-kitty doctor sparse-checkout --fix' from a local "
-            "terminal to apply the fix."
+        # FR-023: CI/non-TTY surface is a single deterministic pointer line so
+        # scripts can grep it reliably. No state mutation; non-zero exit.
+        # Bypass Rich's auto-wrapping (which splits on terminal width and
+        # breaks grep) by using the stdlib print.
+        print(
+            "sparse-checkout --fix requires an interactive terminal; "
+            "run 'spec-kitty doctor sparse-checkout --fix' from a local TTY to remediate."
         )
         raise typer.Exit(1)
 

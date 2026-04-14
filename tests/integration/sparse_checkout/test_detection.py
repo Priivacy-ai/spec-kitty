@@ -230,7 +230,7 @@ class TestPreflight:
         msg = str(err)
         assert "merge aborted" in msg
         assert "legacy sparse-checkout state detected" in msg
-        assert "spec-kitty doctor --fix sparse-checkout" in msg
+        assert "spec-kitty doctor sparse-checkout --fix" in msg
         assert "--allow-sparse-checkout" in msg
         assert str(repo) in msg
 

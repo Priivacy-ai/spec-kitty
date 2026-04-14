@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import re
 import time
 from pathlib import Path
@@ -74,6 +75,35 @@ def _is_linear_history_rejection(stderr: str) -> bool:
     """
     haystack = stderr.lower()
     return any(token.lower() in haystack for token in LINEAR_HISTORY_REJECTION_TOKENS)
+
+
+def _resolve_merge_actor(repo_root: Path) -> str:
+    """Resolve the actor identity for merge-time audit records.
+
+    Priority: SPEC_KITTY_AGENT env var -> git config user.name ->
+    GIT_AUTHOR_NAME -> USER/USERNAME. Falls back to ``<unknown>`` only if
+    every source is empty, which should not happen in a properly
+    configured environment. This mirrors the resolver pattern used by
+    _merge_actor in scripts/tasks/tasks_cli.py so override audit records
+    carry a real identity instead of <unknown>.
+    """
+    agent_env = os.environ.get("SPEC_KITTY_AGENT")
+    if agent_env and agent_env.strip():
+        return agent_env.strip()
+    try:
+        ret, out, _err = run_command(["git", "config", "user.name"], capture=True, cwd=repo_root)
+        if ret == 0 and out and out.strip():
+            return out.strip()
+    except Exception:  # noqa: BLE001, S110 — actor resolution must never break merge
+        pass
+    # Final-tier fallback: environment username. Comment preserved deliberately
+    # because reviewers ask why this exists — see Fix 2 / FR-008 post-merge follow-up.
+    return (
+        os.environ.get("GIT_AUTHOR_NAME")
+        or os.environ.get("USER")
+        or os.environ.get("USERNAME")
+        or "<unknown>"
+    )
 
 
 def _emit_remediation_hint(hint_console: Console) -> None:
@@ -609,7 +639,7 @@ def _run_lane_based_merge(
         repo_root=main_repo,
         command="spec-kitty merge",
         override_flag=allow_sparse_checkout,
-        actor=None,
+        actor=_resolve_merge_actor(main_repo),
         mission_slug=mission_slug,
         mission_id=_preflight_mission_id or mission_slug,
     )
@@ -840,7 +870,7 @@ def _run_lane_based_merge_locked(
                 console.print(f"  {line}")
             console.print(
                 "\nThis usually indicates sparse-checkout or a stale lock file. Run\n"
-                "  spec-kitty doctor --fix sparse-checkout\n"
+                "  spec-kitty doctor sparse-checkout --fix\n"
                 "before retrying the merge."
             )
             raise typer.Exit(1)

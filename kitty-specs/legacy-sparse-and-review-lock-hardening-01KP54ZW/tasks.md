@@ -173,9 +173,9 @@ Total: 35 subtasks across 9 WPs.
 - [x] T006 Post-merge working-tree refresh in `_run_lane_based_merge_locked` (WP05)
 - [x] T007 Post-merge `git status` invariant assertion (WP05)
 - [x] T020 Merge preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
-- [ ] T021 Implement preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
-- [ ] T023 Integration tests for merge + implement preflights, override, refresh, invariant (WP05) [P]
-- [ ] T038 Verify `--force` does not bypass the sparse-checkout preflight (WP05) [P]
+- [x] T021 Implement preflight wiring + `--allow-sparse-checkout` flag + log record (WP05)
+- [x] T023 Integration tests for merge + implement preflights, override, refresh, invariant (WP05) [P]
+- [x] T038 Verify `--force` does not bypass the sparse-checkout preflight (WP05) [P]
 
 **Dependencies**: WP01 (backstop defensive layer must exist to prove multi-layer defense), WP02 (detection and preflight API).
 **Parallel opportunities**: T023 and T038 after T020/T021 complete.
@@ -199,7 +199,7 @@ Total: 35 subtasks across 9 WPs.
 - [x] T027 Parameterize retry guidance on actual `target_lane` (WP06)
 - [x] T028 Enhance `ReviewLock.release()` to remove empty `.spec-kitty/` directory (WP06)
 - [x] T029 Invoke `ReviewLock.release()` at approve and reject transition exits (WP06)
-- [ ] T031 Integration tests: approve/reject without `--force`, filter rules, release cleanup (WP06) [P]
+- [x] T031 Integration tests: approve/reject without `--force`, filter rules, release cleanup (WP06) [P]
 
 **Dependencies**: WP02 (uses `warn_if_sparse_once()`).
 **Parallel opportunities**: T031 after T029 complete.

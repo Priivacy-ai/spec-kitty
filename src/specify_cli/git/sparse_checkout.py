@@ -247,7 +247,7 @@ def warn_if_sparse_once(repo_root: Path, *, command: str) -> None:
     affected = ", ".join(str(p) for p in report.affected_paths)
     logger.warning(
         "spec_kitty.sparse_checkout.detected command=%s repo=%s affected=%s "
-        "fix='spec-kitty doctor --fix sparse-checkout'",
+        "fix='spec-kitty doctor sparse-checkout --fix'",
         command,
         repo_root,
         affected,
@@ -281,7 +281,7 @@ class SparseCheckoutPreflightError(RuntimeError):
             "silent data loss in prior mission merges (see\n"
             "Priivacy-ai/spec-kitty#588).\n"
             "\nFix:\n"
-            "  spec-kitty doctor --fix sparse-checkout\n"
+            "  spec-kitty doctor sparse-checkout --fix\n"
             "\nIf you have an intentional sparse configuration and understand\n"
             "the risk, you may pass --allow-sparse-checkout to proceed. Use of\n"
             "this override is logged at WARNING level."

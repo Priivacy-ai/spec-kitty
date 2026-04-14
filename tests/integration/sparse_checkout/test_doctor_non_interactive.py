@@ -109,6 +109,14 @@ def test_non_interactive_stdin_not_tty(
     result = runner.invoke(doctor_app, ["sparse-checkout", "--fix"])
     assert result.exit_code == 1, result.stdout
     assert "spec-kitty doctor sparse-checkout --fix" in result.stdout
+    # FR-023 fast-follow: non-interactive output must be a single-line
+    # pointer so CI log readers / grep invocations get a deterministic
+    # surface. Rich/console may append a trailing newline — splitlines
+    # strips it, so the expected count is 1 content line.
+    non_empty_lines = [ln for ln in result.stdout.splitlines() if ln.strip()]
+    assert len(non_empty_lines) == 1, (
+        f"expected single-line pointer, got {len(non_empty_lines)} lines: {result.stdout!r}"
+    )
     _assert_state_unchanged(repo)
 
 

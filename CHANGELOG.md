@@ -17,7 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- **`spec-kitty doctor --fix sparse-checkout`** — detection and one-command migration for repositories upgraded from pre-3.0 spec-kitty that still carry `core.sparseCheckout=true` and a `.git/info/sparse-checkout` pattern file. The fix removes the git-config entry, clears the pattern file, and verifies post-fix state.
+- **`spec-kitty doctor sparse-checkout --fix`** — detection and one-command migration for repositories upgraded from pre-3.0 spec-kitty that still carry `core.sparseCheckout=true` and a `.git/info/sparse-checkout` pattern file. The fix removes the git-config entry, clears the pattern file, and verifies post-fix state.
 - **`--allow-sparse-checkout` flag on `mission merge` and `agent action implement`** — explicit escape hatch for users with intentional sparse configurations. Use of the flag emits a `WARNING`-level structured log record (`spec_kitty.override.sparse_checkout`) at the CLI layer. Durable cross-repo audit event support is tracked as Priivacy-ai/spec-kitty#617.
 - **Commit-time backstop inside `safe_commit`** — fail-closed check that aborts commits whose staging area contains paths outside the intended scope, independent of the preflight. This is the universal defence that catches sparse-stash-pop phantom-deletion cascades regardless of which command initiated them.
 - **Per-worktree `.spec-kitty/` exclude entry** — every lane worktree now receives a local git exclude entry for `.spec-kitty/` at worktree creation, so lane scratch content stays invisible to the working-tree guard even in worktrees initialised before the fix.
@@ -46,7 +46,7 @@ git commit -m "fix: restore content reverted by phantom-deletion bug"
 Then run the migration to prevent recurrence:
 
 ```bash
-spec-kitty doctor --fix sparse-checkout
+spec-kitty doctor sparse-checkout --fix
 ```
 
 Root-cause diagnostic trail: [Priivacy-ai/spec-kitty#588 (comment)](https://github.com/Priivacy-ai/spec-kitty/issues/588#issuecomment-4242179946).

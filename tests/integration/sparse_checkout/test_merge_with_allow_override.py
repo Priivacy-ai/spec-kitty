@@ -147,3 +147,94 @@ class TestMergeWithAllowOverride:
             f"observed={observed}"
         )
         assert observed.get("command") == "spec-kitty merge"
+
+    def test_override_audit_log_carries_resolved_actor_not_unknown(
+        self,
+        tmp_path: Path,
+        caplog: pytest.LogCaptureFixture,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """FR-008 fast-follow: override audit record must carry a real identity.
+
+        Previously the merge-command callsite passed ``actor=None`` to
+        ``require_no_sparse_checkout``, producing ``actor=<unknown>`` in the
+        override log. This test asserts that a resolved agent identity
+        (here: the ``SPEC_KITTY_AGENT`` env var) propagates from the CLI into
+        the emitted log record.
+        """
+        from specify_cli.cli.commands import merge as merge_mod
+
+        repo = tmp_path / "r"
+        _init_git_repo(repo)
+        _run(["git", "-C", str(repo), "config", "core.sparseCheckout", "true"])
+
+        monkeypatch.setenv("SPEC_KITTY_AGENT", "claude-integration")
+
+        observed: dict[str, object] = {}
+
+        def capturing_preflight(**kwargs: object) -> None:
+            observed.update(kwargs)
+            # Actually emit the log record the real preflight would emit so we
+            # can assert the full wire format, not just the arg value.
+            from specify_cli.git import sparse_checkout as sc_mod_inner
+
+            sc_mod_inner.logger.warning(
+                "spec_kitty.override.sparse_checkout command=%s "
+                "mission_slug=%s mission_id=%s actor=%s repo=%s affected=%s",
+                kwargs.get("command"),
+                kwargs.get("mission_slug") or "<none>",
+                kwargs.get("mission_id") or "<none>",
+                kwargs.get("actor") or "<unknown>",
+                kwargs.get("repo_root"),
+                "stub",
+            )
+
+        monkeypatch.setattr(merge_mod, "require_no_sparse_checkout", capturing_preflight)
+
+        class _StopEarly(Exception):
+            pass
+
+        def stop_after_preflight(*_args: object, **_kwargs: object) -> object:
+            raise _StopEarly()
+
+        monkeypatch.setattr(merge_mod, "require_lanes_json", stop_after_preflight)
+
+        caplog.set_level(logging.WARNING, logger=sc_mod.logger.name)
+
+        import os
+
+        import typer
+        from typer.testing import CliRunner
+
+        app = typer.Typer()
+        app.command()(merge_mod.merge)
+        runner = CliRunner()
+
+        original_cwd = os.getcwd()
+        try:
+            os.chdir(repo)
+            runner.invoke(
+                app,
+                ["--mission", "feat-test", "--allow-sparse-checkout"],
+                catch_exceptions=True,
+            )
+        finally:
+            os.chdir(original_cwd)
+
+        # 1. The preflight arg must carry the resolved identity (not None, not
+        #    <unknown>). SPEC_KITTY_AGENT wins over git config per _resolve_merge_actor.
+        actor_arg = observed.get("actor")
+        assert actor_arg not in (None, "", "<unknown>"), (
+            f"override audit must resolve a real actor; got {actor_arg!r}"
+        )
+        assert actor_arg == "claude-integration"
+
+        # 2. And the emitted log record must show the resolved identity.
+        override_hits = [
+            r for r in caplog.records
+            if "spec_kitty.override.sparse_checkout" in r.getMessage()
+        ]
+        assert len(override_hits) == 1
+        msg = override_hits[0].getMessage()
+        assert "actor=claude-integration" in msg
+        assert "actor=<unknown>" not in msg
