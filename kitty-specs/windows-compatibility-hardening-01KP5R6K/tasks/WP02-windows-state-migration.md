@@ -21,8 +21,8 @@ subtasks:
 - T008
 - T009
 - T010
-agent: "claude:opus-4.6:implementer:implementer"
-shell_pid: "46585"
+agent: "claude:opus-4.6:reviewer:reviewer"
+shell_pid: "52017"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -296,3 +296,4 @@ Do NOT ask about:
 
 - 2026-04-14T11:25:54Z – claude:opus-4.6:implementer:implementer – shell_pid=46585 – Started implementation via action command
 - 2026-04-14T11:32:59Z – claude:opus-4.6:implementer:implementer – shell_pid=46585 – WP02 complete: destination-wins migration with lock, 5 POSIX-mocked + 1 windows_ci test. Ready for review.
+- 2026-04-14T11:33:20Z – claude:opus-4.6:reviewer:reviewer – shell_pid=52017 – Started review via action command
