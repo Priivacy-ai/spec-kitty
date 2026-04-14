@@ -126,12 +126,12 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T012 Create `command_installer.py` with report dataclasses (WP03)
-- [ ] T013 Implement `install()` (WP03)
-- [ ] T014 Implement `remove()` with ref-count semantics (WP03)
-- [ ] T015 Implement `verify()` (WP03)
-- [ ] T016 Coexistence tests with 3 third-party dirs (WP03)
-- [ ] T017 Drift integration test (WP03)
+- [x] T012 Create `command_installer.py` with report dataclasses (WP03)
+- [x] T013 Implement `install()` (WP03)
+- [x] T014 Implement `remove()` with ref-count semantics (WP03)
+- [x] T015 Implement `verify()` (WP03)
+- [x] T016 Coexistence tests with 3 third-party dirs (WP03)
+- [x] T017 Drift integration test (WP03)
 
 **Dependencies**: WP01, WP02.
 
