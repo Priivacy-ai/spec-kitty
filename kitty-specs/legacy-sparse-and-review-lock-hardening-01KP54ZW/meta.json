@@ -1,10 +1,12 @@
 {
   "created_at": "2026-04-14T04:46:28.428409+00:00",
-  "friendly_name": "legacy sparse and review lock hardening",
+  "friendly_name": "Legacy Sparse-Checkout Cleanup and Review-Lock Hardening",
   "mission_id": "01KP54ZWEEPCC2VC3YKRX1HT8W",
   "mission_number": null,
   "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
   "mission_type": "software-dev",
   "slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
-  "target_branch": "main"
+  "target_branch": "main",
+  "vcs": "git",
+  "source_description": "Consolidate two post-3.0.0 regressions surfaced in gh issues Priivacy-ai/spec-kitty#588 (silent data loss during mission merge on repos that carry leftover sparse-checkout state from pre-3.0 spec-kitty runs) and Priivacy-ai/spec-kitty#589 (review-lock file triggers spec-kitty's own uncommitted-changes guard, forcing --force on every approve transition). Both were reported by Kent Gale (kentonium3) against 3.1.1. The mission addresses the legacy sparse-checkout state that v3.0.0 deleted code for but left live on disk in user repos, hardens the merge pipeline against silent data loss, and repairs the review-lock self-collision in the dirty-tree guard."
 }
