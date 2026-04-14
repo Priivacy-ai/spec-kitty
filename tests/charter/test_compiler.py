@@ -104,7 +104,7 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
 
     # Build a minimal mock DoctrineService whose repositories return nothing
     # (empty lists / None gets), so the code paths that call .get() and
-    # resolve_references_transitively() are exercised.
+    # the DRG-backed transitive resolution path is exercised.
     mock_service = MagicMock()
     mock_service.directives.list_all.return_value = []
     mock_service.directives.get.return_value = None
@@ -129,10 +129,16 @@ def test_compile_with_doctrine_service_uses_repositories() -> None:
     assert "## Governance Activation" in compiled.markdown
 
 
-def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
-    """Unresolvable references are recorded as diagnostics when DoctrineService is used."""
-    # Mock service whose directives.get() always returns None → every directive
-    # that the interview selects will be unresolved by the walker.
+def test_compile_with_doctrine_service_unknown_directive_in_diagnostics() -> None:
+    """Unknown directives surface as a user-visible diagnostic.
+
+    Post-WP03 the DRG is the sole authority for transitive references; any
+    directive not in the catalog is dropped by
+    ``_sanitize_catalog_selection`` before transitive resolution fires, so
+    the diagnostic is emitted by the sanitizer rather than the walker.
+    The user-visible signal (a non-silent diagnostic about the bad
+    selection) is preserved.
+    """
     mock_service = MagicMock()
     mock_service.directives.get.return_value = None
     mock_service.tactics.get.return_value = None
@@ -140,9 +146,10 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
     mock_service.toolguides.get.return_value = None
     mock_service.procedures.get.return_value = None
 
-    # Force a known directive into the interview so we can assert on it
     interview_with_directive = default_interview(mission="software-dev", profile="minimal")
-    object.__setattr__(interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"])
+    object.__setattr__(
+        interview_with_directive, "selected_directives", ["DIRECTIVE_MISSING"]
+    )
 
     compiled = compile_charter(
         mission="software-dev",
@@ -150,10 +157,9 @@ def test_compile_with_doctrine_service_unresolved_refs_in_diagnostics() -> None:
         doctrine_service=mock_service,
     )
 
-    # At least one "Unresolved reference" diagnostic must appear
-    assert any("Unresolved reference" in d for d in compiled.diagnostics), (
-        f"Expected unresolved-reference diagnostic; got: {compiled.diagnostics}"
-    )
+    assert any(
+        "DIRECTIVE_MISSING" in d for d in compiled.diagnostics
+    ), f"Expected a diagnostic about DIRECTIVE_MISSING; got: {compiled.diagnostics}"
 
 
 # ---------------------------------------------------------------------------

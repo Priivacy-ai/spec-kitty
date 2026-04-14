@@ -47,7 +47,9 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
             "title": "Review First",
             "intent": "Review code thoroughly.",
             "enforcement": "required",
-            "tactic_refs": ["review-tactic"],
+            # Post-WP02: inline `tactic_refs` removed; WP03 promoted the
+            # former inline chains to DRG edges (see the graph.yaml
+            # fixture below).
         },
     )
     _write_yaml(
@@ -92,7 +94,7 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
             "title": "Interview Directive",
             "intent": "Interview-selected directive.",
             "enforcement": "advisory",
-            "tactic_refs": [],
+            # Post-WP02: inline `tactic_refs` removed from the Directive model.
         },
     )
     _write_yaml(
@@ -120,6 +122,36 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
             "description": "Software development mission.",
         },
     )
+    # Post-WP03: the DRG graph is the sole authority for transitive
+    # reference chains. Materialize a synthetic graph.yaml that mirrors the
+    # pre-WP02 inline topology (REVIEW_FIRST -> review-tactic; review-tactic
+    # -> review-style).
+    _write_yaml(
+        shipped_root / "graph.yaml",
+        {
+            "schema_version": "1.0",
+            "generated_at": "2026-04-14T00:00:00Z",
+            "generated_by": "test",
+            "nodes": [
+                {"urn": "directive:REVIEW_FIRST", "kind": "directive"},
+                {"urn": "directive:INTERVIEW_ONLY", "kind": "directive"},
+                {"urn": "tactic:review-tactic", "kind": "tactic"},
+                {"urn": "styleguide:review-style", "kind": "styleguide"},
+            ],
+            "edges": [
+                {
+                    "source": "directive:REVIEW_FIRST",
+                    "target": "tactic:review-tactic",
+                    "relation": "requires",
+                },
+                {
+                    "source": "tactic:review-tactic",
+                    "target": "styleguide:review-style",
+                    "relation": "requires",
+                },
+            ],
+        },
+    )
 
     doctrine_service = DoctrineService(shipped_root=shipped_root)
     doctrine_catalog = DoctrineCatalog(
@@ -139,18 +171,40 @@ def test_profile_aware_charter_compilation_resolves_transitive_references(tmp_pa
         selected_directives=["INTERVIEW_ONLY"],
     )
 
-    resolution = resolve_governance_for_profile("reviewer", "reviewer", doctrine_service, interview)
-    compiled = compile_charter(
-        mission="software-dev",
-        interview=apply_answer_overrides(
-            interview,
-            selected_directives=resolution.directives,
-            agent_profile=resolution.profile_id,
-            agent_role=resolution.role,
-        ),
-        doctrine_catalog=doctrine_catalog,
-        doctrine_service=doctrine_service,
+    # Load the fixture graph explicitly so resolve_governance_for_profile
+    # does not attempt to read the installed doctrine package.
+    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.validator import assert_valid
+
+    drg = merge_layers(load_graph(shipped_root / "graph.yaml"), None)
+    assert_valid(drg)
+
+    resolution = resolve_governance_for_profile(
+        "reviewer",
+        "reviewer",
+        doctrine_service,
+        interview,
+        graph=drg,
     )
+    # Monkey-patch resolve_doctrine_root so the compiler's DRG lookup
+    # targets the same synthetic shipped_root as the resolver. The
+    # compiler imports the function into its own namespace, so we patch
+    # the binding there.
+    with patch(
+        "charter.compiler.resolve_doctrine_root",
+        return_value=shipped_root,
+    ):
+        compiled = compile_charter(
+            mission="software-dev",
+            interview=apply_answer_overrides(
+                interview,
+                selected_directives=resolution.directives,
+                agent_profile=resolution.profile_id,
+                agent_role=resolution.role,
+            ),
+            doctrine_catalog=doctrine_catalog,
+            doctrine_service=doctrine_service,
+        )
     result = write_compiled_charter(output_dir, compiled, force=True)
 
     assert resolution.directives == ["REVIEW_FIRST", "INTERVIEW_ONLY"]

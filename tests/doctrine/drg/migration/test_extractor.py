@@ -134,18 +134,12 @@ class TestExtractArtifactEdges:
         urns = [n.urn for n in nodes]
         assert len(urns) == len(set(urns)), "Duplicate node URNs found"
 
-    def test_directive_tactic_refs_produce_requires(self) -> None:
-        """Directive tactic_refs should produce 'requires' edges."""
-        _, edges = extract_artifact_edges(DOCTRINE_ROOT)
-        # DIRECTIVE_001 has tactic_refs including adr-drafting-workflow
-        d001_requires = [
-            e for e in edges
-            if e.source == "directive:DIRECTIVE_001"
-            and e.relation == Relation.REQUIRES
-        ]
-        assert len(d001_requires) > 0
-        targets = {e.target for e in d001_requires}
-        assert "tactic:adr-drafting-workflow" in targets
+    # One migration-extractor regression test was deleted in WP03 of the
+    # excise-doctrine-curation-and-inline-references-01KP54J6 mission;
+    # it exercised the pre-WP02 inline-reference path that no longer has
+    # shipped input data. The migration extractor itself remains covered
+    # by test_directive_opposed_by_produces_replaces and the other
+    # TestExtractArtifactEdges cases.
 
     def test_directive_opposed_by_produces_replaces(self) -> None:
         """Directive opposed_by should produce 'replaces' edges."""

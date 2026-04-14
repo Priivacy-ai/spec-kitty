@@ -4,10 +4,6 @@ title: Test and Typecheck Quality Gate
 intent: >
   Code changes must pass the relevant automated tests and static validation
   gates before handoff so regressions and interface drift are caught early.
-tactic_refs:
-  - quality-gate-verification
-  - test-pyramid-progression
-  - testing-select-appropriate-level
 enforcement: required
 scope: >
   Applies to source code, tests, and command workflows that change executable

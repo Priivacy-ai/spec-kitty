@@ -125,27 +125,28 @@ def _shipped_tactic_ids() -> set[str]:
     return tactic_ids
 
 
-def test_all_directive_tactic_refs_resolve_to_shipped_tactics() -> None:
-    tactic_ids = _shipped_tactic_ids()
-    assert tactic_ids, "No shipped tactics found"
+def test_no_directive_carries_inline_tactic_refs() -> None:
+    """Post-WP02: shipped directives must not carry inline ``tactic_refs``.
 
+    Cross-artifact relationships (directive → tactic) live exclusively as
+    edges in ``src/doctrine/graph.yaml`` after Phase 1 excision. This test
+    guards against regressions that reintroduce inline references.
+    """
     directive_files = _multi_glob([_SHIPPED_DIRECTIVES_DIR], "*.directive.yaml")
     assert directive_files, "No shipped directive files found"
 
-    unresolved: list[str] = []
+    offenders: list[str] = []
     for path in directive_files:
         data = _load_yaml(path)
-        refs = data.get("tactic_refs", []) or []
-        if not isinstance(refs, list):
-            unresolved.append(f"{path.name}: tactic_refs is not a list")
-            continue
+        if "tactic_refs" in data:
+            offenders.append(f"{path.name}: still declares inline `tactic_refs`")
 
-        for ref in refs:
-            ref_str = str(ref).strip()
-            if ref_str and ref_str not in tactic_ids:
-                unresolved.append(f"{path.name}: unresolved tactic_ref '{ref_str}'")
-
-    assert not unresolved, "Unresolved tactic references:\n" + "\n".join(unresolved)
+    assert not offenders, (
+        "Inline `tactic_refs` reintroduced on shipped directives — all "
+        "cross-artifact relationships must live in src/doctrine/graph.yaml "
+        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
+    )
 
 
 def _shipped_styleguide_ids() -> set[str]:
@@ -396,18 +397,21 @@ def test_tactic_opposed_by_refs_resolve() -> None:
     assert not unresolved, "Unresolved tactic opposed_by references:\n" + "\n".join(unresolved)
 
 
-def test_paradigm_tactic_refs_resolve_to_shipped_tactics() -> None:
-    """All tactic_refs on shipped paradigms must resolve to shipped tactics.
+def test_no_paradigm_carries_inline_tactic_refs() -> None:
+    """Post-WP02: shipped paradigms must not carry inline ``tactic_refs``.
 
-    _proposed paradigms are excluded — their tactic_refs may reference unshipped tactics.
+    Paradigm → tactic relationships live in ``src/doctrine/graph.yaml``
+    after Phase 1 excision; this test guards against regression.
     """
-    tactic_ids = _shipped_tactic_ids()
-    unresolved: list[str] = []
+    offenders: list[str] = []
     for path in _multi_glob([_SHIPPED_PARADIGMS_DIR], "*.paradigm.yaml"):
         data = _load_yaml(path)
         paradigm_id = str(data.get("id", "")).strip()
-        for ref in data.get("tactic_refs", []) or []:
-            ref_str = str(ref).strip()
-            if ref_str and ref_str not in tactic_ids:
-                unresolved.append(f"{paradigm_id}: unresolved tactic_ref '{ref_str}'")
-    assert not unresolved, "Unresolved paradigm tactic_refs:\n" + "\n".join(unresolved)
+        if "tactic_refs" in data:
+            offenders.append(f"{paradigm_id}: still declares inline `tactic_refs`")
+    assert not offenders, (
+        "Inline `tactic_refs` reintroduced on shipped paradigms — all "
+        "relationships must live in src/doctrine/graph.yaml "
+        "(see WP02 of excise-doctrine-curation-and-inline-references-01KP54J6):\n"
+        + "\n".join(offenders)
+    )

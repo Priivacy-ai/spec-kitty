@@ -78,13 +78,18 @@ class GovernanceConfig(BaseModel):
 
 
 class Directive(BaseModel):
-    """A single numbered directive from the charter."""
+    """A single numbered directive from the charter.
+
+    Cross-artifact applicability is now expressed via graph edges in
+    ``src/doctrine/graph.yaml`` rather than an inline ``applies_to`` field
+    (Phase 1 excision — mission
+    ``excise-doctrine-curation-and-inline-references-01KP54J6`` WP02).
+    """
 
     id: str
     title: str
     description: str = ""
     severity: str = "warn"
-    applies_to: list[str] = Field(default_factory=list)
 
 
 class DirectivesConfig(BaseModel):

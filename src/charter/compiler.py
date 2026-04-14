@@ -338,7 +338,10 @@ def _build_references_from_service(
     diagnostics: list[str],
 ) -> list[CharterReference]:
     """Load references via typed repository queries and transitive resolution."""
-    from charter.reference_resolver import resolve_references_transitively
+    from doctrine.drg.loader import load_graph, merge_layers
+    from doctrine.drg.models import Relation
+    from doctrine.drg.query import resolve_transitive_refs
+    from doctrine.drg.validator import assert_valid
 
     references: list[CharterReference] = []
 
@@ -353,8 +356,29 @@ def _build_references_from_service(
             )
         )
 
-    # Resolve directives + transitive artifacts via DoctrineService
-    graph = resolve_references_transitively(directives, doctrine_service)
+    # Resolve directives + transitive artifacts via the DRG.
+    #
+    # The DRG is the sole authority for transitive reference chains as of
+    # WP03 of the excise-doctrine-curation-and-inline-references-01KP54J6
+    # mission. A missing graph.yaml under ``doctrine_root`` (e.g. in
+    # test-private shipped roots) degrades gracefully to no transitive
+    # artifacts -- callers that need a specific topology are expected to
+    # materialize a ``graph.yaml`` in the shipped root.
+    from doctrine.drg.query import ResolveTransitiveRefsResult
+
+    graph_path = doctrine_root / "graph.yaml"
+    if graph_path.exists() and directives:
+        drg = load_graph(graph_path)
+        merged = merge_layers(drg, None)
+        assert_valid(merged)
+        start_urns = {f"directive:{d}" for d in directives}
+        graph = resolve_transitive_refs(
+            merged,
+            start_urns=start_urns,
+            relations={Relation.REQUIRES, Relation.SUGGESTS},
+        )
+    else:
+        graph = ResolveTransitiveRefsResult(directives=sorted(directives))
 
     for directive_id in graph.directives:
         directive = doctrine_service.directives.get(directive_id)

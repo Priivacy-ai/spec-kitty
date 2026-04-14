@@ -37,7 +37,12 @@ def sample_procedure_data() -> dict:
 
 @pytest.fixture
 def enriched_procedure_data() -> dict:
-    """Procedure with tactic_refs and branching."""
+    """Procedure with branching and cross-references.
+
+    Post-WP02: step-level ``tactic_refs`` is removed; ``extra="forbid"``
+    rejects it at the model layer. Cross-artifact relationships live in
+    ``src/doctrine/graph.yaml``.
+    """
     return {
         "schema_version": "1.0",
         "id": "mission-merge-ceremony",
@@ -49,7 +54,6 @@ def enriched_procedure_data() -> dict:
             {
                 "title": "Run preflight checks",
                 "actor": "system",
-                "tactic_refs": ["adr-drafting-workflow"],
                 "on_failure": "Abort merge and report errors.",
             },
             {

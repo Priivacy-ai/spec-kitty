@@ -4,19 +4,6 @@ title: Boy Scout Rule
 intent: >
   Engineers should leave touched areas in a slightly better state when safe and
   local to the active task.
-tactic_refs:
-  - refactoring-inline-temp
-  - refactoring-replace-temp-with-query
-  - refactoring-replace-magic-number-with-symbolic-constant
-  - refactoring-move-method
-  - refactoring-move-field
-  - refactoring-extract-first-order-concept
-  - refactoring-extract-class-by-responsibility-split
-  - refactoring-guard-clauses-before-polymorphism
-  - refactoring-conditional-to-strategy
-  - refactoring-introduce-null-object
-  - refactoring-retry-pattern
-  - refactoring-strangler-fig
 enforcement: advisory
 scope: >
   Applies to small, low-risk improvements within files or modules already

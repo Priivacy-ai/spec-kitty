@@ -268,35 +268,35 @@ class TestDRGOnlyKnob:
         / "src" / "doctrine" / "drg" / "query.py"
     )
 
-    def test_build_context_v2_has_no_action_conditionals(self) -> None:
-        """build_context_v2 must not branch on specific action names.
+    def test_build_charter_context_has_no_action_conditionals(self) -> None:
+        """build_charter_context must not branch on specific action names.
 
         The DRG graph.yaml scope edges are the **only** knob that controls
         which artifacts each action receives.  Adding ``if action == "X"``
         logic is a regression.
         """
         tree = _parse_module(self._CONTEXT_PY)
-        func = _find_function_def(tree, "build_context_v2")
-        assert func is not None, "build_context_v2 not found in context.py"
+        func = _find_function_def(tree, "build_charter_context")
+        assert func is not None, "build_charter_context not found in context.py"
 
         violations = _find_action_conditionals(func)
         assert not violations, (
-            "build_context_v2 contains action-specific conditionals "
+            "build_charter_context contains action-specific conditionals "
             "(DRG-only-knob violation):\n"
             + "\n".join(f"  - {v}" for v in violations)
             + "\nFix: adjust scope edges in graph.yaml instead of adding "
             "code-level filtering"
         )
 
-    def test_build_context_v2_has_no_action_name_maps(self) -> None:
-        """build_context_v2 must not use dicts/sets of action names for filtering."""
+    def test_build_charter_context_has_no_action_name_maps(self) -> None:
+        """build_charter_context must not use dicts/sets of action names for filtering."""
         tree = _parse_module(self._CONTEXT_PY)
-        func = _find_function_def(tree, "build_context_v2")
-        assert func is not None, "build_context_v2 not found in context.py"
+        func = _find_function_def(tree, "build_charter_context")
+        assert func is not None, "build_charter_context not found in context.py"
 
         violations = _find_action_name_dicts_or_sets(func)
         assert not violations, (
-            "build_context_v2 contains action-name dicts/sets "
+            "build_charter_context contains action-name dicts/sets "
             "(DRG-only-knob violation):\n"
             + "\n".join(f"  - {v}" for v in violations)
             + "\nFix: adjust scope edges in graph.yaml instead of adding "

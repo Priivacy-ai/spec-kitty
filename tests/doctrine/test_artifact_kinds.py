@@ -90,49 +90,20 @@ class TestFromPlural:
         with pytest.raises(KeyError):
             ArtifactKind.from_plural("unknown_type")
 
+    def test_plural_mapping_covers_all_kinds(self) -> None:
+        """Regression for the private kind -> plural mapping that the
+        deleted charter transitive-reference module used to maintain.
 
-class TestDerivedConstants:
-    """Verify ARTIFACT_TYPES and _GLOB_PATTERNS are correctly derived."""
-
-    def test_artifact_types_includes_agent_profiles(self) -> None:
-        from doctrine.curation.state import ARTIFACT_TYPES
-
-        assert "agent_profiles" in ARTIFACT_TYPES
-
-    def test_artifact_types_excludes_templates(self) -> None:
-        from doctrine.curation.state import ARTIFACT_TYPES
-
-        assert "templates" not in ARTIFACT_TYPES
-
-    def test_artifact_types_count(self) -> None:
-        from doctrine.curation.state import ARTIFACT_TYPES
-
-        # All kinds minus TEMPLATE
-        assert len(ARTIFACT_TYPES) == len(ArtifactKind) - 1
-
-    def test_glob_patterns_derived(self) -> None:
-        from doctrine.curation.engine import _GLOB_PATTERNS
-
-        assert _GLOB_PATTERNS["directives"] == "*.directive.yaml"
-        assert _GLOB_PATTERNS["agent_profiles"] == "*.agent.yaml"
-        assert "templates" not in _GLOB_PATTERNS
-
-    def test_ref_type_map_includes_paradigm(self) -> None:
-        from charter.reference_resolver import _REF_TYPE_MAP
-
-        assert _REF_TYPE_MAP["paradigm"] == "paradigms"
-
-    def test_ref_type_map_includes_agent_profile(self) -> None:
-        from charter.reference_resolver import _REF_TYPE_MAP
-
-        assert _REF_TYPE_MAP["agent_profile"] == "agent_profiles"
-
-    def test_ref_type_map_covers_all_kinds(self) -> None:
-        from charter.reference_resolver import _REF_TYPE_MAP
-
+        That module was deleted in WP03 of the
+        ``excise-doctrine-curation-and-inline-references-01KP54J6`` mission;
+        the shape it enforced (``<singular> -> <plural>`` for every
+        :class:`ArtifactKind`) is now a pure enum invariant and is asserted
+        directly.
+        """
         for kind in ArtifactKind:
-            assert kind.value in _REF_TYPE_MAP
-            assert _REF_TYPE_MAP[kind.value] == kind.plural
+            # Round-trip: plural -> ArtifactKind.from_plural(plural) -> plural
+            assert ArtifactKind.from_plural(kind.plural) is kind
+            assert kind.value != kind.plural  # singular and plural differ
 
 
 class TestPydanticIntegration:

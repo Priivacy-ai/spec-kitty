@@ -930,3 +930,85 @@ edges:
   target: tactic:test-pyramid-progression
   relation: suggests
   when: Executing tests in pyramid order after they are written
+# ---------------------------------------------------------------------------
+# Edges promoted from inline procedure-step `tactic_refs` during WP02 of the
+# excise-doctrine-curation-and-inline-references-01KP54J6 mission. These
+# relationships previously lived embedded in procedure YAML `steps[*].tactic_refs`;
+# Phase 1 excision lifts them into the canonical DRG so the graph is the sole
+# cross-artifact reference authority (see FR-005/FR-006/FR-013 and R-1 audit).
+# ---------------------------------------------------------------------------
+- source: procedure:refactoring
+  target: tactic:change-apply-smallest-viable-diff
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-change-function-declaration
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-combine-functions-into-transform
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-conditional-to-strategy
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-consolidate-conditional-expression
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-encapsulate-record
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-encapsulate-variable
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-extract-class-by-responsibility-split
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-extract-first-order-concept
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-guard-clauses-before-polymorphism
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-inline-temp
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-introduce-null-object
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-move-field
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-move-method
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-replace-magic-number-with-symbolic-constant
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-replace-temp-with-query
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-retry-pattern
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-state-pattern-for-behavior
+  relation: requires
+- source: procedure:refactoring
+  target: tactic:refactoring-strangler-fig
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:ammerse-impact-analysis
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:eisenhower-prioritisation
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:premortem-risk-identification
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:problem-decomposition
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:safe-to-fail-experiment
+  relation: requires
+- source: procedure:situational-assessment
+  target: tactic:stakeholder-alignment
+  relation: requires

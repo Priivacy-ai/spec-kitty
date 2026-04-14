@@ -8,6 +8,16 @@ import jsonschema
 from importlib.resources import files
 from ruamel.yaml import YAML
 
+from doctrine.shared.errors import reject_inline_refs
+
+
+def reject_agent_profile_inline_refs(
+    data: dict[str, Any], *, file_path: str
+) -> None:
+    """Raise ``InlineReferenceRejectedError`` if the agent-profile YAML
+    carries a forbidden inline reference field."""
+    reject_inline_refs(data, file_path=file_path, artifact_kind="agent_profile")
+
 
 @lru_cache(maxsize=1)
 def _load_agent_profile_schema() -> dict[str, Any]:

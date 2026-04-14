@@ -9,7 +9,7 @@ fast when invalid doctrine files are introduced.
 | Schema | Validates |
 |--------|-----------|
 | `agent-profile.schema.yaml` | Agent profile YAML (6-section structure, directive refs, routing metadata) |
-| `directive.schema.yaml` | Directive YAML (id, title, intent, tactic_refs, enforcement) |
+| `directive.schema.yaml` | Directive YAML (id, title, intent, enforcement) — cross-artifact relationships live in `src/doctrine/graph.yaml` |
 | `import-candidate.schema.yaml` | Curation import candidate YAML |
 | `mission.schema.yaml` | Mission definition YAML (states, transitions, guards, agent-profile on steps) |
 | `occurrence-map.schema.yaml` | Bulk-edit occurrence map YAML (DIRECTIVE_035 — target, categories, exceptions) |

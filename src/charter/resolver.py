@@ -10,14 +10,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from charter._drg_helpers import load_validated_graph
 from charter.catalog import load_doctrine_catalog
-from charter.reference_resolver import resolve_references_transitively
 from charter.sync import (
     load_directives_config,
     load_governance_config,
 )
+from doctrine.drg.models import Relation
+from doctrine.drg.query import resolve_transitive_refs
 
 if TYPE_CHECKING:
+    from doctrine.drg.models import DRGGraph
     from doctrine.service import DoctrineService
     from charter.interview import CharterInterview
 
@@ -167,8 +170,33 @@ def resolve_governance_for_profile(
     role: str | None,
     doctrine_service: DoctrineService,
     interview: CharterInterview,
+    *,
+    graph: DRGGraph | None = None,
+    repo_root: Path | None = None,
 ) -> GovernanceResolution:
-    """Resolve governance selections for a specific agent profile."""
+    """Resolve governance selections for a specific agent profile.
+
+    Transitive reference resolution walks the Doctrine Reference Graph
+    (DRG) using ``{Relation.REQUIRES, Relation.SUGGESTS}`` seeded from the
+    merged directive URNs, replacing the pre-WP03 legacy transitive
+    resolver path.
+
+    Args:
+        profile_id: Agent profile handle from the shipped agent_profile set.
+        role: Optional role string attached to the resolution.
+        doctrine_service: Doctrine service providing agent-profile lookup.
+        interview: Charter interview selections.
+        graph: Pre-loaded validated DRG graph. When ``None`` and
+            ``repo_root`` is provided, the graph is loaded via
+            :func:`charter._drg_helpers.load_validated_graph`. When both
+            are ``None``, transitive resolution is skipped and the
+            per-kind lists in the return value stay empty (useful for
+            environments that do not ship a DRG overlay yet).
+
+    Returns:
+        :class:`GovernanceResolution` with transitively-resolved tactics,
+        styleguides, toolguides, and procedures populated from the DRG.
+    """
     normalized_profile_id = profile_id.strip()
     if not normalized_profile_id:
         raise ValueError("Profile ID is required for profile-aware governance resolution.")
@@ -180,18 +208,40 @@ def resolve_governance_for_profile(
 
     profile_directives = [ref.code.strip() for ref in profile.directive_references if ref.code.strip()]
     merged_directives = _merge_unique(profile_directives, interview.selected_directives)
-    graph = resolve_references_transitively(merged_directives, doctrine_service)
-    diagnostics = [
-        f"Unresolved reference: {artifact_type}/{artifact_id}" for artifact_type, artifact_id in graph.unresolved
-    ]
+
+    resolved_graph = graph
+    if resolved_graph is None and repo_root is not None:
+        resolved_graph = load_validated_graph(repo_root)
+
+    tactics: list[str] = []
+    styleguides: list[str] = []
+    toolguides: list[str] = []
+    procedures: list[str] = []
+    diagnostics: list[str] = []
+
+    if resolved_graph is not None and merged_directives:
+        start_urns = {f"directive:{d}" for d in merged_directives}
+        resolution = resolve_transitive_refs(
+            resolved_graph,
+            start_urns=start_urns,
+            relations={Relation.REQUIRES, Relation.SUGGESTS},
+        )
+        tactics = list(resolution.tactics)
+        styleguides = list(resolution.styleguides)
+        toolguides = list(resolution.toolguides)
+        procedures = list(resolution.procedures)
+        diagnostics = [
+            f"Unresolved reference: {src}/{tgt}"
+            for src, tgt in resolution.unresolved
+        ]
 
     return GovernanceResolution(
         paradigms=list(interview.selected_paradigms),
         directives=merged_directives,
-        tactics=list(graph.tactics),
-        styleguides=list(graph.styleguides),
-        toolguides=list(graph.toolguides),
-        procedures=list(graph.procedures),
+        tactics=tactics,
+        styleguides=styleguides,
+        toolguides=toolguides,
+        procedures=procedures,
         tools=list(interview.available_tools),
         template_set=DEFAULT_TEMPLATE_SET,
         metadata={
