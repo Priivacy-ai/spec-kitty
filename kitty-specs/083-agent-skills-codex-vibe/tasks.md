@@ -247,6 +247,6 @@ Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vi
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
-- WP01: for_review
-- WP02: for_review
+- WP01: done
+- WP02: done
 <!-- status-model:end -->
