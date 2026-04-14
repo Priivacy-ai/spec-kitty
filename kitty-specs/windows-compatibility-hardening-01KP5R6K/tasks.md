@@ -43,15 +43,15 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T028 | Windows-native test for `tracker/credentials.py` path resolution | WP05 | [P] |
 | T029 | Windows-native test for `sync/daemon.py` path resolution | WP05 | [P] |
 | T030 | Windows-native cross-module test: auth, tracker, sync, daemon, kernel.paths all resolve under the same `RuntimeRoot.base` | WP05 | |
-| T031 | Refactor `hook_installer.install()` to capture `Path(sys.executable).resolve()` at install time | WP06 | |
-| T032 | Rewrite hook template: `#!/bin/sh` + single quoted `exec "<abs_interpreter>" -m specify_cli.policy.commit_guard_hook "$@"` | WP06 | |
-| T033 | Implement atomic install via temp-file-then-rename; ensure mode `0o755` post-write | WP06 | |
-| T034 | Return `HookInstallRecord` from installer (per data-model E-05) for testability | WP06 | [P] |
-| T035 | Rendering tests: shebang, single quoted interpreter line, mode `0o755` | WP06 | [P] |
-| T036 | Execution test (`windows_ci`): hook runs successfully on Git for Windows; exit code propagates | WP06 | [P] |
-| T037 | Execution test (`windows_ci`): hook executes when interpreter path contains a space | WP06 | [P] |
-| T038 | Regression test (`windows_ci`) for issue #105: PATH stripped of `python`/`python3`/`py` → hook still executes | WP06 | [P] |
-| T039 | POSIX execution smoke test: hook still works on Linux runner (cross-platform parity) | WP06 | [P] |
+| T031 | Refactor `hook_installer.install()` to capture `Path(sys.executable).resolve()` at install time | WP06 | | [D] |
+| T032 | Rewrite hook template: `#!/bin/sh` + single quoted `exec "<abs_interpreter>" -m specify_cli.policy.commit_guard_hook "$@"` | WP06 | | [D] |
+| T033 | Implement atomic install via temp-file-then-rename; ensure mode `0o755` post-write | WP06 | | [D] |
+| T034 | Return `HookInstallRecord` from installer (per data-model E-05) for testability | WP06 | [D] |
+| T035 | Rendering tests: shebang, single quoted interpreter line, mode `0o755` | WP06 | [D] |
+| T036 | Execution test (`windows_ci`): hook runs successfully on Git for Windows; exit code propagates | WP06 | [D] |
+| T037 | Execution test (`windows_ci`): hook executes when interpreter path contains a space | WP06 | [D] |
+| T038 | Regression test (`windows_ci`) for issue #105: PATH stripped of `python`/`python3`/`py` → hook still executes | WP06 | [D] |
+| T039 | POSIX execution smoke test: hook still works on Linux runner (cross-platform parity) | WP06 | [D] |
 | T040 | Create `.github/workflows/ci-windows.yml`: `windows-latest`, Python 3.11, pipx install, `PYTHONUTF8=1`, `pytest -m windows_ci --maxfail=1` | WP07 | |
 | T041 | Add "keyring NOT installed" assertion step to the Windows workflow (packaging enforcement of C-001) | WP07 | [P] |
 | T042 | Update `ci-quality.yml` (Linux) to run `pytest -m "not windows_ci"` | WP07 | [P] |
@@ -251,15 +251,15 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - `0o755` is a no-op on NTFS but required for POSIX; do not conditionalize.
 
 **Included subtasks**:
-- [ ] T031 Refactor `hook_installer.install()` to capture `Path(sys.executable).resolve()` at install time
-- [ ] T032 Rewrite hook template: `#!/bin/sh` + single quoted `exec "<abs_interpreter>" -m ... "$@"`
-- [ ] T033 Implement atomic install via temp-file-then-rename; ensure mode `0o755` post-write
-- [ ] T034 Return `HookInstallRecord` from installer (per data-model E-05) for testability
-- [ ] T035 Rendering tests: shebang, single quoted interpreter line, mode `0o755`
-- [ ] T036 Execution test (`windows_ci`): hook runs on Git for Windows; exit code propagates
-- [ ] T037 Execution test (`windows_ci`): hook executes when interpreter path contains a space
-- [ ] T038 Regression test (`windows_ci`) for #105: PATH stripped of `python`/`python3`/`py` → hook still executes
-- [ ] T039 POSIX execution smoke test: hook still works on Linux runner
+- [x] T031 Refactor `hook_installer.install()` to capture `Path(sys.executable).resolve()` at install time
+- [x] T032 Rewrite hook template: `#!/bin/sh` + single quoted `exec "<abs_interpreter>" -m ... "$@"`
+- [x] T033 Implement atomic install via temp-file-then-rename; ensure mode `0o755` post-write
+- [x] T034 Return `HookInstallRecord` from installer (per data-model E-05) for testability
+- [x] T035 Rendering tests: shebang, single quoted interpreter line, mode `0o755`
+- [x] T036 Execution test (`windows_ci`): hook runs on Git for Windows; exit code propagates
+- [x] T037 Execution test (`windows_ci`): hook executes when interpreter path contains a space
+- [x] T038 Regression test (`windows_ci`) for #105: PATH stripped of `python`/`python3`/`py` → hook still executes
+- [x] T039 POSIX execution smoke test: hook still works on Linux runner
 
 ---
 
