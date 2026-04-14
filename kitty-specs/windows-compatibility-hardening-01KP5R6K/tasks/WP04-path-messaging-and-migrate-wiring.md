@@ -268,3 +268,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T11:48:15Z – claude:opus-4.6:implementer:implementer – shell_pid=69955 – Started implementation via action command
+- 2026-04-14T11:59:04Z – claude:opus-4.6:implementer:implementer – shell_pid=69955 – WP04 complete: CLI messaging scrubbed of legacy literals, migrate auto-run wired, static audit test in place. mypy strict clean. Ready for review.
