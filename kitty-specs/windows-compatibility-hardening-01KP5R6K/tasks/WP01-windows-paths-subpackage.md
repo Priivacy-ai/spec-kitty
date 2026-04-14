@@ -18,8 +18,8 @@ subtasks:
 - T003
 - T004
 - T005
-shell_pid: "29321"
-agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "39766"
+agent: "claude:opus-4.6:reviewer:reviewer"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -322,3 +322,4 @@ Do NOT ask about:
 
 - 2026-04-14T10:58:38Z – claude:opus-4.6:implementer:implementer – shell_pid=29321 – Assigned agent via action command
 - 2026-04-14T11:11:35Z – claude:opus-4.6:implementer:implementer – shell_pid=29321 – WP01 implementation complete: paths subpackage + render helper landed with tests. Ready for review.
+- 2026-04-14T11:11:58Z – claude:opus-4.6:reviewer:reviewer – shell_pid=39766 – Started review via action command
