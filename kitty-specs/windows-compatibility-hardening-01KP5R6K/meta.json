@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-14T10:22:12.211620+00:00",
+  "friendly_name": "windows compatibility hardening",
+  "mission_id": "01KP5R6KRZDXV1BKM3Q1FZMY77",
+  "mission_number": null,
+  "mission_slug": "windows-compatibility-hardening-01KP5R6K",
+  "mission_type": "software-dev",
+  "slug": "windows-compatibility-hardening-01KP5R6K",
+  "target_branch": "main"
+}
