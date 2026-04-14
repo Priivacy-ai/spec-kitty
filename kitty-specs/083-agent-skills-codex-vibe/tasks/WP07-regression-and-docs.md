@@ -1,38 +1,43 @@
 ---
-work_package_id: "WP07"
-title: "Regression Snapshots and Documentation"
-subtasks:
-  - T033
-  - T034
-  - T035
-  - T036
-  - T037
+work_package_id: WP07
+title: Regression Snapshots and Documentation
 dependencies:
-  - WP01
-  - WP02
-  - WP03
-  - WP04
-  - WP05
-  - WP06
-planning_base_branch: "main"
-merge_target_branch: "main"
-branch_strategy: "lane-worktree"
-execution_mode: "code_change"
-owned_files:
-  - "tests/specify_cli/regression/test_twelve_agent_parity.py"
-  - "tests/specify_cli/regression/_twelve_agent_baseline/**"
-  - "README.md"
-  - "CLAUDE.md"
-authoritative_surface: "tests/specify_cli/regression/"
-requirement_refs:
-  - FR-014
-  - FR-015
-  - FR-016
-  - NFR-005
+- WP01
+- WP02
+- WP03
+- WP04
+- WP05
+- WP06
+base_branch: main
+base_commit: 1b6e14d8c28924c63e0d94f08aa23f37fd082eab
+created_at: '2026-04-14T10:47:07.759646+00:00'
+subtasks:
+- T033
+- T034
+- T035
+- T036
+- T037
+lane: "doing"
+shell_pid: "22219"
 history:
-  - at: "2026-04-14T00:00:00+00:00"
-    actor: "planner"
-    event: "created"
+- at: '2026-04-14T00:00:00+00:00'
+  actor: planner
+  event: created
+authoritative_surface: tests/specify_cli/regression/
+branch_strategy: lane-worktree
+execution_mode: code_change
+merge_target_branch: main
+owned_files:
+- tests/specify_cli/regression/test_twelve_agent_parity.py
+- tests/specify_cli/regression/_twelve_agent_baseline/**
+- README.md
+- CLAUDE.md
+planning_base_branch: main
+requirement_refs:
+- FR-014
+- FR-015
+- FR-016
+- NFR-005
 ---
 
 # WP07 — Regression Snapshots and Documentation
