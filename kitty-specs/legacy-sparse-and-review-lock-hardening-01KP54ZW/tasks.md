@@ -43,9 +43,9 @@ Total: 35 subtasks across 9 WPs.
 | T010 | `scan_path()` and `scan_repo()` pure detection functions | WP02 |  | [D] |
 | T011 | `warn_if_sparse_once()` session-warning emitter + module flag | WP02 |  | [D] |
 | T012 | Unit tests for detection primitive covering R6 | WP02 | [D] |
-| T013 | Remediation types: per-path result + aggregate report | WP03 |  |
-| T014 | 5-step per-path remediation composed across primary + worktrees | WP03 |  |
-| T015 | Unit tests for remediation outcomes | WP03 | [P] |
+| T013 | Remediation types: per-path result + aggregate report | WP03 |  | [D] |
+| T014 | 5-step per-path remediation composed across primary + worktrees | WP03 |  | [D] |
+| T015 | Unit tests for remediation outcomes | WP03 | [D] |
 | T016 | Doctor finding surfacing sparse-checkout scan | WP04 |  |
 | T017 | `doctor --fix sparse-checkout` action with CI/non-TTY handling | WP04 |  |
 | T018 | Integration tests for doctor finding and remediation flow | WP04 | [P] |
@@ -128,9 +128,9 @@ Total: 35 subtasks across 9 WPs.
 **Prompt file**: [tasks/WP03-sparse-checkout-remediation.md](tasks/WP03-sparse-checkout-remediation.md)
 
 **Included subtasks**:
-- [ ] T013 Remediation types: per-path result + aggregate report (WP03)
-- [ ] T014 5-step per-path remediation composed across primary + worktrees (WP03)
-- [ ] T015 Unit tests for remediation outcomes (WP03) [P]
+- [x] T013 Remediation types: per-path result + aggregate report (WP03)
+- [x] T014 5-step per-path remediation composed across primary + worktrees (WP03)
+- [x] T015 Unit tests for remediation outcomes (WP03) [P]
 
 **Dependencies**: WP02.
 **Parallel opportunities**: T015 after T014 complete.
