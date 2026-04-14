@@ -19,6 +19,8 @@ subtasks:
 - T013
 - T014
 - T015
+agent: "claude:sonnet:implementer:implementer"
+shell_pid: "94246"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -573,3 +575,7 @@ Add the canonical-root resolver that the chokepoint will use to identify the mai
 - Verify `SyncResult` gains exactly one new field (`canonical_root`).
 - Verify `ensure_charter_bundle_fresh()` calls `resolve_canonical_repo_root()` as its first non-import operation.
 - Run benchmarks locally and compare against thresholds. Re-run if CI reports a borderline pass.
+
+## Activity Log
+
+- 2026-04-14T12:32:00Z – claude:sonnet:implementer:implementer – shell_pid=94246 – Started implementation via action command
