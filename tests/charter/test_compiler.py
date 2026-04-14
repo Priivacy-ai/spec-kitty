@@ -113,6 +113,75 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
     )
 
 
+def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None:
+    """When repo_root is passed, the project DRG overlay at
+    <repo_root>/.kittify/doctrine/graph.yaml participates in transitive
+    resolution (exercises the repo_root branch of _build_references and
+    _default_doctrine_service).
+
+    Post-merge fix per P2 of the excise-doctrine-curation-and-inline-references-01KP54J6
+    mission review.
+    """
+    interview = default_interview(mission="software-dev", profile="minimal")
+
+    # An empty project overlay at .kittify/doctrine/graph.yaml is enough
+    # to prove the repo_root branch executes load_validated_graph. We use
+    # an empty edges/nodes overlay so shipped edges dominate and the
+    # compilation still succeeds end-to-end.
+    overlay_dir = tmp_path / ".kittify" / "doctrine"
+    overlay_dir.mkdir(parents=True)
+    (overlay_dir / "graph.yaml").write_text(
+        "schema_version: '1.0'\n"
+        "generated_at: '2026-04-14T00:00:00+00:00'\n"
+        "generated_by: test-compile-with-repo-root\n"
+        "nodes: []\n"
+        "edges: []\n"
+    )
+
+    # Also create a project doctrine overlay dir so _default_doctrine_service
+    # exercises the project-root branch (compiler.py lines 267-269).
+    (tmp_path / "src" / "doctrine").mkdir(parents=True)
+
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=interview,
+        doctrine_service=None,
+        repo_root=tmp_path,
+    )
+    kinds = {reference.kind for reference in compiled.references}
+    # Shipped graph still supplies tactics even with empty project overlay.
+    assert "tactic" in kinds, (
+        f"repo_root branch should still resolve shipped tactics; got {sorted(kinds)}"
+    )
+
+
+def test_compile_with_repo_root_handles_missing_shipped_graph(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """When repo_root is passed but the shipped graph cannot be loaded,
+    _build_references falls back to legacy minimal behavior (directives only,
+    no transitive resolution). Exercises compiler.py FileNotFoundError branch.
+    """
+    from charter import _drg_helpers as drg_helpers_module
+
+    interview = default_interview(mission="software-dev", profile="minimal")
+
+    def _raise_fnf(_repo_root: Path) -> object:
+        raise FileNotFoundError("synthetic: shipped graph missing")
+
+    monkeypatch.setattr(drg_helpers_module, "load_validated_graph", _raise_fnf)
+
+    compiled = compile_charter(
+        mission="software-dev",
+        interview=interview,
+        doctrine_service=None,
+        repo_root=tmp_path,
+    )
+    # Fallback path: no transitive artifacts beyond directives/paradigms themselves.
+    kinds = {reference.kind for reference in compiled.references}
+    assert "tactic" not in kinds, (
+        f"FileNotFoundError branch should NOT resolve tactics; got {sorted(kinds)}"
+    )
+
+
 def test_compile_with_doctrine_service_uses_repositories() -> None:
     """When DoctrineService is provided, its repositories are queried."""
     interview = default_interview(mission="software-dev", profile="minimal")
