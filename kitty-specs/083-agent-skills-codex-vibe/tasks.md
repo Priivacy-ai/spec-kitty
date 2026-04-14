@@ -102,12 +102,12 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T006 Create `command_renderer.py` with `RenderedSkill` and `SkillRenderError` (WP02)
-- [ ] T007 Implement `## User Input` block identifier (WP02)
-- [ ] T008 Implement User-Input block rewrite; lock text in constants (WP02)
-- [ ] T009 Implement `$ARGUMENTS` stray-token guard (WP02)
-- [ ] T010 Implement frontmatter builder (sorted, deterministic) (WP02)
-- [ ] T011 Snapshot tests — 16 commands × 2 agents × 2 runs; stray-token coverage (WP02)
+- [x] T006 Create `command_renderer.py` with `RenderedSkill` and `SkillRenderError` (WP02)
+- [x] T007 Implement `## User Input` block identifier (WP02)
+- [x] T008 Implement User-Input block rewrite; lock text in constants (WP02)
+- [x] T009 Implement `$ARGUMENTS` stray-token guard (WP02)
+- [x] T010 Implement frontmatter builder (sorted, deterministic) (WP02)
+- [x] T011 Snapshot tests — 16 commands × 2 agents × 2 runs; stray-token coverage (WP02)
 
 **Dependencies**: none.
 
@@ -247,5 +247,6 @@ Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vi
 
 <!-- status-model:start -->
 ## Canonical Status (Generated)
+- WP01: for_review
 - WP02: for_review
 <!-- status-model:end -->
