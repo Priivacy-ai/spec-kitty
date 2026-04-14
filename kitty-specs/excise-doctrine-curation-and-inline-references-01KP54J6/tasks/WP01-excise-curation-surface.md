@@ -23,7 +23,8 @@ subtasks:
 - T004
 - T005
 - T006
-shell_pid: '43987'
+shell_pid: "43987"
+agent: "claude:opus-4.6:python-implementer:implementer"
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
@@ -393,3 +394,7 @@ Stop and comment on [#476](https://github.com/Priivacy-ai/spec-kitty/issues/476)
 - A curation-import is found in a module outside `src/doctrine/` or `src/specify_cli/` (suggests wider blast radius than the specify-phase inventory captured)
 - A test outside `tests/doctrine/curation/` or `tests/cross_cutting/test_doctrine_curation_unit.py` fails in a way that references curation APIs
 - A SOURCE template references the curation workflow in a way that needs product-level rewriting, not just deletion (escalate for guidance rather than ad-lib rewriting)
+
+## Activity Log
+
+- 2026-04-14T05:42:22Z – claude:opus-4.6:python-implementer:implementer – shell_pid=43987 – Assigned agent via action command
