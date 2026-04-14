@@ -20,6 +20,8 @@ subtasks:
 - T029
 - T031
 phase: Phase 1 — Review-lock track
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "35748"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -257,3 +259,7 @@ Each test uses a lane-worktree fixture. Mock or genuinely stand up a review lock
 - Verify `_RUNTIME_STATE_DENY_LIST` is a fixed tuple; no `re.compile`, no glob expansion.
 - Verify `ReviewLock.release()` is idempotent: calling it twice does not crash (second call's `lock_path.exists()` is False).
 - Verify genuine uncommitted work in the worktree still blocks (C-004 regression test).
+
+## Activity Log
+
+- 2026-04-14T07:24:17Z – claude:opus-4.6:implementer:implementer – shell_pid=35748 – Started implementation via action command
