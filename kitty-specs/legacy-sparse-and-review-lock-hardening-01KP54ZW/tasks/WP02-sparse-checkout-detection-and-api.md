@@ -372,3 +372,4 @@ def require_no_sparse_checkout(
 
 - 2026-04-14T06:28:59Z – claude:opus-4.6:implementer:implementer – shell_pid=50309 – Started implementation via action command
 - 2026-04-14T06:39:41Z – claude:opus-4.6:implementer:implementer – shell_pid=50309 – Ready for review
+- 2026-04-14T06:41:48Z – claude:opus-4.6:implementer:implementer – shell_pid=50309 – Review passed: WP02 delivers sparse-checkout detection primitive, session warning, and preflight API. All 31 unit+integration tests pass. API shape (scan_path/scan_repo/warn_if_sparse_once/require_no_sparse_checkout/SparseCheckoutPreflightError) matches downstream WP03-WP07 call sites. Once-per-process invariant uses real module global, not @lru_cache. Preflight raises on active sparse without override, emits structured override log on override. No unintended production imports — primitive-only delivery as specified.
