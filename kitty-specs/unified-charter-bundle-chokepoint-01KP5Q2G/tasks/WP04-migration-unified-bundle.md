@@ -17,8 +17,8 @@ subtasks:
 - T027
 - T028
 - T029
-agent: "claude:sonnet:implementer:implementer"
-shell_pid: "17894"
+agent: "codex:gpt-5:python-reviewer:reviewer"
+shell_pid: "26285"
 history:
 - at: '2026-04-14T11:16:00Z'
   actor: claude
@@ -402,3 +402,4 @@ Reference migrations to study before writing:
 
 - 2026-04-14T15:05:05Z – claude:sonnet:implementer:implementer – shell_pid=17894 – Started implementation via action command
 - 2026-04-14T15:15:43Z – claude:sonnet:implementer:implementer – shell_pid=17894 – WP04 migration complete: m_3_2_3_unified_bundle.py registered (auto-discovery), FR-013 fixture matrix green (12/12), CHANGELOG updated, occurrence artifact authored + mission index finalized. Scope respected: no worktree scanning, no symlink removal, no gitignore reconciliation. Verifier green for WP04.yaml and index.yaml. NFR-006 duration_ms=22ms.
+- 2026-04-14T15:16:38Z – codex:gpt-5:python-reviewer:reviewer – shell_pid=26285 – Started review via action command
