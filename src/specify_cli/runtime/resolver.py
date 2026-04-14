@@ -17,33 +17,21 @@ from __future__ import annotations
 import logging
 import sys
 import warnings
-from dataclasses import dataclass
-from enum import Enum
 from pathlib import Path
+
+# Single source of truth for the resolution enum / result dataclass.
+# Re-exported from doctrine.resolver so every importer shares one class
+# identity — otherwise `ResolutionTier.X == ResolutionTier.X` fails across
+# modules and test suites that import from both paths flake on `is`/`==`.
+# Historical note: prior to 2026-04-15 this module defined its own
+# duplicate ResolutionTier/ResolutionResult, which caused ~30 CI failures
+# on the release-readiness job where doctrine.test_resolver and
+# runtime.test_resolver_unit ran in the same session.
+from doctrine.resolver import ResolutionResult, ResolutionTier
 
 from specify_cli.runtime.home import get_kittify_home, get_package_asset_root
 
 logger = logging.getLogger(__name__)
-
-
-# ---------------------------------------------------------------------------
-# Public data types
-# ---------------------------------------------------------------------------
-
-
-class ResolutionTier(Enum):
-    OVERRIDE = "override"
-    LEGACY = "legacy"
-    GLOBAL_MISSION = "global_mission"
-    GLOBAL = "global"
-    PACKAGE_DEFAULT = "package_default"
-
-
-@dataclass(frozen=True)
-class ResolutionResult:
-    path: Path
-    tier: ResolutionTier
-    mission: str | None = None
 
 
 # ---------------------------------------------------------------------------
