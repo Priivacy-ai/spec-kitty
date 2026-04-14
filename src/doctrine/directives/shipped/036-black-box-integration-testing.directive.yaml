@@ -1,0 +1,37 @@
+schema_version: "1.0"
+id: DIRECTIVE_036
+title: Black-Box Integration Testing
+intent: >
+  Exercise the application under test through its external interfaces only,
+  without reference to its internal code structure, implementation details,
+  or internal paths. Test cases derive from specifications, requirements,
+  and design parameters, and assertions are made on observable outputs
+  returned through those external interfaces.
+tactic_refs:
+  - black-box-integration-testing
+enforcement: required
+scope: >
+  Applies to integration tests that validate functional behavior across
+  the external boundary of the application under test — HTTP APIs, message
+  interfaces, command-line entry points, and other published interfaces
+  through which a user or client interacts with the system.
+procedures:
+  - Derive test cases from specifications, requirements, and design parameters rather than from reading the implementation.
+  - Drive the application under test exclusively through its published external interface (e.g., HTTP request, CLI invocation, message send).
+  - Select both valid and invalid inputs and determine the expected output in advance of execution.
+  - Assert on observable outputs returned across the external interface — responses, status codes, persisted records, emitted events, logs, stored artifacts.
+  - Apply standard black-box design techniques where relevant — equivalence partitioning, boundary value analysis, decision table testing, state transition testing, error guessing — to choose inputs.
+integrity_rules:
+  - Tests categorized as black-box integration tests must not import the internal modules of the application under test to invoke business logic directly.
+  - Tests categorized as black-box integration tests must not patch, monkeypatch, or otherwise replace the internal collaborators of the application under test.
+  - Substitution of third-party dependencies outside the application under test is permitted only when the substitute preserves the observable contract the application relies on.
+  - Assertions must target externally observable state, not private attributes or internal call sequences of the application under test.
+validation_criteria:
+  - Each black-box integration test can be read and understood without reference to the internal code structure of the application under test.
+  - Each black-box integration test exercises the application under test through an external interface and asserts on observable outputs of that interface.
+  - Inputs for each test trace back to a specification, requirement, or design parameter rather than to an implementation detail.
+references:
+  - type: directive
+    id: DIRECTIVE_030
+  - type: directive
+    id: DIRECTIVE_034

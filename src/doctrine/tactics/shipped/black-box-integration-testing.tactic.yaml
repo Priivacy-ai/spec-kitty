@@ -1,0 +1,65 @@
+schema_version: "1.0"
+id: black-box-integration-testing
+name: Black-Box Integration Testing
+purpose: >
+  Validate the functionality of an application under test without peering
+  into its internal structures or workings, by driving the application
+  through its external interfaces and asserting on observable outputs.
+  Tests are derived from external descriptions of the software —
+  specifications, requirements, and design parameters — rather than from
+  its code.
+steps:
+  - title: Anchor the test in a specification
+    description: Identify the specification, requirement, or design parameter the test covers. Record it in the test name or docstring so the test can be read without reference to the implementation.
+    examples:
+      - "Covers REQ-user-registration-3: a POST /users with a duplicate email returns 409."
+  - title: Identify the external interface
+    description: Determine the published interface through which the application under test will be driven — HTTP endpoint, CLI command, message topic, or equivalent. All test traffic goes through this interface.
+    examples:
+      - "HTTP: POST /api/jobs. Assertions: response status, response body, GET /api/jobs/{id} read-back, emitted event on the job-events topic."
+  - title: Select inputs using black-box techniques
+    description: >
+      Choose valid and invalid inputs using standard black-box design techniques —
+      equivalence partitioning, boundary value analysis, decision table testing,
+      state transition testing, and error guessing — without consulting internal
+      code paths. Determine the expected output for each input in advance.
+    examples:
+      - "Boundary: empty payload, single-item payload, payload at documented size limit, payload one byte over limit."
+  - title: Stand up the application under test at its deployable boundary
+    description: Run the application as it would run for a client — the deployable artifact or compose stack — not an in-process instantiation that bypasses the external interface. Third-party dependencies outside the application may be substituted only where the substitute preserves the observable contract.
+    examples:
+      - "docker compose up of the service plus its database; no in-process import of the service's request handler."
+  - title: Drive the test through the external interface only
+    description: Issue requests, commands, or messages through the external interface. Do not import internal modules of the application under test to invoke business logic directly, and do not patch or monkeypatch internal collaborators.
+  - title: Assert on observable outputs
+    description: Assertions target what a client of the external interface can observe — response payloads and status codes, persisted records readable through the interface, emitted events, logs, or stored artifacts. Do not assert on private attributes or internal call sequences.
+    examples:
+      - "Assert HTTP 201 and a Location header; assert a follow-up GET returns the created resource; assert an event appears on the event stream."
+  - title: Cover both happy path and required failure behavior
+    description: For each behavior under test, include at least one valid-input case and one invalid-input case where the specification defines failure, refusal, or validation behavior.
+failure_modes:
+  - "Importing internal modules of the application under test to call business logic directly — this is unit-style coverage, not black-box integration coverage."
+  - "Patching or monkeypatching internal collaborators of the application under test, which couples the test to the implementation it is supposed to treat as opaque."
+  - "Asserting on private attributes or internal call sequences rather than on outputs observable through the external interface."
+  - "Deriving inputs from reading the implementation rather than from the specification, which blinds the test to missing functionality and spec drift."
+  - "Omitting the invalid-input case, so specified failure or refusal behavior goes unverified."
+references:
+  - name: Test and Typecheck Quality Gate
+    type: directive
+    id: DIRECTIVE_030
+    when: Black-box integration tests are part of the integration-level gate that must pass before handoff.
+  - name: Test-First Development
+    type: directive
+    id: DIRECTIVE_034
+    when: Black-box integration tests can be written first to capture the external contract before implementation.
+  - name: Test Boundaries by Responsibility
+    type: tactic
+    id: test-boundaries-by-responsibility
+    when: Use this tactic to decide which tests belong at the black-box integration boundary versus inside the unit boundary.
+notes: >
+  Black-box testing is also referred to as specification-based testing or
+  behavioral testing. It is distinguished from white-box testing, in which
+  tests are designed with knowledge of the internal code structure. An
+  advantage of the black-box approach is that tests are executed from the
+  perspective of a user or client of the application under test and remain
+  valid under internal refactoring that preserves the external contract.
