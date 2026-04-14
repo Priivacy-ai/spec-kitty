@@ -37,12 +37,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 | T022 | Windows-native test: `spec-kitty agent status` output contains no `~/.kittify` / `~/.spec-kitty` substring | WP04 | [D] |
 | T023 | Windows-native tests: `migrate_cmd` happy-path + conflict-path emit contracted messages with real `C:\` paths | WP04 | [D] |
 | T024 | Static audit test: grep over `src/specify_cli/cli/` for legacy path literals returns zero hits (whitelist in audit report) | WP04 | [D] |
-| T025 | Refactor `tracker/credentials.py` to consume `get_runtime_root().tracker_dir` on Windows; POSIX path unchanged | WP05 | [P] |
-| T026 | Refactor `sync/daemon.py` to consume `get_runtime_root().sync_dir` / `daemon_dir` on Windows; POSIX unchanged | WP05 | [P] |
-| T027 | Refactor `src/kernel/paths.py` so Windows callers resolve via `get_runtime_root().base` | WP05 | [P] |
-| T028 | Windows-native test for `tracker/credentials.py` path resolution | WP05 | [P] |
-| T029 | Windows-native test for `sync/daemon.py` path resolution | WP05 | [P] |
-| T030 | Windows-native cross-module test: auth, tracker, sync, daemon, kernel.paths all resolve under the same `RuntimeRoot.base` | WP05 | |
+| T025 | Refactor `tracker/credentials.py` to consume `get_runtime_root().tracker_dir` on Windows; POSIX path unchanged | WP05 | [D] |
+| T026 | Refactor `sync/daemon.py` to consume `get_runtime_root().sync_dir` / `daemon_dir` on Windows; POSIX unchanged | WP05 | [D] |
+| T027 | Refactor `src/kernel/paths.py` so Windows callers resolve via `get_runtime_root().base` | WP05 | [D] |
+| T028 | Windows-native test for `tracker/credentials.py` path resolution | WP05 | [D] |
+| T029 | Windows-native test for `sync/daemon.py` path resolution | WP05 | [D] |
+| T030 | Windows-native cross-module test: auth, tracker, sync, daemon, kernel.paths all resolve under the same `RuntimeRoot.base` | WP05 | | [D] |
 | T031 | Refactor `hook_installer.install()` to capture `Path(sys.executable).resolve()` at install time | WP06 | | [D] |
 | T032 | Rewrite hook template: `#!/bin/sh` + single quoted `exec "<abs_interpreter>" -m specify_cli.policy.commit_guard_hook "$@"` | WP06 | | [D] |
 | T033 | Implement atomic install via temp-file-then-rename; ensure mode `0o755` post-write | WP06 | | [D] |
@@ -222,12 +222,12 @@ This index is a reference table (not a tracking surface). Per-WP tracking rows l
 - Tracker SQLite files on Windows may have open handles — migration of live DB files is out of scope here (migration happens in WP02 before consumers read).
 
 **Included subtasks**:
-- [ ] T025 Refactor `tracker/credentials.py` to consume `get_runtime_root().tracker_dir` on Windows; POSIX unchanged
-- [ ] T026 Refactor `sync/daemon.py` to consume `get_runtime_root().sync_dir` / `daemon_dir` on Windows; POSIX unchanged
-- [ ] T027 Refactor `src/kernel/paths.py` so Windows callers resolve via `get_runtime_root().base`
-- [ ] T028 Windows-native test for `tracker/credentials.py` path resolution
-- [ ] T029 Windows-native test for `sync/daemon.py` path resolution
-- [ ] T030 Windows-native cross-module test: auth, tracker, sync, daemon, kernel.paths all resolve under the same `RuntimeRoot.base`
+- [x] T025 Refactor `tracker/credentials.py` to consume `get_runtime_root().tracker_dir` on Windows; POSIX unchanged
+- [x] T026 Refactor `sync/daemon.py` to consume `get_runtime_root().sync_dir` / `daemon_dir` on Windows; POSIX unchanged
+- [x] T027 Refactor `src/kernel/paths.py` so Windows callers resolve via `get_runtime_root().base`
+- [x] T028 Windows-native test for `tracker/credentials.py` path resolution
+- [x] T029 Windows-native test for `sync/daemon.py` path resolution
+- [x] T030 Windows-native cross-module test: auth, tracker, sync, daemon, kernel.paths all resolve under the same `RuntimeRoot.base`
 
 ---
 
