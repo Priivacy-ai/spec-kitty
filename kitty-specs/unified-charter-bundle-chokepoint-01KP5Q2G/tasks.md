@@ -37,11 +37,11 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 | T022 | Write `tests/init/test_fresh_clone_no_sync.py` and `tests/charter/test_worktree_charter_via_canonical_root.py` | WP03 | [D] |
 | T023 | Write `tests/test_dashboard/test_charter_chokepoint_regression.py` (byte-identical with redactions) | WP03 | [D] |
 | T024 | Author `kitty-specs/.../occurrences/WP03.yaml` (includes C-011 / C-012 carve-outs) and extend `index.yaml` | WP03 | — | [D] |
-| T025 | Create `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py` | WP04 | — |
-| T026 | Write `tests/upgrade/test_unified_bundle_migration.py` against FR-013 fixture matrix (five fixtures) | WP04 | [P] |
-| T027 | Register migration in `src/specify_cli/upgrade/migrations/__init__.py` (if explicit registration is required; auto-discovery may suffice) | WP04 | — |
-| T028 | Add `CHANGELOG.md` entry and post `#464` tracking comment reflecting filename + scope corrections | WP04 | [P] |
-| T029 | Author `kitty-specs/.../occurrences/WP04.yaml` and **finalize** mission-level `index.yaml` | WP04 | — |
+| T025 | Create `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py` | WP04 | — | [D] |
+| T026 | Write `tests/upgrade/test_unified_bundle_migration.py` against FR-013 fixture matrix (five fixtures) | WP04 | [D] |
+| T027 | Register migration in `src/specify_cli/upgrade/migrations/__init__.py` (if explicit registration is required; auto-discovery may suffice) | WP04 | — | [D] |
+| T028 | Add `CHANGELOG.md` entry and post `#464` tracking comment reflecting filename + scope corrections | WP04 | [D] |
+| T029 | Author `kitty-specs/.../occurrences/WP04.yaml` and **finalize** mission-level `index.yaml` | WP04 | — | [D] |
 
 Total: 29 subtasks across 4 work packages. Average 7.25 subtasks/WP. Expected prompt sizes: 350-500 lines per WP.
 
@@ -191,11 +191,11 @@ See WP03 prompt file for per-subtask detail. Strict order: T016 first (on pre-WP
 
 ### Included subtasks
 
-- [ ] T025 Create `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py` (WP04)
-- [ ] T026 Write `tests/upgrade/test_unified_bundle_migration.py` against FR-013 fixture matrix (five fixtures) (WP04) [P]
-- [ ] T027 Register migration in `src/specify_cli/upgrade/migrations/__init__.py` if explicit registration is required (WP04)
-- [ ] T028 Add `CHANGELOG.md` entry and post `#464` tracking comment (WP04) [P]
-- [ ] T029 Author `kitty-specs/.../occurrences/WP04.yaml` and **finalize** `index.yaml` (WP04)
+- [x] T025 Create `src/specify_cli/upgrade/migrations/m_3_2_3_unified_bundle.py` (WP04)
+- [x] T026 Write `tests/upgrade/test_unified_bundle_migration.py` against FR-013 fixture matrix (five fixtures) (WP04) [P]
+- [x] T027 Register migration in `src/specify_cli/upgrade/migrations/__init__.py` if explicit registration is required (WP04)
+- [x] T028 Add `CHANGELOG.md` entry and post `#464` tracking comment (WP04) [P]
+- [x] T029 Author `kitty-specs/.../occurrences/WP04.yaml` and **finalize** `index.yaml` (WP04)
 
 ### Implementation sketch
 
