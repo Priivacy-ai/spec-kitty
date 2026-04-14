@@ -1,7 +1,7 @@
 ---
 work_package_id: WP03
 title: Command-Skill Installer (additive, reference-counted)
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP01
 - WP02
@@ -15,8 +15,10 @@ subtasks:
 - T015
 - T016
 - T017
+agent: "opus"
 shell_pid: '9377'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -297,3 +299,4 @@ spec-kitty agent action implement WP03 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:14:23Z – claude – shell_pid=9377 – lane=for_review – Installer complete; coexistence test green
+- 2026-04-14T10:16:00Z – opus – shell_pid=9377 – lane=done – Review passed: 41/41 tests green; SHA-256-based three-tenant coexistence test verifies byte-identity through install(codex)+install(vibe)+remove(codex)+remove(vibe); only destructive ops are single-file unlink and guarded rmdir on confirmed-empty parent; reference counting yields sorted ('codex','vibe') tuples and remove(codex) leaves vibe files byte-identical.
