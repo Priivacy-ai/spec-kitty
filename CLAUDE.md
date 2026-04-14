@@ -940,4 +940,29 @@ unset GITHUB_TOKEN && gh auth status
 # Should show keyring token with 'repo' scope as active
 ```
 
+## Windows State Layout (0.12.0+)
+
+On Windows, Spec Kitty stores all per-user runtime state under a single root:
+
+- `%LOCALAPPDATA%\spec-kitty\` (via `platformdirs.user_data_dir("spec-kitty", appauthor=False, roaming=False)`)
+- Subdirectories: `auth/`, `tracker/`, `sync/`, `daemon/`, `cache/`
+
+Auth storage on Windows is the encrypted file-backed store. `keyring` is
+NOT a Windows dependency (see ADR `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md`
+and #603).
+
+Migration from legacy locations (`~/.spec-kitty`, `~/.kittify`,
+`~/.config/spec-kitty`) happens once on first Windows run; see
+`src/specify_cli/paths/windows_migrate.py`.
+
+WSL is treated as Linux. Contributors working on Windows-specific code
+paths should add native CI coverage via `@pytest.mark.windows_ci` and
+the `ci-windows` workflow.
+
+See:
+- `docs/explanation/windows-state.md`
+- `architecture/2026-04-14-windows-compatibility-hardening.md`
+- `architecture/adrs/2026-04-14-1-windows-auth-platform-split.md`
+- `architecture/adrs/2026-04-14-2-windows-runtime-state-unification.md`
+
 <!-- MANUAL ADDITIONS END -->
