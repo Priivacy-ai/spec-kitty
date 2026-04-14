@@ -9,6 +9,48 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- **`mission merge` no longer silently loses content when the repository carries legacy sparse-checkout state** — the stash/merge/stash-pop cascade used by the merge driver previously recorded phantom deletions for paths filtered out by a sparse-checkout pattern, and the subsequent housekeeping commit silently reverted content the preceding merge had introduced. Merge and `agent action implement` now run a sparse-checkout preflight and fail closed unless the operator passes `--allow-sparse-checkout`, `safe_commit` now aborts commits whose staging area contains paths outside the intended scope, and `mission merge` performs a post-merge refresh and invariant check before leaving the integration branch. Closes Priivacy-ai/spec-kitty#588.
+- **`move-task --to approved` and `--to planned` on a lane-worktree review no longer require `--force` when the only untracked content is `.spec-kitty/`** — the review-lock uncommitted-changes guard now treats the execution lane's own `.spec-kitty/` scratch directory as expected content rather than an unexplained untracked path, so operators stop being trained to pass `--force` reflexively. Closes Priivacy-ai/spec-kitty#589.
+- **Retry guidance emitted by the uncommitted-changes guard now names the actual target lane** rather than hardcoded `for_review`, so operators see the transition they were attempting instead of a misleading default.
+
+### Added
+
+- **`spec-kitty doctor sparse-checkout --fix`** — detection and one-command migration for repositories upgraded from pre-3.0 spec-kitty that still carry `core.sparseCheckout=true` and a `.git/info/sparse-checkout` pattern file. The fix removes the git-config entry, clears the pattern file, and verifies post-fix state.
+- **`--allow-sparse-checkout` flag on `mission merge` and `agent action implement`** — explicit escape hatch for users with intentional sparse configurations. Use of the flag emits a `WARNING`-level structured log record (`spec_kitty.override.sparse_checkout`) at the CLI layer. Durable cross-repo audit event support is tracked as Priivacy-ai/spec-kitty#617.
+- **Commit-time backstop inside `safe_commit`** — fail-closed check that aborts commits whose staging area contains paths outside the intended scope, independent of the preflight. This is the universal defence that catches sparse-stash-pop phantom-deletion cascades regardless of which command initiated them.
+- **Per-worktree `.spec-kitty/` exclude entry** — every lane worktree now receives a local git exclude entry for `.spec-kitty/` at worktree creation, so lane scratch content stays invisible to the working-tree guard even in worktrees initialised before the fix.
+- **Session-scoped sparse-checkout warning** at review-lock and task-command entry points — surfaces detected legacy sparse-checkout state once per process before an operator wastes a commit cycle, without blocking.
+- **ADR `2026-04-14-1-sparse-checkout-defense-in-depth`** — documents the four-layer hybrid defence (merge/implement preflight, `safe_commit` backstop, session warning, `doctor --fix`) and the alternatives considered.
+
+### Recovery for users already affected
+
+If a prior `mission merge` landed on your target branch with a silent content
+reversion (symptoms: a follow-up `chore: record done transitions` commit that
+deleted content merged in the preceding commit), restore the content from the
+merge commit that introduced it:
+
+```bash
+# Identify the merge commit
+git log --merges --oneline -- <affected-file>
+
+# Restore content from that merge
+git checkout <merge-sha> -- <affected-file> [...]
+
+# Commit the restoration
+git add <affected-file> [...]
+git commit -m "fix: restore content reverted by phantom-deletion bug"
+```
+
+Then run the migration to prevent recurrence:
+
+```bash
+spec-kitty doctor sparse-checkout --fix
+```
+
+Root-cause diagnostic trail: [Priivacy-ai/spec-kitty#588 (comment)](https://github.com/Priivacy-ai/spec-kitty/issues/588#issuecomment-4242179946).
+
 ## [3.1.2a3] - 2026-04-12
 
 ### Fixed

@@ -32,6 +32,7 @@ class Category(StrEnum):
     ORPHAN_WORKSPACE = "orphan_workspace"
     MATERIALIZATION_DRIFT = "materialization_drift"
     DERIVED_VIEW_DRIFT = "derived_view_drift"
+    SPARSE_CHECKOUT = "sparse_checkout"
 
 
 @dataclass
@@ -269,6 +270,85 @@ def check_drift(feature_dir: Path) -> list[Finding]:
     return findings
 
 
+def check_sparse_checkout(repo_root: Path) -> list[Finding]:
+    """Repo-level check: legacy sparse-checkout state lingering from pre-3.x.
+
+    Wraps WP02's pure detection primitive (``scan_repo``) and emits a single
+    warning-level finding that lists every affected path (primary plus any
+    lane worktrees whose config has ``core.sparseCheckout=true``). The
+    finding's ``recommended_action`` points the operator at
+    ``spec-kitty doctor sparse-checkout --fix`` (T017), which is the only
+    CLI entry point that invokes WP03's ``remediate``.
+
+    Emits no finding on a clean repo, so this is safe to invoke on every
+    mission doctor run (FR-002). Detection failures are swallowed by
+    design: a broken probe must not block other doctor checks.
+
+    Context: Priivacy-ai/spec-kitty#588 — sparse-checkout was removed in
+    v3.0.0 but no migration was shipped, so state lingers in user repos
+    and causes silent data loss during mission merges.
+    """
+    findings: list[Finding] = []
+
+    try:
+        from specify_cli.git.sparse_checkout import scan_repo
+    except ImportError:
+        # WP02 detection primitive not available — fail quietly rather than
+        # blocking the rest of the doctor run.
+        return findings
+
+    try:
+        report = scan_repo(repo_root)
+    except Exception:
+        logger.debug("sparse-checkout scan failed", exc_info=True)
+        return findings
+
+    if not report.any_active:
+        return findings
+
+    affected_paths = [str(p) for p in report.affected_paths]
+
+    # Compose a plain-language explanation that matches Quickstart Flow 1:
+    # cite #588, list paths, point at the fix action.
+    lines: list[str] = ["Legacy sparse-checkout state detected."]
+    if report.primary.is_active:
+        pattern_note = ""
+        if report.primary.pattern_file_present:
+            pattern_note = (
+                f" (pattern file: {report.primary.pattern_file_path}, "
+                f"{report.primary.pattern_line_count} lines)"
+            )
+        lines.append(f"Primary: {report.primary.path}{pattern_note}")
+    active_wts = [w for w in report.worktrees if w.is_active]
+    if active_wts:
+        lines.append(f"Lane worktrees affected: {len(active_wts)}")
+        for wt in active_wts:
+            lines.append(f"  {wt.path}")
+    lines.append(
+        "Why this matters: spec-kitty v3.0+ removed sparse-checkout "
+        "support but did not ship a migration. This state can cause "
+        "silent data loss during mission merge and broken lane worktrees "
+        "on agent action implement. See Priivacy-ai/spec-kitty#588."
+    )
+
+    findings.append(
+        Finding(
+            severity=Severity.WARNING,
+            category=Category.SPARSE_CHECKOUT,
+            wp_id=None,
+            message="\n".join(lines),
+            recommended_action=(
+                "Run 'spec-kitty doctor sparse-checkout --fix' to remove "
+                "legacy sparse-checkout state from the primary repo and "
+                f"any lane worktrees. Affected paths: "
+                f"{', '.join(affected_paths)}"
+            ),
+        )
+    )
+
+    return findings
+
+
 def run_doctor(
     feature_dir: Path,
     mission_slug: str,
@@ -314,5 +394,10 @@ def run_doctor(
         )
         result.findings.extend(check_orphan_workspaces(repo_root, mission_slug, snapshot))
         result.findings.extend(check_drift(feature_dir))
+
+    # Repo-level sparse-checkout finding (FR-002). Appended last so existing
+    # findings keep their position — scripts scraping doctor output rely on
+    # the order of prior findings; new ones are safe to add at the tail.
+    result.findings.extend(check_sparse_checkout(repo_root))
 
     return result

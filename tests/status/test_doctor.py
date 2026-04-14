@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import sys
+from types import SimpleNamespace
 from datetime import datetime, timedelta, UTC
 from pathlib import Path
 from unittest.mock import patch
@@ -17,6 +19,7 @@ from specify_cli.status.doctor import (
     Severity,
     check_drift,
     check_orphan_workspaces,
+    check_sparse_checkout,
     check_stale_claims,
     run_doctor,
 )
@@ -595,6 +598,72 @@ class TestCheckDrift:
         # This is the natural case - WP11 not merged yet
         findings = check_drift(tmp_path)
         assert findings == []
+
+
+# ---------------------------------------------------------------------------
+# check_sparse_checkout tests
+# ---------------------------------------------------------------------------
+
+
+class TestCheckSparseCheckout:
+    def test_import_error_returns_empty(self, tmp_path: Path):
+        real_import = __import__
+
+        def fake_import(name, *args, **kwargs):  # noqa: ANN001
+            if name == "specify_cli.git.sparse_checkout":
+                raise ImportError("missing sparse-checkout module")
+            return real_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=fake_import):
+            assert check_sparse_checkout(tmp_path) == []
+
+    def test_scan_failure_returns_empty(self, tmp_path: Path):
+        fake_module = SimpleNamespace(scan_repo=lambda _repo_root: (_ for _ in ()).throw(RuntimeError("boom")))
+
+        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
+            assert check_sparse_checkout(tmp_path) == []
+
+    def test_inactive_repo_returns_empty(self, tmp_path: Path):
+        fake_report = SimpleNamespace(any_active=False)
+        fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
+
+        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
+            assert check_sparse_checkout(tmp_path) == []
+
+    def test_active_primary_and_worktree_emit_finding(self, tmp_path: Path):
+        primary_pattern = tmp_path / ".git" / "info" / "sparse-checkout"
+        primary = SimpleNamespace(
+            is_active=True,
+            path=tmp_path,
+            pattern_file_present=True,
+            pattern_file_path=primary_pattern,
+            pattern_line_count=3,
+        )
+        lane_path = tmp_path / ".worktrees" / "mission-lane-a"
+        lane = SimpleNamespace(is_active=True, path=lane_path)
+        fake_report = SimpleNamespace(
+            any_active=True,
+            affected_paths=(tmp_path, lane_path),
+            primary=primary,
+            worktrees=(lane,),
+        )
+        fake_module = SimpleNamespace(scan_repo=lambda _repo_root: fake_report)
+
+        with patch.dict(sys.modules, {"specify_cli.git.sparse_checkout": fake_module}):
+            findings = check_sparse_checkout(tmp_path)
+
+        assert len(findings) == 1
+        finding = findings[0]
+        assert finding.severity == Severity.WARNING
+        assert finding.category == Category.SPARSE_CHECKOUT
+        assert f"Primary: {tmp_path}" in finding.message
+        assert str(primary_pattern) in finding.message
+        assert "Lane worktrees affected: 1" in finding.message
+        assert str(lane_path) in finding.message
+        assert "Priivacy-ai/spec-kitty#588" in finding.message
+        assert "spec-kitty doctor sparse-checkout --fix" in finding.recommended_action
+        assert str(tmp_path) in finding.recommended_action
+        assert str(lane_path) in finding.recommended_action
 
 
 # ---------------------------------------------------------------------------

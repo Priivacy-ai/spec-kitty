@@ -121,6 +121,74 @@ app = typer.Typer(name="tasks", help="Task workflow commands for AI agents", no_
 console = Console()
 
 
+# ---------------------------------------------------------------------------
+# FR-015 / C-003 / C-004: review-handoff runtime-state deny-list
+# ---------------------------------------------------------------------------
+# Spec-kitty writes review-lock.json and other ephemeral runtime state under
+# ``.spec-kitty/`` inside each worktree, and merge/status metadata under
+# ``.kittify/`` at the repo root. These directories are git-ignored but do
+# show up in ``git status --porcelain`` as untracked noise, which historically
+# tripped the "uncommitted changes in worktree" guard in
+# ``_validate_ready_for_review`` when an external reviewer (the review lock)
+# had only just done its job (issue #589).
+#
+# C-003: this is a *fixed named list*, NOT a pattern match. Do not add
+# entries here without explicit spec coverage; re-opening the door to pattern
+# matching lets untracked source files silently slip past the guard.
+# C-004: paths OUTSIDE this list still reach the blocking branch unchanged,
+# so genuine uncommitted implementation work continues to block review handoff.
+_RUNTIME_STATE_DENY_LIST: tuple[str, ...] = (".spec-kitty/", ".kittify/")
+
+
+def _filter_runtime_state_paths(porcelain_output: str) -> str:
+    """Strip lines whose path falls under spec-kitty's own runtime-state dirs.
+
+    Input is the raw ``git status --porcelain`` output. Each line has the
+    format ``XY path`` where ``XY`` is a two-character status code followed by
+    a single space. A ``startswith`` check against the fixed deny-list is
+    used intentionally (C-003): no regex, no glob expansion, no fuzzy match.
+
+    Returns a newline-joined string with deny-listed entries removed. Lines
+    whose path is OUTSIDE the deny list are preserved verbatim so the
+    downstream guard still blocks on genuine drift (C-004).
+    """
+    kept: list[str] = []
+    for line in porcelain_output.splitlines():
+        if not line.strip():
+            continue
+        # git status --porcelain format: first 3 chars are "XY " status prefix.
+        path_part = line[3:] if len(line) > 3 else line.strip()
+        if any(path_part.startswith(prefix) for prefix in _RUNTIME_STATE_DENY_LIST):
+            continue
+        kept.append(line)
+    return "\n".join(kept)
+
+
+def _emit_sparse_session_warning(repo_root: Path, command: str) -> None:
+    """Emit the FR-010/FR-019 sparse-checkout session warning once per process.
+
+    Called from every state-mutating tasks handler at command entry so
+    reviewers and implementers discover they are operating inside a
+    sparse-checkout worktree before they commit partial work. The underlying
+    ``warn_if_sparse_once`` helper from WP02 is self-memoizing (first caller
+    wins the ``command`` label) and swallows detection errors, so this
+    wrapper is safe to call unconditionally and never crashes the command.
+    """
+    try:
+        from specify_cli.git.sparse_checkout import warn_if_sparse_once
+
+        warn_if_sparse_once(repo_root, command=command)
+    except Exception as _exc:  # noqa: BLE001 - defensive; must never break CLI
+        # FR-010 contract: detection failures must never break the CLI command
+        # that invoked this hook. Log to the module logger at debug level so
+        # the failure is still traceable without tripping the ``S110`` lint.
+        logging.getLogger(__name__).debug(
+            "sparse-checkout session warning failed for %s: %s",
+            command,
+            _exc,
+        )
+
+
 def _ensure_target_branch_checked_out(
     repo_root: Path,
     mission_slug: str,
@@ -590,7 +658,13 @@ def _render_stale_status(stale_result: object | None) -> str | None:
     return None
 
 
-def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, force: bool) -> tuple[bool, list[str]]:
+def _validate_ready_for_review(
+    repo_root: Path,
+    mission_slug: str,
+    wp_id: str,
+    force: bool,
+    target_lane: str = "for_review",
+) -> tuple[bool, list[str]]:
     """Validate that WP is ready for review by checking for uncommitted changes.
 
     For research missions: Checks for uncommitted research artifacts in planning repo.
@@ -602,6 +676,10 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
         mission_slug: Feature slug (e.g., "010-lane-only-runtime")
         wp_id: Work package ID (e.g., "WP01")
         force: If True, skip validation (return success)
+        target_lane: Lane the caller is transitioning to. Used to parameterize
+            the retry hints emitted in guidance messages (FR-015) so reviewers
+            transitioning to ``approved``/``planned`` see the correct retry
+            command instead of a hard-coded ``for_review`` string.
 
     Returns:
         Tuple of (is_valid, guidance_messages)
@@ -663,7 +741,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
             if len(blocking_lines) > 5:
                 guidance.append(f"  ... and {len(blocking_lines) - 5} more")
             guidance.append("")
-            guidance.append("Commit these files before moving to for_review.")
+            guidance.append(f"Commit these files before moving to {target_lane}.")
             guidance.append(f"  cd {main_repo_root}")
             guidance.append(f"  git add kitty-specs/{mission_slug}/")
             if mission_type == "research":
@@ -671,7 +749,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
             else:
                 guidance.append(f'  git commit -m "docs({wp_id}): <describe your changes>"')
             guidance.append("")
-            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+            guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
             return False, guidance
 
     # Check 2: For software-dev missions, check worktree for implementation commits
@@ -706,7 +784,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append("  git checkout <your-branch>")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check for in-progress git operations (merge/rebase/cherry-pick)
@@ -735,7 +813,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 guidance.append("  git rebase --abort  # if rebase")
                 guidance.append("  git cherry-pick --abort  # if cherry-pick")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check if the lane worktree is behind the branch it is expected to
@@ -780,14 +858,21 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append(f"  git rebase {check_branch}")
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check for uncommitted changes in worktree
             result = subprocess.run(
                 ["git", "status", "--porcelain"], cwd=worktree_path, capture_output=True, text=True, encoding="utf-8", errors="replace", check=False
             )
-            uncommitted_in_worktree = result.stdout.strip()
+            # FR-015 / C-003: strip spec-kitty's own runtime-state files (e.g.
+            # .spec-kitty/review-lock.json written by the review tooling, or
+            # .kittify/ merge metadata) before deciding whether the worktree
+            # has genuine uncommitted implementation work. The deny-list is a
+            # fixed, named tuple (no patterns) so paths outside it still reach
+            # the blocking branch and surface as "Uncommitted implementation
+            # changes in worktree!" (C-004).
+            uncommitted_in_worktree = _filter_runtime_state_paths(result.stdout.strip())
 
             if uncommitted_in_worktree:
                 staged_lines = []
@@ -820,7 +905,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
                 guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             # Check if branch has commits beyond base (use actual base, not target)
@@ -850,7 +935,7 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 guidance.append("  git add <deliverable-path-1> <deliverable-path-2> ...")
                 guidance.append(f'  git commit -m "feat({wp_id}): <describe implementation>"')
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
             contamination_files = _list_wp_branch_kitty_specs_changes(
@@ -866,12 +951,12 @@ def _validate_ready_for_review(repo_root: Path, mission_slug: str, wp_id: str, f
                 if len(contamination_files) > 5:
                     guidance.append(f"  ... and {len(contamination_files) - 5} more")
                 guidance.append("")
-                guidance.append("Clean the branch before moving to for_review:")
+                guidance.append(f"Clean the branch before moving to {target_lane}:")
                 guidance.append(f"  cd {worktree_path}")
                 guidance.append(f"  git restore --source {check_branch} --staged --worktree -- kitty-specs/")
                 guidance.append('  git commit -m "chore: remove planning artifacts from lane branch"')
                 guidance.append("")
-                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to for_review")
+                guidance.append(f"Then retry: spec-kitty agent tasks move-task {wp_id} --to {target_lane}")
                 return False, guidance
 
     return True, []
@@ -1008,6 +1093,10 @@ def move_task(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
+        # FR-010 / FR-019: surface a one-shot sparse-checkout warning from the
+        # LIVE command entry point before any state is read or mutated.
+        _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks move-task")
+
         # Resolve auto_commit: CLI flag overrides project config
         if auto_commit is None:
             auto_commit = get_auto_commit_default(repo_root)
@@ -1132,7 +1221,13 @@ def move_task(
         # Validate uncommitted changes when moving to for_review/approved/done
         # This catches the bug where agents edit artifacts but forget to commit
         if target_lane in (Lane.FOR_REVIEW, Lane.APPROVED, Lane.DONE):
-            is_valid, guidance = _validate_ready_for_review(repo_root, mission_slug, task_id, force)
+            is_valid, guidance = _validate_ready_for_review(
+                repo_root,
+                mission_slug,
+                task_id,
+                force,
+                target_lane=str(target_lane),
+            )
             if not is_valid:
                 error_msg = f"Cannot move {task_id} to {target_lane}\n\n"
                 error_msg += "\n".join(guidance)
@@ -1422,13 +1517,26 @@ def move_task(
             else:
                 write_text_within_directory(wp.path, updated_doc, root=main_repo_root, encoding="utf-8")
 
-        # Release review lock when review completes (approved or rejected back to planned)
-        if old_lane in (Lane.FOR_REVIEW, Lane.IN_PROGRESS) and target_lane in (Lane.APPROVED, Lane.PLANNED):
-            with contextlib.suppress(Exception):  # Lock may not exist (review started before WP05 landed)
+        # FR-017 / FR-018: Release the review lock whenever review terminates
+        # (approve to APPROVED, reject back to PLANNED, or any other transition
+        # out of review). The release is placed AFTER the lane-transition commit
+        # so that a failed release never rolls back the recorded transition;
+        # failures are logged but do not fail the overall move-task command.
+        _release_from = (Lane.FOR_REVIEW, Lane.IN_REVIEW, Lane.IN_PROGRESS)
+        _release_to = (Lane.APPROVED, Lane.PLANNED)
+        if old_lane in _release_from and target_lane in _release_to:
+            try:
                 from specify_cli.review.lock import ReviewLock
 
                 _lock_workspace = resolve_workspace_for_wp(main_repo_root, mission_slug, task_id)
                 ReviewLock.release(Path(_lock_workspace.worktree_path))
+            except Exception as _release_exc:  # pragma: no cover - defensive
+                logging.getLogger(__name__).warning(
+                    "Review lock release failed for %s in %s: %s",
+                    task_id,
+                    mission_slug,
+                    _release_exc,
+                )
 
         # Output result
         result = {"result": "success", "task_id": task_id, "old_lane": old_lane, "new_lane": target_lane, "path": str(wp.path)}
@@ -1573,6 +1681,9 @@ def mark_status(
         if repo_root is None:
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
+
+        # FR-010 / FR-019: one-shot sparse-checkout session warning.
+        _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks mark-status")
 
         # Resolve auto_commit: CLI flag overrides project config
         if auto_commit is None:
@@ -1820,6 +1931,9 @@ def add_history(
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
 
+        # FR-010 / FR-019: one-shot sparse-checkout session warning.
+        _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks add-history")
+
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
 
         # Ensure we operate on the target branch for this feature
@@ -1897,6 +2011,9 @@ def finalize_tasks(
         if repo_root is None:
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
+
+        # FR-010 / FR-019: one-shot sparse-checkout session warning.
+        _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks finalize-tasks")
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         # Ensure we operate on the target branch for this feature
@@ -2152,6 +2269,9 @@ def map_requirements(
         if repo_root is None:
             _output_error(json_output, "Could not locate project root")
             raise typer.Exit(1)
+
+        # FR-010 / FR-019: one-shot sparse-checkout session warning.
+        _emit_sparse_session_warning(repo_root, command="spec-kitty agent tasks map-requirements")
 
         mission_slug = _find_mission_slug(explicit_mission=mission, explicit_feature=feature, json_output=json_output, repo_root=repo_root)
         main_repo_root, _ = _ensure_target_branch_checked_out(repo_root, mission_slug, json_output)
