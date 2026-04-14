@@ -15,6 +15,8 @@ subtasks:
 - T014
 - T015
 phase: Phase 1 — Remediation
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "71942"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -190,3 +192,7 @@ Every test uses `tmp_path` fixtures that build sparse-configured repos with real
 - Verify that the function never writes outside the target paths. Grep for `Path("/")` or `/tmp/` in the implementation — should be absent.
 - Verify `dirty_before_remediation` is set on EVERY result when the refusal fires, not only on the dirty path.
 - Verify the step names in results exactly match the `STEP_*` constants; future code will look for these strings.
+
+## Activity Log
+
+- 2026-04-14T06:42:57Z – claude:opus-4.6:implementer:implementer – shell_pid=71942 – Started implementation via action command
