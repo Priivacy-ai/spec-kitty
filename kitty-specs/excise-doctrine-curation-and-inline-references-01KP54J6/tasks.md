@@ -46,12 +46,12 @@ No WP can start until its predecessor is merged to `main`.
 | T010 | Remove inline ref fields from schemas + Pydantic models + `src/charter/schemas.py` | WP02 | [P] with T009 |
 | T011 | Update model and consistency tests to assert fields are absent | WP02 | |
 | T012 | Delete R-1 script, run gates, update `occurrences/index.yaml` | WP02 | |
-| T013 | Add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` + equivalence test suite | WP03 | |
-| T014 | Add `InlineReferenceRejectedError` to 7 per-kind validators + negative-fixture test suite | WP03 | [P] with T013 |
-| T015 | Flip `resolver.py`/`compiler.py` (twin packages) to DRG helper + add live-path regression test | WP03 | |
-| T016 | Flip 5 call sites to `build_context_v2`; rename `build_context_v2` → `build_charter_context`; delete legacy; update re-exports | WP03 | |
+| T013 | Capture NFR-002b baseline; add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` using live `DRGGraph`/`Relation`/`walk_edges` API; equivalence test suite vs legacy resolver | WP03 | |
+| T014 | Add `InlineReferenceRejectedError` (incl. procedures step-level scan) to 7 per-kind validators + negative-fixture test suite covering top-level AND step-level rejection | WP03 | [P] with T013 |
+| T015 | Add `_load_validated_graph` helper (twin packages); flip `resolver.py`/`compiler.py` (twins) to `resolve_transitive_refs` with `{REQUIRES, SUGGESTS}`; add live-path regression test | WP03 | |
+| T016 | Flip 5 call sites to `build_context_v2`; rename `build_context_v2` → `build_charter_context`; delete legacy; update re-exports; NFR-002b byte-parity check against baseline | WP03 | |
 | T017 | Delete `src/charter/reference_resolver.py`; remove `include_proposed` from `src/charter/catalog.py` + callers | WP03 | |
-| T018 | Rewrite `tests/charter/test_context.py`; delete parity/resolver tests only after replacement green; finalize occurrence artifacts | WP03 | |
+| T018 | Rewrite `tests/charter/test_context.py` (inherits NFR-002a reachability parity); add `test_shipped_graph_valid.py` (cycle-detection rehome); delete `test_context_parity.py`/`test_reference_resolver.py`/`test_cycle_detection.py`/`test_shipped_doctrine_cycle_free.py` only after replacement green; update `test_artifact_kinds.py`/`test_resolver.py`/`test_compiler.py`/`test_workflow_charter_context.py`; finalize occurrence artifacts | WP03 | |
 
 The `[P]` markers indicate subtasks that can run in parallel within the same WP (different concerns, no shared files). All WP-level sequencing is strict.
 

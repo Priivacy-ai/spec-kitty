@@ -34,6 +34,7 @@ authoritative_surface: src/charter/
 execution_mode: code_change
 owned_files:
 - src/doctrine/drg/query.py
+- src/doctrine/shared/errors.py
 - src/doctrine/directives/validation.py
 - src/doctrine/tactics/validation.py
 - src/doctrine/procedures/validation.py
@@ -46,11 +47,13 @@ owned_files:
 - src/charter/compiler.py
 - src/charter/catalog.py
 - src/charter/reference_resolver.py
+- src/charter/_drg_helpers.py
 - src/charter/__init__.py
 - src/charter/README.md
 - src/specify_cli/charter/context.py
 - src/specify_cli/charter/resolver.py
 - src/specify_cli/charter/compiler.py
+- src/specify_cli/charter/_drg_helpers.py
 - src/specify_cli/charter/__init__.py
 - src/specify_cli/cli/commands/charter.py
 - src/specify_cli/cli/commands/agent/workflow.py
@@ -61,9 +64,15 @@ owned_files:
 - tests/charter/test_reference_resolver.py
 - tests/charter/test_merged_graph_on_live_path.py
 - tests/charter/test_resolver.py
+- tests/charter/test_compiler.py
 - tests/doctrine/drg/test_resolve_transitive_refs.py
+- tests/doctrine/drg/test_shipped_graph_valid.py
 - tests/doctrine/test_inline_ref_rejection.py
+- tests/doctrine/test_cycle_detection.py
+- tests/doctrine/test_shipped_doctrine_cycle_free.py
+- tests/doctrine/test_artifact_kinds.py
 - tests/agent/test_workflow_charter_context.py
+- kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/baseline/**
 tags: []
 ---
 
@@ -124,43 +133,122 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 ## Subtask details
 
-### T013 — Add `resolve_transitive_refs()` in `src/doctrine/drg/query.py` + equivalence test suite
+### T013 — Capture NFR-002b baseline; add `resolve_transitive_refs()`; equivalence test suite
 
-**Purpose**: Introduce the DRG-backed replacement for the legacy transitive resolver. Must be behaviorally equivalent to `resolve_references_transitively()` for every shipped artifact. Tests prove the equivalence BEFORE any call-site flip happens.
+**Purpose**: (a) capture the rendered-text baseline BEFORE any source touches (NFR-002b has no golden set on `main` today), (b) introduce the DRG-backed replacement for the legacy transitive resolver using the **live** `DRGGraph` / `Relation` / `walk_edges` API, (c) prove behavioral equivalence to the legacy resolver BEFORE any call-site flip.
+
+> **Contract correction (2026-04-14)**: the earlier contract referenced a fabricated `MergedGraph` type and `uses`/`references` edge kinds. The live DRG uses `DRGGraph` as the merged-graph type and the `Relation` enum with 8 values (`requires, suggests, applies, scope, vocabulary, instantiates, replaces, delegates_to`). For legacy parity with `resolve_references_transitively`, callers pass `{Relation.REQUIRES, Relation.SUGGESTS}` — these are the two relation kinds the Phase 0 migration extractor used when translating inline `tactic_refs` into DRG edges. See the updated [contracts/resolve-transitive-refs.contract.md](../contracts/resolve-transitive-refs.contract.md).
 
 **Steps**:
 
-1. Edit `src/doctrine/drg/query.py` to add:
-   - `ResolveTransitiveRefsResult` dataclass (frozen) matching the field shape of `charter.reference_resolver.ResolvedReferenceGraph`. See [contracts/resolve-transitive-refs.contract.md](../contracts/resolve-transitive-refs.contract.md) for exact signature.
-   - `resolve_transitive_refs(merged_graph, *, starting_artifact_ids) -> ResolveTransitiveRefsResult` function implementing DFS over `uses` / `references` edges with cycle detection.
-   - Raise `DoctrineResolutionCycleError` on cycle; import from `doctrine.shared.exceptions`.
-   - Sort all returned lists lexicographically for determinism.
+1. **Capture NFR-002b baseline FIRST** (before touching any source):
+   ```bash
+   mkdir -p kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/baseline
+   for action in specify plan implement review; do
+     spec-kitty charter context --action "$action" --json \
+       > "kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/baseline/pre-wp03-context-$action.json"
+   done
+   ```
+   Commit these files at the start of WP03. They are the golden reference for T016's byte-identity check.
 
-2. Create `tests/doctrine/drg/test_resolve_transitive_refs.py` covering:
-   - **Deterministic output**: same graph + same starting IDs → same result, ordering stable.
-   - **DAG convergence**: a fixture where A uses B, A uses C, both B and C use D — D appears once in result.
-   - **Cycle detection**: a `uses` cycle raises `DoctrineResolutionCycleError`.
-   - **Unknown starting ID**: recorded in `unresolved`, no raise.
-   - **Edge kind filter**: `requires` edges NOT walked (fixture with both `uses` and `requires` edges from same source; only `uses`-reachable artifacts returned).
-   - **Behavioral equivalence**: for each of the 8 shipped directives that carried inline `tactic_refs:` on pre-WP02 state, the legacy resolver (if still reachable in the codebase at this step — which it is; T017 deletes it later) and the new function produce identical output sets. Use a golden fixture snapshot of the legacy output captured at plan time if the legacy resolver is difficult to instantiate in test context.
+2. Edit `src/doctrine/drg/query.py` to add:
+   - `ResolveTransitiveRefsResult` frozen dataclass with per-kind bucketed lists (directives, tactics, paradigms, styleguides, toolguides, procedures, agent_profiles) plus `unresolved` — see the corrected contract.
+   - `resolve_transitive_refs(graph: DRGGraph, *, start_urns: set[str], relations: set[Relation], max_depth: int | None = None) -> ResolveTransitiveRefsResult` — thin bucketing wrapper over `walk_edges`. Do **not** reimplement BFS; delegate to the existing `walk_edges` primitive.
 
-3. Run the test suite:
+   Skeleton:
+   ```python
+   from doctrine.drg.models import DRGGraph, NodeKind, Relation
+
+   @dataclass(frozen=True)
+   class ResolveTransitiveRefsResult:
+       directives: list[str] = field(default_factory=list)
+       tactics: list[str] = field(default_factory=list)
+       paradigms: list[str] = field(default_factory=list)
+       styleguides: list[str] = field(default_factory=list)
+       toolguides: list[str] = field(default_factory=list)
+       procedures: list[str] = field(default_factory=list)
+       agent_profiles: list[str] = field(default_factory=list)
+       unresolved: list[tuple[str, str]] = field(default_factory=list)
+
+       @property
+       def is_complete(self) -> bool:
+           return len(self.unresolved) == 0
+
+
+   def resolve_transitive_refs(
+       graph: DRGGraph,
+       *,
+       start_urns: set[str],
+       relations: set[Relation],
+       max_depth: int | None = None,
+   ) -> ResolveTransitiveRefsResult:
+       visited_urns = walk_edges(graph, start_urns=start_urns, relations=relations, max_depth=max_depth)
+       buckets: dict[NodeKind, list[str]] = {k: [] for k in NodeKind}
+       unresolved: list[tuple[str, str]] = []
+       for urn in visited_urns:
+           node = graph.get_node(urn)
+           if node is None:
+               unresolved.append((urn, urn))  # defensive; assert_valid should prevent this
+               continue
+           # Strip "<kind>:" prefix per contract
+           bare_id = urn.split(":", 1)[1] if ":" in urn else urn
+           buckets[node.kind].append(bare_id)
+       for k in NodeKind:
+           buckets[k].sort()
+       return ResolveTransitiveRefsResult(
+           directives=buckets[NodeKind.DIRECTIVE],
+           tactics=buckets[NodeKind.TACTIC],
+           paradigms=buckets[NodeKind.PARADIGM],
+           styleguides=buckets[NodeKind.STYLEGUIDE],
+           toolguides=buckets[NodeKind.TOOLGUIDE],
+           procedures=buckets[NodeKind.PROCEDURE],
+           agent_profiles=buckets[NodeKind.AGENT_PROFILE],
+           unresolved=unresolved,
+       )
+   ```
+
+3. Create `tests/doctrine/drg/test_resolve_transitive_refs.py` covering all seven dimensions from the contract:
+   - **Deterministic output** — lists lex-sorted.
+   - **Empty start set** — returns empty result.
+   - **Unknown starting URN** — appears in `unresolved`, no raise.
+   - **Edge-kind filter** — given `{REQUIRES: A→B, SUGGESTS: A→C, SCOPE: A→D}`, walking with `relations={REQUIRES}` from `{A}` returns only `B`.
+   - **Bucketing by kind** — visited URNs across kinds land in the correct lists; URN prefix stripped.
+   - **`max_depth` forwarding** — `max_depth=1` excludes depth-2 nodes.
+   - **Behavioral equivalence against legacy** — for every shipped directive that carried inline `tactic_refs:` on pre-WP02 state, assert:
+     ```python
+     legacy = resolve_references_transitively([directive_id], doctrine_service)
+     drg = resolve_transitive_refs(
+         graph, start_urns={f"directive:{directive_id}"},
+         relations={Relation.REQUIRES, Relation.SUGGESTS},
+     )
+     assert sorted(legacy.directives) == sorted(drg.directives)
+     assert sorted(legacy.tactics) == sorted(drg.tactics)
+     assert sorted(legacy.styleguides) == sorted(drg.styleguides)
+     assert sorted(legacy.toolguides) == sorted(drg.toolguides)
+     assert sorted(legacy.procedures) == sorted(drg.procedures)
+     assert legacy.is_complete == drg.is_complete
+     ```
+     The legacy resolver is still present at this subtask step (T017 deletes it). If equivalence fails, either the migration extractor didn't map an inline ref to a `{REQUIRES, SUGGESTS}` edge (escalate per research.md R-2), or the caller has passed the wrong relation set.
+
+4. Run:
    ```bash
    pytest tests/doctrine/drg/test_resolve_transitive_refs.py -v
    ```
-   All tests must pass. Equivalence failures block progression to T015.
+   All tests must pass. Equivalence failures **block** progression to T015.
 
 **Files**:
-- Modified: `src/doctrine/drg/query.py` (add ~120 LOC)
-- Created: `tests/doctrine/drg/test_resolve_transitive_refs.py` (~250 LOC)
+- Created: `kitty-specs/.../baseline/pre-wp03-context-{specify,plan,implement,review}.json` (4 JSON captures)
+- Modified: `src/doctrine/drg/query.py` (add ~80–120 LOC)
+- Created: `tests/doctrine/drg/test_resolve_transitive_refs.py` (~200–250 LOC)
 - Optional: `tests/doctrine/drg/fixtures/` for graph fixtures used by this suite
 
 **Validation**:
-- [ ] `pytest tests/doctrine/drg/test_resolve_transitive_refs.py` passes
+- [ ] Four `pre-wp03-context-*.json` files exist and are committed
+- [ ] `pytest tests/doctrine/drg/test_resolve_transitive_refs.py` passes all 7 dimensions
 - [ ] `mypy --strict src/doctrine/drg/query.py` passes
-- [ ] The behavioral-equivalence test covers at least 8 directives (one per pre-WP02 inline-ref carrier)
+- [ ] Behavioral-equivalence test covers every pre-WP02 `tactic_refs:` carrier (≥8 directives)
 
-**Parallel opportunity**: T013 and T014 are independent.
+**Parallel opportunity**: T013 (excluding baseline capture in step 1, which must happen first) and T014 are independent.
 
 ---
 
@@ -205,24 +293,57 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    src/doctrine/agent_profiles/validation.py
    ```
 
-   In each: after parsing the YAML but before schema validation, check for any of the three forbidden keys at the top level (and for `procedures`, also inside `steps[*]`). On hit, raise `InlineReferenceRejectedError` with the structured fields.
+   In each: after parsing the YAML (raw dict form) but BEFORE Pydantic schema validation, check for any of the three forbidden keys at the top level. On hit, raise `InlineReferenceRejectedError`.
+
+   **Procedures (step-level) — MANDATORY**: `src/doctrine/procedures/validation.py` must additionally iterate every entry in `steps[*]` and check for `tactic_refs` on each step. On hit, raise `InlineReferenceRejectedError` with `artifact_kind="procedure"` and a migration hint that references the step context. Without this scan, procedures would fall through to Pydantic's `extra_forbidden` error (after WP02 removes `ProcedureStep.tactic_refs`), which is a valid rejection but lacks the structured migration hint the spec requires.
+
+   Example procedures check:
+   ```python
+   def _reject_inline_refs(raw: dict, file_path: str) -> None:
+       for forbidden in ("tactic_refs", "paradigm_refs", "applies_to"):
+           if forbidden in raw:
+               raise InlineReferenceRejectedError(
+                   file_path=file_path,
+                   forbidden_field=forbidden,
+                   artifact_kind="procedure",
+                   migration_hint=_build_migration_hint(forbidden, raw.get("id", "?"), "procedure"),
+               )
+       for i, step in enumerate(raw.get("steps", []) or []):
+           if isinstance(step, dict):
+               for forbidden in ("tactic_refs", "paradigm_refs"):
+                   if forbidden in step:
+                       raise InlineReferenceRejectedError(
+                           file_path=file_path,
+                           forbidden_field=forbidden,
+                           artifact_kind="procedure",
+                           migration_hint=(
+                               f"Remove {forbidden} from YAML steps[{i}]; add edge "
+                               f"{{from: procedure:{raw.get('id','?')}, to: <target-kind>:<target-id>, kind: uses}} "
+                               f"to src/doctrine/graph.yaml"
+                           ),
+                       )
+   ```
 
    `migration_hint` format per [contracts/validator-rejection-error.schema.json](../contracts/validator-rejection-error.schema.json):
    ```
    Remove <field> from YAML; add edge {from: <kind>:<id>, to: <target-kind>:<target-id>, kind: uses} to src/doctrine/graph.yaml
    ```
 
-3. Create `tests/doctrine/test_inline_ref_rejection.py` with one negative fixture per artifact kind (7 fixtures total). Each fixture:
+3. Create `tests/doctrine/test_inline_ref_rejection.py` with negative fixtures per artifact kind (7 top-level fixtures + 1 extra procedures step-level fixture = 8 cases total). Each fixture:
    - Creates a temporary YAML on disk containing the forbidden field
    - Invokes the kind's validator
    - Asserts `InlineReferenceRejectedError` is raised
    - Asserts the error fields (`file_path`, `forbidden_field`, `artifact_kind`, `migration_hint`) match expectations
 
+   **Procedures fixtures are doubled**:
+   - `test_procedure_top_level_tactic_refs_rejected` — YAML with top-level `tactic_refs: [...]`
+   - `test_procedure_step_level_tactic_refs_rejected` — YAML with `steps: [{..., tactic_refs: [...]}]`. The second fixture proves the step-level scan works; without it, a regression (deleting the loop over `steps`) would silently revert to Pydantic's generic error.
+
 4. Run:
    ```bash
    pytest tests/doctrine/test_inline_ref_rejection.py -v
    ```
-   All 7 test cases must pass.
+   All 8 test cases must pass.
 
 **Files**:
 - Created: `src/doctrine/shared/errors.py` (~30 LOC) (or extended if exists)
@@ -238,25 +359,55 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 ---
 
-### T015 — Flip `resolver.py` + `compiler.py` (twin packages) to `resolve_transitive_refs` + add live-path regression test
+### T015 — Add `_drg_helpers`; flip `resolver.py` + `compiler.py` (twin packages) to `resolve_transitive_refs`; add live-path regression test
 
 **Purpose**: Switch the first live-path caller to the DRG helper. After this subtask, `resolve_governance()` and `compile_charter()` use the DRG merged-graph walk. Legacy `build_charter_context()` still operates (it delegates to `resolve_governance`, which is now DRG-backed). This is the first cutover step in plan D-1.
 
 **Steps**:
 
-1. Edit `src/charter/resolver.py`:
-   - Remove `from charter.reference_resolver import resolve_references_transitively` (line 14)
-   - Add `from doctrine.drg.query import resolve_transitive_refs` and helpers (`load_graph`, `merge_layers`, `assert_valid`)
-   - At each former call site of `resolve_references_transitively(doctrine_service, starting_ids)`:
-     - Load merged graph + validate (can be factored into a helper `_load_merged_validated_graph(repo_root)` if used multiple times)
-     - Call `resolve_transitive_refs(merged, starting_artifact_ids=starting_ids)`
-     - Consume the returned result (same field names as the legacy — no downstream call-site changes needed)
+1. Create `src/charter/_drg_helpers.py` with a shared helper so resolver.py/compiler.py don't duplicate the graph-load sequence:
+   ```python
+   """Shared DRG graph-load helpers for charter resolver and compiler."""
+   from __future__ import annotations
+   from pathlib import Path
+   from charter.catalog import resolve_doctrine_root
+   from doctrine.drg.loader import load_graph, merge_layers
+   from doctrine.drg.models import DRGGraph
+   from doctrine.drg.validator import assert_valid
 
-2. Edit `src/charter/compiler.py`:
-   - Same treatment — remove the legacy resolver import, add the DRG helper
+
+   def load_validated_graph(repo_root: Path) -> DRGGraph:
+       """Load shipped + project merged DRG and validate it.
+
+       Returns a validated DRGGraph. Raises any DRG validation error from
+       `assert_valid()`.
+       """
+       doctrine_root = resolve_doctrine_root()
+       shipped = load_graph(doctrine_root / "graph.yaml")
+       project_path = repo_root / ".kittify" / "doctrine" / "graph.yaml"
+       project = load_graph(project_path) if project_path.exists() else None
+       merged = merge_layers(shipped, project)
+       assert_valid(merged)
+       return merged
+   ```
+   Create an identical `src/specify_cli/charter/_drg_helpers.py` twin.
+
+2. Edit `src/charter/resolver.py`:
+   - Remove `from charter.reference_resolver import resolve_references_transitively` (line 14 on current `main`)
+   - Add `from charter._drg_helpers import load_validated_graph`, `from doctrine.drg.models import Relation`, `from doctrine.drg.query import resolve_transitive_refs`
+   - At each former call site of `resolve_references_transitively([...], doctrine_service)`:
+     - Call `graph = load_validated_graph(repo_root)` to get the validated `DRGGraph`
+     - Build start URNs: `start_urns = {f"directive:{d}" for d in starting_directive_ids}` (adapt the kind prefix to whatever the caller's starting IDs represent — almost always directives at this site)
+     - Call `result = resolve_transitive_refs(graph, start_urns=start_urns, relations={Relation.REQUIRES, Relation.SUGGESTS})`
+     - Consume `result.directives`, `result.tactics`, etc. — same field names as the legacy `ResolvedReferenceGraph`
+
+3. Edit `src/charter/compiler.py`:
+   - Same treatment — remove the legacy resolver import chain (indirectly via `resolver.py` — `compiler.py` itself may or may not import `reference_resolver` directly; check and handle both cases)
    - Preserve `compile_charter()`'s signature and behavior except that transitive refs now come from DRG
 
-3. Edit the twin files `src/specify_cli/charter/resolver.py` and `src/specify_cli/charter/compiler.py` identically.
+4. Edit the twin files `src/specify_cli/charter/resolver.py` and `src/specify_cli/charter/compiler.py` identically using `src/specify_cli/charter/_drg_helpers.py`.
+
+5. Update `src/specify_cli/runtime/doctor.py` — it calls `resolve_governance(project_dir)` which internally now uses the DRG. No direct code change needed here unless `doctor.py` directly imports from `charter.reference_resolver` (it doesn't on current `main`; double-check). Touched only to verify it still runs.
 
 4. Run full pytest:
    ```bash
@@ -349,6 +500,16 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    ```
    All tests must pass. The ONLY place `build_context_v2` may still appear is in `tests/charter/test_context_parity.py` and possibly `tests/charter/test_context.py` — those are addressed in T018.
 
+7. **NFR-002b byte-parity check** against the baseline captured in T013:
+   ```bash
+   for action in specify plan implement review; do
+     diff \
+       "kitty-specs/excise-doctrine-curation-and-inline-references-01KP54J6/baseline/pre-wp03-context-$action.json" \
+       <(spec-kitty charter context --action "$action" --json)
+   done
+   ```
+   Every diff must be empty. If any diff is non-empty, the cutover introduced rendered-text drift — debug before proceeding to T017.
+
 **Files**:
 - Modified: `src/charter/context.py` (delete legacy impl, rename v2)
 - Modified: `src/specify_cli/next/prompt_builder.py`
@@ -423,9 +584,11 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
 
 ---
 
-### T018 — Rewrite `tests/charter/test_context.py`; delete parity + legacy resolver tests; finalize occurrence artifacts
+### T018 — Rewrite `tests/charter/test_context.py`; rehome cycle-detection coverage; delete legacy tests; finalize occurrence artifacts
 
-**Purpose**: Collapse test coverage onto the single builder and the new DRG helper. Delete parity and legacy resolver tests ONLY after their replacement coverage is demonstrably green (plan D-4 "collapse coverage, do not create a regression hole"). Finalize mission-level occurrence assertion.
+**Purpose**: Collapse test coverage onto the single builder and the new DRG helpers. Delete parity, legacy resolver, and cycle-detection tests ONLY after their replacement coverage is demonstrably green (plan D-4 "collapse coverage, do not create a regression hole"). Finalize mission-level occurrence assertion.
+
+> **Scope correction (2026-04-14)**: an earlier draft of this subtask only enumerated `test_reference_resolver.py` and `test_context_parity.py` for deletion, but four additional test files on `main` import from `charter.reference_resolver` directly — `tests/doctrine/test_cycle_detection.py`, `tests/doctrine/test_shipped_doctrine_cycle_free.py`, `tests/doctrine/test_artifact_kinds.py` (imports private `_REF_TYPE_MAP`), `tests/charter/test_resolver.py` (patches the symbol at line 293), and `tests/charter/test_compiler.py` (comment reference at line 107). All must be handled in this subtask.
 
 **Steps**:
 
@@ -437,49 +600,91 @@ After this WP merges, `build_charter_context` is the only context builder, `reso
    - Directive filtering via `governance.doctrine.selected_directives`
    - Action guideline rendering via `MissionTemplateRepository.get_action_guidelines()`
    - Merged-graph validation called on the live path (may delegate to `tests/charter/test_merged_graph_on_live_path.py` for that dimension)
+   - **NFR-002a artifact-reachability parity** — inherit the contract from `tests/charter/test_context_parity.py`: for every (profile, action, depth) combination the current parity suite exercises, the rewritten builder's artifact URN set must match the DRG-resolved set. This is the structural contract. The rendered-text byte-parity (NFR-002b) is separately enforced at T016 against the baseline captured in T013.
 
-   Use the Phase 0 golden fixture outputs (from `tests/charter/test_context_parity.py` era) as the golden set for NFR-002 byte-identical output per spec.
+2. **Create `tests/doctrine/drg/test_shipped_graph_valid.py`** as the rehome target for cycle-detection coverage:
+   ```python
+   """Regression test: shipped graph.yaml + project overlay is always cycle-free and valid.
 
-2. **Verify replacement coverage** by running:
+   Replaces coverage previously in tests/doctrine/test_cycle_detection.py and
+   tests/doctrine/test_shipped_doctrine_cycle_free.py, which imported from the
+   deleted charter.reference_resolver module.
+
+   assert_valid() rejects:
+   - dangling edges (target URN not in nodes)
+   - duplicate edges
+   - cycles in the 'requires' subgraph
+   """
+   from pathlib import Path
+   from doctrine.drg.loader import load_graph, merge_layers
+   from doctrine.drg.validator import assert_valid
+
+   SHIPPED_GRAPH = Path(__file__).resolve().parents[3] / "src" / "doctrine" / "graph.yaml"
+
+
+   def test_shipped_graph_loads_and_validates() -> None:
+       graph = load_graph(SHIPPED_GRAPH)
+       merged = merge_layers(graph, None)
+       assert_valid(merged)  # raises on any violation
+
+
+   def test_shipped_graph_has_no_requires_cycles() -> None:
+       graph = load_graph(SHIPPED_GRAPH)
+       merged = merge_layers(graph, None)
+       # assert_valid checks requires cycles; exercise it as an explicit assertion
+       assert_valid(merged)
+   ```
+
+3. **Verify replacement coverage** by running:
    ```bash
-   pytest tests/charter/test_context.py tests/charter/test_merged_graph_on_live_path.py tests/doctrine/drg/test_resolve_transitive_refs.py tests/doctrine/test_inline_ref_rejection.py -v
+   pytest tests/charter/test_context.py \
+          tests/charter/test_merged_graph_on_live_path.py \
+          tests/doctrine/drg/test_resolve_transitive_refs.py \
+          tests/doctrine/drg/test_shipped_graph_valid.py \
+          tests/doctrine/test_inline_ref_rejection.py -v
    ```
    All must be green. Visually confirm the new test surface covers:
    - Context-builder semantics (previously in `test_context.py` + `test_context_parity.py`)
    - Transitive resolution semantics (previously in `test_reference_resolver.py`)
+   - Cycle detection (previously in `test_cycle_detection.py` + `test_shipped_doctrine_cycle_free.py`)
    - Graph-validation-on-live-path (new dimension; FR-016)
 
-3. **Delete legacy tests** — ONLY after step 2 is green:
+4. **Delete legacy tests** — ONLY after step 3 is green:
    ```bash
    rm -f tests/charter/test_context_parity.py
+   rm -f tests/doctrine/test_cycle_detection.py
+   rm -f tests/doctrine/test_shipped_doctrine_cycle_free.py
    ```
    If `tests/charter/test_reference_resolver.py` wasn't already deleted in T017, delete it here:
    ```bash
    rm -f tests/charter/test_reference_resolver.py
    ```
 
-4. **Update related tests**:
-   - `tests/agent/test_workflow_charter_context.py` — update any `build_charter_context` references if the signature changed (profile parameter, etc.)
-   - `tests/charter/test_resolver.py` — update if it imported `resolve_references_transitively`
+5. **Update related tests** (not deleted; edited to remove references to dead symbols):
+   - **`tests/doctrine/test_artifact_kinds.py`** — three call sites (lines 121, 126, 131) import `_REF_TYPE_MAP` from `charter.reference_resolver`. Replace with the public `doctrine.artifact_kinds.ArtifactKind` enum. The private mapping was `{kind.value: kind.plural for kind in ArtifactKind}` — reconstruct it inline in the test if the assertion still makes sense, or delete the affected test cases if they were testing private-mapping implementation details rather than artifact-kind semantics.
+   - **`tests/charter/test_resolver.py:293`** — change `patch("charter.resolver.resolve_references_transitively", return_value=monkeypatch_graph)` to `patch("charter.resolver.resolve_transitive_refs", return_value=monkeypatch_graph_in_new_shape)`. The monkeypatch value must be a `ResolveTransitiveRefsResult` instance (not a `ResolvedReferenceGraph`).
+   - **`tests/charter/test_compiler.py:107`** — update the comment reference to the new function name.
+   - **`tests/agent/test_workflow_charter_context.py`** — update any `build_charter_context` references if the signature changed (profile parameter handling).
 
-5. **Run full pytest**:
+6. **Run full pytest**:
    ```bash
    pytest tests/
    ```
    All green.
 
 6. **Author `occurrences/WP03.yaml`** per [contracts/occurrence-artifact.schema.yaml](../contracts/occurrence-artifact.schema.yaml):
-   - Categories: `import_path`, `symbol_name`, `template_reference`, `test_identifier`
-   - Strings tracked: `reference_resolver`, `resolve_references_transitively`, `ResolvedReferenceGraph`, `build_context_v2`, `include_proposed`
+   - Categories: `import_path`, `symbol_name`, `template_reference`, `test_identifier`, `docstring_or_comment`
+   - Strings tracked (expanded per 2026-04-14 review): `reference_resolver`, `resolve_references_transitively`, `ResolvedReferenceGraph`, `_REF_TYPE_MAP`, `_Walker`, `build_context_v2`, `include_proposed`
    - `expected_final_count: 0` for each string outside permitted exceptions
    - `requires_merged: [WP01, WP02]`
 
 7. **Finalize `occurrences/index.yaml`**:
    - `wps: [WP01, WP02, WP03]`
-   - Full `must_be_zero` list per spec NFR-004:
+   - Full `must_be_zero` list (expanded per 2026-04-14 review):
      ```
      curation, _proposed, tactic_refs, paradigm_refs, applies_to,
-     reference_resolver, include_proposed, build_context_v2
+     reference_resolver, resolve_references_transitively, ResolvedReferenceGraph,
+     _REF_TYPE_MAP, _Walker, include_proposed, build_context_v2
      ```
    - `permitted_exceptions` union across all three WPs
 

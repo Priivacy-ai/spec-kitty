@@ -46,12 +46,10 @@ owned_files:
 - tests/doctrine/procedures/**
 - tests/doctrine/tactics/**
 - tests/doctrine/test_artifact_compliance.py
-- tests/doctrine/test_artifact_kinds.py
 - tests/doctrine/test_enriched_directives.py
 - tests/doctrine/test_directive_consistency.py
 - tests/doctrine/test_procedure_consistency.py
 - tests/doctrine/test_tactic_compliance.py
-- tests/doctrine/test_shipped_doctrine_cycle_free.py
 tags: []
 ---
 
@@ -314,7 +312,7 @@ After this WP merges, the only source of truth for cross-artifact relationships 
    ```
    src/doctrine/directives/models.py      # remove tactic_refs, applies_to
    src/doctrine/paradigms/models.py       # remove tactic_refs, paradigm_refs
-   src/doctrine/procedures/models.py      # remove tactic_refs (top-level + step-level)
+   src/doctrine/procedures/models.py      # see special note below for ProcedureStep.tactic_refs
    src/doctrine/tactics/models.py         # remove tactic_refs, paradigm_refs if present
    src/doctrine/styleguides/models.py     # remove tactic_refs if present
    src/doctrine/toolguides/models.py      # remove tactic_refs if present
@@ -325,6 +323,25 @@ After this WP merges, the only source of truth for cross-artifact relationships 
    - Remove the field declaration (e.g. `tactic_refs: list[str] = Field(default_factory=list)`)
    - Remove any `@field_validator("tactic_refs")` decorators
    - Remove any mentions in class docstrings if present
+
+   **Procedures — special handling**:
+
+   On current `main`, `src/doctrine/procedures/models.py` at **line 54** declares
+   `tactic_refs: list[str] = Field(default_factory=list)` on the `ProcedureStep` class
+   (inside `Procedure.steps[*]`). This is the step-level embedding that WP02 removes.
+   Procedures also have `model_config = ConfigDict(frozen=True, extra="forbid", ...)`
+   at the class level (line 49 for `ProcedureStep`, line 68 for `Procedure`), so once
+   the field declaration is removed, any procedure YAML that still carries a
+   step-level `tactic_refs:` will fail Pydantic validation with `extra_forbidden`.
+   That is already a rejection, BUT WP03 adds a pre-Pydantic scan so the user gets
+   the structured `InlineReferenceRejectedError` (with migration hint) instead of a
+   bare Pydantic error message.
+
+   WP02's job: remove `tactic_refs: list[str] = Field(default_factory=list)` from
+   `ProcedureStep`. Leave the `extra="forbid"` config untouched.
+
+   Also re-verify `ProcedureReference` (around line 36): it has a `type: ArtifactKind`
+   field that is **not** one of the three forbidden names, so do not touch it.
 
 3. **Charter schemas** — edit `src/charter/schemas.py`:
    - Locate the `Directive` class (around line 87)
