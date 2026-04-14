@@ -9,13 +9,15 @@ Provides the main sync() function that orchestrates:
 """
 
 import logging
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from ruamel.yaml import YAML
 
+from charter.bundle import CANONICAL_MANIFEST
 from charter.extractor import Extractor, write_extraction_result
 from charter.hasher import is_stale
+from charter.resolution import resolve_canonical_repo_root
 from charter.schemas import (
     DirectivesConfig,
     GovernanceConfig,
@@ -38,29 +40,57 @@ _SYNC_OUTPUT_FILES = [
 
 @dataclass
 class SyncResult:
-    """Result of a charter sync operation."""
+    """Result of a charter sync operation.
+
+    ``files_written`` entries are file names relative to the canonical
+    charter directory (``canonical_root / .kittify/charter/``). To
+    reconstruct an absolute path for a written file, anchor against
+    ``canonical_root``: ``canonical_root / .kittify/charter / files_written[i]``.
+
+    ``canonical_root`` is the main-checkout project root resolved via
+    ``charter.resolution.resolve_canonical_repo_root``. It is ``None`` only
+    on transient ``SyncResult`` objects produced by direct ``sync()`` calls
+    that haven't been routed through the chokepoint; the chokepoint
+    (``ensure_charter_bundle_fresh``) always patches a real path in via
+    ``dataclasses.replace`` before returning.
+    """
 
     synced: bool  # True if extraction ran
     stale_before: bool  # True if charter was stale before sync
-    files_written: list[str]  # List of YAML file names written
+    files_written: list[str]  # File names; anchored at canonical_root / .kittify/charter
     extraction_mode: str  # "deterministic" | "hybrid"
     error: str | None = None  # Error message if sync failed
+    canonical_root: Path | None = None  # NEW (WP02): main-checkout root
 
 
 def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
-    """Auto-refresh extracted charter artifacts when charter.md exists."""
-    charter_dir = repo_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
+    """Auto-refresh extracted charter artifacts when ``charter.md`` exists.
+
+    Resolves ``repo_root`` to the canonical (main-checkout) root via
+    ``resolve_canonical_repo_root`` and consults
+    ``CharterBundleManifest.CANONICAL_MANIFEST`` for the set of files that
+    must exist under the canonical root. If any required derived file is
+    missing or the bundle is stale (``is_stale`` hash comparison), ``sync()``
+    is invoked to regenerate the derivatives.
+
+    The returned ``SyncResult`` always carries ``canonical_root`` (patched
+    via ``dataclasses.replace`` onto whatever ``sync()`` returned).
+    Exceptions from the resolver (``NotInsideRepositoryError``,
+    ``GitCommonDirUnavailableError``) propagate unchanged per C-001.
+
+    Returns ``None`` when ``charter.md`` is absent under the canonical
+    root — there is no charter to refresh.
+    """
+    canonical_root = resolve_canonical_repo_root(repo_root)
+    charter_dir = canonical_root / _KITTIFY_DIRNAME / _CHARTER_DIRNAME
     charter_path = charter_dir / _CHARTER_FILENAME
     if not charter_path.exists():
         return None
 
     metadata_path = charter_dir / _METADATA_FILENAME
-    expected_paths = (
-        charter_dir / _GOVERNANCE_FILENAME,
-        charter_dir / _DIRECTIVES_FILENAME,
-        metadata_path,
-    )
-    missing_files = [path.name for path in expected_paths if not path.exists()]
+    # Manifest is authoritative for "what files must exist" (FR-006).
+    expected_paths = [canonical_root / p for p in CANONICAL_MANIFEST.derived_files]
+    missing_files = [p.name for p in expected_paths if not p.exists()]
     should_force = bool(missing_files)
     stale = False
 
@@ -77,6 +107,7 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
             stale_before=False,
             files_written=[],
             extraction_mode="",
+            canonical_root=canonical_root,
         )
 
     if missing_files:
@@ -85,6 +116,9 @@ def ensure_charter_bundle_fresh(repo_root: Path) -> SyncResult | None:
         logger.info("Charter bundle stale. Attempting auto-sync.")
 
     result = sync(charter_path, charter_dir, force=should_force)
+    # Patch canonical_root onto the SyncResult returned by sync(); sync()
+    # itself doesn't know which checkout the caller invoked it from.
+    result = replace(result, canonical_root=canonical_root)
     if result.error:
         logger.warning("Charter auto-sync failed while refreshing extracted artifacts: %s", result.error)
     return result
@@ -171,9 +205,15 @@ def post_save_hook(charter_path: Path) -> None:
     try:
         result = sync(charter_path, force=True)
         if result.synced:
+            # Anchor log paths against canonical_root when available, falling
+            # back to the charter directory when the caller invoked sync()
+            # directly (no chokepoint patch). This is a logging convenience —
+            # the sync result itself is unchanged.
+            anchor = result.canonical_root if result.canonical_root else charter_path.parent
             logger.info(
-                "Charter synced: %d YAML files updated",
+                "Charter synced: %d YAML files updated under %s",
                 len(result.files_written),
+                anchor,
             )
         elif result.error:
             logger.warning("Charter sync warning: %s", result.error)

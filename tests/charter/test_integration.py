@@ -268,6 +268,7 @@ class TestEnsureCharterBundleFresh:
             mock_sync.return_value = SyncResult(
                 synced=False, stale_before=False, files_written=[],
                 extraction_mode="", error="Engine unavailable",
+                canonical_root=tmp_path,
             )
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="charter.sync"):
@@ -290,6 +291,7 @@ class TestLoaderAutoSyncEdgeCases:
             mock_ensure.return_value = SyncResult(
                 synced=False, stale_before=False, files_written=[],
                 extraction_mode="", error="Engine unavailable",
+                canonical_root=tmp_path,
             )
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="charter.sync"):
@@ -312,6 +314,7 @@ class TestLoaderAutoSyncEdgeCases:
             mock_ensure.return_value = SyncResult(
                 synced=False, stale_before=True, files_written=[],
                 extraction_mode="", error="Sync failed",
+                canonical_root=tmp_path,
             )
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="charter.sync"):
@@ -331,6 +334,7 @@ class TestLoaderAutoSyncEdgeCases:
             mock_ensure.return_value = SyncResult(
                 synced=False, stale_before=False, files_written=[],
                 extraction_mode="", error="Engine unavailable",
+                canonical_root=tmp_path,
             )
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="charter.sync"):
@@ -353,6 +357,7 @@ class TestLoaderAutoSyncEdgeCases:
             mock_ensure.return_value = SyncResult(
                 synced=False, stale_before=True, files_written=[],
                 extraction_mode="", error="Sync failed",
+                canonical_root=tmp_path,
             )
             caplog.clear()
             with caplog.at_level(logging.WARNING, logger="charter.sync"):

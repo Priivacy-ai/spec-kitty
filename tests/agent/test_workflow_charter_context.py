@@ -9,6 +9,7 @@ T038: verify downstream consumers handle the updated context contract correctly:
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 from unittest.mock import patch
 
@@ -19,6 +20,29 @@ from charter.context import build_charter_context
 from specify_cli.next.prompt_builder import _governance_context
 
 pytestmark = pytest.mark.fast
+
+
+@pytest.fixture(autouse=True)
+def _git_init_tmp_path(request: pytest.FixtureRequest) -> None:
+    """WP03: chokepoint requires a git-tracked tmp_path fixture root."""
+    if "tmp_path" in request.fixturenames:
+        tmp_path: Path = request.getfixturevalue("tmp_path")
+        if not (tmp_path / ".git").exists():
+            try:
+                subprocess.run(
+                    ["git", "init", "--quiet", str(tmp_path)],
+                    check=False,
+                    capture_output=True,
+                )
+            except (FileNotFoundError, OSError):
+                pass
+    yield
+    try:
+        from charter.resolution import resolve_canonical_repo_root
+
+        resolve_canonical_repo_root.cache_clear()
+    except Exception:
+        pass
 
 
 # ---------------------------------------------------------------------------

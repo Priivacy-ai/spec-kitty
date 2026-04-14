@@ -33,6 +33,10 @@ class UpgradeResult:
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     dry_run: bool = False
+    # Per-migration ``MigrationResult`` keyed by migration_id. Used by the
+    # CLI --json path to surface schema-shaped reports emitted by individual
+    # migrations (e.g. m_3_2_3_unified_bundle's contract-shaped payload).
+    migration_results: dict[str, MigrationResult] = field(default_factory=dict)
 
 
 def validate_upgrade_target(from_version: str, target_version: str) -> str | None:
@@ -130,6 +134,12 @@ class MigrationRunner:
         for migration in migrations:
             migration_result, status = self._apply_migration(migration, metadata, dry_run)
             result.warnings.extend(migration_result.warnings)
+            # Preserve each migration's structured payload so the CLI --json
+            # layer can surface schema-shaped reports (Finding 2 / review
+            # cycle 1). We record applied and skipped results alike so
+            # operators can see both no-op and refresh payloads.
+            if status in ("applied", "skipped"):
+                result.migration_results[migration.migration_id] = migration_result
 
             if status == "applied":
                 result.migrations_applied.append(migration.migration_id)
@@ -138,6 +148,8 @@ class MigrationRunner:
             else:
                 result.success = False
                 result.errors.extend(migration_result.errors)
+                # Still record the failed payload for observability.
+                result.migration_results[migration.migration_id] = migration_result
                 # Stop on first failure
                 break
 

@@ -434,7 +434,7 @@ def build_charter_context(
     """
     # Lazy imports to avoid circular dependency on module load.
     from charter.catalog import resolve_doctrine_root
-    from charter.sync import load_governance_config
+    from charter.sync import ensure_charter_bundle_fresh, load_governance_config
     from doctrine.drg.loader import load_graph, merge_layers
     from doctrine.drg.models import NodeKind
     from doctrine.drg.query import resolve_context
@@ -442,9 +442,19 @@ def build_charter_context(
     from doctrine.missions import MissionTemplateRepository
     from doctrine.service import DoctrineService
 
+    # FR-004 chokepoint: route every reader of the v1.0.0 manifest derivatives
+    # through ``ensure_charter_bundle_fresh``. The resolver inside the
+    # chokepoint maps any path (worktree or main checkout) onto the canonical
+    # main-checkout root, so worktree callers transparently see the same
+    # bundle as the main checkout (FR-010). When ``charter.md`` is absent the
+    # chokepoint returns ``None``; we fall back to ``repo_root`` so the
+    # missing-charter early-return below still fires with stable semantics.
+    sync_result = ensure_charter_bundle_fresh(repo_root)
+    canonical_root = sync_result.canonical_root if sync_result and sync_result.canonical_root else repo_root
+
     normalized = action.strip().lower()
-    charter_path = repo_root / ".kittify" / "charter" / "charter.md"
-    references_path = repo_root / ".kittify" / "charter" / "references.yaml"
+    charter_path = canonical_root / ".kittify" / "charter" / "charter.md"
+    references_path = canonical_root / ".kittify" / "charter" / "references.yaml"
 
     # -- 0. State management (mirrors build_charter_context) ------------------
     # Non-bootstrap actions always get compact governance.

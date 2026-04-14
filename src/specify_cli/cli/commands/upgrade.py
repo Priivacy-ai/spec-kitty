@@ -338,6 +338,23 @@ def upgrade(  # noqa: C901
                 }
             )
 
+        # Surface per-migration schema-shaped JSON reports (e.g. the
+        # m_3_2_3_unified_bundle contract-shaped payload). Each migration
+        # emits its report as a single JSON string inside
+        # ``MigrationResult.changes_made[0]``; decode it so operators see a
+        # structured object rather than an opaque string.
+        migration_reports: dict[str, object] = {}
+        for mid, mres in result.migration_results.items():
+            if not mres.changes_made:
+                continue
+            payload = mres.changes_made[0]
+            try:
+                migration_reports[mid] = json.loads(payload)
+            except (TypeError, ValueError):
+                # Migration emitted a non-JSON change string; skip rather
+                # than break the operator contract.
+                continue
+
         output = {
             "status": "success" if result.success else "failed",
             "current_version": result.from_version,
@@ -346,6 +363,7 @@ def upgrade(  # noqa: C901
             "migrations": migrations_detail,
             "migrations_applied": result.migrations_applied,
             "migrations_skipped": result.migrations_skipped,
+            "migration_reports": migration_reports,
             "success": result.success,
             "errors": result.errors,
             "warnings": result.warnings,
