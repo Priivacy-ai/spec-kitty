@@ -26,6 +26,8 @@ subtasks:
 - T016
 - T017
 - T018
+agent: "claude:opus-4.6:python-implementer:implementer"
+shell_pid: "8091"
 history:
 - at: '2026-04-14T05:02:32Z'
   actor: claude
@@ -791,3 +793,7 @@ Stop and comment on [#475](https://github.com/Priivacy-ai/spec-kitty/issues/475)
 - A caller of `build_charter_context` discovered outside the known five sites — R-3 audit was incomplete; document and expand scope
 - A production module depends on `include_proposed=True` that the specify-phase inventory missed — escalate rather than reinstating the flag
 - `assert_valid()` starts raising on `main` after the graph-patch from WP02 — indicates a cycle or duplicate edge was introduced; regress WP02 if needed
+
+## Activity Log
+
+- 2026-04-14T07:03:53Z – claude:opus-4.6:python-implementer:implementer – shell_pid=8091 – Started implementation via action command
