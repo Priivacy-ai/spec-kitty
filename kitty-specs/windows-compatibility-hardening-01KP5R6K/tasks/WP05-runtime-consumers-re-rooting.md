@@ -20,8 +20,8 @@ subtasks:
 - T028
 - T029
 - T030
-agent: "claude:opus-4.6:implementer:implementer"
-shell_pid: "15157"
+agent: "claude:opus-4.6:reviewer:reviewer"
+shell_pid: "86234"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -255,3 +255,4 @@ Do NOT ask about:
 
 - 2026-04-14T12:33:54Z – claude:opus-4.6:implementer:implementer – shell_pid=15157 – Started implementation via action command
 - 2026-04-14T13:05:04Z – claude:opus-4.6:implementer:implementer – shell_pid=15157 – WP05 complete: unified Windows root across tracker / sync / daemon / kernel.paths; POSIX preserved; cross-module invariant test added. Architectural layer rule respected — kernel uses platformdirs('spec-kitty') directly, not specify_cli import. Ready for review.
+- 2026-04-14T13:05:32Z – claude:opus-4.6:reviewer:reviewer – shell_pid=86234 – Started review via action command
