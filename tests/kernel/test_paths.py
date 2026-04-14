@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from kernel.paths import get_kittify_home, get_package_asset_root
+from kernel.paths import get_kittify_home, get_package_asset_root, render_runtime_path
 
 pytestmark = pytest.mark.fast
 
@@ -165,3 +165,30 @@ class TestGetPackageAssetRoot:
             lambda _pkg: (_ for _ in ()).throw(ModuleNotFoundError("should not be called")),
         )
         assert get_package_asset_root() == missions
+
+
+class TestRenderRuntimePath:
+    """User-facing rendering for runtime paths lives in kernel for shared use."""
+
+    def test_windows_always_returns_absolute_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: True)
+        rendered = render_runtime_path(Path("/tmp/spec-kitty/auth"))
+        assert rendered == str(Path("/tmp/spec-kitty/auth").resolve(strict=False))
+
+    def test_posix_tilde_compression_under_home(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / ".kittify" / "auth")
+        assert rendered == "~/.kittify/auth"
+
+    def test_posix_outside_home_stays_absolute(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(Path("/var/lib/spec-kitty"))
+        assert rendered == str(Path("/var/lib/spec-kitty").resolve(strict=False))
+
+    def test_for_user_false_disables_tilde_shortening(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+        monkeypatch.setattr("kernel.paths._is_windows", lambda: False)
+        monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+        rendered = render_runtime_path(tmp_path / ".kittify" / "auth", for_user=False)
+        assert rendered == str((tmp_path / ".kittify" / "auth").resolve(strict=False))

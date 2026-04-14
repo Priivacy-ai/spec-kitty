@@ -31,7 +31,7 @@ jobs:
         shell: bash
         run: |
           pipx install --editable . --force
-          pipx inject spec-kitty-cli pytest pytest-cov
+          pipx inject spec-kitty-cli pytest pytest-cov pytest-asyncio pytest-timeout respx pytestarch
 
       - name: Resolve pipx venv Python
         id: pipx-venv
@@ -68,8 +68,16 @@ jobs:
         env:
           VENV_PYTHON: ${{ steps.pipx-venv.outputs.venv_python }}
         run: |
+          WINDOWS_TESTS=()
+          while IFS= read -r test_file; do
+            WINDOWS_TESTS+=("$test_file")
+          done < <(git grep -l "@pytest.mark.windows_ci" -- tests)
+          if [ ${#WINDOWS_TESTS[@]} -eq 0 ]; then
+            echo "::error::No windows_ci test files were discovered."
+            exit 1
+          fi
           # Invoke pytest from the pipx-installed venv so this step exercises
           # the real install topology users have (editable install via pipx +
           # injected pytest). Running `python -m pytest` from the host
           # setup-python interpreter would bypass the pipx venv entirely.
-          "$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v
+          "$VENV_PYTHON" -m pytest -m windows_ci --maxfail=1 -v "${WINDOWS_TESTS[@]}"

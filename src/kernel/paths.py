@@ -55,7 +55,7 @@ def get_kittify_home() -> Path:
         # call platformdirs directly with the same arguments.
         from platformdirs import user_data_dir  # noqa: PLC0415
 
-        return Path(user_data_dir("spec-kitty", appauthor=False, roaming=False))
+        return Path(str(user_data_dir("spec-kitty", appauthor=False, roaming=False)))
 
     return Path.home() / ".kittify"
 

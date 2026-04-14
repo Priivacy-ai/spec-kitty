@@ -21,11 +21,12 @@ import errno
 import os
 import shutil
 import sys
-from contextlib import contextmanager
-from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from collections.abc import Iterator
+from contextlib import contextmanager, suppress
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from pathlib import Path
-from typing import Iterator, Literal
+from typing import Literal
 
 
 # ---------------------------------------------------------------------------
@@ -48,7 +49,7 @@ class LegacyWindowsRoot:
         (e.g. ``~/.kittify``) where there is no state to move.
     """
 
-    id: Literal["spec_kitty_home", "kittify_home", "auth_xdg_home"]
+    id: Literal["spec_kitty_home", "kittify_localappdata", "kittify_home", "auth_xdg_home"]
     path: Path
     dest: Path | None  # None == messaging-only, no state to move
 
@@ -98,7 +99,7 @@ class MigrationOutcome:
 
 def _utc_timestamp() -> str:
     """Return a compact UTC timestamp string: YYYYMMDDTHHMMSSz."""
-    return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    return datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
 
 
 def _is_non_empty_dir(p: Path) -> bool:
@@ -190,8 +191,7 @@ def _migration_lock(root_base: Path, timeout_s: float = 3.0) -> Iterator[None]:
 
     root_base.mkdir(parents=True, exist_ok=True)
     lock_path = root_base / ".migrate.lock"
-    lock_file = open(lock_path, "a+b")  # noqa: WPS515
-    try:
+    with lock_path.open("a+b") as lock_file:  # noqa: WPS515
         deadline = time.monotonic() + timeout_s
         while True:
             try:
@@ -199,19 +199,16 @@ def _migration_lock(root_base: Path, timeout_s: float = 3.0) -> Iterator[None]:
                 break
             except OSError:
                 if time.monotonic() >= deadline:
-                    lock_file.close()
                     raise TimeoutError(
                         "Another Spec Kitty CLI instance is migrating runtime state."
                         " Please retry in a moment."
-                    )
+                    ) from None
                 time.sleep(0.1)
-        yield
-    finally:
         try:
-            msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
-        except OSError:
-            pass
-        lock_file.close()
+            yield
+        finally:
+            with suppress(OSError):
+                msvcrt.locking(lock_file.fileno(), msvcrt.LK_UNLCK, 1)
 
 
 # ---------------------------------------------------------------------------
