@@ -13,7 +13,7 @@ Strict sequential WP ordering per C-007: **strict sequence WP01 then WP02 then W
 
 | ID | Description | WP | Parallel |
 | --- | --- | --- | --- |
-| T001 | Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` | WP01 | — | [D] |
+| T001 | Create `src/charter/bundle.py` with `CharterBundleManifest`, `SCHEMA_VERSION = "1.0.0"`, `CANONICAL_MANIFEST` | WP01 | — | [D] | [D] |
 | T002 | Write `architecture/2.x/06_unified_charter_bundle.md` documenting v1.0.0 contract | WP01 | [D] |
 | T003 | Create `src/specify_cli/cli/commands/charter_bundle.py` with Typer sub-app for `bundle validate` | WP01 | — | [D] |
 | T004 | Re-export `CharterBundleManifest` from `src/charter/__init__.py` | WP01 | [D] |
