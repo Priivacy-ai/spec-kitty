@@ -24,7 +24,8 @@ subtasks:
 - T037
 - T038
 - T039
-shell_pid: '35562'
+shell_pid: "35562"
+agent: "claude:opus-4.6:implementer:implementer"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -432,3 +433,7 @@ Focus on:
 Do NOT ask about:
 - Commit guard semantics (out of scope — this WP only changes how the hook invokes the guard).
 - CI configuration (that's WP07).
+
+## Activity Log
+
+- 2026-04-14T11:04:20Z – claude:opus-4.6:implementer:implementer – shell_pid=35562 – Assigned agent via action command
