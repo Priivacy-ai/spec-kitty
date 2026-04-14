@@ -1,7 +1,7 @@
 ---
 work_package_id: WP05
 title: Vibe CLI Surface (init, verify, gitignore)
-lane: "for_review"
+lane: "done"
 dependencies:
 - WP04
 base_branch: main
@@ -13,8 +13,10 @@ subtasks:
 - T025
 - T026
 - T027
+agent: "opus"
 shell_pid: '16249'
-agent: "claude"
+reviewed_by: "unknown"
+review_status: "approved"
 history:
 - at: '2026-04-14T00:00:00+00:00'
   actor: planner
@@ -160,3 +162,4 @@ spec-kitty agent action implement WP05 --agent <name>
 ## Activity Log
 
 - 2026-04-14T10:35:14Z – claude – shell_pid=16249 – lane=for_review – Vibe CLI surface complete; 16/16 tests pass
+- 2026-04-14T10:36:35Z – opus – shell_pid=16249 – lane=done – Review passed: init/verify/gitignore all correctly wired for vibe; 16/16 tests including codex-coexistence byte-identity
