@@ -336,3 +336,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T13:08:20Z – claude:opus-4.6:implementer:implementer – shell_pid=92478 – Started implementation via action command
+- 2026-04-14T13:25:39Z – claude:opus-4.6:implementer:implementer – shell_pid=92478 – WP08 complete: UTF-8 CLI entrypoint + 5 native Windows regression test files. Ready for review.
