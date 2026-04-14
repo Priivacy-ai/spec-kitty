@@ -188,7 +188,9 @@ def backfill_mission(feature_dir: Path, *, dry_run: bool = False) -> BackfillRes
             reason="mission_id already present",
         )
 
-    action: BackfillAction = "skip" if dry_run and skip_id else "wrote" if not skip_id else "skip"
+    action: BackfillAction = "skip"
+    if not skip_id:
+        action = "wrote"
     # If mission_id was already present but number was coerced, report "wrote"
     if number_coerced and not dry_run:
         action = "wrote"

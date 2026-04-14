@@ -49,6 +49,15 @@ __all__ = [
 ]
 
 
+def _mission_mid8(key: str, mission_id: str | None) -> str | None:
+    """Return the display short-id for real mission IDs only."""
+    if key.startswith(("legacy:", "orphan:")):
+        return None
+    if mission_id:
+        return mission_id[:8]
+    return None
+
+
 def read_file_resilient(file_path: Path, *, auto_fix: bool = True) -> tuple[str | None, str | None]:
     """Read a file with resilience to encoding errors.
 
@@ -343,8 +352,7 @@ def build_mission_registry(project_dir: Path) -> dict[str, dict[str, Any]]:
         key = _mission_record_key(feature_dir, mission_id, mission_number)
 
         # mid8 is meaningful only when key is an actual mission_id (ULID).
-        is_pseudo = key.startswith(("legacy:", "orphan:"))
-        mid8: str | None = None if is_pseudo else (mission_id[:8] if mission_id else None)
+        mid8 = _mission_mid8(key, mission_id)
 
         registry[key] = {
             "mission_id": key,  # canonical key, may be pseudo

@@ -16,6 +16,14 @@ from kernel.atomic import atomic_write
 
 
 BOOTSTRAP_ACTIONS: frozenset[str] = frozenset({"specify", "plan", "implement", "review"})
+BOOTSTRAP_HEADER = "Charter Context (Bootstrap):"
+BOOTSTRAP_FIRST_LOAD_NOTE = (
+    "  - This is the first load for this action. Use the summary and follow references as needed."
+)
+POLICY_SUMMARY_HEADER = "Policy Summary:"
+NO_POLICY_SUMMARY_NOTE = "  - No explicit policy summary section found in charter.md."
+REFERENCE_DOCS_HEADER = "Reference Docs:"
+NO_REFERENCES_NOTE = "  - No references manifest found."
 
 
 @dataclass(frozen=True)
@@ -278,18 +286,18 @@ def _render_action_scoped(
     content, and renders a structured context block.
     """
     lines: list[str] = [
-        "Charter Context (Bootstrap):",
+        BOOTSTRAP_HEADER,
         f"  - Source: {charter_path}",
-        "  - This is the first load for this action. Use the summary and follow references as needed.",
+        BOOTSTRAP_FIRST_LOAD_NOTE,
         "",
-        "Policy Summary:",
+        POLICY_SUMMARY_HEADER,
     ]
 
     if summary:
         for item in summary[:8]:
             lines.append(f"  - {item}")
     else:
-        lines.append("  - No explicit policy summary section found in charter.md.")
+        lines.append(NO_POLICY_SUMMARY_NOTE)
 
     lines.append("")
 
@@ -298,7 +306,7 @@ def _render_action_scoped(
     lines.append("")
 
     # --- Reference Docs section ---
-    lines.append("Reference Docs:")
+    lines.append(REFERENCE_DOCS_HEADER)
 
     filtered_references = _filter_references_for_action(references, action)
 
@@ -309,7 +317,7 @@ def _render_action_scoped(
             local_path = reference.get("local_path", "")
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
-        lines.append("  - No references manifest found.")
+        lines.append(NO_REFERENCES_NOTE)
 
     return "\n".join(lines)
 
@@ -345,21 +353,21 @@ def _filter_references_for_action(references: list[dict[str, str]], action: str)
 
 def _render_bootstrap(charter_path: Path, summary: list[str], references: list[dict[str, str]]) -> str:
     lines: list[str] = [
-        "Charter Context (Bootstrap):",
+        BOOTSTRAP_HEADER,
         f"  - Source: {charter_path}",
-        "  - This is the first load for this action. Use the summary and follow references as needed.",
+        BOOTSTRAP_FIRST_LOAD_NOTE,
         "",
-        "Policy Summary:",
+        POLICY_SUMMARY_HEADER,
     ]
 
     if summary:
         for item in summary[:8]:
             lines.append(f"  - {item}")
     else:
-        lines.append("  - No explicit policy summary section found in charter.md.")
+        lines.append(NO_POLICY_SUMMARY_NOTE)
 
     lines.append("")
-    lines.append("Reference Docs:")
+    lines.append(REFERENCE_DOCS_HEADER)
     if references:
         for reference in references[:10]:
             ref_id = reference.get("id", "unknown")
@@ -367,7 +375,7 @@ def _render_bootstrap(charter_path: Path, summary: list[str], references: list[d
             local_path = reference.get("local_path", "")
             lines.append(f"  - {ref_id}: {title} ({local_path})")
     else:
-        lines.append("  - No references manifest found.")
+        lines.append(NO_REFERENCES_NOTE)
 
     return "\n".join(lines)
 
@@ -383,6 +391,7 @@ def _render_compact_governance(repo_root: Path) -> str:
     paradigms = ", ".join(resolution.paradigms) if resolution.paradigms else "(none)"
     directives = ", ".join(resolution.directives) if resolution.directives else "(none)"
     tools = ", ".join(resolution.tools) if resolution.tools else "(none)"
+    diagnostics = " | ".join(resolution.diagnostics) if resolution.diagnostics else None
 
     lines = [
         "Governance:",
@@ -391,8 +400,8 @@ def _render_compact_governance(repo_root: Path) -> str:
         f"  - Directives: {directives}",
         f"  - Tools: {tools}",
     ]
-    if resolution.diagnostics:
-        lines.append(f"  - Diagnostics: {' | '.join(resolution.diagnostics)}")
+    if diagnostics:
+        lines.append(f"  - Diagnostics: {diagnostics}")
     return "\n".join(lines)
 
 

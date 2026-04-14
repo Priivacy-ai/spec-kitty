@@ -70,7 +70,6 @@ def _match_wp_section_id(title: str) -> str | None:
     if remainder and not (remainder[0].isspace() or remainder[0] in "—:-"):
         return None
     return f"WP{int(suffix[:digit_count]):02d}"
-    return None
 
 
 def _split_wp_sections(tasks_content: str) -> dict[str, str]:
