@@ -1,7 +1,7 @@
 {
-  "event_count": 29,
-  "last_event_id": "01KP5D064ZNC490VV0MBVA23NG",
-  "materialized_at": "2026-04-14T07:06:26.847462+00:00",
+  "event_count": 31,
+  "last_event_id": "01KP5D22R96SNGA6626YA9X7RZ",
+  "materialized_at": "2026-04-14T07:07:28.905965+00:00",
   "mission_number": "",
   "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
   "mission_type": "software-dev",
@@ -12,9 +12,9 @@
     "claimed": 0,
     "done": 0,
     "for_review": 0,
-    "in_progress": 0,
+    "in_progress": 1,
     "in_review": 0,
-    "planned": 4
+    "planned": 3
   },
   "work_packages": {
     "WP01": {
@@ -46,11 +46,11 @@
       "last_transition_at": "2026-04-14T07:06:26.847462+00:00"
     },
     "WP05": {
-      "actor": "finalize-tasks",
+      "actor": "claude:opus-4.6:implementer:implementer",
       "force_count": 1,
-      "lane": "planned",
-      "last_event_id": "01KP586YFHD3HGW2SKCTV3HPWF",
-      "last_transition_at": "2026-04-14T05:42:45.489848+00:00"
+      "lane": "in_progress",
+      "last_event_id": "01KP5D22R96SNGA6626YA9X7RZ",
+      "last_transition_at": "2026-04-14T07:07:28.905965+00:00"
     },
     "WP06": {
       "actor": "finalize-tasks",

@@ -22,6 +22,8 @@ subtasks:
 - T023
 - T038
 phase: Phase 1 — Hard-block preflights
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "15205"
 history:
 - timestamp: '2026-04-14T05:26:49Z'
   lane: planned
@@ -246,3 +248,7 @@ Similarly for implement.
 - Verify that `SparseCheckoutPreflightError` surfaces with exit code != 0 (check the error-mapping in the CLI handler).
 - Verify that the post-merge refresh runs BEFORE the status-events `safe_commit` at line 748.
 - Confirm no MergeState file is written when the preflight aborts.
+
+## Activity Log
+
+- 2026-04-14T07:07:28Z – claude:opus-4.6:implementer:implementer – shell_pid=15205 – Started implementation via action command
