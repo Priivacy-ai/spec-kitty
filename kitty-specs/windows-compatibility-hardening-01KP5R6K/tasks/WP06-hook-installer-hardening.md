@@ -11,6 +11,9 @@ requirement_refs:
 planning_base_branch: main
 merge_target_branch: main
 branch_strategy: Planning artifacts for this feature were generated on main. During /spec-kitty.implement this WP may branch from a dependency-specific base, but completed changes must merge back into main unless the human explicitly redirects the landing branch.
+base_branch: kitty/mission-windows-compatibility-hardening-01KP5R6K
+base_commit: 1fcc638deed73374a7c7b678639ddd2f4d820077
+created_at: '2026-04-14T11:04:20.110936+00:00'
 subtasks:
 - T031
 - T032
@@ -21,6 +24,7 @@ subtasks:
 - T037
 - T038
 - T039
+shell_pid: '35562'
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
