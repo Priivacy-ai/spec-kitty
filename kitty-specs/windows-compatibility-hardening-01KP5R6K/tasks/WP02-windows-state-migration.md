@@ -295,3 +295,4 @@ Do NOT ask about:
 ## Activity Log
 
 - 2026-04-14T11:25:54Z – claude:opus-4.6:implementer:implementer – shell_pid=46585 – Started implementation via action command
+- 2026-04-14T11:32:59Z – claude:opus-4.6:implementer:implementer – shell_pid=46585 – WP02 complete: destination-wins migration with lock, 5 POSIX-mocked + 1 windows_ci test. Ready for review.
