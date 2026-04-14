@@ -1,0 +1,10 @@
+{
+  "created_at": "2026-04-14T04:46:28.428409+00:00",
+  "friendly_name": "legacy sparse and review lock hardening",
+  "mission_id": "01KP54ZWEEPCC2VC3YKRX1HT8W",
+  "mission_number": null,
+  "mission_slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
+  "mission_type": "software-dev",
+  "slug": "legacy-sparse-and-review-lock-hardening-01KP54ZW",
+  "target_branch": "main"
+}
