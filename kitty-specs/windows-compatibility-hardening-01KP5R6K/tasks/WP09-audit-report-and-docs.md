@@ -26,8 +26,8 @@ subtasks:
 - T058
 - T059
 - T060
-agent: "claude:opus-4.6:implementer:implementer"
-shell_pid: "5787"
+agent: "claude:opus-4.6:reviewer:reviewer"
+shell_pid: "12940"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -362,3 +362,4 @@ Do NOT ask about:
 
 - 2026-04-14T13:39:42Z – claude:opus-4.6:implementer:implementer – shell_pid=5787 – Started implementation via action command
 - 2026-04-14T13:53:04Z – claude:opus-4.6:implementer:implementer – shell_pid=5787 – WP09 complete: audit report + 2 ADRs + windows-state explainer + CLAUDE.md section. Commit 58af8a4f. #603 closure-request comment posted; #260 scoped follow-up posted. Follow-up issues filed: #629 #630 #631. Mission ready for final review + merge.
+- 2026-04-14T13:53:50Z – claude:opus-4.6:reviewer:reviewer – shell_pid=12940 – Started review via action command
