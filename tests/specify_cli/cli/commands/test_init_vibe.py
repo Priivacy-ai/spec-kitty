@@ -129,8 +129,8 @@ def test_init_vibe_installs_command_skills(
         assert skill_md.is_file(), f"Missing {skill_md.relative_to(project_path)}"
 
     # Ownership manifest must record each install with agents=["vibe"].
-    manifest_file = project_path / ".kittify" / "skills-manifest.json"
-    assert manifest_file.is_file(), ".kittify/skills-manifest.json was not created"
+    manifest_file = project_path / ".kittify" / "command-skills-manifest.json"
+    assert manifest_file.is_file(), ".kittify/command-skills-manifest.json was not created"
     import json
 
     manifest = json.loads(manifest_file.read_text(encoding="utf-8"))

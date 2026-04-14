@@ -110,7 +110,7 @@ Create `tests/specify_cli/cli/commands/test_init_vibe.py`:
 - Assert exit code 0.
 - Assert `.kittify/config.yaml` exists and `load_agent_config` returns an `AgentConfig` with `"vibe"` in `available`.
 - Assert `.agents/skills/spec-kitty.specify/SKILL.md` exists (and spot-check 2-3 other canonical commands).
-- Assert `.kittify/skills-manifest.json` exists and `manifest_store.load` returns 16 entries all with `agents == ("vibe",)`.
+- Assert `.kittify/command-skills-manifest.json` exists and `manifest_store.load` returns 16 entries all with `agents == ("vibe",)`.
 - Assert `.gitignore` exists and contains a line matching `.vibe/` or `.vibe`.
 - Assert the printed next-steps include the Vibe install command and the launch instruction.
 

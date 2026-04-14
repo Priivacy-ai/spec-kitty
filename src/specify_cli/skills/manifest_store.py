@@ -1,4 +1,4 @@
-"""Persistence layer for ``.kittify/skills-manifest.json``.
+"""Persistence layer for ``.kittify/command-skills-manifest.json``.
 
 This module is the canonical source for reading and writing the Skills Manifest
 that records every ``.agents/skills/spec-kitty.<command>/SKILL.md`` file that
@@ -58,7 +58,7 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 SCHEMA_VERSION = 1
-_MANIFEST_FILENAME = "skills-manifest.json"
+_MANIFEST_FILENAME = "command-skills-manifest.json"
 _KITTIFY_DIR = ".kittify"
 
 
@@ -189,7 +189,7 @@ def _validate_against_schema(data: dict[str, Any]) -> None:
 
 
 def load(repo_root: Path) -> SkillsManifest:
-    """Load the skills manifest from ``<repo_root>/.kittify/skills-manifest.json``.
+    """Load the skills manifest from ``<repo_root>/.kittify/command-skills-manifest.json``.
 
     Returns an empty ``SkillsManifest`` if the file does not exist.
 
@@ -242,7 +242,7 @@ def load(repo_root: Path) -> SkillsManifest:
     unknown = set(data.keys()) - known_top_level
     if unknown:
         warnings.warn(
-            f"skills-manifest.json contains unknown top-level fields that will be "
+            f"command-skills-manifest.json contains unknown top-level fields that will be "
             f"dropped on next save: {sorted(unknown)}",
             stacklevel=2,
         )
@@ -274,7 +274,7 @@ def load(repo_root: Path) -> SkillsManifest:
 
 
 def save(repo_root: Path, manifest: SkillsManifest) -> None:
-    """Atomically write *manifest* to ``<repo_root>/.kittify/skills-manifest.json``.
+    """Atomically write *manifest* to ``<repo_root>/.kittify/command-skills-manifest.json``.
 
     Steps
     -----

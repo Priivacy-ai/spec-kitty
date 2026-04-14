@@ -53,7 +53,7 @@ Inputs:
 
 Output:
 - Files written under `<repo>/.agents/skills/spec-kitty.<command>/SKILL.md`.
-- Updated `<repo>/.kittify/skills-manifest.json`.
+- Updated `<repo>/.kittify/command-skills-manifest.json`.
 
 ## Branch Strategy
 

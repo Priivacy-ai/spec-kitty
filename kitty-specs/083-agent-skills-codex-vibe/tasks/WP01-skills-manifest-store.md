@@ -38,7 +38,7 @@ requirement_refs:
 
 ## Objective
 
-Deliver a pure, well-tested persistence layer for `.kittify/skills-manifest.json`. This is the foundation that WP03 (installer) and WP06 (migration) depend on. It must be completable and verifiable in isolation — no renderer, no installer, no CLI wiring.
+Deliver a pure, well-tested persistence layer for `.kittify/command-skills-manifest.json`. This is the foundation that WP03 (installer) and WP06 (migration) depend on. It must be completable and verifiable in isolation — no renderer, no installer, no CLI wiring.
 
 ## Context
 
@@ -110,7 +110,7 @@ Codes to support: `"unsupported_schema_version"`, `"schema_validation_failed"`, 
 Ship a copy of `contracts/skills-manifest.schema.json` at `src/specify_cli/skills/data/skills-manifest.schema.json` so the running CLI has it in its package resources. Load it with `importlib.resources`. Use the existing `jsonschema` dependency if it's already in `pyproject.toml`; if not, use a small hand-rolled validator keyed on the specific fields in the schema (prefer adding `jsonschema` as a dep only if nothing else in the repo already provides validation — grep for `jsonschema` before adding).
 
 `load(repo_root: Path) -> SkillsManifest`:
-- If `.kittify/skills-manifest.json` does not exist, return `SkillsManifest(schema_version=1, entries=[])`.
+- If `.kittify/command-skills-manifest.json` does not exist, return `SkillsManifest(schema_version=1, entries=[])`.
 - Read and parse JSON. On `json.JSONDecodeError`, raise `ManifestError("corrupt_json", path=..., detail=...)`.
 - Reject `schema_version != 1` with `ManifestError("unsupported_schema_version", found=...)`.
 - Validate against the JSON schema. On failure, raise `ManifestError("schema_validation_failed", errors=[...])` with a list of human-readable messages.

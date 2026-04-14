@@ -40,7 +40,7 @@ Invariants:
 - `body` does not contain the literal token `$ARGUMENTS` anywhere.
 - Serializing `(frontmatter, body)` to `SKILL.md` is pure: same input, byte-identical output.
 
-### SkillsManifest *(persisted at `.kittify/skills-manifest.json`)*
+### SkillsManifest *(persisted at `.kittify/command-skills-manifest.json`)*
 
 | Field | Type | Description |
 |-------|------|-------------|
@@ -113,7 +113,7 @@ SkillPackage on disk (.agents/skills/spec-kitty.<command>/)
     │
     │ recorded by installer
     ▼
-ManifestEntry ──► SkillsManifest (.kittify/skills-manifest.json)
+ManifestEntry ──► SkillsManifest (.kittify/command-skills-manifest.json)
 ```
 
 Migration path:

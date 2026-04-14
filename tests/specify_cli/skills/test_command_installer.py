@@ -185,7 +185,7 @@ class TestIdempotentInstall:
 
     def test_second_call_does_not_change_manifest(self, repo: Path) -> None:
         install(repo, "vibe")
-        manifest_path = repo / ".kittify" / "skills-manifest.json"
+        manifest_path = repo / ".kittify" / "command-skills-manifest.json"
         content_after_first = manifest_path.read_bytes()
 
         install(repo, "vibe")
@@ -504,7 +504,7 @@ class TestFileMutationOnRemove:
     def test_manifest_unchanged_when_mutation_detected(self, repo: Path) -> None:
         install(repo, "vibe")
 
-        manifest_path = repo / ".kittify" / "skills-manifest.json"
+        manifest_path = repo / ".kittify" / "command-skills-manifest.json"
         manifest_before = manifest_path.read_bytes()
 
         # Mutate the first command's SKILL.md.

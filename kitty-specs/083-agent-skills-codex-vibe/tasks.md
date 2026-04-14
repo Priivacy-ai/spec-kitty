@@ -75,7 +75,7 @@ WP02 ──┘
 **Size**: 5 subtasks, ~350 lines
 **Independent test**: `pytest tests/specify_cli/skills/test_manifest_store.py` passes; round-trip of a populated manifest produces a byte-identical JSON file; malformed input is rejected with a structured `ManifestError`.
 
-**Goal**: Deliver a pure, tested persistence layer for `.kittify/skills-manifest.json`. No behavior depends on the renderer or installer yet.
+**Goal**: Deliver a pure, tested persistence layer for `.kittify/command-skills-manifest.json`. No behavior depends on the renderer or installer yet.
 
 **Subtasks**:
 

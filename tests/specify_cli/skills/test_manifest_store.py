@@ -64,13 +64,13 @@ def _write_raw(repo_root: Path, data: dict) -> None:
     """Write arbitrary JSON to the manifest file without going through save()."""
     kittify = repo_root / ".kittify"
     kittify.mkdir(parents=True, exist_ok=True)
-    (kittify / "skills-manifest.json").write_text(
+    (kittify / "command-skills-manifest.json").write_text(
         json.dumps(data, indent=2) + "\n", encoding="utf-8"
     )
 
 
 def _read_raw(repo_root: Path) -> dict:
-    return json.loads((repo_root / ".kittify" / "skills-manifest.json").read_text())
+    return json.loads((repo_root / ".kittify" / "command-skills-manifest.json").read_text())
 
 
 # ---------------------------------------------------------------------------
@@ -215,7 +215,7 @@ def test_on_disk_format(tmp_path: Path) -> None:
     m.upsert(_make_entry())
     save(tmp_path, m)
 
-    raw = (tmp_path / ".kittify" / "skills-manifest.json").read_text(encoding="utf-8")
+    raw = (tmp_path / ".kittify" / "command-skills-manifest.json").read_text(encoding="utf-8")
     assert raw.endswith("\n")
 
     # Round-trip the JSON and re-dump with expected settings; they must match
@@ -448,7 +448,7 @@ def test_corrupt_json(tmp_path: Path) -> None:
     """A file with invalid JSON raises ManifestError("corrupt_json")."""
     kittify = tmp_path / ".kittify"
     kittify.mkdir()
-    (kittify / "skills-manifest.json").write_text("{ not valid json", encoding="utf-8")
+    (kittify / "command-skills-manifest.json").write_text("{ not valid json", encoding="utf-8")
 
     with pytest.raises(ManifestError) as exc_info:
         load(tmp_path)
@@ -469,7 +469,7 @@ def test_atomic_save_failure_leaves_original_intact(tmp_path: Path) -> None:
     m_original.upsert(_make_entry(_VALID_PATH_1, agents=("codex",)))
     save(tmp_path, m_original)
 
-    original_content = (tmp_path / ".kittify" / "skills-manifest.json").read_text()
+    original_content = (tmp_path / ".kittify" / "command-skills-manifest.json").read_text()
 
     # Now attempt a second save that will fail at os.replace
     m_new = SkillsManifest()
@@ -480,10 +480,10 @@ def test_atomic_save_failure_leaves_original_intact(tmp_path: Path) -> None:
             save(tmp_path, m_new)
 
     # The original file must be unmodified
-    assert (tmp_path / ".kittify" / "skills-manifest.json").read_text() == original_content
+    assert (tmp_path / ".kittify" / "command-skills-manifest.json").read_text() == original_content
 
     # The .tmp file should have been cleaned up
-    tmp_file = tmp_path / ".kittify" / "skills-manifest.tmp"
+    tmp_file = tmp_path / ".kittify" / "command-skills-manifest.tmp"
     assert not tmp_file.exists()
 
 
@@ -492,7 +492,7 @@ def test_atomic_save_creates_kittify_dir(tmp_path: Path) -> None:
     assert not (tmp_path / ".kittify").exists()
     m = SkillsManifest()
     save(tmp_path, m)
-    assert (tmp_path / ".kittify" / "skills-manifest.json").exists()
+    assert (tmp_path / ".kittify" / "command-skills-manifest.json").exists()
 
 
 # ---------------------------------------------------------------------------

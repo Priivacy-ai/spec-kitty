@@ -59,7 +59,7 @@ def _skill_path(project: Path, command: str) -> Path:
 
 
 def _manifest_path(project: Path) -> Path:
-    return project / ".kittify" / "skills-manifest.json"
+    return project / ".kittify" / "command-skills-manifest.json"
 
 
 def _load_manifest_entries(project: Path) -> list[dict]:

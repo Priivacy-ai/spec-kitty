@@ -131,14 +131,14 @@ If an agent's frontmatter requirements diverge in a future release, this contrac
 
 ### `load(repo_root) -> SkillsManifest`
 
-- Reads `.kittify/skills-manifest.json`. Returns an empty manifest (`schema_version=1`, `entries=[]`) if the file does not exist.
+- Reads `.kittify/command-skills-manifest.json`. Returns an empty manifest (`schema_version=1`, `entries=[]`) if the file does not exist.
 - Rejects manifests whose `schema_version` is not `1` with `ManifestError("unsupported_schema_version")`.
 - Rejects manifests that fail the JSON schema (`contracts/skills-manifest.schema.json`) with `ManifestError("schema_validation_failed", details=...)`.
 - Tolerates unknown top-level fields (logs a warning and drops them at save time, unless `strict=True`).
 
 ### `save(repo_root, manifest) -> None`
 
-- Writes `.kittify/skills-manifest.json` with sorted keys, 2-space indent, and a trailing newline.
+- Writes `.kittify/command-skills-manifest.json` with sorted keys, 2-space indent, and a trailing newline.
 - `entries` are sorted by `path` before write, for deterministic diffs.
 - Uses temp-file + rename for atomic replacement.
 

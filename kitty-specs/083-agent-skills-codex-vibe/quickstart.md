@@ -16,7 +16,7 @@ Expected output:
 
 - `.kittify/config.yaml` is written with `agents.available: [vibe]`.
 - `.agents/skills/spec-kitty.<command>/SKILL.md` is generated for every canonical command (`specify`, `plan`, `tasks`, `implement`, `review`, `merge`, etc.).
-- `.kittify/skills-manifest.json` records each file with its hash and the agent (`vibe`) that installed it.
+- `.kittify/command-skills-manifest.json` records each file with its hash and the agent (`vibe`) that installed it.
 - `.gitignore` gains a stanza protecting project-local `.vibe/` runtime state.
 - Printed next steps tell you to launch Vibe in the project and invoke `/spec-kitty.specify`.
 
@@ -54,7 +54,7 @@ What happens:
 - Files that match (unedited) are deleted after the equivalent Agent Skills package is installed under `.agents/skills/spec-kitty.<command>/`.
 - Files that do not match (you edited them by hand) are **preserved** and surfaced in a notice: *"Preserved user-edited files in .codex/prompts/: <list>. Your Codex integration now reads from .agents/skills/; review and port your edits if still needed."*
 - Non-Spec-Kitty files in `.codex/prompts/` (if any) are left untouched.
-- `.kittify/skills-manifest.json` now records the new skill packages with `agents: ["codex"]`.
+- `.kittify/command-skills-manifest.json` now records the new skill packages with `agents: ["codex"]`.
 
 Verify:
 
@@ -132,4 +132,4 @@ This split is intentional and documented in `research.md`. The twelve command-la
 - **`spec-kitty init --ai vibe` succeeds but `verify-setup` says `vibe` is missing.** Init does not require Vibe at install time. Install Vibe from the official channel, then re-run `verify-setup`.
 - **`spec-kitty.*` does not appear in Vibe's autocomplete.** Check `.agents/skills/` exists and contains the `spec-kitty.<command>/SKILL.md` files. Run `spec-kitty doctor`. If the manifest is present but files are missing, run `spec-kitty agent config sync`.
 - **After upgrade, some of my `.codex/prompts/spec-kitty.*.md` files are still there.** The migration preserves files whose content differs from the previous Spec Kitty release's output, interpreting those as user edits. The preserved paths are printed at upgrade time. Port the edits into `.agents/skills/spec-kitty.<command>/SKILL.md` if still needed.
-- **A third-party tool complains that `.agents/skills/` changed.** Spec Kitty only ever writes and deletes files it owns (tracked in `.kittify/skills-manifest.json`). If a third-party file was affected, it's a bug — open an issue with the repro.
+- **A third-party tool complains that `.agents/skills/` changed.** Spec Kitty only ever writes and deletes files it owns (tracked in `.kittify/command-skills-manifest.json`). If a third-party file was affected, it's a bug — open an issue with the repro.

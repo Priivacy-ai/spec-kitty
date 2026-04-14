@@ -181,7 +181,7 @@ Create test fixtures under `tests/specify_cli/upgrade/fixtures/codex_legacy/`:
 
 Tests in `tests/specify_cli/upgrade/test_m_3_2_0_codex_to_skills.py`:
 
-- **`clean` fixture**: migration runs, `.agents/skills/spec-kitty.*/SKILL.md` exists for 16 commands, `.kittify/skills-manifest.json` has 16 entries with `agents=("codex",)`. No `.codex/prompts/` created.
+- **`clean` fixture**: migration runs, `.agents/skills/spec-kitty.*/SKILL.md` exists for 16 commands, `.kittify/command-skills-manifest.json` has 16 entries with `agents=("codex",)`. No `.codex/prompts/` created.
 - **`owned_unedited_only` fixture**: after migration, `.codex/prompts/` is empty (directory removed), `.agents/skills/` populated, manifest correct, no preservation notice printed.
 - **`mixed` fixture**: after migration, Spec-Kitty-owned files removed, `my-own-prompt.md` still present, `.codex/prompts/` not removed (it's not empty), `.agents/skills/` populated.
 - **`user_edited` fixture**: after migration, `spec-kitty.specify.md` still on disk unchanged, `spec-kitty.plan.md` removed, `.agents/skills/` populated, preservation notice printed listing `spec-kitty.specify.md` path.

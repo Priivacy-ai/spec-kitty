@@ -6,13 +6,13 @@
 
 ## Summary
 
-Deliver Mistral Vibe as a fully supported Spec Kitty coding agent in the next release, and in the same release retire the deprecated `.codex/prompts/` integration by serving Codex through a new Agent Skills rendering pipeline. The pipeline is **deliberately scoped to Codex and Vibe only** — P0 research (see `research.md`) showed that moving every agent's commands into the skills layer would lose deterministic argument substitution on Codex and potentially on Vibe, and would degrade TUI autocomplete UX on opencode. The twelve agents that today have a working command layer with `$ARGUMENTS` / `{{args}}` substitution keep their current command-file pipeline untouched. A central JSON ownership manifest at `.kittify/skills-manifest.json` tracks every skill package Spec Kitty writes into `.agents/skills/` so that additive installation, selective removal, and zero-touch Codex upgrade all hold without clobbering third-party skill entries.
+Deliver Mistral Vibe as a fully supported Spec Kitty coding agent in the next release, and in the same release retire the deprecated `.codex/prompts/` integration by serving Codex through a new Agent Skills rendering pipeline. The pipeline is **deliberately scoped to Codex and Vibe only** — P0 research (see `research.md`) showed that moving every agent's commands into the skills layer would lose deterministic argument substitution on Codex and potentially on Vibe, and would degrade TUI autocomplete UX on opencode. The twelve agents that today have a working command layer with `$ARGUMENTS` / `{{args}}` substitution keep their current command-file pipeline untouched. A central JSON ownership manifest at `.kittify/command-skills-manifest.json` tracks every skill package Spec Kitty writes into `.agents/skills/` so that additive installation, selective removal, and zero-touch Codex upgrade all hold without clobbering third-party skill entries.
 
 ## Technical Context
 
 **Language/Version**: Python 3.11+ (existing spec-kitty runtime).
 **Primary Dependencies**: `ruamel.yaml` (existing) for `SKILL.md` frontmatter, `typer` + `rich` (existing) for CLI surfaces, stdlib `hashlib` for manifest content hashes, stdlib `json` for manifest persistence. No new third-party dependencies.
-**Storage**: Filesystem only. Agent Skills packages written to project-local `.agents/skills/spec-kitty.<command>/`. Ownership recorded in `.kittify/skills-manifest.json`. No DB changes.
+**Storage**: Filesystem only. Agent Skills packages written to project-local `.agents/skills/spec-kitty.<command>/`. Ownership recorded in `.kittify/command-skills-manifest.json`. No DB changes.
 **Testing**: `pytest` — unit tests for the renderer and manifest, integration tests that drive `spec-kitty init --ai vibe --non-interactive` and `spec-kitty upgrade` against fixture projects, snapshot tests for skill-package bytes and for the untouched twelve-agent command output, shared-root coexistence tests that seed `.agents/skills/` with third-party files and assert byte-identity before/after Spec Kitty operations.
 **Target Platform**: macOS and Linux (developer workstations) plus Windows where already supported. No new platform requirements; Vibe install instructions match what Mistral publishes.
 **Project Type**: Single-package Python CLI with generated configuration/template assets. New modules slot into `src/specify_cli/skills/` and `src/specify_cli/upgrade/migrations/`.
@@ -59,7 +59,7 @@ src/specify_cli/
 │   ├── manifest.py                      # existing; extend with command-skill ownership entries
 │   ├── command_renderer.py              # NEW — renders command-templates/*.md as SKILL.md packages for Codex + Vibe
 │   ├── command_installer.py             # NEW — writes/removes Spec-Kitty-owned command-skill packages into .agents/skills/ with manifest bookkeeping
-│   └── manifest_store.py                # NEW — load/save/diff .kittify/skills-manifest.json with content hashes
+│   └── manifest_store.py                # NEW — load/save/diff .kittify/command-skills-manifest.json with content hashes
 ├── runtime/
 │   └── agent_commands.py                # edit: route codex and vibe through command_installer; skip legacy .codex/prompts path
 ├── cli/commands/
@@ -95,7 +95,7 @@ The mission commits to these decisions, which are load-bearing for both the desi
 
 1. **Scope of the new renderer.** The Agent Skills renderer is scoped to Codex and Vibe only. The twelve command-layer agents (claude, copilot, gemini, cursor, qwen, opencode, windsurf, kilocode, auggie, roo, q, antigravity) retain their existing command-file rendering unchanged. This is a *correctness* choice, not a scope-reduction choice — moving them would break argument substitution on opencode and degrade autocomplete UX. NFR-005 locks this in with a zero-diff snapshot regression test.
 2. **Argument delivery for Codex and Vibe skills.** The skill body does **not** rely on literal `$ARGUMENTS` pre-substitution. The renderer rewrites the `## User Input` block (and any other inline `$ARGUMENTS` references inside that block) to an explicit instruction telling the model to treat the invocation turn's content as the user input. This matches how Codex Agent Skills actually deliver input today (per research) and keeps us robust if Vibe formalizes different semantics later. Any command-template content outside the `## User Input` block that references `$ARGUMENTS` is flagged at render time as an error so we can't accidentally ship an un-substituted placeholder to a skills-only agent.
-3. **Ownership manifest.** `.kittify/skills-manifest.json` is the single source of truth for which files under `.agents/skills/` belong to Spec Kitty. Each entry records the relative path, the SHA-256 content hash at write time, and the agent keys the entry was installed on behalf of. The manifest is written after a successful install, updated on upgrade, and used by `agent config remove` to compute selective deletion.
+3. **Ownership manifest.** `.kittify/command-skills-manifest.json` is the single source of truth for which files under `.agents/skills/` belong to Spec Kitty. Each entry records the relative path, the SHA-256 content hash at write time, and the agent keys the entry was installed on behalf of. The manifest is written after a successful install, updated on upgrade, and used by `agent config remove` to compute selective deletion.
 4. **Shared-root coexistence semantics.** When multiple shared-root agents (codex, vibe, plus any existing shared-root agent) are configured, Spec Kitty maintains *exactly one* copy of each canonical skill package in `.agents/skills/`. The manifest's `agents` field records every agent that depends on that entry. Removing one agent drops that agent from the list; the package is physically deleted only when the list becomes empty. Third-party subdirectories (not in the manifest) are never touched.
 5. **Legacy Codex cleanup.** The upgrade migration enumerates files under `.codex/prompts/` that match the set of names Spec Kitty would have written in the prior release (`spec-kitty.*.md`). It deletes only those files. Any non-Spec-Kitty files under `.codex/prompts/` are preserved untouched. If the user has edited a Spec-Kitty-owned prompt file in place — detectable because the file's hash does not match the hash the prior Spec Kitty version would have produced — the migration preserves the file and prints a notice listing the divergent paths. No silent discard.
 6. **TUI autocomplete preserved.** The 12 agents retaining command-file rendering keep their autocomplete UX as today. Codex and Vibe get autocomplete through their native skills surface (Codex: `$skill-name` and `/skills`; Vibe: skills appear in the slash-command autocomplete menu per Mistral docs). opencode is explicitly kept on command-file rendering because its skills layer is model-loaded on demand and does not surface in autocomplete.
@@ -136,14 +136,14 @@ All six unknowns were resolved. Full transcripts, quotes, and citations live in 
 See `data-model.md` for full entity definitions. Summary:
 
 - **SkillPackage** — on-disk directory at `.agents/skills/spec-kitty.<command>/` with a `SKILL.md` and optional body files.
-- **SkillsManifest** — parsed representation of `.kittify/skills-manifest.json`. Contains `schema_version: 1` and a list of `ManifestEntry`.
+- **SkillsManifest** — parsed representation of `.kittify/command-skills-manifest.json`. Contains `schema_version: 1` and a list of `ManifestEntry`.
 - **ManifestEntry** — one record per installed skill package: `path` (relative to repo root), `content_hash` (SHA-256), `agents` (sorted list of agent keys), `installed_at` (ISO-8601 UTC), `spec_kitty_version` (CLI version string at write time).
 - **RenderedSkill** — in-memory record holding frontmatter dict + body string; returned from the renderer so tests can assert byte-for-byte output without touching disk.
 - **LegacyCodexPrompt** — used only by the upgrade migration: path and hash of each Spec-Kitty-owned file discovered under `.codex/prompts/`.
 
 ### Contracts
 
-- `contracts/skills-manifest.schema.json` — JSON schema for `.kittify/skills-manifest.json`. Versioned via `schema_version: 1`.
+- `contracts/skills-manifest.schema.json` — JSON schema for `.kittify/command-skills-manifest.json`. Versioned via `schema_version: 1`.
 - `contracts/skill-renderer.contract.md` — Python-level contract for `command_renderer.render()` and `command_installer.install() / remove() / verify()`, documenting inputs, outputs, error conditions, and the User-Input block transformation rule.
 
 ### Command renderer behavior (informative)
@@ -160,7 +160,7 @@ The renderer is **pure**: same inputs produce byte-identical outputs (NFR-004).
 ### Command installer behavior (informative)
 
 `install(repo_root, agent_key)`:
-1. Load `.kittify/skills-manifest.json` (empty if absent).
+1. Load `.kittify/command-skills-manifest.json` (empty if absent).
 2. For each canonical command, call `command_renderer.render(template, agent_key, ...)`.
 3. For each rendered skill: compute relative install path (`.agents/skills/spec-kitty.<command>/SKILL.md`). If the manifest already lists this path and on-disk content matches the manifest hash, just add `agent_key` to the entry's `agents` list (idempotent). Otherwise write the file, record the new entry with `agent_key` in `agents`, update the manifest.
 4. Persist the manifest with sorted keys + trailing newline (minimal git diffs).
