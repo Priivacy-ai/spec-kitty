@@ -16,6 +16,7 @@ AI_CHOICES = {
     "roo": "Roo Code",
     "q": "Amazon Q Developer CLI",
     "antigravity": "Google Antigravity",
+    "vibe": "Mistral Vibe",
 }
 
 MISSION_CHOICES = {
@@ -33,6 +34,7 @@ AGENT_TOOL_REQUIREMENTS: dict[str, tuple[str, str]] = {
     "codex": ("codex", "https://github.com/openai/codex"),
     "auggie": ("auggie", "https://docs.augmentcode.com/cli/setup-auggie/install-auggie-cli"),
     "q": ("q", "https://aws.amazon.com/developer/learning/q-developer-cli/"),
+    "vibe": ("vibe", "https://github.com/mistralai/mistral-vibe"),
 }
 
 SCRIPT_TYPE_CHOICES = {"sh": "POSIX Shell (bash/zsh)", "ps": "PowerShell"}
@@ -50,7 +52,6 @@ AGENT_COMMAND_CONFIG: dict[str, dict[str, str]] = {
     "qwen": {"dir": ".qwen/commands", "ext": "toml", "arg_format": "{{args}}"},
     "opencode": {"dir": ".opencode/command", "ext": "md", "arg_format": "$ARGUMENTS"},
     "windsurf": {"dir": ".windsurf/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
-    "codex": {"dir": ".codex/prompts", "ext": "md", "arg_format": "$ARGUMENTS"},
     "kilocode": {"dir": ".kilocode/workflows", "ext": "md", "arg_format": "$ARGUMENTS"},
     "auggie": {"dir": ".augment/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
     "roo": {"dir": ".roo/commands", "ext": "md", "arg_format": "$ARGUMENTS"},
@@ -72,6 +73,7 @@ AGENT_SKILL_CONFIG: dict[str, dict[str, str | list[str] | None]] = {
     "opencode":     {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".opencode/skills/"]},
     "windsurf":     {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".windsurf/skills/"]},
     "codex":        {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
+    "vibe":         {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/"]},
     "kilocode":     {"class": SKILL_CLASS_NATIVE,  "skill_roots": [".kilocode/skills/"]},
     "auggie":       {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".augment/skills/"]},
     "roo":          {"class": SKILL_CLASS_SHARED,  "skill_roots": [".agents/skills/", ".roo/skills/"]},
