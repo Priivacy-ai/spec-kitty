@@ -98,13 +98,22 @@ def _emit_migrate_nudge() -> None:
     Uses a module-level flag so the nudge appears at most once per CLI
     invocation regardless of how many assets are resolved.  Output goes
     to stderr so it never interferes with ``--json`` output on stdout.
+
+    The runtime path shown in the message is rendered via
+    :func:`specify_cli.paths.render_runtime_path` so Windows users see the
+    real ``%LOCALAPPDATA%\\spec-kitty\\`` path and not a POSIX tilde literal
+    (SC-002 of the Windows Compatibility Hardening mission).
     """
     global _migrate_nudge_shown  # noqa: PLW0603
     if _migrate_nudge_shown:
         return
     _migrate_nudge_shown = True
+    from specify_cli.paths import render_runtime_path  # noqa: PLC0415
+    from specify_cli.runtime.home import get_kittify_home  # noqa: PLC0415
+    runtime_display = render_runtime_path(get_kittify_home())
     print(
-        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the global runtime (~/.kittify/).",
+        "Note: Run `spec-kitty migrate` to clean up legacy project files and use the "
+        f"global runtime ({runtime_display}).",
         file=sys.stderr,
     )
 

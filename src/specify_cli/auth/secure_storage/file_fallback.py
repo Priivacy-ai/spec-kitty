@@ -95,6 +95,17 @@ class FileFallbackStorage(SecureStorage):
     def backend_name(self) -> str:
         return "file"
 
+    @property
+    def store_path(self) -> Path:
+        """Public accessor for the resolved storage directory.
+
+        ``WindowsFileStorage`` and the cross-module single-root tests inspect
+        this attribute to verify Windows consumers resolve under the unified
+        runtime root (FR-005 / C-002).  The underlying ``_dir`` attribute
+        remains private; this property is the stable public surface.
+        """
+        return self._dir
+
     # ---- internal helpers ------------------------------------------------
 
     def _ensure_dir(self) -> None:

@@ -84,7 +84,13 @@ def _noop_ctx() -> object:  # type: ignore[return]
 def test_absent_noop(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    """All three legacy roots absent → three status='absent' outcomes; no writes under LocalAppData."""
+    """All legacy roots absent → status='absent' for each; no writes under LocalAppData.
+
+    Four legacy roots are checked after the DRIFT-3 second-pass fix:
+    spec_kitty_home (``~/.spec-kitty``), kittify_localappdata
+    (``user_data_dir("kittify")`` — the real Windows legacy root),
+    kittify_home (``~/.kittify``), and auth_xdg_home.
+    """
     home, localappdata = _setup_win32_env(monkeypatch, tmp_path)
 
     # Confirm none of the legacy dirs exist.
@@ -94,7 +100,7 @@ def test_absent_noop(
 
     outcomes = migrate_windows_state()
 
-    assert len(outcomes) == 3
+    assert len(outcomes) == 4
     for outcome in outcomes:
         assert outcome.status == "absent", f"Expected absent, got {outcome.status!r} for {outcome.legacy_id}"
 
@@ -211,9 +217,10 @@ def test_idempotent_second_run(
     by_id_first = {o.legacy_id: o for o in first}
     assert by_id_first["spec_kitty_home"].status == "moved"
 
-    # Second run: legacy is gone → all absent.
+    # Second run: legacy is gone → all absent (4 outcomes after DRIFT-3 fix
+    # added kittify_localappdata to the legacy source set).
     second = migrate_windows_state()
-    assert len(second) == 3
+    assert len(second) == 4
     for outcome in second:
         assert outcome.status == "absent", (
             f"Second run: expected 'absent' for {outcome.legacy_id}, got {outcome.status!r}"
