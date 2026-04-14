@@ -20,6 +20,8 @@ subtasks:
 - T028
 - T029
 - T030
+agent: "claude:opus-4.6:implementer:implementer"
+shell_pid: "15157"
 history:
 - timestamp: '2026-04-14T10:41:03Z'
   actor: planner
@@ -248,3 +250,7 @@ Focus on:
 Do NOT ask about:
 - Migration behavior — that's WP02.
 - Auth subsystem — that's WP03.
+
+## Activity Log
+
+- 2026-04-14T12:33:54Z – claude:opus-4.6:implementer:implementer – shell_pid=15157 – Started implementation via action command
