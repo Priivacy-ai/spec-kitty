@@ -173,11 +173,11 @@ WP02 ──┘
 
 **Subtasks**:
 
-- [ ] T023 Edit `cli/commands/init.py` — accept `--ai vibe` and print vibe-specific next steps (WP05)
-- [ ] T024 Edit `cli/commands/verify.py` — detect `vibe` binary (WP05)
-- [ ] T025 Edit `gitignore_manager.py` — protect `.vibe/` (WP05)
-- [ ] T026 Integration test — `init --ai vibe --non-interactive` end-to-end (WP05)
-- [ ] T027 Integration tests — verify-setup detects vibe; `agent config add/remove vibe` (WP05)
+- [x] T023 Edit `cli/commands/init.py` — accept `--ai vibe` and print vibe-specific next steps (WP05)
+- [x] T024 Edit `cli/commands/verify.py` — detect `vibe` binary (WP05)
+- [x] T025 Edit `gitignore_manager.py` — protect `.vibe/` (WP05)
+- [x] T026 Integration test — `init --ai vibe --non-interactive` end-to-end (WP05)
+- [x] T027 Integration tests — verify-setup detects vibe; `agent config add/remove vibe` (WP05)
 
 **Dependencies**: WP04.
 
@@ -250,4 +250,5 @@ Run `spec-kitty agent feature finalize-tasks --feature 083-agent-skills-codex-vi
 - WP01: done
 - WP02: done
 - WP03: done
+- WP04: done
 <!-- status-model:end -->
