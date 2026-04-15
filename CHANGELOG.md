@@ -9,6 +9,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.5] - 2026-04-15
+
+### Changed
+
+- Promote `main` to the stable `4.x` release line. Release docs, install guidance,
+  and README messaging now point new users at `4.1.x` on GitHub Releases and PyPI,
+  while keeping `1.x-maintenance` explicitly maintenance-only.
+
+### Fixed
+
+- Make `spec-kitty upgrade` auto-commit safely through the charter rename migration.
+  The `safe_commit` backstop now disables rename collapsing during its staged-path
+  probe, and upgrade auto-commit expands changed directories into concrete paths
+  before validating the staging area. This closes the false-positive abort reported
+  in [#643](https://github.com/Priivacy-ai/spec-kitty/issues/643).
+- Remove pytest/junit prompt bias from charter defaults, plan templates, and doctrine
+  guidance. Packaged defaults now start from neutral selections, language inference
+  flows through explicit repo signals, and language-scoped doctrine artifacts remain
+  available when no active language filter is provided.
+
+### Docs
+
+- Align README and user-facing release docs around swim-lane terminology and the new
+  `4.1.x` stable release line.
+
 ## [3.1.4] - 2026-04-15
 
 ### Fixed

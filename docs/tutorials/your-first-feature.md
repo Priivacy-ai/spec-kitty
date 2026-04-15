@@ -135,7 +135,7 @@ You should see the feature merged into `main` and the worktrees cleaned up.
 
 ## Troubleshooting
 
-- **"Planning created a worktree"**: Planning stays in the main checkout in `3.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
+- **"Planning created a worktree"**: Planning stays in the main checkout in `4.1.x`. If you see an unexpected planning worktree, upgrade with `spec-kitty upgrade`.
 - **"WP has dependencies"**: Keep following the `spec-kitty next` decisions; the runtime will only issue implementation work when its dependencies are satisfied.
 - **Review fails validation**: Run `spec-kitty validate-tasks --fix` and re-run `/spec-kitty.review`.
 

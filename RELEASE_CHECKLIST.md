@@ -4,7 +4,7 @@ Use this checklist for releases from `main`.
 
 > `main` is the primary release line and publishes both GitHub releases and PyPI packages.
 > `1.x-maintenance` is deprecated overall, reserved for critical maintenance only, and should not receive new PyPI releases.
-> Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 3.x releases ship from `main`.
+> Historical 2.x release notes remain in Git tags and changelog history; new stable and prerelease 4.x releases ship from `main`.
 
 ## Pre-Release Preparation
 
@@ -58,7 +58,7 @@ Use this checklist for releases from `main`.
 - [ ] Add a populated `## [X.Y.Z] - YYYY-MM-DD` section to `CHANGELOG.md`.
 - [ ] For prereleases, use the exact prerelease heading (`## [X.Y.ZaN] - YYYY-MM-DD`, etc.).
 - [ ] Review `README.md` release-track messaging:
-  - `main` should be described as the stable `3.x` line.
+  - `main` should be described as the stable `4.x` line.
   - `1.x-maintenance` should be described as deprecated maintenance-only.
 - [ ] Review installation docs if distribution channels changed.
 - [ ] If new ADRs were added, verify they are filed under the correct versioned architecture path.
@@ -177,7 +177,7 @@ git push origin vX.Y.ZaN
 
 - [ ] If this is a minor or major release, publish release notes and migration guidance.
 - [ ] If release-track policy changed, call it out explicitly:
-  - `main` is the stable `3.x` line
+  - `main` is the stable `4.x` line
   - `1.x-maintenance` is deprecated maintenance-only
   - no new `1.x` PyPI releases are planned
 

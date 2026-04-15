@@ -45,7 +45,7 @@ Spec Kitty addresses this with repository-native artifacts, work package workflo
 
 ---
 
-## 🚀 What You Get in 3.1.x
+## 🚀 What You Get in 4.1.x
 
 | Capability | What Spec Kitty provides |
 |------------|--------------------------|
@@ -101,16 +101,17 @@ graph LR
 
 </div>
 
-**Current stable release line:** `v3.1.x` (current release: `3.1.4` on `main`, GitHub Releases, and PyPI)
+**Current stable release line:** `v4.1.x` (current release: `4.1.5` on `main`, GitHub Releases, and PyPI)
 
-**3.1.x highlights:**
+**4.1.x highlights:**
 - **Runtime loop is the primary workflow** — `spec-kitty next` drives implementation and review, and omitting `--result` is a safe query-only mode
 - **Review and merge resilience** — focused fix prompts, persisted `review-cycle-N.md` artifacts, `merge --resume`, `implement --recover`, and stronger recovery diagnostics in `doctor`
 - **Hosted auth and sync are first-class** — browser-based `spec-kitty auth login`, explicit SaaS rollout gating, and clearer tracker/discovery readiness checks
 - **Charter bundle is now a validated contract** — bundle health can be checked with `spec-kitty charter bundle validate`, and worktrees read canonical charter outputs from the main checkout
 - **Sparse-checkout failures are defended in depth** — merge/implement preflights fail closed, `safe_commit` rejects out-of-scope staging, and `spec-kitty doctor sparse-checkout --fix` repairs legacy repos
+- **Upgrade auto-commit is safer** — rename-heavy migrations and directory-backed changes now commit cleanly during `spec-kitty upgrade` instead of tripping the staging backstop
+- **Charter guidance is language-neutral by default** — packaged defaults no longer bias planning toward pytest/junit, and scoped doctrine assets still load when no active language filter is available
 - **13 slash-command agents are supported** — including first-class Kiro support while retaining legacy `q` compatibility during the rebrand
-- **Slash-command wording is cleaner in 3.1.3/3.1.4** — generated `specify`, `plan`, `implement`, `review`, and `merge` prompts now teach the canonical mission/runtime flow instead of stale command shims
 
 **Jump to:**
 [Getting Started](#-getting-started-complete-workflow) •
@@ -124,17 +125,17 @@ graph LR
 
 ## 📌 Release Track
 
-Spec Kitty now uses `main` as the stable `3.x` release line.
+Spec Kitty now uses `main` as the stable `4.x` release line.
 The former `1.x` line is deprecated and moves to `1.x-maintenance` for maintenance-only fixes.
 
 | Branch | Version | Status | Install |
 |--------|---------|--------|---------|
-| **main** | **3.1.x** | Current stable line | `pip install spec-kitty-cli` |
+| **main** | **4.1.x** | Current stable line | `pip install spec-kitty-cli` |
 | **1.x-maintenance** | **1.x** | Deprecated, maintenance-only | Install from a pinned maintenance tag or source checkout |
 
 **For users:** install the stable line from PyPI with `pip install spec-kitty-cli`.
-**For existing 3.0.x users:** run `spec-kitty upgrade` in each project — the charter rename and mission identity migration are automatic.
-**For existing 1.x or 2.x users:** migrate to `3.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
+**For existing 3.x users:** upgrade to `4.1.x` and run `spec-kitty upgrade` in each project — the charter rename, mission identity, and prompt-neutrality migrations remain automatic.
+**For existing 1.x or 2.x users:** migrate to `4.1.x`; `1.x-maintenance` is maintenance-only and will no longer publish new PyPI releases.
 
 ---
 
@@ -146,7 +147,7 @@ Terminology note:
 - `Mission Type` = reusable blueprint
 - `Mission` = concrete tracked item
 - `Mission Run` = runtime/session instance
-- `--mission` is the canonical flag in 3.1.x; `--feature` is retained only as a hidden deprecated alias
+- `--mission` is the canonical flag in 4.1.x; `--feature` is retained only as a hidden deprecated alias
 
 ```bash
 # Verify host contract
@@ -1180,7 +1181,7 @@ If you encounter issues with an agent, please open an issue so we can refine the
 <details>
 <summary><h2>🚀 Releasing Stable Versions on GitHub and PyPI (Maintainers)</h2></summary>
 
-The stable `3.x` line now lives on `main` and publishes from semantic tags in the form `vX.Y.Z`.
+The stable `4.x` line now lives on `main` and publishes from semantic tags in the form `vX.Y.Z`.
 Prerelease testing builds can also publish from `main` using tags such as `vX.Y.ZaN`.
 The release workflow publishes both GitHub release artifacts and the PyPI package.
 
