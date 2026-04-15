@@ -615,7 +615,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 
 ### Feature
 
-**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more execution worktrees.
+**Definition**: A single unit of work tracked by Spec Kitty. Every feature has its own spec, plan, tasks, and one or more swim-lane worktrees.
 
 > **Mission identity (as of mission 083):** A mission's canonical machine identity is `mission_id` — a ULID minted at creation and immutable for the lifetime of the mission. The three-digit `mission_number` prefix shown in directory names is **display-only metadata** and is assigned at merge time. Selectors use `mission_id`, `mid8` (first 8 chars of the ULID), or `mission_slug`; ambiguous handles return a structured error. See the [mission identity migration runbook](docs/migration/mission-id-canonical-identity.md).
 
@@ -628,7 +628,7 @@ For glossary-first terminology (including semantic-integrity rules), see [`gloss
 - Specification: `/kitty-specs/<human-slug>/spec.md` (directory listing shows `NNN-<human-slug>` once `mission_number` is assigned at merge)
 - Plan: `/kitty-specs/<human-slug>/plan.md`
 - Tasks: `/kitty-specs/<human-slug>/tasks.md`
-- Implementation: `.worktrees/<human-slug>-<mid8>-lane-a/`, `.worktrees/<human-slug>-<mid8>-lane-b/`, and so on (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`)
+- Implementation: swim-lane worktrees such as `.worktrees/<human-slug>-<mid8>-lane-a/`, `.worktrees/<human-slug>-<mid8>-lane-b/`, and so on (e.g. `.worktrees/my-feature-01J6XW9K-lane-a/`)
 
 **Lifecycle**:
 1. `/spec-kitty.specify` – Create the feature and its branch
@@ -944,7 +944,7 @@ spec-kitty accept --json
 |--------|-------------|
 | `--strategy <type>` | Merge strategy: `merge`, `squash`, or `rebase` (default: `merge`) |
 | `--delete-branch` / `--keep-branch` | Delete or keep feature branch after merge (default: delete) |
-| `--remove-worktree` / `--keep-worktree` | Remove or keep resolved execution worktrees after merge (default: remove) |
+| `--remove-worktree` / `--keep-worktree` | Remove or keep resolved swim-lane worktrees after merge (default: remove) |
 | `--push` | Push to origin after merge |
 | `--target <branch>` | Target branch to merge into (default: `main`) |
 | `--dry-run` | Show what would be done without executing |
@@ -1110,7 +1110,7 @@ spec-kitty next --agent <agent> --mission <slug>  # Step 7: Start the agent loop
 # spec-kitty next handles dispatch to agent action implement/review for each WP
 /spec-kitty.review           # Step 9: Review and refine completed work
 /spec-kitty.accept           # Step 10: Acceptance checks & final metadata
-/spec-kitty.merge --push     # Step 11: Merge to main + cleanup execution worktrees
+/spec-kitty.merge --push     # Step 11: Merge to main + cleanup swim-lane worktrees
 
 # ========== BACK IN MAIN REPO ==========
 # Ready for next feature!
