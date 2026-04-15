@@ -70,21 +70,18 @@ def compile_charter(
     selected_paradigms = _sanitize_catalog_selection(
         values=interview.selected_paradigms,
         allowed=set(catalog.paradigms),
-        default=sorted(catalog.paradigms),
         label="selected_paradigms",
         diagnostics=diagnostics,
     )
     selected_directives = _sanitize_catalog_selection(
         values=interview.selected_directives,
         allowed=set(catalog.directives),
-        default=sorted(catalog.directives),
         label="selected_directives",
         diagnostics=diagnostics,
     )
     available_tools = _sanitize_catalog_selection(
         values=interview.available_tools,
         allowed=set(DEFAULT_TOOL_REGISTRY),
-        default=sorted(DEFAULT_TOOL_REGISTRY),
         label="available_tools",
         diagnostics=diagnostics,
     )
@@ -188,7 +185,6 @@ def _sanitize_catalog_selection(
     *,
     values: list[str],
     allowed: set[str],
-    default: list[str],
     label: str,
     diagnostics: list[str],
 ) -> list[str]:
@@ -214,7 +210,7 @@ def _sanitize_catalog_selection(
     if seen:
         return seen
 
-    return list(default)
+    return []
 
 
 def _build_references(

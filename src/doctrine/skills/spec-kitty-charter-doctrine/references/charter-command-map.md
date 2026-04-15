@@ -200,17 +200,20 @@ spec-kitty charter status [--json]
 
 ## Common Workflows
 
-**Bootstrap a new project:**
+**Bootstrap a new project with deterministic defaults:**
 
 ```bash
-spec-kitty charter interview --mission software-dev --profile minimal --defaults --json
+spec-kitty charter interview --mission-type software-dev --profile minimal --defaults --json
 spec-kitty charter generate --from-interview --json
 ```
 
-**Full interactive setup:**
+This is a CLI fallback. For agent-mediated `/spec-kitty.charter`, prefer a chat
+interview and write `answers.yaml` directly before generation.
+
+**Full interactive CLI setup:**
 
 ```bash
-spec-kitty charter interview --mission software-dev --profile comprehensive
+spec-kitty charter interview --mission-type software-dev --profile comprehensive
 spec-kitty charter generate --from-interview
 ```
 
@@ -221,10 +224,10 @@ spec-kitty charter sync --json
 spec-kitty charter status --json
 ```
 
-**Verify governance before a workflow action:**
+**Inspect governance for one workflow action (debugging only):**
 
 ```bash
-spec-kitty charter context --action implement --json
+spec-kitty charter context --action implement --json --no-mark-loaded
 ```
 
 **Force regeneration:**
@@ -232,3 +235,7 @@ spec-kitty charter context --action implement --json
 ```bash
 spec-kitty charter generate --from-interview --force --json
 ```
+
+Do not chain all four action-context calls after generation. That dumps large
+bootstrap payloads into the agent context and consumes first-load state before
+the real workflow reaches those actions.

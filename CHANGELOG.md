@@ -9,6 +9,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.3] - 2026-04-15
+
+### Fixed
+
+- Make `/spec-kitty.charter` use an LLM-led interview by default, with better
+  repo-scan guidance for greenfield/bootstrap repos, explicit doctrine-gap
+  handling, natural-language questioning, depth scaling, and commit-after-generate
+  behavior.
+- Preserve explicit empty `selected_paradigms`, `selected_directives`, and
+  `available_tools` during charter compilation instead of broadening them to
+  packaged defaults.
+
+### Docs
+
+- Add ADR recording that explicit empty charter selections must remain empty and
+  must not silently expand to shipped defaults.
+
 ## [3.1.2] - 2026-04-15
 
 ### Fixed — CI recovery & release readiness

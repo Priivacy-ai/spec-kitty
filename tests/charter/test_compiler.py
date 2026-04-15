@@ -36,6 +36,25 @@ def test_compile_charter_contains_governance_activation_block() -> None:
     assert len(compiled.references) >= 2
 
 
+def test_compile_charter_preserves_explicit_empty_selections() -> None:
+    interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        selected_paradigms=[],
+        selected_directives=[],
+        available_tools=[],
+    )
+
+    compiled = compile_charter(mission="software-dev", interview=interview)
+
+    assert compiled.selected_paradigms == []
+    assert compiled.selected_directives == []
+    assert compiled.available_tools == []
+    assert "selected_paradigms: []" in compiled.markdown
+    assert "selected_directives: []" in compiled.markdown
+    assert "available_tools: []" in compiled.markdown
+
+
 def test_compile_charter_renders_agent_profile_metadata_when_present() -> None:
     interview = default_interview(mission="software-dev", profile="minimal")
     interview = apply_answer_overrides(interview, agent_profile="reviewer", agent_role="reviewer")
