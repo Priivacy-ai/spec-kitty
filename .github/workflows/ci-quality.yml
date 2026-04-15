@@ -1799,6 +1799,18 @@ jobs:
           # `origin/<base>...HEAD` with "no merge base".
           git fetch origin "${{ github.base_ref }}"
 
+          critical_paths=(
+            'src/kernel/*'
+            'src/doctrine/*'
+            'src/charter/*'
+            'src/specify_cli/status/*'
+            'src/specify_cli/core/mission_detection.py'
+            'src/specify_cli/dashboard/handlers/*'
+            'src/specify_cli/dashboard/scanner.py'
+            'src/specify_cli/merge/*'
+            'src/specify_cli/next/*'
+          )
+
           coverage_reports=()
           while IFS= read -r -d '' f; do
             coverage_reports+=("$f")
@@ -1808,23 +1820,22 @@ jobs:
           printf '  %s\n' "${coverage_reports[@]}"
 
           if [ ${#coverage_reports[@]} -eq 0 ]; then
+            critical_diff=$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" -- "${critical_paths[@]}")
+            if [ -z "$critical_diff" ]; then
+              echo "No coverage reports found, but this PR does not touch critical-path files. Skipping diff coverage."
+              exit 0
+            fi
+
             echo "::error::No coverage reports found for diff coverage."
+            echo "::error::Critical-path changes detected:"
+            printf '  %s\n' "$critical_diff"
             exit 1
           fi
 
           diff-cover "${coverage_reports[@]}" \
             --compare-branch=origin/${{ github.base_ref }} \
             --fail-under=90 \
-            --include \
-              'src/kernel/*' \
-              'src/doctrine/*' \
-              'src/charter/*' \
-              'src/specify_cli/status/*' \
-              'src/specify_cli/core/mission_detection.py' \
-              'src/specify_cli/dashboard/handlers/*' \
-              'src/specify_cli/dashboard/scanner.py' \
-              'src/specify_cli/merge/*' \
-              'src/specify_cli/next/*'
+            --include "${critical_paths[@]}"
 
       - name: "diff-coverage (full-diff, advisory)"
         if: always()
