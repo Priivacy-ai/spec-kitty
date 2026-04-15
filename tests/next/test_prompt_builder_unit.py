@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
+from charter.compiler import compile_charter, write_compiled_charter
+from charter.interview import apply_answer_overrides, default_interview
 from tests.lane_test_utils import write_single_lane_manifest
 from specify_cli.next.prompt_builder import (
     _mission_context_header,
@@ -327,6 +330,50 @@ class TestBuildPromptWP:
         assert "--to approved" in text
         assert "REJECT" in text
         assert path.exists()
+        path.unlink()
+
+    def test_implement_prompt_for_non_python_charter_contains_no_python_default_bias(
+        self, feature_with_wp: Path
+    ) -> None:
+        repo_root = feature_with_wp.parent.parent
+        charter_dir = repo_root / ".kittify" / "charter"
+        charter_dir.mkdir(parents=True, exist_ok=True)
+
+        interview = default_interview(mission="software-dev", profile="minimal")
+        interview = apply_answer_overrides(
+            interview,
+            answers={
+                "project_intent": "Build a TypeScript service.",
+                "languages_frameworks": "TypeScript 5, Node.js, and repo-local tooling.",
+                "testing_requirements": "Vitest for unit and integration checks.",
+                "quality_gates": "Project tests pass and project lint/type-check commands pass.",
+            },
+            selected_paradigms=[],
+            selected_directives=[],
+            available_tools=["git", "pnpm"],
+        )
+        compiled = compile_charter(mission="software-dev", interview=interview)
+        write_compiled_charter(charter_dir, compiled, force=True)
+
+        text, path = build_prompt(
+            action="implement",
+            feature_dir=feature_with_wp,
+            mission_slug="042-test-feature",
+            wp_id="WP01",
+            agent="claude",
+            repo_root=repo_root,
+            mission_type="software-dev",
+        )
+        sanitized = text.lower().replace(str(repo_root).lower(), "")
+        for forbidden in (
+            r"\bpytest\b",
+            r"\bjunit\b",
+            r"\bmypy\b",
+            r"\bruff\b",
+            r"\bcargo\b",
+            r"\bjest\b",
+        ):
+            assert re.search(forbidden, sanitized) is None
         path.unlink()
 
 

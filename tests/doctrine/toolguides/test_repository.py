@@ -109,3 +109,43 @@ class TestToolguideRepository:
         assert toolguide.title == "Overridden Title"
         assert toolguide.commands == ["spec-kitty"]
 
+    def test_filters_language_scoped_toolguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-toolguide",
+                    "tool": "pytest",
+                    "title": "Python Toolguide",
+                    "guide_path": "src/doctrine/toolguides/shipped/python.md",
+                    "summary": "Python checks",
+                    "applies_to_languages": ["python"],
+                },
+                handle,
+            )
+        with (shipped / "generic.toolguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-toolguide",
+                    "tool": "git",
+                    "title": "Generic Toolguide",
+                    "guide_path": "src/doctrine/toolguides/shipped/generic.md",
+                    "summary": "Generic checks",
+                },
+                handle,
+            )
+
+        repo = ToolguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        toolguide_ids = {toolguide.id for toolguide in repo.list_all()}
+
+        assert "generic-toolguide" in toolguide_ids
+        assert "python-toolguide" not in toolguide_ids

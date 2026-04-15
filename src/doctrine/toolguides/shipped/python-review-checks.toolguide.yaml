@@ -3,6 +3,8 @@ id: python-review-checks
 tool: python-quality-stack
 title: Python Review Checks
 guide_path: src/doctrine/toolguides/shipped/PYTHON_REVIEW_CHECKS.md
+applies_to_languages:
+  - python
 summary: >
   Catalog of automated checks a reviewer should run or verify have been run
   before approving Python code. Organized by category: formatting, linting,

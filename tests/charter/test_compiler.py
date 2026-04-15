@@ -5,6 +5,7 @@ from unittest.mock import MagicMock
 
 import pytest
 
+from charter.catalog import load_doctrine_catalog
 from charter.compiler import compile_charter, write_compiled_charter
 from charter.interview import (
     CharterInterview,
@@ -33,7 +34,7 @@ def test_compile_charter_contains_governance_activation_block() -> None:
     assert compiled.template_set == "software-dev-default"
     assert "## Governance Activation" in compiled.markdown
     assert "selected_directives" in compiled.markdown
-    assert len(compiled.references) >= 2
+    assert "available_tools: [git, spec-kitty]" in compiled.markdown
 
 
 def test_compile_charter_preserves_explicit_empty_selections() -> None:
@@ -113,6 +114,10 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
     toolguides resolved via the graph, not just paradigms + directives.
     """
     interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=["DIRECTIVE_003"],
+    )
 
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)
 
@@ -123,8 +128,8 @@ def test_compile_with_doctrine_service_none_uses_drg_backed_path() -> None:
     assert not any(fallback_msg in d for d in compiled.diagnostics), (
         f"Unexpected legacy fallback diagnostic: {compiled.diagnostics}"
     )
-    # The DRG-backed path resolves transitive artifacts. For the default
-    # interview the shipped graph should yield at least one tactic.
+    # The DRG-backed path resolves transitive artifacts. With an explicit shipped
+    # directive selection the bundled graph should yield at least one tactic.
     kinds = {reference.kind for reference in compiled.references}
     assert "tactic" in kinds, (
         "DRG-backed path should have resolved transitive tactics; "
@@ -142,6 +147,10 @@ def test_compile_with_repo_root_uses_project_drg_overlay(tmp_path: Path) -> None
     mission review.
     """
     interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=["DIRECTIVE_003"],
+    )
 
     # An empty project overlay at .kittify/doctrine/graph.yaml is enough
     # to prove the repo_root branch executes load_validated_graph. We use
@@ -440,13 +449,17 @@ def test_compile_with_local_support_file_creates_local_reference() -> None:
 def test_compile_local_support_reference_is_additive_not_replacement() -> None:
     """Local support reference must not replace the shipped directive reference."""
     interview = default_interview(mission="software-dev", profile="minimal")
-    directive_id = interview.selected_directives[0] if interview.selected_directives else "DIRECTIVE_004"
+    directive_id = sorted(load_doctrine_catalog().directives)[0]
     decl = LocalSupportDeclaration(
         path="docs/custom-directive.md",
         target_kind="directive",
         target_id=directive_id,
     )
-    interview = apply_answer_overrides(interview, local_supporting_files=[decl])
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=[directive_id],
+        local_supporting_files=[decl],
+    )
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
@@ -460,13 +473,17 @@ def test_compile_local_support_reference_is_additive_not_replacement() -> None:
 def test_compile_local_support_overlap_emits_warning_diagnostic() -> None:
     """When local file targets a shipped directive, a diagnostic warning is emitted."""
     interview = default_interview(mission="software-dev", profile="minimal")
-    directive_id = interview.selected_directives[0] if interview.selected_directives else "DIRECTIVE_004"
+    directive_id = sorted(load_doctrine_catalog().directives)[0]
     decl = LocalSupportDeclaration(
         path="docs/custom.md",
         target_kind="directive",
         target_id=directive_id,
     )
-    interview = apply_answer_overrides(interview, local_supporting_files=[decl])
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=[directive_id],
+        local_supporting_files=[decl],
+    )
 
     compiled = compile_charter(mission="software-dev", interview=interview)
 
@@ -515,6 +532,10 @@ def test_yaml_fallback_resolves_directives_from_shipped_subdirectory() -> None:
     in bundled doctrine.' when DoctrineService was absent.
     """
     interview = default_interview(mission="software-dev", profile="minimal")
+    interview = apply_answer_overrides(
+        interview,
+        selected_directives=["DIRECTIVE_003"],
+    )
 
     # Exercise the YAML scanning fallback explicitly (no DoctrineService)
     compiled = compile_charter(mission="software-dev", interview=interview, doctrine_service=None)

@@ -94,7 +94,7 @@ For each matched section, the parser extracts structured data from:
    - `90%+ coverage` → `testing.min_coverage: 90`
    - `TDD required` → `testing.tdd_required: true`
    - `< 2 seconds` → `performance.cli_timeout_seconds: 2.0`
-   - `mypy --strict` → `testing.type_checking: "mypy --strict"`
+   - `<project-type-checker>` → `testing.type_checking: "<project-type-checker>"`
    - `1 approval` → `quality.pr_approvals: 1`
    - `conventional commits` → `commits.convention: "conventional"`
    - `pre-commit hooks` → `quality.pre_commit_hooks: true`
@@ -109,10 +109,10 @@ from YAML blocks and tables that contain keys like `selected_paradigms`,
 testing:
   min_coverage: 90              # Minimum test coverage %
   tdd_required: false           # TDD mandatory
-  framework: pytest             # Test framework
-  type_checking: "mypy --strict" # Type checker
+  framework: <project-runner>   # Test framework / runner
+  type_checking: "<project-type-checker>" # Type checker
 quality:
-  linting: ruff                 # Linter
+  linting: "<project-linter>"   # Linter
   pr_approvals: 1               # Required approvals before merge
   pre_commit_hooks: false       # Pre-commit hooks required
 commits:
@@ -224,7 +224,7 @@ styleguide = service.styleguides.get("python-conventions")
 ```
 
 **Toolguides** — Operational guidance for specific tools. Teaches agents
-how to use git, pytest, diagramming tools, etc. within the project's
+how to use git, the project's test runner, diagramming tools, etc. within the project's
 governance constraints.
 
 ```python
@@ -301,7 +301,7 @@ with project artifacts taking precedence on field-level merge.
 - `documentation-default` — Documentation creation (Divio)
 - `research-default` — Research and evidence gathering
 
-**Default tool registry:** spec-kitty, git, python, pytest, ruff, mypy, uv
+**Default tool registry:** spec-kitty, git
 
 ### Interview Profiles
 
@@ -346,17 +346,13 @@ answers:
   amendment_process: "..."
   exception_policy: "..."
 selected_paradigms:
-  - "test-first"
+  - "<project-paradigm>"
 selected_directives:
-  - "TEST_FIRST"
+  - "<project-directive>"
 available_tools:
   - "spec-kitty"
   - "git"
-  - "python"
-  - "pytest"
-  - "ruff"
-  - "mypy"
-  - "uv"
+  - "<project-tool>"
 ```
 
 ---
@@ -500,7 +496,7 @@ from doctrine.agent_profiles.profile import TaskContext
 
 context = TaskContext(
     languages=["python"],
-    frameworks=["pytest", "typer"],
+    frameworks=["<project-test-runner>", "typer"],
     file_patterns=["src/**/*.py"],
     domain_keywords=["cli", "testing"],
 )
@@ -511,9 +507,9 @@ profile = service.agent_profiles.find_best_match(context)
 # profile.initialization_declaration → startup context text
 ```
 
-Profiles support hierarchy (`specializes_from` field). A `python-implementer`
-specializes from `implementer`, inheriting base capabilities and adding
-language-specific ones.
+Profiles support hierarchy (`specializes_from` field). Language-specific
+profiles can specialize from `implementer`, inheriting base capabilities and
+adding stack-specific ones.
 
 ### Action-Scoped Doctrine via Action Indices
 

@@ -24,7 +24,7 @@ def test_detect_unfilled_plan_with_template():
 
 **Language/Version**: [e.g., Python 3.11, Swift 5.9, Rust 1.75 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI, UIKit, LLVM or NEEDS CLARIFICATION]
-**Testing**: [e.g., pytest, XCTest, cargo test or NEEDS CLARIFICATION]
+**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
 
 ## Charter Check
 [Gates determined based on charter file]
@@ -97,7 +97,7 @@ def test_validate_plan_filled_strict_mode():
             """# Implementation Plan: [FEATURE]
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
-**Testing**: [e.g., pytest or NEEDS CLARIFICATION]
+**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
 [Gates determined based on charter file]
 # [REMOVE IF UNUSED] Option 1: Single project
 # [REMOVE IF UNUSED] Option 2: Web application
@@ -123,7 +123,7 @@ def test_validate_plan_filled_lenient_mode(capsys):
             """# Implementation Plan: [FEATURE]
 **Language/Version**: [e.g., Python 3.11 or NEEDS CLARIFICATION]
 **Primary Dependencies**: [e.g., FastAPI or NEEDS CLARIFICATION]
-**Testing**: [e.g., pytest or NEEDS CLARIFICATION]
+**Testing**: [Project-specific test approach or NEEDS CLARIFICATION]
 [Gates determined based on charter file]
 # [REMOVE IF UNUSED] Option 1: Single project
 # [REMOVE IF UNUSED] Option 2: Web application

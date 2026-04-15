@@ -25,7 +25,9 @@ def test_default_interview_minimal_uses_minimal_question_set() -> None:
     assert interview.mission == "software-dev"
     assert interview.profile == "minimal"
     assert set(interview.answers.keys()) == set(MINIMAL_QUESTION_ORDER)
-    assert len(interview.selected_directives) >= 1
+    assert interview.selected_paradigms == []
+    assert interview.selected_directives == []
+    assert interview.available_tools == ["git", "spec-kitty"]
 
 
 def test_default_interview_comprehensive_includes_full_questions() -> None:

@@ -2,6 +2,8 @@ schema_version: "1.0"
 id: python-implementation
 title: Python Implementation Styleguide
 scope: code
+applies_to_languages:
+  - python
 principles:
   - Use explicit typing for public functions.
   - Keep functions focused and side effects minimal.

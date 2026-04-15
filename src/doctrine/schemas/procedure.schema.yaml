@@ -103,6 +103,10 @@ properties:
     description: Common mistakes or failure modes to avoid when following this procedure.
     items:
       $ref: '#/definitions/procedure_anti_pattern'
+  applies_to_languages:
+    type: array
+    items:
+      type: string
   notes:
     type: string
     description: Free-form notes, rationale, or supplementary material that does not fit into structured fields.

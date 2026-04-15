@@ -94,6 +94,10 @@ properties:
       type: string
   quality_test:
     type: string
+  applies_to_languages:
+    type: array
+    items:
+      type: string
   references:
     type: array
     items:

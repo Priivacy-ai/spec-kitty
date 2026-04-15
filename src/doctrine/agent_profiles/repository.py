@@ -21,6 +21,8 @@ from pydantic import ValidationError
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from doctrine.shared.scoping import applies_to_languages_match, normalize_languages
+
 from .profile import AgentProfile, Role, TaskContext
 from .validation import reject_agent_profile_inline_refs
 
@@ -181,6 +183,7 @@ class AgentProfileRepository:
         self,
         shipped_dir: Path | None = None,
         project_dir: Path | None = None,
+        active_languages: list[str] | tuple[str, ...] | None = None,
     ):
         """Initialize repository with shipped and/or project directories.
 
@@ -191,6 +194,7 @@ class AgentProfileRepository:
         self._profiles: dict[str, AgentProfile] = {}
         self._shipped_dir = shipped_dir or self._default_shipped_dir()
         self._project_dir = project_dir
+        self._active_languages = normalize_languages(active_languages)
         self._hierarchy_index: dict[str, list[str]] | None = None
         self._load()
 
@@ -220,6 +224,8 @@ class AgentProfileRepository:
                         data, file_path=str(yaml_file)
                     )
                     profile = AgentProfile.model_validate(data)
+                    if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                        continue
                     shipped_profiles[profile.profile_id] = profile
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(
@@ -255,10 +261,14 @@ class AgentProfileRepository:
                     if profile_id in shipped_profiles:
                         # Merge with shipped profile
                         merged = self._merge_profiles(shipped_profiles[profile_id], data)
+                        if not applies_to_languages_match(merged.applies_to_languages, self._active_languages):
+                            continue
                         self._profiles[profile_id] = merged
                     else:
                         # New project-only profile
                         profile = AgentProfile.model_validate(data)
+                        if not applies_to_languages_match(profile.applies_to_languages, self._active_languages):
+                            continue
                         self._profiles[profile.profile_id] = profile
                 except (YAMLError, ValidationError, OSError) as e:
                     warnings.warn(

@@ -25,7 +25,7 @@ if TYPE_CHECKING:
     from charter.interview import CharterInterview
 
 DEFAULT_TEMPLATE_SET = "software-dev-default"
-DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git", "python", "pytest", "ruff", "mypy", "uv"})
+DEFAULT_TOOL_REGISTRY: frozenset[str] = frozenset({"spec-kitty", "git"})
 
 
 class GovernanceResolutionError(ValueError):

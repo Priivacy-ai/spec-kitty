@@ -84,5 +84,6 @@ class Procedure(BaseModel):
     exit_condition: str
     steps: list[ProcedureStep] = Field(min_length=1)
     anti_patterns: list[ProcedureAntiPattern] = Field(default_factory=list)
+    applies_to_languages: list[str] = Field(default_factory=list)
     notes: str | None = None
     references: list[ProcedureReference] = Field(default_factory=list)

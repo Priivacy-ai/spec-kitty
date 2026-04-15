@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+import importlib.resources
+from collections.abc import Iterable
 from dataclasses import dataclass
 from pathlib import Path
-from collections.abc import Iterable
 
 from ruamel.yaml import YAML
 
@@ -142,15 +143,9 @@ QUESTION_PROMPTS: dict[str, str] = {
     "exception_policy": "How should exceptions to the charter be handled?",
 }
 
-_DEFAULT_MISSION_PARADIGMS: dict[str, tuple[str, ...]] = {
-    "software-dev": ("domain-driven-design", "test-first"),
-}
+_DEFAULT_MISSION_PARADIGMS: dict[str, tuple[str, ...]] = {}
 
-_DEFAULT_MISSION_DIRECTIVES: dict[str, tuple[str, ...]] = {
-    # Prefer doctrine-backed test-first defaults for software delivery rather than
-    # selecting the entire directive catalog.
-    "software-dev": ("DIRECTIVE_004", "DIRECTIVE_027"),
-}
+_DEFAULT_MISSION_DIRECTIVES: dict[str, tuple[str, ...]] = {}
 
 
 _UNSET = object()
@@ -229,20 +224,8 @@ def default_interview(
 ) -> CharterInterview:
     """Return deterministic default interview answers."""
     catalog = doctrine_catalog or load_doctrine_catalog()
-
-    answers: dict[str, str] = {
-        "project_intent": "Deliver predictable, testable changes with clear reviewability.",
-        "languages_frameworks": "Python 3.11+, pytest, and repo-local tooling.",
-        "testing_requirements": "pytest with 80%+ coverage and test-first behavior for risky changes.",
-        "quality_gates": "Tests pass, lint clean, type checks pass, and no unresolved review findings.",
-        "review_policy": "At least one focused reviewer approves before merge.",
-        "performance_targets": "CLI operations should complete quickly (typically under 2 seconds).",
-        "deployment_constraints": "Must run on macOS and Linux developer environments.",
-        "documentation_policy": "Update docs whenever command behavior or workflow semantics change.",
-        "risk_boundaries": "Do not relax quality/security standards without explicit maintainer approval.",
-        "amendment_process": "Changes are proposed via PR and reviewed before adoption.",
-        "exception_policy": "Exceptions must be documented in PR notes with scope and sunset criteria.",
-    }
+    defaults = _load_packaged_defaults()
+    answers: dict[str, str] = dict(defaults.get("answers", {}))
 
     if profile == "minimal":
         answers = {key: answers[key] for key in MINIMAL_QUESTION_ORDER}
@@ -262,9 +245,18 @@ def default_interview(
         mission=mission,
         profile=profile,
         answers=answers,
-        selected_paradigms=default_paradigms or sorted(catalog.paradigms),
-        selected_directives=default_directives or sorted(catalog.directives),
-        available_tools=sorted(DEFAULT_TOOL_REGISTRY),
+        selected_paradigms=_normalize_iterable(
+            defaults.get("selected_paradigms"),
+            fallback=default_paradigms,
+        ),
+        selected_directives=_normalize_iterable(
+            defaults.get("selected_directives"),
+            fallback=default_directives,
+        ),
+        available_tools=_normalize_iterable(
+            defaults.get("available_tools"),
+            fallback=sorted(DEFAULT_TOOL_REGISTRY),
+        ),
     )
 
 
@@ -372,6 +364,43 @@ def _normalize_optional_string(raw: object) -> str | None:
         return None
     value = str(raw).strip()
     return value or None
+
+
+def _load_packaged_defaults() -> dict[str, object]:
+    """Load authoritative default interview content from ``defaults.yaml``."""
+    empty = {
+        "answers": {},
+        "selected_paradigms": [],
+        "selected_directives": [],
+        "available_tools": [],
+    }
+    try:
+        defaults_path = importlib.resources.files("charter").joinpath("defaults.yaml")
+        content = defaults_path.read_text(encoding="utf-8")
+    except (FileNotFoundError, ModuleNotFoundError, TypeError):
+        return empty
+
+    yaml = YAML(typ="safe")
+    try:
+        data = yaml.load(content) or {}
+    except Exception:
+        return empty
+
+    if not isinstance(data, dict):
+        return empty
+
+    answers = data.get("answers")
+    normalized_answers = (
+        {str(key): str(value) for key, value in answers.items()}
+        if isinstance(answers, dict)
+        else {}
+    )
+    return {
+        "answers": normalized_answers,
+        "selected_paradigms": _normalize_list(data.get("selected_paradigms")),
+        "selected_directives": _normalize_list(data.get("selected_directives")),
+        "available_tools": _normalize_list(data.get("available_tools")),
+    }
 
 
 def _resolve_default_selection(

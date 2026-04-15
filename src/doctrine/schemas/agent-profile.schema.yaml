@@ -290,6 +290,10 @@ properties:
     type: integer
     description: Maximum number of tasks this agent can handle concurrently
     minimum: 1
+  applies_to_languages:
+    type: array
+    items:
+      type: string
   context-sources:
     $ref: '#/definitions/agent_context_sources'
   specialization:

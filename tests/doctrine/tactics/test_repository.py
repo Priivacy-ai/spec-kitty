@@ -165,3 +165,40 @@ class TestTacticRepository:
         assert loaded.purpose == tactic.purpose
         assert len(loaded.steps) == len(tactic.steps)
         assert len(loaded.references) == len(tactic.references)
+
+    def test_filters_language_scoped_tactics_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-tactic",
+                    "name": "Python Tactic",
+                    "applies_to_languages": ["python"],
+                    "steps": [{"title": "Run Python workflow"}],
+                },
+                handle,
+            )
+        with (shipped / "generic.tactic.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-tactic",
+                    "name": "Generic Tactic",
+                    "steps": [{"title": "Run generic workflow"}],
+                },
+                handle,
+            )
+
+        repo = TacticRepository(shipped_dir=shipped, active_languages=["typescript"])
+        tactic_ids = {tactic.id for tactic in repo.list_all()}
+
+        assert "generic-tactic" in tactic_ids
+        assert "python-tactic" not in tactic_ids

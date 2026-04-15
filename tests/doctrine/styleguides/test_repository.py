@@ -141,3 +141,42 @@ class TestStyleguideRepository:
         assert sg is not None
         assert sg.title == "Overridden Title"
         assert sg.scope.value == "testing"
+
+    def test_filters_language_scoped_styleguides_when_active_languages_do_not_match(
+        self, tmp_path: Path
+    ) -> None:
+        shipped = tmp_path / "shipped"
+        shipped.mkdir()
+
+        yaml = YAML()
+        yaml.default_flow_style = False
+
+        with (shipped / "python.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "python-style",
+                    "title": "Python Style",
+                    "scope": "code",
+                    "applies_to_languages": ["python"],
+                    "principles": ["Use Python idioms"],
+                },
+                handle,
+            )
+        with (shipped / "generic.styleguide.yaml").open("w", encoding="utf-8") as handle:
+            yaml.dump(
+                {
+                    "schema_version": "1.0",
+                    "id": "generic-style",
+                    "title": "Generic Style",
+                    "scope": "code",
+                    "principles": ["Be clear"],
+                },
+                handle,
+            )
+
+        repo = StyleguideRepository(shipped_dir=shipped, active_languages=["typescript"])
+        styleguide_ids = {styleguide.id for styleguide in repo.list_all()}
+
+        assert "generic-style" in styleguide_ids
+        assert "python-style" not in styleguide_ids

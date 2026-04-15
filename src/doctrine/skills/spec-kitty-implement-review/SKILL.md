@@ -194,7 +194,7 @@ The prompt contains all context, acceptance criteria, and review feedback
    CRITICAL: A module with passing tests but no callers is NOT implemented.
    The most common review failure is dead code — tests pass but the feature
    is never invoked from the live command path.
-7. Run tests: pytest tests/... -v
+7. Run the project's declared validation command before handoff
 8. Commit: git add -A && git commit -m "feat(WP##): <description>"
 9. Mark subtasks done: spec-kitty agent tasks mark-status T001 T002 ... --status done
 10. Move to for_review: spec-kitty agent tasks move-task WP## --to for_review --note "Ready for review"
@@ -702,7 +702,7 @@ git show --stat HEAD
 Run the full test suite on main after merge to catch cross-lane integration issues:
 
 ```bash
-pytest tests/ -v
+# Run the validation command declared by this project or mission.
 ```
 
 This is the only point where all WP code from all lanes coexists — earlier

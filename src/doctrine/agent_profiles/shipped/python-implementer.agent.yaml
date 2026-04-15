@@ -3,6 +3,8 @@ name: Python Pedro
 description: Python-specialist implementer applying TDD, type safety, and idiomatic Python 3.12+ practices
 schema-version: "1.0"
 role: implementer
+applies_to_languages:
+  - python
 specializes-from: implementer
 capabilities:
   - python-implementation

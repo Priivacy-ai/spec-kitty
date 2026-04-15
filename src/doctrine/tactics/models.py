@@ -49,6 +49,7 @@ class Tactic(BaseModel):
     purpose: str | None = None
     steps: list[TacticStep] = Field(min_length=1)
     failure_modes: list[str] = Field(default_factory=list)
+    applies_to_languages: list[str] = Field(default_factory=list)
     references: list[TacticReference] = Field(default_factory=list)
     opposed_by: list[Contradiction] = Field(default_factory=list)
     notes: str | None = None

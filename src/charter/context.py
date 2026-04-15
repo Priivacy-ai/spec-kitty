@@ -11,6 +11,7 @@ from pathlib import Path
 from ruamel.yaml import YAML
 from ruamel.yaml.error import YAMLError
 
+from charter.language_scope import infer_repo_languages
 from charter.resolver import GovernanceResolutionError, resolve_governance
 from kernel.atomic import atomic_write
 
@@ -38,7 +39,11 @@ def _build_doctrine_service(repo_root: Path) -> object:
     doctrine_root = resolve_doctrine_root()
     project_root_candidates = [repo_root / "src" / "doctrine", repo_root / "doctrine"]
     project_root = next((path for path in project_root_candidates if path.is_dir()), None)
-    return DoctrineService(shipped_root=doctrine_root, project_root=project_root)
+    return DoctrineService(
+        shipped_root=doctrine_root,
+        project_root=project_root,
+        active_languages=infer_repo_languages(repo_root),
+    )
 
 
 def _normalize_directive_id(raw: str) -> str:

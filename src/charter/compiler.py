@@ -17,6 +17,7 @@ from charter.interview import (
     LocalSupportDeclaration,
     validate_local_support_declarations,
 )
+from charter.language_scope import extract_declared_languages
 from charter.resolver import DEFAULT_TOOL_REGISTRY
 
 if TYPE_CHECKING:
@@ -89,7 +90,8 @@ def compile_charter(
             DRG overlay at ``<repo_root>/.kittify/doctrine/graph.yaml``. When
             ``None`` the compiler uses the shipped layer only.
     """
-    catalog = doctrine_catalog or load_doctrine_catalog()
+    active_languages = extract_declared_languages("\n".join(str(value) for value in interview.answers.values()))
+    catalog = doctrine_catalog or load_doctrine_catalog(active_languages=active_languages)
     diagnostics: list[str] = []
 
     if doctrine_service is None:
@@ -698,7 +700,10 @@ def _render_charter_markdown(
 ) -> str:
     now = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    testing = interview.answers.get("testing_requirements", "Use pytest with measurable coverage goals.")
+    testing = interview.answers.get(
+        "testing_requirements",
+        "Use the project's declared testing approach, or mark it as NEEDS CLARIFICATION.",
+    )
     quality = interview.answers.get("quality_gates", "Tests, lint, and type checks must pass before merge.")
     performance = interview.answers.get("performance_targets", "No explicit performance policy provided.")
     deployment = interview.answers.get("deployment_constraints", "No deployment constraints provided.")

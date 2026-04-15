@@ -28,8 +28,6 @@ context-sources:
     - code-review-incremental
     - language-driven-design
     - reverse-speccing
-  toolguides:
-    - python-review-checks
   additional:
     - review-checklist
     - security-guidelines
@@ -152,7 +150,3 @@ tactic-references:
     rationale: Detect terminology conflicts in diffs as early signals of architectural problems or missing bounded context boundaries
   - id: reverse-speccing
     rationale: Validate that tests serve as executable specifications by reconstructing system understanding from test code alone
-
-toolguide-references:
-  - id: python-review-checks
-    rationale: Catalog of automated checks (ruff, mypy, bandit, pip-audit, import-linter, etc.) to run or verify before approving Python code
