@@ -71,7 +71,9 @@ jobs:
 
       - name: Run tests
         run: |
-          python -m pytest -v --tb=short 2>&1 | tee pytest-output.txt
+          # Exclude windows_ci tests — they run on the native windows-latest
+          # job (ci-windows.yml) and deliberately assume sys.platform == 'win32'.
+          python -m pytest -v --tb=short -m "not windows_ci" 2>&1 | tee pytest-output.txt
           exit ${PIPESTATUS[0]}
 
       - name: Validate release metadata
