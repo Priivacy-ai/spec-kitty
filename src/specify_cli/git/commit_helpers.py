@@ -91,8 +91,20 @@ def assert_staging_area_matches_expected(
     # git diff --cached --name-status outputs one line per staged path:
     #   "D\tdocs/runbooks/file.md"
     #   "M\tscripts/agents/AGENTS.md"
+    #
+    # --no-renames: disable git's default rename detection so each staged
+    # path appears on its own single-path line. With default rename
+    # detection, a staged deletion + addition pair with similar content
+    # (e.g. a filesystem-level rename performed by an upgrade migration and
+    # then staged individually) collapses into a single
+    # "Rxxx\tsrc\tdest" line that the 2-way split below cannot parse,
+    # producing a spurious backstop violation. See
+    # Priivacy-ai/spec-kitty#643. The backstop cares only about which
+    # paths are staged, not whether git classifies a pair as a rename, so
+    # disabling rename detection here strictly narrows the probe without
+    # weakening the safety guarantee.
     result = subprocess.run(
-        ["git", "diff", "--cached", "--name-status"],
+        ["git", "diff", "--cached", "--no-renames", "--name-status"],
         cwd=repo_path,
         capture_output=True,
         text=True,

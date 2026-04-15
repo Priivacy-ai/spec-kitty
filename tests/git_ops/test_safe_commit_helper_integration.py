@@ -5,6 +5,7 @@ These tests verify that status commits don't capture unrelated staged files.
 
 from __future__ import annotations
 
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -356,3 +357,80 @@ def test_safe_commit_does_not_pop_unrelated_existing_stash(git_repo: Path):
 
     assert result is True
     assert "preexisting-stash" in after.stdout
+
+
+def test_safe_commit_allows_rename_like_staging_pair(git_repo: Path):
+    """Regression for Priivacy-ai/spec-kitty#643.
+
+    When an upgrade migration uses filesystem-level rename (``shutil.move``)
+    and safe_commit is subsequently asked to commit both the source (now
+    deleted) and destination (now untracked) paths, git's default rename
+    detection collapses the staged D+A pair into a single ``Rxxx`` entry in
+    ``git diff --cached --name-status``.  Before the fix the backstop parser
+    could not split that 3-column line and fired a spurious
+    ``SafeCommitBackstopError``; after the fix (``--no-renames`` on the
+    backstop probe) the commit succeeds.
+    """
+    # Create and commit a tracked file with enough content for git's rename
+    # detection to fire (similarity score >50%).
+    src_dir = git_repo / ".kittify" / "constitution"
+    src_dir.mkdir(parents=True)
+    src = src_dir / "charter.md"
+    src.write_text(
+        "# Project charter\n"
+        + "\n".join(f"- policy line {n}" for n in range(40))
+        + "\n",
+        encoding="utf-8",
+    )
+    subprocess.run(
+        ["git", "add", str(src.relative_to(git_repo))],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+    )
+    subprocess.run(
+        ["git", "-c", "commit.gpgsign=false", "commit", "-m", "Add charter"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+    )
+
+    # Mimic the 3.1.1_charter_rename migration: filesystem-level rename
+    # with no git involvement.  The old path becomes a D (unstaged), and
+    # the new path becomes untracked.
+    dest_dir = git_repo / ".kittify" / "charter"
+    dest_dir.mkdir(parents=True)
+    dest = dest_dir / "charter.md"
+    shutil.move(str(src), str(dest))
+
+    result = safe_commit(
+        repo_path=git_repo,
+        files_to_commit=[
+            src.relative_to(git_repo),
+            dest.relative_to(git_repo),
+        ],
+        commit_message="chore: apply spec-kitty upgrade changes (3.0.3 -> 3.1.4)",
+        allow_empty=False,
+    )
+
+    assert result is True, "safe_commit must succeed across a filesystem-level rename"
+
+    # Source is gone and destination is tracked at HEAD; working tree clean.
+    status = subprocess.run(
+        ["git", "status", "--porcelain"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert status.stdout == "", f"working tree should be clean, got:\n{status.stdout}"
+
+    tracked = subprocess.run(
+        ["git", "ls-files", ".kittify/"],
+        cwd=git_repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    assert ".kittify/charter/charter.md" in tracked.stdout
+    assert ".kittify/constitution/charter.md" not in tracked.stdout
